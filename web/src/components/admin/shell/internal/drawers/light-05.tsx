@@ -4,18 +4,15 @@ import type { Locale } from "@/lib/site-admin/locales";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { useDashboardText } from "../dashboard-i18n";
 
-import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import {
   Avatar,
   Bullet,
   COLORS,
-  accentAlpha,
   DrawerShell,
   FONTS,
   FieldRow,
   GhostButton,
-  Icon,
   PrimaryButton,
   RepresentationCard,
   RepresentationChip,
@@ -24,20 +21,14 @@ import {
   Section,
   SelectInput,
   StandardFooter,
-  StatDot,
   StateChip,
   StateExplainer,
   TALENT_STATE_LABEL,
   TextArea,
   TextInput,
-  ToggleControl,
   ToggleRow,
-  WEBSITE_STATE,
-  loadAgencySettingsNamespace,
   loadWorkspaceAccountSettings,
-  meetsPlan,
   meetsRole,
-  patchAgencySettingsNamespace,
   updateTalentIdentity,
   updateWorkspaceAccount,
   updateWorkspaceFields,
@@ -46,310 +37,10 @@ import {
   useSaveAndClose
 } from "./drawer-shared";
 
-// Phase 1d (remediation §4): 5 leaf drawer bodies, byte-for-byte from
-// drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
-
-// Q5: extracted from DomainDrawer render so react-hooks/purity stops
-// flagging the Date.now() call. The value is "days until SSL expires"
-// computed against wall-clock — a per-render request-time read, but the
-// rule (correctly) treats render-body Date.now() as impure.
-function daysUntil(iso: string): number {
-  return Math.round((new Date(iso).getTime() - Date.now()) / 86400e3);
-}
-
-export function DomainDrawer() {
-  const queueRouterRefresh = useQueuedRouterRefresh();
-  const { state, closeDrawer, openUpgrade, toast, effectiveTenant } = useAdminShell();
-  const [pending, startTransition] = useTransition();
-  const isStudio = meetsPlan(state.plan, "studio");
-  // I3 — read live domain status from the Website page's source of
-  // truth so the drawer stays in sync with WebsiteDomainPanel.
-  const domain = WEBSITE_STATE.domain;
-  const [customDomain, setCustomDomain] = useState(isStudio ? domain.primaryDomain : "");
-  const [redirectToWww, setRedirectToWww] = useState(domain.redirectsToWww);
-  const [loaded, setLoaded] = useState(false);
-
-  // The assigned Tulala subdomain — always real, comes from the bridge.
-  const tulalaSubdomain = effectiveTenant.domain;
-
-  useEffect(() => {
-    if (!isStudio) { setLoaded(true); return; }
-    let cancelled = false;
-    void loadAgencySettingsNamespace("", "domain").then((r) => {
-      if (cancelled) return;
-      if (r.ok && r.data) {
-        const v = r.data as Record<string, unknown>;
-        if (typeof v.customDomain === "string") setCustomDomain(v.customDomain);
-        if (typeof v.redirectToWww === "boolean") setRedirectToWww(v.redirectToWww);
-      }
-      setLoaded(true);
-    });
-    return () => { cancelled = true; };
-  }, [isStudio]);
-
-  const onSave = () => {
-    startTransition(async () => {
-      const r = await patchAgencySettingsNamespace("", "domain", {
-        customDomain: customDomain.trim(),
-        redirectToWww,
-      });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Domain settings saved"); queueRouterRefresh(); closeDrawer(); }
-    });
-  };
-  const sslDaysLeft = domain.sslExpiresOn ? daysUntil(domain.sslExpiresOn) : null;
-  const dnsAllMatched = (domain.dnsRecords ?? []).every(r => r.matched);
-  const verified = domain.status === "verified" && dnsAllMatched;
-  const sslHealthy = domain.sslStatus === "active";
-  const copyText = (text: string, label: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
-    toast(`${label} copied`);
-  };
-
-  return (
-    <DrawerShell
-      open
-      onClose={closeDrawer}
-      title="Workspace domain"
-      description={
-        isStudio
-          ? `Your storefront runs on ${domain.primaryDomain}.`
-          : `Your storefront is live at ${tulalaSubdomain}.`
-      }
-      width={580}
-      footer={
-        isStudio
-          ? <StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />
-          : undefined
-      }
-    >
-      <Section title="Your Tulala subdomain">
-        <FieldRow label="Subdomain" hint="Always available — your permanent address on the platform.">
-          {/* Read-only subdomain display with one-click copy.
-              Every plan can see and copy this; no plan gate. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center",
-              padding: "9px 12px", borderRadius: 8,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: COLORS.surfaceAlt,
-              fontFamily: "ui-monospace, monospace", fontSize: 13,
-              overflow: "hidden",
-            }}>
-              <span style={{ color: COLORS.inkMuted, marginRight: 2, userSelect: "none" }}>https://</span>
-              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{tulalaSubdomain}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => copyText(`https://${tulalaSubdomain}`, "Subdomain URL")}
-              style={{
-                padding: "7px 14px", borderRadius: 8,
-                border: `1px solid ${COLORS.borderSoft}`,
-                background: "#fff", cursor: "pointer",
-                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
-                color: COLORS.ink, flexShrink: 0,
-              }}
-            >
-              Copy
-            </button>
-          </div>
-        </FieldRow>
-      </Section>
-
-      {isStudio ? (
-        <Section title="Custom domain" description="Point any domain you own at your Tulala storefront.">
-          <FieldRow label="Custom domain" optional>
-            <TextInput
-              value={customDomain}
-              onChange={(e) => setCustomDomain((e.target as HTMLInputElement).value)}
-              placeholder="acme-models.com"
-              prefix="https://"
-            />
-          </FieldRow>
-          <FieldRow label="Redirect bare → www" optional hint="When on, atelier-roma.com is rewritten to www.atelier-roma.com at the edge.">
-            <ToggleControl value={redirectToWww} label="" onChange={(v) => setRedirectToWww(v)} />
-          </FieldRow>
-        </Section>
-      ) : (
-        /* Free tier: show upsell instead of the custom-domain input. */
-        <Section title="Custom domain" description="Run your storefront at your own brand's domain.">
-          <div style={{
-            padding: "16px 16px", borderRadius: 10,
-            background: COLORS.accentSoft, border: `1px solid ${accentAlpha("20")}`,
-            display: "flex", flexDirection: "column", gap: 10,
-          }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
-              Your storefront lives at <span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.accent }}>{tulalaSubdomain}</span>.
-            </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              Want a branded domain? Upgrade to Studio to connect your own domain (e.g.&nbsp;<em>your-agency.com</em>), auto-renew SSL, and use a verified email-from address.
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                closeDrawer();
-                openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain — not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] });
-              }}
-              style={{
-                alignSelf: "flex-start",
-                padding: "8px 16px", borderRadius: 999,
-                border: "none", cursor: "pointer",
-                background: COLORS.accent, color: "#fff",
-                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700,
-              }}
-            >
-              Upgrade to Studio →
-            </button>
-          </div>
-        </Section>
-      )}
-
-      {isStudio && (
-        <Section title="Verification & SSL">
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              padding: 14,
-              display: "flex", flexDirection: "column", gap: 12,
-            }}
-          >
-            {/* Status row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <div className="flex items-center gap-2">
-                <StatDot tone={verified ? "green" : "amber"} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
-                  {verified ? "Domain verified" : "Verification pending"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatDot tone={sslHealthy ? "green" : "amber"} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
-                  SSL {domain.sslStatus}
-                </span>
-                {sslDaysLeft !== null && (
-                  <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                    · renews in {sslDaysLeft} days
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* DNS records */}
-            {domain.dnsRecords && domain.dnsRecords.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                  DNS records
-                </div>
-                <div className="flex flex-col gap-1">
-                  {domain.dnsRecords.map((r, i) => (
-                    <div key={i} style={{
-                      display: "grid", gridTemplateColumns: "60px 80px 1fr auto auto", gap: 8,
-                      padding: "7px 10px", borderRadius: 8,
-                      background: r.matched ? "rgba(46,125,91,0.05)" : "rgba(245,166,35,0.07)",
-                      border: `1px solid ${r.matched ? "rgba(46,125,91,0.15)" : "rgba(245,166,35,0.20)"}`,
-                      fontSize: 11.5, fontFamily: "ui-monospace, monospace",
-                      alignItems: "center",
-                    }}>
-                      <span style={{ fontWeight: 600 }} className="text-admin-ink-muted">{r.type}</span>
-                      <span className="text-admin-ink">{r.host}</span>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{r.value}</span>
-                      <button
-                        type="button"
-                        onClick={() => copyText(r.value, `${r.type} value`)}
-                        style={{
-                          padding: "2px 8px", borderRadius: 999,
-                          border: `1px solid ${COLORS.borderSoft}`,
-                          background: "#fff", cursor: "pointer",
-                          fontSize: 10, fontWeight: 600, color: COLORS.inkMuted,
-                          fontFamily: FONTS.body, letterSpacing: 0.3,
-                        }}
-                      >COPY</button>
-                      <span style={{
-                        color: r.matched ? COLORS.green : "#8a5a1f",
-                        textAlign: "center", fontWeight: 700,
-                        fontFamily: FONTS.body,
-                      }}>
-                        {r.matched ? "✓" : "!"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => toast("Re-checking DNS… (production: hits the verify endpoint)")}
-              style={{
-                alignSelf: "flex-start",
-                padding: "6px 12px", borderRadius: 999,
-                border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
-                color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}
-            >
-              Re-check DNS
-            </button>
-          </div>
-        </Section>
-      )}
-
-      {isStudio && domain.alternateDomains.length > 0 && (
-        <Section title="Alternate domains" description="Additional domains that redirect to the primary.">
-          <div className="flex flex-col gap-1.5">
-            {domain.alternateDomains.map(d => (
-              <div key={d.domain} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px 12px", borderRadius: 10,
-                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-              }}>
-                <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }} className="text-admin-ink">
-                  {d.domain}
-                </span>
-                <span style={{
-                  padding: "2px 9px", borderRadius: 999,
-                  background: d.status === "verified" ? "rgba(46,125,91,0.10)" : "rgba(245,166,35,0.12)",
-                  color: d.status === "verified" ? COLORS.green : "#8a5a1f",
-                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
-                  fontFamily: FONTS.body,
-                }}>
-                  {d.status === "verified" ? "VERIFIED" : "PENDING DNS"}
-                </span>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => toast("Add alternate domain — wires to verification flow in production")}
-              style={{
-                padding: "8px 12px", borderRadius: 10,
-                border: `1px dashed ${COLORS.borderStrong}`, background: "transparent",
-                color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body, textAlign: "left",
-              }}
-            >+ Add alternate domain</button>
-          </div>
-        </Section>
-      )}
-
-      {!isStudio && (
-        <Section title="What Studio unlocks" description="Beyond your Tulala subdomain.">
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-            {["Your own domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address", "Removed from Tulala discovery"].map((p) => (
-              <li key={p} style={{ display: "flex", gap: 10, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
-                <Icon name="check" size={14} stroke={2} color={COLORS.green} />
-                {p}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-    </DrawerShell>
-  );
-}
+// Phase 1d (remediation §4): leaf drawer bodies, extracted from drawers.tsx;
+// referenced ONLY by the DrawerSwitch barrel (zero cross-edges). The fixture
+// DomainDrawer that lived here was DELETED when domain management went real —
+// the "domain" key now renders drawers/domain-drawer.tsx (live registry).
 
 // ════════════════════════════════════════════════════════════════════
 // Identity

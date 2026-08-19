@@ -2596,32 +2596,52 @@ export type PendingReviewRecord = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// Website / domain mock state
+// Website state
 //
 // The website page (workspace surface, page=website) reads everything
-// here. The domain drawer reads `WEBSITE_STATE.domain` so the two
-// surfaces stay in sync. In production each piece maps to its own
-// table — see dev-handoff §27 for the production wiring map.
+// here. `WebsiteDomain` is REAL when the bridge runs: every record row
+// is a projected `agency_domains` registry row (see
+// `mergeWebsiteStateFromBridge` in fixtures.ts), and the domain manager
+// (`WebsiteDomainManager.tsx`) drives the live server actions in
+// `admin/settings/domain-actions.ts` against them.
 // ─────────────────────────────────────────────────────────────────────
 
-type WebsiteDnsRecord = {
-  type: string;
-  host: string;
-  value: string;
-  matched: boolean;
+/** Lifecycle of an `agency_domains` row — mirrors the DB status enum. */
+export type WebsiteDomainRecordStatus =
+  | "pending"
+  | "dns_verification_sent"
+  | "verified"
+  | "ssl_provisioned"
+  | "active"
+  | "failed"
+  | "suspended";
+
+/** One projected `agency_domains` registry row. */
+export type WebsiteDomainRecord = {
+  hostname: string;
+  kind: "subdomain" | "custom";
+  isPrimary: boolean;
+  status: WebsiteDomainRecordStatus;
+  /** TXT ownership-proof token — set while a custom domain awaits DNS
+   *  verification, null for subdomains and once verification finishes. */
+  verificationToken: string | null;
+  verifiedAt: string | null;
+  failureReason: string | null;
 };
-type WebsiteAlternateDomain = {
-  domain: string;
-  status: "verified" | "pending";
-};
+
 export type WebsiteDomain = {
+  /** The address the site actually answers on today. */
   primaryDomain: string;
+  /** Coarse rollup of the primary host's registry status. */
   status: "verified" | "pending" | "unverified";
-  sslStatus: "active" | "pending" | "expired";
-  sslExpiresOn?: string;
-  dnsRecords?: WebsiteDnsRecord[];
-  redirectsToWww: boolean;
-  alternateDomains: WebsiteAlternateDomain[];
+  sslStatus: "active" | "pending";
+  /** Real `agency_domains` rows (subdomains + customs). Empty in
+   *  standalone prototype mode — the manager renders its empty state. */
+  records: WebsiteDomainRecord[];
+  /** Plan gate for connecting a custom domain — computed from the SAME
+   *  source the server action checks (`customDomainEligible`, i.e.
+   *  `builderPlanAllows(plan, "builder.domain.custom")`). */
+  canUseCustomDomain: boolean;
 };
 
 export type WebsitePageRow = {

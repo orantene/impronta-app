@@ -118,7 +118,6 @@ const NOT_YET_ENROLLED: readonly string[] = [
   "src/lib/server-actions/talent-self-profile-sections.ts",
   "src/components/admin/shell/admin-shell.tsx",
   "src/lib/site-admin/sections/registry.ts",
-  "src/components/admin/shell/internal/drawers/light-05.tsx",
   "src/lib/inquiry/guest-chat-contract.ts",
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx",
   "src/lib/site-admin/site-header/actions.ts",

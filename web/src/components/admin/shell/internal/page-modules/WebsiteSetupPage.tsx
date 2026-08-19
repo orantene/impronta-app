@@ -17,7 +17,10 @@
  * projects from live data are rendered as settings:
  *
  *   REAL  — `seo.siteTitle`, `seo.description`, `seo.canonicalDomain`, and the
- *           whole `domain` patch (primary host, DNS status, SSL, DNS records).
+ *           `domain` patch: primary host plus the projected `agency_domains`
+ *           registry rows that `WebsiteDomainManager` operates on. (The old
+ *           claim that "DNS records + SSL" were real here was FALSE — those
+ *           came from the prototype fixture and are gone.)
  *   NOT   — `seo.robotsMode`, `seo.sitemapEnabled` and `seo.titleTemplate` are
  *           spread straight off the `WEBSITE_STATE` prototype fixture (the
  *           template is derived from the tenant name, not a stored setting).
@@ -40,14 +43,14 @@
 import { useRouter } from "next/navigation";
 
 import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
 import { InfoTip } from "@/components/ui/info-tip";
 
 import { Icon } from "../primitives";
-import { meetsRole, useAdminShell } from "../state";
+import { useAdminShell } from "../state";
 import { PageHeader } from "./pages-shared";
 import { WebsiteCustomCode } from "./WebsiteCustomCode";
 import { WebsiteTracking } from "./WebsiteTracking";
+import { WebsiteDomainManager } from "./WebsiteDomainManager";
 
 /** Section shell — heading, one plain sentence, optional trailing action. */
 function SetupSection({
@@ -73,30 +76,6 @@ function SetupSection({
   );
 }
 
-/** Dot + label + value. The Overview equivalent, rebuilt on token classes. */
-function SetupStatusRow({
-  label,
-  ok,
-  value,
-}: {
-  label: string;
-  ok: boolean;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-[8px] text-admin-12h">
-      <span
-        aria-hidden
-        className={`size-[6px] shrink-0 rounded-full ${ok ? "bg-admin-success-deep" : "bg-admin-amber-deep"}`}
-      />
-      <span className="min-w-[64px] text-admin-10h font-semibold uppercase tracking-[0.3px] text-admin-ink-muted">
-        {label}
-      </span>
-      <span className="ml-auto truncate text-right font-medium text-admin-ink">{value}</span>
-    </div>
-  );
-}
-
 /** Label above, value below. Used for the three real search fields. */
 function SetupField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
@@ -117,16 +96,11 @@ export function WebsiteSetupPage() {
   const t = useT();
   const router = useRouter();
   const {
-    state,
-    openDrawer,
     effectiveWebsiteState,
     adminBasePath,
     bridgeSessionIdentity,
   } = useAdminShell();
-  const canEdit = meetsRole(state.role, "admin");
   const w = effectiveWebsiteState;
-  const records = w.domain.dnsRecords ?? [];
-  const matchedRecords = records.filter((r) => r.matched).length;
 
   return (
     <>
@@ -135,55 +109,19 @@ export function WebsiteSetupPage() {
         subtitle={t("dashboard.adminWebsite.setup.subtitle")}
       />
       <div className="flex flex-col gap-[14px]">
-        {/* Web address — the domain summary plus the drawer that changes it. */}
+        {/* Web address — the live `agency_domains` registry, managed in place.
+            Connect / verify / set-primary / remove all run the real server
+            actions; action affordances render only for `manage_agency_domains`
+            holders (the capability the server checks), resolved inside the
+            manager itself. */}
         <SetupSection
           heading={t("dashboard.adminWebsite.setup.addressHeading")}
           helper={t("dashboard.adminWebsite.setup.addressHelper")}
-          action={
-            canEdit ? (
-              <button
-                type="button"
-                onClick={() => openDrawer("domain")}
-                className="shrink-0 cursor-pointer rounded-admin-md border border-admin-border bg-admin-card px-[10px] py-[5px] text-admin-11h font-semibold text-admin-accent-deep"
-              >
-                {t("dashboard.adminWebsite.manageArrow")}
-              </button>
-            ) : undefined
-          }
         >
           <div className="mb-[12px] break-all font-mono text-admin-15 font-semibold text-admin-ink">
             {w.domain.primaryDomain}
           </div>
-          <div className="flex flex-col gap-[7px]">
-            <SetupStatusRow
-              label={t("dashboard.adminWebsite.dnsLabel")}
-              ok={w.domain.status === "verified"}
-              value={
-                w.domain.status === "verified"
-                  ? t("dashboard.adminWebsite.dnsVerified")
-                  : t("dashboard.adminWebsite.dnsPending")
-              }
-            />
-            <SetupStatusRow
-              label={t("dashboard.adminWebsite.sslLabel")}
-              ok={w.domain.sslStatus === "active"}
-              value={
-                w.domain.sslStatus === "active"
-                  ? interpolate(t("dashboard.adminWebsite.sslActiveRenews"), {
-                      date: w.domain.sslExpiresOn ?? "—",
-                    })
-                  : w.domain.sslStatus
-              }
-            />
-            <SetupStatusRow
-              label={t("dashboard.adminWebsite.recordsLabel")}
-              ok={records.length > 0 && matchedRecords === records.length}
-              value={interpolate(t("dashboard.adminWebsite.recordsMatched"), {
-                matched: matchedRecords,
-                total: records.length,
-              })}
-            />
-          </div>
+          <WebsiteDomainManager />
         </SetupSection>
 
         {/* Search settings — ONLY the three fields the bridge really writes. */}

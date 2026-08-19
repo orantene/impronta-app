@@ -221,9 +221,13 @@ export default async function WorkspaceAdminLayout({
   // Same reasoning for the Website → Redirects link: the route gates on
   // `agency.site_admin.pages.edit` (viewers don't have it), so the sidebar
   // resolves the SAME capability rather than guessing from the role.
-  const [canManageBilling, canEditSitePages] = await Promise.all([
+  // `manage_agency_domains` (owner-only) gates the Website domain manager's
+  // action affordances — the SAME capability every domain server action
+  // requires, so the UI can never offer a button the server refuses.
+  const [canManageBilling, canEditSitePages, canManageDomains] = await Promise.all([
     userHasCapability("manage_billing", scope.tenantId),
     userHasCapability("agency.site_admin.pages.edit", scope.tenantId),
+    userHasCapability("manage_agency_domains", scope.tenantId),
   ]);
 
   // P2-C — Site Health. Runs after the capability fan-out because the Forms
@@ -239,6 +243,7 @@ export default async function WorkspaceAdminLayout({
     userId: session.user.id,
     canManageBilling,
     canEditSitePages,
+    canManageDomains,
     email: session.user.email ?? "",
     role: scope.membership.role,
     displayName: profileDisplayName,

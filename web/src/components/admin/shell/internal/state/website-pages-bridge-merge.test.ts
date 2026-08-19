@@ -352,3 +352,66 @@ test("a draft post's publishedAt stays undefined — no fixture-era fabrication 
   });
   assert.equal(mergeWebsiteStateFromBridge(data, "acme").posts[0]!.publishedAt, undefined);
 });
+
+// ── Domain projection (domain management goes REAL) ─────────────────────────
+// `WebsiteState.domain.records` must be the agency_domains registry rows,
+// 1:1, with no fixture spread inventing DNS tables or SSL dates.
+
+test("domain.records projects subdomain + custom registry rows 1:1, token included", () => {
+  const data = bridgeData({
+    domainSummary: {
+      ...emptyDomainSummary,
+      primaryHost: "acme.tulala.digital",
+      primaryHostKind: "subdomain",
+      primaryHostStatus: "active",
+      subdomainHost: "acme.tulala.digital",
+      subdomains: [
+        { hostname: "acme.tulala.digital", isPrimary: true, status: "active" },
+      ],
+      customDomains: [
+        {
+          hostname: "acme-models.com",
+          isPrimary: false,
+          status: "dns_verification_sent",
+          verificationToken: "impronta-verify-deadbeef",
+          verifiedAt: null,
+          failureReason: null,
+        },
+      ],
+    },
+  });
+  const state = mergeWebsiteStateFromBridge(data, "acme", [], "agency");
+  assert.equal(state.domain.records.length, 2);
+  const sub = state.domain.records.find((r) => r.kind === "subdomain")!;
+  assert.equal(sub.hostname, "acme.tulala.digital");
+  assert.equal(sub.isPrimary, true);
+  assert.equal(sub.status, "active");
+  const custom = state.domain.records.find((r) => r.kind === "custom")!;
+  assert.equal(custom.hostname, "acme-models.com");
+  assert.equal(custom.status, "dns_verification_sent");
+  // The TXT ownership token reaches the UI — it was loaded and rendered nowhere.
+  assert.equal(custom.verificationToken, "impronta-verify-deadbeef");
+});
+
+test("empty registry produces empty records, never invented fixture rows", () => {
+  const state = mergeWebsiteStateFromBridge(bridgeData({}), "acme");
+  assert.deepEqual(state.domain.records, []);
+});
+
+test("canUseCustomDomain matches the server's plan gate: agency yes, studio/free no", () => {
+  // Same source as connectCustomDomainAction: builderPlanAllows(plan,
+  // "builder.domain.custom") == customDomainEligible(plan).
+  assert.equal(
+    mergeWebsiteStateFromBridge(bridgeData({}), "acme", [], "agency").domain.canUseCustomDomain,
+    true,
+  );
+  // The OLD drawer unlocked at Studio — the server refuses Studio.
+  assert.equal(
+    mergeWebsiteStateFromBridge(bridgeData({}), "acme", [], "studio").domain.canUseCustomDomain,
+    false,
+  );
+  assert.equal(
+    mergeWebsiteStateFromBridge(bridgeData({}), "acme", [], null).domain.canUseCustomDomain,
+    false,
+  );
+});

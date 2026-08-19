@@ -10,7 +10,7 @@ import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
 import { deriveWebsitePageStatus } from "./website-page-status";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "platform"];
@@ -4851,17 +4851,16 @@ export const WEBSITE_STATE: WebsiteState = {
     sitemapEnabled: true,
     canonicalDomain: "acme-models.tulala.digital",
   },
+  // Standalone prototype mode only. `records` stays EMPTY on purpose: the
+  // domain manager renders real `agency_domains` rows or its empty state,
+  // never an invented DNS table (the old fixture's fake "2/2 matched" rows
+  // and made-up SSL renewal date showed the same lie to every tenant).
   domain: {
     primaryDomain: "acme-models.tulala.digital",
     status: "verified",
     sslStatus: "active",
-    sslExpiresOn: "2026-12-01",
-    dnsRecords: [
-      { type: "CNAME", host: "www",  value: "acme-models.tulala.digital", matched: true },
-      { type: "A",     host: "@",    value: "76.76.21.21",                matched: true },
-    ],
-    redirectsToWww: true,
-    alternateDomains: [],
+    records: [],
+    canUseCustomDomain: false,
   },
   maintenance: {
     enabled: false,
@@ -5058,8 +5057,31 @@ export function mergeWebsiteStateFromBridge(
     };
   });
 
+  // REAL `agency_domains` registry rows, projected 1:1. No fixture spread:
+  // the old `{...WEBSITE_STATE.domain}` carried a fake DNS table ("2/2
+  // matched") and an invented SSL renewal date into every real tenant.
+  const domainRecords: WebsiteDomainRecord[] = [
+    ...live.domainSummary.subdomains.map((row) => ({
+      hostname: row.hostname,
+      kind: "subdomain" as const,
+      isPrimary: row.isPrimary,
+      status: row.status,
+      verificationToken: null,
+      verifiedAt: null,
+      failureReason: null,
+    })),
+    ...live.domainSummary.customDomains.map((row) => ({
+      hostname: row.hostname,
+      kind: "custom" as const,
+      isPrimary: row.isPrimary,
+      status: row.status,
+      verificationToken: row.verificationToken,
+      verifiedAt: row.verifiedAt,
+      failureReason: row.failureReason,
+    })),
+  ];
+
   const domainPatch: WebsiteDomain = {
-    ...WEBSITE_STATE.domain,
     primaryDomain: host,
     status:
       pathHosted ||
@@ -5067,7 +5089,12 @@ export function mergeWebsiteStateFromBridge(
       sslOk
         ? "verified"
         : "pending",
-    sslStatus: sslOk ? "active" : WEBSITE_STATE.domain.sslStatus,
+    sslStatus: sslOk ? "active" : "pending",
+    records: domainRecords,
+    // SAME source the connect action checks: `builderPlanAllows(plan,
+    // "builder.domain.custom")` delegates to `customDomainEligible(plan)`,
+    // which is what `resolveWorkspacePublicAddress` computed here.
+    canUseCustomDomain: address.customDomainEligible,
   };
 
   // Real tenant name (agency_business_identity.public_name), NOT the
