@@ -18,107 +18,30 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { homePage } from "./home";
 import { HOME_ES_COPY, HOME_ES_KEEP_ENGLISH } from "./home-es-copy";
+import { buildLocalizedTree, localizeHref } from "./localize-page";
 import type { ImprontaRebuildPage } from "../shared";
 
-/**
- * Props whose values a VISITOR reads.
- *
- * Deliberately narrow: ids, slugs, image slots, css and config keys are also
- * strings, and translating one would break the page rather than localize it.
- */
-export const HOME_TEXT_PROPS: ReadonlySet<string> = new Set([
-  "text",
-  "label",
-  "title",
-  "subtitle",
-  "heading",
-  "headline",
-  "subheadline",
-  "eyebrow",
-  "eyebrowText",
-  "line1",
-  "line2",
-  "sub",
-  "footnote",
-  "body",
-  "quote",
-  "attribution",
-  "value",
-  "caption",
-  "alt",
-  "seeAllLabel",
-  "emptyStateText",
-  "placeholder",
-  "note",
-]);
-
-/** A URL, not prose — never translated, and prefixed for the locale instead. */
-function isHref(value: string): boolean {
-  return /^https?:|^mailto:|^tel:|^#|^\//.test(value);
-}
-
-export function localizeHomeHref(href: string): string {
-  if (!href.startsWith("/")) return href;
-  if (href === "/es" || href.startsWith("/es/")) return href;
-  return href === "/" ? "/es" : `/es${href}`;
-}
-
-/**
- * Walk the English tree and produce the Spanish one.
- *
- * Node ids are re-prefixed so the two pages can never collide in a surface that
- * holds both (the editor's layer tree, a copy-paste between locales).
- */
-export function buildSpanishHomeTree(source: ReadonlyArray<BuilderNode>): BuilderNode[] {
-  const walk = (value: unknown, key?: string): unknown => {
-    if (Array.isArray(value)) return value.map((entry) => walk(entry));
-    if (!value || typeof value !== "object") {
-      if (typeof value === "string" && key) {
-        if (key === "href") return localizeHomeHref(value);
-        if (HOME_TEXT_PROPS.has(key) && value.trim() && !isHref(value)) {
-          return HOME_ES_COPY[value] ?? value;
-        }
-        if (key === "id") return value.startsWith("rb-") ? `es-${value}` : value;
-      }
-      return value;
-    }
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = walk(v, k);
-    }
-    return out;
-  };
-  return walk(source) as BuilderNode[];
-}
-
-/** Every visitor-facing string in a tree — the test's input. */
-export function collectVisitorText(nodes: unknown): string[] {
-  const out: string[] = [];
-  const walk = (value: unknown, key?: string): void => {
-    if (Array.isArray(value)) return value.forEach((entry) => walk(entry));
-    if (!value || typeof value !== "object") {
-      if (
-        typeof value === "string" &&
-        key &&
-        HOME_TEXT_PROPS.has(key) &&
-        value.trim() &&
-        !isHref(value)
-      ) {
-        out.push(value);
-      }
-      return;
-    }
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) walk(v, k);
-  };
-  walk(nodes);
-  return out;
-}
+export {
+  PAGE_TEXT_PROPS as HOME_TEXT_PROPS,
+  collectVisitorText,
+} from "./localize-page";
 
 /** Strings that are correct in both languages (numerals, symbols, terms of art). */
 export function isAcceptableInSpanish(value: string): boolean {
   if (HOME_ES_KEEP_ENGLISH.has(value)) return true;
-  // Pure numerals / symbols carry no language.
   return !/[a-zA-Z]{3,}/.test(value);
+}
+
+export function localizeHomeHref(href: string): string {
+  return localizeHref(href, "es");
+}
+
+export function buildSpanishHomeTree(source: ReadonlyArray<BuilderNode>): BuilderNode[] {
+  return buildLocalizedTree(source, {
+    locale: "es",
+    copy: HOME_ES_COPY,
+    idPrefix: "es-",
+  });
 }
 
 export const homePageEs: ImprontaRebuildPage = {

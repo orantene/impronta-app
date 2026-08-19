@@ -293,17 +293,14 @@ test("every internal link in the Spanish shell stays in Spanish", () => {
   );
 });
 
-test("the Spanish shell never links to an English-only page", () => {
-  // Shipped live: the four division landings exist in English only, but the
-  // Spanish header and footer listed them, so every Spanish page carried four
-  // 404s in its primary navigation. Nothing errored — the tree validated, the
-  // publish succeeded, and only a click revealed it.
-  const ENGLISH_ONLY = [
-    "fashion-models",
-    "hosts-promoters",
-    "performers",
-    "music-djs",
-  ];
+test("both locales offer the division panel, each pointing at its own pages", () => {
+  // This test used to assert the opposite — that the Spanish shell must NOT
+  // link to the divisions — because those landings existed in English only and
+  // the Spanish menu carried four 404s. The pages exist in Spanish now, so the
+  // contract inverts: the panel is built for both locales, and each locale's
+  // links stay inside its own site. The seeder's dead-link preflight is what
+  // proves that on every write.
+  const DIVISIONS = ["fashion-models", "hosts-promoters", "performers", "music-djs"];
   const collect = (nodes: unknown): string[] => {
     const out: string[] = [];
     const walk = (n: unknown): void => {
@@ -318,26 +315,24 @@ test("the Spanish shell never links to an English-only page", () => {
     return out;
   };
 
-  const { header, footer } = treesForLocale("es");
-  const hrefs = [...collect(header), ...collect(footer)];
-  for (const slug of ENGLISH_ONLY) {
-    const offenders = hrefs.filter((h) => h.includes(`/p/${slug}`));
-    assert.deepEqual(
-      offenders,
-      [],
-      `the Spanish shell links to /p/${slug}, which has no Spanish page`,
-    );
+  for (const locale of ["en", "es"] as const) {
+    const { header, footer } = treesForLocale(locale);
+    const hrefs = [...collect(header), ...collect(footer)];
+    const prefix = locale === "es" ? "/es" : "";
+    for (const slug of DIVISIONS) {
+      assert.ok(
+        hrefs.includes(`${prefix}/p/${slug}`),
+        `[${locale}] the shell lost its /p/${slug} link`,
+      );
+    }
   }
 
-  // English keeps them — this is a locale gate, not a deletion.
-  const en = treesForLocale("en");
-  const enHrefs = [...collect(en.header), ...collect(en.footer)];
-  for (const slug of ENGLISH_ONLY) {
-    assert.ok(
-      enHrefs.some((h) => h.includes(`/p/${slug}`)),
-      `the English shell lost its /p/${slug} link`,
-    );
-  }
+  // And no Spanish link may escape into the English site.
+  const es = treesForLocale("es");
+  const escaped = [...collect(es.header), ...collect(es.footer)].filter(
+    (h) => h.startsWith("/") && h !== "/es" && !h.startsWith("/es/"),
+  );
+  assert.deepEqual(escaped, [], "these Spanish links land on English pages");
 });
 
 test("the Impronta header uses the capabilities it asked for", () => {
