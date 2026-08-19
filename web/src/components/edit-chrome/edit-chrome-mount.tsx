@@ -28,6 +28,7 @@
  * short-circuits on non-storefront and hostless/anonymous requests.
  */
 
+import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
 import { improntaLog } from "@/lib/server/structured-log";
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/server/action-guards";
@@ -162,13 +163,39 @@ export async function EditChromeMount() {
   ) {
     return null;
   }
-  const pageSlug = siteShellSurfaceActive
+  let pageSlug = siteShellSurfaceActive
     ? "__site_shell__"
     : ownership.kind === "directory"
       ? "__directory__"
       : ownership.kind === "builder_page"
         ? ownership.pageSlug
         : null;
+
+  // The ROOT path carries no slug, so `pageSlug` is null here for "/".
+  //
+  // The public renderer resolves the tenant's `pageRoles.home` pointer to decide
+  // what "/" actually is (app/page.tsx). The editor did not — it fell straight
+  // through to the legacy homepage adapter — so for a tenant whose "/" is a
+  // FREEFORM page the two surfaces disagreed about what the homepage even is:
+  // the live site served the freeform page while the builder opened the old
+  // slot-composed row and offered to edit that. An operator could publish edits
+  // all day to a page nobody was looking at.
+  //
+  // Resolving the same pointer here puts both surfaces on one answer. It
+  // returns null unless a PUBLISHED page exists at the pointer for this locale,
+  // so a tenant with no home role (or a dangling one) still gets the legacy
+  // adapter exactly as before.
+  if (
+    !pageSlug &&
+    ownership.kind === "builder_page" &&
+    (ctx.kind === "agency" || ctx.kind === "hub")
+  ) {
+    try {
+      pageSlug = await resolveAgencyHomeSlug(ctx.tenantId, localeContext.locale);
+    } catch {
+      pageSlug = null;
+    }
+  }
 
   // T1-2 — Server-prefetch the composition when the editor is engaged.
   //
