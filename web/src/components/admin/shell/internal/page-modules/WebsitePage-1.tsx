@@ -21,6 +21,7 @@ import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
 import { WebsitePerformance } from "./WebsitePage-2";
 import { WebsiteLaunchpad } from "./WebsiteLaunchpad";
 import { WebsitePagesPage, WebsitePagesPreview } from "./WebsitePagesSurface";
+import { WebsitePostsPage } from "./WebsitePostsPage";
 import { PageHeader } from "./pages-shared";
 import { WebsiteDesignHub } from "./WebsiteDesignHub";
 import { WebsiteDesignTabs } from "./website-design-tabs";
@@ -153,6 +154,7 @@ export function WebsitePage() {
   const isDesignHub = pathname?.endsWith("/website/design") ?? false;
   const isSetup = pathname?.endsWith("/website/setup") ?? false;
   const isPagesRoute = pathname?.endsWith("/website/pages") ?? false;
+  const isPostsRoute = pathname?.endsWith("/website/posts") ?? false;
 
   const [windowOrigin, setWindowOrigin] = useState("");
   useEffect(() => {
@@ -243,6 +245,15 @@ export function WebsitePage() {
       <>
         <WebsiteSubviewTabs active="pages" />
         <WebsitePagesPage />
+      </>
+    );
+  }
+
+  if (isPostsRoute) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="posts" />
+        <WebsitePostsPage />
       </>
     );
   }
@@ -415,17 +426,17 @@ export function WebsitePage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
+                  {/* W3 — fixture author/tags/hits7d were lies (a literal
+                      placeholder, no tags column, no per-post analytics) and
+                      are gone from the row model. The row now shows only what
+                      is real; the full manager lives at /website/posts. */}
                   <div className="min-w-0">
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <PageStatusChip status={p.status} />
-                      <span className="text-admin-ink-dim text-admin-11">{p.author}</span>
+                      <span className="text-admin-ink-dim text-admin-11">{p.lastEditedBy}</span>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{p.title}</div>
-                    <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{p.tags.join(" · ")}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }} className="text-admin-ink-muted">
-                    <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{(p.hits7d ?? 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>{t("dashboard.adminWebsite.hits7d")}</div>
+                    <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{p.slug}</div>
                   </div>
                 </button>
               ))

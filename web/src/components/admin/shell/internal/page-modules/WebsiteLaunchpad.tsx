@@ -111,6 +111,14 @@ export function WebsiteLaunchpad() {
           count: draftPages,
         })}`;
       }
+      case "posts": {
+        if (w.posts.length === 0) return t("dashboard.adminWebsite.launchpadPostsNone");
+        const livePosts = w.posts.filter((p) => p.status === "published").length;
+        return interpolate(t("dashboard.adminWebsite.launchpadPostsMeta"), {
+          live: livePosts,
+          total: w.posts.length,
+        });
+      }
       case "design":
         return t("dashboard.adminWebsite.launchpadDesignReassurance");
       case "redirects":

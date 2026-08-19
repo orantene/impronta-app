@@ -83,6 +83,18 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
         href: `${base}/pages`,
         icon: "layers",
       },
+      // Posts got a real manager in W3 — before it, posts could be SERVED
+      // publicly but not created or edited anywhere in the product. Ungated
+      // like Pages: viewers see the read-only list; the write affordances are
+      // role-gated inside the surface itself.
+      {
+        id: "posts",
+        label: "Posts",
+        i18nKey: "dashboard.adminWebsite.nav.postsLabel",
+        descriptionI18nKey: "dashboard.adminWebsite.nav.postsDescription",
+        href: `${base}/posts`,
+        icon: "pencil",
+      },
       // Design is now an INTERNAL hub, not the external theme deep link it used
       // to be. The theme panel still lives in a drawer inside the storefront
       // editor, but four separate ways to change how the site looks (theme,

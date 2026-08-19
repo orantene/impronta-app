@@ -10,6 +10,7 @@ export interface WebsiteSubnavItem {
   id:
     | "overview"
     | "pages"
+    | "posts"
     | "design"
     | "card-design"
     | "profile-pages"

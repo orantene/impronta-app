@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { mergeWebsiteStateFromBridge } from "./fixtures";
-import type { WebsiteData, WebsitePageItem } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
+import type { TeamMember } from "./types";
+import type {
+  WebsiteData,
+  WebsitePageItem,
+  WebsitePostItem,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import type { WorkspaceDomainSummary } from "@/app/(workspace)/[tenantSlug]/_data-bridge/workspace-config";
 
 /**
@@ -178,4 +183,92 @@ test("hits7d/hits30d are null-honest: a slug absent from topPages stays undefine
   // NOT 0 — absence from the top-8 projection is unknown, not zero.
   assert.equal(missing.hits7d, undefined);
   assert.equal(missing.hits30d, undefined);
+});
+
+// ── W3: posts projection (data-bridge WebsitePostItem -> shell WebsitePost) ──
+
+function post(overrides: Partial<WebsitePostItem>): WebsitePostItem {
+  return {
+    id: "po1",
+    slug: "spring-drop",
+    title: "Spring drop",
+    status: "draft",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    locale: "en",
+    hasExcerpt: false,
+    publishedAt: null,
+    updatedBy: null,
+    ...overrides,
+  };
+}
+
+function member(id: string, name: string): TeamMember {
+  return {
+    id,
+    name,
+    email: `${id}@example.com`,
+    role: "admin",
+    status: "active",
+    initials: name.slice(0, 2).toUpperCase(),
+  };
+}
+
+test("posts project locale/hasExcerpt/publishedAt straight through, slug gains a leading slash", () => {
+  const data = bridgeData({
+    posts: [
+      post({
+        id: "po1",
+        slug: "bts-vogue",
+        locale: "es",
+        hasExcerpt: true,
+        status: "published",
+        publishedAt: "2026-07-01T00:00:00.000Z",
+      }),
+    ],
+  });
+  const row = mergeWebsiteStateFromBridge(data, "acme").posts[0]!;
+  assert.equal(row.slug, "/bts-vogue");
+  assert.equal(row.locale, "es");
+  assert.equal(row.hasExcerpt, true);
+  assert.equal(row.status, "published");
+  assert.equal(row.publishedAt, "2026-07-01T00:00:00.000Z");
+});
+
+test("post status maps every enum value; unknown values collapse to draft", () => {
+  const data = bridgeData({
+    posts: [
+      post({ id: "a", status: "published" }),
+      post({ id: "b", status: "draft" }),
+      post({ id: "c", status: "archived" }),
+      post({ id: "d", status: "garbage" }),
+    ],
+  });
+  const state = mergeWebsiteStateFromBridge(data, "acme");
+  assert.equal(state.posts.find((p) => p.id === "a")!.status, "published");
+  assert.equal(state.posts.find((p) => p.id === "b")!.status, "draft");
+  assert.equal(state.posts.find((p) => p.id === "c")!.status, "archived");
+  assert.equal(state.posts.find((p) => p.id === "d")!.status, "draft");
+});
+
+test("post updatedBy resolves to a member display name the way pages do; unresolvable stays empty", () => {
+  const joana = member("uuid-joana", "Joana Rivera");
+  const data = bridgeData({
+    posts: [
+      post({ id: "a", updatedBy: "uuid-joana" }),
+      post({ id: "b", updatedBy: "uuid-gone" }),
+      post({ id: "c", updatedBy: null }),
+    ],
+  });
+  const state = mergeWebsiteStateFromBridge(data, "acme", [joana]);
+  assert.equal(state.posts.find((p) => p.id === "a")!.lastEditedBy, "Joana Rivera");
+  // A member who left, or no editor recorded, renders NOTHING — never a UUID.
+  assert.equal(state.posts.find((p) => p.id === "b")!.lastEditedBy, "");
+  assert.equal(state.posts.find((p) => p.id === "c")!.lastEditedBy, "");
+});
+
+test("a draft post's publishedAt stays undefined — no fixture-era fabrication from updatedAt", () => {
+  const data = bridgeData({
+    posts: [post({ id: "a", status: "draft", publishedAt: null })],
+  });
+  assert.equal(mergeWebsiteStateFromBridge(data, "acme").posts[0]!.publishedAt, undefined);
 });
