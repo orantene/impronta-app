@@ -39,6 +39,8 @@ export type FormattedActivity = {
   iconName: ActivityIconName;
   /** Relative label, e.g. "2m ago". */
   timestamp: string;
+  /** The raw instant behind `timestamp`, for <time dateTime>. */
+  iso: string;
   /** Day bucket for grouping: "Today" | "Yesterday" | "Earlier". */
   dayBucket: "Today" | "Yesterday" | "Earlier";
 };
@@ -167,6 +169,7 @@ export function formatRecentActivity(
     target,
     iconName: meta?.icon ?? "bolt",
     timestamp: relativeTime(item.created_at, now),
+    iso: item.created_at,
     dayBucket: bucketFor(item.created_at, now),
   };
 }
