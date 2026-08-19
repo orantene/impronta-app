@@ -52,7 +52,9 @@ import { formatPageUpdatedAt } from "./WebsitePage-2";
 
 type Period = "7d" | "30d";
 
-const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
+// USD-first: the platform operating currency (loadPlatformOperatingCurrency)
+// is USD — never a hardcoded €. Booking revenue is aggregated in USD.
+const fmtMoney = (n: number) => `$${n.toLocaleString()}`;
 
 /** Pill period switcher — 7d / 30d. */
 function PeriodSwitch({
