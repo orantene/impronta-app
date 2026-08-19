@@ -327,6 +327,13 @@ export type BridgeData = {
      * `agency_memberships` like ordinary workspaces.
      */
     isPlatformAdmin?: boolean;
+    /** Server-resolved `manage_billing`; nav must agree with route gates. */
+    canManageBilling?: boolean;
+    /** Server-resolved `agency.site_admin.pages.edit` — gates Website → Redirects. */
+    canEditSitePages?: boolean;
+    /** Server-resolved `manage_agency_domains` (owner-only) — gates the
+     *  Website domain manager's action affordances. */
+    canManageDomains?: boolean;
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────

@@ -202,7 +202,10 @@ const BUDGETS: Record<string, number> = {
   // offering Archive/Delete on the rows the cms_pages guard trigger protects.
   // +3: W3 posts row model — fixture author/tags/hits7d replaced by real
   // locale/hasExcerpt/lastEditedBy projection (comment lines in the merge).
-  "src/components/admin/shell/internal/state/fixtures.ts": 5188,
+    // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): the Posts, Analytics
+  // and domain-registry projections all landed in this file from separate
+  // branches, so the true count is their sum, not any one branch's number.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5215,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -327,7 +330,9 @@ const BUDGETS: Record<string, number> = {
   // Rebase reconciliation (W2 onto W3, 2026-08-18): the Posts row-model fields
   // (#1258) and the Analytics fields above landed in this file from separate
   // branches, so the true count is the sum rather than either branch's number.
-  "src/components/admin/shell/internal/state/types.ts": 2846,
+    // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): same three branches,
+  // same shared type surface — the sum, not any single branch's figure.
+  "src/components/admin/shell/internal/state/types.ts": 2866,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
@@ -340,7 +345,7 @@ const BUDGETS: Record<string, number> = {
   // +2 (2388 → 2390): `canEditSitePages` on bridgeSessionIdentity, so the
   // Website → Redirects nav link is gated on the same capability its route
   // enforces instead of on a role proxy.
-  "src/components/admin/shell/internal/state/context.tsx": 2390,
+  "src/components/admin/shell/internal/state/context.tsx": 2393,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

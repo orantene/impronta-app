@@ -192,11 +192,8 @@
     }
   },
   "src/components/admin/shell/internal/drawers/light-05.tsx": {
-    "max-lines": {
-      "count": 1
-    },
     "ratchet/no-new-inline-style": {
-      "count": 47
+      "count": 19
     }
   },
   "src/components/admin/shell/internal/drawers/light-06.tsx": {

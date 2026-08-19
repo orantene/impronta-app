@@ -463,6 +463,9 @@ type Ctx = {
     canManageBilling?: boolean;
     /** Server-resolved `agency.site_admin.pages.edit` — gates Website → Redirects. */
     canEditSitePages?: boolean;
+    /** Server-resolved `manage_agency_domains` (owner-only) — gates the
+     *  Website domain manager's action affordances. */
+    canManageDomains?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity

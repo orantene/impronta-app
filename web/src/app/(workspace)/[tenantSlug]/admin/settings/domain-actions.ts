@@ -26,7 +26,7 @@ import {
   normalizeCustomDomainHostname,
   pickFallbackSubdomainHostname,
 } from "./domain-utils";
-type DomainReturnTo = "settings" | "site";
+type DomainReturnTo = "settings" | "site" | "website";
 
 function domainPath(
   tenantSlug: string,
@@ -37,6 +37,11 @@ function domainPath(
   const params = new URLSearchParams({ [messageKey]: message });
   if (returnTo === "site") {
     return `/${tenantSlug}/admin/site?${params.toString()}`;
+  }
+  // Website → Setup hosts the live domain manager (`WebsiteDomainManager`);
+  // its forms post returnTo="website" so every outcome lands back beside it.
+  if (returnTo === "website") {
+    return `/${tenantSlug}/admin/website/setup?${params.toString()}`;
   }
   params.set("section", "domain");
   return `/${tenantSlug}/admin/settings?${params.toString()}`;
@@ -64,7 +69,10 @@ function readTextField(formData: FormData, key: string): string {
 }
 
 function readReturnTo(formData: FormData): DomainReturnTo {
-  return formData.get("returnTo") === "site" ? "site" : "settings";
+  const raw = formData.get("returnTo");
+  if (raw === "site") return "site";
+  if (raw === "website") return "website";
+  return "settings";
 }
 
 async function loadManagedDomainContext(tenantSlug: string, returnTo: DomainReturnTo) {
@@ -242,6 +250,7 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
+  revalidatePath(`/${tenantSlug}/admin/website/setup`);
   redirectWithDomainMessage(
     tenantSlug,
     `DNS instructions are ready for ${hostname}. Add the TXT record to verify it.${vercelProvisioningHint}`,
@@ -290,6 +299,7 @@ export async function verifyCustomDomainNowAction(formData: FormData): Promise<v
     const transition = await verifyCustomDomainRecord(supabase, domain);
     revalidatePath(`/${tenantSlug}/admin/settings`);
     revalidatePath(`/${tenantSlug}/admin/site`);
+    revalidatePath(`/${tenantSlug}/admin/website/setup`);
     if (transition.status === "verified") {
       scheduleWorkspaceAudit({
         tenantId: scope.tenantId,
@@ -391,6 +401,7 @@ export async function switchPrimaryDomainAction(formData: FormData): Promise<voi
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
+  revalidatePath(`/${tenantSlug}/admin/website/setup`);
   redirectWithDomainMessage(
     tenantSlug,
     domain.kind === "custom"
@@ -506,6 +517,7 @@ export async function removeCustomDomainAction(formData: FormData): Promise<void
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
+  revalidatePath(`/${tenantSlug}/admin/website/setup`);
   redirectWithDomainMessage(
     tenantSlug,
     domain.is_primary
@@ -557,6 +569,7 @@ export async function checkCustomDomainProvisioningAction(formData: FormData): P
     const transition = await syncCustomDomainProvisioning(supabase, domain);
     revalidatePath(`/${tenantSlug}/admin/settings`);
     revalidatePath(`/${tenantSlug}/admin/site`);
+    revalidatePath(`/${tenantSlug}/admin/website/setup`);
 
     if (transition.status === "active") {
       scheduleWorkspaceAudit({

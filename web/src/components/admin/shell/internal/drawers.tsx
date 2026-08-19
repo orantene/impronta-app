@@ -28,7 +28,8 @@ import { TenantSummaryDrawer, SiteSetupDrawer, PlanBillingDrawer } from "./drawe
 import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
 import { TalentApprovalsDrawer, BrandingDrawer, WatermarkEditorDrawer } from "./drawers/light-04";
-import { DomainDrawer, IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDrawer, MyProfileDrawer } from "./drawers/light-05";
+import { IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDrawer, MyProfileDrawer } from "./drawers/light-05";
+import { WorkspaceDomainDrawer } from "./drawers/domain-drawer";
 import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
 import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
@@ -105,7 +106,7 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "watermark-editor":
       return <WatermarkEditorDrawer />;
     case "domain":
-      return <DomainDrawer />;
+      return <WorkspaceDomainDrawer />;
     case "identity":
       return <IdentityDrawer />;
     case "workspace-settings":
