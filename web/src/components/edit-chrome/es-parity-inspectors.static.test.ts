@@ -55,6 +55,13 @@ const DYNAMIC_PROP =
  * neither turns into a place to dump real copy.
  */
 const CODE_VALUE_SAMPLES: ReadonlySet<string> = new Set([
+  // Placeholder EXAMPLES of operator content, not UI chrome: the field shows
+  // what a good answer looks like, and a Spanish operator types their own.
+  "Book talent",
+  "New",
+  // A CSS token, shown as a placeholder so the operator knows a theme token is
+  // accepted where a colour is expected. Translating it would break the value.
+  "var(--token-color-accent)",
   ".2s",
   "0s",
   "0.6s",

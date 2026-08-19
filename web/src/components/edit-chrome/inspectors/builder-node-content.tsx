@@ -92,6 +92,16 @@ interface BuilderNodeContentInspectorProps {
  * thumbnails and helper copy — a freeform nav and a curated header should not
  * teach an operator two different vocabularies for the same decision.
  */
+/**
+ * Surfaces, in the operator's words. The schema calls them bar/menu; an
+ * operator thinks "the row across the top" and "the phone menu".
+ */
+const NAV_LINK_PLACEMENT_OPTIONS = [
+  { value: "both", label: "Both" },
+  { value: "bar", label: "Top bar only" },
+  { value: "menu", label: "Phone menu only" },
+] as const;
+
 const NAV_MOBILE_MENU_OPTIONS: Array<{
   value: string;
   label: string;
@@ -1986,6 +1996,116 @@ export function BuilderNodeContentInspector({
                   How the collapsed hamburger menu opens on mobile.
                 </Helper>
               </Field>
+              {/* Phone menu contents. Grouped with the other mobile controls so
+                  the drawer is configured in one place rather than split
+                  between "how it opens" and "what is in it". */}
+              <Field flush>
+                <FieldLabel>Phone menu button</FieldLabel>
+                <input
+                  key={`nav-cta-label-${node.id}`}
+                  defaultValue={node.props.menu?.ctaLabel ?? ""}
+                  className={KIT.input}
+                  placeholder="Book talent"
+                  onBlur={(event) => {
+                    const next = event.currentTarget.value.trim();
+                    void commitPatch({
+                      menu: { ...(node.props.menu ?? {}), ctaLabel: next || undefined },
+                    });
+                  }}
+                />
+                <input
+                  key={`nav-cta-href-${node.id}`}
+                  defaultValue={node.props.menu?.ctaHref ?? ""}
+                  className={`${KIT.input} mt-1.5`}
+                  placeholder="/p/contact"
+                  onBlur={(event) => {
+                    const next = event.currentTarget.value.trim();
+                    void commitPatch({
+                      menu: { ...(node.props.menu ?? {}), ctaHref: next || undefined },
+                    });
+                  }}
+                />
+                <Helper>
+                  Pinned to the bottom of the open menu. Needs both a label and a
+                  destination to appear.
+                </Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Also in the phone menu</FieldLabel>
+                <div className="flex flex-col gap-1.5">
+                  {([
+                    ["showSocial", "Social links row"],
+                    ["showLanguageToggle", "Language row"],
+                  ] as const).map(([key, label]) => (
+                    <label
+                      key={`nav-menu-${key}-${node.id}`}
+                      className="flex items-center gap-2 text-[12px] text-stone-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={node.props.menu?.[key] === true}
+                        onChange={(event) => {
+                          void commitPatch({
+                            menu: {
+                              ...(node.props.menu ?? {}),
+                              [key]: event.currentTarget.checked || undefined,
+                            },
+                          });
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <Helper>
+                  Each one hides itself when it has nothing to show, so an empty
+                  row never appears.
+                </Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Phone menu groups</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.menu?.groups ?? "inline"}
+                  onChange={(next) => {
+                    void commitPatch({
+                      menu: {
+                        ...(node.props.menu ?? {}),
+                        groups: next === "inline" ? undefined : (next as "collapsible"),
+                      },
+                    });
+                  }}
+                  options={[
+                    { value: "inline", label: "Always open" },
+                    { value: "collapsible", label: "Collapsible" },
+                  ]}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Phone menu spacing</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.menu?.density ?? "comfortable"}
+                  onChange={(next) => {
+                    void commitPatch({
+                      menu: {
+                        ...(node.props.menu ?? {}),
+                        density:
+                          next === "comfortable"
+                            ? undefined
+                            : (next as "compact" | "spacious"),
+                      },
+                    });
+                  }}
+                  options={[
+                    { value: "compact", label: "Compact" },
+                    { value: "comfortable", label: "Comfortable" },
+                    { value: "spacious", label: "Spacious" },
+                  ]}
+                />
+              </Field>
               <Field flush>
                 <FieldLabel>Hamburger button label</FieldLabel>
                 <input
@@ -2051,6 +2171,96 @@ export function BuilderNodeContentInspector({
                 Colours for the open mobile menu. Any CSS colour or a theme token
                 such as var(--token-color-ink). Leave blank for the default card.
               </Helper>
+              {/* Mega layout — only meaningful once "Mega" is the submenu
+                  style, so it stays hidden rather than sitting there inert. */}
+              {node.props.submenuVariant === "mega" ? (
+                <>
+                  <Field flush>
+                    <FieldLabel>Mega columns</FieldLabel>
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={String(node.props.megaColumns ?? "")}
+                      onChange={(next) => {
+                        void commitPatch({
+                          megaColumns: next ? (Number(next) as 2 | 3 | 4) : undefined,
+                        });
+                      }}
+                      options={[
+                        { value: "", label: "Auto" },
+                        { value: "2", label: "2" },
+                        { value: "3", label: "3" },
+                        { value: "4", label: "4" },
+                      ]}
+                    />
+                  </Field>
+                  <Field flush>
+                    <FieldLabel>Mega panel width</FieldLabel>
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={node.props.megaWidth ?? "anchored"}
+                      onChange={(next) => {
+                        void commitPatch({
+                          megaWidth:
+                            next === "anchored" ? undefined : (next as "full"),
+                        });
+                      }}
+                      options={[
+                        { value: "anchored", label: "Under the link" },
+                        { value: "full", label: "Full width" },
+                      ]}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              <Field flush>
+                <FieldLabel>Link hover</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.linkHover ?? "underline"}
+                  onChange={(next) => {
+                    void commitPatch({
+                      linkHover:
+                        next === "underline"
+                          ? undefined
+                          : (next as "fade" | "none"),
+                    });
+                  }}
+                  options={[
+                    { value: "underline", label: "Underline" },
+                    { value: "fade", label: "Fade" },
+                    { value: "none", label: "None" },
+                  ]}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Accent colour</FieldLabel>
+                <div className="flex items-center gap-2">
+                  <ColorSwatchButton
+                    color={node.props.accentColor ?? ""}
+                    ariaLabel="Pick the nav accent colour"
+                    onChange={(next) => {
+                      void commitPatch({ accentColor: next });
+                    }}
+                  />
+                  <input
+                    key={`nav-accent-${node.id}-${node.props.accentColor ?? ""}`}
+                    defaultValue={node.props.accentColor ?? ""}
+                    className={KIT.input}
+                    placeholder="var(--token-color-accent)"
+                    onBlur={(event) => {
+                      void commitTextInput("accentColor", node.props.accentColor ?? "", true)(
+                        event.currentTarget.value,
+                      );
+                    }}
+                  />
+                </div>
+                <Helper>
+                  Used by the link underline, badges and the phone menu button.
+                </Helper>
+              </Field>
               <Field flush>
                 <FieldLabel>Auto-populate links from</FieldLabel>
                 <select
@@ -2194,6 +2404,88 @@ export function BuilderNodeContentInspector({
                           void commitPatch({ links: nextLinks });
                         }}
                       />
+                    </Field>
+                    {/* v2 link fields. Each is optional; leaving them alone
+                        renders the link exactly as before. */}
+                    <IconPicker
+                      label="Icon"
+                      value={link.icon ?? null}
+                      searchTerms="nav link icon glyph"
+                      onChange={(icon) => {
+                        const nextLinks = links.map((l, i) =>
+                          i === linkIndex
+                            ? { ...l, icon: icon ?? undefined }
+                            : l,
+                        );
+                        void commitPatch({ links: nextLinks });
+                      }}
+                    />
+                    <Field flush>
+                      <FieldLabel>Description</FieldLabel>
+                      <input
+                        key={`${link.id}:desc:${link.description ?? ""}`}
+                        defaultValue={link.description ?? ""}
+                        className={KIT.input}
+                        placeholder="Shown under the label in a dropdown"
+                        onBlur={(event) => {
+                          const next = event.currentTarget.value.trim();
+                          if (next === (link.description ?? "")) return;
+                          const nextLinks = links.map((l, i) =>
+                            i === linkIndex
+                              ? { ...l, description: next || undefined }
+                              : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      />
+                      <Helper>
+                        Only shows in a dropdown or mega panel. The top bar stays
+                        one line.
+                      </Helper>
+                    </Field>
+                    <Field flush>
+                      <FieldLabel>Badge</FieldLabel>
+                      <input
+                        key={`${link.id}:badge:${link.badge ?? ""}`}
+                        defaultValue={link.badge ?? ""}
+                        className={KIT.input}
+                        placeholder="New"
+                        onBlur={(event) => {
+                          const next = event.currentTarget.value.trim();
+                          if (next === (link.badge ?? "")) return;
+                          const nextLinks = links.map((l, i) =>
+                            i === linkIndex ? { ...l, badge: next || undefined } : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      />
+                    </Field>
+                    <Field flush>
+                      <FieldLabel>Where it shows</FieldLabel>
+                      <Segmented
+                        fullWidth
+                        compact
+                        value={link.placement ?? "both"}
+                        onChange={(next) => {
+                          const nextLinks = links.map((l, i) =>
+                            i === linkIndex
+                              ? {
+                                  ...l,
+                                  placement:
+                                    next === "both"
+                                      ? undefined
+                                      : (next as "bar" | "menu"),
+                                }
+                              : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                        options={NAV_LINK_PLACEMENT_OPTIONS}
+                      />
+                      <Helper>
+                        One set of links. Choose where each one shows, so nothing
+                        has to be retyped for mobile.
+                      </Helper>
                     </Field>
                     {/* A3 — submenu (child links) editor. A link with no
                         children renders as a flat link; adding children turns it
