@@ -133,7 +133,13 @@ const BUDGETS: Record<string, number> = {
   // shipped 0-height cards on two live pages). The move costs a widened
   // media gate for fit/focal-point, an explicit image check on Crop, and two
   // comments recording why the controls are no longer media-gated.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5573,
+  // +25 (5573 -> 5598): the viewport patcher splits its patch by whether the
+  // renderer has a breakpoint lane for each key. Thirty keys do not have one,
+  // and writing them into responsive[viewport] saved a value that emitted
+  // nothing — the control reported success and the page never changed. They
+  // now route to the base style, where they render. Mostly the comment
+  // explaining why, which is the part a reader needs.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5598,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the

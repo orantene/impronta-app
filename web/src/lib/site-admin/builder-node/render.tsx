@@ -5452,12 +5452,13 @@ export function renderBuilderNodes(
 function hasRevealOnViewNode(nodes: ReadonlyArray<BuilderNode>): boolean {
   const styleReveals = (style: BuilderNodeStyle | undefined): boolean => {
     if (!style) return false;
-    if (style.revealOnView && style.revealOnView !== "none") return true;
-    const t = style.responsive?.tablet?.revealOnView;
-    const m = style.responsive?.mobile?.revealOnView;
-    return (
-      (t !== undefined && t !== "none") || (m !== undefined && m !== "none")
-    );
+    // BASE only. `revealOnView` has no breakpoint lane — the attribute that
+    // arms a node (`data-bn-reveal`) is written from the base style alone — so
+    // a breakpoint-scoped value armed nothing while still pulling the
+    // IntersectionObserver runtime into the page. Dead script bytes on every
+    // visit. The panel now routes this key to the base style, which is where
+    // it renders.
+    return Boolean(style.revealOnView && style.revealOnView !== "none");
   };
   const visit = (node: BuilderNode): boolean => {
     const style = "props" in node ? (node.props as { style?: BuilderNodeStyle }).style : undefined;

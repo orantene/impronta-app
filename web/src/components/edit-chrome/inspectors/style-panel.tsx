@@ -27,6 +27,7 @@ import type {
   NodePresentation,
   NodePresentationValue,
 } from "@/lib/site-admin/sections/shared/node-presentation";
+import { isResponsivePlumbedStyleKey } from "@/lib/site-admin/builder-node/responsive-style-keys";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -2989,6 +2990,30 @@ export function StylePanel({
       standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
         ? standaloneStyleDraftRef.current.style
         : selectedStandaloneStyleNode.props.style;
+
+    // Thirty style keys have no breakpoint lane in the renderer. Written into
+    // `responsive[viewport]` they validate, save, and read back into the field
+    // on reload — and emit nothing. The control reports success and the page
+    // never changes, which is the one kind of feedback an operator cannot
+    // argue with and cannot debug.
+    //
+    // So route those keys to the BASE style instead: the setting takes effect
+    // (for every screen size, the honest scope for a key with no per-screen
+    // lane) rather than disappearing. Hover and the transition escape already
+    // work exactly this way — see patchSelectedBaseStyle below.
+    if (selectedViewport !== "desktop") {
+      const desktopOnly: Record<string, unknown> = {};
+      const scoped: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        (isResponsivePlumbedStyleKey(key) ? scoped : desktopOnly)[key] = value;
+      }
+      if (Object.keys(desktopOnly).length > 0) {
+        patchSelectedBaseStyle(desktopOnly as Partial<BuilderNodeStyle>);
+        if (Object.keys(scoped).length === 0) return;
+        patch = scoped as Partial<BuilderNodeStyleValue>;
+      }
+    }
+
     const nextStyle =
       selectedViewport === "desktop"
         ? cleanBuilderNodeStyle({
