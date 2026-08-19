@@ -28,8 +28,6 @@ export const LEGAL_ES_COPY: Record<string, string> = {
   "service.": "servicio.",
   "The ground rules for using this site and booking through the agency, written to be read, not skimmed past.":
     "Las reglas del juego para usar este sitio y reservar a través de la agencia, escritas para leerse, no para pasarse por alto.",
-  "Template draft. These terms are a plain-language starting point prepared for Impronta and have not yet been reviewed by legal counsel. Before relying on them, the agency should have them reviewed and adapted to its current corporate details and Mexican law.":
-    "Borrador de plantilla. Estos términos son un punto de partida en lenguaje claro preparado para Impronta y aún no han sido revisados por un abogado. Antes de apoyarse en ellos, la agencia debe someterlos a revisión legal y adaptarlos a sus datos corporativos vigentes y a la ley mexicana.",
   "1. Who we are": "1. Quiénes somos",
   'This website is operated by Impronta, a boutique model and talent agency working in Tulum, Playa del Carmen and the wider Riviera Maya, Mexico. In these terms, "Impronta", "the agency", "we" and "us" refer to the agency, and "you" refers to anyone using this site, sending an inquiry, or applying for representation.':
     'Este sitio web es operado por Impronta, una agencia boutique de modelos y talento que trabaja en Tulum, Playa del Carmen y el resto de la Riviera Maya, México. En estos términos, "Impronta", "la agencia" y "nosotros" se refieren a la agencia, y "tú" se refiere a cualquier persona que use este sitio, envíe una solicitud o se postule para representación.',
@@ -78,8 +76,6 @@ export const LEGAL_ES_COPY: Record<string, string> = {
   "policy.": "privacidad.",
   "What we collect, why we collect it and who ever sees it, explained the way we would want it explained to us.":
     "Qué recopilamos, para qué lo recopilamos y quién llega a verlo, explicado como querríamos que nos lo explicaran a nosotros.",
-  "Template draft. This policy is a plain-language starting point prepared for Impronta and has not yet been reviewed by legal counsel. Mexican data-protection law (LFPDPPP) sets specific requirements for a formal aviso de privacidad; the agency should have counsel confirm and complete this text before relying on it.":
-    "Borrador de plantilla. Este aviso es un punto de partida en lenguaje claro preparado para Impronta y aún no ha sido revisado por un abogado. La ley mexicana de protección de datos (LFPDPPP) fija requisitos específicos para un aviso de privacidad formal; la agencia debe pedir a su abogado confirmar y completar este texto antes de apoyarse en él.",
   "1. Who is responsible": "1. Quién es el responsable",
   "Impronta, a boutique model and talent agency operating in Tulum and Playa del Carmen, Quintana Roo, Mexico, is responsible for the personal data collected through this site. Questions about this policy reach us through the contact page at /p/contact.":
     "Impronta, agencia boutique de modelos y talento que opera en Tulum y Playa del Carmen, Quintana Roo, México, es la responsable de los datos personales recopilados a través de este sitio. Las dudas sobre este aviso nos llegan por la página de contacto en /es/p/contact.",

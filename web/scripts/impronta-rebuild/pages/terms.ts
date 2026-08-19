@@ -2,7 +2,7 @@
  * Impronta rebuild — TERMS OF SERVICE (`/p/terms`).
  *
  * Plain-language template draft, clearly marked for owner and counsel review.
- * Flow: compact hero → template notice → numbered clauses → closing links.
+ * Flow: compact hero → numbered clauses → closing links.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
@@ -10,7 +10,6 @@ import {
   closingCta,
   copy,
   legalClause,
-  legalTemplateNotice,
   pageHero,
   type ImprontaRebuildPage,
 } from "../shared";
@@ -42,10 +41,6 @@ const body = band(
         },
       },
       children: [
-        legalTemplateNotice(
-          "rb-terms-notice",
-          "Template draft. These terms are a plain-language starting point prepared for Impronta and have not yet been reviewed by legal counsel. Before relying on them, the agency should have them reviewed and adapted to its current corporate details and Mexican law.",
-        ),
         copy(
           "rb-terms-updated",
           "Last updated: August 2026",

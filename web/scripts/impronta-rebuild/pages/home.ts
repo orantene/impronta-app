@@ -47,12 +47,11 @@ const hero = pageHero("rb-home", {
   secondary: { label: "Explore the roster", href: "/directory" },
   footnote: "Agency-managed end to end · first reply within 24 hours",
   imageSlot: "home-hero",
-  // PLACEHOLDER FOOTAGE — owner-sanctioned stand-in ("just take a random video
-  // from youtube so we can see"). Third-party 4K Tulum drone film, verified
-  // embeddable (oembed 200) and gated by the seed preflight. Swap for
-  // Impronta's own reel (c9ARKE2WNxA) the day its YouTube setting allows
-  // embedding: Studio → Edit → Show more → "Allow embedding".
-  videoUrl: "https://www.youtube.com/watch?v=QpCbp9uNgMQ",
+  // Impronta's own reel ("Portada Pag Fuego"). It replaced a third-party
+  // placeholder the day its YouTube "Allow embedding" setting was turned on —
+  // a video can be PUBLIC and still refuse to play off youtube.com, which is
+  // why the seeder's oembed preflight gates this field.
+  videoUrl: "https://www.youtube.com/watch?v=c9ARKE2WNxA",
   imageAlt: "Editorial photograph of an Impronta model at golden hour on the Riviera Maya coast.",
 });
 

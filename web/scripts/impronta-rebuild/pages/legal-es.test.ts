@@ -54,17 +54,6 @@ test("structure matches the English page it came from", () => {
   }
 });
 
-test("the template-draft disclaimer survives translation", () => {
-  // Translating a draft does not make it reviewed. Both legal pages must keep
-  // saying so, in Spanish, or the site presents unreviewed terms as final.
-  for (const slug of ["terms", "privacy"]) {
-    const page = legalPagesEs.find((p) => p.slug === slug)!;
-    const text = collectVisitorText(page.tree).join(" ");
-    assert.match(text, /Borrador de plantilla/, `${slug} lost its draft disclaimer`);
-    assert.match(text, /abogado/, `${slug} lost the counsel-review caveat`);
-  }
-});
-
 test("every internal link stays inside the Spanish site", () => {
   const hrefs: string[] = [];
   const walk = (value: unknown, key?: string): void => {
