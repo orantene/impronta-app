@@ -339,3 +339,44 @@ test("the Spanish shell never links to an English-only page", () => {
     );
   }
 });
+
+test("the Impronta header uses the capabilities it asked for", () => {
+  // Adoption is the point of the program: shipping the machinery and leaving
+  // the live header on the old shape would mean the work is unproven.
+  const { header } = treesForLocale("en");
+  const stack = [...(header as unknown as Array<Record<string, unknown>>)];
+  let nav: { props: Record<string, unknown> } | null = null;
+  while (stack.length) {
+    const n = stack.pop() as { kind?: string; children?: unknown[] };
+    if (n.kind === "nav") nav = n as unknown as { props: Record<string, unknown> };
+    if (Array.isArray(n.children)) stack.push(...(n.children as never[]));
+  }
+  if (!nav) {
+    assert.fail("the header must contain the nav node");
+    return;
+  }
+  assert.equal(nav.props.submenuVariant, "mega", "Divisions is a mega panel now");
+  assert.ok(nav.props.accentColor, "the gold accent drives underline + badges + CTA");
+
+  const menu = nav.props.menu as Record<string, unknown> | undefined;
+  assert.ok(menu, "the phone menu must carry its furniture");
+  assert.ok(menu!.ctaLabel && menu!.ctaHref, "a CTA needs both halves to render");
+  assert.equal(menu!.showSocial, true);
+  assert.equal(menu!.showLanguageToggle, true);
+
+  // The mega panel needs a GROUP (a child with children) or it has no headings.
+  const links = nav.props.links as Array<{
+    id: string;
+    children?: Array<{ children?: unknown[]; icon?: string; description?: string }>;
+    featured?: { title?: string };
+  }>;
+  const divisions = links.find((l) => l.id.endsWith("-divisions"));
+  assert.ok(divisions, "Divisions link missing");
+  const group = divisions!.children?.[0];
+  assert.ok(group?.children?.length, "the panel needs a grouped column");
+  assert.ok(divisions!.featured?.title, "the panel carries a promo card");
+  for (const leaf of group!.children as Array<{ icon?: string; description?: string }>) {
+    assert.ok(leaf.icon, "each division shows a glyph");
+    assert.ok(leaf.description, "each division explains itself in the panel");
+  }
+});
