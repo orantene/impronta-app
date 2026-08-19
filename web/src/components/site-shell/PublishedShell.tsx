@@ -27,6 +27,8 @@ import { Fragment } from "react";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
+import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
@@ -84,6 +86,58 @@ export interface SiteShellRenderHints {
    *  `PublicHeader` / footer (when false → mount them; when true →
    *  skip them so we don't double-render). */
   snapshotShellActive: boolean;
+}
+
+
+/**
+ * Data the shell's NAV drawer can ask for.
+ *
+ * Both of these were reachable from the schema and reachable from the panel,
+ * and reached the renderer as nothing at all: `dataSources.socialLinks` had no
+ * producer anywhere in the codebase (so a `social_links` node "bound" to
+ * workspace_social_links silently fell back to its static links), and
+ * `availableLocales` was a render option no caller supplied. The drawer then
+ * correctly rendered nothing — which is indistinguishable from the feature not
+ * existing.
+ */
+async function resolveShellNavData(
+  tenantId: string,
+  locale: Locale,
+  publicPathPrefix: string,
+): Promise<{
+  socialLinks: ReadonlyArray<{ platform: string; href: string; label?: string }>;
+  availableLocales: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
+}> {
+  const [social, localeSettings] = await Promise.all([
+    resolveShellSocialContact({ tenantId }).catch(() => null),
+    loadTenantLocaleSettings(tenantId).catch(() => null),
+  ]);
+
+  const supported = (localeSettings?.supportedLocales ?? []) as readonly string[];
+  const defaultLocale = (localeSettings?.defaultLocale ?? "en") as string;
+
+  return {
+    socialLinks: (social?.socialLinks ?? []).map((link: {
+      platform: string;
+      href: string;
+      label?: string | null;
+    }) => ({
+      platform: link.platform,
+      href: link.href,
+      label: link.label ?? undefined,
+    })),
+    // One row per locale the tenant actually publishes. The DEFAULT locale is
+    // unprefixed; every other one carries its segment — the same grammar the
+    // language widget uses, so the two cannot disagree.
+    availableLocales: supported.map((code) => ({
+      code,
+      href:
+        code === defaultLocale
+          ? publicPathPrefix || "/"
+          : `${publicPathPrefix}/${code}`,
+      current: code === locale,
+    })),
+  };
 }
 
 /**
@@ -336,6 +390,7 @@ async function renderShellSlot(
     actorSession,
     editModeActive,
     componentStyleDefaults,
+    navData,
   ] =
     await Promise.all([
       treeHasInstances(builderSectionChildren)
@@ -358,6 +413,7 @@ async function renderShellSlot(
       getCachedActorSession(),
       isEditModeActiveForTenant(tenantId),
       loadPublicComponentStyleDefaults(tenantId),
+      resolveShellNavData(tenantId, locale, publicPathPrefix)
     ]);
   // Merge the user collections + the built-in nav collections into one map so
   // every binding (user `collection:<id>` repeaters AND nav cms_page/cms_posts)
@@ -440,7 +496,8 @@ async function renderShellSlot(
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
-            dataSources: { mediaAssets, collections },
+            dataSources: { mediaAssets, collections, socialLinks: navData.socialLinks },
+            availableLocales: navData.availableLocales,
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
             components: builderComponents,
@@ -523,6 +580,7 @@ async function renderFreeformShellSide({
     actorSession,
     editModeActive,
     componentStyleDefaults,
+    navData,
   ] = await Promise.all([
     treeHasInstances(freeformNodes)
       ? loadBuilderComponentsForTenant(tenantId)
@@ -544,6 +602,7 @@ async function renderFreeformShellSide({
     getCachedActorSession(),
     isEditModeActiveForTenant(tenantId),
     loadPublicComponentStyleDefaults(tenantId),
+    resolveShellNavData(tenantId, locale, publicPathPrefix)
   ]);
   const collections =
     userCollections || navCollections
@@ -556,7 +615,8 @@ async function renderFreeformShellSide({
     publicPathPrefix,
     mode: "freeform" as const,
     includeRendererStyles: false,
-    dataSources: { mediaAssets, collections },
+    dataSources: { mediaAssets, collections, socialLinks: navData.socialLinks },
+    availableLocales: navData.availableLocales,
     components: builderComponents,
     visibilityContext,
     componentStyleDefaults,
