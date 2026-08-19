@@ -477,17 +477,28 @@ export function OverviewPage() {
               {t("dashboard.adminOverview.noActivityYet")}
             </div>
           ) : (
-            realActivity.slice(0, 6).map((ev, i) => (
-              <div key={"id" in ev ? ev.id : i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
-                <ActivityFeedItem
-                  actor={ev.actor}
-                  action={ev.action}
-                  target={ev.target}
-                  timestamp={ev.timestamp}
-                  iconName={ev.iconName}
-                />
-              </div>
-            ))
+            // A feed is a list — say so, so screen readers announce it as one
+            // ("list, 6 items") instead of six unrelated blocks. The <li>
+            // wrappers stay here rather than moving into ActivityFeedItem:
+            // that primitive has five other call sites whose markup we would
+            // otherwise have to change in lockstep.
+            <ul
+              style={{ listStyle: "none", margin: 0, padding: 0 }}
+              aria-label={t("dashboard.adminOverview.recentActivity")}
+            >
+              {realActivity.slice(0, 6).map((ev, i) => (
+                <li key={"id" in ev ? ev.id : i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+                  <ActivityFeedItem
+                    actor={ev.actor}
+                    action={ev.action}
+                    target={ev.target}
+                    timestamp={ev.timestamp}
+                    iso={ev.iso}
+                    iconName={ev.iconName}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

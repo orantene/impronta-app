@@ -4,9 +4,18 @@
 //
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { COLORS, FONTS } from "../state";
 import { Icon } from "./icons";
+
+/** Shared by the <time> and plain-<div> timestamp branches so they cannot drift. */
+const TIMESTAMP_STYLE = {
+  fontSize: 11,
+  flexShrink: 0,
+  marginTop: 1,
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+} as const;
 
 // ─── ActivityFeedItem (#32) ───────────────────────────────────────────
 // A single event in a workspace-level or talent-level activity feed.
@@ -16,19 +25,25 @@ export function ActivityFeedItem({
   action,
   target,
   timestamp,
+  iso,
   icon,
   iconName,
 }: {
   actor: string;
   action: string;
   target: string;
+  /** Human label, e.g. "2d ago". */
   timestamp: string;
+  /** ISO instant behind `timestamp`. Optional so the drawer / thread call
+   *  sites keep working unchanged; when given, the label becomes a real
+   *  <time> element carrying the machine-readable instant. */
+  iso?: string;
   icon?: string;
   iconName?: "mail" | "check" | "bolt" | "calendar" | "settings" | "user" | "team" | "archive" | "alert";
 }) {
   return (
     <div
-      className="group flex items-start gap-2.5 py-2.5"
+      className="flex items-start gap-2.5 py-2.5"
       style={{ fontFamily: FONTS.body }}
     >
       <div
@@ -60,12 +75,15 @@ export function ActivityFeedItem({
 
       {/* Timestamp rides the same baseline instead of stacking a second line
           under every row — keeps the feed one row = one line. */}
-      <div
-        className="text-admin-ink-muted"
-        style={{ fontSize: 11, flexShrink: 0, marginTop: 1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
-      >
-        {timestamp}
-      </div>
+      {iso ? (
+        <time dateTime={iso} className="text-admin-ink-muted" style={TIMESTAMP_STYLE}>
+          {timestamp}
+        </time>
+      ) : (
+        <div className="text-admin-ink-muted" style={TIMESTAMP_STYLE}>
+          {timestamp}
+        </div>
+      )}
     </div>
   );
 }
