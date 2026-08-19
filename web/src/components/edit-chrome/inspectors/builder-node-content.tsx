@@ -2921,6 +2921,24 @@ export function BuilderNodeContentInspector({
                           }}
                         />
                       </Field>
+                      {/* The platform still decides the accessible name and the
+                          default mark; this only changes what is DRAWN. So a
+                          network the enum does not know can still show the right
+                          icon, and a partner link can be a plain glyph instead
+                          of being forced into a brand mark. */}
+                      <IconPicker
+                        label="Icon"
+                        value={link.icon ?? null}
+                        allowNone
+                        noneLabel="Platform default"
+                        searchTerms="social icon glyph brand"
+                        onChange={(icon) => {
+                          const nextLinks = socialLinks.map((l, i) =>
+                            i === linkIndex ? { ...l, icon: icon ?? undefined } : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
