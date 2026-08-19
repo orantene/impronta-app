@@ -529,4 +529,10 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // let spread order pick the wording.)
   "Close preview": "Cerrar vista previa",
   "Platform default": "Icono de la plataforma",
+  // Mega column + featured card editors.
+  "Use as a column heading": "Usar como encabezado de columna",
+  "+ Add link to this column": "+ Añadir enlace a esta columna",
+  "Featured card": "Tarjeta destacada",
+  "One line about what is behind the link":
+    "Una línea sobre lo que hay detrás del enlace",
 };

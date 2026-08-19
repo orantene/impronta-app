@@ -49,6 +49,12 @@ import {
 } from "./site-header/thumbnails";
 import type { LengthUnit } from "../kit/number-unit";
 import { IconPicker } from "./field-kit/icon-picker";
+import {
+  addGrandchild,
+  patchFeatured,
+  patchGrandchild,
+  removeGrandchild,
+} from "./nav-link-tree-edits";
 import { ColorSwatchButton } from "./color-swatch-button";
 import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
@@ -2513,6 +2519,73 @@ export function BuilderNodeContentInspector({
                         has to be retyped for mobile.
                       </Helper>
                     </Field>
+                    {/* FEATURED CARD — the one place a menu carries an image.
+                        Renders in the bar's mega panel only (an image tile in
+                        the phone drawer costs a screenful of scrolling for one
+                        destination), so the editor appears under the same
+                        condition rather than offering a field that does
+                        nothing. */}
+                    {node.props.submenuVariant === "mega" ? (
+                      <Field flush>
+                        <FieldLabel>Featured card</FieldLabel>
+                        <input
+                          key={`${link.id}:feat-title:${link.featured?.title ?? ""}`}
+                          defaultValue={link.featured?.title ?? ""}
+                          className={KIT.input}
+                          placeholder="See the full board"
+                          onBlur={(event) => {
+                            void commitPatch({
+                              links: patchFeatured(links, linkIndex, {
+                                title: event.currentTarget.value.trim(),
+                              }),
+                            });
+                          }}
+                        />
+                        <input
+                          key={`${link.id}:feat-href:${link.featured?.href ?? ""}`}
+                          defaultValue={link.featured?.href ?? ""}
+                          className={`${KIT.input} mt-1.5`}
+                          placeholder="/directory"
+                          onBlur={(event) => {
+                            void commitPatch({
+                              links: patchFeatured(links, linkIndex, {
+                                href: event.currentTarget.value.trim(),
+                              }),
+                            });
+                          }}
+                        />
+                        <input
+                          key={`${link.id}:feat-desc:${link.featured?.description ?? ""}`}
+                          defaultValue={link.featured?.description ?? ""}
+                          className={`${KIT.input} mt-1.5`}
+                          placeholder="One line about what is behind the link"
+                          onBlur={(event) => {
+                            void commitPatch({
+                              links: patchFeatured(links, linkIndex, {
+                                description: event.currentTarget.value.trim() || undefined,
+                              }),
+                            });
+                          }}
+                        />
+                        <input
+                          key={`${link.id}:feat-img:${link.featured?.imageSrc ?? ""}`}
+                          defaultValue={link.featured?.imageSrc ?? ""}
+                          className={`${KIT.input} mt-1.5`}
+                          placeholder="Image URL"
+                          onBlur={(event) => {
+                            void commitPatch({
+                              links: patchFeatured(links, linkIndex, {
+                                imageSrc: event.currentTarget.value.trim() || undefined,
+                              }),
+                            });
+                          }}
+                        />
+                        <Helper>
+                          Shows as a promo tile in this link&rsquo;s mega panel.
+                          Clear the title and destination to remove it.
+                        </Helper>
+                      </Field>
+                    ) : null}
                     {/* A3 — submenu (child links) editor. A link with no
                         children renders as a flat link; adding children turns it
                         into a dropdown/mega disclosure (see Submenu style). */}
@@ -2684,6 +2757,124 @@ export function BuilderNodeContentInspector({
                               void commitPatch({ links: nextLinks });
                             }}
                           />
+                          {/* GROUP. A child that has children of its own becomes
+                              a column with its label as the heading (mega) or a
+                              section heading (drawer). The renderer has done
+                              this since the link model landed — until now only
+                              a seeded tree could produce one, so the mega menu
+                              was read-only past level two. */}
+                          {node.props.submenuVariant === "mega" ? (
+                            <div className="mt-1 rounded border border-stone-200 bg-white px-2 py-1.5">
+                              <label className="flex items-center gap-2 text-[11px] text-stone-600">
+                                <input
+                                  type="checkbox"
+                                  checked={(child.children?.length ?? 0) > 0}
+                                  onChange={(event) => {
+                                    const nextChildren = (link.children ?? []).map(
+                                      (c, i) =>
+                                        i === childIndex
+                                          ? {
+                                              ...c,
+                                              children: event.currentTarget.checked
+                                                ? [
+                                                    {
+                                                      id: `${c.id}-item-${Date.now()}`,
+                                                      label: "New link",
+                                                      href: "/",
+                                                    },
+                                                  ]
+                                                : undefined,
+                                            }
+                                          : c,
+                                    );
+                                    void commitPatch({
+                                      links: links.map((l, i) =>
+                                        i === linkIndex
+                                          ? { ...l, children: nextChildren }
+                                          : l,
+                                      ),
+                                    });
+                                  }}
+                                />
+                                Use as a column heading
+                              </label>
+                              {(child.children ?? []).map((leaf, leafIndex) => (
+                                <div
+                                  key={leaf.id}
+                                  className="mt-1.5 flex items-center gap-1.5"
+                                >
+                                  <input
+                                    key={`${leaf.id}:label:${leaf.label}`}
+                                    defaultValue={leaf.label}
+                                    className={`${KIT.input} flex-1`}
+                                    placeholder="Label"
+                                    onBlur={(event) => {
+                                      const value = event.currentTarget.value.trim();
+                                      if (!value || value === leaf.label) return;
+                                      void commitPatch({
+                                        links: patchGrandchild(
+                                          links,
+                                          linkIndex,
+                                          childIndex,
+                                          leafIndex,
+                                          { label: value },
+                                        ),
+                                      });
+                                    }}
+                                  />
+                                  <input
+                                    key={`${leaf.id}:href:${leaf.href}`}
+                                    defaultValue={leaf.href}
+                                    className={`${KIT.input} flex-1`}
+                                    placeholder="/path"
+                                    onBlur={(event) => {
+                                      const value = event.currentTarget.value.trim();
+                                      if (!value || value === leaf.href) return;
+                                      void commitPatch({
+                                        links: patchGrandchild(
+                                          links,
+                                          linkIndex,
+                                          childIndex,
+                                          leafIndex,
+                                          { href: value },
+                                        ),
+                                      });
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className={KIT.subtleButton}
+                                    onClick={() => {
+                                      void commitPatch({
+                                        links: removeGrandchild(
+                                          links,
+                                          linkIndex,
+                                          childIndex,
+                                          leafIndex,
+                                        ),
+                                      });
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                              {(child.children?.length ?? 0) > 0 &&
+                              (child.children?.length ?? 0) < 8 ? (
+                                <button
+                                  type="button"
+                                  className={`${KIT.ghostButton} mt-1.5`}
+                                  onClick={() => {
+                                    void commitPatch({
+                                      links: addGrandchild(links, linkIndex, childIndex),
+                                    });
+                                  }}
+                                >
+                                  + Add link to this column
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                       {(link.children?.length ?? 0) < 12 ? (
