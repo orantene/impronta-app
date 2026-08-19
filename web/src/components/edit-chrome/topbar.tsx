@@ -1176,6 +1176,103 @@ function ContentLocaleToggle({
   );
 }
 
+/**
+ * Locale switcher for FREEFORM surfaces (cms_page / talent_page / site_shell).
+ *
+ * Freeform storage is one `cms_pages` row per (locale, slug) and the public
+ * route loads strictly that row — a per-element `node.i18n` overlay authored
+ * on the EN row would never surface at `/es/...`. So the in-place
+ * `ContentLocaleToggle` is the WRONG control here: flipping the language means
+ * loading the sibling locale's row, i.e. navigating. Edit mode is a cookie, so
+ * the editor stays open on the destination page. (Wiring the in-place toggle
+ * here instead would be the classic capability-at-3-of-4-layers trap: the
+ * editor would accept translations the public site never renders.)
+ *
+ * URL model mirrors `withLocalePath`, scoped to the tenant's own locales: the
+ * tenant default is unprefixed, every other locale gets `/{code}` prefixed.
+ */
+function NavLocaleToggle({
+  activeLocale,
+  defaultLocale,
+  tenantLocales,
+}: {
+  activeLocale: string;
+  defaultLocale: string;
+  tenantLocales: ReadonlyArray<string>;
+}) {
+  const { t } = useEditorLocale();
+  const orderedLocales = useMemo(
+    () => [defaultLocale, ...tenantLocales.filter((l) => l !== defaultLocale)],
+    [defaultLocale, tenantLocales],
+  );
+
+  const navigateToLocale = useCallback(
+    (code: string) => {
+      if (code === activeLocale) return;
+      const { pathname, search, hash } = window.location;
+      // Strip ANY leading tenant-locale segment (handles stacked prefixes from
+      // bad redirects), then re-prefix unless the target is the default.
+      let bare = pathname;
+      const known = new Set(orderedLocales);
+      while (true) {
+        const seg = bare.split("/")[1] ?? "";
+        if (!seg || !known.has(seg)) break;
+        bare = bare.slice(seg.length + 1) || "/";
+      }
+      const next =
+        code === defaultLocale ? bare : `/${code}${bare === "/" ? "" : bare}`;
+      window.location.assign(`${next}${search}${hash}`);
+    },
+    [activeLocale, defaultLocale, orderedLocales],
+  );
+
+  if (orderedLocales.length < 2) return null;
+
+  return (
+    <div
+      className="inline-flex shrink-0 items-center rounded-full p-[4px]"
+      style={{
+        background: "rgba(0,0,0,0.05)",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+      }}
+      role="radiogroup"
+      aria-label={t("Page language (opens that language's version of this page)")}
+    >
+      {orderedLocales.map((code) => {
+        const meta = localeMetadata[code];
+        const label = meta?.label ?? code.toUpperCase();
+        const active = code === activeLocale;
+        return (
+          <button
+            key={code}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={
+              active
+                ? `${label}`
+                : t("Open the {label} version of this page")
+                    .replace("{label}", label)
+            }
+            onClick={() => navigateToLocale(code)}
+            className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
+            style={{
+              background: active ? "#fff" : "transparent",
+              color: active ? CHROME.ink : CHROME.muted,
+              boxShadow: active
+                ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                : "none",
+              cursor: active ? "default" : "pointer",
+            }}
+          >
+            {code}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Job #17 — custom-width bounds (mirrors edit-shell's PREVIEW_WIDTH_MIN/MAX so
 // the input clamps before the override even reaches the frame resolver).
 const PREVIEW_WIDTH_MIN = 280;
@@ -2791,6 +2888,14 @@ export interface TopBarProps {
   /** Locales the active tenant publishes. Empty/single-entry → no switcher. */
   availableLocales?: ReadonlyArray<string>;
   /**
+   * Tenant-truth locale list from locale settings, independent of the loaded
+   * composition. When `availableLocales` collapses to one entry (freeform
+   * surfaces: one cms_pages row per locale, so no in-place content flip) but
+   * the tenant itself is multi-language, the topbar falls back to a NAVIGATE
+   * switcher that jumps to the sibling locale's URL for the same page.
+   */
+  tenantLocales?: ReadonlyArray<string>;
+  /**
    * When the live storefront last had this page published (`cms_pages.published_at`).
    * Null/undefined = never published for this row.
    */
@@ -2907,6 +3012,7 @@ export function TopBar({
   activeLocale,
   defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
+  tenantLocales = [],
   liveSitePublishedAt = null,
   onRevisions,
   onPageSettings,
@@ -3113,6 +3219,16 @@ export function TopBar({
         <ContentLocaleToggle
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
+        />
+      ) : tenantLocales.length > 1 ? (
+        // Freeform surfaces store one cms_pages row per locale, so there is no
+        // in-place content flip — switching language means loading the sibling
+        // row. This pill navigates (edit mode is a cookie, so the editor stays
+        // open on the destination page).
+        <NavLocaleToggle
+          activeLocale={activeLocale ?? defaultLocale}
+          defaultLocale={defaultLocale}
+          tenantLocales={tenantLocales}
         />
       ) : null}
 

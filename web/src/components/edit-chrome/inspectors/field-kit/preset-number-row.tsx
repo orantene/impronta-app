@@ -64,6 +64,8 @@ export interface PresetNumberRowProps extends PresetStateOptions {
   accessory?: ReactNode;
   /** One line of plain-language help. */
   hint?: ReactNode;
+  /** Forwarded to FieldRow: "tip" (default) hangs the hint off an ⓘ; "inline" keeps it standing. */
+  hintPlacement?: "tip" | "inline";
   /** Extra "Find a setting" terms; defaults to the label. */
   searchTerms?: string | string[];
   /** Dim and block the whole row. */
@@ -91,6 +93,7 @@ export function PresetNumberRow({
   placeholder,
   accessory,
   hint,
+  hintPlacement,
   searchTerms,
   disabled = false,
   locked = false,
@@ -123,6 +126,7 @@ export function PresetNumberRow({
       label={label}
       accessory={accessory}
       hint={hint}
+      hintPlacement={hintPlacement}
       searchTerms={searchTerms}
       orientation="stacked"
       disabled={inert}

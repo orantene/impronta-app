@@ -110,6 +110,10 @@ export function InspectorResponsiveSettings({
         <InspectorField
           label="Stack order"
           help="Section-level stack order is desktop-only in v1."
+          // Inline, not a tip: the select below is DISABLED and this sentence
+          // is the reason. An operator staring at a dead control must not have
+          // to hunt for why it will not respond.
+          helpPlacement="inline"
         >
           <InspectorSelect disabled value="">
             <option value="">Default (0)</option>

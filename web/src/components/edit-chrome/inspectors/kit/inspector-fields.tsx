@@ -10,15 +10,21 @@
  * the optional "responsive override badge" header row being hand-rolled
  * slightly differently at every site.
  *
- * These primitives collapse that scaffold to one place. The rendered DOM is
- * byte-for-byte identical to the hand-rolled version so the sweep is
- * behavior-preserving:
+ * These primitives collapse that scaffold to one place:
  *   - no accessory  →  `<span class=label>`  then the control
  *   - with accessory →  `<div class="flex items-center justify-between gap-2">`
  *                        wrapping the label + accessory, then the control
- *   - a trailing `hint` renders `<span class=help>` after the control
+ *   - a `hint` renders behind an ⓘ beside the label (see `HintPlacement`);
+ *     `hintPlacement="inline"` keeps the old `<span class=help>` paragraph
+ *     under the control for copy that must be read before acting
  *   - `dataControl` maps to the `data-builder-node-style-control` attribute
  *     (omitted entirely when undefined, matching React's attribute elision).
+ *
+ * 2026-08-19 — hints moved behind the ⓘ by default. Panels were printing
+ * every explanation as standing prose, so a four-field panel read as a wall
+ * of text with the controls buried in it. The copy is unchanged and still
+ * flows through the same translation boundary; only its resting visibility
+ * changed.
  *
  * `accessory` is intentionally distinguished from `undefined`: passing
  * `accessory={cond ? <Badge/> : null}` opts the field into the header-row
@@ -32,15 +38,34 @@ import {
   INSPECTOR_FIELD_LABEL_CLASS,
   INSPECTOR_HELP_TEXT_CLASS,
 } from "./inspector-ui";
+import { InspectorLabelWithInfo } from "./inspector-info-tip";
 import { Segmented, type SegmentedOption } from "../../kit/segmented";
 import { NumberUnit, type NumberUnitProps } from "../../kit/number-unit";
 import { useInspectorT } from "./use-inspector-t";
 import { KIT } from "./tokens";
 
+/**
+ * Where a field's helper copy renders.
+ *
+ *   "tip"    — behind an ⓘ next to the label (the default). Explanations,
+ *              edge cases and reassurance belong here: the operator asks for
+ *              them, they do not shout.
+ *   "inline" — the old standing paragraph under the control. Reserved for
+ *              copy the operator must read BEFORE acting: warnings, current
+ *              state, consequences, and anything naming a live constraint.
+ *
+ * Default is "tip" on purpose. A panel that needs the paragraph says so
+ * explicitly, which makes "this copy is loud" a decision in the diff rather
+ * than the silent default it used to be.
+ */
+export type HintPlacement = "tip" | "inline";
+
 interface FieldShellProps {
   label: ReactNode;
-  /** Muted helper copy rendered after the control. */
+  /** Helper copy. Renders behind an ⓘ unless `hintPlacement="inline"`. */
   hint?: ReactNode;
+  /** Defaults to "tip". See {@link HintPlacement}. */
+  hintPlacement?: HintPlacement;
   /**
    * Optional right-aligned header accessory (e.g. a responsive-override
    * badge). Passing this prop — even as `null` — switches the field to the
@@ -65,6 +90,7 @@ const FIELD_COLUMN_CLASS = "flex flex-col gap-1.5";
 export function InspectorFieldShell({
   label,
   hint,
+  hintPlacement = "tip",
   accessory,
   dataControl,
   dataPresentationControl,
@@ -74,7 +100,17 @@ export function InspectorFieldShell({
   // WAVE 4.4 translation boundary: every deep-inspector field label and hint
   // arrives here as a plain string, so translating once here covers all of
   // them. Non-string nodes (badges, fragments) pass through unchanged.
+  // The ⓘ card resolves its own copy through the same boundary, so a hint
+  // that was already Spanish stays Spanish with no call-site edit.
   const { tn } = useInspectorT();
+  const asTip = hintPlacement === "tip" && hint !== undefined;
+  const labelNode = (
+    <InspectorLabelWithInfo
+      label={label}
+      info={asTip ? hint : undefined}
+      className={INSPECTOR_FIELD_LABEL_CLASS}
+    />
+  );
   return (
     <div
       className={className ?? FIELD_COLUMN_CLASS}
@@ -83,14 +119,14 @@ export function InspectorFieldShell({
     >
       {accessory !== undefined ? (
         <div className="flex items-center justify-between gap-2">
-          <span className={INSPECTOR_FIELD_LABEL_CLASS}>{tn(label)}</span>
+          {labelNode}
           {accessory}
         </div>
       ) : (
-        <span className={INSPECTOR_FIELD_LABEL_CLASS}>{tn(label)}</span>
+        labelNode
       )}
       {children}
-      {hint !== undefined ? (
+      {hint !== undefined && !asTip ? (
         <span className={INSPECTOR_HELP_TEXT_CLASS}>{tn(hint)}</span>
       ) : null}
     </div>
@@ -113,6 +149,7 @@ interface SegmentedFieldProps<T extends string> extends FieldWrapProps {
 export function SegmentedField<T extends string>({
   label,
   hint,
+  hintPlacement,
   accessory,
   dataControl,
   dataPresentationControl,
@@ -127,6 +164,7 @@ export function SegmentedField<T extends string>({
     <InspectorFieldShell
       label={label}
       hint={hint}
+      hintPlacement={hintPlacement}
       accessory={accessory}
       dataControl={dataControl}
       dataPresentationControl={dataPresentationControl}
@@ -149,6 +187,7 @@ type NumberFieldProps = FieldWrapProps & NumberUnitProps;
 export function NumberField({
   label,
   hint,
+  hintPlacement,
   accessory,
   dataControl,
   dataPresentationControl,
@@ -159,6 +198,7 @@ export function NumberField({
     <InspectorFieldShell
       label={label}
       hint={hint}
+      hintPlacement={hintPlacement}
       accessory={accessory}
       dataControl={dataControl}
       dataPresentationControl={dataPresentationControl}
@@ -185,6 +225,7 @@ interface SelectFieldProps extends FieldWrapProps {
 export function SelectField({
   label,
   hint,
+  hintPlacement,
   accessory,
   dataControl,
   dataPresentationControl,
@@ -199,6 +240,7 @@ export function SelectField({
     <InspectorFieldShell
       label={label}
       hint={hint}
+      hintPlacement={hintPlacement}
       accessory={accessory}
       dataControl={dataControl}
       dataPresentationControl={dataPresentationControl}
@@ -233,6 +275,7 @@ interface ColorFieldProps extends FieldWrapProps {
 export function ColorField({
   label,
   hint,
+  hintPlacement,
   accessory,
   dataControl,
   dataPresentationControl,
@@ -243,6 +286,7 @@ export function ColorField({
     <InspectorFieldShell
       label={label}
       hint={hint}
+      hintPlacement={hintPlacement}
       accessory={accessory}
       dataControl={dataControl}
       dataPresentationControl={dataPresentationControl}

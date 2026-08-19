@@ -787,4 +787,9 @@ export const ES_TEXT: Record<string, string> = {
   "square": "cuadrado",
   // Gallery card status badges.
   Soon: "Pronto",
+  // Topbar NavLocaleToggle (freeform-page language switch).
+  "Page language (opens that language's version of this page)":
+    "Idioma de la página (abre la versión de esta página en ese idioma)",
+  "Open the {label} version of this page":
+    "Abrir la versión en {label} de esta página",
 };

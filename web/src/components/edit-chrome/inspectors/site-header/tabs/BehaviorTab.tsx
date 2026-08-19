@@ -13,7 +13,7 @@
  * actually hits a case where it matters.
  */
 
-import { InspectorGroup } from "../../kit";
+import { InspectorGroup, InspectorLabelWithInfo } from "../../kit";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -77,10 +77,11 @@ function ToggleRow({
   return (
     <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color,background-color] duration-150 hover:border-[#e5e0d5] hover:bg-white">
       <span className="flex flex-col gap-0.5">
-        <span className="text-[12.5px] font-medium text-stone-800">{label}</span>
-        {hint ? (
-          <span className="text-[10.5px] leading-snug text-stone-500">{hint}</span>
-        ) : null}
+        <InspectorLabelWithInfo
+          label={label}
+          info={hint}
+          className="text-[12.5px] font-medium text-stone-800"
+        />
       </span>
       <span
         role="switch"

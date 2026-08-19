@@ -13,7 +13,7 @@
  * Split out of `RegionsTab.tsx` for the 800-line `max-lines` cap.
  */
 
-import { DraggableList } from "../../kit";
+import { DraggableList, InspectorInfoTip } from "../../kit";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../../kit";
 import { FIELD_KIT } from "../../field-kit";
 import { useEditorLocale } from "../../../use-editor-locale";
@@ -76,19 +76,17 @@ export function Zone({
       }}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 items-center gap-1.5">
           <span
             className="text-[11.5px] font-semibold"
             style={{ color: CHROME.text }}
           >
             {t(ZONE_META[zone].label)}
           </span>
-          <span
-            className="text-[10.5px] leading-snug"
-            style={{ color: CHROME.muted }}
-          >
-            {t(ZONE_META[zone].description)}
-          </span>
+          <InspectorInfoTip
+            content={ZONE_META[zone].description}
+            title={ZONE_META[zone].label}
+          />
         </div>
         <button
           type="button"

@@ -50,7 +50,7 @@ import { useComponentDefaultsPreview } from "../component-defaults-bridge";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
-import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput } from "./kit";
+import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput, InspectorInfoTip } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
@@ -5310,7 +5310,20 @@ export function StylePanel({
         </summary>
         <section className="mt-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Custom CSS</div>
+            <div className={`${SECTION_TITLE} inline-flex items-center gap-1.5`}>
+              Custom CSS
+              <InspectorInfoTip
+                title="Custom CSS"
+                content={
+                  <>
+                    Per-section escape hatch. Wrapped in{" "}
+                    <code>[data-section-id]</code> so it can&apos;t leak across
+                    sections. Use <code>&amp;</code> to nest. Use sparingly, most
+                    visual changes belong in Layout, Style, or the Theme drawer.
+                  </>
+                }
+              />
+            </div>
             {customCss ? (
               <button
                 type="button"
@@ -5342,12 +5355,6 @@ export function StylePanel({
             rows={6}
             ariaLabel="Custom CSS for this section"
           />
-          <span className={HINT}>
-            Per-section escape hatch. Wrapped in{" "}
-            <code>[data-section-id]</code> so it can&apos;t leak across
-            sections. Use <code>&amp;</code> to nest. Use sparingly, most
-            visual changes belong in Layout, Style, or the Theme drawer.
-          </span>
         </section>
       </details>
 
