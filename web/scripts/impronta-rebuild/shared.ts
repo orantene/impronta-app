@@ -1161,12 +1161,11 @@ export function photoTile(
         position: "relative",
         overflow: "hidden",
         borderRadius: "4px",
-        // NOT aspectRatioFree: that prop's inline path only applies to image
-        // nodes — on a container it is silently dropped, and since both
-        // children of this tile are position:absolute the card collapses to
-        // 0px tall (three of the four division tiles vanished live).
-        // customCss scopes the rule to the card root and actually renders.
-        customCss: `{ aspect-ratio: ${opts.aspect ?? "0.78"}; }\n@media (max-width: 640px) { { aspect-ratio: 4 / 5; } }`,
+        // The typed prop again, now that the renderer honors ratio on every
+        // kind (it used to drop it on containers, which is why this was a
+        // customCss workaround and why three of these tiles rendered 0px).
+        aspectRatioFree: opts.aspect ?? "0.78",
+        responsive: { mobile: { aspectRatioFree: "4 / 5" } },
         backgroundColor: SURFACE,
         transitionProperty: "transform, box-shadow",
         transitionDuration: "300ms",
