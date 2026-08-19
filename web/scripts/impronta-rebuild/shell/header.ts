@@ -101,7 +101,8 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
       performersDesc: "Dancers, aerialists, live acts.",
       musicDjsDesc: "DJs and musicians for venues and private events.",
       featuredTitle: "See the full board",
-      featuredDesc: "Every face we represent, filterable by discipline and city.",
+      featuredDesc:
+        "Every face we represent, filterable by discipline and city.",
     },
   },
   es: {
@@ -126,7 +127,8 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
       performersDesc: "Bailarines, acróbatas y actos en vivo.",
       musicDjsDesc: "DJs y músicos para venues y eventos privados.",
       featuredTitle: "Ver el directorio completo",
-      featuredDesc: "Todos los rostros que representamos, con filtros por disciplina y ciudad.",
+      featuredDesc:
+        "Todos los rostros que representamos, con filtros por disciplina y ciudad.",
     },
   },
 };
@@ -152,13 +154,14 @@ const MOBILE_HIDDEN_WIDGET_KEYS: ReadonlySet<string> = new Set([
   "header_account",
 ]);
 
-const WIDGET_LAYER_LABELS: Record<(typeof HEADER_WIDGET_KEYS)[number], string> = {
-  header_search: "Search widget",
-  header_favorites: "Favorites widget",
-  header_inquiry: "Inquiry widget",
-  header_account: "Account widget",
-  header_language: "Language toggle",
-};
+const WIDGET_LAYER_LABELS: Record<(typeof HEADER_WIDGET_KEYS)[number], string> =
+  {
+    header_search: "Search widget",
+    header_favorites: "Favorites widget",
+    header_inquiry: "Inquiry widget",
+    header_account: "Account widget",
+    header_language: "Language toggle",
+  };
 
 /**
  * A header-widget embed with a DETERMINISTIC id (the factory mints a random
@@ -177,7 +180,11 @@ function headerWidgetEmbed(
       ...node.props,
       layerLabel: WIDGET_LAYER_LABELS[key],
       ...(hiddenOnMobile
-        ? { style: { responsive: { mobile: { visibility: "hidden" as const } } } }
+        ? {
+            style: {
+              responsive: { mobile: { visibility: "hidden" as const } },
+            },
+          }
         : {}),
     },
   };
@@ -207,20 +214,6 @@ function hideOnMobile(node: BuilderNode): BuilderNode {
 
 // ── tree builder ─────────────────────────────────────────────────────────────
 
-/**
- * The four division landing pages exist in ENGLISH only.
- *
- * They were still listed in the Spanish menu, so every Spanish page carried
- * four 404s in its primary navigation — silently, because the tree is valid and
- * the publish succeeds; only a click reveals it. Until the Spanish landings are
- * written, the Spanish menu offers the one destination that IS Spanish: the
- * directory, which is where those links were leading anyway.
- *
- * `seed-shell.ts` now refuses to publish a shell with dead links, so this
- * cannot regress quietly — delete this constant the day the pages exist.
- */
-const DIVISION_PAGES_EXIST_IN: ReadonlySet<ShellLocale> = new Set(["en"]);
-
 function navLinks(locale: ShellLocale): BuilderNavLink[] {
   const copy = COPY[locale].links;
   const id = (slug: string): string => `shellhdr-${locale}-nav-${slug}`;
@@ -230,56 +223,52 @@ function navLinks(locale: ShellLocale): BuilderNavLink[] {
       id: id("divisions"),
       label: copy.divisions,
       href: "/directory",
-      ...(DIVISION_PAGES_EXIST_IN.has(locale)
-        ? {
-            // A GROUP (a child with children) becomes the mega panel's column
-            // heading. One column today; a second discipline group drops in
-            // beside it without touching the renderer.
-            children: [
-              {
-                id: id("divisions-group"),
-                label: copy.divisionsGroupHeading,
-                href: "/directory",
-                children: [
-                  {
-                    id: id("fashion-models"),
-                    label: copy.fashionModels,
-                    href: "/p/fashion-models",
-                    icon: "camera" as const,
-                    description: copy.fashionModelsDesc,
-                  },
-                  {
-                    id: id("hosts-promoters"),
-                    label: copy.hostsPromoters,
-                    href: "/p/hosts-promoters",
-                    icon: "mic" as const,
-                    description: copy.hostsPromotersDesc,
-                  },
-                  {
-                    id: id("performers"),
-                    label: copy.performers,
-                    href: "/p/performers",
-                    icon: "sparkle" as const,
-                    description: copy.performersDesc,
-                  },
-                  {
-                    id: id("music-djs"),
-                    label: copy.musicDjs,
-                    href: "/p/music-djs",
-                    icon: "headphones" as const,
-                    description: copy.musicDjsDesc,
-                  },
-                ],
-              },
-            ],
-            featured: {
-              title: copy.featuredTitle,
-              description: copy.featuredDesc,
-              href: "/directory",
-              imageSrc: IMAGE_SLOT("shell-mega-featured"),
+      // Both locales have the division landings now, so the panel is built
+      // unconditionally. The locale gate that stood here (DIVISION_PAGES_EXIST_IN)
+      // is gone; the seeder's dead-link preflight is what keeps it honest.
+      children: [
+        {
+          id: id("divisions-group"),
+          label: copy.divisionsGroupHeading,
+          href: "/directory",
+          children: [
+            {
+              id: id("fashion-models"),
+              label: copy.fashionModels,
+              href: "/p/fashion-models",
+              icon: "camera" as const,
+              description: copy.fashionModelsDesc,
             },
-          }
-        : {}),
+            {
+              id: id("hosts-promoters"),
+              label: copy.hostsPromoters,
+              href: "/p/hosts-promoters",
+              icon: "mic" as const,
+              description: copy.hostsPromotersDesc,
+            },
+            {
+              id: id("performers"),
+              label: copy.performers,
+              href: "/p/performers",
+              icon: "sparkle" as const,
+              description: copy.performersDesc,
+            },
+            {
+              id: id("music-djs"),
+              label: copy.musicDjs,
+              href: "/p/music-djs",
+              icon: "headphones" as const,
+              description: copy.musicDjsDesc,
+            },
+          ],
+        },
+      ],
+      featured: {
+        title: copy.featuredTitle,
+        description: copy.featuredDesc,
+        href: "/directory",
+        imageSrc: IMAGE_SLOT("shell-mega-featured"),
+      },
     },
     {
       id: id("for-clients"),
@@ -333,11 +322,16 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
     },
     children: [
       shellUtilityText(id("utility-copy"), copy.announcement, "Announcement"),
-      shellTextLink(id("utility-whatsapp"), SHELL_WHATSAPP_DISPLAY, SHELL_WHATSAPP_HREF, {
-        fontSize: "11px",
-        letterSpacing: "0.12em",
-        whiteSpace: "nowrap",
-      }),
+      shellTextLink(
+        id("utility-whatsapp"),
+        SHELL_WHATSAPP_DISPLAY,
+        SHELL_WHATSAPP_HREF,
+        {
+          fontSize: "11px",
+          letterSpacing: "0.12em",
+          whiteSpace: "nowrap",
+        },
+      ),
     ],
   };
 

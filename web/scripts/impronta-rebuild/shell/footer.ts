@@ -65,16 +65,14 @@ const ES: FooterCopy = {
     { label: "Preguntas Frecuentes", href: "/p/faq" },
   ],
   divisionsHeading: "Divisiones",
-  // The four division landing pages are ENGLISH-only, so listing them here put
-  // four 404s in the footer of every Spanish page. Each name now points at the
-  // directory, which IS Spanish and is where the links led anyway. See the note
-  // on DIVISION_PAGES_EXIST_IN in header.ts — restore these the day the Spanish
-  // landings are written.
+  // Restored: these pointed at /directory while the Spanish landings did not
+  // exist. They do now, and the seeder's dead-link preflight verifies it on
+  // every write rather than trusting this comment.
   divisions: [
-    { label: "Modelos de Moda", href: "/directory" },
-    { label: "Anfitriones y Promotores", href: "/directory" },
-    { label: "Performers", href: "/directory" },
-    { label: "Música y DJs", href: "/directory" },
+    { label: "Modelos de Moda", href: "/p/fashion-models" },
+    { label: "Anfitriones y Promotores", href: "/p/hosts-promoters" },
+    { label: "Performers", href: "/p/performers" },
+    { label: "Música y DJs", href: "/p/music-djs" },
   ],
   forTalentHeading: "Para Talento",
   forTalent: [
