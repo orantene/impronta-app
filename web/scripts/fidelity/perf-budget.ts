@@ -104,7 +104,18 @@ export const BUDGETS: readonly Budget[] = [
   // renderer, not deleting bloat, so the ceiling is re-tuned to the measured
   // reality (~7% headroom) and the gate is armed (continue-on-error removed from
   // builder-fidelity.yml in the same commit).
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 95 * KB, unit: "bytes" },
+  //
+  // RE-TUNED 2026-08-18: 95 KB → 99 KB. Measured 97.2 KB. The +2.5 KB is the
+  // nav's v2 surface: link icons/badges/descriptions, group headings, per-link
+  // viewport hiding, hover + aria-current states, and a real mega panel
+  // (author-set columns, anchored vs full-bleed, featured card). Raised in the
+  // SAME commit that spends it, deliberately, rather than discovered later by
+  // someone bisecting a red gate.
+  //
+  // The number that matters for page weight is the SCOPED ceiling below, and it
+  // did not move much: 70.9 KB against an 88 KB cap, because the nav rules only
+  // ship to pages that contain a nav.
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 99 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for

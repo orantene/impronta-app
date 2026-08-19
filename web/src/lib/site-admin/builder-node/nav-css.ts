@@ -49,7 +49,41 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-caret{display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:0.7}
 .site-builder-node--nav-links .site-builder-node--nav-submenu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.15rem;position:absolute;top:calc(100% + 10px);left:0;z-index:40;min-width:200px;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 120ms ease,transform 120ms ease,visibility 0s linear 120ms}
 .site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{opacity:1;visibility:visible;transform:translateY(0);transition-delay:0s}
-.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.15rem 1.25rem;min-width:min(620px,80vw)}
+/* MEGA PANEL.
+   Was a single auto-fill rule — the same flat list of text links reflowed into
+   columns, which is why "mega" was a schema value with nothing behind it. A
+   mega panel is a LAYOUT: author-set columns, group headings, room for a
+   featured card.
+
+   --bn-mega-cols comes from the node (2/3/4); the auto-fill fallback keeps
+   an ungrouped legacy mega rendering exactly as it did. */
+.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(var(--bn-mega-cols,auto-fill),minmax(180px,1fr));gap:0.5rem 1.5rem;min-width:min(620px,80vw);padding:1rem}
+.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-heading{padding-left:0.25rem}
+.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-links a{padding:0.4rem 0.25rem}
+
+/* Anchored panel: centred UNDER ITS TRIGGER rather than left-aligned off the
+   edge of the viewport, which is what the old left:0 did to a rightmost item. */
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"] .site-builder-node--nav-submenu{left:50%;right:auto;transform:translateX(-50%) translateY(4px);max-width:min(760px,92vw)}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"]:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"]:focus-within .site-builder-node--nav-submenu{transform:translateX(-50%) translateY(0)}
+
+/* Full-bleed panel, CSS-only: position:static on the LI makes the absolutely
+   positioned panel resolve against the nav (already position:relative) instead
+   of the item. No JS, no measurement. */
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"]{position:static}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"] .site-builder-node--nav-submenu{left:0;right:0;width:100%;max-width:none;border-radius:0 0 14px 14px}
+
+/* Featured card — the one place the menu carries an image. */
+.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.5rem;padding:0.25rem;text-decoration:none;color:inherit}
+.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;display:block}
+.site-builder-node--nav-featured-title{font-weight:700;font-size:0.95em}
+.site-builder-node--nav-featured-desc{font-size:0.82em;opacity:0.7;line-height:1.4}
+
+/* Close FORGIVENESS. The panel closes on a delay so travelling diagonally from
+   the trigger toward the panel does not shut it mid-move. Opening stays
+   instant — a delay there would read as lag. True hover-intent needs JS, and
+   this menu is deliberately JS-free. */
+.site-builder-node--nav-links .site-builder-node--nav-submenu{transition:opacity 120ms ease 120ms,transform 120ms ease 120ms,visibility 0s linear 240ms}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{transition-delay:0s,0s,0s}
 .site-builder-node--nav-links .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-links .site-builder-node--nav-submenu a{display:block;padding:0.5rem 0.65rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.92rem;white-space:nowrap}
 .site-builder-node--nav-menu .site-builder-node--nav-has-sub{display:block}
