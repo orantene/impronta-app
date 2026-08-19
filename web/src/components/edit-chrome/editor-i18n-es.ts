@@ -9,6 +9,7 @@
 
 import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
+import { ES_HEADER_TASKS_TEXT } from "./editor-i18n-es-header-tasks";
 import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
 import { ES_ICON_TEXT } from "./editor-i18n-es-icons";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
@@ -28,6 +29,7 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
   ...ES_CANVAS_CHROME_TEXT,
+  ...ES_HEADER_TASKS_TEXT,
   ...ES_SHORTCUT_TEXT,
   // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
   ...ES_INSPECTOR_TEXT,

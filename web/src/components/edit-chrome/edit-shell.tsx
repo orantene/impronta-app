@@ -76,6 +76,7 @@ import { InlineEditor } from "./inline-editor";
 import { SlashCommandCanvasTrigger } from "./slash-command-canvas-trigger";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavSubmenuPin } from "./nav-submenu-pin";
+import { HeaderQuickPanelMount } from "./header-quick-panel-mount";
 import { NavigatorPanel } from "./navigator-panel";
 import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
 import { AllPagesPanel } from "./all-pages-panel";
@@ -1230,6 +1231,7 @@ function EditShellInner({
             previewing; renders nothing otherwise (fully back-compat). */}
         <MobileEditPanel />
         <NavSubmenuPin />
+        <HeaderQuickPanelMount />
         {everOpenedSchedule && <ScheduleDrawer />}
         {everOpenedComments && <CommentsDrawer />}
         {everOpenedPalette && (

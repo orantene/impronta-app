@@ -230,6 +230,7 @@ test("the allow-list stays a decision, not a dumping ground", () => {
 const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es.ts",
   "src/components/edit-chrome/editor-i18n-es-canvas.ts",
+  "src/components/edit-chrome/editor-i18n-es-header-tasks.ts",
   "src/components/edit-chrome/editor-i18n-es-sections.ts",
   "src/components/edit-chrome/editor-i18n-es-inspectors.ts",
   "src/components/edit-chrome/editor-i18n-es-inspectors-2.ts",
