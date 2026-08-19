@@ -528,4 +528,5 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // already defined in editor-i18n-es-canvas.ts, and a second definition would
   // let spread order pick the wording.)
   "Close preview": "Cerrar vista previa",
+  "Platform default": "Icono de la plataforma",
 };

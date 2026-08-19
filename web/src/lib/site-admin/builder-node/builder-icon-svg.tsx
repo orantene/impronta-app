@@ -44,6 +44,10 @@ export function BuilderIconSvg({
   return (
     <svg
       className={className}
+      // Names the glyph in the DOM. Every icon otherwise renders as anonymous
+      // path data, so "which icon is this?" could only be answered by eye —
+      // in a test, in a bug report, or while checking a live page.
+      data-bn-icon={icon.name}
       viewBox="0 0 24 24"
       width="1em"
       height="1em"

@@ -4,6 +4,7 @@ import { Fragment, cloneElement, isValidElement, memo } from "react";
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
 import { BUILDER_NODE_NAV_CSS } from "./nav-css";
 import { BuilderIconSvg } from "./builder-icon-svg";
+import type { BuilderIconName } from "./icon-registry";
 import { socialPlatformIconName } from "./social-platform-icons";
 import {
   SOCIAL_POST_EMBED_SCRIPTS,
@@ -5165,6 +5166,7 @@ function renderBuilderNodeElement(
         platform: string;
         href: string;
         label?: string;
+        icon?: BuilderIconName;
       }> =
         boundRecords && boundRecords.length > 0
           ? boundRecords
@@ -5183,6 +5185,10 @@ function renderBuilderNodeElement(
                 platform: link.platform,
                 href: link.href,
                 label: link.label,
+                // Bound records carry no icon override — the override is an
+                // authored choice about a link the operator typed, not about
+                // data pulled from the workspace.
+                icon: link.icon,
               }));
       // An empty social row (no links, no bound data) renders nothing rather
       // than an empty <ul> — keeps the shell clean when nothing is configured.
@@ -5211,7 +5217,15 @@ function renderBuilderNodeElement(
                   rel="noopener noreferrer"
                   target="_blank"
                 >
-                  <SocialGlyph platform={link.platform} />
+                  {link.icon ? (
+                    <BuilderIconSvg
+                      name={link.icon}
+                      className="site-builder-node--social-icon"
+                      strokeWidth={1.7}
+                    />
+                  ) : (
+                    <SocialGlyph platform={link.platform} />
+                  )}
                 </a>
               </li>
             );

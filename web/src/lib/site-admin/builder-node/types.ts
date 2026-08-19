@@ -1300,6 +1300,15 @@ export interface BuilderSocialLink {
   href: string;
   /** Optional accessible label override (defaults to the platform name). */
   label?: string;
+  /**
+   * Override the platform's glyph with one from the icon library.
+   *
+   * The platform enum decides the DEFAULT mark and the accessible name; this
+   * only changes what is drawn. So a tenant whose network is not in the enum
+   * can still show the right icon, and one who wants a plain "link" glyph for
+   * a partner site is not forced into a brand mark.
+   */
+  icon?: BuilderIconName;
 }
 
 /**

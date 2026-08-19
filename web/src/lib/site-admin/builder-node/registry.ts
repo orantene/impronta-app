@@ -1091,6 +1091,8 @@ const socialLinkSchema = z.object({
   platform: socialPlatformSchema,
   href: z.string().min(1).max(500),
   label: z.string().max(80).optional(),
+  // Additive: absent ⇒ the platform's own glyph, exactly as before.
+  icon: z.enum(BUILDER_ICON_NAMES).optional(),
 });
 
 const socialLinksPropsSchema = z.object({

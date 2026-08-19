@@ -58,6 +58,13 @@ export interface IconPickerProps {
   onChange: (next: BuilderIconName | null) => void;
   /** Offers a "No icon" choice. Use wherever the glyph is optional. */
   allowNone?: boolean;
+  /**
+   * What the empty choice is CALLED. Defaults to "No icon", which is only true
+   * where clearing means nothing renders. Where a fallback glyph takes over —
+   * a social link keeps its platform mark — say so, or the field claims an
+   * outcome the operator will not see.
+   */
+  noneLabel?: string;
   hint?: string;
   searchTerms?: string | string[];
 }
@@ -67,6 +74,7 @@ export function IconPicker({
   value,
   onChange,
   allowNone = true,
+  noneLabel,
   hint,
   searchTerms,
 }: IconPickerProps) {
@@ -130,7 +138,7 @@ export function IconPicker({
             {current ? <BuilderIconSvg definition={current} /> : "–"}
           </span>
           <span className="flex-1 truncate" style={{ color: CHROME.ink }}>
-            {current ? t(current.label) : t("No icon")}
+            {current ? t(current.label) : t(noneLabel ?? "No icon")}
           </span>
           <span aria-hidden style={{ color: CHROME.muted, fontSize: 10 }}>
             {t("Change")}
@@ -163,7 +171,7 @@ export function IconPicker({
                   className="rounded px-2 py-1 text-left text-[11px]"
                   style={{ color: CHROME.muted }}
                 >
-                  {t("No icon")}
+                  {t(noneLabel ?? "No icon")}
                 </button>
               ) : null}
 
