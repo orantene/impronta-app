@@ -160,13 +160,13 @@ export function fmtDate(date: Date | string | number, now: Date = new Date()): s
 }
 
 /**
- * Canonical money format. Always EUR (€), no decimals for whole amounts.
- * "€4,200" not "€4200.00" or "4.200 €".
+ * Canonical money format. USD (the platform operating currency), no decimals
+ * for whole amounts: "$4,200" not "$4200.00". Never default to EUR here.
  */
 export function fmtMoney(amount: number): string {
-  return new Intl.NumberFormat("en-EU", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "EUR",
+    currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
