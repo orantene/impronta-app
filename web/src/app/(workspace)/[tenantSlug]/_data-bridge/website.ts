@@ -84,6 +84,22 @@ export type WebsitePostItem = {
   slug: string;
   status: string;
   updatedAt: string | null;
+  /** cms_posts.locale — a bilingual tenant can carry one row per language. */
+  locale: string;
+  /**
+   * True when `cms_posts.excerpt` is non-empty after trim. A presence flag,
+   * not the text — the list only badges "no summary yet"; the editor loads
+   * the full record through `getPostForEditAction`.
+   */
+  hasExcerpt: boolean;
+  /** cms_posts.published_at — null until the post has ever been published. */
+  publishedAt: string | null;
+  /**
+   * cms_posts.updated_by — raw profile UUID. Resolved to a display name in
+   * `mergeWebsiteStateFromBridge` via the teamMembers map, exactly the way
+   * `cms_pages.updated_by` becomes a page row's `lastEditedBy`.
+   */
+  updatedBy: string | null;
 };
 
 export type WebsiteRedirectItem = {
@@ -188,7 +204,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
-        .select("id, slug, title, status, updated_at")
+        .select("id, slug, title, status, updated_at, locale, excerpt, published_at, updated_by")
         .eq("tenant_id", tenantId)
         .order("updated_at", { ascending: false })
         .limit(50),
@@ -206,7 +222,17 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       loadTenantLocaleSettings(tenantId).catch(() => null),
     ]);
 
-    type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
+    type PostRow = {
+      id: string;
+      slug: string;
+      title: string;
+      status: string;
+      updated_at: string | null;
+      locale: string;
+      excerpt: string | null;
+      published_at: string | null;
+      updated_by: string | null;
+    };
     type RedirectRow = { id: string; old_path: string; new_path: string; status_code: number; active: boolean };
 
     return {
@@ -241,6 +267,10 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         slug: p.slug,
         status: p.status,
         updatedAt: p.updated_at,
+        locale: p.locale,
+        hasExcerpt: !!p.excerpt?.trim(),
+        publishedAt: p.published_at ?? null,
+        updatedBy: p.updated_by ?? null,
       })),
       redirects: ((redirectsRes.data ?? []) as unknown as RedirectRow[]).map((r) => ({
         id: r.id,

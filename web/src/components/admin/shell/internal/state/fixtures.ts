@@ -4812,11 +4812,11 @@ export const WEBSITE_STATE: WebsiteState = {
     { id: "p6", title: "SS27 capsule launch",   slug: "/launch/ss27", status: "scheduled", scheduledFor: _daysAhead(14), updatedAt: _daysAgo(0.2), lastEditedBy: "Joana Rivera", template: "blank", hits7d: 0, hits30d: 0, locale: "en", version: 1, noindex: false, includeInSitemap: true, hasMetaDescription: true, isHomepage: false },
   ],
   posts: [
-    { id: "po1", title: "Spring 2026 — what's moving",   slug: "/blog/spring-2026-moving",  status: "published", publishedAt: _daysAgo(3),  updatedAt: _daysAgo(3),  author: "Joana Rivera", hits7d: 412, tags: ["editorial", "trends"] },
-    { id: "po2", title: "BTS · Vogue Italia editorial",  slug: "/blog/bts-vogue-italia",    status: "published", publishedAt: _daysAgo(7),  updatedAt: _daysAgo(7),  author: "Marco Conti",  hits7d: 318, tags: ["bts", "editorial"] },
-    { id: "po3", title: "Welcoming Tomás Navarro",       slug: "/blog/welcoming-tomas",     status: "published", publishedAt: _daysAgo(14), updatedAt: _daysAgo(14), author: "Joana Rivera", hits7d: 156, tags: ["roster"] },
-    { id: "po4", title: "Rate cards explained",          slug: "/blog/rate-cards-explained", status: "published", publishedAt: _daysAgo(30), updatedAt: _daysAgo(30), author: "Marco Conti", hits7d: 87,  tags: ["operations"] },
-    { id: "po5", title: "Press kit refresh",             slug: "/blog/press-kit-refresh",   status: "draft",     updatedAt: _daysAgo(2),  author: "Joana Rivera", hits7d: 0, tags: ["meta"] },
+    { id: "po1", title: "Spring 2026 — what's moving",   slug: "/spring-2026-moving",  status: "published", publishedAt: _daysAgo(3),  updatedAt: _daysAgo(3),  locale: "en", hasExcerpt: true,  lastEditedBy: "Joana Rivera" },
+    { id: "po2", title: "BTS · Vogue Italia editorial",  slug: "/bts-vogue-italia",    status: "published", publishedAt: _daysAgo(7),  updatedAt: _daysAgo(7),  locale: "en", hasExcerpt: true,  lastEditedBy: "Marco Conti" },
+    { id: "po3", title: "Welcoming Tomás Navarro",       slug: "/welcoming-tomas",     status: "published", publishedAt: _daysAgo(14), updatedAt: _daysAgo(14), locale: "en", hasExcerpt: false, lastEditedBy: "Joana Rivera" },
+    { id: "po4", title: "Rate cards explained",          slug: "/rate-cards-explained", status: "published", publishedAt: _daysAgo(30), updatedAt: _daysAgo(30), locale: "en", hasExcerpt: true, lastEditedBy: "Marco Conti" },
+    { id: "po5", title: "Press kit refresh",             slug: "/press-kit-refresh",   status: "draft",     updatedAt: _daysAgo(2),  locale: "en", hasExcerpt: false, lastEditedBy: "Joana Rivera" },
   ],
   redirects: [
     { id: "r1", from: "/talent",         to: "/roster",                              statusCode: 301, match: "exact",  hits7d: 142, createdAt: "2025-11-04T10:00:00Z", createdBy: "Joana Rivera", active: true },
@@ -5037,12 +5037,15 @@ export function mergeWebsiteStateFromBridge(
       id: p.id,
       title: p.title,
       slug: path,
-      status: p.status === "published" ? "published" : "draft",
-      publishedAt: p.status === "published" ? p.updatedAt ?? undefined : undefined,
+      status:
+        p.status === "published" ? "published" : p.status === "archived" ? "archived" : "draft",
+      locale: p.locale,
+      hasExcerpt: p.hasExcerpt,
+      publishedAt: p.publishedAt ?? undefined,
       updatedAt: p.updatedAt ?? new Date().toISOString(),
-      author: "—",
-      hits7d: 0,
-      tags: [],
+      // Same resolution as pages' lastEditedBy: raw profile UUID → display
+      // name, "" when unresolvable so no surface prints a UUID.
+      lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
     };
   });
 

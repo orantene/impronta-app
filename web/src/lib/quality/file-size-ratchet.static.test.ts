@@ -200,7 +200,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website pages quick actions (P3-A): +4 for passing
   // `system_template_key` through the merge, so the Pages list can stop
   // offering Archive/Delete on the rows the cms_pages guard trigger protects.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5185,
+  // +3: W3 posts row model — fixture author/tags/hits7d replaced by real
+  // locale/hasExcerpt/lastEditedBy projection (comment lines in the merge).
+  "src/components/admin/shell/internal/state/fixtures.ts": 5188,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -314,7 +316,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website pages quick actions (P3-A): +11 for
   // `WebsitePageRow.systemTemplateKey` and the note recording why a template
   // key stands in for the unprojected `is_system_owned` column.
-  "src/components/admin/shell/internal/state/types.ts": 2815,
+  // +13: W3 — WebsitePost re-modelled on real cms_posts columns
+  // (locale/hasExcerpt/lastEditedBy doc comments replace author/tags/hits7d).
+  "src/components/admin/shell/internal/state/types.ts": 2828,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

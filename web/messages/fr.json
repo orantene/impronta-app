@@ -601,6 +601,8 @@
         "overviewDescription": "Pages, articles, domaine, SEO",
         "pagesLabel": "Pages",
         "pagesDescription": "Toutes les pages de votre site",
+        "postsLabel": "Articles",
+        "postsDescription": "Écrire et publier des articles de blog",
         "designLabel": "Design",
         "designDescription": "Couleurs, polices, espacement, en-tête et pied de page",
         "cardDesignLabel": "Design des cartes",
