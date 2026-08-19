@@ -493,4 +493,33 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Edita el texto y el destino de cada enlace. Arrastra el asa para reordenar.",
   "Opens under the toggle. Simplest, no overlay.":
     "Se abre bajo el botón. Lo más simple, sin superposición.",
+  // Nav panel v2 — link fields, mega layout, phone-menu contents.
+  "Always open": "Siempre abierto",
+  Collapsible: "Plegable",
+  "Full width": "Ancho completo",
+  "Under the link": "Bajo el enlace",
+  "Top bar only": "Solo en la barra",
+  "Phone menu only": "Solo en el menú móvil",
+  "Shown under the label in a dropdown":
+    "Se muestra bajo el texto en un desplegable",
+  "Only shows in a dropdown or mega panel. The top bar stays one line.":
+    "Solo aparece en un desplegable o panel mega. La barra superior se queda en una línea.",
+  "Where it shows": "Dónde aparece",
+  "One set of links. Choose where each one shows, so nothing has to be retyped for mobile.":
+    "Un solo conjunto de enlaces. Elige dónde aparece cada uno, así no hay que reescribir nada para móvil.",
+  "Mega columns": "Columnas del panel mega",
+  "Mega panel width": "Ancho del panel mega",
+  "Link hover": "Efecto al pasar el cursor",
+  "Used by the link underline, badges and the phone menu button.":
+    "Se usa en el subrayado de los enlaces, los distintivos y el botón del menú móvil.",
+  "Phone menu button": "Botón del menú móvil",
+  "Pinned to the bottom of the open menu. Needs both a label and a destination to appear.":
+    "Fijado al final del menú abierto. Necesita texto y destino para aparecer.",
+  "Also in the phone menu": "También en el menú móvil",
+  "Social links row": "Fila de redes sociales",
+  "Language row": "Fila de idiomas",
+  "Each one hides itself when it has nothing to show, so an empty row never appears.":
+    "Cada una se oculta cuando no tiene nada que mostrar, así nunca aparece una fila vacía.",
+  "Phone menu groups": "Grupos del menú móvil",
+  "Phone menu spacing": "Espaciado del menú móvil",
 };
