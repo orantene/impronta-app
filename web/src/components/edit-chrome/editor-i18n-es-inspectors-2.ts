@@ -522,4 +522,10 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Cada una se oculta cuando no tiene nada que mostrar, así nunca aparece una fila vacía.",
   "Phone menu groups": "Grupos del menú móvil",
   "Phone menu spacing": "Espaciado del menú móvil",
+  // Nav submenu canvas preview. Inside ternaries, which the parity harvester
+  // cannot read statically — added deliberately rather than left to a guard
+  // that would never have flagged them. ("Show on canvas" is NOT here: it is
+  // already defined in editor-i18n-es-canvas.ts, and a second definition would
+  // let spread order pick the wording.)
+  "Close preview": "Cerrar vista previa",
 };

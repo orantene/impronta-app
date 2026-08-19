@@ -29,6 +29,7 @@
  *   - Source section while dragging: desaturate filter + dashed ring + 0.4 opacity
  */
 
+import { navLinkIdFromEventTarget } from "./nav-submenu-pin";
 import {
   useCallback,
   useEffect,
@@ -767,6 +768,7 @@ export function SelectionLayer() {
     navigatorOpen,
     previewing: isEditModePreviewing,
     requestInspectorTab,
+    requestNavLinkFocus,
     inspectorTabRequest,
     inspectorDockOpen,
     registerCanvasGeometryDirtyListener,
@@ -1387,6 +1389,7 @@ export function SelectionLayer() {
 	    toggleSelection,
 	    setHoveredSectionId,
 	    setHoveredBuilderNodeId,
+	    requestNavLinkFocus,
 	  });
   useEffect(() => {
     callbacksRef.current = {
@@ -1399,6 +1402,7 @@ export function SelectionLayer() {
 	      toggleSelection,
 	      setHoveredSectionId,
 	      setHoveredBuilderNodeId,
+	      requestNavLinkFocus,
 	    };
 	  }, [
 	    setSelectedSectionId,
@@ -1410,6 +1414,7 @@ export function SelectionLayer() {
 	    toggleSelection,
 	    setHoveredSectionId,
 	    setHoveredBuilderNodeId,
+	    requestNavLinkFocus,
 	  ]);
 
   useEffect(() => {
@@ -1497,6 +1502,12 @@ export function SelectionLayer() {
       } else {
         if (builderNodeId) {
           callbacksRef.current.selectBuilderNode(builderNodeId);
+          // Nav links are PROPS, not nodes, so the click above selects the whole
+          // nav; carry the link id so the panel can open on that row.
+          const navLinkId = navLinkIdFromEventTarget(e.target);
+          if (navLinkId) {
+            callbacksRef.current.requestNavLinkFocus?.(builderNodeId, navLinkId);
+          }
         } else if (id) {
           callbacksRef.current.focusSectionForEdit(id);
         }

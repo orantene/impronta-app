@@ -187,7 +187,13 @@ const BUDGETS: Record<string, number> = {
   // +6 (convert-to-component): pin `{ suggested, nodeId }` at menu-open so the
   // namer still converts the node the operator picked if selection changes
   // before they confirm the name.
-  "selection-layer.tsx": 7888,
+  // +14 (nav-link focus): carrying the clicked LINK id alongside the selected
+  // nav, because nav links are props rather than nodes so a click can only
+  // select the whole nav. The DOM resolution was extracted to
+  // `nav-submenu-pin.tsx` rather than inlined here; what remains is the
+  // callback-ref wiring (three sites, by this file's own convention) and the
+  // dispatch itself. Nothing left to extract without moving the click handler.
+  "selection-layer.tsx": 7902,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
