@@ -52,7 +52,16 @@ import { formatPageUpdatedAt } from "./WebsitePage-2";
 
 type Period = "7d" | "30d";
 
-const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
+// USD, always. The platform prices and reports in USD (see
+// feedback_primary_currency_usd + the "never a hardcoded €" note in
+// IdentityBar-1); this helper was carried over from the old Performance panel
+// with a euro sign baked in, which rendered "€0" on every tenant's Analytics.
+const fmtMoney = (n: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(n);
 
 /** Pill period switcher — 7d / 30d. */
 function PeriodSwitch({
