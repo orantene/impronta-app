@@ -194,11 +194,29 @@ async function writePage(
   }
 
   if (existing) {
+    // A write on a PUBLISHED page must not unpublish it: flipping status to
+    // 'draft' would drop the live Spanish page to its English fallback. But
+    // be clear about what this branch IS: freeform pages render `blocks`
+    // directly when published (see (public)/p/[[...slug]]/page.tsx), so
+    // writing blocks into a published row REPLACES THE LIVE BODY immediately.
+    // There is no draft column for freeform pages. Run this only when the
+    // tree is fit to be seen; review happens in place.
+    const draftOnPublished = !publish && existing.status === "published";
+    const update = draftOnPublished
+      ? { blocks: payload.blocks, is_freeform: payload.is_freeform }
+      : payload;
+    if (draftOnPublished) {
+      console.log("published page: replacing the LIVE body (freeform renders blocks); status + SEO untouched");
+    }
     const { error } = await supabase
       .from("cms_pages")
-      .update(payload)
+      .update(update)
       .eq("id", existing.id);
     if (error) throw new Error(`update failed: ${error.message}`);
+    if (draftOnPublished) {
+      console.log("\nWritten. The page was already published, so this body is LIVE now.");
+      return;
+    }
   } else {
     const { error } = await supabase.from("cms_pages").insert(payload);
     if (error) throw new Error(`insert failed: ${error.message}`);
