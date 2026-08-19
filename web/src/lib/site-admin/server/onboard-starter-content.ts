@@ -48,6 +48,7 @@ import {
   FREE_STARTER_TALENT_SEEDS,
   buildFreeStarterEntries,
 } from "./onboard-starter-content-entries";
+import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPage } from "./onboard-directory-page";
 import { platformOwnedStamp } from "@/lib/media/ownership";
 
@@ -72,6 +73,12 @@ export interface OnboardStarterContentInput {
    * tenant has an empty homepage composition.
    */
   seedFreeStarter?: boolean;
+  /**
+   * The signup answer to "Which describes you best?", carried from the lead
+   * row so the starter homepage speaks to the right kind of business.
+   * Defaults to "agency" when a caller has no lead to read it from.
+   */
+  audience?: StarterAudience;
 }
 
 export interface OnboardStarterContentResult {
@@ -363,6 +370,7 @@ async function seedFreeStarterHomepage(params: {
   tenantId: string;
   locale: Parameters<typeof ensureHomepageRow>[1]["locale"];
   actorProfileId: string;
+  audience?: StarterAudience;
   /**
    * The homepage row `ensureHomepageRow` just created or found.
    *
@@ -510,7 +518,7 @@ async function seedFreeStarterHomepage(params: {
   const slots: Record<string, Array<{ sectionId: string; sortOrder: number }>> = {};
   const slotCounts = new Map<string, number>();
 
-  for (const entry of buildFreeStarterEntries(planRow?.display_name)) {
+  for (const entry of buildFreeStarterEntries(planRow?.display_name, params.audience)) {
     const registry = getSectionType(entry.sectionTypeKey);
     if (!registry) continue;
 
@@ -691,6 +699,7 @@ export async function onboardStarterContent(
       tenantId: input.tenantId,
       locale,
       actorProfileId,
+      audience: input.audience,
       // Hand the just-ensured row straight over. See the `page` prop doc:
       // re-reading it here is what broke every self-serve signup.
       page: {

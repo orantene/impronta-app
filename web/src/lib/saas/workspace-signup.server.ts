@@ -89,6 +89,8 @@ async function ensureWorkspaceScaffold(params: {
   tenantId: string;
   displayName: string;
   actorProfileId: string;
+  /** Signup answer, so the starter homepage speaks to this kind of business. */
+  audience?: "operator" | "agency" | "organization";
 }): Promise<void> {
   // READ-AFTER-WRITE: this whole trampoline executes inside a Server Component
   // render (`/onboarding/workspace`), where Next memoizes identical fetch GETs
@@ -141,6 +143,7 @@ async function ensureWorkspaceScaffold(params: {
     tenantId: params.tenantId,
     actorProfileId: params.actorProfileId,
     seedFreeStarter: true,
+    audience: params.audience,
   });
   if (!starter.ok) {
     logServerError(
@@ -508,6 +511,7 @@ export async function provisionWorkspaceFromLead(params: {
         tenantId: data.id,
         displayName: data.display_name,
         actorProfileId: params.userId,
+        audience: lead.audience,
       });
       return finalizeProvisionResult({
         lead,
@@ -539,6 +543,7 @@ export async function provisionWorkspaceFromLead(params: {
       tenantId: existingFree.tenantId,
       displayName: existingFree.displayName,
       actorProfileId: params.userId,
+      audience: lead.audience,
     });
     await attachLeadToTenant({
       leadId: lead.id,
