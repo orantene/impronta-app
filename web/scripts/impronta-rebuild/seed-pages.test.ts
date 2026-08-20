@@ -277,9 +277,27 @@ test("applyHomeInPlaceGuard does nothing when the existing home page is still a 
   assert.equal(override, undefined);
 });
 
-test("applyHomeInPlaceGuard does nothing for a non-home slug even if published", () => {
+test("applyHomeInPlaceGuard protects EVERY published page, not just home", () => {
+  // This test asserted the opposite until 2026-08-20, when the behaviour it
+  // was pinning took nine live English pages down: a routine re-seed of
+  // about / for-clients / terms / the talent pages wrote them back as drafts
+  // and the storefront served "Not found". A seeder must not unpublish a live
+  // page, whatever its slug.
   const existing: ExistingCmsPageRow = { id: "about-id", status: "published", slug: "about" };
   const override = applyHomeInPlaceGuard("about", existing, { allowHomeStatusDowngrade: false });
+  assert.equal(override, "published");
+});
+
+test("applyHomeInPlaceGuard still leaves a brand-new page as a draft", () => {
+  // The default has to stay `draft` for pages that do not exist yet — seeding
+  // a new page should not publish it to the world as a side effect.
+  const override = applyHomeInPlaceGuard("brand-new", null, { allowHomeStatusDowngrade: false });
+  assert.equal(override, undefined);
+});
+
+test("applyHomeInPlaceGuard leaves an existing DRAFT page as a draft", () => {
+  const existing: ExistingCmsPageRow = { id: "x", status: "draft", slug: "some-page" };
+  const override = applyHomeInPlaceGuard("some-page", existing, { allowHomeStatusDowngrade: false });
   assert.equal(override, undefined);
 });
 
