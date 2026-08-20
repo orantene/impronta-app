@@ -156,6 +156,17 @@ export function PublishPreflight({
         );
         return;
       }
+      // `ok` is not the same as "something changed": the batch skips any fix
+      // whose patch no-ops or fails validation, so a zero count means the
+      // blockers are still there. Say so instead of re-running the checks and
+      // silently showing the same list — the button reporting success while
+      // fixing nothing is the exact failure this action was built to end.
+      if (result.fixedCount === 0) {
+        reportMutationError(
+          t("Nothing could be fixed automatically. Use the Show on canvas buttons to fix each block."),
+        );
+        return;
+      }
       await flushBuilderTreeSave();
       setRetryNonce((n) => n + 1);
     } finally {

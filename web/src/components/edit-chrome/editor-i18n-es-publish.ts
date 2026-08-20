@@ -31,6 +31,8 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Fix {count} of {total} for me": "Corrige {count} de {total} por mí",
   "One click applies safe layout fixes and re-runs the checks. Undo reverts the whole batch.":
     "Un clic aplica correcciones seguras de diseño y vuelve a ejecutar las verificaciones. Deshacer revierte todo el lote.",
+  "Nothing could be fixed automatically. Use the Show on canvas buttons to fix each block.":
+    "No se pudo corregir nada automáticamente. Usa los botones Mostrar en el lienzo para corregir cada bloque.",
   "Could not apply the fixes. Use the Show on canvas buttons to fix each block instead.":
     "No se pudieron aplicar las correcciones. Usa los botones Mostrar en el lienzo para corregir cada bloque.",
   // "Hide" already lives in editor-i18n-es-inspectors.ts.
