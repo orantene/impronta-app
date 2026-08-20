@@ -180,7 +180,7 @@ const divisions = band(
   [
     centerHead(
       "rb-clients-divisions",
-      "The divisions",
+      "Our talents",
       "Build the whole team from one roster",
       "Mix disciplines in a single brief: a face for the campaign, hosts for the door, a DJ for the room and a chef for the table.",
     ),

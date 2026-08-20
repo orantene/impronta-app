@@ -10,6 +10,10 @@
  */
 
 export const CORE_ES_COPY: Record<string, string> = {
+  "Our talents": "Nuestro talento",
+  "Every talent is curated by the same rules: met in person, vetted, represented.":
+    "Cada talento se cura con las mismas reglas: conocido en persona, verificado, representado.",
+  "Talent categories": "Categorías de talento",
   // ── about ───────────────────────────────────────────────────────────────────
   "The agency": "La agencia",
   "An imprint, not": "Una impronta, no",

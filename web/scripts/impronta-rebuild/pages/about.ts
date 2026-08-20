@@ -160,9 +160,9 @@ const divisionsStrip = band(
   [
     centerHead(
       "rb-about-divisions",
-      "The divisions",
+      "Our talents",
       "Four disciplines, one standard",
-      "Each division is curated by the same rules: met in person, vetted, represented.",
+      "Every talent is curated by the same rules: met in person, vetted, represented.",
     ),
     {
       id: "rb-about-divisions-rows",
@@ -204,7 +204,7 @@ const stats = band(
       },
       children: [
         statCell("rb-about-stat-talent", "27+", "Represented talent", false),
-        statCell("rb-about-stat-divisions", "5", "Divisions", true),
+        statCell("rb-about-stat-divisions", "5", "Talent categories", true),
         statCell("rb-about-stat-markets", "3", "Working markets", true),
         statCell("rb-about-stat-managed", "100%", "Agency-managed", true),
       ],
