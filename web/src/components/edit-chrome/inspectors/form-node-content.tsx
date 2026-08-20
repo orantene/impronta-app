@@ -8,6 +8,24 @@
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 
+import {
+  AtSign,
+  Calendar,
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CircleDot,
+  FileUp,
+  List,
+  MessageSquare,
+  Phone,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Type,
+} from "lucide-react";
+
 import type { BuilderFormNode } from "@/lib/site-admin/builder-node";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import {
@@ -74,6 +92,14 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
     };
 
   const fields = node.props.fields;
+  /**
+   * One field open at a time. The panel used to render every control of every
+   * field at once - six fields became a wall of ~40 inputs ("so overwhelming",
+   * the owner). A collapsed row shows what an operator scans for (icon, label,
+   * type, required); everything else appears only for the row being edited.
+   * Default: all collapsed. A newly added field opens itself.
+   */
+  const [openFieldId, setOpenFieldId] = useState<string | null>(null);
   const action = node.props.action ?? "internal";
   const isInternal = action.trim().toLowerCase() === "internal";
   const selectedInbox = inboxSections?.find((s) => s.id === node.props.sectionId);
@@ -90,6 +116,21 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
     { value: "consent", label: t("Consent") },
     { value: "submit", label: t("Submit button") },
   ];
+  const FIELD_TYPE_ICONS: Record<FormFieldType, typeof Type> = {
+    text: Type,
+    email: AtSign,
+    tel: Phone,
+    textarea: MessageSquare,
+    select: List,
+    radio: CircleDot,
+    checkbox: CheckSquare,
+    date: Calendar,
+    file: FileUp,
+    consent: ShieldCheck,
+    submit: Send,
+  };
+  const typeLabelFor = (type: FormFieldType) =>
+    FIELD_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type;
 
   return (
     <div className="flex flex-col gap-3">
@@ -196,61 +237,112 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
         />
         <CardBody>
           <div className="flex flex-col gap-3">
-            {fields.map((field, fieldIndex) => (
+            {fields.map((field, fieldIndex) => {
+              const isOpen = openFieldId === field.id;
+              const TypeIcon = FIELD_TYPE_ICONS[field.type] ?? Type;
+              return (
               <div
                 key={field.id}
-                className="rounded-lg border px-3 py-2"
-                style={{ borderColor: "rgba(24,24,27,0.16)", background: "var(--chrome-paper, #fff)" }}
+                className="rounded-lg border"
+                style={{
+                  borderColor: isOpen ? "rgba(24,24,27,0.28)" : "rgba(24,24,27,0.14)",
+                  background: "var(--chrome-paper, #fff)",
+                }}
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 truncate text-[12px] font-semibold">
+                {/* Collapsed row: what an operator scans for, nothing else. */}
+                <div className="flex items-center gap-1.5 px-2 py-1.5">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenFieldId(isOpen ? null : field.id)}
+                  >
+                    {isOpen ? (
+                      <ChevronDown size={13} className="shrink-0 opacity-50" aria-hidden />
+                    ) : (
+                      <ChevronRight size={13} className="shrink-0 opacity-50" aria-hidden />
+                    )}
+                    <TypeIcon size={14} className="shrink-0 opacity-70" aria-hidden />
+                    <span
+                      className="min-w-0 flex-1 truncate text-[12px] font-semibold"
+                      style={{ color: "rgba(24,24,27,0.88)" }}
+                    >
                       {field.label || `Field ${fieldIndex + 1}`}
                     </span>
-                    <button
-                      type="button"
-                      className={KIT.subtleButton}
-                      disabled={fieldIndex === 0}
-                      onClick={() => {
-                        const next = [...fields];
-                        [next[fieldIndex - 1], next[fieldIndex]] = [
-                          next[fieldIndex]!,
-                          next[fieldIndex - 1]!,
-                        ];
-                        void commitPatch({ fields: next });
-                      }}
+                    {/* The label wins the space fight: a row reading "E…" next
+                        to a fully spelled-out CORREO ELECTRÓNICO badge has its
+                        priorities backwards. The icon already carries the type;
+                        the badge is a reminder, capped so it can never push the
+                        label into an ellipsis. */}
+                    <span
+                      className="max-w-[72px] shrink-0 truncate text-[10px] uppercase tracking-wide"
+                      style={{ color: "rgba(24,24,27,0.42)" }}
                     >
-                      {t("Up")}
-                    </button>
-                    <button
-                      type="button"
-                      className={KIT.subtleButton}
-                      disabled={fieldIndex === fields.length - 1}
-                      onClick={() => {
-                        const next = [...fields];
-                        [next[fieldIndex], next[fieldIndex + 1]] = [
-                          next[fieldIndex + 1]!,
-                          next[fieldIndex]!,
-                        ];
-                        void commitPatch({ fields: next });
-                      }}
-                    >
-                      {t("Down")}
-                    </button>
-                    {fields.length > 1 ? (
-                      <button
-                        type="button"
-                        className={KIT.subtleButton}
-                        onClick={() => {
-                          void commitPatch({
-                            fields: fields.filter((_, i) => i !== fieldIndex),
-                          });
-                        }}
+                      {typeLabelFor(field.type)}
+                    </span>
+                    {field.required ? (
+                      <span
+                        className="shrink-0 text-[12px] font-bold"
+                        style={{ color: "#b4530a" }}
+                        title={t("Required")}
+                        aria-label={t("Required")}
                       >
-                        {t("Remove")}
-                      </button>
+                        *
+                      </span>
                     ) : null}
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1 opacity-40 transition-opacity hover:opacity-90 disabled:opacity-15"
+                    disabled={fieldIndex === 0}
+                    title={t("Up")}
+                    aria-label={t("Up")}
+                    onClick={() => {
+                      const next = [...fields];
+                      [next[fieldIndex - 1], next[fieldIndex]] = [
+                        next[fieldIndex]!,
+                        next[fieldIndex - 1]!,
+                      ];
+                      void commitPatch({ fields: next });
+                    }}
+                  >
+                    <ChevronUp size={13} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1 opacity-40 transition-opacity hover:opacity-90 disabled:opacity-15"
+                    disabled={fieldIndex === fields.length - 1}
+                    title={t("Down")}
+                    aria-label={t("Down")}
+                    onClick={() => {
+                      const next = [...fields];
+                      [next[fieldIndex], next[fieldIndex + 1]] = [
+                        next[fieldIndex + 1]!,
+                        next[fieldIndex]!,
+                      ];
+                      void commitPatch({ fields: next });
+                    }}
+                  >
+                    <ChevronDown size={13} aria-hidden />
+                  </button>
+                  {fields.length > 1 ? (
+                    <button
+                      type="button"
+                      className="rounded p-1 opacity-40 transition-opacity hover:opacity-90"
+                      title={t("Remove")}
+                      aria-label={t("Remove")}
+                      onClick={() => {
+                        void commitPatch({
+                          fields: fields.filter((_, i) => i !== fieldIndex),
+                        });
+                      }}
+                    >
+                      <Trash2 size={13} aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
+                {isOpen ? (
+                <div className="flex flex-col gap-2 border-t px-3 pb-3 pt-2" style={{ borderColor: "rgba(24,24,27,0.10)" }}>
                   <Field flush>
                     <FieldLabel>{t("Type")}</FieldLabel>
                     <select
@@ -421,27 +513,32 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                     </>
                   ) : null}
                 </div>
+                ) : null}
               </div>
-            ))}
+              );
+            })}
             {fields.length < 24 ? (
               <button
                 type="button"
                 className={KIT.ghostButton}
                 onClick={() => {
+                  const id =
+                    typeof crypto !== "undefined" && crypto.randomUUID
+                      ? crypto.randomUUID()
+                      : `field-${Date.now()}`;
                   void commitPatch({
                     fields: [
                       ...fields,
                       {
-                        id:
-                          typeof crypto !== "undefined" && crypto.randomUUID
-                            ? crypto.randomUUID()
-                            : `field-${Date.now()}`,
+                        id,
                         name: `field_${fields.length + 1}`,
                         type: "text" as const,
                         label: "New field",
                       },
                     ],
                   });
+                  // A field you just added is the one you are about to edit.
+                  setOpenFieldId(id);
                 }}
               >
                 {t("+ Add field")}

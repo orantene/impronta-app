@@ -32,6 +32,12 @@ const hero = pageHero("rb-contact", {
   line1: "Say it in",
   line2: "a sentence.",
   sub: "A brief, a date and a place is all we need to start. A coordinator, not an autoresponder, replies within 24 hours.",
+  // The owner's ask: a visitor landing on Contact should see the OTHER path
+  // immediately - build a lineup from the roster instead of writing a brief.
+  // The directory link already existed twice on this page (a quiet line button
+  // in the Direct card, and the closing CTA at the very bottom); what was
+  // missing was one you can see without scrolling.
+  primary: { label: "Start browsing talent now", href: "/directory" },
   compact: true,
 });
 

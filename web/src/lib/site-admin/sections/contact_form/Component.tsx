@@ -14,6 +14,7 @@ import { renderInlineRich } from "../shared/rich-text";
 import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ContactFormV1 } from "./schema";
+import { CaptchaThemeStamper } from "./captcha-theme";
 import {
   buttonSize,
   ctaDecls,
@@ -570,6 +571,7 @@ export function ContactFormComponent({
                 data-hl={hcaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
+              <CaptchaThemeStamper />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
             </>
           ) : null}
@@ -580,6 +582,7 @@ export function ContactFormComponent({
                 data-sitekey={turnstileKey}
                 data-language={turnstileLanguage}
               />
+              <CaptchaThemeStamper />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
