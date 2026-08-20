@@ -157,7 +157,11 @@ const BUDGETS: Record<string, number> = {
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
   // layer list. One prop plus the comment recording why the exception is gone.
-  "src/components/edit-chrome/navigator-panel.tsx": 4512,
+  // +27 (shell hand-off, 2026-08-20): `activateShellRow` — Site header /
+  // footer rows select in place only when the node exists in THIS tree;
+  // otherwise they open the ShellEditConfirm hand-off dialog (its OWN module;
+  // what lands here is the guard, the state, and the mount).
+  "src/components/edit-chrome/navigator-panel.tsx": 4539,
   // +68 (info-tip program): `NavLocaleToggle` — the locale switcher for
   // FREEFORM surfaces. Freeform stores one cms_pages row per locale and the
   // public route loads strictly that row, so the in-place ContentLocaleToggle
