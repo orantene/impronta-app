@@ -25,6 +25,7 @@ import { faqPage } from "./pages/faq";
 import { termsPage } from "./pages/terms";
 import { privacyPage } from "./pages/privacy";
 import { notFoundPage } from "./pages/not-found";
+import { showPage } from "./pages/show";
 
 const PAGES: ReadonlyArray<ImprontaRebuildPage> = [
   homePage,
@@ -36,6 +37,7 @@ const PAGES: ReadonlyArray<ImprontaRebuildPage> = [
   termsPage,
   privacyPage,
   notFoundPage,
+  showPage,
 ];
 
 function walk(nodes: BuilderNode[], visit: (node: BuilderNode) => void): void {
@@ -52,12 +54,12 @@ function sectionSignature(node: BuilderNode): string {
   return `${node.kind}:${label ?? node.id}`;
 }
 
-test("impronta-rebuild: nine pages, unique slugs, expected set", () => {
-  assert.equal(PAGES.length, 9);
+test("impronta-rebuild: ten pages, unique slugs, expected set", () => {
+  assert.equal(PAGES.length, 10);
   const slugs = PAGES.map((page) => page.slug);
   assert.deepEqual(
     [...slugs].sort(),
-    ["404", "about", "become-a-model", "contact", "faq", "for-clients", "home", "privacy", "terms"],
+    ["404", "about", "become-a-model", "contact", "faq", "for-clients", "home", "privacy", "show", "terms"],
   );
   assert.equal(new Set(slugs).size, slugs.length);
 });
@@ -96,7 +98,7 @@ test("impronta-rebuild: section structure snapshot", () => {
       "container:Divisions",
       "container:Markets Section",
       "container:Editorial plate",
-      "container:Statement",
+      "container:The show",
       "container:How it works",
       "container:Social proof",
       "container:Stats",
@@ -149,6 +151,14 @@ test("impronta-rebuild: section structure snapshot", () => {
     terms: ["container:Hero", "container:Terms", "container:Closing CTA band"],
     privacy: ["container:Hero", "container:Privacy", "container:Closing CTA band"],
     "404": ["container:Not found"],
+    show: [
+      "container:Hero",
+      "container:The production",
+      "container:For venues",
+      "container:Casting",
+      "container:Live roster",
+      "container:Closing CTA band",
+    ],
   });
 });
 
@@ -160,9 +170,13 @@ test("impronta-rebuild: SEO metadata is complete and consistent", () => {
     assert.ok(seo.og_title.length > 0, `${page.slug} og_title`);
     assert.ok(seo.og_description.length > 0, `${page.slug} og_description`);
     assert.equal(seo.canonical_url, `/p/${page.slug}`, `${page.slug} canonical`);
-    if (page.slug === "404") {
-      assert.equal(seo.noindex, true, "404 must be noindex");
-      assert.equal(seo.include_in_sitemap, false, "404 stays out of the sitemap");
+    // Two pages are deliberately not indexable, for different reasons: the 404
+    // never should be, and `show` is an unannounced production the owner wants
+    // reachable (she can send the link to a venue) but not findable until she
+    // says the show is public. Flipping it is one field.
+    if (page.slug === "404" || page.slug === "show") {
+      assert.equal(seo.noindex, true, `${page.slug} must be noindex`);
+      assert.equal(seo.include_in_sitemap, false, `${page.slug} stays out of the sitemap`);
     } else {
       assert.equal(seo.noindex, false, `${page.slug} must be indexable`);
       assert.equal(seo.include_in_sitemap, true, `${page.slug} belongs in the sitemap`);
@@ -201,7 +215,34 @@ test("impronta-rebuild: every image is a W5 slot placeholder with alt text", () 
 });
 
 // Every button href must be a real destination — no dead CTAs.
-const ALLOWED_HREF = /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+|mailto:[^\s]+|tel:\+[0-9]+|\/)$/;
+/**
+ * `#anchor` is allowed because a hero CTA that jumps to a form further down the
+ * SAME page is a real destination, not a dead link. The section id still has to
+ * exist - "every in-page anchor resolves" below is what checks that.
+ */
+const ALLOWED_HREF = /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+|mailto:[^\s]+|tel:\+[0-9]+|#[a-z0-9-]+|\/)$/;
+
+/**
+ * An in-page anchor is only a real destination if the id is really on the page.
+ * `#rb-show-casting` in the show hero is a CTA a visitor clicks expecting to
+ * land on the casting form; a typo would scroll nowhere and look like a dead
+ * button. Nothing else in the stack checks this - the renderer emits whatever
+ * href it is given.
+ */
+test("impronta-rebuild: every in-page anchor resolves to a node on that page", () => {
+  for (const page of PAGES) {
+    const ids = new Set<string>();
+    walk(page.tree, (node) => ids.add(node.id));
+    walk(page.tree, (node) => {
+      const href = (node.props as { href?: unknown }).href;
+      if (typeof href !== "string" || !href.startsWith("#")) return;
+      assert.ok(
+        ids.has(href.slice(1)),
+        `${page.slug}/${node.id}: anchor "${href}" has no matching node on the page`,
+      );
+    });
+  }
+});
 
 test("impronta-rebuild: every button href points at a real destination", () => {
   for (const page of PAGES) {
