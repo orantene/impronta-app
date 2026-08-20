@@ -460,6 +460,7 @@ const editorialTree: BuilderNode[] = [
               "radial-gradient(90% 62% at 50% 0%, rgba(198,169,140,0.12), rgba(198,169,140,0) 56%), linear-gradient(180deg,#1d1813 0%,#151009 100%)",
             animationPreset: "rise",
             animationTrigger: "scroll",
+            animationRepeat: "once",
             animationDuration: "1s",
           },
         },

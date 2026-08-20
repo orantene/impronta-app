@@ -54,8 +54,9 @@ import {
  *     block selectable/restyleable/movable in the builder); ONLY the discipline
  *     marquee stays a `section_embed`. Every color/font is `token:`-bound so the
  *     page re-skins per tenant theme.
- *   - Motion: every section band rises on scroll (animationPreset:"rise" +
- *     animationTrigger:"scroll"); prefers-reduced-motion is honoured by the
+ *   - Motion: every section band rises ONCE as it scrolls in
+ *     (animationPreset:"rise" + animationTrigger:"scroll" +
+ *     animationRepeat:"once"); prefers-reduced-motion is honoured by the
  *     static renderer sheet.
  */
 
@@ -109,6 +110,12 @@ const dataSources: BuilderNodeRenderDataSources = {
 const RISE = {
   animationPreset: "rise" as const,
   animationTrigger: "scroll" as const,
+  // Play ONCE, not on the `view()` scrub lane. Without this the band's opacity
+  // and offset track scroll POSITION, so it un-fades whenever the visitor
+  // scrolls back up -- a band that keeps re-introducing itself reads as a bug,
+  // not as polish. It was written scrub-first because "play once on scroll in"
+  // did not exist until the Animation tab shipped it.
+  animationRepeat: "once" as const,
   animationDuration: "0.9s",
   animationEasing: "smooth" as const,
 };
@@ -1164,7 +1171,7 @@ const bestFor: BuilderNode = {
       props: {
         layout: "stack",
         layerLabel: "Container",
-        style: { width: "100%", maxWidthFree: "1220px", gap: "40px", animationPreset: "rise", animationTrigger: "scroll", animationDuration: "0.9s", animationEasing: "smooth" },
+        style: { width: "100%", maxWidthFree: "1220px", gap: "40px", animationPreset: "rise", animationTrigger: "scroll", animationRepeat: "once", animationDuration: "0.9s", animationEasing: "smooth" },
       },
       children: [
         {

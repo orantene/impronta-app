@@ -442,6 +442,7 @@ const coachTree: BuilderNode[] = [
             boxShadow: `inset 0 1px 0 0 ${LINE}`,
             animationPreset: "rise",
             animationTrigger: "scroll",
+            animationRepeat: "once",
             animationDuration: "0.9s",
             responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px" } },
           },
