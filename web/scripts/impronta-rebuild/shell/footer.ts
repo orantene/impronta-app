@@ -31,7 +31,7 @@ const EN: FooterCopy = {
     { label: "Contact", href: "/p/contact" },
     { label: "FAQ", href: "/p/faq" },
   ],
-  divisionsHeading: "Divisions",
+  divisionsHeading: "Our Talents",
   divisions: [
     { label: "Fashion Models", href: "/p/fashion-models" },
     { label: "Hosts & Promoters", href: "/p/hosts-promoters" },
@@ -64,7 +64,7 @@ const ES: FooterCopy = {
     { label: "Contacto", href: "/p/contact" },
     { label: "Preguntas Frecuentes", href: "/p/faq" },
   ],
-  divisionsHeading: "Divisiones",
+  divisionsHeading: "Nuestro Talento",
   // Restored: these pointed at /directory while the Spanish landings did not
   // exist. They do now, and the seeder's dead-link preflight verifies it on
   // every write rather than trusting this comment.

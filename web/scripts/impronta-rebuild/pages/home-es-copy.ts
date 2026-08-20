@@ -26,6 +26,15 @@
  */
 
 export const HOME_ES_COPY: Record<string, string> = {
+  "International Models & Talent Agency · Riviera Maya":
+    "Agencia Internacional de Modelos y Talento · Riviera Maya",
+  "Impronta is a boutique talent and model agency based on the Riviera Maya, working internationally. Models, hosts, performers, DJs and culinary talent, every one of them met, vetted and represented by an agency that answers for the booking end to end.":
+    "Impronta es una agencia boutique de modelos y talento con base en la Riviera Maya y alcance internacional. Modelos, anfitriones, performers, DJs y talento culinario, cada uno conocido en persona, verificado y representado por una agencia que responde por la reserva de principio a fin.",
+  "Our talents": "Nuestro talento",
+  "Each one is a working roster with real people on it. Browse the talent your brief needs, or search the full directory across all of them.":
+    "Cada uno es un roster activo con personas reales. Explora el talento que tu brief necesita, o busca en el directorio completo.",
+  "An agency that answers for every booking":
+    "Una agencia que responde por cada reserva",
   "Where we work": "Dónde trabajamos",
   "Local faces, international reach": "Rostros locales, alcance internacional",
   "The roster lives on the Riviera Maya and travels for the brief. Hover a city to see the faces working it.":

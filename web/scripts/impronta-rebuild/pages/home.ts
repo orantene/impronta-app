@@ -45,10 +45,10 @@ import {
 
 // ── hero ─────────────────────────────────────────────────────────────────────
 const hero = pageHero("rb-home", {
-  eyebrowText: "Models & Talent Agency · Tulum · Riviera Maya",
+  eyebrowText: "International Models & Talent Agency · Riviera Maya",
   line1: "Faces that carry",
   line2: "the Riviera Maya.",
-  sub: "Impronta is a boutique talent and model agency in Tulum and Playa del Carmen. Models, hosts, performers, DJs and culinary talent, every one of them met, vetted and represented by an agency that answers for the booking end to end.",
+  sub: "Impronta is a boutique talent and model agency based on the Riviera Maya, working internationally. Models, hosts, performers, DJs and culinary talent, every one of them met, vetted and represented by an agency that answers for the booking end to end.",
   primary: { label: "Book talent", href: "/contact" },
   secondary: { label: "Explore the roster", href: "/directory" },
   footnote: "Agency-managed end to end · first reply within 24 hours",
@@ -192,9 +192,9 @@ const divisions = band(
   [
     centerHead(
       "rb-home-divisions",
-      "The divisions",
+      "Our talents",
       "One agency, four disciplines",
-      "Every division is a working roster, not a category label. Browse the discipline your brief needs, or search the full directory across all of them.",
+      "Each one is a working roster with real people on it. Browse the talent your brief needs, or search the full directory across all of them.",
     ),
     grid(
       "rb-home-divisions-grid",
@@ -390,7 +390,7 @@ const proof = band(
 const stats = band(
   "rb-home-stats",
   [
-    centerHead("rb-home-stats", "By the numbers", "A working agency, not a listing site"),
+    centerHead("rb-home-stats", "By the numbers", "An agency that answers for every booking"),
     {
       id: "rb-home-stats-row",
       kind: "container",
@@ -572,10 +572,10 @@ export const homePage: ImprontaRebuildPage = {
   slug: "home",
   title: "Impronta, Models & Talent Agency",
   seo: {
-    meta_title: "Impronta | Boutique Model & Talent Agency in Tulum, Riviera Maya",
+    meta_title: "Impronta | International Model & Talent Agency, Riviera Maya",
     meta_description:
-      "Impronta is a boutique model and talent agency in Tulum and Playa del Carmen. Book vetted models, event hosts, performers, DJs and private chefs, agency-managed end to end.",
-    og_title: "Impronta, Models & Talent Agency, Tulum",
+      "Impronta is a boutique model and talent agency based on the Riviera Maya, working internationally. Book vetted models, event hosts, performers, DJs and private chefs, agency-managed end to end.",
+    og_title: "Impronta, International Models & Talent Agency",
     og_description:
       "Vetted models, hosts, performers, DJs and culinary talent on the Riviera Maya. One brief, one coordinator, a shortlist within 24 hours.",
     canonical_url: "/p/home",
