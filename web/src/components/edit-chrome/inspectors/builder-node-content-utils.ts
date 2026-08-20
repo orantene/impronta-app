@@ -23,6 +23,17 @@ export function resolveHonestSelectedBuilderNodeId(input: {
   builderTree: BuilderNodeTree;
   sectionIdByBuilderNodeId: ReadonlyMap<string, string>;
   builderNodeIdBySectionId: ReadonlyMap<string, string>;
+  /**
+   * SHELL-SEL (2026-08-20) — the sections actually live on this surface. A
+   * node whose mapped owner section is NOT live (the `site_shell` surface:
+   * landmark nodes carry the shell's cms_page_sections id while `slots` is
+   * empty) must compare as owner-less, exactly as `selectBuilderNode`
+   * normalizes at write time. Without this the resolver rejected every shell
+   * selection one line below, so the whole shell canvas was uneditable.
+   * Omitted (undefined) = every mapped owner counts as live (legacy callers /
+   * tests predating the parameter).
+   */
+  liveSectionIds?: ReadonlySet<string>;
 }): string | null {
   const {
     selectedSectionId,
@@ -30,6 +41,7 @@ export function resolveHonestSelectedBuilderNodeId(input: {
     builderTree,
     sectionIdByBuilderNodeId,
     builderNodeIdBySectionId,
+    liveSectionIds,
   } = input;
   const override = selectedBuilderNodeIdOverride;
   // Freeform full-page designs have builder nodes with NO owner section, so
@@ -38,10 +50,17 @@ export function resolveHonestSelectedBuilderNodeId(input: {
   // old `if (!selectedSectionId) return null` bailed before this, so every
   // freeform block resolved to "nothing selected" even after selectBuilderNode.
   // (`?? null` so a missing map entry compares equal to a null section.)
+  const mappedOwner = override
+    ? sectionIdByBuilderNodeId.get(override) ?? null
+    : null;
+  const liveOwner =
+    mappedOwner && liveSectionIds && !liveSectionIds.has(mappedOwner)
+      ? null
+      : mappedOwner;
   if (
     override &&
     treeContainsBuilderNodeId(builderTree, override) &&
-    (sectionIdByBuilderNodeId.get(override) ?? null) === selectedSectionId
+    liveOwner === selectedSectionId
   ) {
     return override;
   }

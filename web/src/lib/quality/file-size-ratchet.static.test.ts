@@ -107,7 +107,15 @@ const BUDGETS: Record<string, number> = {
   //       That collapse is what hid the EN/ES switch on every freeform page.
   //       This is a derived value + two value-object entries, i.e. exactly the
   //       thin plumbing the guard's procedure asks to record rather than extract.
-  "src/components/edit-chrome/edit-context.tsx": 6231,
+  //   +30 (SHELL-SEL, 2026-08-20): the live-owner normalization. A builder
+  //       node's mapped owner section is only valid selection CONTEXT when
+  //       that section is live on this surface; on `site_shell` the landmarks
+  //       carry the shell's cms_page_sections id while slots is empty, and the
+  //       selection-sync hardening wiped every selection one tick after it was
+  //       made (the whole shell canvas read as dead). liveSectionIdsRef + the
+  //       liveOwnerSectionIdFor helper + the normalized compare in the P7A-2
+  //       guard, plus the comments that stop this from regressing.
+  "src/components/edit-chrome/edit-context.tsx": 6261,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
