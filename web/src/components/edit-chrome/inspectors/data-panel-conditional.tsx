@@ -50,6 +50,7 @@ import {
 import { useBuilderTree } from "../builder-tree-bridge";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented } from "../kit";
 import { KIT } from "./kit/tokens";
+import { InspectorInfoTip } from "./kit";
 
 interface SharedProps {
   selectedBuilderNode: BuilderNode;
@@ -360,6 +361,11 @@ export function ABTestCard({
         iconAccent={active ? "green" : "blue"}
         action={
           active ? (
+            <span className="inline-flex items-center gap-1.5">
+            <InspectorInfoTip
+              title="A/B test"
+              content="Leave a field blank to keep variant A's value for it. A challenger with no overrides is dropped. Weights are relative, leave them blank for an even split."
+            />
             <button
               type="button"
               className={KIT.subtleButton}
@@ -370,6 +376,7 @@ export function ABTestCard({
             >
               Clear
             </button>
+            </span>
           ) : null
         }
       />
@@ -501,11 +508,6 @@ export function ABTestCard({
               <Helper>Maximum of {EXPERIMENT_MAX_ARMS} variants.</Helper>
             )}
 
-            <Helper>
-              Leave a field blank to keep variant A’s value for it. A challenger
-              with no overrides is dropped. Weights are relative, leave them
-              blank for an even split.
-            </Helper>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
