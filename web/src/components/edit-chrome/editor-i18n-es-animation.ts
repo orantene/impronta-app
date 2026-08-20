@@ -59,6 +59,11 @@ export const ES_ANIMATION_TEXT: Record<string, string> = {
     "Duración de la animación en milisegundos",
   "Delay":
     "Retardo",
+  // "Short" already maps to "Baja" ("low") elsewhere in the catalog, which is
+  // the wrong word for a duration -- so the delay chip says "Brief" instead of
+  // reusing a key whose Spanish means something else.
+  "Brief":
+    "Breve",
   "Long":
     "Largo",
   "A short wait before it starts. Stagger a few elements to make a group arrive in sequence.":

@@ -187,10 +187,34 @@ export function performAnimationReplay(
  * Replay the CSS `animation` on a builder node element.
  * We clone the inline animation value, remove it, force a reflow,
  * then restore — this causes the browser to restart the keyframe.
+ *
+ * TWO of the four trigger lanes ("on hover", "on scroll + just once") publish
+ * their shorthand as the custom property `--bn-anim` instead of an inline
+ * `animation`, precisely so it does NOT run at load. For those, "replay" means
+ * play the shorthand once transiently and then take it off again — otherwise
+ * the Play button and the on-apply replay are silent no-ops on exactly the
+ * lanes whose published behaviour the operator can least preview by reloading.
  */
 function replayInlineAnimation(el: HTMLElement): void {
   const prev = el.style.animation;
-  if (!prev) return;
+  if (!prev) {
+    const viaProperty = el.style.getPropertyValue("--bn-anim").trim();
+    if (!viaProperty) return;
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      el.style.removeProperty("animation");
+      el.removeEventListener("animationend", cleanup);
+    };
+    el.style.animation = viaProperty;
+    el.addEventListener("animationend", cleanup);
+    // Backstop for interrupted / never-firing animationend (display:none mid-
+    // play, reduced-motion race): 4s comfortably outlives the 2.5s max the
+    // panel's slider can set plus the longest delay chip.
+    setTimeout(cleanup, 4000);
+    return;
+  }
 
   el.style.animation = "none";
   // Force reflow so the browser registers the removal.
