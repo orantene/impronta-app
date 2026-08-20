@@ -286,6 +286,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:impronta-pages
 
+      - name: tests — platform stock library
+        if: ${{ !cancelled() }}
+        run: npm run test:platform-stock
+
       # ── Money / content lanes ─────────────────────────────────────────
       # These four lanes were in the `npm run ci` aggregate but NOT in this
       # curated step list, so they never gated a PR (the same drift that hid
