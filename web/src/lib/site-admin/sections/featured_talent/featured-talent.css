@@ -372,8 +372,35 @@
     .site-featured-talent__head-text {
     max-width: min(24rem, 100%) !important;
   }
+  /* The card rail was 207px wide on a 375px phone while every card is 262px,
+   * so ~55px of each card - including the whole Request button - was clipped
+   * and no card could ever be seen in full. Nothing was broken individually:
+   * four paddings simply stacked (wrapper 40 + inner margin 24 + inner padding
+   * 20 + rail padding 20 = 104px per side).
+   *
+   * The inner's inset is what this file owns, so it comes off here on phones
+   * and the gutter is re-applied to the head and the rail, which is where a
+   * reader actually wants it. The wrapper's own 40px is handled in
+   * featured-talent-freeform.ts. Together: rail 207px -> 343px, the whole card
+   * visible with the next one peeking, verified by measurement on the live
+   * site at 375px.
+   *
+   * grid-auto-columns is deliberately NOT touched: minmax(17.5rem, 82vw)
+   * already sizes the card correctly once the rail has room, and overriding it
+   * with a percentage makes the track degenerate and the cards overlap. */
+  .site-featured-talent[data-ft-layout="v11-showcase"]
+    .site-featured-talent__inner {
+    margin-inline: 0;
+    max-width: 100%;
+    padding-inline: 0;
+  }
+  .site-featured-talent[data-ft-layout="v11-showcase"]
+    .site-featured-talent__head {
+    padding-inline: 16px;
+  }
   .site-featured-talent[data-ft-layout="v11-showcase"]
     .site-featured-talent__grid {
+    padding-inline: 16px;
     grid-auto-flow: column;
     grid-auto-columns: minmax(17.5rem, 82vw);
     grid-template-columns: none;

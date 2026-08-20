@@ -124,6 +124,12 @@ export function buildFeaturedTalentDecomposedSection(
             paddingLeft: "40px",
             paddingRight: "40px",
             width: "100%",
+            // 40px gutters are right on a desktop and absurd on a phone: on a
+            // 375px screen they took 21% of the width before any content, and
+            // they stacked with the section's own inset until the card rail was
+            // 207px wide showing 262px cards — every card permanently clipped
+            // through its Request button. Measured on the live site.
+            responsive: { mobile: { paddingLeft: "16px", paddingRight: "16px" } },
           },
         },
         children: [
