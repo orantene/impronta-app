@@ -623,8 +623,9 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "El contorno de cada campo. Déjalo en Predeterminado para seguir la paleta del sitio.",
   "Field fill": "Relleno del campo",
   "The background inside each input box.": "El fondo dentro de cada campo.",
-  Sharp: "Rectas",
+  // "Sharp", "Reset" and "Default" are NOT redefined here - they already live
+  // in editor-i18n-es-inspectors.ts ("Recto" / "Restablecer" /
+  // "Predeterminado"), and a second definition would silently win or lose
+  // depending on spread order. The parity test caught exactly that.
   Round: "Redondeadas",
-  Reset: "Restablecer",
-  Default: "Predeterminado",
 };
