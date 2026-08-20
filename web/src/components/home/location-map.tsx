@@ -418,7 +418,15 @@ export function LocationMap({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
-  const onMapLoadFailed = useCallback(() => setLoadFailed(true), []);
+  const onMapLoadFailed = useCallback(() => {
+    setLoadFailed(true);
+    // Visitors are no longer shown the failure, so the console is the only
+    // remaining signal for whoever is actually debugging it.
+    // eslint-disable-next-line no-console -- deliberate diagnostic, see above
+    console.warn(
+      "[location-map] Google Maps failed to load — section rendering without the map.",
+    );
+  }, []);
 
   useEffect(() => {
     setLoadFailed(false);
@@ -458,6 +466,16 @@ export function LocationMap({
   );
 
   if (!apiKey || locationsWithCoords.length === 0) return null;
+
+  // The map failed to load. A visitor gets NOTHING rather than an error card
+  // telling them to open a browser console — the section still reads
+  // completely without it, because the city list above already carries the
+  // markets and their talent counts. The diagnostic goes to the console for
+  // whoever is actually debugging, which is where a diagnostic belongs.
+  //
+  // (This replaced a full-width "MAP UNAVAILABLE / open the browser console"
+  // panel that the site owner hit in production.)
+  if (loadFailed) return null;
 
   return (
     <div className="mt-10 w-full">
@@ -500,29 +518,6 @@ export function LocationMap({
                 />
               ) : null}
             </Map>
-            {loadFailed ? (
-              <div
-                role="alert"
-                className="absolute inset-0 z-[60] flex items-center justify-center bg-[var(--impronta-surface)] px-6 text-center"
-              >
-                <div className="max-w-lg">
-                  <p className="font-display text-sm font-medium uppercase tracking-[0.2em] text-[var(--impronta-gold-dim)]">
-                    {copy.mapLoadErrorTitle}
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-[var(--impronta-muted)]">
-                    {copy.mapLoadErrorBody}
-                  </p>
-                  <a
-                    href={GOOGLE_CLOUD_MAPS_APIS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-5 inline-flex text-sm font-medium text-[var(--impronta-gold)] underline-offset-4 hover:underline"
-                  >
-                    {copy.mapLoadErrorOpenConsole}
-                  </a>
-                </div>
-              </div>
-            ) : null}
           </div>
         </APIProvider>
       </div>
