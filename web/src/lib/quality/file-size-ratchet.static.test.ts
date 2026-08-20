@@ -107,7 +107,15 @@ const BUDGETS: Record<string, number> = {
   //       That collapse is what hid the EN/ES switch on every freeform page.
   //       This is a derived value + two value-object entries, i.e. exactly the
   //       thin plumbing the guard's procedure asks to record rather than extract.
-  "src/components/edit-chrome/edit-context.tsx": 6231,
+  //   +30 (SHELL-SEL, 2026-08-20): the live-owner normalization. A builder
+  //       node's mapped owner section is only valid selection CONTEXT when
+  //       that section is live on this surface; on `site_shell` the landmarks
+  //       carry the shell's cms_page_sections id while slots is empty, and the
+  //       selection-sync hardening wiped every selection one tick after it was
+  //       made (the whole shell canvas read as dead). liveSectionIdsRef + the
+  //       liveOwnerSectionIdFor helper + the normalized compare in the P7A-2
+  //       guard, plus the comments that stop this from regressing.
+  "src/components/edit-chrome/edit-context.tsx": 6261,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -157,7 +165,11 @@ const BUDGETS: Record<string, number> = {
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
   // layer list. One prop plus the comment recording why the exception is gone.
-  "src/components/edit-chrome/navigator-panel.tsx": 4512,
+  // +27 (shell hand-off, 2026-08-20): `activateShellRow` — Site header /
+  // footer rows select in place only when the node exists in THIS tree;
+  // otherwise they open the ShellEditConfirm hand-off dialog (its OWN module;
+  // what lands here is the guard, the state, and the mount).
+  "src/components/edit-chrome/navigator-panel.tsx": 4539,
   // +68 (info-tip program): `NavLocaleToggle` — the locale switcher for
   // FREEFORM surfaces. Freeform stores one cms_pages row per locale and the
   // public route loads strictly that row, so the in-place ContentLocaleToggle

@@ -1414,6 +1414,26 @@ export function EditProvider({
     }
     return ids;
   }, [slots]);
+  const liveSectionIdsRef = useRef(liveSectionIds);
+  useEffect(() => {
+    liveSectionIdsRef.current = liveSectionIds;
+  }, [liveSectionIds]);
+  /**
+   * SHELL-SEL fix (2026-08-20) — a builder node's owner-section id is only
+   * selection CONTEXT, and it is only valid context when that section is LIVE
+   * on this surface. On the `site_shell` surface the landmark nodes carry the
+   * shell's cms_page_sections id while `slots` is empty, so selecting ANY
+   * shell node set a section id the selection-sync hardening below could not
+   * find in `liveSectionIds` — and one tick later it wiped the entire
+   * selection. That made every canvas click on the shell editor a silent
+   * no-op (owner-reported: "this shit doing nothing"). A not-live owner now
+   * normalizes to null, which is exactly the freeform semantic the hardening
+   * already special-cases.
+   */
+  const liveOwnerSectionIdFor = useCallback((nodeId: string): string | null => {
+    const sid = sectionIdByBuilderNodeIdRef.current.get(nodeId) ?? null;
+    return sid && liveSectionIdsRef.current.has(sid) ? sid : null;
+  }, []);
   useEffect(() => {
     if (!selectedSectionId) return;
     if (selectedSectionId === SITE_HEADER_SELECTION_ID) return;
@@ -1450,8 +1470,14 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride(null);
       return;
     }
-    const ownerSectionId =
+    // SHELL-SEL — normalize exactly as selection time did, or this guard
+    // clears every shell/freeform selection the instant it is made.
+    const rawOwnerSectionId =
       sectionIdByBuilderNodeId.get(selectedBuilderNodeIdOverride) ?? null;
+    const ownerSectionId =
+      rawOwnerSectionId && liveSectionIds.has(rawOwnerSectionId)
+        ? rawOwnerSectionId
+        : null;
     // Selection-sync hardening: if the selected child node disappeared from
     // the tree (delete/move/refresh) or now belongs to another section, clear
     // the override so inspector/navigator fall back to the section root.
@@ -1467,6 +1493,7 @@ export function EditProvider({
     builderTree,
     selectedBuilderNodeIdOverride,
     sectionIdByBuilderNodeId,
+    liveSectionIds,
     selectedSectionId,
   ]);
   const selectedBuilderNodeId = useMemo(
@@ -1477,6 +1504,7 @@ export function EditProvider({
         builderTree,
         sectionIdByBuilderNodeId,
         builderNodeIdBySectionId,
+        liveSectionIds,
       }),
     [
       selectedSectionId,
@@ -1484,6 +1512,7 @@ export function EditProvider({
       builderTree,
       sectionIdByBuilderNodeId,
       builderNodeIdBySectionId,
+      liveSectionIds,
     ],
   );
   // W2-T4a — keep the selection refs current (declared near builderTreeRef).
@@ -1535,11 +1564,11 @@ export function EditProvider({
       // + canvas overlay both key off the selected builder-node id.
       // WS2 — read the derived map from the ref so a tree change doesn't recreate
       // this callback (which would rebuild the whole context value).
-      const sectionId = sectionIdByBuilderNodeIdRef.current.get(nodeId) ?? null;
+      const sectionId = liveOwnerSectionIdFor(nodeId);
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
-    [setSelectedBuilderNodeIdOverride, setSelectedSectionId],
+    [liveOwnerSectionIdFor, setSelectedBuilderNodeIdOverride, setSelectedSectionId],
   );
 
   // W3-T8 — snapshot the active selection at commit time (read from the refs so
@@ -1594,8 +1623,9 @@ export function EditProvider({
       }
       // WS2 — read the derived map from the ref so a tree change doesn't recreate
       // this callback (it is a transitive value-memo dep via ~30 mutators).
-      const sectionId = sectionIdByBuilderNodeIdRef.current.get(next.primaryId);
-      if (!sectionId) return;
+      // SHELL-SEL — same live-owner normalization as selectBuilderNode: a
+      // not-live owner section is context-null (freeform/shell), never a bail.
+      const sectionId = liveOwnerSectionIdFor(next.primaryId);
       setSelectedSectionIdRaw(sectionId);
       setSelectedBuilderNodeIdOverride(next.primaryId);
       setAdditionalSelectedBuilderNodeIds(next.additionalIds);

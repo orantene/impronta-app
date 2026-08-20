@@ -207,3 +207,34 @@ test("removeItemAt: social_feed Clear on a required mediaUrl removes that post (
   // the whole `items` prop, never mutate in place).
   assert.deepEqual(items, [{ id: "a" }, { id: "b" }, { id: "c" }]);
 });
+
+test("resolveHonestSelectedBuilderNodeId keeps a selection whose owner section is not live (site_shell)", () => {
+  // The shell surface: landmark nodes carry the shell's cms_page_sections id
+  // while `slots` is empty, so the owner section is mapped but NOT live.
+  // selectBuilderNode normalizes the section context to null at write time;
+  // the resolver must apply the same rule or it rejects the selection and the
+  // whole shell canvas reads as uneditable (owner-reported, 2026-08-20).
+  const tree = [
+    { id: "shell-root", kind: "container", props: {}, children: [
+      { id: "shell-logo", kind: "image", props: { src: "/x.png" } },
+    ] },
+  ] as unknown as Parameters<typeof resolveHonestSelectedBuilderNodeId>[0]["builderTree"];
+  const resolved = resolveHonestSelectedBuilderNodeId({
+    selectedSectionId: null,
+    selectedBuilderNodeIdOverride: "shell-logo",
+    builderTree: tree,
+    sectionIdByBuilderNodeId: new Map([["shell-logo", "shell-section-row-id"]]),
+    builderNodeIdBySectionId: new Map(),
+    liveSectionIds: new Set(),
+  });
+  assert.equal(resolved, "shell-logo");
+  // And WITHOUT the parameter (legacy callers), the old strict behavior holds.
+  const legacy = resolveHonestSelectedBuilderNodeId({
+    selectedSectionId: null,
+    selectedBuilderNodeIdOverride: "shell-logo",
+    builderTree: tree,
+    sectionIdByBuilderNodeId: new Map([["shell-logo", "shell-section-row-id"]]),
+    builderNodeIdBySectionId: new Map(),
+  });
+  assert.equal(legacy, null);
+});

@@ -194,7 +194,19 @@ export default async function CmsPublicPage({
   mountChatLauncher?: boolean;
 }) {
   const { slug: slugParam } = await params;
-  const slugPath = slugPathFromParams(slugParam);
+  // ROOT-CAUSE FIX (2026-08-20): `__site_shell__` can NEVER pass
+  // slugPathFromParams — SLUG_SEGMENT forbids underscores — so this notFound()
+  // fired before the Lane-2 shell branch below ever ran. The branch comparing
+  // `slugPath === SITE_SHELL_EDITOR_SLUG` was unreachable dead code, and the
+  // shell editor always rendered as edit chrome mounted over the tenant 404
+  // (the exact failure the branch's own comment says it fixed). The sentinel
+  // is compared by EXACT string, never queried as a tenant slug, so letting it
+  // through the validator is safe.
+  const rawSlugPath = slugParam?.join("/") ?? "";
+  const slugPath =
+    rawSlugPath === SITE_SHELL_EDITOR_SLUG
+      ? SITE_SHELL_EDITOR_SLUG
+      : slugPathFromParams(slugParam);
   if (!slugPath) notFound();
 
   // Generic-page sourcePage — never "/" or "/directory", so AgencyChatLauncherMount

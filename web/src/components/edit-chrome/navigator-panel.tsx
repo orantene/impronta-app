@@ -124,6 +124,7 @@ import {
   type BuilderStyleClass,
 } from "@/lib/site-admin/builder-node/style-classes";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
+import { ShellEditConfirm } from "./shell-edit-confirm";
 import {
   readClasses as readStoredClasses,
   writeClasses as writeStoredClasses,
@@ -493,6 +494,12 @@ export function NavigatorPanel() {
     builderNodeId: string | null;
   }
   const [shellRows, setShellRows] = useState<ShellNavRow[]>([]);
+  // "Edit the site header?" hand-off. On a non-shell surface the header /
+  // footer nodes live on the SHELL page's own tree, so selecting them here is
+  // a dead click — the dialog explains and offers the jump instead.
+  const [shellEditConfirm, setShellEditConfirm] = useState<
+    "site_header" | "site_footer" | null
+  >(null);
   // WS-A A2 — this DOM-scrape lists the header/footer rendered as legacy SLOT
   // sections on the homepage canvas. On the dedicated `site_shell` SURFACE the
   // header/footer are first-class freeform section nodes already in the normal
@@ -545,6 +552,31 @@ export function NavigatorPanel() {
     mo.observe(document.body, { childList: true, subtree: true });
     return () => mo.disconnect();
   }, [navigatorOpen, canEditSiteShell, isSiteShellSurface]);
+
+  /**
+   * Shell rows (Site header / Site footer): select in place ONLY when the
+   * node id actually exists in this page's tree (freeform pages with an
+   * ejected shell). Otherwise the node belongs to the `__site_shell__`
+   * surface, and selecting it here silently does nothing — the owner hit
+   * that dead click live (2026-08-20). Those rows open the hand-off dialog.
+   */
+  const activateShellRow = useCallback(
+    (row: ShellNavRow) => {
+      if (row.builderNodeId && findBuilderNodeById(builderTree, row.builderNodeId)) {
+        selectBuilderNode(row.builderNodeId);
+        return;
+      }
+      if (!row.builderNodeId && row.sectionId && !row.sectionId.startsWith("impronta-shell")) {
+        // Legacy slot surfaces: the section row is real — keep the old path.
+        focusSectionForEdit(row.sectionId);
+        return;
+      }
+      setShellEditConfirm(
+        row.sectionTypeKey === "site_footer" ? "site_footer" : "site_header",
+      );
+    },
+    [builderTree, selectBuilderNode, focusSectionForEdit],
+  );
   /** Flat-index of the current drop-line target (insert *before* this row). null → no drop visible. */
   const [dropAt, setDropAt] = useState<number | null>(null);
 
@@ -1575,6 +1607,13 @@ export function NavigatorPanel() {
   // entry points — it is removed here so Page Settings has a single home in the
   // topbar publish menu. Only the shell-surface Theme shortcut remains, so the
   // whole footer collapses away on non-shell surfaces.
+  const shellConfirmDialog = shellEditConfirm ? (
+    <ShellEditConfirm
+      kind={shellEditConfirm}
+      onClose={() => setShellEditConfirm(null)}
+    />
+  ) : null;
+
   const navigatorFooter = canEditSiteShell ? (
     <div
       style={{
@@ -1785,23 +1824,13 @@ export function NavigatorPanel() {
                   <div
                     key={row.sectionId}
                     data-builder-node-id={row.builderNodeId ?? undefined}
-                    onClick={() => {
-                      if (row.builderNodeId) {
-                        selectBuilderNode(row.builderNodeId);
-                      } else {
-                        focusSectionForEdit(row.sectionId);
-                      }
-                    }}
+                    onClick={() => activateShellRow(row)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        if (row.builderNodeId) {
-                          selectBuilderNode(row.builderNodeId);
-                        } else {
-                          focusSectionForEdit(row.sectionId);
-                        }
+                        activateShellRow(row);
                       }
                     }}
                     title={
@@ -3292,6 +3321,7 @@ export function NavigatorPanel() {
         </>
         ) : null}
       </div>
+      {shellConfirmDialog}
     </DockFloatingPanel>
   );
 }

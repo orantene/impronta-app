@@ -466,4 +466,14 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Empty in the other language": "Vacío en el otro idioma",
   "No counterpart block": "Sin bloque equivalente",
   "Numbers or symbols, nothing to translate": "Números o símbolos, nada que traducir",
+  // Shell hand-off dialog (Structure -> Site header / Site footer).
+  "Edit the site header?": "¿Editar el encabezado del sitio?",
+  "Edit the site footer?": "¿Editar el pie de página del sitio?",
+  "The header and footer are shared by every page of your site, so they edit on their own page. Your work here is saved automatically.":
+    "El encabezado y el pie de página son compartidos por todas las páginas de tu sitio, así que se editan en su propia página. Tu trabajo aquí se guarda automáticamente.",
+  "The shell editor isn't enabled for this workspace yet.":
+    "El editor del armazón del sitio aún no está habilitado para este espacio de trabajo.",
+  "Stay here": "Quedarme aquí",
+  "Open the shell editor": "Abrir el editor del armazón",
+  "Checking…": "Comprobando…",
 };
