@@ -71,8 +71,8 @@ export const ES_ANIMATION_TEXT: Record<string, string> = {
     "Cuánto recorre el elemento antes de asentarse.",
   "Motion feel":
     "Carácter del movimiento",
-  "Shapes the acceleration curve. Natural is the right answer almost every time.":
-    "Da forma a la curva de aceleración. Natural es la opción correcta casi siempre.",
+  "Shapes the acceleration curve. Standard is the right answer almost every time.":
+    "Da forma a la curva de aceleración. Estándar es la opción correcta casi siempre.",
   "Gentle":
     "Suave",
   "Playful":

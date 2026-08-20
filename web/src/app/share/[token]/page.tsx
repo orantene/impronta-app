@@ -230,7 +230,7 @@ async function FreeformShareBody({
   const componentStyleDefaults = await loadPublicComponentStyleDefaults(tenantId);
   return (
     <>
-      <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(tree)} />
+      <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(tree)} nodes={tree} />
       <BuilderNodeFontLinks nodes={tree} />
       <div className="w-full flex-1" data-theme-canvas-root="">
         {renderFreeformPageRootTree(tree, {

@@ -515,6 +515,7 @@ async function renderMaxSiteDocument(args: {
           uncertainty falls back to the full sheet. */}
       <BuilderNodeRendererStyles
         kinds={collectPresentNodeKinds([...shellTree, ...blocks], components)}
+        nodes={[...shellTree, ...blocks]}
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}

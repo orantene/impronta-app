@@ -131,6 +131,7 @@ export async function TalentSiteFreeformRenderer({
           to the full sheet on any uncertainty (buildScopedRendererCss). */}
       <BuilderNodeRendererStyles
         kinds={collectPresentNodeKinds(tree, components)}
+        nodes={tree}
       />
       <BuilderNodeFontLinks nodes={tree} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={tokens} /> : null}

@@ -79,9 +79,35 @@ export function triggerAnimationReplay(
  *
  * Reduced-motion: the handler checks `prefers-reduced-motion` and is a
  * no-op when the OS prefers it (unless the section has reducedMotion=always).
+ *
+ * Ref-counted -- see the guard below.
  */
+
+/**
+ * Idempotency guard. The listener used to be registered from exactly one place
+ * -- `ClientBuilderCanvas` -- which turned out NOT to mount in the default
+ * editor (the canvas is server-rendered unless the client-canvas flag is on).
+ * The result: "Preview" dispatched an event that nothing was listening for, in
+ * the configuration almost every operator actually uses. The Animation panel
+ * now registers it too, so the replay works with either canvas; this counter
+ * keeps the two registrations from stacking into a double replay.
+ */
+let replayListenerRefCount = 0;
+let replayListenerCleanup: (() => void) | null = null;
+
 export function registerCanvasAnimationReplayListener(): () => void {
   if (typeof document === "undefined") return () => {};
+  if (replayListenerCleanup) {
+    replayListenerRefCount += 1;
+    return () => {
+      replayListenerRefCount -= 1;
+      if (replayListenerRefCount <= 0) {
+        replayListenerCleanup?.();
+        replayListenerCleanup = null;
+        replayListenerRefCount = 0;
+      }
+    };
+  }
 
   function onReplay(evt: Event) {
     // Accept both the CustomEvent (desktop path) and a MessageEvent
@@ -99,7 +125,17 @@ export function registerCanvasAnimationReplayListener(): () => void {
   }
 
   document.addEventListener("editor:replayAnimation", onReplay);
-  return () => document.removeEventListener("editor:replayAnimation", onReplay);
+  replayListenerRefCount = 1;
+  replayListenerCleanup = () =>
+    document.removeEventListener("editor:replayAnimation", onReplay);
+  return () => {
+    replayListenerRefCount -= 1;
+    if (replayListenerRefCount <= 0) {
+      replayListenerCleanup?.();
+      replayListenerCleanup = null;
+      replayListenerRefCount = 0;
+    }
+  };
 }
 
 /**
@@ -160,9 +196,18 @@ function replayInlineAnimation(el: HTMLElement): void {
   // Force reflow so the browser registers the removal.
   void el.offsetWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions
   // Restore on the next rAF so the class-add lands in a fresh frame.
-  requestAnimationFrame(() => {
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
     el.style.animation = prev;
-  });
+  };
+  requestAnimationFrame(restore);
+  // rAF does not fire in a backgrounded / throttled tab. Without this the node
+  // would keep `animation:none` until the tab came back -- visible and at rest,
+  // so nothing breaks, but the animation would be silently lost from the
+  // element. The timeout restores it either way; whichever lands first wins.
+  setTimeout(restore, 50);
 }
 
 /**

@@ -294,7 +294,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
         {shouldRenderBuilderNodeStyles ? (
-          <BuilderNodeRendererStyles kinds={storefrontScopedKinds} />
+          <BuilderNodeRendererStyles kinds={storefrontScopedKinds} nodes={storefrontBodyTree} />
         ) : null}
         {/* A11Y-2 — skip link must be first focusable element before any nav. */}
         <SkipToContent />

@@ -471,6 +471,7 @@ async function renderShellSlot(
               ? undefined
               : collectPresentNodeKinds(builderSectionChildren, builderComponents)
           }
+          nodes={builderSectionChildren}
         />
       ) : null}
       {/* "2018 bye-bye" — an EJECTED landmark no longer renders its curated
@@ -652,6 +653,7 @@ async function renderFreeformShellSide({
               ? undefined
               : collectPresentNodeKinds(freeformNodes, builderComponents)
           }
+          nodes={freeformNodes}
         />
       ) : null}
       {nodes.map((node) =>

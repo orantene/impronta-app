@@ -1066,11 +1066,7 @@ ${BACKGROUND_MEDIA_CSS}
 
 /**
  * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
- * published page injects ONCE when any node opts into `revealOnView` -- or, as
- * of the Animation tab, into a scroll entrance animation set to play ONCE
- * (`[data-bn-anim-once]`). Both want the identical thing: "tell me the first
- * time this node is on screen, then stop watching it", so they share one
- * observer rather than shipping a second copy of it. It:
+ * published page injects ONCE when any node opts into `revealOnView`. It:
  *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
  *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
  *      render shows the node at rest (no flash of hidden content, SEO-safe).
@@ -1080,9 +1076,78 @@ ${BACKGROUND_MEDIA_CSS}
  * and respects prefers-reduced-motion (reveals immediately, no transition — the
  * sheet's reduced-motion guard forces the rest pose). Self-contained, no deps.
  */
+/**
+ * Entrance-animation "play once on scroll in" runtime.
+ *
+ * A DELIBERATE second observer rather than a widened `BUILDER_NODE_REVEAL_SCRIPT`.
+ * That script is gated on `hasRevealOnViewNode` inside `renderBuilderNodes`, and
+ * every real published route hoists the renderer sheet to page level with
+ * `includeRendererStyles: false` per block -- so the gate never runs and the
+ * reveal runtime is injected on NO production page today (only the dev QA
+ * route mounts it by hand). Reusing that script would have meant either
+ * inheriting a runtime that never ships, or reviving `revealOnView` on every
+ * live page as a side effect of an unrelated feature. Neither belongs in this
+ * change, so the Animation tab brings its own observer and leaves the reveal
+ * lane exactly as it found it. The dead reveal runtime is a separate,
+ * pre-existing bug and is written up as one.
+ *
+ * It ships alongside the sheet (`BuilderNodeRendererStyles`), which IS mounted
+ * once on every page, so a route added later cannot forget it. That costs every
+ * page a few hundred bytes of script it may not use; the script early-returns
+ * on the first line when no node opts in, and a control that silently does
+ * nothing is a worse trade.
+ *
+ *   1. ARMS every `[data-bn-anim-once]` node, and only then does the sheet
+ *      hide it -- so with no JS, no IntersectionObserver, or reduced motion the
+ *      node renders at rest. Never a flash of hidden content, never text a
+ *      crawler or a reader cannot see.
+ *   2. Marks it `data-bn-revealed` the first time >= 12% of it is on screen,
+ *      which is when the sheet applies the `--bn-anim` shorthand, then
+ *      unobserves it. Plays once, exactly as the panel promises.
+ */
+const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
+  // The renderer sheet is mounted once per SHELL REGION (header, page body,
+  // footer), so this runtime lands three or four times on a real page. Only the
+  // first instance binds -- it already queries every [data-bn-anim-once] on the
+  // page, so the others would only add duplicate observers.
+  if(window.__bnAnimOnceRuntime)return;
+  window.__bnAnimOnceRuntime=1;
+  function run(){
+    try{
+      var nodes=document.querySelectorAll('[data-bn-anim-once]');
+      if(!nodes.length)return;
+      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(reduce||typeof IntersectionObserver==='undefined')return;
+      for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
+      var io=new IntersectionObserver(function(entries){
+        for(var k=0;k<entries.length;k++){
+          var e=entries[k];
+          if(e.isIntersecting){
+            e.target.setAttribute('data-bn-revealed','');
+            io.unobserve(e.target);
+          }
+        }
+      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
+      for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+    }catch(err){
+      var f=document.querySelectorAll('[data-bn-anim-once]');
+      for(var n=0;n<f.length;n++){f[n].removeAttribute('data-bn-reveal-armed');f[n].setAttribute('data-bn-revealed','');}
+    }
+  }
+  // This ships with the SHEET, which is emitted in head order -- so at execution
+  // time the body it needs to query does not exist yet and a bare call would
+  // find zero nodes and quietly do nothing. (That is one of the two reasons the
+  // older reveal runtime never worked on a real page.) Wait for the DOM.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run);
+  }else{
+    run();
+  }
+})();`;
+
 const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
   try{
-    var nodes=document.querySelectorAll('[data-bn-reveal],[data-bn-anim-once]');
+    var nodes=document.querySelectorAll('[data-bn-reveal]');
     if(!nodes.length)return;
     var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(reduce||typeof IntersectionObserver==='undefined'){
@@ -1101,7 +1166,7 @@ const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
     },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
     for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
   }catch(err){
-    var f=document.querySelectorAll('[data-bn-reveal],[data-bn-anim-once]');
+    var f=document.querySelectorAll('[data-bn-reveal]');
     for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
   }
 })();`;
@@ -5517,17 +5582,6 @@ export function renderBuilderNodes(
 function hasRevealOnViewNode(nodes: ReadonlyArray<BuilderNode>): boolean {
   const styleReveals = (style: BuilderNodeStyle | undefined): boolean => {
     if (!style) return false;
-    // A scroll entrance animation set to play ONCE is armed by this same
-    // observer (see BUILDER_NODE_REVEAL_SCRIPT), so it has to pull the runtime
-    // in too -- otherwise the node stays armed-and-hidden forever.
-    if (
-      style.animationPreset &&
-      style.animationPreset !== "none" &&
-      style.animationTrigger === "scroll" &&
-      style.animationRepeat === "once"
-    ) {
-      return true;
-    }
     // BASE only. `revealOnView` has no breakpoint lane — the attribute that
     // arms a node (`data-bn-reveal`) is written from the base style alone — so
     // a breakpoint-scoped value armed nothing while still pulling the
@@ -5646,17 +5700,69 @@ export function BuilderNodeFontLinks({
  * a superset of what the present kinds need. The single-sheet-per-page invariant
  * (render-perf-budget.test.ts) is unchanged — this only shrinks the one sheet.
  */
+/**
+ * True when any node in the tree uses the "play once on scroll in" entrance
+ * lane, and therefore needs the arming runtime. Walks children, base style only
+ * (animation keys have no breakpoint lane).
+ */
+export function hasAnimationPlayOnceNode(
+  nodes: ReadonlyArray<BuilderNode>,
+): boolean {
+  const visit = (node: BuilderNode): boolean => {
+    const style = "props" in node
+      ? (node.props as { style?: BuilderNodeStyle }).style
+      : undefined;
+    if (
+      style?.animationPreset &&
+      style.animationPreset !== "none" &&
+      style.animationTrigger === "scroll" &&
+      style.animationRepeat === "once"
+    ) {
+      return true;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      return node.children.some(visit);
+    }
+    return false;
+  };
+  return nodes.some(visit);
+}
+
 export function BuilderNodeRendererStyles({
   kinds,
+  nodes,
 }: {
   kinds?: ReadonlySet<BuilderNodeKind> | null;
+  /**
+   * The tree this sheet is being hoisted for. Supplied so the "play once"
+   * arming runtime can ride along with the sheet -- the sheet is the one thing
+   * every render path mounts exactly once per page, whereas anything gated
+   * inside `renderBuilderNodes` never ships (every real route renders blocks
+   * with `includeRendererStyles:false`; that is why the older reveal runtime
+   * has never been injected on a production page).
+   *
+   * Omitted -> no runtime, byte-identical output. That default is deliberate:
+   * an unconditional script broke both the reveal back-compat guard and the
+   * "no author script in the parent origin" security guard, and it should.
+   */
+  nodes?: ReadonlyArray<BuilderNode> | null;
 } = {}): ReactNode {
   const css = buildScopedRendererCss(BUILDER_NODE_RENDERER_CSS, kinds);
-  return (
+  const sheet = (
     <style
       data-builder-node-renderer-styles=""
       dangerouslySetInnerHTML={{ __html: css }}
     />
+  );
+  if (!nodes || !hasAnimationPlayOnceNode(nodes)) return sheet;
+  return (
+    <>
+      {sheet}
+      <script
+        data-builder-node-anim-once-runtime=""
+        dangerouslySetInnerHTML={{ __html: BUILDER_NODE_ANIM_ONCE_SCRIPT }}
+      />
+    </>
   );
 }
 

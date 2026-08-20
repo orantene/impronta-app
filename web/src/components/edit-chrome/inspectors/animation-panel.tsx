@@ -31,7 +31,7 @@
  * animation, and they still live on the Style tab where they always did.
  */
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import {
   BUILDER_ANIMATION_DEFAULT_DELAY,
@@ -59,7 +59,10 @@ import {
   InspectorNotice,
   InspectorSection,
 } from "./kit/inspector-ui";
-import { triggerAnimationReplay } from "./kit/motion-animation-replay";
+import {
+  registerCanvasAnimationReplayListener,
+  triggerAnimationReplay,
+} from "./kit/motion-animation-replay";
 
 type AnimationEasing = NonNullable<BuilderNodeStyleValue["animationEasing"]>;
 
@@ -70,14 +73,20 @@ type AnimationEasing = NonNullable<BuilderNodeStyleValue["animationEasing"]>;
  * `animationEasingCustom` key, which the Style tab's advanced field owns.
  */
 const EASING_OPTIONS: ReadonlyArray<{ value: AnimationEasing; label: string }> = [
+  { value: "ease", label: "Standard" },
   { value: "ease-out", label: "Natural" },
   { value: "smooth", label: "Gentle" },
   { value: "back", label: "Playful" },
   { value: "linear", label: "Even" },
 ];
 
-/** The friendly default when an operator has never touched easing. */
-const DEFAULT_EASING: AnimationEasing = "ease-out";
+/**
+ * What an UNSET `animationEasing` actually renders as. `resolveAnimationEasing`
+ * in the renderer falls through to plain `ease`, so that is what the picker has
+ * to show pre-selected -- showing "Natural" (ease-out) on a node that renders
+ * with `ease` would be the panel lying about the page.
+ */
+const DEFAULT_EASING: AnimationEasing = "ease";
 
 /** Delay chips, in CSS time. A slider would be false precision here. */
 const DELAY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
@@ -134,6 +143,14 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
 
   // Serialise async patches so rapid clicks in the gallery cannot race.
   const patchChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  // The canvas-side replay handler. It was registered ONLY by
+  // `ClientBuilderCanvas`, which does not mount unless the client-canvas flag is
+  // on -- so in the default editor the old Preview button dispatched an event
+  // with no listener and nothing happened. Registering here means the replay
+  // works with either canvas; the helper is ref-counted so both registrations
+  // never stack into a double replay.
+  useEffect(() => registerCanvasAnimationReplayListener(), []);
 
   const style = (node.props as { style?: BuilderNodeStyle }).style;
 
@@ -395,7 +412,7 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
             <div className="mt-2">
               <InspectorField
                 label="Motion feel"
-                help="Shapes the acceleration curve. Natural is the right answer almost every time."
+                help="Shapes the acceleration curve. Standard is the right answer almost every time."
               >
                 <Segmented<AnimationEasing>
                   fullWidth
