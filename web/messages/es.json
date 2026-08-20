@@ -791,6 +791,10 @@
           "required": "Adjunta el archivo requerido.",
           "store_failed": "Tu mensaje se envió, pero no se pudo adjuntar el archivo. Envíanoslo por correo."
         }
+      },
+      "error": {
+        "captcha": "El captcha no pasó — márcalo e inténtalo de nuevo.",
+        "rate_limited": "Demasiados envíos desde esta conexión — espera un momento e inténtalo de nuevo."
       }
     },
     "errors": {

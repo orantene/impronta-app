@@ -681,6 +681,23 @@ export function ContactFormComponent({
               </p>
             ))
           : null}
+        {/* The submit route also redirects back for a failed captcha and the
+            rate limit (it used to answer those with a RAW JSON page - the
+            visitor's typed message gone). A code with no matching paragraph
+            here reveals nothing, which is a silent failure - so every code
+            the route can redirect with must have its sentence. */}
+        {useInternal
+          ? (["captcha", "rate_limited"] as const).map((code) => (
+              <p
+                key={code}
+                className="site-form__error"
+                data-error-msg={code}
+                hidden
+              >
+                {t(`public.forms.error.${code}`)}
+              </p>
+            ))
+          : null}
         {useInternal ? (
           <script
             dangerouslySetInnerHTML={{

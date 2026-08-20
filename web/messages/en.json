@@ -791,6 +791,10 @@
           "required": "Please attach the required file.",
           "store_failed": "Your message was sent, but the file could not be attached. Please send it to us by email instead."
         }
+      },
+      "error": {
+        "captcha": "The captcha didn't go through — please tick it and send again.",
+        "rate_limited": "Too many submissions from this connection — please wait a moment and try again."
       }
     },
     "errors": {

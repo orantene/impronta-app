@@ -99,6 +99,7 @@ import type {
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 import { isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
+import { FormResultBanner } from "./form-result-banner";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -4855,6 +4856,9 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
+          {/* "Did that work?" - reveals the redirect flags the endpoint sets.
+              Sits first so the answer is beside the form, not off-screen. */}
+          {isInternal ? <FormResultBanner locale={options.visitorLocale} /> : null}
           {isInternal && method === "post" && formProps.sectionId ? (
             <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
           ) : null}
