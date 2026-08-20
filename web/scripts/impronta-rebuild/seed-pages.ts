@@ -172,6 +172,7 @@ export const EXPECTED_PAGE_MODULE_FILES: readonly string[] = [
   "music-djs",
   "chefs-culinary",
   "show",
+  "studio",
 ];
 
 /**

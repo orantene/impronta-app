@@ -44,6 +44,7 @@ import { legalPagesEs } from "./pages/legal-es";
 import { corePagesEs } from "./pages/core-es";
 import { homePageEs } from "./pages/home-es";
 import { showPageEs } from "./pages/show-es";
+import { studioPageEs } from "./pages/studio-es";
 import type { ImprontaRebuildPage } from "./shared";
 
 const LOCALE = "es";
@@ -61,6 +62,7 @@ const PAGES: ImprontaRebuildPage[] = [
   ...legalPagesEs,
   ...corePagesEs,
   showPageEs,
+  studioPageEs,
 ];
 
 function serviceClient(): SupabaseClient {

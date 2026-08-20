@@ -183,6 +183,16 @@ export const HOME_ES_COPY: Record<string, string> = {
     "Impronta está produciendo un show original para resorts, beach clubs y hoteles de la costa: una sola compañía, con casting del roster y ensayos a cargo de la agencia, que llega lista para presentarse en tu escenario. Los venues ya pueden apartar fecha y el casting está abierto para performers.",
   "Read more": "Leer más",
 
+  // ── the studio promo (replaced plate II) ──────────────────────────────────
+  "The studio": "El estudio",
+  "Book the room": "Reserva el espacio",
+  "where the work happens.": "donde se hace el trabajo.",
+  "Impronta has its own photo studio, and you do not need to be represented by the agency to use it. Book a session for your first portfolio, for a book that no longer looks like you, or simply for good photographs of yourself.":
+    "Impronta tiene su propio estudio fotográfico, y no necesitas estar representado por la agencia para usarlo. Reserva una sesión para tu primer portafolio, para un book que ya no se te parece, o simplemente para tener buenas fotos tuyas.",
+  "Book a session": "Reserva una sesión",
+  "An Impronta model seated in an open white shirt and ripped jeans, hand at his chin, against a white studio backdrop.":
+    "Un modelo de Impronta sentado, con camisa blanca abierta y jeans rotos, la mano en el mentón, sobre un fondo de estudio blanco.",
+
   // ── closing ───────────────────────────────────────────────────────────────
   "The right face is": "El rostro indicado está",
   "one brief away.": "a un brief de distancia.",

@@ -26,6 +26,7 @@ import { termsPage } from "./pages/terms";
 import { privacyPage } from "./pages/privacy";
 import { notFoundPage } from "./pages/not-found";
 import { showPage } from "./pages/show";
+import { studioPage } from "./pages/studio";
 
 const PAGES: ReadonlyArray<ImprontaRebuildPage> = [
   homePage,
@@ -38,6 +39,7 @@ const PAGES: ReadonlyArray<ImprontaRebuildPage> = [
   privacyPage,
   notFoundPage,
   showPage,
+  studioPage,
 ];
 
 function walk(nodes: BuilderNode[], visit: (node: BuilderNode) => void): void {
@@ -54,12 +56,12 @@ function sectionSignature(node: BuilderNode): string {
   return `${node.kind}:${label ?? node.id}`;
 }
 
-test("impronta-rebuild: ten pages, unique slugs, expected set", () => {
-  assert.equal(PAGES.length, 10);
+test("impronta-rebuild: eleven pages, unique slugs, expected set", () => {
+  assert.equal(PAGES.length, 11);
   const slugs = PAGES.map((page) => page.slug);
   assert.deepEqual(
     [...slugs].sort(),
-    ["404", "about", "become-a-model", "contact", "faq", "for-clients", "home", "privacy", "show", "terms"],
+    ["404", "about", "become-a-model", "contact", "faq", "for-clients", "home", "privacy", "show", "studio", "terms"],
   );
   assert.equal(new Set(slugs).size, slugs.length);
 });
@@ -102,7 +104,7 @@ test("impronta-rebuild: section structure snapshot", () => {
       "container:How it works",
       "container:Social proof",
       "container:Stats",
-      "container:Editorial plate",
+      "container:The studio",
       "container:Two paths",
       "container:Closing CTA band",
     ],
@@ -151,6 +153,15 @@ test("impronta-rebuild: section structure snapshot", () => {
     terms: ["container:Hero", "container:Terms", "container:Closing CTA band"],
     privacy: ["container:Hero", "container:Privacy", "container:Closing CTA band"],
     "404": ["container:Not found"],
+    studio: [
+      "container:Hero",
+      "container:Sessions",
+      "container:Booking",
+      "container:Book a session",
+      "container:Gallery",
+      "container:For production teams",
+      "container:Closing CTA band",
+    ],
     show: [
       "container:Hero",
       "container:The production",

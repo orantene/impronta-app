@@ -250,12 +250,74 @@ const plate1 = fullBleedPlate("rb-home-1", {
   line: "She does not walk the runway. She decides where it leads.",
 });
 
-const plate2 = fullBleedPlate("rb-home-2", {
-  imageSlot: "home-plate-atelier",
-  imageAlt: "An Impronta model in a white tank top, smiling, photographed against a white studio backdrop.",
-  numeral: "II.",
-  line: "Behind every face, a room of people answerable for every detail.",
-});
+/**
+ * This slot used to hold plate II — a serif line over a white-background studio
+ * portrait, which is the weakest thing on the page: white photograph, light
+ * type, nothing to read. It becomes the studio promo, which has something to
+ * sell and an image that is genuinely about its subject (a studio frame, on a
+ * page about the studio). `git show` on the commit before this restores it.
+ */
+const studioPromo = band(
+  "rb-home-2",
+  [
+    {
+      id: "rb-home-2-split",
+      kind: "split",
+      props: {
+        ratio: "50-50",
+        gap: "l",
+        collapseOnMobile: true,
+        layerLabel: "The studio",
+        style: { width: "100%", maxWidthFree: "100%", alignItems: "center" },
+      },
+      children: [
+        {
+          id: "rb-home-2-copy",
+          kind: "container",
+          props: {
+            layout: "stack",
+            align: "start",
+            layerLabel: "Studio copy",
+            style: { gap: "0px", maxWidthFree: "560px" },
+          },
+          children: [
+            eyebrow("rb-home-2-eyebrow", "The studio", "left"),
+            headingLine("rb-home-2-line1", "Book the room", { align: "left", layerLabel: "Headline line 1" }),
+            headingLine("rb-home-2-line2", "where the work happens.", { align: "left", accent: true, layerLabel: "Headline line 2 (accent)" }),
+            copy(
+              "rb-home-2-body",
+              "Impronta has its own photo studio, and you do not need to be represented by the agency to use it. Book a session for your first portfolio, for a book that no longer looks like you, or simply for good photographs of yourself.",
+              { align: "left", maxWidth: "520px", marginTop: "20px" },
+            ),
+            ctaRow(
+              "rb-home-2-cta",
+              [goldButton("rb-home-2-book", "Book a session", "/p/studio")],
+              "left",
+            ),
+          ],
+        },
+        {
+          id: "rb-home-2-image",
+          kind: "image",
+          props: {
+            src: IMAGE_SLOT("studio-session"),
+            alt: "An Impronta model seated in an open white shirt and ripped jeans, hand at his chin, against a white studio backdrop.",
+            layerLabel: "Studio frame",
+            style: {
+              width: "100%",
+              aspectRatioFree: "0.85",
+              objectFit: "cover",
+              objectPosition: "center top",
+              borderRadius: "4px",
+              boxShadow: "0 40px 110px rgba(0,0,0,0.45)",
+            },
+          },
+        },
+      ],
+    },
+  ],
+  { borderTop: true, layerLabel: "The studio" },
+);
 
 // ── the show (teaser) ────────────────────────────────────────────────────────
 /**
@@ -593,7 +655,7 @@ const tree: BuilderNode[] = [
   process,
   proof,
   stats,
-  plate2,
+  studioPromo,
   dualCta,
   closing,
 ];
