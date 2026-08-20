@@ -125,6 +125,12 @@ export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "shell.header-bg": "--token-shell-header-bg",
   "shell.header-text": "--token-shell-header-text",
   "shell.header-border": "--token-shell-header-border",
+  // Nav-only font override. Not a color, but it projects the same way — the
+  // map is the single "does this token reach render?" contract, and the
+  // listProjectedTokens invariant fails the build for an agency-configurable
+  // token with no projection. Projecting here also means the site-wide theme
+  // path emits the var, not just `public-header`'s own inline style.
+  "shell.header-nav-font": "--token-shell-header-nav-font",
 };
 
 /**

@@ -31,7 +31,7 @@ import {
   type BuilderFontDefinition,
 } from "@/lib/site-admin/builder-node/fonts-registry";
 
-type Slot = "heading" | "body";
+type Slot = "heading" | "body" | "nav";
 
 const CATEGORY_LABEL: Record<BuilderFontCategory, string> = {
   sans: "Sans",

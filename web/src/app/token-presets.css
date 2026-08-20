@@ -2627,6 +2627,15 @@ html[data-token-shell-header-sticky="off"] .public-header {
 .public-header[style*="--token-shell-header-border"] {
   border-bottom-color: var(--token-shell-header-border) !important;
 }
+/* Nav-only font override (Header inspector -> Style -> Typography). Scoped to
+   the nav links and the mobile menu links, NOT the brand wordmark: the brand
+   follows the site heading font on purpose, and overriding it here would make
+   the logo drift from every other page. */
+.public-header[style*="--token-shell-header-nav-font"] nav a,
+.public-header[style*="--token-shell-header-nav-font"] [data-header-nav-link],
+.public-header-mobile-menu[style*="--token-shell-header-nav-font"] a {
+  font-family: var(--token-shell-header-nav-font) !important;
+}
 
 /* Transparent-on-hero. `data-over-hero` is set by the
  * <PublicHeaderOverHeroSensor> client component — it flips to "false"
