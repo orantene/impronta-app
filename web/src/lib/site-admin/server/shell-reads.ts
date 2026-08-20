@@ -25,6 +25,12 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
+import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
+import { resolveShellSnapshotBuilderTree } from "@/lib/site-admin/edit-mode/site-shell-publish";
+import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+
 import { defaultLocale, type Locale } from "@/i18n/config";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -118,4 +124,181 @@ export function loadPublishedShell(
       revalidate: 300,
     },
   )();
+}
+
+// ---- draft-aware render entry point (owner report 2026-08-20) --------------
+//
+// THE "NOTHING HAPPENS" BUG THIS FIXES
+// ------------------------------------
+// The shell editing surface (and every edit-mode page) rendered the shell from
+// `published_page_snapshot` — while every mutation (move a block, ⌘Z, remove)
+// wrote `cms_pages.blocks`, the DRAFT. Structural edits and undo therefore
+// committed + persisted correctly but repainted NOTHING: the canvas kept
+// showing the published header, so moving a block, undoing, or deleting looked
+// like a silent no-op ("things seem stuck", "⌘Z not working"). Style drags
+// only LOOKED alive because their preview writes inline styles on the live
+// element mid-gesture.
+//
+// The fix mirrors `loadHomepageForRender` exactly: when the request carries a
+// VALID signed preview JWT for this tenant (`isPreviewActiveForTenant` — the
+// same token that unlocks homepage/page drafts; the forgeable edit cookie
+// deliberately unlocks nothing), render the shell from its DRAFT composition —
+// the same rows + the same bake the Publish action uses, minus the write.
+// Public visitors keep the published snapshot, byte-identical.
+
+interface DraftShellRow {
+  id: string;
+  locale: string;
+  title: string;
+  status: string;
+  meta_description: string | null;
+  published_at: string | null;
+  template_schema_version: number | null;
+  version: number;
+  blocks: unknown;
+  style_classes?: unknown;
+}
+
+/**
+ * Uncached DRAFT read of the tenant shell. Same composition steps as
+ * `republishSiteShellSnapshot` (shell row → draft slot rows, falling back to
+ * live rows → section facts → slots + authoritative freeform `blocks` tree),
+ * with no write. Service-role client: the verified preview JWT that gates this
+ * path is admin proof, and anon RLS hides draft `cms_page_sections`. Returns
+ * null when the tenant has no shell row or no sections — callers fall back to
+ * the published snapshot.
+ */
+export async function loadDraftShell(
+  tenantId: string,
+  locale: Locale,
+): Promise<PublishedShell | null> {
+  if (!tenantId) return null;
+  const supabase = createServiceRoleClient();
+  if (!supabase) return null;
+
+  const tenantLocale = await loadTenantLocaleSettings(tenantId);
+  const candidateLocales = Array.from(
+    new Set([locale, tenantLocale.defaultLocale, defaultLocale]),
+  );
+  const { data: rowsRaw } = await supabase
+    .from("cms_pages")
+    .select(
+      "id, locale, title, status, meta_description, published_at, template_schema_version, version, blocks, style_classes",
+    )
+    .eq("tenant_id", tenantId)
+    .in("locale", candidateLocales)
+    .eq("system_template_key", "site_shell")
+    .neq("status", "archived")
+    .returns<DraftShellRow[]>();
+  const rows = (Array.isArray(rowsRaw) ? rowsRaw : []) as DraftShellRow[];
+  const shell =
+    candidateLocales
+      .map((candidate) => rows.find((row) => row.locale === candidate))
+      .find(Boolean) ?? null;
+  if (!shell) return null;
+
+  const { data: draftRowsRaw } = await supabase
+    .from("cms_page_sections")
+    .select("section_id, slot_key, sort_order")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", shell.id)
+    .eq("is_draft", true)
+    .order("slot_key", { ascending: true })
+    .order("sort_order", { ascending: true });
+  let slotRows = (draftRowsRaw ?? []) as Array<{
+    section_id: string;
+    slot_key: string;
+    sort_order: number;
+  }>;
+  if (slotRows.length === 0) {
+    const { data: liveRowsRaw } = await supabase
+      .from("cms_page_sections")
+      .select("section_id, slot_key, sort_order")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", shell.id)
+      .eq("is_draft", false)
+      .order("slot_key", { ascending: true })
+      .order("sort_order", { ascending: true });
+    slotRows = (liveRowsRaw ?? []) as typeof slotRows;
+  }
+  if (slotRows.length === 0) return null;
+
+  const sectionIds = slotRows.map((r) => r.section_id);
+  const { data: sectionRowsRaw } = await supabase
+    .from("cms_sections")
+    .select("id, section_type_key, schema_version, name, props_jsonb, status")
+    .eq("tenant_id", tenantId)
+    .in("id", sectionIds);
+  const factsById = new Map<
+    string,
+    { type: string; ver: number; name: string; props: Record<string, unknown> }
+  >();
+  for (const r of sectionRowsRaw ?? []) {
+    if ((r as { status?: string }).status === "archived") continue;
+    factsById.set(r.id as string, {
+      type: r.section_type_key as string,
+      ver: r.schema_version as number,
+      name: r.name as string,
+      props: (r.props_jsonb as Record<string, unknown> | null) ?? {},
+    });
+  }
+
+  const slots: HomepageSnapshot["slots"] = [];
+  for (const r of slotRows) {
+    const f = factsById.get(r.section_id);
+    if (!f) continue;
+    if (!getSectionType(f.type)) continue;
+    slots.push({
+      slotKey: r.slot_key,
+      sortOrder: r.sort_order,
+      sectionId: r.section_id,
+      sectionTypeKey: f.type,
+      schemaVersion: f.ver,
+      name: f.name,
+      props: f.props,
+    });
+  }
+  if (slots.length === 0) return null;
+
+  const snapshot: HomepageSnapshot = {
+    version: 1,
+    publishedAt: shell.published_at ?? new Date(0).toISOString(),
+    pageVersion: shell.version,
+    locale: shell.locale as HomepageSnapshot["locale"],
+    fields: {
+      title: shell.title,
+      metaDescription: shell.meta_description,
+      introTagline: null,
+    },
+    templateSchemaVersion: shell.template_schema_version ?? 1,
+    slots,
+    builderTree: resolveShellSnapshotBuilderTree(
+      shell.blocks,
+      slots,
+      coerceStyleClassRegistry(shell.style_classes),
+    ),
+  };
+  return {
+    pageId: shell.id,
+    locale: shell.locale,
+    publishedAt: shell.published_at,
+    snapshot,
+  };
+}
+
+/**
+ * Render entry point for the shell: DRAFT when this request carries a valid
+ * signed preview JWT for the tenant (staff editing — same gate as
+ * `loadHomepageForRender`), otherwise the cached published snapshot.
+ */
+export async function loadShellForRender(
+  tenantId: string,
+  locale: Locale,
+): Promise<PublishedShell | null> {
+  const previewActive = await isPreviewActiveForTenant(tenantId);
+  if (previewActive) {
+    const draft = await loadDraftShell(tenantId, locale);
+    if (draft) return draft;
+  }
+  return loadPublishedShell(tenantId, locale);
 }

@@ -26,7 +26,7 @@ import { Fragment } from "react";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
-import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
+import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
@@ -231,7 +231,11 @@ async function renderPublishedShellSide(
   },
 ): Promise<React.ReactNode> {
   if (!isSiteShellEnabledForTenant(tenantId)) return null;
-  const shell = await loadPublishedShell(tenantId, locale);
+  // DRAFT when a valid signed preview JWT is present (staff editing — the same
+  // gate that unlocks homepage/page drafts), published snapshot otherwise.
+  // Mutations write the draft; rendering the published snapshot here made
+  // every structural edit and every ⌘Z look like a silent no-op (2026-08-20).
+  const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
   const prepared = prepareShellTree(

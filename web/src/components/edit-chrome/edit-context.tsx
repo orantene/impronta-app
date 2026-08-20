@@ -318,23 +318,40 @@ export function EditProvider({
       return routerRefreshPromiseRef.current;
     }
     const p = new Promise<void>((resolve, reject) => {
-      requestAnimationFrame(() => {
+      // Owner report 2026-08-20 ("things seem stuck"): the old shape fired
+      // router.refresh() inside rAF and cleared the coalescing ref inside a
+      // SECOND nested rAF. rAF does not run while the tab is hidden — so one
+      // refresh queued in a backgrounded tab left `routerRefreshPromiseRef`
+      // holding a promise that never settled, and EVERY later call
+      // short-circuited to that dead promise: no refresh ever reached the
+      // server again until a full reload. The fix keeps the same one-frame
+      // coalescing but (a) clears the ref AT fire time, not a frame later,
+      // and (b) arms a timeout fallback so a hidden tab still refreshes.
+      let fired = false;
+      const fire = () => {
+        if (fired) return;
+        fired = true;
+        routerRefreshPromiseRef.current = null;
         try {
           router.refresh();
-          requestAnimationFrame(() => {
-            routerRefreshPromiseRef.current = null;
-            resolve();
-          });
+          resolve();
         } catch (err: unknown) {
-          routerRefreshPromiseRef.current = null;
           reject(err);
         }
-      });
+      };
+      requestAnimationFrame(fire);
+      setTimeout(fire, 120);
     });
     routerRefreshPromiseRef.current = p;
     return p;
   }, [router]);
   const normalizedWorkspacePlan = normalizeBuilderWorkspacePlan(workspacePlan);
+  // Surfaces whose edit target paints in a SERVER-rendered region no client
+  // canvas repaints (the site shell's header/footer) must refresh the router
+  // after every builder-tree save (see persistBuilderTree) or structural edits
+  // and undo look like silent no-ops (owner report, 2026-08-20).
+  const serverRenderedEditTarget =
+    resolvedSurfaceConfig.capabilities.serverRenderedEditTarget;
   const canEditSiteShell = builderPlanAllows(
     normalizedWorkspacePlan,
     "builder.shell.edit",
@@ -3098,6 +3115,10 @@ export function EditProvider({
       // server refresh; only the embed/gallery carve-outs force it.
       if (
         !isAnyBuilderNodeCanvasMounted() ||
+        // site_shell: the shell paints ONLY in the server-rendered header/
+        // footer; a mounted client canvas cannot repaint a landmark edit, so
+        // the post-save refresh must always run on this surface.
+        serverRenderedEditTarget ||
         mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
         mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
         mutationTouchesUnboundGallerySections(prevTree, nextTree)
@@ -3112,6 +3133,7 @@ export function EditProvider({
       pageSlug,
       pageId,
       surfaceAdapter,
+      serverRenderedEditTarget,
       queueRouterRefresh,
       reportMutationError,
       // W3-T2 — conflict branch reloads authoritative state + wipes undo.

@@ -2308,6 +2308,7 @@ export function SelectionLayer() {
     const endGesture = () => {
       blockMovePointerRef.current = null;
       document.body.style.userSelect = "";
+      document.body.style.cursor = "";
     };
 
     function onPointerDown(event: PointerEvent) {
@@ -2368,6 +2369,10 @@ export function SelectionLayer() {
         // scroll/resize by the canvasDragGestureKey effect below).
         rebuildCanvasDropIndex();
         document.body.style.userSelect = "none";
+        // Tell the hand it's holding something: the block body isn't a
+        // draggable element, so without this the cursor stays an arrow/I-beam
+        // for the whole move and the gesture reads as broken.
+        document.body.style.cursor = "grabbing";
       }
       event.preventDefault();
       const drop = overChromeAtPoint(event.clientX, event.clientY)
@@ -2802,6 +2807,18 @@ export function SelectionLayer() {
     nodeHoverRect &&
     hoveredBuilderNodeId !== null &&
     hoveredBuilderNodeId !== selectedBuilderNodeId &&
+    drag.phase === "idle" &&
+    canvasNodeDrag.phase === "idle" &&
+    marquee.phase === "idle";
+
+  // Unlike the hover ring, the move rail does NOT exclude the selected node.
+  // Root-cause bug (2026-08-20): every rail button selects on pointer-DOWN,
+  // selection flipped `showNodeHover` false, and the rail unmounted under the
+  // pointer before pointer-up — so the ↑/↓ click never fired and the grip drag
+  // never armed. Keeping it mounted across selection fixes the gesture.
+  const showNodeMoveRail =
+    nodeHoverRect &&
+    hoveredBuilderNodeId !== null &&
     drag.phase === "idle" &&
     canvasNodeDrag.phase === "idle" &&
     marquee.phase === "idle";
@@ -4903,7 +4920,7 @@ export function SelectionLayer() {
        *  pointer-transparent). The drag arms the SAME "move" canvas drag the
        *  chip grip uses → identical drop math + `moveBuilderNodeToParentIndex`
        *  commit, so reordering is discoverable without changing the engine. */}
-      {showNodeHover &&
+      {showNodeMoveRail &&
       hoveredNodeIsMovableBlock &&
       hoveredBuilderNodeId &&
       hoveredBuilderNode &&
@@ -5179,6 +5196,11 @@ export function SelectionLayer() {
 
           {drag.phase === "idle" &&
           !multiNodeSelectionActive &&
+          // Small blocks skip this rail — it sat INSIDE the top-right corner
+          // and covered the whole element (2026-08-20); the chip + right-click
+          // menu carry the same Add/Remove. Larger blocks get icon buttons.
+          renderSelectedRect.width >= 120 &&
+          renderSelectedRect.height >= 56 &&
           (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
               data-edit-overlay="builder-node-canvas-rail"
@@ -5190,7 +5212,7 @@ export function SelectionLayer() {
                 position: "fixed",
                 top: Math.max(renderSelectedRect.top + 8 + canvasTopRailOffset, 62),
                 left: Math.max(
-                  renderSelectedRect.left + renderSelectedRect.width - 88,
+                  renderSelectedRect.left + renderSelectedRect.width - 68,
                   8,
                 ),
                 minHeight: 28,
@@ -5263,7 +5285,6 @@ export function SelectionLayer() {
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  <span>{t("Add")}</span>
                 </button>
               ) : null}
               {canInsertIntoSelectedNode && canRemoveSelectedNode ? (
@@ -5303,7 +5324,23 @@ export function SelectionLayer() {
                   onMouseEnter={(e) => { e.currentTarget.style.background = MENU_DANGER_HOVER_FILL; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
-                  <span>{t("Remove")}</span>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
                 </button>
               ) : null}
             </div>

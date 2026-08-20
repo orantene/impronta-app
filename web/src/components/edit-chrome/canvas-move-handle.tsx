@@ -47,9 +47,19 @@ const ALIGN = 6;
 // Pointer distance within which the move softly snaps to an EQUAL-SPACING
 // (distribution) position between the nearest siblings on an axis.
 const SPACING_SNAP = 6;
-// Only show the grip when the box is roomy enough that a centre control won't
-// swamp the content or fight the resize/spacing handles.
+// Boxes roomier than this get the grip at their CENTRE. Smaller boxes still
+// get a grip — a 40px logo is exactly the block an operator most needs to
+// nudge — but it pins just OUTSIDE the bottom edge so a centre control never
+// swamps the content (owner report, 2026-08-20: sub-64px blocks had NO move
+// affordance at all, so a small element could not be repositioned until it
+// was first resized larger).
 const MIN_BOX = 64;
+// Clearance for the outside grip on small boxes: past the ring plus the
+// edge-centre resize pill (11×30, centred on the edge → ~6px proud). The grip
+// sits BESIDE the box (left by default) because the selection chip anchors
+// above/below it — a below-the-box grip landed inside the chip whenever the
+// chip flipped under a near-the-top element (the site-shell logo, exactly).
+const SMALL_GRIP_OFFSET = 18;
 // 4A #8 — teal for equal-spacing (distribution) pills; magenta-ish accent for
 // edge/centre alignment stays the caller-supplied `accent`. Matches the
 // Violet distribution-cue colour (one guide language across resize/move/gap).
@@ -300,7 +310,10 @@ export function CanvasMoveHandle({
     };
   }, [dragging, liveEl, onCommitTranslate]);
 
-  if (rect.width < MIN_BOX || rect.height < MIN_BOX) return null;
+  const smallBox = rect.width < MIN_BOX || rect.height < MIN_BOX;
+  // Flip to the right side when the box hugs the viewport's left edge.
+  const smallGripSide: "left" | "right" =
+    rect.left < SMALL_GRIP_OFFSET + 30 ? "right" : "left";
 
   function begin(e: React.PointerEvent) {
     e.preventDefault();
@@ -535,6 +548,7 @@ export function CanvasMoveHandle({
         aria-label="Drag to move (double-click to reset position)"
         title="Drag to move · double-click to snap back to natural position"
         data-canvas-move-handle=""
+        data-canvas-move-handle-placement={smallBox ? "outside" : "center"}
         onPointerDown={begin}
         onDoubleClick={(e) => {
           // Recover a strayed block: reset its translate to 0,0 (natural
@@ -546,11 +560,18 @@ export function CanvasMoveHandle({
         }}
         style={{
           position: "absolute",
+          // Small boxes: grip sits beside the box (edge-centred) so it never
+          // covers the content and stays clear of the chip's above/below band;
+          // roomy boxes keep the familiar centre grip.
           top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 26,
-          height: 26,
+          ...(smallBox
+            ? smallGripSide === "left"
+              ? { right: `calc(100% + ${SMALL_GRIP_OFFSET}px)` }
+              : { left: `calc(100% + ${SMALL_GRIP_OFFSET}px)` }
+            : { left: "50%" }),
+          transform: smallBox ? "translateY(-50%)" : "translate(-50%, -50%)",
+          width: smallBox ? 22 : 26,
+          height: smallBox ? 22 : 26,
           borderRadius: 7,
           background: dragging ? accent : "rgba(124,58,237,0.55)",
           border: "2px solid #ffffff",

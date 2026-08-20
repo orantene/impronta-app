@@ -140,6 +140,16 @@ export interface BuilderSurfaceCapabilities {
    *   false → platform_lab / site_shell (no public page render).
    */
   seo: boolean;
+  /**
+   * True when this surface's EDIT TARGET paints in a server-rendered region
+   * that no client canvas ever repaints (the site shell: header/footer render
+   * through `PublicHeader` → `PublishedShellHeader`, not through any mounted
+   * `ClientBuilderCanvas`). The editor uses this to force the post-save router
+   * refresh on every builder-tree persist — without it a structural edit or an
+   * undo commits + saves but repaints NOTHING (owner report, 2026-08-20).
+   * CAPABILITY FLAG so the editor never branches on `surfaceKind` for this.
+   */
+  serverRenderedEditTarget: boolean;
 }
 
 export interface BuilderContextConfig {
@@ -229,6 +239,7 @@ export function buildHomepageBuilderConfig(
       responsiveBreakpoints: true,
       // Homepage is a public SSR surface backed by cms_pages SEO columns.
       seo: true,
+      serverRenderedEditTarget: false,
     },
   };
 }
@@ -324,6 +335,7 @@ export function buildCmsPageBuilderConfig(
       responsiveBreakpoints: true,
       // Agency freeform pages are public SSR surfaces backed by cms_pages SEO columns.
       seo: true,
+      serverRenderedEditTarget: false,
     },
   };
 }
@@ -390,6 +402,7 @@ export function buildTalentPageBuilderConfig(
       // Talent Max pages are public SSR surfaces; the SEO-1 talent_pages
       // migration adds the columns SEO-2 wires into the route + adapter.
       seo: true,
+      serverRenderedEditTarget: false,
     },
   };
 }
@@ -487,6 +500,9 @@ export function buildSiteShellBuilderConfig(
       // site_shell is the shared header/footer, not a public page — suppress the
       // SEO tab here (the wrapping page carries SEO, the shell never does).
       seo: false,
+      // The shell paints ONLY in the server-rendered header/footer — every
+      // builder-tree save must refresh the router or edits repaint nothing.
+      serverRenderedEditTarget: true,
     },
   };
 }
@@ -591,6 +607,7 @@ export function buildPlatformLabBuilderConfig(
       // platform_lab edits template BODIES with no persistent pageId and no
       // public SSR surface — SEO is inert here (suppress, not fork).
       seo: false,
+      serverRenderedEditTarget: false,
     },
   };
 }

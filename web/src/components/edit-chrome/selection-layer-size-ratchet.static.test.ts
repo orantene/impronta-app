@@ -193,7 +193,10 @@ const BUDGETS: Record<string, number> = {
   // `nav-submenu-pin.tsx` rather than inlined here; what remains is the
   // callback-ref wiring (three sites, by this file's own convention) and the
   // dispatch itself. Nothing left to extract without moving the click handler.
-  "selection-layer.tsx": 7902,
+  // +34 (2026-08-20 canvas-affordance audit): keep the move rail mounted across
+  // selection (showNodeMoveRail), gate + icon-ify the Add/Remove rail, and the
+  // trash-icon SVG replacing the "Remove" text button.
+  "selection-layer.tsx": 7936,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
