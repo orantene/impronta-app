@@ -583,6 +583,41 @@ const dualCta = band(
   { borderTop: true, glow: true, layerLabel: "Two paths" },
 );
 
+// ── events ───────────────────────────────────────────────────────────────────
+/**
+ * The owner: "we organize your event and party... or start collecting your
+ * talent for your next event", pointing at the directory.
+ *
+ * Built as a band rather than a page, because the funnel already exists and was
+ * simply never named on the homepage: the directory IS the lineup-collection
+ * tool (browse, heart, send), and contact is the brief intake. What was missing
+ * was the sentence that says events are a thing this agency staffs end to end.
+ *
+ * The primary action is the directory, not the form. Someone planning an event
+ * wants to see faces before they write a brief, and sending them to the roster
+ * is also what teaches the save-and-send flow the numbered band explains.
+ */
+const events = band(
+  "rb-home-events",
+  [
+    centerHead(
+      "rb-home-events",
+      "Events",
+      "Your event, staffed end to end",
+      "One brief covers all of it: hosts and hostesses for the door, performers for the moment the night peaks, a DJ to hold the room, and the faces your brand is remembered by. Build the lineup yourself from the roster, or tell us the date and we build it for you.",
+    ),
+    ctaRow(
+      "rb-home-events-cta",
+      [
+        goldButton("rb-home-events-primary", "Start building your lineup", "/directory"),
+        lineButton("rb-home-events-secondary", "Tell us about your event", "/p/contact"),
+      ],
+      "center",
+    ),
+  ],
+  { borderTop: true, layerLabel: "Events" },
+);
+
 // ── closing ──────────────────────────────────────────────────────────────────
 const closing = closingCta("rb-home-closing", {
   eyebrowText: "Start",
@@ -657,6 +692,7 @@ const tree: BuilderNode[] = [
   stats,
   studioPromo,
   dualCta,
+  events,
   closing,
 ];
 
