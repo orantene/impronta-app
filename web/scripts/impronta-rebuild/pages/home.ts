@@ -153,6 +153,34 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
   }),
 });
 
+/**
+ * The wide roster tile that closes the divisions grid.
+ *
+ * photoTile pins a portrait ratio, which is right for a discipline tile and
+ * wrong for a banner spanning two columns: as a grid item it should take the
+ * height of the portrait beside it. So the ratio comes off and `gridColumn`
+ * goes on — the two edits that turn a column tile into a row tile.
+ */
+function rosterBannerTile(): BuilderNode {
+  const tile = photoTile("rb-home-div-all", {
+    imageSlot: "home-division-roster",
+    imageAlt: "A wall of Impronta roster portraits from recent shoots.",
+    title: "The full roster",
+    subtitle: "Search everyone, filter by discipline, language and city",
+    href: "/directory",
+  });
+  const props = tile.props as { style: Record<string, unknown> };
+  const { aspectRatioFree: _dropped, responsive: _r, ...rest } = props.style;
+  props.style = {
+    ...rest,
+    gridColumn: "span 2",
+    // Phones stack the grid, so the span is inert there and the tile falls
+    // back to a normal photo tile shape.
+    responsive: { mobile: { gridColumn: "auto", aspectRatioFree: "4 / 5" } },
+  };
+  return tile;
+}
+
 // ── divisions ────────────────────────────────────────────────────────────────
 const divisions = band(
   "rb-home-divisions",
@@ -195,53 +223,13 @@ const divisions = band(
           subtitle: "DJs, musicians and curated sound",
           href: "/p/music-djs",
         }),
-        {
-          id: "rb-home-div-all",
-          kind: "container",
-          props: {
-            layout: "stack",
-            align: "start",
-            layerLabel: "Full roster tile",
-            style: {
-              gap: "10px",
-              justifyContent: "flex-end",
-              // Typed prop; the renderer honors ratio on containers now.
-              aspectRatioFree: "0.78",
-              backgroundColor: CARD,
-              borderColor: CARD_BORDER,
-              borderWidth: "1px",
-              borderStyle: "solid",
-              borderRadius: "4px",
-              paddingTop: "24px",
-              paddingBottom: "24px",
-              paddingLeft: "24px",
-              paddingRight: "24px",
-              transitionProperty: "border-color",
-              transitionDuration: "240ms",
-              transitionTimingFunction: "ease",
-              hover: { borderColor: "var(--token-color-primary)" },
-              responsive: { mobile: { aspectRatioFree: "auto" } },
-            },
-          },
-          children: [
-            {
-              id: "rb-home-div-all-title",
-              kind: "heading",
-              props: {
-                text: "The full roster",
-                level: 3,
-                layerLabel: "Tile title",
-                style: { fontFamily: SERIF, fontSize: "22px", fontWeight: 500, textColor: TEXT, marginBottomFree: "0px", align: "left" },
-              },
-            },
-            copy(
-              "rb-home-div-all-sub",
-              "Search every represented profile by discipline, look, language and city.",
-              { align: "left", size: "small", marginTop: "0px", layerLabel: "Tile subtitle" },
-            ),
-            lineButton("rb-home-div-all-cta", "Open the directory", "/directory"),
-          ],
-        },
+        // The roster tile is the one DESTINATION among four disciplines, so
+        // it earns the two cells the 3-column grid would otherwise leave
+        // empty. Built from the same photoTile as its neighbours — a bare
+        // dark rectangle at 805x501 read as a hole in the page, and matching
+        // the siblings gives it a photo, a caption and the same EXPLORE
+        // affordance instead of a lone button.
+        rosterBannerTile(),
       ],
       { layerLabel: "Division tiles" },
     ),

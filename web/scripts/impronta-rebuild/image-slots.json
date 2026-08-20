@@ -35,7 +35,8 @@
     "for-clients-managed": "25c2c347-c9ee-479b-89da-27ac44b62d23",
     "for-clients-division-roster": "e28f4dc3-f709-4533-a07c-953863340907",
     "shell-logo": "181b570d-ff60-4a3a-a6f9-ae05a056acb2",
-    "shell-footer-logo": "181b570d-ff60-4a3a-a6f9-ae05a056acb2"
+    "shell-footer-logo": "181b570d-ff60-4a3a-a6f9-ae05a056acb2",
+    "home-division-roster": "e28f4dc3-f709-4533-a07c-953863340907"
   },
   "note": "Curated 2026-08-17: each slot pinned to an approved Impronta photo of talent in that discipline (models / hosts-promo / performers / music-djs), orientation-matched, no asset reused. Regenerate by re-running the curation query in the rebuild plan."
 }
