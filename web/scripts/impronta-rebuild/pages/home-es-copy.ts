@@ -26,6 +26,12 @@
  */
 
 export const HOME_ES_COPY: Record<string, string> = {
+  "Where we work": "Dónde trabajamos",
+  "Local faces, international reach": "Rostros locales, alcance internacional",
+  "The roster lives on the Riviera Maya and travels for the brief. Hover a city to see the faces working it.":
+    "El roster vive en la Riviera Maya y viaja cuando el brief lo pide. Pasa el cursor por una ciudad para ver los rostros que trabajan ahí.",
+  "Markets appear here as talent join the roster.":
+    "Los mercados aparecen aquí conforme el talento se suma al roster.",
   "A wall of Impronta roster portraits from recent shoots.":
     "Un muro de retratos del roster de Impronta de shoots recientes.",
   "Search everyone, filter by discipline, language and city":

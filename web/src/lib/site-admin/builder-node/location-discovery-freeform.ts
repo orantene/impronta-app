@@ -46,6 +46,14 @@ export interface LocationDiscoveryDecomposedInput {
   seeAllHref?: string;
   /** Grid-only embed config (head fields should be empty). */
   embedConfig?: Record<string, unknown>;
+  /**
+   * Style overrides merged into the eyebrow paragraph.
+   *
+   * Same reason the featured-talent builder has one: the default is this
+   * component's muted grey, and a page that marks every other eyebrow
+   * differently ends up with one section speaking a different language.
+   */
+  eyebrowStyle?: Record<string, unknown>;
 }
 
 /**
@@ -121,6 +129,7 @@ export function buildLocationDiscoveryDecomposedSection(
                 size: "sm",
                 tone: "muted",
                 align: "left",
+                ...(input.eyebrowStyle ?? {}),
               },
             },
           },
