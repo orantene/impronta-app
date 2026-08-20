@@ -75,15 +75,21 @@ test("header: nav menu label is localized", () => {
   assert.equal(es?.props.menuLabel, "Menú");
 });
 
+/**
+ * `header_favorites` is deliberately ABSENT. It rendered a bookmark to
+ * /client/favorites labelled "Open shortlist and inquiry" — the identical
+ * label the inquiry widget already carries, for anonymous visitors too. Two
+ * icons doing one job is what made the cluster read as decoration. If this
+ * list grows a duplicate again, that is the bug this pin exists to catch.
+ */
 const EXPECTED_WIDGET_KEYS = [
   "header_search",
-  "header_favorites",
   "header_inquiry",
   "header_account",
   "header_language",
 ];
 
-test("header: the five live header widgets are embedded, in order, in EN and ES", () => {
+test("header: the live header widgets are embedded, in order, in EN and ES", () => {
   for (const locale of LOCALES) {
     const embeds = collect(improntaHeaderTree[locale]).filter(
       (node): node is BuilderSectionEmbedNode => node.kind === "section_embed",
@@ -96,7 +102,7 @@ test("header: the five live header widgets are embedded, in order, in EN and ES"
   }
 });
 
-test("header: mobile-hidden widget set is exactly favorites + inquiry + account", () => {
+test("header: mobile-hidden widget set is exactly inquiry + account", () => {
   for (const locale of LOCALES) {
     const embeds = collect(improntaHeaderTree[locale]).filter(
       (node): node is BuilderSectionEmbedNode => node.kind === "section_embed",
@@ -107,7 +113,7 @@ test("header: mobile-hidden widget set is exactly favorites + inquiry + account"
       .sort();
     assert.deepEqual(
       hidden,
-      ["header_account", "header_favorites", "header_inquiry"],
+      ["header_account", "header_inquiry"],
       `${locale} mobile-hidden widgets`,
     );
     // Search + language stay visible so a phone visitor keeps both affordances.
@@ -133,10 +139,16 @@ test("header: announcement row hides on mobile; CTA and nav do not", () => {
       const style = (node.props as { style?: { responsive?: { mobile?: { visibility?: string } } } }).style;
       const hidden = style?.responsive?.mobile?.visibility === "hidden";
       if (hidden) {
+        // The gold CTA hides on mobile ON PURPOSE: the drawer carries its own
+        // pinned "Book Talent" button, so keeping it in the bar as well would
+        // be the same action twice on a 390px row. This assertion predated the
+        // drawer CTA and had been failing on main ever since — verified by
+        // running it against a clean checkout before touching it.
+        if (node.id.endsWith("-cta")) continue;
         assert.equal(
           node.kind,
           "section_embed",
-          `${locale}: only widget embeds (and the announcement row) may hide on mobile, found ${node.id}`,
+          `${locale}: only widget embeds, the CTA and the announcement row may hide on mobile, found ${node.id}`,
         );
       }
     }

@@ -87,7 +87,7 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
     ctaLabel: "Book Talent",
     links: {
       home: "Home",
-      divisions: "Divisions",
+      divisions: "Our Talents",
       fashionModels: "Fashion Models",
       hostsPromoters: "Hosts & Promoters",
       performers: "Performers",
@@ -113,7 +113,7 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
     ctaLabel: "Reservar Talento",
     links: {
       home: "Inicio",
-      divisions: "Divisiones",
+      divisions: "Nuestro Talento",
       fashionModels: "Modelos de Moda",
       hostsPromoters: "Anfitriones y Promotores",
       performers: "Performers",
@@ -135,10 +135,19 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
 
 // ── header widget cluster ────────────────────────────────────────────────────
 
-/** The five live header widgets, in bar order. */
+/**
+ * The live header widgets, in bar order.
+ *
+ * `header_favorites` USED TO BE HERE and was removed after auditing what each
+ * icon actually does on the live site: it rendered a bookmark linking to
+ * /client/favorites labelled "Open shortlist and inquiry" — the identical
+ * label the inquiry widget's heart already carries, to an anonymous visitor as
+ * well as a signed-in one. Two icons, one job, and the owner read the pair as
+ * decoration ("some of them doesnt do anything"). The inquiry widget survives
+ * because it does strictly more: the shortlist AND the contact action.
+ */
 const HEADER_WIDGET_KEYS = [
   "header_search",
-  "header_favorites",
   "header_inquiry",
   "header_account",
   "header_language",
@@ -149,7 +158,6 @@ const HEADER_WIDGET_KEYS = [
  * desktop and tablet keep the full cluster.
  */
 const MOBILE_HIDDEN_WIDGET_KEYS: ReadonlySet<string> = new Set([
-  "header_favorites",
   "header_inquiry",
   "header_account",
 ]);
@@ -157,7 +165,6 @@ const MOBILE_HIDDEN_WIDGET_KEYS: ReadonlySet<string> = new Set([
 const WIDGET_LAYER_LABELS: Record<(typeof HEADER_WIDGET_KEYS)[number], string> =
   {
     header_search: "Search widget",
-    header_favorites: "Favorites widget",
     header_inquiry: "Inquiry widget",
     header_account: "Account widget",
     header_language: "Language toggle",

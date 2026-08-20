@@ -289,28 +289,31 @@ export interface ExistingCmsPageRow {
 }
 
 /**
- * The home-in-place guard. `home` is not a fresh rebuild page — it already
- * exists, is live, and holds the tenant's `home` page role. This function
- * NEVER causes a delete/recreate (that's enforced structurally in
- * {@link runSeed}, which only ever UPDATEs an existing row's `id` or INSERTs
- * a brand new one); its only job is to say whether the write about to happen
- * must keep `status: "published"` instead of the seeder's normal `draft`
- * default.
+ * The in-place guard: A SEEDER MUST NOT UNPUBLISH A LIVE PAGE.
  *
- * Returns `"published"` (an override buildCmsPageUpsertPayload must honor)
- * exactly when: the effective slug is literally `home`, a row already exists
- * there, that row is currently published, and the caller has not passed
- * `--allow-home-status-downgrade`. Returns `undefined` in every other case
- * (including: slug isn't home, no existing row, existing row isn't published
- * yet, or the downgrade was explicitly allowed) — meaning "no override, let
- * the normal draft default apply."
+ * This used to protect `home` alone, on the reasoning that home is the one
+ * page that already exists and is live. That reasoning expired the moment the
+ * rest of the site was rebuilt and published: every page is now "already
+ * exists and is live", and the seeder's `draft` default was silently taking
+ * them down. It did exactly that on 2026-08-20 — nine English pages
+ * (about, for-clients, terms, the four talent pages…) served "Not found"
+ * after a routine re-seed, while their Spanish twins stayed up because the
+ * Spanish seeder had already been taught this same lesson.
+ *
+ * So the rule is now the general one: if a row exists and is currently
+ * published, the write keeps it published, whatever its slug. `draft` remains
+ * the default for pages that do not exist yet — a genuinely new page should
+ * not go live just because it was seeded.
+ *
+ * `--allow-home-status-downgrade` still forces the old behaviour for `home`,
+ * and now also allows an explicit downgrade of any page, for the rare case
+ * where taking one down is the intent.
  */
 export function applyHomeInPlaceGuard(
   effectiveSlug: string,
   existing: ExistingCmsPageRow | null,
   options: { allowHomeStatusDowngrade: boolean },
 ): "published" | undefined {
-  if (effectiveSlug !== "home") return undefined;
   if (!existing) return undefined;
   if (existing.status !== "published") return undefined;
   if (options.allowHomeStatusDowngrade) return undefined;
@@ -352,6 +355,16 @@ export interface RunSeedOptions {
   only?: readonly string[];
   slugSuffix?: string;
   allowHomeStatusDowngrade?: boolean;
+  /**
+   * Force every seeded page to `published`.
+   *
+   * The in-place guard can PRESERVE a published page but cannot RESTORE one
+   * already sitting as a draft — precisely the state nine English pages were
+   * left in when the old home-only guard let a re-seed take them down. This is
+   * the switch that puts them back, and the one to use when a rebuilt page is
+   * ready to go live.
+   */
+  publish?: boolean;
   pins?: ImageSlotPinFile;
 }
 
@@ -494,9 +507,11 @@ export async function runSeed(
     }
 
     const existing = existingRaw as ExistingCmsPageRow | null;
-    const statusOverride = applyHomeInPlaceGuard(item.effectiveSlug, existing, {
-      allowHomeStatusDowngrade: options.allowHomeStatusDowngrade ?? false,
-    });
+    const statusOverride = options.publish
+      ? ("published" as const)
+      : applyHomeInPlaceGuard(item.effectiveSlug, existing, {
+          allowHomeStatusDowngrade: options.allowHomeStatusDowngrade ?? false,
+        });
 
     const payload = buildCmsPageUpsertPayload(item.page, {
       tenantId: options.tenantId,
@@ -753,6 +768,7 @@ async function main(): Promise<void> {
   const only = value("only")?.split(",").map((s) => s.trim()).filter(Boolean);
   const slugSuffix = value("slug-suffix");
   const allowHomeStatusDowngrade = flag("allow-home-status-downgrade");
+  const publish = flag("publish");
   const pinsPath = value("pins") ?? DEFAULT_IMAGE_SLOT_PINS_PATH;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -789,6 +805,7 @@ async function main(): Promise<void> {
     only,
     slugSuffix,
     allowHomeStatusDowngrade,
+    publish,
     pins,
   });
 
