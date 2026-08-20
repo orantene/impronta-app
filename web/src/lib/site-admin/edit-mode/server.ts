@@ -31,13 +31,15 @@ import { improntaLog } from "@/lib/server/structured-log";
  *     directly and mint a preview JWT for the tenant's unpublished drafts.
  */
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 import {
   PREVIEW_COOKIE_OPTIONS,
   previewCookieNameFor,
@@ -144,5 +146,34 @@ export async function exitEditModeAction(): Promise<void> {
   jar.delete(previewCookieNameFor(scope.tenantId));
   jar.delete(editCookieNameFor(scope.tenantId));
   revalidatePath("/", "layout");
-  redirect("/");
+
+  // "Exit to live site" means THIS tenant's live site. `redirect("/")` only
+  // meant that on a tenant-owned host: on a custom domain or a workspace
+  // subdomain, "/" is the storefront. Edit mode is equally reachable from the
+  // PLATFORM host (app.tulala.digital / tulala.digital/w/<slug>), and there
+  // "/" is the Tulala marketing homepage — so an operator leaving their own
+  // editor landed on the product's sales page, on someone else's site.
+  //
+  // getTenantPreviewUrl already encodes the whole precedence (primary custom
+  // domain -> workspace subdomain -> /w/<slug> path fallback, dev hosts
+  // included), so the destination is resolved rather than assumed. A failure
+  // here must never trap the operator inside edit mode: any problem falls back
+  // to the old "/" behaviour, which is wrong-but-harmless on the platform host
+  // and correct on a tenant host.
+  let destination = "/";
+  try {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const hdrs = await headers();
+      const requestHost =
+        hdrs.get("x-impronta-host-name") ?? hdrs.get("host");
+      const liveUrl = await getTenantPreviewUrl(admin, scope.tenantId, {
+        requestHost,
+      });
+      if (liveUrl) destination = liveUrl;
+    }
+  } catch {
+    // Fall through to "/" — see the note above.
+  }
+  redirect(destination);
 }
