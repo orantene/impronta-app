@@ -55,8 +55,8 @@ export const HOME_ES_COPY: Record<string, string> = {
     "El roster vive en la Riviera Maya y viaja cuando el brief lo pide. Pasa el cursor por una ciudad para ver los rostros que trabajan ahí.",
   "Markets appear here as talent join the roster.":
     "Los mercados aparecen aquí conforme el talento se suma al roster.",
-  "A wall of Impronta roster portraits from recent shoots.":
-    "Un muro de retratos del roster de Impronta de shoots recientes.",
+  "An Impronta model in a white top with both arms raised above her head, against a white studio backdrop.":
+    "Una modelo de Impronta en top blanco con ambos brazos levantados sobre la cabeza, sobre un fondo de estudio blanco.",
   "Search everyone, filter by discipline, language and city":
     "Busca a todos, filtra por disciplina, idioma y ciudad",
   // ── hero ──────────────────────────────────────────────────────────────────
@@ -184,22 +184,22 @@ export const HOME_ES_COPY: Record<string, string> = {
   "Browse the roster": "Explorar el directorio",
 
   // ── image alt text (read by screen readers and by search) ─────────────────
-  "Editorial photograph of an Impronta model at golden hour on the Riviera Maya coast.":
-    "Fotografía editorial de una modelo de Impronta a la hora dorada en la costa de la Riviera Maya.",
-  "Impronta fashion model in an editorial look, photographed against Tulum architecture.":
-    "Modelo de moda de Impronta en un look editorial, fotografiada frente a la arquitectura de Tulum.",
-  "Impronta event hostess welcoming guests at a beachfront brand activation.":
-    "Edecán de Impronta recibiendo invitados en una activación de marca frente al mar.",
-  "Impronta performer mid-show under stage light at a Tulum venue.":
-    "Performer de Impronta en pleno show bajo las luces de un venue en Tulum.",
-  "Impronta DJ behind the decks at an open-air Riviera Maya event.":
-    "DJ de Impronta en la cabina durante un evento al aire libre en la Riviera Maya.",
-  "Full-bleed editorial photograph of a model walking through a dramatic Tulum setting.":
-    "Fotografía editorial a sangre completa de una modelo caminando en un escenario imponente de Tulum.",
-  "Editorial portrait of a represented Impronta talent, lit against a dark studio backdrop.":
-    "Retrato editorial de un talento representado por Impronta, iluminado sobre un fondo de estudio oscuro.",
-  "Behind the scenes at an Impronta production, the team at work around the talent.":
-    "Detrás de cámaras en una producción de Impronta, el equipo trabajando alrededor del talento.",
+  "An Impronta model in a black bodysuit and tinted sunglasses, photographed against a warm tan studio backdrop.":
+    "Una modelo de Impronta en body negro y lentes de sol ambarinos, fotografiada sobre un fondo de estudio color arena.",
+  "An Impronta fashion model in a black bodysuit and tinted sunglasses, seated against a warm tan studio backdrop.":
+    "Una modelo de moda de Impronta en body negro y lentes de sol ambarinos, sentada sobre un fondo de estudio color arena.",
+  "An Impronta model crouching in a black bodysuit and black heels, photographed against a white studio backdrop.":
+    "Una modelo de Impronta en cuclillas, con body negro y tacones negros, fotografiada sobre un fondo de estudio blanco.",
+  "Close-up studio portrait of an Impronta model with her hands framing her face, against a pale backdrop.":
+    "Retrato de estudio en primer plano de una modelo de Impronta con las manos enmarcando su rostro, sobre un fondo claro.",
+  "An Impronta model in a white tank top and light jeans, smiling in front of a pale studio backdrop.":
+    "Una modelo de Impronta en top blanco y jeans claros, sonriendo frente a un fondo de estudio claro.",
+  "An Impronta model reclining in an open white shirt and light jeans on a white studio backdrop.":
+    "Un modelo de Impronta recostado, con camisa blanca abierta y jeans claros, sobre un fondo de estudio blanco.",
+  "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.":
+    "Una modelo de Impronta sentada en el piso del estudio, con body negro, medias transparentes y tacones, sobre un fondo color arena.",
+  "An Impronta model in a white tank top, smiling, photographed against a white studio backdrop.":
+    "Una modelo de Impronta en top blanco, sonriendo, fotografiada sobre un fondo de estudio blanco.",
 };
 
 /**

@@ -35,7 +35,7 @@ const hero = pageHero("rb-model", {
   secondary: { label: "Meet the roster", href: "/directory" },
   footnote: "Free to apply · we review every application personally",
   imageSlot: "become-a-model-hero",
-  imageAlt: "A new Impronta model during a portfolio shoot, golden light on a Tulum rooftop.",
+  imageAlt: "An Impronta model reclining in an open white shirt and light ripped jeans on a white studio backdrop.",
 });
 
 const representation = band(
@@ -107,7 +107,7 @@ const whoWeSeek = band(
           kind: "image",
           props: {
             src: IMAGE_SLOT("become-a-model-who"),
-            alt: "A casting day at Impronta, talent of different disciplines waiting with portfolios.",
+            alt: "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.",
             layerLabel: "Casting photograph",
             style: {
               width: "100%",
@@ -163,7 +163,7 @@ const whoWeSeek = band(
 
 const plate = fullBleedPlate("rb-model", {
   imageSlot: "become-a-model-plate",
-  imageAlt: "Full-bleed backstage photograph of Impronta talent preparing before a show.",
+  imageAlt: "An Impronta model crouching in a black bodysuit with both hands in her hair, against a warm tan studio backdrop.",
   numeral: "You.",
   line: "The roster is curated. That is exactly why it works.",
 });

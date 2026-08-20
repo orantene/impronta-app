@@ -253,28 +253,28 @@ export const DIVISIONS_ES_COPY: Record<string, string> = {
   "Join as an artist": "Postularme como artista",
 
   // ── image alt text ────────────────────────────────────────────────────────
-  "Editorial fashion model in resortwear photographed at golden hour on a Tulum beach.":
-    "Modelo de moda en resortwear fotografiada a la hora dorada en una playa de Tulum.",
-  "Black-and-white studio portrait of a represented Impronta model against a dark backdrop.":
-    "Retrato de estudio en blanco y negro de una modelo representada por Impronta sobre un fondo oscuro.",
-  "Model walking away from camera along the shoreline at dusk, dress moving in the wind.":
-    "Modelo alejándose de la cámara por la orilla al anochecer, con el vestido movido por el viento.",
-  "Brand ambassadors welcoming guests at a beach club product launch in Tulum at sunset.":
-    "Embajadores de marca recibiendo invitados en el lanzamiento de un producto en un beach club de Tulum al atardecer.",
-  "A hostess in evening wear checking a guest list at the entrance of a candlelit event.":
-    "Una edecán de vestido de noche revisando la lista de invitados a la entrada de un evento iluminado con velas.",
-  "Fire performer mid-spin on a dark beach stage, sparks tracing arcs against the night sky.":
-    "Performer de fuego en pleno giro sobre un escenario de playa a oscuras, con chispas trazando arcos contra el cielo nocturno.",
-  "Aerialist suspended above a candlelit jungle wedding reception, guests looking up.":
-    "Aerialista suspendida sobre una recepción de boda en la selva iluminada con velas, con los invitados mirando hacia arriba.",
-  "Backstage view of dancers in costume doing final checks before a resort show.":
-    "Vista de backstage con bailarines vestuados haciendo los últimos ajustes antes de un show de resort.",
-  "DJ performing at an open-air beach club booth in Tulum, crowd silhouetted against the sea.":
-    "DJ tocando en una cabina al aire libre de un beach club en Tulum, con el público recortado contra el mar.",
-  "Close-up of hands on a mixer during a sunset set, warm light across the decks.":
-    "Primer plano de unas manos sobre la mezcladora durante un set al atardecer, con luz cálida sobre la cabina.",
-  "Percussionist playing beside a DJ at night, stage lights cutting through haze over the crowd.":
-    "Percusionista tocando junto a un DJ de noche, con las luces de escenario atravesando la bruma sobre el público.",
+  "An Impronta model reclining in an open white shirt and light jeans on a white studio backdrop.":
+    "Un modelo de Impronta recostado, con camisa blanca abierta y jeans claros, sobre un fondo de estudio blanco.",
+  "An Impronta fashion model lying on her front in a black bodysuit, sheer tights and heels, smiling, against a warm tan backdrop.":
+    "Una modelo de moda de Impronta recostada boca abajo, con body negro, medias transparentes y tacones, sonriendo, sobre un fondo color arena.",
+  "An Impronta fashion model on hands and knees in a black bodysuit and heels, against a warm tan studio backdrop.":
+    "Una modelo de moda de Impronta apoyada en manos y rodillas, con body negro y tacones, sobre un fondo de estudio color arena.",
+  "An Impronta model reclining in an open black shirt and light jeans on a white studio backdrop.":
+    "Un modelo de Impronta recostado, con camisa negra abierta y jeans claros, sobre un fondo de estudio blanco.",
+  "An Impronta model in a cream strapless dress, seated on a wooden chair against a warm studio backdrop.":
+    "Una modelo de Impronta en vestido crema strapless, sentada en una silla de madera sobre un fondo de estudio cálido.",
+  "An Impronta model in a burgundy dress, seated on the floor of the agency studio against a white backdrop.":
+    "Una modelo de Impronta en vestido vino, sentada en el piso del estudio de la agencia sobre un fondo blanco.",
+  "An Impronta model seated on a stool in a black top and shorts, photographed against a white studio backdrop.":
+    "Una modelo de Impronta sentada en un banco, con top y shorts negros, fotografiada sobre un fondo de estudio blanco.",
+  "An Impronta model in a black lace top with both hands behind her head, against a warm brown studio backdrop.":
+    "Una modelo de Impronta en top de encaje negro con ambas manos detrás de la cabeza, sobre un fondo de estudio marrón cálido.",
+  "An Impronta model with dark curly hair reclining in an open white shirt and light jeans on a white studio backdrop.":
+    "Un modelo de Impronta de cabello oscuro y rizado, recostado con camisa blanca abierta y jeans claros, sobre un fondo de estudio blanco.",
+  "An Impronta model in a white tank top and light jeans, lying on her side against a white studio backdrop.":
+    "Una modelo de Impronta en top blanco y jeans claros, recostada de lado sobre un fondo de estudio blanco.",
+  "Smiling studio portrait of an Impronta model in a black top and choker, against a warm tan backdrop.":
+    "Retrato de estudio sonriente de una modelo de Impronta en top negro y gargantilla, sobre un fondo color arena.",
 };
 
 /** Numerals, symbols and terms this market uses in English. */

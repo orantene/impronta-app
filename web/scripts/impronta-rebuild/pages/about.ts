@@ -28,7 +28,7 @@ const hero = pageHero("rb-about", {
   line2: "an inventory.",
   sub: "Impronta means imprint. It is the mark a face leaves on a campaign, and the mark an agency leaves on the people it represents. This is the story of ours.",
   imageSlot: "about-hero",
-  imageAlt: "The Impronta team and talent between takes on an editorial shoot in Tulum.",
+  imageAlt: "An Impronta model photographed in the agency studio against a plain backdrop.",
   compact: true,
 });
 
@@ -51,7 +51,7 @@ const story = band(
           kind: "image",
           props: {
             src: IMAGE_SLOT("about-story"),
-            alt: "Candid photograph from an Impronta casting day in Playa del Carmen.",
+            alt: "An Impronta model in a burgundy dress, seated on the floor of the agency studio against a white backdrop.",
             layerLabel: "Story photograph",
             style: {
               width: "100%",
@@ -150,7 +150,7 @@ const values = band(
 
 const plate = fullBleedPlate("rb-about", {
   imageSlot: "about-plate",
-  imageAlt: "Full-bleed photograph of Impronta talent and crew at work during a Riviera Maya production.",
+  imageAlt: "An Impronta model in a white tank top and denim, one hand in her hair, against a white studio backdrop.",
   numeral: "Est.",
   line: "The agency the Riviera Maya was missing.",
 });

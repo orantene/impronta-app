@@ -58,7 +58,8 @@ const hero = pageHero("rb-home", {
   // a video can be PUBLIC and still refuse to play off youtube.com, which is
   // why the seeder's oembed preflight gates this field.
   videoUrl: "https://www.youtube.com/watch?v=c9ARKE2WNxA",
-  imageAlt: "Editorial photograph of an Impronta model at golden hour on the Riviera Maya coast.",
+  imageAlt:
+    "An Impronta model in a black bodysuit and tinted sunglasses, photographed against a warm tan studio backdrop.",
 });
 
 // ── discipline marquee (curated Tulala component) ────────────────────────────
@@ -169,7 +170,7 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
 function rosterBannerTile(): BuilderNode {
   const tile = photoTile("rb-home-div-all", {
     imageSlot: "home-division-roster",
-    imageAlt: "A wall of Impronta roster portraits from recent shoots.",
+    imageAlt: "An Impronta model in a white top with both arms raised above her head, against a white studio backdrop.",
     title: "The full roster",
     subtitle: "Search everyone, filter by discipline, language and city",
     href: "/directory",
@@ -202,28 +203,28 @@ const divisions = band(
       [
         photoTile("rb-home-div-fashion", {
           imageSlot: "home-division-fashion",
-          imageAlt: "Impronta fashion model in an editorial look, photographed against Tulum architecture.",
+          imageAlt: "An Impronta fashion model in a black bodysuit and tinted sunglasses, seated against a warm tan studio backdrop.",
           title: "Fashion Models",
           subtitle: "Editorial, runway, campaign and e-commerce",
           href: "/p/fashion-models",
         }),
         photoTile("rb-home-div-hosts", {
           imageSlot: "home-division-hosts",
-          imageAlt: "Impronta event hostess welcoming guests at a beachfront brand activation.",
+          imageAlt: "An Impronta model crouching in a black bodysuit and black heels, photographed against a white studio backdrop.",
           title: "Hosts & Promoters",
           subtitle: "Event hosts, hostesses and brand ambassadors",
           href: "/p/hosts-promoters",
         }),
         photoTile("rb-home-div-performers", {
           imageSlot: "home-division-performers",
-          imageAlt: "Impronta performer mid-show under stage light at a Tulum venue.",
+          imageAlt: "Close-up studio portrait of an Impronta model with her hands framing her face, against a pale backdrop.",
           title: "Performers",
           subtitle: "Dancers, acts and live entertainment",
           href: "/p/performers",
         }),
         photoTile("rb-home-div-music", {
           imageSlot: "home-division-music",
-          imageAlt: "Impronta DJ behind the decks at an open-air Riviera Maya event.",
+          imageAlt: "An Impronta model in a white tank top and light jeans, smiling in front of a pale studio backdrop.",
           title: "Music & DJs",
           subtitle: "DJs, musicians and curated sound",
           href: "/p/music-djs",
@@ -245,14 +246,14 @@ const divisions = band(
 // ── editorial plates ─────────────────────────────────────────────────────────
 const plate1 = fullBleedPlate("rb-home-1", {
   imageSlot: "home-plate-runway",
-  imageAlt: "Full-bleed editorial photograph of a model walking through a dramatic Tulum setting.",
+  imageAlt: "An Impronta model reclining in an open white shirt and light jeans on a white studio backdrop.",
   numeral: "I.",
   line: "She does not walk the runway. She decides where it leads.",
 });
 
 const plate2 = fullBleedPlate("rb-home-2", {
   imageSlot: "home-plate-atelier",
-  imageAlt: "Behind the scenes at an Impronta production, the team at work around the talent.",
+  imageAlt: "An Impronta model in a white tank top, smiling, photographed against a white studio backdrop.",
   numeral: "II.",
   line: "Behind every face, a room of people answerable for every detail.",
 });
@@ -277,7 +278,7 @@ const statement = band(
           kind: "image",
           props: {
             src: IMAGE_SLOT("home-statement-portrait"),
-            alt: "Editorial portrait of a represented Impronta talent, lit against a dark studio backdrop.",
+            alt: "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.",
             layerLabel: "Editorial portrait",
             style: {
               width: "100%",

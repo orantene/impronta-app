@@ -28,7 +28,7 @@ const hero = divisionHero({
   prefix: P,
   imageSlot: "fashion-models-hero",
   imageAlt:
-    "Editorial fashion model in resortwear photographed at golden hour on a Tulum beach.",
+    "An Impronta model reclining in an open white shirt and light jeans on a white studio backdrop.",
   eyebrowText: "The Models Division",
   line1: "Faces that carry",
   line2: "the campaign.",
@@ -41,7 +41,7 @@ const editorial = editorialSplit({
   prefix: P,
   imageSlot: "fashion-models-editorial",
   imageAlt:
-    "Black-and-white studio portrait of a represented Impronta model against a dark backdrop.",
+    "An Impronta fashion model lying on her front in a black bodysuit, sheer tights and heels, smiling, against a warm tan backdrop.",
   eyebrowText: "The board standard",
   line1: "Editorial polish.",
   line2: "Commercial reliability.",
@@ -108,7 +108,7 @@ const plate = fullBleedPlate({
   prefix: P,
   imageSlot: "fashion-models-plate",
   imageAlt:
-    "Model walking away from camera along the shoreline at dusk, dress moving in the wind.",
+    "An Impronta fashion model on hands and knees in a black bodysuit and heels, against a warm tan studio backdrop.",
   numeral: "I.",
   line: "She is not a search result. She is represented.",
 });

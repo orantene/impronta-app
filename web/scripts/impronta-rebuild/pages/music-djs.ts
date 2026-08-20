@@ -26,7 +26,7 @@ const hero = divisionHero({
   prefix: P,
   imageSlot: "music-djs-hero",
   imageAlt:
-    "DJ performing at an open-air beach club booth in Tulum, crowd silhouetted against the sea.",
+    "An Impronta model with dark curly hair reclining in an open white shirt and light jeans on a white studio backdrop.",
   eyebrowText: "Music & DJs",
   line1: "The night has",
   line2: "a soundtrack.",
@@ -39,7 +39,7 @@ const editorial = editorialSplit({
   prefix: P,
   imageSlot: "music-djs-editorial",
   imageAlt:
-    "Close-up of hands on a mixer during a sunset set, warm light across the decks.",
+    "An Impronta model in a white tank top and light jeans, lying on her side against a white studio backdrop.",
   eyebrowText: "Sound to brief",
   line1: "Not a playlist.",
   line2: "A set built for your room.",
@@ -99,7 +99,7 @@ const plate = fullBleedPlate({
   prefix: P,
   imageSlot: "music-djs-plate",
   imageAlt:
-    "Percussionist playing beside a DJ at night, stage lights cutting through haze over the crowd.",
+    "Smiling studio portrait of an Impronta model in a black top and choker, against a warm tan backdrop.",
   numeral: "III.",
   line: "People forget the lineup. They remember how the night felt.",
 });

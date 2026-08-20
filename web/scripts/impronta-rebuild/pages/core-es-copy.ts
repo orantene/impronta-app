@@ -20,8 +20,8 @@ export const CORE_ES_COPY: Record<string, string> = {
   "an inventory.": "un inventario.",
   "Impronta means imprint. It is the mark a face leaves on a campaign, and the mark an agency leaves on the people it represents. This is the story of ours.":
     "Impronta significa huella. Es la marca que un rostro deja en una campaña, y la marca que una agencia deja en las personas que representa. Esta es la historia de la nuestra.",
-  "Candid photograph from an Impronta casting day in Playa del Carmen.":
-    "Fotografía espontánea de un día de casting de Impronta en Playa del Carmen.",
+  "An Impronta model in a burgundy dress, seated on the floor of the agency studio against a white backdrop.":
+    "Una modelo de Impronta en vestido vino, sentada en el piso del estudio de la agencia sobre un fondo blanco.",
   "Our story": "Nuestra historia",
   "Born on the Riviera Maya,": "Nacida en la Riviera Maya,",
   "built for its briefs.": "hecha para sus briefs.",
@@ -51,8 +51,8 @@ export const CORE_ES_COPY: Record<string, string> = {
   "Long careers over quick jobs": "Carreras largas antes que trabajos rápidos",
   "We build portfolios, coach on set behavior and match talent to briefs that grow them. A roster that lasts is worth more than a booking that closes.":
     "Construimos portafolios, formamos en conducta de set y conectamos al talento con briefs que lo hacen crecer. Un roster que dura vale más que una reserva que se cierra.",
-  "Full-bleed photograph of Impronta talent and crew at work during a Riviera Maya production.":
-    "Fotografía a sangre de talento y equipo de Impronta trabajando durante una producción en la Riviera Maya.",
+  "An Impronta model in a white tank top and denim, one hand in her hair, against a white studio backdrop.":
+    "Una modelo de Impronta en top blanco y mezclilla, con una mano en el cabello, sobre un fondo de estudio blanco.",
   "Est.": "Fund.",
   "The agency the Riviera Maya was missing.": "La agencia que le faltaba a la Riviera Maya.",
   "The divisions": "Las divisiones",
@@ -148,8 +148,8 @@ export const CORE_ES_COPY: Record<string, string> = {
   "Destination Weddings  →": "Bodas de Destino  →",
   "Music & Entertainment  →": "Música y Entretenimiento  →",
   "Private Dining & Culinary  →": "Cenas Privadas y Culinario  →",
-  "An Impronta coordinator briefing talent before a client event on the Riviera Maya.":
-    "Una coordinadora de Impronta dando el brief al talento antes de un evento de cliente en la Riviera Maya.",
+  "An Impronta model in a cream shirt, seated against a white studio backdrop.":
+    "Un modelo de Impronta en camisa color crema, sentado sobre un fondo de estudio blanco.",
   "You brief once.": "Tú das el brief una vez.",
   "We carry the rest.": "Nosotros cargamos el resto.",
   "Booking direct means chasing availability, negotiating rates one by one and hoping everyone shows. Booking through Impronta means one thread, one agreement and one coordinator accountable from the first reply to the wrap.":
@@ -177,31 +177,31 @@ export const CORE_ES_COPY: Record<string, string> = {
   "We run the day": "Nosotros llevamos el día",
   "Briefed talent, coordinated logistics and a named contact until the wrap.":
     "Talento con brief, logística coordinada y un contacto con nombre hasta el wrap.",
-  "Full-bleed photograph of a styled Impronta activation team at a luxury Riviera Maya event.":
-    "Fotografía a sangre de un equipo de activación de Impronta en un evento de lujo en la Riviera Maya.",
+  "An Impronta model with long blonde hair in a black strapless top, photographed against a pale studio backdrop.":
+    "Una modelo de Impronta de cabello rubio largo en top negro strapless, fotografiada sobre un fondo de estudio claro.",
   "One brief in. One shortlist back. Within a day.":
     "Entra un brief. Vuelve una preselección. En un día.",
   "Build the whole team from one roster": "Arma todo el equipo desde un solo roster",
   "Mix disciplines in a single brief: a face for the campaign, hosts for the door, a DJ for the room and a chef for the table.":
     "Mezcla disciplinas en un solo brief: un rostro para la campaña, anfitriones para la puerta, un DJ para la sala y un chef para la mesa.",
-  "Impronta fashion model in a campaign look on location in Tulum.":
-    "Modelo de moda de Impronta con look de campaña en locación en Tulum.",
+  "An Impronta fashion model lying on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.":
+    "Una modelo de moda de Impronta recostada en el piso del estudio, con body negro, medias transparentes y tacones, sobre un fondo color arena.",
   "Fashion Models": "Modelos de Moda",
   "Campaign, editorial, runway, e-commerce": "Campaña, editorial, pasarela, e-commerce",
   "Explore →": "Explorar →",
-  "Impronta hosts and brand ambassadors working a product launch.":
-    "Anfitriones y embajadores de marca de Impronta trabajando un lanzamiento de producto.",
+  "An Impronta model in a white tank top and wide light jeans, leaning against a wooden chair on a white backdrop.":
+    "Una modelo de Impronta en top blanco y jeans claros anchos, apoyada en una silla de madera sobre un fondo blanco.",
   "Hosts & Promoters": "Anfitriones y Promotores",
   "Hosts, hostesses, brand ambassadors": "Anfitriones, edecanes, embajadores de marca",
-  "Impronta performers on stage during an event show.":
-    "Performers de Impronta en escena durante el show de un evento.",
+  "Smiling studio portrait of an Impronta model in a white top, one hand at her chin, against a white backdrop.":
+    "Retrato de estudio sonriente de una modelo de Impronta en top blanco, con una mano en el mentón, sobre un fondo blanco.",
   "Dancers, acts, live entertainment": "Bailarines, actos, entretenimiento en vivo",
-  "Impronta DJ playing an evening set at a beach club.":
-    "DJ de Impronta tocando un set de tarde en un beach club.",
+  "An Impronta model in a short black dress with a choker, photographed against a warm tan studio backdrop.":
+    "Una modelo de Impronta en vestido negro corto con gargantilla, fotografiada sobre un fondo de estudio color arena.",
   "Music & DJs": "Música y DJs",
   "DJs, musicians, curated sound": "DJs, músicos, sonido curado",
-  "A wall of Impronta roster portraits from recent shoots.":
-    "Un muro de retratos del roster de Impronta de shoots recientes.",
+  "An Impronta model in a white top with both arms raised above her head, against a white studio backdrop.":
+    "Una modelo de Impronta en top blanco con ambos brazos levantados sobre la cabeza, sobre un fondo de estudio blanco.",
   "The Full Roster": "El Roster Completo",
   "Search everyone, filter by anything": "Busca a todos, filtra por lo que sea",
   "Client words": "Palabras de clientes",
@@ -320,15 +320,15 @@ export const CORE_ES_COPY: Record<string, string> = {
   "Local base, wider reach": "Base local, alcance mayor",
   "The Riviera Maya is the home market; briefs travel to Cancun, Mexico City and beyond. Your profile works while you do.":
     "La Riviera Maya es el mercado base; los briefs viajan a Cancún, Ciudad de México y más allá. Tu perfil trabaja mientras tú lo haces.",
-  "A casting day at Impronta, talent of different disciplines waiting with portfolios.":
-    "Un día de casting en Impronta, talento de distintas disciplinas esperando con portafolios.",
+  "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.":
+    "Una modelo de Impronta sentada en el piso del estudio, con body negro, medias transparentes y tacones, sobre un fondo color arena.",
   "Who we look for": "A quién buscamos",
   "Four divisions.": "Cuatro divisiones.",
   "One standard.": "Un estándar.",
   "We scout for presence, professionalism and range, not one look. Experience helps; reliability and attitude decide. If you are early in your career but serious, apply anyway and say so.":
     "Buscamos presencia, profesionalidad y rango, no un solo look. La experiencia ayuda; la formalidad y la actitud deciden. Si estás al inicio de tu carrera pero vas en serio, postúlate igual y dilo.",
-  "Full-bleed backstage photograph of Impronta talent preparing before a show.":
-    "Fotografía a sangre de backstage con talento de Impronta preparándose antes de un show.",
+  "An Impronta model crouching in a black bodysuit with both hands in her hair, against a warm tan studio backdrop.":
+    "Una modelo de Impronta en cuclillas, con body negro y ambas manos en el cabello, sobre un fondo de estudio color arena.",
   "You.": "Tú.",
   "The roster is curated. That is exactly why it works.":
     "El roster es curado. Exactamente por eso funciona.",
