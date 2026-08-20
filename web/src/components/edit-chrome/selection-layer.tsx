@@ -101,6 +101,7 @@ import {
   type BuilderNodePastePreview,
 } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
+import { useNestedBlocksPanelPreference } from "./use-nested-blocks-preference";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useHoveredSectionId,
@@ -4054,9 +4055,10 @@ export function SelectionLayer() {
   const canManageSelectedNodeChildren =
     drag.phase === "idle" && !multiNodeSelectionActive && !!nestedPanelScope;
   // Nested-blocks panel open state — lifted out of the panel so the selection
-  // chip's toggle and the panel's own `×` share one truth. Reopens for each
-  // new selection (the panel is a per-selection picker, not a sticky drawer).
-  const [nestedPanelOpen, setNestedPanelOpen] = useState(true);
+  // chip's toggle and the panel's own `×` share one truth. Starts HIDDEN and
+  // sticks: the operator's last choice rides a cookie, so the panel is closed
+  // until they open it and stays however they left it in the next session.
+  const [nestedPanelOpen, setNestedPanelOpen] = useNestedBlocksPanelPreference();
   // Anchored-toolbar re-measure triggers. The geometry loops only re-measure
   // on scroll/resize/RO/MO signals, but the anchored bars also move when (a)
   // a bar mounts or its CONTENT resizes it (label swap, Remove confirm, count
@@ -4097,9 +4099,6 @@ export function SelectionLayer() {
     navigatorWidth,
     device,
   ]);
-  useEffect(() => {
-    setNestedPanelOpen(true);
-  }, [selectedCanvasNodeId]);
   const commitNodeRemoval = useCallback(async () => {
     if (!selectedCanvasNodeId || !canRemoveSelectedNode) return;
     const removed = await removeBuilderNode(selectedCanvasNodeId);
