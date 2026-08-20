@@ -234,18 +234,26 @@ export interface ResolvedBackgroundMedia {
 /**
  * Player parameters for a YouTube BACKGROUND (not a player the visitor drives).
  *
- * `loop=1` is a documented no-op on its own — YouTube only loops a single video
- * when `playlist` names that same id, which is why the id is threaded in below.
  * `mute=1` is not politeness, it is the precondition for autoplay: every modern
  * browser blocks an unmuted autoplay, and a background that never starts is the
  * whole feature failing silently.
+ *
+ * WHY THERE IS NO `playlist` HERE, AND WHY THAT COSTS US A CLIENT COMPONENT.
+ * The only URL-level way to loop a single YouTube video is `loop=1` PLUS
+ * `playlist=<that same id>` — and naming a playlist puts the player in playlist
+ * mode, which paints prev / pause / next buttons over the middle of the frame.
+ * `controls=0` does not suppress them; they are playlist chrome, not player
+ * controls. Verified on the live Impronta hero by swapping only that parameter:
+ * with `playlist` the three buttons are there, without it they are gone.
+ *
+ * So the loop moves to `background-youtube-frame.tsx`, which replays the video
+ * over the IFrame API — hence `enablejsapi=1`. That component also carries the
+ * fallback below, so a player that never answers still loops.
  */
-function youtubeBackgroundParams(videoId: string): string {
+function youtubeBackgroundParams(): string {
   return new URLSearchParams({
     autoplay: "1",
     mute: "1",
-    loop: "1",
-    playlist: videoId,
     controls: "0",
     disablekb: "1",
     fs: "0",
@@ -253,7 +261,63 @@ function youtubeBackgroundParams(videoId: string): string {
     playsinline: "1",
     rel: "0",
     iv_load_policy: "3",
+    enablejsapi: "1",
   }).toString();
+}
+
+/**
+ * The URL to fall back to when the IFrame API never answers: today's
+ * playlist-loop embed. It loops without any JavaScript at all, at the cost of
+ * the playlist buttons — which is the right trade in a failure case, because a
+ * hero that stops on YouTube's end screen is far worse than three small icons.
+ *
+ * Lives here rather than in the client component so it is testable without a
+ * DOM, and so the two URL shapes stay next to each other.
+ */
+export function youtubeBackgroundLoopFallbackUrl(embedUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(embedUrl);
+  } catch {
+    return null;
+  }
+  const videoId = url.pathname.split("/").pop();
+  if (!videoId) return null;
+  url.searchParams.delete("enablejsapi");
+  url.searchParams.set("loop", "1");
+  url.searchParams.set("playlist", videoId);
+  return url.toString();
+}
+
+/**
+ * YouTube player states worth naming. The rest (unstarted, buffering, cued)
+ * are not decisions a background has to make.
+ */
+export const YOUTUBE_PLAYER_ENDED = 0;
+export const YOUTUBE_PLAYER_PLAYING = 1;
+
+/**
+ * Pull the player state out of one IFrame API message, or null when the
+ * message carries no state.
+ *
+ * TWO SHAPES, BOTH REAL. `onStateChange` puts a bare number in `info`, while
+ * the `infoDelivery` stream — which is what the player actually emits most of
+ * the time — nests it as `info.playerState`. Reading only the documented
+ * `onStateChange` shape would mean never seeing the video end. Both shapes were
+ * captured off the live player before this was written.
+ *
+ * Pure and exported so the loop's one real decision is testable without a DOM;
+ * the component around it is all timers and postMessage plumbing.
+ */
+export function youtubePlayerStateFromMessage(data: unknown): number | null {
+  if (!data || typeof data !== "object") return null;
+  const info = (data as { info?: unknown }).info;
+  if (typeof info === "number") return info;
+  if (info && typeof info === "object") {
+    const state = (info as { playerState?: unknown }).playerState;
+    if (typeof state === "number") return state;
+  }
+  return null;
 }
 
 /**
@@ -357,7 +421,7 @@ export function resolveBackgroundMedia(
     if (!embed) return null;
     return {
       source: "youtube",
-      url: `${embed}?${youtubeBackgroundParams(parsed.externalId)}`,
+      url: `${embed}?${youtubeBackgroundParams()}`,
       posterUrl: authoredPoster ?? youtubeThumbnailUrl(parsed.externalId),
       overlayOpacity,
       overlayColor,

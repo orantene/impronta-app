@@ -18,6 +18,8 @@ import {
   backgroundMediaSchema,
   hasRenderableBackgroundMedia,
   resolveBackgroundMedia,
+  youtubeBackgroundLoopFallbackUrl,
+  youtubePlayerStateFromMessage,
   youtubeThumbnailUrl,
 } from "./background-media";
 
@@ -66,22 +68,51 @@ test("every URL shape YouTube hands out is accepted", () => {
   }
 });
 
-test("a background loop needs mute + a self-referencing playlist, or it does not loop", () => {
+test("a background embed names NO playlist — that is what drew the player buttons", () => {
   const resolved = resolveBackgroundMedia({
     source: "youtube",
     src: "https://youtu.be/dQw4w9WgXcQ",
   });
   assert.ok(resolved);
   const params = new URL(resolved.url).searchParams;
-  // `loop=1` alone is a documented no-op on the YouTube embed: it only loops a
-  // single video when `playlist` names that same id.
-  assert.equal(params.get("loop"), "1");
-  assert.equal(params.get("playlist"), "dQw4w9WgXcQ");
+  // `loop=1&playlist=<same id>` is the only URL-level loop YouTube offers, and
+  // naming a playlist puts the player in playlist mode, which paints prev /
+  // pause / next across the frame. `controls=0` does NOT suppress those — they
+  // are playlist chrome. Confirmed on the live hero by swapping only this
+  // parameter. The loop lives in background-youtube-frame.tsx instead.
+  assert.equal(params.get("playlist"), null);
+  assert.equal(params.get("loop"), null);
+  // ...which is only survivable because the frame can drive the player.
+  assert.equal(params.get("enablejsapi"), "1");
   // Autoplay without mute is blocked by every modern browser, which would make
   // the whole feature silently never start.
   assert.equal(params.get("autoplay"), "1");
   assert.equal(params.get("mute"), "1");
   assert.equal(params.get("controls"), "0");
+});
+
+test("the fallback URL is today's playlist loop, so a dead API still loops", () => {
+  const resolved = resolveBackgroundMedia({
+    source: "youtube",
+    src: "https://youtu.be/dQw4w9WgXcQ",
+  });
+  assert.ok(resolved);
+  const fallback = youtubeBackgroundLoopFallbackUrl(resolved.url);
+  assert.ok(fallback);
+  const params = new URL(fallback).searchParams;
+  assert.equal(params.get("loop"), "1");
+  assert.equal(params.get("playlist"), "dQw4w9WgXcQ");
+  // No API in the fallback lane: it loops without a line of JavaScript, which
+  // is the whole reason it is safe to fall back to.
+  assert.equal(params.get("enablejsapi"), null);
+  // Same video, same host — a fallback that framed something else would be a
+  // far worse bug than the one it is covering.
+  assert.equal(new URL(fallback).host, new URL(resolved.url).host);
+  assert.ok(fallback.includes("/embed/dQw4w9WgXcQ"));
+});
+
+test("the fallback refuses anything that is not a parseable embed URL", () => {
+  assert.equal(youtubeBackgroundLoopFallbackUrl("not a url"), null);
 });
 
 test("YouTube derives a poster so reduced motion has something to show", () => {
@@ -423,4 +454,43 @@ test("the schema accepts the slideshow keys and still rejects junk in them", () 
     false,
     "the cap exists so one block cannot ship 60 full-bleed photos",
   );
+});
+
+test("the loop reads BOTH message shapes the live player actually sends", () => {
+  // Captured off the Impronta hero's player, not from the docs. The documented
+  // `onStateChange` shape is the rarer one: almost every state change arrives
+  // on the `infoDelivery` stream, and a reader that only understood
+  // `onStateChange` would never see the video end — the loop would silently
+  // never fire.
+  assert.equal(
+    youtubePlayerStateFromMessage({ event: "onStateChange", info: 0 }),
+    0,
+  );
+  assert.equal(
+    youtubePlayerStateFromMessage({
+      event: "infoDelivery",
+      info: {
+        playerState: 2,
+        currentTime: 0.022333,
+        duration: 20,
+        videoData: { video_id: "c9ARKE2WNxA", title: "Portada Pag Fuego" },
+      },
+    }),
+    2,
+  );
+});
+
+test("a message with no state is not mistaken for a state", () => {
+  // `infoDelivery` also carries pure progress payloads. Reading one of those as
+  // state 0 would restart the video every few hundred milliseconds.
+  assert.equal(
+    youtubePlayerStateFromMessage({
+      event: "infoDelivery",
+      info: { currentTime: 4.2, videoLoadedFraction: 1 },
+    }),
+    null,
+  );
+  assert.equal(youtubePlayerStateFromMessage({ event: "onReady", info: null }), null);
+  assert.equal(youtubePlayerStateFromMessage(null), null);
+  assert.equal(youtubePlayerStateFromMessage("infoDelivery"), null);
 });
