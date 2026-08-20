@@ -65,3 +65,44 @@ test("classifyCanonicalIssue validates canonical semantics", () => {
   assert.equal(issues.length >= 2, true);
   assert.equal(issues.some((item) => item.severity === "warn"), true);
 });
+
+test("classifyCanonicalIssue accepts root-relative canonicals", () => {
+  // Seeded pages carry "/p/about" / "/es/p/home" — resolved against the
+  // request host via metadataBase. These must NOT block publish.
+  assert.deepEqual(
+    classifyCanonicalIssue({ canonicalUrl: "/p/home", noindex: false }),
+    [],
+  );
+  assert.deepEqual(
+    classifyCanonicalIssue({ canonicalUrl: "/es/p/about", noindex: false }),
+    [],
+  );
+});
+
+test("classifyCanonicalIssue still flags hash fragments on relative canonicals", () => {
+  const issues = classifyCanonicalIssue({
+    canonicalUrl: "/p/home#top",
+    noindex: false,
+  });
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0]?.severity, "warn");
+});
+
+test("classifyCanonicalIssue rejects protocol-relative canonicals", () => {
+  // "//evil.example" parses as a full URL on a different host — never treat
+  // it as a root-relative path.
+  const issues = classifyCanonicalIssue({
+    canonicalUrl: "//evil.example/p/home",
+    noindex: false,
+  });
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0]?.severity, "error");
+});
+
+test("classifyCanonicalIssue still errors on garbage", () => {
+  const issues = classifyCanonicalIssue({
+    canonicalUrl: "not a url at all",
+    noindex: false,
+  });
+  assert.equal(issues[0]?.severity, "error");
+});

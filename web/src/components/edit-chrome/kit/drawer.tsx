@@ -69,6 +69,7 @@ import {
 } from "./tokens";
 import { Button } from "./button";
 import { acquireBehindDrawerInert } from "./drawer-modal-inert";
+import { DrawerScrim } from "./drawer-scrim";
 import {
   FloatingPanelDragProvider,
   useFloatingDrag,
@@ -135,6 +136,8 @@ interface DrawerProps {
    * offset is session-only (snaps back home on refresh).
    */
   floating?: boolean;
+  /** Dim + click-to-close backdrop while open (modal only). See drawer-scrim.tsx. */
+  scrim?: boolean;
   /** Label shown on the floating drag handle (e.g. "Inspector"). */
   floatLabel?: string;
   /**
@@ -170,6 +173,7 @@ export function Drawer({
   restoreFocusOnClose = true,
   modal = false,
   onRequestClose,
+  scrim = false,
   floating = false,
   floatLabel: _floatLabel,
   floatPanelId,
@@ -252,11 +256,17 @@ export function Drawer({
         ? `${width}px`
         : `${DRAWER_WIDTHS[kind]}px`;
 
+  // Mounted only while open so the fade-in replays on each open.
+  const scrimNode =
+    modal && scrim && open ? <DrawerScrim zIndex={zIndex - 1} onRequestClose={onRequestClose} /> : null;
+
   // Floating, draggable variant (opt-in) — a detached rounded card with a grip
   // handle, instead of the edge-anchored slide rail. Fullscreen ignores floating
   // (it takes over the whole canvas, where a movable card makes no sense).
   if (floating && width !== "fullscreen") {
     return (
+      <>
+      {scrimNode}
       <FloatingPanelDragProvider
         value={{
           onHandlePointerDown: float.onHandlePointerDown,
@@ -292,10 +302,13 @@ export function Drawer({
           {children}
         </FloatingPanelShell>
       </FloatingPanelDragProvider>
+      </>
     );
   }
 
   return (
+    <>
+    {scrimNode}
     <aside
       ref={modal ? trapRef : undefined}
       data-edit-drawer={kind}
@@ -324,6 +337,7 @@ export function Drawer({
     >
       {children}
     </aside>
+    </>
   );
 }
 

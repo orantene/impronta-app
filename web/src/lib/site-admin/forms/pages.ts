@@ -171,19 +171,37 @@ export const pageUpsertSchema = z
       .string()
       .trim()
       .max(PAGE_CANONICAL_MAX)
-      .url("Canonical URL must be absolute")
       .nullable()
       .optional(),
     /** Optimistic concurrency. 0 on create; last-seen version on update. */
     expectedVersion: z.number().int().min(0),
   })
   .superRefine((value, ctx) => {
-    // canonical_url is optional; when set it must be absolute http(s).
-    if (value.canonicalUrl && !/^https?:\/\//i.test(value.canonicalUrl)) {
+    // canonical_url is optional; when set it must be either an absolute
+    // http(s) URL or a root-relative path ("/p/about" — resolved against the
+    // request host by Next's metadataBase, which is what seeded pages carry).
+    // "//host/…" is rejected: it reads like a relative path but smuggles a host.
+    const canonical = value.canonicalUrl;
+    if (!canonical) return;
+    const isRootRelative =
+      canonical.startsWith("/") && !canonical.startsWith("//");
+    if (isRootRelative) return;
+    if (!/^https?:\/\//i.test(canonical)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["canonicalUrl"],
-        message: "Canonical URL must start with http:// or https://",
+        message:
+          "Canonical URL must start with http:// or https://, or be a path starting with /",
+      });
+      return;
+    }
+    try {
+      new URL(canonical);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["canonicalUrl"],
+        message: "Canonical URL is not a valid URL",
       });
     }
   });

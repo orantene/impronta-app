@@ -35,6 +35,10 @@
  */
 
 import {
+  collectBuilderTreeLayoutFindings,
+  isBlockingLayoutFindingId,
+} from "./layout-health";
+import {
   collectMobileOverflowOffenders,
   parseLengthToPx,
   runMobileHealthCheck,
@@ -54,7 +58,9 @@ import type {
 export type MobileFixKind =
   | "overflow_width"
   | "container_stack"
-  | "split_collapse";
+  | "split_collapse"
+  /** A publish-blocking layout finding applied via its own quickFixPatch. */
+  | "layout_blocker";
 
 /**
  * One applied-fix descriptor: the target node + the exact props `patch` that
@@ -148,7 +154,15 @@ function buildContainerStackPatch(node: BuilderNode): Record<string, unknown> {
   const currentMobile = responsive.mobile ?? {};
   const nextResponsive = {
     ...responsive,
-    mobile: { ...currentMobile, layout: "stack" },
+    // `columns: 1` is REQUIRED, not decorative: the tree validator rejects
+    // "stack layout must use exactly 1 column", so preserving an inherited
+    // `columns: 2` from the existing mobile bucket produced an INVALID tree
+    // and `applyMobileFixes` silently dropped the fix — the button reported
+    // success while the container still rendered two columns on phones.
+    // (Live Impronta homepage: every grid carried
+    // `mobile: { gap: "s", layout: "grid", columns: 2 }`, so all three of its
+    // publish blockers survived a "Fix mobile issues" click.)
+    mobile: { ...currentMobile, layout: "stack", columns: 1 },
   };
   return { responsive: nextResponsive };
 }
@@ -228,6 +242,49 @@ export function collectMobileFixes(
         patch: buildSplitCollapsePatch(),
       });
     }
+  }
+
+  // 3. Publish-BLOCKING layout findings that carry a quick fix. The layout
+  //    linter (layout-health.ts) is what the publish preflight promotes to
+  //    "error"; each blocking finding already computes the exact props patch
+  //    its inspector quick-fix button applies. Folding them in here gives the
+  //    publish drawer's one-click fix the same reach as the inspector — the
+  //    2-column container the soft advisory above ignores (it only fires at
+  //    3+ columns), carousels missing controls, overflowing slides, etc.
+  //    `tabs-no-panels` has no patch (empty tabs need content, not settings)
+  //    and correctly stays manual. Dedupe maps the two findings that
+  //    duplicate transforms #1/#2 onto the SAME seen-key so a node never
+  //    collects two fixes for one problem.
+  for (const finding of collectBuilderTreeLayoutFindings(tree)) {
+    if (!isBlockingLayoutFindingId(finding.id) || !finding.quickFixPatch) {
+      continue;
+    }
+    const node = findNodeById(tree, finding.nodeId);
+    if (!node) continue;
+    // Both container findings ("never stacks" and "3+ mobile columns") apply
+    // the same stack-to-one-column patch, so both map onto container_stack —
+    // one node, one fix, regardless of how many linter rules flagged it.
+    const kind: MobileFixKind =
+      finding.id === "container-mobile-stack" ||
+      finding.id === "container-mobile-overflow"
+        ? "container_stack"
+        : finding.id === "split-mobile-collapse"
+          ? "split_collapse"
+          : "layout_blocker";
+    const key =
+      kind === "layout_blocker"
+        ? `${finding.nodeId}:${finding.id}`
+        : `${finding.nodeId}:${kind}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    fixes.push({
+      nodeId: finding.nodeId,
+      nodeKind: finding.nodeKind,
+      ownerSectionId: finding.ownerSectionId,
+      kind,
+      summary: `${finding.title}: ${finding.quickFixLabel ?? "apply the layout quick fix"}.`,
+      patch: finding.quickFixPatch,
+    });
   }
 
   return fixes;
