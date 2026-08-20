@@ -100,6 +100,8 @@ export function CtaBannerContentInspector({
   const imageSide = (draftProps.imageSide as ImageSide | undefined) ?? "right";
   const backgroundImageUrl =
     (draftProps.backgroundImageUrl as string | undefined) ?? "";
+  const backgroundImageAlt =
+    (draftProps.backgroundImageAlt as string | undefined) ?? "";
   const overlayOpacity =
     (draftProps.overlayOpacity as number | undefined) ?? 40;
   const insetCard = (draftProps.insetCard as boolean | undefined) ?? true;
@@ -244,6 +246,29 @@ export function CtaBannerContentInspector({
             emptyLabel={t("Add background image")}
             aspect="21/9"
           />
+          {/* Alt text lives with the picker because the publish check BLOCKS on
+              it: publish-preflight-action.ts counts an empty string as missing
+              and raises a blocker. Before this field existed, that panel told
+              the operator "The background image has no alt text" and gave them
+              nowhere to type it, so the blocker could not be cleared from the
+              surface the drawer's "Go to first blocker" sends you to. The
+              section editor (sections/cta_banner/Editor.tsx) always had an
+              AltTextField; this canvas inspector did not. */}
+          {backgroundImageUrl ? (
+            <div className={KIT.field}>
+              <label className={KIT.label}>{t("Alt text")}</label>
+              <input
+                type="text"
+                className={KIT.input}
+                placeholder={t("Describe the photo for screen readers")}
+                maxLength={200}
+                value={backgroundImageAlt}
+                onChange={(e) =>
+                  update({ backgroundImageAlt: e.target.value || undefined })
+                }
+              />
+            </div>
+          ) : null}
           {variant === "centered-overlay" ? (
             <div className={KIT.field}>
               <label className={KIT.label}>
