@@ -34,6 +34,7 @@ import {
 } from "@/lib/site-admin/edit-mode/form-inbox-sections-action";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
+import { ColorSwatchButton } from "./color-swatch-button";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { InspectorInfoTip } from "./kit";
@@ -544,6 +545,88 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                 {t("+ Add field")}
               </button>
             ) : null}
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* ── field style ─────────────────────────────────────────────────────
+       *  The one place the INPUT BOXES can be styled. The node's Style tab
+       *  dresses the form wrapper; until this card existed the fields
+       *  themselves were untouchable from the builder - the renderer's
+       *  defaults, sound or not, were the only option. Unset = those
+       *  token-driven defaults, so existing forms are byte-identical. */}
+      <Card>
+        <CardHead title={t("Field style")} sub={t("Borders, fill and corners of the inputs")} />
+        <CardBody>
+          <div className="flex flex-col gap-3">
+            <Field flush>
+              <FieldLabel info={t("The outline of each input box. Leave on Default to follow the site's palette.")}>
+                {t("Border color")}
+              </FieldLabel>
+              <div className="flex items-center gap-2">
+                <ColorSwatchButton
+                  color={node.props.fieldBorderColor ?? ""}
+                  ariaLabel={t("Border color")}
+                  dataAttr={["data-form-field-border-swatch", node.id]}
+                  onChange={(next) => void commitPatch({ fieldBorderColor: next })}
+                />
+                <span className={KIT.hint}>
+                  {node.props.fieldBorderColor ?? t("Default")}
+                </span>
+                {node.props.fieldBorderColor ? (
+                  <button
+                    type="button"
+                    className={KIT.subtleButton}
+                    onClick={() => void commitPatch({ fieldBorderColor: undefined })}
+                  >
+                    {t("Reset")}
+                  </button>
+                ) : null}
+              </div>
+            </Field>
+            <Field flush>
+              <FieldLabel info={t("The background inside each input box.")}>
+                {t("Field fill")}
+              </FieldLabel>
+              <div className="flex items-center gap-2">
+                <ColorSwatchButton
+                  color={node.props.fieldBackground ?? ""}
+                  ariaLabel={t("Field fill")}
+                  dataAttr={["data-form-field-bg-swatch", node.id]}
+                  onChange={(next) => void commitPatch({ fieldBackground: next })}
+                />
+                <span className={KIT.hint}>
+                  {node.props.fieldBackground ?? t("Default")}
+                </span>
+                {node.props.fieldBackground ? (
+                  <button
+                    type="button"
+                    className={KIT.subtleButton}
+                    onClick={() => void commitPatch({ fieldBackground: undefined })}
+                  >
+                    {t("Reset")}
+                  </button>
+                ) : null}
+              </div>
+            </Field>
+            <Field flush>
+              <FieldLabel>{t("Corners")}</FieldLabel>
+              <Segmented
+                fullWidth
+                compact
+                value={node.props.fieldCornerRadius ?? "3px"}
+                onChange={(next) => {
+                  void commitPatch({
+                    fieldCornerRadius: next === "3px" ? undefined : next,
+                  });
+                }}
+                options={[
+                  { value: "0px", label: t("Sharp") },
+                  { value: "3px", label: t("Soft") },
+                  { value: "10px", label: t("Round") },
+                ]}
+              />
+            </Field>
           </div>
         </CardBody>
       </Card>

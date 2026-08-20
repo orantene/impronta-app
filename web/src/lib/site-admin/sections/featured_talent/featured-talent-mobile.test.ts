@@ -71,6 +71,16 @@ test("the card's own actions clear the 12px legibility floor on phones", () => {
   assert.ok(Number(px[1]) * 16 >= 12, `card CTA renders at ${Number(px[1]) * 16}px, under the 12px floor`);
 });
 
+test("the card kicker clears the 12px floor on phones", () => {
+  // The type/city line shipped at 0.68rem (10.88px) with 0.18em tracking -
+  // texture, not words, at phone size. The phone block must both exist and
+  // carry !important, because the base rule it overrides does.
+  const block = phoneBlock();
+  const kicker = /\[data-card-kicker\]\s*\{([^}]*)\}/.exec(block);
+  assert.ok(kicker, "the phone block must size the kicker");
+  assert.match(kicker![1]!, /font-size:\s*0\.75rem\s*!important/);
+});
+
 test("grid-auto-columns is left alone on phones", () => {
   // Overriding the track with a percentage makes it degenerate: the tracks
   // collapse to ~52px, the 262px cards spill out of them and OVERLAP each

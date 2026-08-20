@@ -1210,6 +1210,17 @@ export interface BuilderFormNode extends BuilderNodeBase {
     submitLabel?: string;
     /** Honeypot field name (a hidden input bots fill — submissions with it set are flagged spam). */
     honeypotName?: string;
+    /**
+     * Field-box styling — the INPUTS, not the form wrapper (`style` covers
+     * that). These exist because the renderer's field defaults, however sound,
+     * were the only option: an operator whose brand wanted filled fields, round
+     * corners, or a specific border color had no control anywhere in the
+     * builder. Any CSS color string; unset = the token-driven defaults.
+     */
+    fieldBorderColor?: string;
+    fieldBackground?: string;
+    /** CSS length for the field corner radius, e.g. "0px" | "3px" | "10px". */
+    fieldCornerRadius?: string;
     style?: BuilderNodeStyle;
   };
 }

@@ -134,6 +134,10 @@ export function FormResultBanner({ locale }: { locale?: string | null }) {
   useEffect(() => {
     if (!result) return;
     const el = document.querySelector("[data-form-result-banner]");
+    if (result.tone === "ok") {
+      // Collapse the spent form to just this banner (see the renderer CSS).
+      el?.closest("form")?.setAttribute("data-form-submitted", "");
+    }
     el?.scrollIntoView({ block: "center", behavior: "auto" });
   }, [result]);
 

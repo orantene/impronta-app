@@ -750,9 +750,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   font-size:0.95rem;
   line-height:1.5;
   color:var(--token-color-ink,inherit);
-  background:color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent);
-  border:1px solid color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent);
-  border-radius:3px;
+  background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));
+  border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));
+  border-radius:var(--bn-form-field-radius,3px);
   padding:0.72rem 0.85rem;
   outline:none;
   transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;
@@ -791,6 +791,14 @@ const BUILDER_NODE_RENDERER_CSS = `
 }
 .site-builder-node--form input[type="checkbox"],
 .site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
+/* After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
+ * An emptied form sitting under a success banner reads as "fill me in again" -
+ * and a second identical submission is exactly what the rate limiter and the
+ * coordinator reading the inbox do not need. Errors keep the form: the visitor
+ * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
+ * !important because the field wrappers carry inline display:grid, which beats
+ * any sheet rule - measured: without it the attribute lands and nothing hides. */
+.site-builder-node--form[data-form-submitted] > :not([data-form-result-banner]){display:none !important}
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
 @keyframes bn-anim-fall{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:none}}
@@ -4851,10 +4859,24 @@ function renderBuilderNodeElement(
               ? "multipart/form-data"
               : undefined
           }
-          style={inlineNodeStyle(formProps.style, {
-            display: "grid",
-            gap: GAP_BY_SIZE.m,
-          })}
+          style={{
+            ...inlineNodeStyle(formProps.style, {
+              display: "grid",
+              gap: GAP_BY_SIZE.m,
+            }),
+            // Authored field-box styling rides in as custom properties so the
+            // stylesheet's field rules (and their :hover/:focus variants) stay
+            // the single source of truth — the props only move the defaults.
+            ...(formProps.fieldBorderColor
+              ? { "--bn-form-field-border": formProps.fieldBorderColor }
+              : null),
+            ...(formProps.fieldBackground
+              ? { "--bn-form-field-bg": formProps.fieldBackground }
+              : null),
+            ...(formProps.fieldCornerRadius
+              ? { "--bn-form-field-radius": formProps.fieldCornerRadius }
+              : null),
+          } as CSSProperties}
         >
           {/* "Did that work?" - reveals the redirect flags the endpoint sets.
               Sits first so the answer is beside the form, not off-screen. */}

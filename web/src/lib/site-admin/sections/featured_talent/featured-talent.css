@@ -398,6 +398,16 @@
     .site-featured-talent__head {
     padding-inline: 16px;
   }
+  /* Same floor for the kicker - the "EDITORIAL MODEL - PLAYA DEL CARMEN" line
+   * ships at 0.68rem (10.88px) with 0.18em tracking, which at phone size reads
+   * as texture rather than words. 12px with eased tracking on phones; the
+   * desktop editorial treatment is untouched. Both declarations carry
+   * !important because the base rule they override does. */
+  .site-featured-talent[data-ft-card-chrome="v11-noir"]
+    .site-featured-talent__card [data-card-kicker] {
+    font-size: 0.75rem !important;
+    letter-spacing: 0.12em !important;
+  }
   /* 0.62rem is 9.92px, which is below any legibility floor and sits on the
    * card's two primary actions - the smallest text on the page is the part a
    * visitor is meant to tap. The editorial letter-spacing comes down a notch
