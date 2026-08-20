@@ -30,6 +30,8 @@ export type ActivityIconName =
 
 export type FormattedActivity = {
   id: string;
+  /** The inquiry behind the event — rows link to its work detail page. */
+  inquiryId: string;
   /** Who triggered it — real display name, or a role label for system/auto events. */
   actor: string;
   /** Past-tense verb phrase, e.g. "sent an offer to". */
@@ -164,6 +166,7 @@ export function formatRecentActivity(
   const target = item.inquiry_company?.trim() || item.inquiry_contact?.trim() || "an inquiry";
   return {
     id: item.id,
+    inquiryId: item.inquiry_id,
     actor,
     action: meta?.phrase ?? fallbackPhrase(item.event_type),
     target,
