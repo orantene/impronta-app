@@ -549,3 +549,48 @@ test("starter copy keeps the house rules for every audience", () => {
     }
   }
 });
+
+// ── The starter homepage must clear its own publish blockers ──────────────
+// Found by creating a workspace from scratch and pressing Publish: the drawer
+// said "PUBLISH BLOCKED — Final CTA (new): missing alt text on
+// backgroundImageUrl". The seeded page shipped `backgroundImageAlt: ""`, and
+// publish-preflight-action.ts treats an empty string as MISSING
+// (`typeof alt !== "string" || alt.trim().length === 0`). So every new
+// workspace was blocked from publishing by a photo the product chose for it.
+
+test("every seeded image carries real alt text, not the empty string", () => {
+  for (const audience of ["operator", "agency", "organization"] as const) {
+    for (const entry of buildFreeStarterEntries("Vera Atelier", audience)) {
+      const props = (entry.propsOverride ?? {}) as Record<string, unknown>;
+
+      // Single-field pairs (…ImageUrl / …ImageAlt) on the section itself.
+      for (const key of Object.keys(props)) {
+        if (!key.endsWith("ImageUrl")) continue;
+        const url = props[key];
+        if (typeof url !== "string" || url.trim().length === 0) continue;
+        const altKey = `${key.slice(0, -"ImageUrl".length)}ImageAlt`;
+        const alt = props[altKey];
+        assert.equal(
+          typeof alt === "string" && alt.trim().length > 0,
+          true,
+          `${audience}/${entry.sectionTypeKey}: ${altKey} is empty, which the publish preflight reports as a BLOCKER`,
+        );
+      }
+
+      // Array-of-objects pairs (hero slides).
+      const slides = props.slides;
+      if (Array.isArray(slides)) {
+        slides.forEach((slide, i) => {
+          const s = slide as Record<string, unknown>;
+          if (typeof s.backgroundImageUrl !== "string" || !s.backgroundImageUrl.trim()) return;
+          const alt = s.backgroundImageAlt;
+          assert.equal(
+            typeof alt === "string" && alt.trim().length > 0,
+            true,
+            `${audience}/${entry.sectionTypeKey}: slide ${i} backgroundImageAlt is empty (publish BLOCKER)`,
+          );
+        });
+      }
+    }
+  }
+});

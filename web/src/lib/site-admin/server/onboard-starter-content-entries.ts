@@ -101,7 +101,13 @@ export function buildFreeStarterEntries(
         slides: [
           {
             backgroundImageUrl: STARTER_IMG.hero,
-            backgroundImageAlt: "",
+            // Real alt, not "". The publish preflight treats an empty string
+            // as MISSING (publish-preflight-action.ts: `alt.trim().length
+            // === 0`), and it is a BLOCKER — so a brand new workspace could
+            // not publish its own seeded homepage until the operator wrote
+            // alt text for a photo the product chose for them.
+            backgroundImageAlt:
+              "A creative team reviewing photographs and layouts around a studio table.",
           },
         ],
         overlay: "gradient-scrim",
@@ -179,7 +185,9 @@ export function buildFreeStarterEntries(
             : "Share your date, location, and creative direction. We reply within one business day with availability and a suggested team.",
         primaryCta: { label: "Start an inquiry", href: "/contact" },
         backgroundImageUrl: STARTER_IMG.ctaBanner,
-        backgroundImageAlt: "",
+        // See the hero note: "" reads as missing to the publish blocker.
+        backgroundImageAlt:
+          "A producer reviewing a shoot brief on a tablet while the team talks behind her.",
         // The banner copy is white-on-image. 55 left the 17px body copy at
         // roughly 3.5:1 over the brightest part of a light studio photo;
         // 68 keeps it above the 4.5:1 body-text floor without flattening
