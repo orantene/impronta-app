@@ -23,6 +23,7 @@ import type {
   BuilderNode,
 } from "@/lib/site-admin/builder-node/types";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
+import { FORM_SECTION_SLOT } from "./form-section";
 
 // ── SEO / page model ─────────────────────────────────────────────────────────
 
@@ -1535,9 +1536,15 @@ export function faqAccordion(id: string, entries: FaqEntry[]): BuilderNode {
 // ── forms ────────────────────────────────────────────────────────────────────
 
 /**
- * Internal lead form (POSTs to /api/cms/forms/submit). NOTE for the seeder:
- * `sectionId` must be set to a real `cms_sections` row id at seed time or the
- * internal action rejects the submission. It is intentionally omitted here.
+ * Internal lead form (POSTs to /api/cms/forms/submit).
+ *
+ * `sectionId` carries {@link FORM_SECTION_SLOT}, which the seeders swap for the
+ * tenant's real `cms_sections` row id before any page is written. It is a TOKEN
+ * rather than an omission on purpose: the endpoint refuses a submission with no
+ * section reference, so a form seeded without one renders perfectly and loses
+ * every brief sent through it. That is exactly what happened to this page until
+ * 2026-08-20 — the old comment here said the seeder "must" set the id, and
+ * nothing did. The token makes the seeder abort instead of shipping a dead form.
  */
 export function leadForm(
   id: string,
@@ -1551,6 +1558,7 @@ export function leadForm(
       action: "internal",
       method: "post",
       honeypotName: "website",
+      sectionId: FORM_SECTION_SLOT,
       layerLabel: opts.layerLabel ?? "Lead form",
       fields,
       style: {

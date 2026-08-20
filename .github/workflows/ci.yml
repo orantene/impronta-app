@@ -278,6 +278,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:publish-preflight
 
+      # The Impronta page-tree suites (12 files, 133 assertions) existed but
+      # ran nowhere: no npm script, no CI step. Their section-structure
+      # snapshot had been red since the location map landed and nothing said
+      # so. A guard nobody runs is not a guard.
+      - name: tests — impronta page trees
+        if: ${{ !cancelled() }}
+        run: npm run test:impronta-pages
+
       # ── Money / content lanes ─────────────────────────────────────────
       # These four lanes were in the `npm run ci` aggregate but NOT in this
       # curated step list, so they never gated a PR (the same drift that hid

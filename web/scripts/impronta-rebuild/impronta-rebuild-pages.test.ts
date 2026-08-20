@@ -94,6 +94,7 @@ test("impronta-rebuild: section structure snapshot", () => {
       "section_embed:Discipline Marquee",
       "container:Featured Talent Section",
       "container:Divisions",
+      "container:Markets Section",
       "container:Editorial plate",
       "container:Statement",
       "container:How it works",
