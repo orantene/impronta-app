@@ -501,6 +501,7 @@ export const ES_TEXT: Record<string, string> = {
   "Add alt text": "Agregar texto alternativo",
   "Add at least 3 to publish this section.": "Agrega al menos 3 para publicar esta sección.",
   "Add background image": "Agregar imagen de fondo",
+  "Describe the photo for screen readers": "Describe la foto para lectores de pantalla",
   "Add hero image": "Agregar imagen del hero",
   "Add images": "Agregar imágenes",
   "Add item": "Agregar elemento",
