@@ -348,7 +348,7 @@ const showTeaser = band(
           kind: "image",
           props: {
             src: IMAGE_SLOT("home-statement-portrait"),
-            alt: "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.",
+            alt: "An Impronta model standing in a white shirt over a black top and light jeans, against a grey studio backdrop.",
             layerLabel: "Portrait",
             style: {
               width: "100%",

@@ -28,7 +28,7 @@ const hero = pageHero("rb-about", {
   line2: "an inventory.",
   sub: "Impronta means imprint. It is the mark a face leaves on a campaign, and the mark an agency leaves on the people it represents. This is the story of ours.",
   imageSlot: "about-hero",
-  imageAlt: "An Impronta model photographed in the agency studio against a plain backdrop.",
+  imageAlt: "An Impronta model in a white top and light jeans, seated and smiling against a warm tan studio backdrop.",
   compact: true,
 });
 
