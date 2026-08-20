@@ -272,3 +272,27 @@ test("reduced motion hides the moving element so the poster shows through", () =
     "a background that keeps playing under prefers-reduced-motion is the whole a11y failure",
   );
 });
+
+test("a YouTube frame waits behind its poster instead of flashing player chrome", () => {
+  // The player paints a title bar and spinner for about a second before the
+  // first frame. The iframe sits ON TOP of the poster, so that chrome is the
+  // load experience — it is what shipped on the Impronta homepage hero.
+  assert.ok(
+    /\.site-builder-bg-media\[data-bn-bg-poster\] \.site-builder-bg-media__frame\{opacity:0;animation:bn-bg-frame-in/.test(
+      SHEET,
+    ),
+    "the frame must start transparent when a poster can cover it",
+  );
+  assert.ok(/@keyframes bn-bg-frame-in\{to\{opacity:1\}\}/.test(SHEET));
+
+  // The attribute is the whole safety condition: with no poster underneath,
+  // holding the frame transparent trades a flash of YouTube for a hole.
+  const withPoster = render([
+    container({
+      source: "youtube",
+      src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      posterUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    }),
+  ]);
+  assert.ok(withPoster.includes('data-bn-bg-poster=""'), "poster present → frame may fade");
+});
