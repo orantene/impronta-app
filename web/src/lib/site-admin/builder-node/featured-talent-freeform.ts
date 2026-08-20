@@ -39,6 +39,15 @@ export interface FeaturedTalentDecomposedInput {
   /** Grid-only embed config (head fields should be empty / headless:true). */
   embedConfig?: Record<string, unknown>;
   /**
+   * Style overrides merged into the eyebrow paragraph.
+   *
+   * The default is the component's own muted small text. A page whose other
+   * sections mark their eyebrows differently — Impronta sets every one of
+   * them in gold uppercase with wide tracking — would otherwise have this one
+   * section quietly speaking a different language.
+   */
+  eyebrowStyle?: Record<string, unknown>;
+  /**
    * Width of the content column that holds the roster grid.
    *
    * Defaults to the historical 1120px. It is an option because this wrapper
@@ -128,6 +137,7 @@ export function buildFeaturedTalentDecomposedSection(
                 size: "sm",
                 tone: "muted",
                 align: "left",
+                ...(input.eyebrowStyle ?? {}),
               },
             },
           },

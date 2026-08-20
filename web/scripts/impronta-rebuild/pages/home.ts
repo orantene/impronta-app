@@ -31,6 +31,7 @@ import {
   statCell,
   CARD,
   CARD_BORDER,
+  GOLD,
   IMAGE_SLOT,
   SERIF,
   TEXT,
@@ -92,6 +93,18 @@ const marquee: BuilderNode = {
 const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
   rootId: "rb-home-featured",
   eyebrow: "Selected",
+  // Every other eyebrow on this page is gold, uppercase and widely tracked
+  // (see `eyebrow()` in shared.ts). This one shipped as the component's muted
+  // grey default, so the section read as though it came from another site.
+  eyebrowStyle: {
+    fontFamily: SERIF,
+    fontSize: "12px",
+    fontWeight: 600,
+    letterSpacing: "0.32em",
+    textTransform: "uppercase",
+    textColor: GOLD,
+    tone: undefined,
+  },
   headline: "FEATURED TALENT",
   subheadline: "",
   seeAllLabel: "Explore the roster",
