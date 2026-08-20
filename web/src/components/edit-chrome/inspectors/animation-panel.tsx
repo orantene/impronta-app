@@ -219,6 +219,9 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
         animationDelay: undefined,
         animationDistance: undefined,
         animationEasing: undefined,
+        // The Advanced custom curve too — "None" means none, not "no preset
+        // but a ghost cubic-bezier waiting to surprise the next preset".
+        animationEasingCustom: undefined,
       });
       return;
     }
