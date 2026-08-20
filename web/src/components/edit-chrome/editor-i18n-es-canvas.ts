@@ -435,4 +435,11 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "Restablecer el orden en móvil al flujo natural",
   "Reset tablet order to natural flow":
     "Restablecer el orden en tablet al flujo natural",
+
+  // Publish drawer — the one-line consequence that replaced the "What
+  // publishing does" essay card (the essay now lives behind the ⓘ).
+  "Publishing makes this draft the live page visitors see.":
+    "Publicar convierte este borrador en la página en vivo que ven los visitantes.",
+  "Publishing adds this template to the gallery. No live pages change.":
+    "Publicar agrega esta plantilla a la galería. Ninguna página en vivo cambia.",
 };
