@@ -742,55 +742,16 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  *     `display:grid`, which beats any sheet rule.
  */
 const BUILDER_NODE_RENDERER_CSS = `
-.site-builder-node--form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]),
-.site-builder-node--form textarea,
-.site-builder-node--form select{
-  width:100%;
-  font:inherit;
-  font-size:0.95rem;
-  line-height:1.5;
-  color:var(--token-color-ink,inherit);
-  background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));
-  border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));
-  border-radius:var(--bn-form-field-radius,3px);
-  padding:0.72rem 0.85rem;
-  outline:none;
-  transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;
-  -webkit-appearance:none;
-  appearance:none;
-}
-.site-builder-node--form textarea{min-height:8.5rem;resize:vertical}
-.site-builder-node--form select{cursor:pointer}
-.site-builder-node--form input::placeholder,
-.site-builder-node--form textarea::placeholder{
-  color:var(--token-color-muted,rgba(127,127,127,0.75));
-  opacity:1;
-}
-.site-builder-node--form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):hover,
-.site-builder-node--form textarea:hover,
-.site-builder-node--form select:hover{
-  border-color:color-mix(in srgb,var(--token-color-primary,#9a7326) 45%,transparent);
-}
-.site-builder-node--form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):focus,
-.site-builder-node--form textarea:focus,
-.site-builder-node--form select:focus,
-.site-builder-node--form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):focus-visible,
-.site-builder-node--form textarea:focus-visible,
-.site-builder-node--form select:focus-visible{
-  border-color:var(--token-color-primary,#9a7326);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary,#9a7326) 26%,transparent);
-}
-.site-builder-node--form input:user-invalid,
-.site-builder-node--form textarea:user-invalid{
-  border-color:color-mix(in srgb,#c0553f 70%,var(--token-color-line,#888));
-}
-@media (any-hover:none){
-  .site-builder-node--form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]),
-  .site-builder-node--form textarea,
-  .site-builder-node--form select{font-size:16px}
-}
-.site-builder-node--form input[type="checkbox"],
-.site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
+.site-builder-node--form .bn-ff{width:100%;font:inherit;font-size:0.95rem;line-height:1.5;color:var(--token-color-ink,inherit);background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));border-radius:var(--bn-form-field-radius,3px);padding:0.72rem 0.85rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;-webkit-appearance:none;appearance:none}
+.site-builder-node--form textarea.bn-ff{min-height:8.5rem;resize:vertical}
+.site-builder-node--form select.bn-ff{cursor:pointer}
+.site-builder-node--form .bn-ff::placeholder{color:var(--token-color-muted,rgba(127,127,127,0.75));opacity:1}
+.site-builder-node--form .bn-ff:hover{border-color:color-mix(in srgb,var(--token-color-primary,#9a7326) 45%,transparent)}
+.site-builder-node--form .bn-ff:focus,.site-builder-node--form .bn-ff:focus-visible{border-color:var(--token-color-primary,#9a7326);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary,#9a7326) 26%,transparent)}
+.site-builder-node--form .bn-ff:user-invalid{border-color:color-mix(in srgb,#c0553f 70%,var(--token-color-line,#888))}
+@media (any-hover:none){.site-builder-node--form .bn-ff{font-size:16px}}
+.site-builder-node--form input[type="checkbox"],.site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
+.site-builder-node--form[data-form-submitted]>:not([data-form-result-banner]){display:none!important}
 /* After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
  * An emptied form sitting under a success banner reads as "fill me in again" -
  * and a second identical submission is exactly what the rate limiter and the
@@ -4928,6 +4889,7 @@ function renderBuilderNodeElement(
                 </label>
                 {field.type === "textarea" ? (
                   <textarea
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     placeholder={field.placeholder}
@@ -4936,6 +4898,7 @@ function renderBuilderNodeElement(
                   />
                 ) : field.type === "select" ? (
                   <select
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     required={field.required ?? false}
@@ -4982,6 +4945,7 @@ function renderBuilderNodeElement(
                   </label>
                 ) : (
                   <input
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     type={field.type}

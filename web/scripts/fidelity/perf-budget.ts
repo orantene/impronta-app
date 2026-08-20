@@ -126,7 +126,24 @@ export const BUDGETS: readonly Budget[] = [
   // live menu rendered as concatenated unstyled text). Restoring + redesigning
   // that block is ~5.6 KB the sheet was always supposed to carry. The scoped
   // ceiling below is what a visitor pays and it did not move.
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 109 * KB, unit: "bytes" },
+  //
+  // RE-TUNED 2026-08-20 (second time today): 109 -> 111 KB. The spend is the
+  // form-field block. The renderer shipped <input>/<textarea>/<select> with NO
+  // class and NO style at all - on a dark storefront the contact form was a
+  // column of labels and grey placeholder text with nothing to click: no
+  // border, no focus ring. That is not a styling preference, it is a form a
+  // visitor cannot see, and ~1.3 KB is what a visible, focusable, themeable
+  // field costs.
+  //
+  // Squeezed BEFORE asking, in the order this file's culture expects:
+  //   - the rationale moved into TypeScript comments (this one and the one
+  //     above the template): the first draft shipped ~1.1 KB of CSS COMMENTS to
+  //     every visitor, the exact mistake the Animation tab retune below records
+  //   - a `.bn-ff` class replaced a `:not([type=checkbox]):not([type=radio])
+  //     :not([type=submit])` chain repeated across five selectors (~1 KB back)
+  //   - every rule carries the `form` kind-token so `buildScopedRendererCss`
+  //     DROPS the block on pages with no form - a form-less page pays nothing
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 111 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for
@@ -160,7 +177,13 @@ export const BUDGETS: readonly Budget[] = [
     // festival back under. ~1.8% headroom, deliberately no roomier than the
     // convention above: the next thing that wants space here should argue for
     // it. Re-measure with `npm run perf:builder-budget`.
-    max: 102 * KB,
+    //
+    // RE-TUNED 2026-08-20 (second time today): 102 -> 103 KB. Measured 102.4 KB
+    // on `store`, the only fixture whose page actually CONTAINS a form - which
+    // is exactly the point of scoping the block to the form kind-token. Every
+    // other design measured unchanged, so the visitors who pay this are the
+    // ones who get a form they can see and use.
+    max: 103 * KB,
     unit: "bytes",
   },
   // The HTML document itself. Rich pages reference images externally, so the
