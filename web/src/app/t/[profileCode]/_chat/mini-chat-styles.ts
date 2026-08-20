@@ -121,6 +121,21 @@ export const DEFAULT_ACCENT = "#33507a";
 
 /** Launcher pill offset from the viewport bottom (safe-area added at use site). */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
+
+/**
+ * The same offset on a phone.
+ *
+ * 130px lifts the pill a long way up the screen, which is right on a talent
+ * profile where it clears the chat panel's own anchor. On a narrow storefront
+ * page it parks the pill in the middle of the content instead: measured on the
+ * live homepage at 375x812, the expanded pill sat at y 630-682 and the hero's
+ * "Book talent" button at y 631-684, so the launcher covered the corner of the
+ * page's primary call to action on first paint, before any scroll.
+ *
+ * 24px is the ordinary bottom-right corner a floating launcher belongs in, and
+ * on a 812px-tall viewport it puts the pill ~50px clear of that button.
+ */
+export const GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX = 24;
 /** Mini / expanded panel offset — sits above the launcher pill. */
 export const GUEST_CHAT_PANEL_BOTTOM_PX = 194;
 

@@ -398,6 +398,17 @@
     .site-featured-talent__head {
     padding-inline: 16px;
   }
+  /* 0.62rem is 9.92px, which is below any legibility floor and sits on the
+   * card's two primary actions - the smallest text on the page is the part a
+   * visitor is meant to tap. The editorial letter-spacing comes down a notch
+   * so 12px still fits: measured on the live card at 375px, neither button
+   * overflows (View profile 136px, Request 99px, zero clipped pixels).
+   * Phones only; the desktop treatment is untouched. */
+  .site-featured-talent[data-ft-action-style="outline-duo"]
+    .site-featured-talent__card [data-card-actions] .site-prim-cta {
+    font-size: 0.75rem !important;
+    letter-spacing: 0.12em !important;
+  }
   .site-featured-talent[data-ft-layout="v11-showcase"]
     .site-featured-talent__grid {
     padding-inline: 16px;
