@@ -21,6 +21,8 @@
  *   IMPRONTA_SEED_TENANT_SLUG=impronta npx tsx scripts/impronta-rebuild/archive-stale-pages.ts --apply
  */
 
+import { pathToFileURL } from "node:url";
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 interface PageRow {
@@ -152,7 +154,23 @@ async function main() {
   console.log(`\nArchived ${candidates.length} page(s). Reversible: set status back to 'draft'.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+/**
+ * Run ONLY when executed directly.
+ *
+ * archive-stale-pages.test.ts imports this module for its pure helpers, and a
+ * bare `main()` call means importing the module RUNS the script: it reached for
+ * service-role credentials and queried the live database from a unit test. It
+ * is dry-run by default, so nothing was archived - but a test that talks to
+ * production is a test that can stop being harmless, and in CI (no credentials)
+ * it simply threw and failed the lane.
+ */
+const executedDirectly = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (executedDirectly) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
