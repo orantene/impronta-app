@@ -72,11 +72,14 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerTab,
+  DrawerTabs,
   Field,
   FieldLabel,
   Helper,
   HelperCounter,
 } from "./kit";
+import { SchedulePublishForm } from "./schedule-form";
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useDirty } from "./dirty-bridge";
@@ -142,6 +145,15 @@ function ChangesIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </svg>
   );
 }
@@ -333,6 +345,15 @@ export function PublishDrawer() {
   // diff always starts closed.
   const [goingLiveOpen, setGoingLiveOpen] = useState<boolean | null>(null);
   const [builderDiffOpen, setBuilderDiffOpen] = useState(false);
+  // Tab overhaul (2026-08-20): the drawer body groups behind four tabs —
+  // Checks (preflight + mobile health), Changes (stats, going live, builder
+  // diff), SEO (page settings mini + search preview), Schedule (publish
+  // later). All tab panels stay MOUNTED and hide via display:none — the
+  // preflight's status callback gates Publish, so unmounting it on a tab
+  // switch would reset blockingErrors to 0 and un-gate a blocked publish.
+  const [publishTab, setPublishTab] = useState<
+    "checks" | "changes" | "seo" | "schedule"
+  >("checks");
   const [host, setHost] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightBlockingErrors, setPreflightBlockingErrors] = useState(0);
@@ -412,6 +433,10 @@ export function PublishDrawer() {
     if (publishOpen) {
       setState({ kind: "idle" });
       setShowLegacy(false);
+      // Every open starts on Checks — blockers (when any) are the first thing
+      // the operator must see; a clean page reads "all checks passed" and the
+      // eye moves straight to Publish now.
+      setPublishTab("checks");
       // PublishPreflight resolves status before this parent effect; start
       // loading only on surfaces that actually run the checks.
       setPreflightLoading(isPublishPreflightSurface(surfaceKind));
@@ -942,6 +967,7 @@ export function PublishDrawer() {
       zIndex={88}
       ariaLabelledBy="publish-drawer-title"
       modal
+      scrim
       onRequestClose={state.kind === "publishing" ? undefined : closePublish}
       floating
       floatLabel="Publish"
@@ -954,6 +980,65 @@ export function PublishDrawer() {
         meta={headerMeta}
         onClose={state.kind === "publishing" ? undefined : closePublish}
       />
+
+      {!isSuccess ? (
+        <DrawerTabs>
+          <DrawerTab
+            active={publishTab === "checks"}
+            onClick={() => setPublishTab("checks")}
+            title={t("Publish checks and mobile health")}
+          >
+            {t("Checks")}
+            {preflightBlockingErrors > 0 ? (
+              <span
+                aria-label={t("{count} blockers · ").replace(
+                  "{count}",
+                  String(preflightBlockingErrors),
+                )}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 15,
+                  height: 15,
+                  padding: "0 4px",
+                  borderRadius: 999,
+                  background: CHROME.rose,
+                  color: "#fff",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {preflightBlockingErrors}
+              </span>
+            ) : null}
+          </DrawerTab>
+          <DrawerTab
+            active={publishTab === "changes"}
+            onClick={() => setPublishTab("changes")}
+            title={t("What's going live and the draft vs published diff")}
+          >
+            {t("Changes")}
+          </DrawerTab>
+          <DrawerTab
+            active={publishTab === "seo"}
+            onClick={() => setPublishTab("seo")}
+            title={t("Page title, meta description and search preview")}
+          >
+            {t("SEO")}
+          </DrawerTab>
+          {surfaceKind === "homepage" || surfaceKind === "cms_page" ? (
+            <DrawerTab
+              active={publishTab === "schedule"}
+              onClick={() => setPublishTab("schedule")}
+              title={t("Publish later, at a scheduled time")}
+            >
+              {t("Schedule")}
+            </DrawerTab>
+          ) : null}
+        </DrawerTabs>
+      ) : null}
 
       <DrawerBody>
         {isSuccess ? (
@@ -1044,6 +1129,10 @@ export function PublishDrawer() {
                 }
               />
             </div>
+            {/* ── Tab: Checks ────────────────────────────────────── */}
+            {/* Kept mounted on every tab (display gate, never unmount):
+                PublishPreflight's status callback is the publish gate. */}
+            <div style={{ display: publishTab === "checks" ? undefined : "none" }}>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div className="mb-3">
               <PublishPreflight
@@ -1065,6 +1154,9 @@ export function PublishDrawer() {
                 <MobileHealthPanel builderTree={builderTree} />
               </div>
             ) : null}
+            </div>
+            {/* ── Tab: Changes (part 1: stats) ───────────────────── */}
+            <div style={{ display: publishTab === "changes" ? undefined : "none" }}>
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
               <CardBody>
@@ -1237,7 +1329,9 @@ export function PublishDrawer() {
                 </div>
               </CardBody>
             </Card>
-
+            </div>
+            {/* ── Tab: SEO ───────────────────────────────────────── */}
+            <div style={{ display: publishTab === "seo" ? undefined : "none" }}>
             {/* ── Page settings (mini) ───────────────────────────── */}
             <Card>
               <CardHead
@@ -1304,7 +1398,9 @@ export function PublishDrawer() {
                 />
               </CardBody>
             </Card>
-
+            </div>
+            {/* ── Tab: Changes (part 2: section lists + diff) ────── */}
+            <div style={{ display: publishTab === "changes" ? undefined : "none" }}>
             {/* ── What's going live ──────────────────────────────── */}
             {/* T1-3 — header shows the FULL section count (primary + legacy)
                 so it matches the navigator. The audit caught this surface
@@ -1731,6 +1827,22 @@ export function PublishDrawer() {
                 ) : null}
               </Card>
             )}
+            </div>
+            {/* ── Tab: Schedule (publish later) ──────────────────── */}
+            {surfaceKind === "homepage" || surfaceKind === "cms_page" ? (
+              <div
+                style={{ display: publishTab === "schedule" ? undefined : "none" }}
+              >
+                <Card>
+                  <CardHead icon={<ClockIcon />} title={t("Schedule publish")} />
+                  <CardBody>
+                    <SchedulePublishForm
+                      active={publishOpen && publishTab === "schedule"}
+                    />
+                  </CardBody>
+                </Card>
+              </div>
+            ) : null}
 
             {/* ── Inline status / error banners ───────────────── */}
             {summary.missing.length > 0 ? (

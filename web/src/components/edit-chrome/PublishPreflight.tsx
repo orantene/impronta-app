@@ -17,7 +17,7 @@ import {
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { useEditContext } from "./edit-context";
 import { locateCanvasNode } from "./freeform-layer-row";
-import { DrawerSkeleton } from "./kit";
+import { Button, DrawerSkeleton } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
 
 /** W1-L2 — hard ceiling for the preflight action. A hung server action used to
@@ -42,6 +42,34 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   mobile_overflow: "Mobile overflow",
   performance: "Performance",
 };
+
+/** Wand — same glyph as MobileHealthPanel's fix action, so "one-click safe
+ *  fix" reads as ONE affordance across the drawer. */
+function WandIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 4V2" />
+      <path d="M15 16v-2" />
+      <path d="M8 9h2" />
+      <path d="M20 9h2" />
+      <path d="M17.8 11.8 19 13" />
+      <path d="M15 9h.01" />
+      <path d="M17.8 6.2 19 5" />
+      <path d="m3 21 9-9" />
+      <path d="M12.2 6.2 11 5" />
+    </svg>
+  );
+}
 
 /** One rendered row: a finding plus every place it occurs. */
 interface GroupedIssue {
@@ -86,7 +114,8 @@ export function PublishPreflight({
   onFocusSection,
 }: Props) {
   const { t } = useEditorLocale();
-  const { reportMutationError } = useEditContext();
+  const { reportMutationError, fixAllMobileIssues, flushBuilderTreeSave } =
+    useEditContext();
   // Held in a ref and kept OUT of the checks effect's dep list. When it was a
   // dep, any change to its identity re-ran the effect; the previous run's
   // `cancelled` guard then returned WITHOUT emitting `loading:false`, so the
@@ -105,6 +134,45 @@ export function PublishPreflight({
   // W1-L2 — visible elapsed-seconds ticker while the checks run, so a slow
   // action reads as "still working on it", never as a dead skeleton.
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // One-click "Fix these for me" on auto-fixable blockers. After the batch
+  // applies we FLUSH the coalesced draft save (preflight reads the saved
+  // draft — re-checking without the flush reads a stale tree) and re-run the
+  // checks, which either go green or show what genuinely needs a human.
+  const [autoFixBusy, setAutoFixBusy] = useState(false);
+  // Advisory items live behind a collapsed accordion — they never block
+  // publish, so they must not read as a wall of problems (Mobile health
+  // pattern). Blockers stay always-visible.
+  const [advisoriesOpen, setAdvisoriesOpen] = useState(false);
+
+  const onAutoFixBlockers = async () => {
+    if (autoFixBusy) return;
+    setAutoFixBusy(true);
+    try {
+      const result = await fixAllMobileIssues();
+      if (!result.ok) {
+        reportMutationError(
+          result.error ??
+            t("Could not apply the fixes. Use the Show on canvas buttons to fix each block instead."),
+        );
+        return;
+      }
+      // `ok` is not the same as "something changed": the batch skips any fix
+      // whose patch no-ops or fails validation, so a zero count means the
+      // blockers are still there. Say so instead of re-running the checks and
+      // silently showing the same list — the button reporting success while
+      // fixing nothing is the exact failure this action was built to end.
+      if (result.fixedCount === 0) {
+        reportMutationError(
+          t("Nothing could be fixed automatically. Use the Show on canvas buttons to fix each block."),
+        );
+        return;
+      }
+      await flushBuilderTreeSave();
+      setRetryNonce((n) => n + 1);
+    } finally {
+      setAutoFixBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -275,6 +343,7 @@ export function PublishPreflight({
 
   const blockingIssues = ordered.filter((i) => i.severity === "error");
   const warningIssues = ordered.filter((i) => i.severity === "warn");
+  const autoFixableBlockers = blockingIssues.filter((i) => i.autoFixable).length;
   const blockingGroups = groupIssues(blockingIssues);
   const warningGroups = groupIssues(warningIssues);
   const blockingCategorySummary = blockingIssues.reduce<
@@ -427,6 +496,29 @@ export function PublishPreflight({
               </button>
             ) : null}
           </div>
+          {autoFixableBlockers > 0 ? (
+            <div className="mb-2">
+              <Button
+                variant="primary"
+                size="sm"
+                leadingIcon={<WandIcon />}
+                loading={autoFixBusy}
+                onClick={() => void onAutoFixBlockers()}
+                style={{ width: "100%" }}
+              >
+                {autoFixBusy
+                  ? t("Fixing…")
+                  : autoFixableBlockers === blockingIssues.length
+                    ? t("Fix these for me")
+                    : t("Fix {count} of {total} for me")
+                        .replace("{count}", String(autoFixableBlockers))
+                        .replace("{total}", String(blockingIssues.length))}
+              </Button>
+              <p className="m-0 mt-1 text-[10px] leading-snug text-rose-700/80">
+                {t("One click applies safe layout fixes and re-runs the checks. Undo reverts the whole batch.")}
+              </p>
+            </div>
+          ) : null}
           <ul className="flex flex-col gap-1.5 text-rose-950">
             {blockingGroups.map((group, index) => renderIssue(group, index))}
           </ul>
@@ -451,18 +543,49 @@ export function PublishPreflight({
         </div>
       ) : null}
       {warningIssues.length > 0 ? (
-        <div className="rounded-md border border-blue-300/70 bg-blue-50/40 p-2">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-            {t("Advisory, non-blocking ({count})").replace(
-              "{count}",
-              String(warningIssues.length),
-            )}
-          </div>
-          <ul className="flex flex-col gap-1.5 text-stone-800">
-            {warningGroups.map((group, index) =>
-              renderIssue(group, blockingGroups.length + index),
-            )}
-          </ul>
+        <div className="rounded-md border border-blue-300/70 bg-blue-50/40">
+          {/* Advisories are review-if-you-want, so they load COLLAPSED — the
+              operator sees one calm summary line, not a wall of warnings. */}
+          <button
+            type="button"
+            aria-expanded={advisoriesOpen}
+            onClick={() => setAdvisoriesOpen((open) => !open)}
+            className="flex w-full cursor-pointer items-center justify-between gap-2 bg-transparent p-2 text-left"
+          >
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+              {t("Advisory, non-blocking ({count})").replace(
+                "{count}",
+                String(warningIssues.length),
+              )}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700">
+              {advisoriesOpen ? t("Hide") : t("Review")}
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+                style={{
+                  transform: advisoriesOpen ? "rotate(180deg)" : undefined,
+                  transition: "transform 150ms ease",
+                }}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </button>
+          {advisoriesOpen ? (
+            <ul className="flex flex-col gap-1.5 p-2 pt-0 text-stone-800">
+              {warningGroups.map((group, index) =>
+                renderIssue(group, blockingGroups.length + index),
+              )}
+            </ul>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -103,9 +103,19 @@ export function classifyCanonicalIssue(input: {
 
   const canonical = input.canonicalUrl.trim();
   if (!canonical) return issues;
+  // Root-relative canonicals ("/p/about", "/es/p/home") are VALID: the page
+  // renderer hands them to Next's metadata layer, which resolves them against
+  // `metadataBase` (the request host) — the right canonical for a
+  // multi-domain tenant platform. Seeded pages ship with these, and rejecting
+  // them hard-blocked publish on every seeded page. Protocol-relative
+  // "//host/…" stays an error (it smuggles a host past the relative reading).
+  const isRootRelative =
+    canonical.startsWith("/") && !canonical.startsWith("//");
   let parsed: URL;
   try {
-    parsed = new URL(canonical);
+    parsed = isRootRelative
+      ? new URL(canonical, "https://relative-canonical.invalid")
+      : new URL(canonical);
   } catch {
     issues.push({
       severity: "error",
@@ -113,13 +123,17 @@ export function classifyCanonicalIssue(input: {
     });
     return issues;
   }
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+  if (
+    !isRootRelative &&
+    parsed.protocol !== "https:" &&
+    parsed.protocol !== "http:"
+  ) {
     issues.push({
       severity: "error",
       message: `Canonical URL uses unsupported protocol "${parsed.protocol}".`,
     });
   }
-  if (parsed.protocol === "http:") {
+  if (!isRootRelative && parsed.protocol === "http:") {
     issues.push({
       severity: "warn",
       message: "Canonical URL uses http. Prefer https for production SEO.",

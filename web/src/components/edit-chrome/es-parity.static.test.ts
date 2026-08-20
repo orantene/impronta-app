@@ -238,6 +238,7 @@ const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es-carousel.ts",
   "src/components/edit-chrome/editor-i18n-es-icons.ts",
   "src/components/edit-chrome/editor-i18n-es-media.ts",
+  "src/components/edit-chrome/editor-i18n-es-publish.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
   "src/components/edit-chrome/editor-i18n-es-registry.ts",
