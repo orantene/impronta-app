@@ -28,7 +28,7 @@
 export const HOME_ES_COPY: Record<string, string> = {
   "Build your lineup, send it in one message":
     "Arma tu lineup y envíalo en un solo mensaje",
-  "Browse the roster": "Explora el roster",
+  "Browse the whole roster": "Explora el roster completo",
   "Every represented face, filterable by discipline, language and city.":
     "Cada rostro representado, con filtros por disciplina, idioma y ciudad.",
   "Save the ones you like": "Guarda los que te gusten",

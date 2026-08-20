@@ -353,7 +353,7 @@ const process = band(
         processStep(
           "rb-home-step-1",
           "01",
-          "Browse the roster",
+          "Browse the whole roster",
           "Every represented face, filterable by discipline, language and city.",
         ),
         processStep(
