@@ -14,6 +14,8 @@ import { logServerError } from "@/lib/server/safe-error";
 
 export type RecentActivityItem = {
   id: string;
+  /** The inquiry this event belongs to — the click-through target. */
+  inquiry_id: string;
   event_type: string;
   actor_name: string | null;
   actor_role: string;
@@ -39,6 +41,7 @@ export async function loadRecentActivity(
       .from("inquiry_events")
       .select(`
         id,
+        inquiry_id,
         event_type,
         actor_user_id,
         actor_role,
@@ -59,6 +62,7 @@ export async function loadRecentActivity(
     // Gather unique actor user IDs to look up display names
     type EventRow = {
       id: string;
+      inquiry_id: string;
       event_type: string;
       actor_user_id: string | null;
       actor_role: string;
@@ -85,6 +89,7 @@ export async function loadRecentActivity(
       .slice(0, 10)
       .map((r) => ({
         id: r.id,
+        inquiry_id: r.inquiry_id,
         event_type: r.event_type,
         actor_name: r.actor_user_id ? (nameMap.get(r.actor_user_id) ?? null) : null,
         actor_role: r.actor_role,

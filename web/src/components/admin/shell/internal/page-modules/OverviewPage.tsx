@@ -3,6 +3,7 @@
 /* eslint-disable ratchet/no-new-inline-style, max-lines, react/no-unescaped-entities -- Legacy admin overview prototype styling is outside the Services sync QA path; keep lint unblocked until the design-token codemod owns this surface. */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
@@ -488,14 +489,22 @@ export function OverviewPage() {
             >
               {realActivity.slice(0, 6).map((ev, i) => (
                 <li key={"id" in ev ? ev.id : i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
-                  <ActivityFeedItem
-                    actor={ev.actor}
-                    action={ev.action}
-                    target={ev.target}
-                    timestamp={ev.timestamp}
-                    iso={ev.iso}
-                    iconName={ev.iconName}
-                  />
+                  {/* Every event is about an inquiry — the row opens its work
+                      detail page. adminBasePath, never `/${tenantSlug}/admin`:
+                      on a branded host the slug form 308s (see context.tsx). */}
+                  <Link
+                    href={`${adminBasePath}/work/${ev.inquiryId}`}
+                    className="block -mx-2 rounded-lg px-2 transition-colors hover:bg-admin-surface-alt"
+                  >
+                    <ActivityFeedItem
+                      actor={ev.actor}
+                      action={ev.action}
+                      target={ev.target}
+                      timestamp={ev.timestamp}
+                      iso={ev.iso}
+                      iconName={ev.iconName}
+                    />
+                  </Link>
                 </li>
               ))}
             </ul>
