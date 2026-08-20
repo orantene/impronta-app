@@ -14,6 +14,7 @@ import { renderInlineRich } from "../shared/rich-text";
 import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ContactFormV1 } from "./schema";
+import { CaptchaThemeStamper } from "./captcha-theme";
 import {
   buttonSize,
   ctaDecls,
@@ -570,6 +571,7 @@ export function ContactFormComponent({
                 data-hl={hcaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
+              <CaptchaThemeStamper />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
             </>
           ) : null}
@@ -580,6 +582,7 @@ export function ContactFormComponent({
                 data-sitekey={turnstileKey}
                 data-language={turnstileLanguage}
               />
+              <CaptchaThemeStamper />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
@@ -675,6 +678,23 @@ export function ContactFormComponent({
                 hidden
               >
                 {t(`public.forms.attachment.error.${code}`)}
+              </p>
+            ))
+          : null}
+        {/* The submit route also redirects back for a failed captcha and the
+            rate limit (it used to answer those with a RAW JSON page - the
+            visitor's typed message gone). A code with no matching paragraph
+            here reveals nothing, which is a silent failure - so every code
+            the route can redirect with must have its sentence. */}
+        {useInternal
+          ? (["captcha", "rate_limited"] as const).map((code) => (
+              <p
+                key={code}
+                className="site-form__error"
+                data-error-msg={code}
+                hidden
+              >
+                {t(`public.forms.error.${code}`)}
               </p>
             ))
           : null}

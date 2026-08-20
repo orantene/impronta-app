@@ -140,10 +140,7 @@ export async function POST(req: Request) {
     "unknown";
 
   if (!checkRate(ip)) {
-    return NextResponse.json(
-      { ok: false, error: "Too many submissions, slow down." },
-      { status: 429 },
-    );
+    return respondFormError(req, "rate_limited", "Too many submissions, slow down.", 429);
   }
 
   // Section + tenant lookup. We don't require section.section_type_key
@@ -314,9 +311,11 @@ export async function POST(req: Request) {
   // attacker can't pass by solving the platform's other widget.
   const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
 
-  const captchaRejection = NextResponse.json(
-    { ok: false, error: "Captcha failed — please try again." },
-    { status: 400 },
+  const captchaRejection = respondFormError(
+    req,
+    "captcha",
+    "Captcha failed — please try again.",
+    400,
   );
 
   if (tenantCaptcha.provider === "none") {
@@ -607,6 +606,41 @@ export async function POST(req: Request) {
  * (with the `__tulala_form=ok` flag the section renderer reads to show its
  * thanks message); programmatic callers expect JSON. Honor `Accept` to pick.
  */
+/**
+ * Referer-aware error response for the two rejections a REAL VISITOR can hit:
+ * a failed captcha and the rate limit.
+ *
+ * Both used to return bare JSON. For a programmatic caller that is right; for
+ * a native HTML form post it meant the visitor's browser NAVIGATED to a page
+ * showing `{"ok":false,"error":"Captcha failed - please try again."}` - their
+ * typed brief gone, no way back but the browser button. A visitor who fumbles
+ * a captcha checkbox is the most ordinary failure a form has, and it was the
+ * worst-handled one.
+ *
+ * Mirrors respondAttachmentError: JSON stays for Accept: application/json and
+ * for requests with no usable referer, so nothing programmatic changes shape.
+ */
+function respondFormError(
+  req: Request,
+  code: "captcha" | "rate_limited",
+  message: string,
+  status: number,
+): NextResponse {
+  const accept = req.headers.get("accept") ?? "";
+  const referer = req.headers.get("referer");
+  if (!accept.includes("application/json") && referer) {
+    try {
+      const url = new URL(referer);
+      url.searchParams.delete("__tulala_form");
+      url.searchParams.set("__tulala_form_err", code);
+      return NextResponse.redirect(url.toString(), 303);
+    } catch {
+      // Unparseable referer - fall through to JSON.
+    }
+  }
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
+
 function respondSuccess(req: Request): NextResponse {
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("application/json")) {

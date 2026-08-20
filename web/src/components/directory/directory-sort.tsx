@@ -63,7 +63,7 @@ export function DirectorySort({
       value={current}
       onChange={handleChange}
       className={cn(
-        "h-9 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25",
+        "h-10 sm:h-9 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25",
         pending && "opacity-60",
         className,
       )}

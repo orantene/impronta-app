@@ -979,6 +979,12 @@ const formPropsSchema = z.object({
   layerLabel: layerLabelSchema,
   fields: z.array(formFieldSchema).min(1).max(24),
   honeypotName: z.string().max(80).optional(),
+  // Field-box styling (the inputs, not the wrapper). Free-form CSS color/length
+  // strings, length-capped like every other authored string here — the
+  // renderer emits them as CSS custom properties, never as markup.
+  fieldBorderColor: z.string().max(64).optional(),
+  fieldBackground: z.string().max(64).optional(),
+  fieldCornerRadius: z.string().max(24).optional(),
   style: builderNodeStyleSchema,
 });
 

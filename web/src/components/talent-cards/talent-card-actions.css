@@ -128,3 +128,28 @@
     letter-spacing: 0.1em;
   }
 }
+
+/* Touch target — a 32px circle is the card design; 32px is NOT a tap target.
+ *
+ * The mobile audit measured every action circle on every roster card at 32x32,
+ * against a ~44px fingertip. Growing the circle would change the card, so the
+ * HIT AREA grows instead: a transparent pseudo-element centred on the button,
+ * outside the paint but inside the click. Costs no layout, moves no pixel, and
+ * the button reads exactly as designed.
+ *
+ * Pointer-coarse only: a mouse does not need it, and on desktop the expanded
+ * area would swallow hovers meant for the photo behind it. */
+@media (pointer: coarse) {
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

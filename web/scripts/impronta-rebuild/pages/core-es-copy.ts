@@ -74,6 +74,7 @@ export const CORE_ES_COPY: Record<string, string> = {
     "Ya sea que estés casteando un brief o construyendo una carrera, la conversación empieza igual.",
   "Start an inquiry": "Iniciar una solicitud",
   "Apply as talent": "Postularme como talento",
+  "Start browsing talent now": "Empieza a explorar el talento",
   // ── contact ─────────────────────────────────────────────────────────────────
   "Contact": "Contacto",
   "Say it in": "Dilo en",

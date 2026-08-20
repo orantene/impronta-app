@@ -98,6 +98,8 @@ import type {
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 import { isRenderableEmptySection } from "./render-prune";
+import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
+import { FormResultBanner } from "./form-result-banner";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -713,8 +715,51 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  *     flash of hidden content, never text a reader or crawler cannot see.
  * Both need their OWN reduced-motion rule: the older `[style*="animation"]`
  * guard cannot see an animation delivered through a custom property.
+ *
+ * FORM FIELDS (`.site-builder-node--form input|textarea|select`). The renderer
+ * shipped these with no class and no style, so on a dark storefront the contact
+ * form was labels and grey placeholder text with nothing to click. The rules are
+ * token-driven with literal fallbacks, so a field reads as a field on a dark or
+ * a light site and a tenant repainting its palette repaints its inputs free.
+ *   - The border comes off the INK token, NOT `--token-color-line`: that is the
+ *     hairline DIVIDER token (#1f1f22 on Impronta), which measured 1.2:1 against
+ *     the page - a border that exists in the DOM and cannot be seen. 45% of ink
+ *     measures ~4.2:1 on that dark page and ~3.0:1 on white, clearing the 3:1
+ *     floor for non-text UI on both.
+ *   - `--bn-form-field-{border,bg,radius}` are the authored overrides the Field
+ *     style inspector card writes; unset falls back to the defaults above.
+ *   - The focus ring answers `:focus` AS WELL AS `:focus-visible`. focus-visible
+ *     deliberately skips a mouse click, which is right for a button and wrong
+ *     for a text field: clicking into one starts a task and the visitor should
+ *     see which field they are in. `outline:none` above makes this the floor.
+ *   - 16px on touch: iOS Safari zooms the page when a focused field is under
+ *     16px, which reads to a visitor as the layout breaking on tap.
+ *   - `[data-form-submitted]` collapses a sent form to just its result banner
+ *     (FormResultBanner sets the attribute on success). An emptied form under a
+ *     thank-you reads as "fill me in again", and a duplicate submission is what
+ *     the rate limiter exists to stop. Errors keep the form - the visitor needs
+ *     it to retry. `!important` because the field wrappers carry inline
+ *     `display:grid`, which beats any sheet rule.
  */
 const BUILDER_NODE_RENDERER_CSS = `
+.site-builder-node--form .bn-ff{width:100%;font:inherit;font-size:0.95rem;line-height:1.5;color:var(--token-color-ink,inherit);background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));border-radius:var(--bn-form-field-radius,3px);padding:0.72rem 0.85rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;-webkit-appearance:none;appearance:none}
+.site-builder-node--form textarea.bn-ff{min-height:8.5rem;resize:vertical}
+.site-builder-node--form select.bn-ff{cursor:pointer}
+.site-builder-node--form .bn-ff::placeholder{color:var(--token-color-muted,rgba(127,127,127,0.75));opacity:1}
+.site-builder-node--form .bn-ff:hover{border-color:color-mix(in srgb,var(--token-color-primary,#9a7326) 45%,transparent)}
+.site-builder-node--form .bn-ff:focus,.site-builder-node--form .bn-ff:focus-visible{border-color:var(--token-color-primary,#9a7326);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary,#9a7326) 26%,transparent)}
+.site-builder-node--form .bn-ff:user-invalid{border-color:color-mix(in srgb,#c0553f 70%,var(--token-color-line,#888))}
+@media (any-hover:none){.site-builder-node--form .bn-ff{font-size:16px}}
+.site-builder-node--form input[type="checkbox"],.site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
+.site-builder-node--form[data-form-submitted]>:not([data-form-result-banner]){display:none!important}
+/* After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
+ * An emptied form sitting under a success banner reads as "fill me in again" -
+ * and a second identical submission is exactly what the rate limiter and the
+ * coordinator reading the inbox do not need. Errors keep the form: the visitor
+ * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
+ * !important because the field wrappers carry inline display:grid, which beats
+ * any sheet rule - measured: without it the attribute lands and nothing hides. */
+.site-builder-node--form[data-form-submitted] > :not([data-form-result-banner]){display:none !important}
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
 @keyframes bn-anim-fall{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:none}}
@@ -4775,11 +4820,28 @@ function renderBuilderNodeElement(
               ? "multipart/form-data"
               : undefined
           }
-          style={inlineNodeStyle(formProps.style, {
-            display: "grid",
-            gap: GAP_BY_SIZE.m,
-          })}
+          style={{
+            ...inlineNodeStyle(formProps.style, {
+              display: "grid",
+              gap: GAP_BY_SIZE.m,
+            }),
+            // Authored field-box styling rides in as custom properties so the
+            // stylesheet's field rules (and their :hover/:focus variants) stay
+            // the single source of truth — the props only move the defaults.
+            ...(formProps.fieldBorderColor
+              ? { "--bn-form-field-border": formProps.fieldBorderColor }
+              : null),
+            ...(formProps.fieldBackground
+              ? { "--bn-form-field-bg": formProps.fieldBackground }
+              : null),
+            ...(formProps.fieldCornerRadius
+              ? { "--bn-form-field-radius": formProps.fieldCornerRadius }
+              : null),
+          } as CSSProperties}
         >
+          {/* "Did that work?" - reveals the redirect flags the endpoint sets.
+              Sits first so the answer is beside the form, not off-screen. */}
+          {isInternal ? <FormResultBanner locale={options.visitorLocale} /> : null}
           {isInternal && method === "post" && formProps.sectionId ? (
             <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
           ) : null}
@@ -4827,6 +4889,7 @@ function renderBuilderNodeElement(
                 </label>
                 {field.type === "textarea" ? (
                   <textarea
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     placeholder={field.placeholder}
@@ -4835,6 +4898,7 @@ function renderBuilderNodeElement(
                   />
                 ) : field.type === "select" ? (
                   <select
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     required={field.required ?? false}
@@ -4881,6 +4945,7 @@ function renderBuilderNodeElement(
                   </label>
                 ) : (
                   <input
+                    className="bn-ff"
                     id={fieldId}
                     name={field.name}
                     type={field.type}
@@ -4903,6 +4968,7 @@ function renderBuilderNodeElement(
                 data-hl={formCaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
+              <CaptchaThemeStamper />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
             </>
           ) : null}
@@ -4913,6 +4979,7 @@ function renderBuilderNodeElement(
                 data-sitekey={formCaptchaSiteKey}
                 data-language={formCaptchaLanguage}
               />
+              <CaptchaThemeStamper />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async

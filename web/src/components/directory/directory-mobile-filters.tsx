@@ -53,7 +53,7 @@ export function DirectoryMobileFilters({
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 md:hidden">
+        <Button variant="outline" size="sm" className="h-10 gap-2 md:hidden">
           <SlidersHorizontal className="size-4" />
           {ui.mobile.filters}
           {activeCount > 0 ? ` (${activeCount})` : ""}

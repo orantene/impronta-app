@@ -183,7 +183,11 @@ export function TalentCardActions({
             // talent-card-actions.css `[data-favorited="true"]`). The old
             // design inverted the whole button, which read as neither.
             "talent-card-actions__favorite inline-flex shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-foreground/70 backdrop-blur-sm outline-none transition-colors duration-200 hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
-            compact ? "size-8" : "size-9",
+            // The circle stays 32px because the card design depends on it;
+            // only the touch target grows, via a transparent inset ring that
+            // costs no layout. 32px was a near-miss for a fingertip on every
+            // card in the roster.
+            compact ? "size-8 touch-target" : "size-9",
           )}
           data-card-favorite-toggle=""
           data-favorited={favorited ? "true" : "false"}
@@ -216,7 +220,7 @@ export function TalentCardActions({
             isPill
               ? // Gold-outlined accent pill (colours in talent-card-actions.css,
                 // keyed off data-in-cart). Hover-revealed over the card photo.
-                "talent-card-actions__inquiry-pill h-8 rounded-full px-3 text-[10px] tracking-[0.16em] backdrop-blur-md"
+                "talent-card-actions__inquiry-pill h-10 rounded-full px-3.5 text-[11px] tracking-[0.16em] backdrop-blur-md sm:h-8 sm:px-3 sm:text-[10px]"
               : cn(
                   // COMPACT sits beside the favorite control on a card photo,
                   // so it has to be the same object: a round translucent
@@ -225,7 +229,7 @@ export function TalentCardActions({
                   // control from a different design — and over a bright photo
                   // the glyph had nothing behind it at all.
                   compact
-                    ? "size-8 shrink-0 rounded-full backdrop-blur-sm"
+                    ? "size-8 touch-target shrink-0 rounded-full backdrop-blur-sm"
                     : "h-9 flex-1 rounded-md px-4 text-[11px] tracking-[0.18em]",
                   inCart
                     ? "border-foreground bg-foreground/10 text-foreground"

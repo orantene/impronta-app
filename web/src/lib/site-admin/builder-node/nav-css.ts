@@ -72,7 +72,7 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
 
 /* Group headings — the label of a child-with-children, in panels and drawer. */
 .site-builder-node--nav-group{margin:0;padding:0;list-style:none;min-width:0}
-.site-builder-node--nav-group-heading{display:block;padding:0.2rem 0.65rem 0.45rem;font-size:0.66em;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;opacity:0.45}
+.site-builder-node--nav-group-heading{display:block;padding:0.2rem 0.65rem 0.45rem;font-size:max(0.66em,12px);font-weight:700;letter-spacing:0.16em;text-transform:uppercase;opacity:0.45}
 .site-builder-node--nav-group-links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;min-width:0}
 
 /* Per-link viewport hiding. A MEDIA rule, not a render filter: one server

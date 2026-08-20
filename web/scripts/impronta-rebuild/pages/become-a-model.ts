@@ -181,7 +181,7 @@ const applying = band(
         processStep("rb-model-step-3", "03", "We meet", "If there is a fit, we invite you to meet in person or on a call. Questions go both ways."),
         processStep("rb-model-step-4", "04", "You join the roster", "We agree terms and rates, build your profile and put you forward for briefs that fit."),
       ],
-      { layerLabel: "Steps" },
+      { layerLabel: "Steps", mobileColumns: 2 },
     ),
   ],
   { borderTop: true, layerLabel: "How applying works" },

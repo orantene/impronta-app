@@ -976,8 +976,17 @@ export function statBand(input: StatBandInput): BuilderNode {
           columns: input.cells.length > 3 ? 4 : 3,
           gap: "m",
           layerLabel: "Stat row",
-          responsive: { tablet: { columns: 2 }, mobile: { columns: 1 } },
-          style: { width: "100%", maxWidthFree: "100%", gap: "0px" },
+          // Two-up on phones for the same reason as the homepage stats: a
+          // numeral and a two-word label do not each need a full row, and the
+          // gutter comes back because the base gap of 0 relies on the desktop
+          // row's dividers.
+          responsive: { tablet: { columns: 2 }, mobile: { columns: 2 } },
+          style: {
+            width: "100%",
+            maxWidthFree: "100%",
+            gap: "0px",
+            responsive: { mobile: { gap: "22px" } },
+          },
         },
         children: input.cells.map((cell, i) => ({
           id: `${p}-stat-${i + 1}`,

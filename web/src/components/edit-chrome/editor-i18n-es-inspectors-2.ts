@@ -615,4 +615,17 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Reset to the site font": "Volver a la fuente del sitio",
   "Menu links can take their own font. The brand wordmark always follows the site heading font, so the logo stays consistent across pages.":
     "Los enlaces del menú pueden tener su propia fuente. El logotipo siempre sigue la fuente de títulos del sitio, así se mantiene consistente en todas las páginas.",
+
+  // Form inspector -> Field style: the input boxes themselves.
+  "Field style": "Estilo de los campos",
+  "Borders, fill and corners of the inputs": "Bordes, relleno y esquinas de los campos",
+  "The outline of each input box. Leave on Default to follow the site's palette.":
+    "El contorno de cada campo. Déjalo en Predeterminado para seguir la paleta del sitio.",
+  "Field fill": "Relleno del campo",
+  "The background inside each input box.": "El fondo dentro de cada campo.",
+  // "Sharp", "Reset" and "Default" are NOT redefined here - they already live
+  // in editor-i18n-es-inspectors.ts ("Recto" / "Restablecer" /
+  // "Predeterminado"), and a second definition would silently win or lose
+  // depending on spread order. The parity test caught exactly that.
+  Round: "Redondeadas",
 };
