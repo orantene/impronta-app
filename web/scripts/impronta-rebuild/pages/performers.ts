@@ -27,7 +27,7 @@ const hero = divisionHero({
   prefix: P,
   imageSlot: "performers-hero",
   imageAlt:
-    "Fire performer mid-spin on a dark beach stage, sparks tracing arcs against the night sky.",
+    "An Impronta model in a burgundy dress, seated on the floor of the agency studio against a white backdrop.",
   eyebrowText: "The Performers Division",
   line1: "Moments your guests",
   line2: "talk about for years.",
@@ -40,7 +40,7 @@ const plate = fullBleedPlate({
   prefix: P,
   imageSlot: "performers-plate",
   imageAlt:
-    "Aerialist suspended above a candlelit jungle wedding reception, guests looking up.",
+    "An Impronta model seated on a stool in a black top and shorts, photographed against a white studio backdrop.",
   numeral: "II.",
   line: "A show is not an add-on. It is the part of the night people remember.",
 });
@@ -75,7 +75,7 @@ const editorial = editorialSplit({
   prefix: P,
   imageSlot: "performers-editorial",
   imageAlt:
-    "Backstage view of dancers in costume doing final checks before a resort show.",
+    "An Impronta model in a black lace top with both hands behind her head, against a warm brown studio backdrop.",
   eyebrowText: "Production-minded",
   line1: "Great shows are",
   line2: "planned, not improvised.",

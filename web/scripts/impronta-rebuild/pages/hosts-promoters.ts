@@ -25,7 +25,7 @@ const hero = divisionHero({
   prefix: P,
   imageSlot: "hosts-promoters-hero",
   imageAlt:
-    "Brand ambassadors welcoming guests at a beach club product launch in Tulum at sunset.",
+    "An Impronta model reclining in an open black shirt and light jeans on a white studio backdrop.",
   eyebrowText: "Hosts & Promoters",
   line1: "The face of your brand,",
   line2: "fluent in the room.",
@@ -83,7 +83,7 @@ const editorial = editorialSplit({
   prefix: P,
   imageSlot: "hosts-promoters-editorial",
   imageAlt:
-    "A hostess in evening wear checking a guest list at the entrance of a candlelit event.",
+    "An Impronta model in a cream strapless dress, seated on a wooden chair against a warm studio backdrop.",
   eyebrowText: "The difference",
   line1: "Staff who show up",
   line2: "already briefed.",

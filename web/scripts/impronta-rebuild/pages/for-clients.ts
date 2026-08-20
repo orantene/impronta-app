@@ -36,7 +36,7 @@ const hero = pageHero("rb-clients", {
   secondary: { label: "Browse the roster", href: "/directory" },
   footnote: "No account needed · first reply within 24 hours",
   imageSlot: "for-clients-hero",
-  imageAlt: "An Impronta production in progress, talent on set with the client team watching the monitor.",
+  imageAlt: "An Impronta model photographed in the agency studio against a plain backdrop.",
 });
 
 const occasions = band(
@@ -94,7 +94,7 @@ const managed = band(
           kind: "image",
           props: {
             src: IMAGE_SLOT("for-clients-managed"),
-            alt: "An Impronta coordinator briefing talent before a client event on the Riviera Maya.",
+            alt: "An Impronta model in a cream shirt, seated against a white studio backdrop.",
             layerLabel: "Coordination photograph",
             style: {
               width: "100%",
@@ -170,7 +170,7 @@ const process = band(
 
 const plate = fullBleedPlate("rb-clients", {
   imageSlot: "for-clients-plate",
-  imageAlt: "Full-bleed photograph of a styled Impronta activation team at a luxury Riviera Maya event.",
+  imageAlt: "An Impronta model with long blonde hair in a black strapless top, photographed against a pale studio backdrop.",
   numeral: "24h",
   line: "One brief in. One shortlist back. Within a day.",
 });
@@ -190,35 +190,35 @@ const divisions = band(
       [
         photoTile("rb-clients-div-fashion", {
           imageSlot: "for-clients-division-fashion",
-          imageAlt: "Impronta fashion model in a campaign look on location in Tulum.",
+          imageAlt: "An Impronta fashion model lying on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.",
           title: "Fashion Models",
           subtitle: "Campaign, editorial, runway, e-commerce",
           href: "/p/fashion-models",
         }),
         photoTile("rb-clients-div-hosts", {
           imageSlot: "for-clients-division-hosts",
-          imageAlt: "Impronta hosts and brand ambassadors working a product launch.",
+          imageAlt: "An Impronta model in a white tank top and wide light jeans, leaning against a wooden chair on a white backdrop.",
           title: "Hosts & Promoters",
           subtitle: "Hosts, hostesses, brand ambassadors",
           href: "/p/hosts-promoters",
         }),
         photoTile("rb-clients-div-performers", {
           imageSlot: "for-clients-division-performers",
-          imageAlt: "Impronta performers on stage during an event show.",
+          imageAlt: "Smiling studio portrait of an Impronta model in a white top, one hand at her chin, against a white backdrop.",
           title: "Performers",
           subtitle: "Dancers, acts, live entertainment",
           href: "/p/performers",
         }),
         photoTile("rb-clients-div-music", {
           imageSlot: "for-clients-division-music",
-          imageAlt: "Impronta DJ playing an evening set at a beach club.",
+          imageAlt: "An Impronta model in a short black dress with a choker, photographed against a warm tan studio backdrop.",
           title: "Music & DJs",
           subtitle: "DJs, musicians, curated sound",
           href: "/p/music-djs",
         }),
         photoTile("rb-clients-div-roster", {
           imageSlot: "for-clients-division-roster",
-          imageAlt: "A wall of Impronta roster portraits from recent shoots.",
+          imageAlt: "An Impronta model in a white top with both arms raised above her head, against a white studio backdrop.",
           title: "The Full Roster",
           subtitle: "Search everyone, filter by anything",
           href: "/directory",
