@@ -793,7 +793,7 @@ function PlatformArt() {
           className="plt-mono text-[0.5625rem] tracking-[0.18em]"
           style={{ color: "var(--plt-muted)" }}
         >
-          NOVA.ROSTRA.APP
+          NOVA.TULALA.DIGITAL
         </span>
         <div className="flex gap-3">
           {["Roster", "Work", "Contact"].map((n) => (

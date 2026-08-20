@@ -110,7 +110,7 @@ export function formFinePrint(
   names?: GetStartedTierNames,
 ): string {
   if (tier === "studio") {
-    return `${nameOf("studio", names)} · ${prices?.studio ?? "$49"}/mo · Cancel any time`;
+    return `${nameOf("studio", names)} · ${prices?.studio ?? "$29"}/mo · Cancel any time`;
   }
   if (tier === "agency") {
     // Agency leads with the 14-day trial framing, not a sticker price.

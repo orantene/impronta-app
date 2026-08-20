@@ -372,9 +372,9 @@ export function InvoicesDrawerBody({ hasPaidInvoices, planKey, planLabel }: {
     );
   }
   const amount =
-    planKey === "agency" ? "$149.00" :
-    planKey === "studio" ? "$49.00" :
-    "$499.00";
+    planKey === "agency" ? "$79.00" :
+    planKey === "studio" ? "$29.00" :
+    "Custom";
   const desc = interpolate(t("dashboard.adminAccount.invoices.planRow"), {
     plan: planLabel,
   });

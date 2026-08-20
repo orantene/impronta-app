@@ -43,8 +43,8 @@ export const TIER_LABEL: Record<string, string> = {
  */
 export const TIER_RENEW: Record<string, string> = {
   free: "No renewal. Free plan.",
-  studio: "$49 / month.",
-  agency: "$149 / month.",
+  studio: "$29 / month.",
+  agency: "$79 / month.",
   network: "Custom contract · contact billing.",
 };
 

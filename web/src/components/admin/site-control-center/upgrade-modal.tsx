@@ -26,8 +26,9 @@ type Feature = { text: string; dim?: boolean };
 type PlanCard = {
   key: Plan;
   name: string;
-  monthly: number;
-  annual: number;
+  /** Pricing in whole dollars. Null = custom, sales-led — never show a dollar price. */
+  monthly: number | null;
+  annual: number | null;
   tagline: string;
   features: Feature[];
   /** Tier accent colour — drives the top strip + CTA. */
@@ -42,12 +43,12 @@ const PLANS: ReadonlyArray<PlanCard> = [
     name: "Free",
     monthly: 0,
     annual: 0,
-    tagline: "Start your roster on a Rostra subdomain.",
+    tagline: "Start your roster on a Tulala subdomain.",
     features: [
       { text: `Up to ${seatCapLabel("free")} talents` },
       { text: "Roster, directory, inquiries" },
       { text: "Branding & identity" },
-      { text: "rostra.app subdomain" },
+      { text: "tulala.digital subdomain" },
       { text: "Widgets & API", dim: true },
       { text: "Custom branded site", dim: true },
     ],
@@ -57,14 +58,14 @@ const PLANS: ReadonlyArray<PlanCard> = [
   {
     key: "studio",
     name: "Studio",
-    monthly: 49,
-    annual: 490,
+    monthly: 29,
+    annual: 290,
     tagline: "Embed your roster anywhere — your data layer.",
     features: [
       { text: `Up to ${seatCapLabel("studio")} talents` },
       { text: "Widgets (grid, shelf, inquiry form)" },
       { text: "Read-only public API" },
-      { text: "Rostra subdomain for deep links" },
+      { text: "Tulala subdomain for deep links" },
       { text: "Everything in Free" },
       { text: "Custom branded site", dim: true },
     ],
@@ -74,8 +75,8 @@ const PLANS: ReadonlyArray<PlanCard> = [
   {
     key: "agency",
     name: "Agency",
-    monthly: 149,
-    annual: 1490,
+    monthly: 79,
+    annual: 790,
     tagline: "Full branded site on your own domain.",
     features: [
       { text: `Up to ${seatCapLabel("agency")} talents` },
@@ -91,8 +92,8 @@ const PLANS: ReadonlyArray<PlanCard> = [
   {
     key: "network",
     name: "Network",
-    monthly: 499,
-    annual: 4990,
+    monthly: null,
+    annual: null,
     tagline: "Multi-agency operator with hub publishing.",
     features: [
       { text: "Unlimited talents" },
@@ -240,16 +241,21 @@ export function UpgradeModal({
                 const isLower = RANK[plan.key] < RANK[activePlan];
                 const isUpgrade = RANK[plan.key] > RANK[activePlan];
                 const isPopular = plan.key === "studio";
-                const price = formatPrice(
-                  cycle === "annual" ? plan.annual : plan.monthly,
-                  cycle,
-                );
+                const price =
+                  plan.monthly === null
+                    ? "Custom"
+                    : formatPrice(
+                        cycle === "annual" ? (plan.annual ?? 0) : plan.monthly,
+                        cycle,
+                      );
                 const period =
-                  plan.monthly === 0
-                    ? "forever"
-                    : cycle === "annual"
-                      ? "/ month, billed yearly"
-                      : "/ month";
+                  plan.monthly === null
+                    ? "sales-led pricing"
+                    : plan.monthly === 0
+                      ? "forever"
+                      : cycle === "annual"
+                        ? "/ month, billed yearly"
+                        : "/ month";
 
                 let cta = "";
                 if (isCurrent) cta = "Current plan";

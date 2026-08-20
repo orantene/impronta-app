@@ -163,7 +163,7 @@ export function planDeniedMessage(
     return "Upgrade to Pro to choose premium templates.";
   }
   if (capability === "custom_builder") {
-    return "Upgrade to Max to customize sections and build your service website.";
+    return "Upgrade to Portfolio to customize sections and build your service website.";
   }
   if (!isTalentSiteTierExpansionEnabled()) {
     return "Personal site editing is temporarily unavailable. Please try again later.";

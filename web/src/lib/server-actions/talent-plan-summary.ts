@@ -36,11 +36,11 @@ import { getPlan, getUpgradePathFromPlan, isKnownPlan } from "@/lib/access/plan-
 export type TalentPlanSummary = {
   /** talent_profiles.talent_plan_key — talent_basic | talent_pro | talent_portfolio. */
   planKey: string;
-  /** Display label — Free / Pro / Max. */
+  /** Display label — Free / Pro / Portfolio. */
   planLabel: string;
   /** Short catalog tagline for the effective plan. */
   tagline: string;
-  /** Honest monthly price copy ("Free" / "$12 / month"). */
+  /** Honest monthly price copy ("Free" / "$9 / month"). */
   priceLabel: string;
   /** Live talent Stripe subscription, or null on Free / no record. */
   subscription: {

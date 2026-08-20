@@ -107,7 +107,7 @@ export async function provisionTalentMaxSite(
   };
 
   if (profile.talent_plan_key !== "talent_portfolio") {
-    return { ok: false, error: "Talent Max plan required." };
+    return { ok: false, error: "Talent Portfolio plan required." };
   }
 
   const displayName = profile.display_name?.trim() || profile.profile_code?.trim() || "Site";
