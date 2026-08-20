@@ -26,6 +26,20 @@
  */
 
 export const HOME_ES_COPY: Record<string, string> = {
+  "Build your lineup, send it in one message":
+    "Arma tu lineup y envíalo en un solo mensaje",
+  "Browse the roster": "Explora el roster",
+  "Every represented face, filterable by discipline, language and city.":
+    "Cada rostro representado, con filtros por disciplina, idioma y ciudad.",
+  "Save the ones you like": "Guarda los que te gusten",
+  "The heart on any profile keeps your shortlist while you browse.":
+    "El corazón de cada perfil guarda tu preselección mientras exploras.",
+  "Send it as one message": "Envíalo en un solo mensaje",
+  "Your whole lineup reaches a coordinator in a single brief.":
+    "Tu lineup completo llega a un coordinador en un único brief.",
+  "We confirm and coordinate": "Confirmamos y coordinamos",
+  "Availability, rates and logistics, handled end to end. First reply within 24 hours.":
+    "Disponibilidad, tarifas y logística, gestionadas de principio a fin. Primera respuesta en menos de 24 horas.",
   "International Models & Talent Agency · Riviera Maya":
     "Agencia Internacional de Modelos y Talento · Riviera Maya",
   "Impronta is a boutique talent and model agency based on the Riviera Maya, working internationally. Models, hosts, performers, DJs and culinary talent, every one of them met, vetted and represented by an agency that answers for the booking end to end.":

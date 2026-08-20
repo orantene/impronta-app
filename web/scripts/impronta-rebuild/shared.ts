@@ -1002,6 +1002,15 @@ export function processStep(
   num: string,
   title: string,
   detail: string,
+  /**
+   * Optional image above the numeral.
+   *
+   * A four-step explanation of how a website works is abstract by nature —
+   * "save the ones you like" means nothing until you have seen the thing being
+   * saved. A small real frame per step does the explaining that the sentence
+   * cannot. Omitted, the step renders exactly as it always has.
+   */
+  imageSlot?: { slot: string; alt: string },
 ): BuilderNode {
   return {
     id,
@@ -1019,6 +1028,28 @@ export function processStep(
       },
     },
     children: [
+      ...(imageSlot
+        ? [
+            {
+              id: `${id}-image`,
+              kind: "image" as const,
+              props: {
+                src: IMAGE_SLOT(imageSlot.slot),
+                alt: imageSlot.alt,
+                layerLabel: "Step image",
+                style: {
+                  width: "100%",
+                  maxWidthFree: "100%",
+                  aspectRatioFree: "4 / 3",
+                  objectFit: "cover" as const,
+                  objectPosition: "center",
+                  borderRadius: "3px",
+                  marginBottomFree: "4px",
+                },
+              },
+            },
+          ]
+        : []),
       {
         id: `${id}-num`,
         kind: "paragraph",
