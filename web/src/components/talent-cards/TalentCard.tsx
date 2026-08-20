@@ -466,6 +466,21 @@ export function TalentCard({
         </div>
       ) : null}
 
+      {/*
+        The name block sits ON the photograph, and the roster is shot on white
+        studio backdrops — so white type on a pale frame was landing on white.
+        A drop-shadow alone could not carry it. This scrim is the same recipe
+        the editorial plates and the division tiles use: transparent at the
+        top, near-opaque where the type actually is. It is a sibling rather
+        than a background on the text block so the padding stays independent
+        of how tall the fade needs to be.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gradient-to-t from-[rgba(6,6,8,0.92)] via-[rgba(6,6,8,0.55)] to-transparent"
+        data-card-scrim
+      />
+
       <div
         className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 ${
           compact ? "px-3 pb-2.5" : "px-3.5 pb-3.5"

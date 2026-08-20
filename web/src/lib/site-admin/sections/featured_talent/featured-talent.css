@@ -312,6 +312,31 @@
   color: var(--tt-gold, #c9a227) !important;
   transform: translateY(-1px);
 }
+
+/* The primary action has to LOOK primary.
+ *
+ * The rule above sets every .site-prim-cta in the row with !important, which
+ * flattened "Request" and "View profile" into two identical boxes — no
+ * hierarchy, and the pair read as generic admin chrome rather than an
+ * editorial card. The card itself already navigates to the profile, so
+ * "View profile" is the quiet one and the booking action carries the gold.
+ * Still an outline, not a filled block: this is a noir editorial card and a
+ * solid gold slab would shout over the photograph above it. */
+.site-featured-talent[data-ft-action-style="outline-duo"]
+  .site-featured-talent__card
+  [data-card-actions]
+  .site-prim-cta--primary {
+  border-color: rgba(201, 162, 39, 0.55) !important;
+  background: rgba(201, 162, 39, 0.1) !important;
+  color: var(--tt-gold-bright, #d4af37) !important;
+}
+.site-featured-talent[data-ft-action-style="outline-duo"]
+  .site-featured-talent__card
+  [data-card-actions]
+  .site-prim-cta--primary:hover {
+  border-color: var(--tt-gold, #c9a227) !important;
+  background: rgba(201, 162, 39, 0.18) !important;
+}
 .site-featured-talent__footer {
   display: flex;
   justify-content: center;
