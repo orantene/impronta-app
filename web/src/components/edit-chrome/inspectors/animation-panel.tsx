@@ -63,6 +63,7 @@ import {
   registerCanvasAnimationReplayListener,
   triggerAnimationReplay,
 } from "./kit/motion-animation-replay";
+import { useInspectorT } from "./kit/use-inspector-t";
 
 type AnimationEasing = NonNullable<BuilderNodeStyleValue["animationEasing"]>;
 
@@ -91,7 +92,7 @@ const DEFAULT_EASING: AnimationEasing = "ease";
 /** Delay chips, in CSS time. A slider would be false precision here. */
 const DELAY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "0s", label: "None" },
-  { value: "0.15s", label: "Short" },
+  { value: "0.15s", label: "Brief" },
   { value: "0.3s", label: "Medium" },
   { value: "0.6s", label: "Long" },
 ];
@@ -140,6 +141,13 @@ export interface AnimationPanelProps {
 export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) {
   const { device } = useEditContext();
   const nonDesktop = device !== "desktop";
+  // The kit primitives translate their `label` / `title` / `help` props at the
+  // boundary, but this panel also hand-rolls prose into plain <span>, <button>
+  // and <summary> children -- and those bypass the boundary entirely. They
+  // shipped English into a Spanish editor with every i18n gate green, because
+  // the parity guard proves an entry EXISTS, not that anything looks it up.
+  // Caught by a live Spanish walkthrough, which is the only thing that can.
+  const { t } = useInspectorT();
 
   // Serialise async patches so rapid clicks in the gallery cannot race.
   const patchChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -235,7 +243,7 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
         <AnimationGallery value={preset} onSelect={selectPreset} />
         {on ? (
           <div className="flex items-center justify-between gap-2">
-            <span className={HINT}>{spec?.description ?? ""}</span>
+            <span className={HINT}>{spec ? t(spec.description) : ""}</span>
             <button
               type="button"
               className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium"
@@ -246,7 +254,7 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
               }}
               onClick={() => triggerAnimationReplay(null, node.id)}
             >
-              Play it again
+              {t("Play it again")}
             </button>
           </div>
         ) : null}
@@ -273,11 +281,13 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
               ]}
             />
             <span className={HINT}>
-              {trigger === "hover"
-                ? "The element sits still until a visitor points at it, then plays. It also plays on keyboard focus."
-                : trigger === "scroll"
-                  ? "Plays as the element travels into the visible part of the page."
-                  : "Plays once, as soon as the page paints."}
+              {t(
+                trigger === "hover"
+                  ? "The element sits still until a visitor points at it, then plays. It also plays on keyboard focus."
+                  : trigger === "scroll"
+                    ? "Plays as the element travels into the visible part of the page."
+                    : "Plays once, as soon as the page paints.",
+              )}
             </span>
           </InspectorSection>
 
@@ -298,9 +308,11 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
                 ]}
               />
               <span className={HINT}>
-                {repeat === "once"
-                  ? "Plays the first time the element scrolls in, then stays put."
-                  : "Playback follows the scroll position, so it runs again on every pass. Browsers without scroll-linked animation play it once on load instead."}
+                {t(
+                  repeat === "once"
+                    ? "Plays the first time the element scrolls in, then stays put."
+                    : "Playback follows the scroll position, so it runs again on every pass. Browsers without scroll-linked animation play it once on load instead.",
+                )}
               </span>
             </InspectorSection>
           ) : null}
@@ -364,8 +376,9 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
               options={DELAY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             />
             <span className={HINT}>
-              A short wait before it starts. Stagger a few elements to make a
-              group arrive in sequence.
+              {t(
+                "A short wait before it starts. Stagger a few elements to make a group arrive in sequence.",
+              )}
             </span>
           </InspectorSection>
 
@@ -395,7 +408,7 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
                   </span>
                 </div>
                 <span className={HINT}>
-                  How far the element travels before it settles.
+                  {t("How far the element travels before it settles.")}
                 </span>
               </FieldRow>
             </InspectorSection>
@@ -406,7 +419,7 @@ export function AnimationPanel({ node, onPatchNodeProps }: AnimationPanelProps) 
               className="flex cursor-pointer select-none items-center justify-between text-[11px] font-medium"
               style={{ color: CHROME.muted, listStyle: "none", outline: "none" }}
             >
-              <span>Advanced</span>
+              <span>{t("Advanced")}</span>
               <span style={{ fontSize: 9 }}>&rsaquo;</span>
             </summary>
             <div className="mt-2">
