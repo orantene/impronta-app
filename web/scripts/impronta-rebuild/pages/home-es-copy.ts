@@ -155,7 +155,7 @@ export const HOME_ES_COPY: Record<string, string> = {
   "A working agency, not a listing site":
     "Una agencia que opera, no un sitio de listados",
   "Represented talent": "Talento representado",
-  Divisions: "Divisiones",
+  "Talent categories": "Categorías de talento",
   "First reply": "Primera respuesta",
   "Agency-managed": "Gestionado por la agencia",
 

@@ -398,7 +398,12 @@ export interface BandOptions {
 /** Full-width dark band with a centered max-width column and rise-on-scroll. */
 export function band(id: string, children: BuilderNode[], opts: BandOptions = {}): BuilderNode {
   const padDesktop = opts.paddingY?.desktop ?? "96px";
-  const padMobile = opts.paddingY?.mobile ?? "60px";
+  // 60px top AND bottom on every band is 120px per section; across the
+  // homepage's fourteen bands that is 1,680px of nothing - two full phone
+  // screens of scrolling past empty space. 44px still reads as a deliberate
+  // gap between sections at 390px, where the section's own heading already
+  // provides most of the separation the desktop padding was carrying.
+  const padMobile = opts.paddingY?.mobile ?? "44px";
   return {
     id,
     kind: "container",
@@ -1285,6 +1290,26 @@ export function photoTile(
             // the titles and not the lines under them.
             backgroundImage:
               "linear-gradient(180deg, rgba(6,6,8,0) 0%, rgba(6,6,8,0.55) 42%, rgba(6,6,8,0.93) 100%)",
+            // PHONES RUN THESE TILES TWO-UP, at roughly 204px instead of 438.
+            // The percentages above are the same fraction of a much shorter
+            // tile, so the scrim reached the top and the photograph read as a
+            // black rectangle with a label on it — measured, not guessed. The
+            // fade starts lower and the padding tightens so the picture, which
+            // is the entire point of a picture tile, survives the crop.
+            responsive: {
+              mobile: {
+                paddingTop: "28px",
+                paddingBottom: "14px",
+                paddingLeft: "14px",
+                paddingRight: "14px",
+                // 0.18 at the midpoint let the picture through but measured
+                // 3.92:1 behind the title on the white-backdrop tiles - under
+                // the 4.5 floor for 17px text. 0.30 measures ~5.3:1 there and
+                // still leaves the faces visible on the darker frames.
+                backgroundImage:
+                  "linear-gradient(180deg, rgba(6,6,8,0) 0%, rgba(6,6,8,0.30) 45%, rgba(6,6,8,0.90) 100%)",
+              },
+            },
           },
         },
         children: [
@@ -1302,6 +1327,11 @@ export function photoTile(
                 textColor: TEXT,
                 marginBottomFree: "0px",
                 align: "left",
+                // 22px wraps "Hosts & Promoters" onto two lines in a two-up
+                // tile and pushes the caption over half the picture. The shadow
+                // is the belt to the scrim's braces: a white studio backdrop
+                // behind white type is the exact case that failed before.
+                responsive: { mobile: { fontSize: "17px", textShadow: OVER_MEDIA_SHADOW } },
               },
             },
           },
@@ -1322,6 +1352,11 @@ export function photoTile(
                 textShadow: OVER_MEDIA_SHADOW,
                 marginTopFree: "0px",
                 align: "left",
+                // "Editorial, runway, campaign and e-commerce" is FOUR lines at
+                // 163px, which is more caption than picture. The title plus
+                // EXPLORE say what the tile is; the full line is one tap away
+                // on the division page itself.
+                responsive: { mobile: { visibility: "hidden" } },
               },
             },
           },
@@ -1346,6 +1381,10 @@ export function photoTile(
                 paddingLeft: "0px",
                 paddingRight: "0px",
                 borderRadius: "0px",
+                // 30px tall on a phone, where a fingertip is ~44. The padding
+                // grows rather than the type, so the tile caption looks the
+                // same and the target stops being a near-miss.
+                responsive: { mobile: { paddingTop: "14px", paddingBottom: "10px" } },
                 // The button base draws a border; on a caption this reads as a
                 // cheap ad button sitting on the photograph. It is a text link
                 // with an arrow, so it should look like one.
@@ -1447,12 +1486,41 @@ export function quoteCard(
 }
 
 /** Responsive grid container (desktop N columns → tablet 2 → mobile 1). */
+/**
+ * @param mobileColumns 2 keeps a TWO-UP grid on phones instead of stacking.
+ *
+ * Stacking every grid to one column was the single biggest reason the homepage
+ * ran to fifteen screens on a 390px phone: five division tiles at a 4:5 ratio
+ * are 2,284px on their own, and a visitor scrolls past four of them to learn
+ * the agency has four disciplines. Two-up is the ordinary mobile pattern for
+ * short-label picture tiles (any fashion retailer's category grid), and it puts
+ * four categories on one screen rather than one.
+ *
+ * It is OPT-IN, not the new default, because the choice depends on the CONTENT:
+ * a tile with a two-word label reads fine at 169px wide, a feature card with a
+ * forty-word body does not. Grids whose children carry real prose keep
+ * stacking.
+ */
 export function grid(
   id: string,
   columns: 2 | 3 | 4,
   children: BuilderNode[],
-  opts: { gap?: string; layerLabel?: string } = {},
+  opts: {
+    gap?: string;
+    layerLabel?: string;
+    mobileColumns?: 1 | 2;
+    /**
+     * Turn the grid into a SWIPE RAIL on phones. For children that carry real
+     * prose - a testimonial, a long feature card - two-up would shrink the text
+     * past reading size, and stacking makes a visitor scroll a full screen per
+     * item. A rail keeps each card full width and legible while costing one
+     * screen for the whole set, and swiping is the gesture a phone user already
+     * expects from a row of cards.
+     */
+    mobileSlider?: boolean;
+  } = {},
 ): BuilderNode {
+  const mobileColumns = opts.mobileColumns ?? 1;
   return {
     id,
     kind: "container",
@@ -1463,7 +1531,11 @@ export function grid(
       layerLabel: opts.layerLabel ?? "Grid",
       responsive: {
         tablet: { columns: 2 },
-        mobile: { layout: "stack", columns: 1 },
+        mobile: opts.mobileSlider
+          ? { layout: "grid", display: "slider", itemsPerView: 1, columns: 1 }
+          : mobileColumns === 2
+            ? { layout: "grid", columns: 2, gap: "s" }
+            : { layout: "stack", columns: 1 },
       },
       style: { width: "100%", maxWidthFree: "100%", gap: opts.gap ?? "24px" },
     },

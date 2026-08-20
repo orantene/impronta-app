@@ -117,7 +117,7 @@ export function DirectoryResultsToolbar({
               aria-pressed={view === "grid"}
               onClick={() => setView("grid")}
               className={cn(
-                "rounded-md p-2 transition-colors",
+                "rounded-md p-2 transition-colors min-h-10 min-w-10 inline-flex items-center justify-center sm:min-h-0 sm:min-w-0",
                 view === "grid"
                   ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
                   : "text-muted-foreground hover:text-foreground",
@@ -131,7 +131,7 @@ export function DirectoryResultsToolbar({
               aria-pressed={view === "list"}
               onClick={() => setView("list")}
               className={cn(
-                "rounded-md p-2 transition-colors",
+                "rounded-md p-2 transition-colors min-h-10 min-w-10 inline-flex items-center justify-center sm:min-h-0 sm:min-w-0",
                 view === "list"
                   ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
                   : "text-muted-foreground hover:text-foreground",
@@ -145,7 +145,7 @@ export function DirectoryResultsToolbar({
               aria-pressed={view === "map"}
               onClick={() => setView("map")}
               className={cn(
-                "rounded-md p-2 transition-colors",
+                "rounded-md p-2 transition-colors min-h-10 min-w-10 inline-flex items-center justify-center sm:min-h-0 sm:min-w-0",
                 view === "map"
                   ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
                   : "text-muted-foreground hover:text-foreground",

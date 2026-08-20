@@ -362,7 +362,11 @@ function TraitRowBody({
             <div
               key={trait.key}
               data-card-trait-line=""
-              className="flex items-baseline gap-1.5 text-[11px] leading-snug"
+              // 11px is under the 12px legibility floor the mobile audit set,
+              // and these trait lines ("HEIGHT 164 cm") are exactly the detail
+              // a client squints at on a phone. 12px on small screens, the
+              // tighter desktop size preserved from sm: up.
+              className="flex items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
             >
               <dt className="shrink-0 uppercase tracking-[0.12em] text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]">
                 {trait.label}

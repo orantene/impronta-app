@@ -23,6 +23,7 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { cn } from "@/lib/utils";
+import "@/components/talent-cards/talent-card-actions.css";
 
 type QuickViewMedia = {
   id: string;
@@ -95,7 +96,7 @@ export function TalentQuickViewButton({
         aria-label={`${openLabel} — ${displayName}`}
         aria-haspopup="dialog"
         className={cn(
-          "inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-foreground/70 backdrop-blur-sm outline-none transition-colors duration-200 hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "touch-target inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-foreground/70 backdrop-blur-sm outline-none transition-colors duration-200 hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           className,
         )}
         data-card-quick-view=""

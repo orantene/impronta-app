@@ -179,9 +179,11 @@ function rosterBannerTile(): BuilderNode {
   props.style = {
     ...rest,
     gridColumn: "span 2",
-    // Phones stack the grid, so the span is inert there and the tile falls
-    // back to a normal photo tile shape.
-    responsive: { mobile: { gridColumn: "auto", aspectRatioFree: "4 / 5" } },
+    // Phones now run this grid TWO-UP, so the span is live there too - the
+    // roster banner keeps closing the grid as a full-width row rather than
+    // becoming a fifth tile in a ragged last line. Wider ratio because a
+    // full-width row at 4:5 is 400px of one photograph on a phone.
+    responsive: { mobile: { gridColumn: "span 2", aspectRatioFree: "16 / 10" } },
   };
   return tile;
 }
@@ -236,7 +238,9 @@ const divisions = band(
         // affordance instead of a lone button.
         rosterBannerTile(),
       ],
-      { layerLabel: "Division tiles" },
+      // Two-up on phones: five 4:5 tiles stacked ran 2,284px, so a visitor
+      // scrolled three screens to learn there are four disciplines.
+      { layerLabel: "Division tiles", mobileColumns: 2 },
     ),
   ],
   { borderTop: true, layerLabel: "Divisions" },
@@ -436,7 +440,7 @@ const process = band(
           "Availability, rates and logistics, handled end to end. First reply within 24 hours.",
         ),
       ],
-      { layerLabel: "Steps" },
+      { layerLabel: "Steps", mobileColumns: 2 },
     ),
   ],
   { borderTop: true, layerLabel: "How it works" },
@@ -471,7 +475,10 @@ const proof = band(
           "Riviera Maya",
         ),
       ],
-      { layerLabel: "Quotes" },
+      // Three testimonials stacked ran 1,077px - a screen and a quarter of
+      // scrolling for three quotes. As a rail they cost one screen and each
+      // stays full width, which prose needs.
+      { layerLabel: "Quotes", mobileSlider: true },
     ),
   ],
   { borderTop: true, layerLabel: "Social proof" },
@@ -491,12 +498,27 @@ const stats = band(
         columns: 4,
         gap: "m",
         layerLabel: "Stat row",
-        responsive: { tablet: { columns: 2 }, mobile: { layout: "stack", columns: 1 } },
-        style: { width: "100%", maxWidthFree: "100%", gap: "0px" },
+        // Two-up on phones: a numeral and a two-word label do not need a full
+        // row each, and four stacked cells read as a list rather than a set of
+        // figures you take in at a glance.
+        responsive: { tablet: { columns: 2 }, mobile: { layout: "grid", columns: 2, gap: "s" } },
+        // The base gap is 0 on purpose - four cells across a desktop row are
+        // separated by their own dividers, not by space. Two-up on a phone that
+        // left "Represented talent" and "Talent categories" touching, reading
+        // as one run-on label, so the phone lane restores a real gutter.
+        style: {
+          width: "100%",
+          maxWidthFree: "100%",
+          gap: "0px",
+          responsive: { mobile: { gap: "22px" } },
+        },
       },
       children: [
         statCell("rb-home-stat-talent", "27+", "Represented talent", false),
-        statCell("rb-home-stat-divisions", "5", "Divisions", true),
+        // "Divisions" was the last visitor-facing survivor of the vocabulary
+        // the owner asked to retire ("Division?? wtf it is"). The header, the
+        // tiles and the footer all say talents now; this figure did not.
+        statCell("rb-home-stat-divisions", "5", "Talent categories", true),
         statCell("rb-home-stat-reply", "<24h", "First reply", true),
         statCell("rb-home-stat-managed", "100%", "Agency-managed", true),
       ],
