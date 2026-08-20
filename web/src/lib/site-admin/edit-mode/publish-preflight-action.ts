@@ -485,18 +485,25 @@ export async function runPublishPreflight(input?: {
           issues.push({
             severity: finding.severity === "error" ? "error" : "warn",
             category: "data_binding",
-            message: `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
+            nodeId: finding.nodeId ?? undefined,
+            message: finding.message,
           });
         }
         for (const finding of collectBuilderTreeLayoutFindings(validation.tree)) {
           const blocking = isBlockingLayoutFindingId(finding.id);
+          // The node id rides in the STRUCTURED `nodeId` field, not glued onto
+          // the message. It used to be prefixed as `container <uuid>: …`, which
+          // (a) showed a raw uuid to the operator and (b) made four findings of
+          // the SAME problem read as four different messages, so the drawer
+          // could not group them. `nodeId` already drives the Locate button.
           issues.push({
             severity: blocking ? "error" : "warn",
             category: "layout",
             sectionId: finding.ownerSectionId ?? undefined,
+            nodeId: finding.nodeId ?? undefined,
             message: blocking
-              ? `${finding.nodeKind} ${finding.nodeId}: ${finding.message} Resolve this layout issue before publish.`
-              : `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
+              ? `${finding.message} Resolve this layout issue before publish.`
+              : finding.message,
           });
         }
 
