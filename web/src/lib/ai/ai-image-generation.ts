@@ -10,6 +10,7 @@ import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
 import { resizeUploadForStorage } from "@/lib/server/media-resize";
 import { MEDIA_PUBLIC_BUCKET } from "@/lib/site-admin/media/validation";
 import { logServerError } from "@/lib/server/safe-error";
+import { fileAssetInSystemFolder, LIFESTYLE_FOLDER } from "@/lib/media/system-folders";
 import {
   estimateImageCostUsd,
   imageQuotaForPlan,
@@ -166,7 +167,10 @@ export async function uploadGeneratedImageBytes(input: {
     const supabase = createServiceRoleClient();
     if (!supabase) return null;
     const resized = await resizeUploadForStorage(input.bytes, "gallery");
-    const storagePath = `tenant/${input.tenantId}/library/${randomUUID()}.${resized.ext}`;
+    // `/lifestyle/` rather than the old `/library/`: the prefix says what the
+    // file IS, the way branding uploads already say it. Existing files keep
+    // their paths — storage paths are stored per row, nothing to migrate.
+    const storagePath = `tenant/${input.tenantId}/lifestyle/${randomUUID()}.${resized.ext}`;
     const upload = await supabase.storage
       .from(MEDIA_PUBLIC_BUCKET)
       .upload(storagePath, resized.buffer, {
@@ -186,12 +190,24 @@ export async function uploadGeneratedImageBytes(input: {
       mime: resized.mimeType,
       byteSize: resized.buffer.length,
       alt: input.alt ?? null,
-      metadata: { source: "ai-image-generate", kind: "image" },
+      metadata: { source: "ai-image-generate", kind: "image", category: "lifestyle" },
     });
     if (!inserted.item?.publicUrl) {
       await supabase.storage.from(MEDIA_PUBLIC_BUCKET).remove([storagePath]);
       return null;
     }
+    // File it into the tenant's Lifestyle folder so generated imagery is a
+    // findable SET in the media library instead of loose rows among talent
+    // photography. Failure here is deliberately non-fatal: the image exists
+    // and is usable; only its filing is missing, and the backfill can repair
+    // that later. Same posture as branding uploads.
+    await fileAssetInSystemFolder(supabase, {
+      tenantId: input.tenantId,
+      assetId: inserted.item.id,
+      spec: LIFESTYLE_FOLDER,
+      addedBy: input.userId,
+    });
+
     return { url: inserted.item.publicUrl, id: inserted.item.id };
   } catch (err) {
     logServerError("ai-image/upload", err);
