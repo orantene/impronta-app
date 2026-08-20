@@ -657,8 +657,13 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
         textColor: TEXT,
         responsive: {
           mobile: {
-            paddingTop: "88px",
-            paddingBottom: "64px",
+            // 88px sat UNDER a header that is already ~95px tall on a phone
+            // (announcement bar + nav), so the eyebrow did not start until
+            // 186px down - a fifth of the screen gone before the first word.
+            // 52px still separates the hero from the header without the page
+            // opening on a void.
+            paddingTop: "52px",
+            paddingBottom: "48px",
             paddingRight: "20px",
             paddingLeft: "20px",
           },

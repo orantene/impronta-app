@@ -504,9 +504,23 @@ export function TalentProfileChatLauncher({
   // reduced-motion visitors (for them the pill simply stays put).
   // MUST sit above the `!mounted` guard — hooks run in the same order every
   // render (react-hooks/rules-of-hooks).
-  const collapsedByScroll = useLauncherScrollCollapse(
+  const collapsedByScrollDesktop = useLauncherScrollCollapse(
     narrowLauncher && !open && !reduceMotion,
   );
+  /**
+   * On a phone the launcher is a CIRCLE, not a pill that expands and contracts.
+   *
+   * The expanded pill is 193px - half a 390px screen - floating over the page,
+   * and it covered 54% of the homepage hero's footnote at first paint. Moving
+   * it vertically only changes which line it sits on, so the fix is its SHAPE.
+   * A floating action button is a circle on every phone for this reason.
+   *
+   * Nothing is lost: the glyph is a chat bubble, the accessible name is
+   * unchanged (aria-label, set above), and tapping it opens the same panel.
+   * The scroll-collapse dance stays for wider viewports, where a pill has room
+   * to sit beside the content rather than on top of it.
+   */
+  const collapsedByScroll = narrowLauncher ? !open : collapsedByScrollDesktop;
 
   if (!mounted) return null;
 
