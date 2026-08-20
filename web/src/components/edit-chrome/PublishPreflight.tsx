@@ -43,6 +43,15 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   performance: "Performance",
 };
 
+/** One rendered row: a finding plus every place it occurs. */
+interface GroupedIssue {
+  key: string;
+  issue: PreflightIssue;
+  count: number;
+  nodeIds: string[];
+  sectionIds: string[];
+}
+
 interface Props {
   /** Only run checks while the publish drawer is visible. */
   enabled?: boolean;
@@ -233,8 +242,41 @@ export function PublishPreflight({
     }
     return a.severity === "error" ? -1 : 1;
   });
+  /**
+   * Collapse findings that say the SAME thing into one row.
+   *
+   * The layout linter runs per node, so a page with four un-stacked rows
+   * produced four identical sentences, and the drawer read as "9 warnings"
+   * when it was really three problems. Grouping keys on the rendered text
+   * (category + severity + message), and every grouped node keeps its own
+   * locate target so "show me the 4th one" is still one click.
+   */
+  const groupIssues = (list: PreflightIssue[]): GroupedIssue[] => {
+    const groups: GroupedIssue[] = [];
+    for (const issue of list) {
+      const key = `${issue.category}::${issue.severity}::${issue.message}`;
+      const existing = groups.find((g) => g.key === key);
+      if (existing) {
+        existing.count += 1;
+        if (issue.nodeId) existing.nodeIds.push(issue.nodeId);
+        else if (issue.sectionId) existing.sectionIds.push(issue.sectionId);
+        continue;
+      }
+      groups.push({
+        key,
+        issue,
+        count: 1,
+        nodeIds: issue.nodeId ? [issue.nodeId] : [],
+        sectionIds: issue.nodeId ? [] : issue.sectionId ? [issue.sectionId] : [],
+      });
+    }
+    return groups;
+  };
+
   const blockingIssues = ordered.filter((i) => i.severity === "error");
   const warningIssues = ordered.filter((i) => i.severity === "warn");
+  const blockingGroups = groupIssues(blockingIssues);
+  const warningGroups = groupIssues(warningIssues);
   const blockingCategorySummary = blockingIssues.reduce<
     Array<{ category: PreflightIssue["category"]; count: number }>
   >((acc, issue) => {
@@ -252,9 +294,11 @@ export function PublishPreflight({
           ?.sectionId ?? null
       : null;
 
-  const renderIssue = (issue: PreflightIssue, index: number) => (
+  const renderIssue = (group: GroupedIssue, index: number) => {
+    const { issue, count, nodeIds, sectionIds } = group;
+    return (
     <li
-      key={`${issue.category}:${issue.sectionId ?? "global"}:${issue.message}:${issue.severity}:${index}`}
+      key={`${group.key}:${index}`}
       className="flex items-start gap-2"
     >
       <span
@@ -275,34 +319,52 @@ export function PublishPreflight({
               {t("Advisory")}
             </span>
           )}
+          {count > 1 ? (
+            <span className="rounded border border-border/80 bg-background px-1 py-0 text-[9px] font-semibold leading-[1.2] text-foreground">
+              {t("{count} blocks").replace("{count}", String(count))}
+            </span>
+          ) : null}
         </div>
         <p className="leading-snug">{issue.message}</p>
-        {issue.nodeId ? (
-          // W3-M1 — node-level locate: mobile-overflow blockers point at the
-          // exact offending block (scroll + flash) via the W1-L4 plumbing,
-          // more precise than section-level focus.
-          <button
-            type="button"
-            onClick={() => locateCanvasNode(issue.nodeId!)}
-            className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
-          >
-            {t("Show on canvas")}
-          </button>
-        ) : issue.sectionId && onFocusSection ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (!issue.sectionId) return;
-              onFocusSection(issue.sectionId);
-            }}
-            className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
-          >
-            {t("Show on canvas")}
-          </button>
+        {nodeIds.length > 0 ? (
+          // W3-M1 — node-level locate: points at the exact offending block
+          // (scroll + flash) via the W1-L4 plumbing. When a group covers
+          // several blocks each gets its own numbered chip, so a grouped row
+          // never costs the operator the ability to reach any single one.
+          <div className="mt-1 flex flex-wrap gap-1">
+            {nodeIds.map((nodeId, i) => (
+              <button
+                key={nodeId}
+                type="button"
+                onClick={() => locateCanvasNode(nodeId)}
+                className="inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
+              >
+                {nodeIds.length > 1
+                  ? `${t("Show on canvas")} ${i + 1}`
+                  : t("Show on canvas")}
+              </button>
+            ))}
+          </div>
+        ) : sectionIds.length > 0 && onFocusSection ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {sectionIds.map((sectionId, i) => (
+              <button
+                key={sectionId}
+                type="button"
+                onClick={() => onFocusSection(sectionId)}
+                className="inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
+              >
+                {sectionIds.length > 1
+                  ? `${t("Show on canvas")} ${i + 1}`
+                  : t("Show on canvas")}
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
     </li>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
@@ -366,7 +428,7 @@ export function PublishPreflight({
             ) : null}
           </div>
           <ul className="flex flex-col gap-1.5 text-rose-950">
-            {blockingIssues.map((issue, index) => renderIssue(issue, index))}
+            {blockingGroups.map((group, index) => renderIssue(group, index))}
           </ul>
           {blockingCategorySummary.length > 1 ? (
             <div className="mt-2 flex flex-wrap gap-1">
@@ -397,8 +459,8 @@ export function PublishPreflight({
             )}
           </div>
           <ul className="flex flex-col gap-1.5 text-stone-800">
-            {warningIssues.map((issue, index) =>
-              renderIssue(issue, blockingIssues.length + index),
+            {warningGroups.map((group, index) =>
+              renderIssue(group, blockingGroups.length + index),
             )}
           </ul>
         </div>
