@@ -66,6 +66,7 @@ import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
+import { TranslationStatusButton } from "./translation-status-panel";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import {
   CHROME,
@@ -3225,11 +3226,23 @@ export function TopBar({
         // in-place content flip — switching language means loading the sibling
         // row. This pill navigates (edit mode is a cookie, so the editor stays
         // open on the destination page).
-        <NavLocaleToggle
-          activeLocale={activeLocale ?? defaultLocale}
-          defaultLocale={defaultLocale}
-          tenantLocales={tenantLocales}
-        />
+        <>
+          <NavLocaleToggle
+            activeLocale={activeLocale ?? defaultLocale}
+            defaultLocale={defaultLocale}
+            tenantLocales={tenantLocales}
+          />
+          {/* Freeform translation audit — the one-row-per-locale analogue of
+              the legacy LocaleFieldTabs dots. Gated to surfaces with a slug
+              (the sibling row is looked up by (slug, locale)). */}
+          {editCtx?.surfaceKind === "cms_page" && editCtx.pageSlug ? (
+            <TranslationStatusButton
+              activeLocale={activeLocale ?? defaultLocale}
+              tenantLocales={tenantLocales}
+              pageSlug={editCtx.pageSlug}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {/* ── Spacer ── */}

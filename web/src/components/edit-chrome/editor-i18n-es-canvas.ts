@@ -442,4 +442,27 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "Publicar convierte este borrador en la página en vivo que ven los visitantes.",
   "Publishing adds this template to the gallery. No live pages change.":
     "Publicar agrega esta plantilla a la galería. Ninguna página en vivo cambia.",
+
+  // Freeform translation-status panel (topbar, beside the language pill).
+  "Translations": "Traducciones",
+  "Translation status": "Estado de traducción",
+  "Compare this page against the {locale} version":
+    "Compara esta página con la versión en {locale}",
+  "{current} page compared with {sibling}":
+    "Página en {current} comparada con {sibling}",
+  "Refresh": "Actualizar",
+  "Comparing both language versions…": "Comparando ambas versiones de idioma…",
+  "The {locale} version of this page doesn't exist yet, so every block below is untranslated.":
+    "La versión en {locale} de esta página aún no existe, así que todos los bloques de abajo están sin traducir.",
+  "More than one {locale} row exists for this slug; showing the first. Worth cleaning up.":
+    "Existe más de una fila en {locale} para este slug; se muestra la primera. Conviene limpiarlo.",
+  "Couldn't load the sibling page. Try again.":
+    "No se pudo cargar la página hermana. Inténtalo de nuevo.",
+  "{count} text block(s) exist only on the {locale} page.":
+    "{count} bloque(s) de texto existen solo en la página en {locale}.",
+  "No text blocks on this page yet.": "Esta página aún no tiene bloques de texto.",
+  "Translated": "Traducido",
+  "Same text in both languages": "Mismo texto en ambos idiomas",
+  "Empty in the other language": "Vacío en el otro idioma",
+  "No counterpart block": "Sin bloque equivalente",
 };
