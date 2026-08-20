@@ -334,15 +334,46 @@ const statement = band(
 const process = band(
   "rb-home-process",
   [
-    centerHead("rb-home-process", "How it works", "A clear, professional process"),
+    centerHead("rb-home-process", "How it works", "Build your lineup, send it in one message"),
     grid(
       "rb-home-process-grid",
       4,
       [
-        processStep("rb-home-step-1", "01", "Tell us the brief", "Dates, market, budget range and the look or skill you need. A sentence is enough to start."),
-        processStep("rb-home-step-2", "02", "We shortlist options", "A curated selection from the roster, with availability already checked against your dates."),
-        processStep("rb-home-step-3", "03", "Confirm talent", "You choose. We secure the booking, agree rates and usage, and put it in writing."),
-        processStep("rb-home-step-4", "04", "We coordinate", "Call times, fittings, logistics and on-site coordination, handled by the agency."),
+        // The site HAS a browse -> save -> send flow and the homepage never
+        // explained it, which is also why the header's heart and send icons
+        // read as decoration. These four steps are that flow, in order.
+        //
+        // NO IMAGES YET, deliberately. processStep can carry one (see
+        // shared.ts) and the owner asked for generated lifestyle frames, but
+        // OpenAI returns billing_hard_limit_reached, and every photograph in
+        // the library is a studio portrait - nothing in it honestly depicts
+        // "send it as one message". A portrait pretending to be a screenshot
+        // of a shortlist is worse than a clean numbered list. The moment
+        // generation is available, four slots drop straight in.
+        processStep(
+          "rb-home-step-1",
+          "01",
+          "Browse the whole roster",
+          "Every represented face, filterable by discipline, language and city.",
+        ),
+        processStep(
+          "rb-home-step-2",
+          "02",
+          "Save the ones you like",
+          "The heart on any profile keeps your shortlist while you browse.",
+        ),
+        processStep(
+          "rb-home-step-3",
+          "03",
+          "Send it as one message",
+          "Your whole lineup reaches a coordinator in a single brief.",
+        ),
+        processStep(
+          "rb-home-step-4",
+          "04",
+          "We confirm and coordinate",
+          "Availability, rates and logistics, handled end to end. First reply within 24 hours.",
+        ),
       ],
       { layerLabel: "Steps" },
     ),
