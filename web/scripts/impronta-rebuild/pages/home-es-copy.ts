@@ -26,6 +26,10 @@
  */
 
 export const HOME_ES_COPY: Record<string, string> = {
+  "A wall of Impronta roster portraits from recent shoots.":
+    "Un muro de retratos del roster de Impronta de shoots recientes.",
+  "Search everyone, filter by discipline, language and city":
+    "Busca a todos, filtra por disciplina, idioma y ciudad",
   // ── hero ──────────────────────────────────────────────────────────────────
   "Models & Talent Agency · Tulum · Riviera Maya":
     "Agencia de Modelos y Talento · Tulum · Riviera Maya",
