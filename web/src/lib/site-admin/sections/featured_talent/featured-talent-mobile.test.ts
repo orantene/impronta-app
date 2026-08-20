@@ -60,6 +60,17 @@ test("the gutter is re-applied where the reader wants it", () => {
   }
 });
 
+test("the card's own actions clear the 12px legibility floor on phones", () => {
+  // 0.62rem is 9.92px and it sat on VIEW PROFILE and REQUEST — the smallest
+  // text on the page was the part a visitor is meant to tap.
+  const block = phoneBlock();
+  const cta = /\[data-card-actions\] \.site-prim-cta\s*\{([^}]*)\}/.exec(block);
+  assert.ok(cta, "the phone block must raise the card CTA size");
+  const px = /font-size:\s*([\d.]+)rem/.exec(cta[1]);
+  assert.ok(px, "expected a rem font-size");
+  assert.ok(Number(px[1]) * 16 >= 12, `card CTA renders at ${Number(px[1]) * 16}px, under the 12px floor`);
+});
+
 test("grid-auto-columns is left alone on phones", () => {
   // Overriding the track with a percentage makes it degenerate: the tracks
   // collapse to ~52px, the 262px cards spill out of them and OVERLAP each

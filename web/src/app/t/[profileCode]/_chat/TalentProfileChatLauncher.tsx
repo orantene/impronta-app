@@ -58,6 +58,7 @@ import {
   firstNameOf,
   readableOn,
   type SurfaceMode,
+  GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX,
 } from "./mini-chat-styles";
 
 // Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
@@ -550,7 +551,11 @@ export function TalentProfileChatLauncher({
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
-          bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
+          bottom: `calc(${
+            narrowLauncher
+              ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
+              : GUEST_CHAT_LAUNCHER_BOTTOM_PX
+          }px + env(safe-area-inset-bottom))`,
           zIndex: 95,
           display: "flex",
           flexDirection: "column",
