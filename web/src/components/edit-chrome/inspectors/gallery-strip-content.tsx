@@ -439,6 +439,7 @@ export function GalleryStripContentInspector({
       {/* ── Caption (collapsed) ── */}
       <InspectorGroup
         title={t("Caption")}
+        info="Renders in italic serif below the grid. Optional, leave blank to omit."
         collapsible
         storageKey="gs-caption"
         defaultOpen={Boolean(caption)}
@@ -454,9 +455,6 @@ export function GalleryStripContentInspector({
               onChange({ ...draftProps, caption: e.target.value || undefined })
             }
           />
-          <p className={KIT.hint}>
-            {t("Renders in italic serif below the grid. Optional, leave blank to omit.")}
-          </p>
         </div>
       </InspectorGroup>
     </div>

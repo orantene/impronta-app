@@ -18,6 +18,7 @@ import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
+import { InspectorInfoTip } from "./kit";
 
 type FormFieldType = BuilderFormNode["props"]["fields"][number]["type"];
 
@@ -186,14 +187,15 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
         <CardHead
           title={t("Fields")}
           sub={`${fields.length} field${fields.length === 1 ? "" : "s"}`}
+          action={
+            <InspectorInfoTip
+              title="Fields"
+              content="Edit each field below. Use Submit for the send action. Dropdown, radio, and checkbox need one option per line."
+            />
+          }
         />
         <CardBody>
           <div className="flex flex-col gap-3">
-            <p className={KIT.hint}>
-              {t(
-                "Edit each field below. Use Submit for the send action. Dropdown, radio, and checkbox need one option per line.",
-              )}
-            </p>
             {fields.map((field, fieldIndex) => (
               <div
                 key={field.id}

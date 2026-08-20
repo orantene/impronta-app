@@ -30,7 +30,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
-import { InspectorGroup, KIT, VisualChipGroup, type ChipOption } from "./kit";
+import { InspectorGroup, InspectorLabelWithInfo, KIT, VisualChipGroup, type ChipOption } from "./kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { useEditorLocale } from "../use-editor-locale";
 
@@ -329,7 +329,11 @@ function VoiceSlot({
           </div>
 
           <div className={KIT.field}>
-            <label className={KIT.label}>{t("Role or occasion")}</label>
+            <InspectorLabelWithInfo
+              label="Role or occasion"
+              info={'Shown beneath the name. E.g. "Featured talent" or "Agency client since 2022".'}
+              className={KIT.label}
+            />
             <input
               type="text"
               className={KIT.input}
@@ -338,9 +342,6 @@ function VoiceSlot({
               placeholder={t("Bridal client · New York")}
               onChange={(e) => onPatch({ context: e.target.value })}
             />
-            <p className={KIT.hint}>
-              {t('Shown beneath the name. E.g. "Featured talent" or "Agency client since 2022".')}
-            </p>
           </div>
 
           {!showLocation && !slot.location ? (
