@@ -218,13 +218,20 @@ export function TalentCardActions({
                 // keyed off data-in-cart). Hover-revealed over the card photo.
                 "talent-card-actions__inquiry-pill h-8 rounded-full px-3 text-[10px] tracking-[0.16em] backdrop-blur-md"
               : cn(
-                  "rounded-md",
+                  // COMPACT sits beside the favorite control on a card photo,
+                  // so it has to be the same object: a round translucent
+                  // token, not a square transparent one. It used to be
+                  // rounded-md + bg-transparent, which read as a different
+                  // control from a different design — and over a bright photo
+                  // the glyph had nothing behind it at all.
                   compact
-                    ? "size-8 shrink-0"
-                    : "h-9 flex-1 px-4 text-[11px] tracking-[0.18em]",
+                    ? "size-8 shrink-0 rounded-full backdrop-blur-sm"
+                    : "h-9 flex-1 rounded-md px-4 text-[11px] tracking-[0.18em]",
                   inCart
                     ? "border-foreground bg-foreground/10 text-foreground"
-                    : "border-border bg-transparent text-foreground/80 hover:border-foreground/40 hover:text-foreground",
+                    : compact
+                      ? "border-border bg-background/80 text-foreground/70 hover:border-foreground/40 hover:text-foreground"
+                      : "border-border bg-transparent text-foreground/80 hover:border-foreground/40 hover:text-foreground",
                 ),
           )}
           data-card-inquiry-toggle=""

@@ -672,9 +672,13 @@ const disciplines: BuilderNode = buildTalentDisciplineDecomposedSection({
 // (Intro Text "Selected" / Title "FEATURED TALENT" / See All Link) are now
 // editable builder nodes; the embed renders talent cards only (headless mode).
 //
-// CODES VERIFIED (P2-VERIFY-DATA, 2026-06-02): all six resolve to live, active,
-// featured profiles — TAL-00036 Anto, TAL-00033 Tina, TAL-00034 Nalea,
-// TAL-00031 Lanco, TAL-00035 Annher, TAL-00037 Asia. Three (Lanco/Tina/Asia)
+// CODES RE-VERIFIED (2026-08-19): TAL-00031 (Lanco) NO LONGER EXISTS. It sat
+// fourth in a list the grid reads in order with limit 4, so the homepage
+// rendered three cards in a four-column row and nobody noticed for weeks —
+// a pinned roster goes stale silently every time a profile leaves. The seed
+// now preflights these codes (see impronta-rebuild/profile-pin-preflight.ts).
+// Live today: TAL-00036 Anto, TAL-00033 Tina, TAL-00034 Nalea,
+// TAL-00035 Annher, TAL-00037 Asia. Three (Tina/Asia)
 // have a `card` image; the other three are gallery-only — the component's
 // resolver falls back across card → public_watermarked → gallery, so all six
 // render an image today. Uploading dedicated card crops for Nalea/Annher/Anto
@@ -708,7 +712,7 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
     showAvailability: true,
     showBookmarkIcon: true,
     showSecondaryType: true,
-    manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00031", "TAL-00035", "TAL-00037"],
+    manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00035", "TAL-00037"],
     parentCategoryDisplay: false,
   }),
 });

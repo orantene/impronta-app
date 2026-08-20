@@ -38,6 +38,17 @@ export interface FeaturedTalentDecomposedInput {
   seeAllHref?: string;
   /** Grid-only embed config (head fields should be empty / headless:true). */
   embedConfig?: Record<string, unknown>;
+  /**
+   * Width of the content column that holds the roster grid.
+   *
+   * Defaults to the historical 1120px. It is an option because this wrapper
+   * CAPS the embed inside it: a section whose own `containerWidth` says "wide"
+   * (1280px) still renders at 1120 minus two levels of gutter — on the
+   * Impronta homepage that left a 906px grid of 210px cards on a 1440px
+   * screen, with names and cities ellipsized. Widening the wrapper is what
+   * lets the section's own width setting mean anything.
+   */
+  contentMaxWidth?: string;
 }
 
 /**
@@ -79,6 +90,12 @@ export function buildFeaturedTalentDecomposedSection(
       layout: "stack",
       gap: "m",
       align: "stretch",
+      // The ROOT has to be lifted too, not just the inner column. Every
+      // container carries a 1120px cap from its base class, and a child
+      // cannot be wider than its parent — widening the inner alone left the
+      // grid at exactly the width it started (measured live: inner accepted
+      // max-width:1400px and still rendered 1120 inside a 1120 root).
+      ...(input.contentMaxWidth ? { style: { maxWidthFree: input.contentMaxWidth } } : {}),
     },
     children: [
       {
@@ -90,7 +107,7 @@ export function buildFeaturedTalentDecomposedSection(
           gap: "l",
           align: "start",
           style: {
-            maxWidthFree: "1120px",
+            maxWidthFree: input.contentMaxWidth ?? "1120px",
             marginLeftFree: "auto",
             marginRightFree: "auto",
             paddingTop: "48px",

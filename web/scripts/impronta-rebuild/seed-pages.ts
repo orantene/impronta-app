@@ -103,6 +103,11 @@ import {
   resolveSingleImageSlotValue,
   type ImageSlotPinFile,
 } from "./media-curation";
+import {
+  collectPinnedProfileCodes,
+  describeBrokenPins,
+  findBrokenProfilePins,
+} from "./profile-pin-preflight";
 
 export { IMAGE_SLOT };
 
@@ -388,6 +393,20 @@ export async function runSeed(
   for (const page of filtered) {
     for (const slot of collectImageSlots(page.blocks)) allSlots.add(slot);
     for (const slot of collectImageSlots(page.seo?.ogImageUrl)) allSlots.add(slot);
+  }
+
+  // Pinned roster codes get the same treatment as image slots: verified
+  // against the source of truth BEFORE anything is written, because a dead
+  // pin does not error at render time, it just quietly drops a card.
+  const pinnedCodes = filtered.flatMap((page) => collectPinnedProfileCodes(page.blocks));
+  const brokenPins = await findBrokenProfilePins(supabase, [...new Set(pinnedCodes)]);
+  if (brokenPins.length > 0) {
+    return {
+      outcomes: [],
+      aborted: true,
+      abortReason: describeBrokenPins(brokenPins),
+      imageSlotReport: "",
+    };
   }
 
   const slotResolution = await resolveImageSlots(supabase, options.tenantId, [...allSlots], pins);
