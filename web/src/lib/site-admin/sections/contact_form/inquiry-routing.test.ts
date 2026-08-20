@@ -252,6 +252,82 @@ describe("projectFormContact — field discovery", () => {
     });
     assert.equal(projected.extraLines.length, 0);
   });
+
+  // REGRESSION (2026-08-20, caught in live localhost QA): a freeform builder
+  // `form` node renders its OWN inputs (canonical name/email/phone/message)
+  // while only BINDING to a section for its destination + routing mode. On
+  // Impronta's live contact page the section declared full_name/subject and
+  // the rendered form posted name/phone/brief — so every contact field
+  // projected EMPTY, the hard-requirement check failed, and an inquiry-mode
+  // form silently fell back to inbox rows with no error anywhere.
+  it("falls back to canonical payload keys when the section's declared field name is absent", () => {
+    const props = contactFormSchemaV1.parse({
+      fields: [
+        { name: "full_name", label: "Full name", type: "text", required: true },
+        { name: "email", label: "Email", type: "email", required: true },
+        { name: "subject", label: "Subject", type: "select", options: "Booking\nCasting" },
+        { name: "message", label: "Message", type: "textarea", required: true },
+      ],
+      action: "internal:x",
+    });
+    // What the freeform form node actually posts — note `name`, not `full_name`.
+    const projected = projectFormContact(props, {
+      name: "Elena Marchetti",
+      email: "elena@example.com",
+      phone: "+52 984 111 2233",
+      message: "March 12-14, Tulum beach club.",
+      brief: "Two bilingual hosts for a product launch",
+    });
+    assert.equal(projected.name, "Elena Marchetti");
+    assert.equal(projected.email, "elena@example.com");
+    assert.equal(projected.phone, "+52 984 111 2233");
+    assert.equal(projected.message, "March 12-14, Tulum beach club.");
+    // The renderer's extra question survives even though no section field
+    // declares it — the coordinator must not lose a submitted answer.
+    assert.deepEqual(projected.extraLines, ["brief: Two bilingual hosts for a product launch"]);
+  });
+
+  it("prefers the section-declared field over the canonical key when both are present", () => {
+    const props = contactFormSchemaV1.parse({
+      fields: [
+        { name: "full_name", label: "Full name", type: "text" },
+        { name: "email", label: "Email", type: "email" },
+        { name: "message", label: "Message", type: "textarea" },
+      ],
+      action: "internal:x",
+    });
+    const projected = projectFormContact(props, {
+      full_name: "Declared Wins",
+      name: "Canonical Loses",
+      email: "a@b.com",
+      message: "Hi",
+    });
+    assert.equal(projected.name, "Declared Wins");
+    // The canonical key it shadowed must not also appear as an extra line.
+    assert.deepEqual(projected.extraLines, []);
+  });
+
+  it("routes a freeform-node payload to inquiry end to end (the live-page shape)", () => {
+    const props = contactFormSchemaV1.parse({
+      fields: [
+        { name: "full_name", label: "Full name", type: "text", required: true },
+        { name: "email", label: "Email", type: "email", required: true },
+        { name: "message", label: "Message", type: "textarea", required: true },
+      ],
+      action: "internal:x",
+      routingMode: "inquiry",
+    });
+    const decision = decideFormRouting(props, {
+      name: "Elena Marchetti",
+      email: "elena@example.com",
+      message: "Two bilingual hosts, Tulum, March.",
+    });
+    assert.equal(decision.mode, "inquiry");
+    if (decision.mode !== "inquiry") return;
+    assert.equal(decision.contactName, "Elena Marchetti");
+    assert.equal(decision.contactEmail, "elena@example.com");
+    assert.equal(validateIntentForSubmit(decision.intent).ok, true);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

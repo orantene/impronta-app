@@ -460,6 +460,15 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Este destino abre una solicitud real, no una fila de bandeja. Los archivos no se guardan en esa ruta.",
   "Required for inbox delivery. Without a destination the form renders but submissions are rejected.":
     "Obligatorio para la bandeja. Sin destino el formulario se ve pero los envíos se rechazan.",
+  "What happens on submit": "Qué pasa al enviar",
+  "An inquiry opens a real conversation your team replies to, and the sender gets your replies by email. An inbox message is just a recorded submission.":
+    "Una solicitud abre una conversación real que tu equipo responde, y quien escribió recibe tus respuestas por correo. Un mensaje de bandeja solo queda registrado.",
+  "Inbox message": "Mensaje de bandeja",
+  "Open an inquiry": "Abrir una solicitud",
+  "Submissions open a real inquiry your team can reply to. Replies reach the sender by email. File fields are not stored on this path.":
+    "Los envíos abren una solicitud real que tu equipo puede responder. Las respuestas llegan por correo a quien escribió. Los archivos no se guardan en esta ruta.",
+  "Submissions are recorded as inbox messages. Nobody can reply to them in a conversation.":
+    "Los envíos se guardan como mensajes de bandeja. Nadie puede responderlos en una conversación.",
   "Submit URL": "URL de envío",
   "Full https:// URL the form data POSTs to.":
     "URL https:// completa a la que se envían los datos.",
