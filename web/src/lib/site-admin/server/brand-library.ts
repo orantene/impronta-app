@@ -21,10 +21,9 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tagFor } from "@/lib/site-admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
+import { BRANDING_FOLDER, ensureSystemFolder } from "@/lib/media/system-folders";
 
 const BUCKET = "media-public";
-const BRANDING_FOLDER_KEY = "branding";
-const BRANDING_FOLDER_NAME = "Branding";
 /** Post-compression cap — mirrors MEDIA_IMAGE_MAX_BYTES. */
 const MAX_BYTES = 8 * 1024 * 1024;
 export const BRANDING_RASTER_EXTS = new Set(["png", "jpg", "webp"]);
@@ -47,45 +46,17 @@ export type BrandingMediaAsset = {
 export type BrandLibraryResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 // ── Branding folder (lazy get-or-create) ────────────────────────────────
+//
+// The get-or-create (including the unique-violation race) lives in
+// `@/lib/media/system-folders` now, shared with the Lifestyle folder. This
+// wrapper keeps the existing call sites and the name they read by.
 
 export async function ensureBrandingFolder(
   admin: SupabaseClient,
   tenantId: string,
   createdBy: string | null,
 ): Promise<string | null> {
-  const bySystemKey = await admin
-    .from("media_folders")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("system_key", BRANDING_FOLDER_KEY)
-    .maybeSingle();
-  if (bySystemKey.data?.id) return bySystemKey.data.id as string;
-
-  const { data: created, error } = await admin
-    .from("media_folders")
-    .insert({
-      tenant_id: tenantId,
-      name: BRANDING_FOLDER_NAME,
-      system_key: BRANDING_FOLDER_KEY,
-      color: "#0F4F3E",
-      created_by: createdBy,
-    })
-    .select("id")
-    .single();
-  if (created?.id) return created.id as string;
-
-  // Unique-violation race (another request created it first) → re-select.
-  if (error) {
-    const again = await admin
-      .from("media_folders")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .eq("system_key", BRANDING_FOLDER_KEY)
-      .maybeSingle();
-    if (again.data?.id) return again.data.id as string;
-    logServerError("brand-library.folder.ensure", error);
-  }
-  return null;
+  return ensureSystemFolder(admin, tenantId, BRANDING_FOLDER, createdBy);
 }
 
 // ── Current brand slot references ───────────────────────────────────────
