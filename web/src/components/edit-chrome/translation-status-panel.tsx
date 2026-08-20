@@ -44,6 +44,10 @@ const STATUS_META: Record<
 > = {
   translated: { dot: "#059669", label: "Translated" },
   identical: { dot: CHROME.amber, label: "Same text in both languages" },
+  // Numerals / symbols / roman numerals: byte-identical BY DESIGN. Muted and
+  // listed last, so the amber "identical" count means something. The first
+  // live run was 13 of these against 1 real finding.
+  not_translatable: { dot: CHROME.muted3, label: "Numbers or symbols, nothing to translate" },
   sibling_empty: { dot: CHROME.amber, hollow: true, label: "Empty in the other language" },
   no_counterpart: { dot: "#e11d48", hollow: true, label: "No counterpart block" },
 };
