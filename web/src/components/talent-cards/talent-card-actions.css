@@ -109,3 +109,22 @@
     background: transparent;
   }
 }
+
+/**
+ * A 12px floor for the inquiry pill on touch devices.
+ *
+ * The pill ships at `text-[10px]`, which is under any legibility floor and sits
+ * on a control a visitor is meant to TAP — on a phone the smallest text on the
+ * card was its call to action. Raised only where there is no hover (touch), so
+ * the desktop hover-reveal keeps its tighter editorial treatment. The tracking
+ * eases a little so the wider glyphs still fit the same pill.
+ *
+ * `any-hover: none` rather than a width query on purpose: this is about the
+ * input device, not the window size. A narrow desktop window still hovers.
+ */
+@media (any-hover: none) {
+  .talent-card-actions__inquiry-pill {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+}
