@@ -25,6 +25,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { BackgroundSlideshow } from "./background-slideshow";
+import { BackgroundYouTubeFrame } from "./background-youtube-frame";
 import {
   resolveBackgroundMedia,
   type BackgroundMediaProps,
@@ -166,19 +167,11 @@ export function renderBackgroundMediaLayer(
           style={{ objectPosition: resolved.focalPoint }}
         />
       ) : (
-        <iframe
-          className="site-builder-bg-media__frame"
-          src={resolved.url}
-          // An empty title plus aria-hidden is the correct pairing for a purely
-          // decorative frame: a NAMED frame would be announced as content.
-          title=""
-          aria-hidden="true"
-          tabIndex={-1}
-          loading="lazy"
-          sandbox={YOUTUBE_SANDBOX}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
+        // The frame is a client component ONLY because the loop is: the embed
+        // URL no longer names a playlist (that is what drew prev/pause/next
+        // over the video), so something has to replay it. Server output is the
+        // same <iframe> either way — see background-youtube-frame.tsx.
+        <BackgroundYouTubeFrame url={resolved.url} sandbox={YOUTUBE_SANDBOX} />
       )}
       <span className="site-builder-bg-media__scrim" />
     </div>
