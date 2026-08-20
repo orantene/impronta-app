@@ -11,6 +11,7 @@ import { fashionModelsPage } from "./pages/fashion-models";
 import { hostsPromotersPage } from "./pages/hosts-promoters";
 import { performersPage } from "./pages/performers";
 import { musicDjsPage } from "./pages/music-djs";
+import { showPage } from "./pages/show";
 import type { ImprontaRebuildPage } from "./shared";
 
 /**
@@ -30,6 +31,7 @@ const SEEDED: ImprontaRebuildPage[] = [
   hostsPromotersPage,
   performersPage,
   musicDjsPage,
+  showPage,
 ];
 
 /**

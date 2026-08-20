@@ -18,7 +18,6 @@ import {
 
 import {
   band,
-  bulletRow,
   centerHead,
   closingCta,
   copy,
@@ -258,8 +257,17 @@ const plate2 = fullBleedPlate("rb-home-2", {
   line: "Behind every face, a room of people answerable for every detail.",
 });
 
-// ── statement ────────────────────────────────────────────────────────────────
-const statement = band(
+// ── the show (teaser) ────────────────────────────────────────────────────────
+/**
+ * This slot used to hold "We do not list faces. We stand behind them." — the
+ * agency-positioning statement. The owner replaced it with the show teaser, and
+ * the guarantees it made are already stated in full on For Clients, so nothing
+ * was lost from the site. `git show` on the commit before this one restores it.
+ *
+ * The portrait stays exactly where it was, so the section keeps its shape and
+ * the owner can swap in a production still from the builder the day one exists.
+ */
+const showTeaser = band(
   "rb-home-statement",
   [
     {
@@ -269,7 +277,7 @@ const statement = band(
         ratio: "40-60",
         gap: "l",
         collapseOnMobile: true,
-        layerLabel: "Portrait + promise",
+        layerLabel: "The show",
         style: { width: "100%", maxWidthFree: "100%", alignItems: "center" },
       },
       children: [
@@ -279,7 +287,7 @@ const statement = band(
           props: {
             src: IMAGE_SLOT("home-statement-portrait"),
             alt: "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.",
-            layerLabel: "Editorial portrait",
+            layerLabel: "Portrait",
             style: {
               width: "100%",
               aspectRatioFree: "0.8",
@@ -296,39 +304,29 @@ const statement = band(
           props: {
             layout: "stack",
             align: "start",
-            layerLabel: "Statement copy",
+            layerLabel: "Show copy",
             style: { gap: "0px", maxWidthFree: "640px" },
           },
           children: [
-            eyebrow("rb-home-statement-eyebrow", "The Impronta way", "left"),
-            headingLine("rb-home-statement-line1", "We do not list faces.", { align: "left", layerLabel: "Headline line 1" }),
-            headingLine("rb-home-statement-line2", "We stand behind them.", { align: "left", accent: true, layerLabel: "Headline line 2 (accent)" }),
+            eyebrow("rb-home-statement-eyebrow", "Coming soon", "left"),
+            headingLine("rb-home-statement-line1", "A show built for", { align: "left", layerLabel: "Headline line 1" }),
+            headingLine("rb-home-statement-line2", "the Riviera Maya.", { align: "left", accent: true, layerLabel: "Headline line 2 (accent)" }),
             copy(
               "rb-home-statement-body",
-              "Anyone can build a directory. We built an agency. Before a face reaches your shortlist it has been met in person, its portfolio reviewed, its availability confirmed and its rates agreed. When you book through Impronta, a real coordinator is answerable for every detail, from the first reply to the wrap of the event.",
+              "Impronta is producing an original stage show for resorts, beach clubs and hotels along the coast: one company, cast from the roster and rehearsed by the agency, that arrives ready to run on your stage. Venues can hold a date now, and casting is open to performers.",
               { align: "left", maxWidth: "560px", marginTop: "20px" },
             ),
-            {
-              id: "rb-home-statement-list",
-              kind: "container",
-              props: {
-                layout: "stack",
-                align: "start",
-                layerLabel: "Ideal for",
-                style: { gap: "0px", marginTopFree: "28px", width: "100%", maxWidthFree: "560px" },
-              },
-              children: [
-                bulletRow("rb-home-statement-row-1", "Reviewed, agency-approved talent only"),
-                bulletRow("rb-home-statement-row-2", "Availability confirmed before you commit"),
-                bulletRow("rb-home-statement-row-3", "Rates, usage and logistics handled for you"),
-              ],
-            },
+            ctaRow(
+              "rb-home-statement-cta",
+              [goldButton("rb-home-statement-more", "Read more", "/p/show")],
+              "left",
+            ),
           ],
         },
       ],
     },
   ],
-  { borderTop: true, layerLabel: "Statement" },
+  { borderTop: true, layerLabel: "The show" },
 );
 
 // ── how it works ─────────────────────────────────────────────────────────────
@@ -591,7 +589,7 @@ const tree: BuilderNode[] = [
   divisions,
   locations,
   plate1,
-  statement,
+  showTeaser,
   process,
   proof,
   stats,

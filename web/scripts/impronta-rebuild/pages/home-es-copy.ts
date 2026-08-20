@@ -176,6 +176,13 @@ export const HOME_ES_COPY: Record<string, string> = {
   "What representation means": "Qué significa la representación",
   Start: "Empezar",
 
+  // ── the show teaser (replaced the agency-positioning statement) ───────────
+  "Coming soon": "Muy pronto",
+  "A show built for": "Un show hecho para",
+  "Impronta is producing an original stage show for resorts, beach clubs and hotels along the coast: one company, cast from the roster and rehearsed by the agency, that arrives ready to run on your stage. Venues can hold a date now, and casting is open to performers.":
+    "Impronta está produciendo un show original para resorts, beach clubs y hoteles de la costa: una sola compañía, con casting del roster y ensayos a cargo de la agencia, que llega lista para presentarse en tu escenario. Los venues ya pueden apartar fecha y el casting está abierto para performers.",
+  "Read more": "Leer más",
+
   // ── closing ───────────────────────────────────────────────────────────────
   "The right face is": "El rostro indicado está",
   "one brief away.": "a un brief de distancia.",

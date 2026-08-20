@@ -171,6 +171,7 @@ export const EXPECTED_PAGE_MODULE_FILES: readonly string[] = [
   "performers",
   "music-djs",
   "chefs-culinary",
+  "show",
 ];
 
 /**
