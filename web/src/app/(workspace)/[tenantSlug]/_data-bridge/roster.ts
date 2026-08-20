@@ -303,7 +303,6 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
         workflow_status: string | null;
         user_id: string | null;
         is_starter_seed: boolean | null;
-    is_starter_seed: boolean | null;
         deleted_at: string | null;
         talent_profile_taxonomy:
           | Array<{
