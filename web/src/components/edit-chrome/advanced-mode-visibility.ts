@@ -15,12 +15,18 @@ import type { EditDevice } from "./edit-context";
 
 /**
  * Inspector-rail tabs hidden until Advanced is ON. The default rail shows
- * Layout · Content · Style; Data (bindings) and Motion move behind Advanced.
- * A node keeps any Data/Motion overrides it already has — the STYLES still
- * render; only the editing TAB is hidden.
+ * Layout · Content · Style · Animation; Data (bindings) moves behind Advanced.
+ * A node keeps any Data overrides it already has — the STYLES still render;
+ * only the editing TAB is hidden.
+ *
+ * `motion` (the Animation tab) came OFF this list when the Animation tab
+ * shipped. It had been advanced-only while it was a chip row of CSS-time text
+ * inputs, which is a fair read of "power user"; a preset gallery that plays
+ * each option on hover is not, and hiding the one surface an operator would
+ * look for to make something fade in made the feature unreachable by default.
  */
 export const ADVANCED_ONLY_INSPECTOR_TABS: ReadonlySet<InspectorTabKey> =
-  new Set<InspectorTabKey>(["data", "motion"]);
+  new Set<InspectorTabKey>(["data"]);
 
 /**
  * Filter a resolved list of inspector tab keys by the Advanced flag. With

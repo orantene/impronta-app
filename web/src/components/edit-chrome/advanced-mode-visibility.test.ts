@@ -21,12 +21,15 @@ const FULL_TABS: InspectorTabKey[] = [
   "motion",
 ];
 
-test("Advanced OFF hides Data + Motion, keeps Layout/Content/Style", () => {
+test("Advanced OFF hides Data, keeps Layout/Content/Style/Animation", () => {
   const visible = filterInspectorTabsByAdvanced(FULL_TABS, false);
-  assert.deepEqual(visible, ["layout", "content", "style"]);
-  assert.equal(visible.length, 3);
+  assert.deepEqual(visible, ["layout", "content", "style", "motion"]);
+  assert.equal(visible.length, 4);
   assert.ok(!visible.includes("data"));
-  assert.ok(!visible.includes("motion"));
+  // The Animation tab (`motion`) is DELIBERATELY not advanced-only: hiding the
+  // one place an operator would look to make something fade in put the whole
+  // feature behind a toggle most of them never find.
+  assert.ok(visible.includes("motion"));
 });
 
 test("Advanced ON returns every resolved tab unchanged (5)", () => {
@@ -36,23 +39,24 @@ test("Advanced ON returns every resolved tab unchanged (5)", () => {
 });
 
 test("filter preserves original order and only drops advanced tabs", () => {
-  const input: InspectorTabKey[] = ["content", "style", "motion"];
+  const input: InspectorTabKey[] = ["content", "style", "motion", "data"];
   assert.deepEqual(filterInspectorTabsByAdvanced(input, false), [
     "content",
     "style",
+    "motion",
   ]);
 });
 
-test("a section that never offers Data/Motion is identical in both modes", () => {
-  const input: InspectorTabKey[] = ["layout", "content", "style"];
+test("a section that never offers Data is identical in both modes", () => {
+  const input: InspectorTabKey[] = ["layout", "content", "style", "motion"];
   assert.deepEqual(filterInspectorTabsByAdvanced(input, false), input);
   assert.deepEqual(filterInspectorTabsByAdvanced(input, true), input);
 });
 
-test("ADVANCED_ONLY_INSPECTOR_TABS is exactly data + motion", () => {
-  assert.equal(ADVANCED_ONLY_INSPECTOR_TABS.size, 2);
+test("ADVANCED_ONLY_INSPECTOR_TABS is exactly data", () => {
+  assert.equal(ADVANCED_ONLY_INSPECTOR_TABS.size, 1);
   assert.ok(ADVANCED_ONLY_INSPECTOR_TABS.has("data"));
-  assert.ok(ADVANCED_ONLY_INSPECTOR_TABS.has("motion"));
+  assert.ok(!ADVANCED_ONLY_INSPECTOR_TABS.has("motion"));
   assert.ok(!ADVANCED_ONLY_INSPECTOR_TABS.has("style"));
 });
 
@@ -62,7 +66,7 @@ test("hasHiddenAdvancedInspectorTabs true only when advanced tabs are hidden", (
   assert.equal(hasHiddenAdvancedInspectorTabs(FULL_TABS, true), false);
   // No advanced tabs in the resolved set → nothing hidden even when OFF.
   assert.equal(
-    hasHiddenAdvancedInspectorTabs(["layout", "content", "style"], false),
+    hasHiddenAdvancedInspectorTabs(["layout", "content", "style", "motion"], false),
     false,
   );
 });

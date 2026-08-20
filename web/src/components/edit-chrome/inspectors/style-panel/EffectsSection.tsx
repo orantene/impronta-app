@@ -10,7 +10,7 @@ import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { InspectorLabelWithInfo } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
-import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_ANIMATION_PRESET_OPTIONS, BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS, BUILDER_NODE_CURSOR_OPTIONS, BUILDER_NODE_POINTER_EVENTS_OPTIONS, BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS, BUILDER_NODE_USER_SELECT_OPTIONS } from "./style-options";
+import { BUILDER_NODE_CURSOR_OPTIONS, BUILDER_NODE_POINTER_EVENTS_OPTIONS, BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS, BUILDER_NODE_USER_SELECT_OPTIONS } from "./style-options";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import type { StandaloneSectionCtx } from "./section-types";
 import { InteractionsBody } from "./EffectsSurfaceSection";
@@ -492,172 +492,30 @@ export function EffectsMotionBody({
               </details>
             </div>
 
+            {/* ENTRANCE ANIMATION MOVED (Animation tab, 2026-08-20). This fold
+                used to hold a preset Segmented plus four raw CSS fields
+                (duration, delay, trigger, easing) and a cubic-bezier input --
+                the same style keys the node-level Motion tab offered in a
+                different vocabulary, so the same element could be configured
+                two ways and neither surface showed what a preset looked like.
+                All of it now lives on the Animation tab, custom curve
+                included. A pointer stays here because an operator who learned
+                the old location will come looking. */}
             <div
               className="border-t pt-3"
               data-builder-node-style-control="entrance-animation"
               style={{ borderColor: CHROME.line }}
             >
-              <details>
-                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <InspectorLabelWithInfo
-                    label="Entrance animation"
-                    info="Plays once when the published page loads (not previewed in the editor). Respects reduced-motion."
-                    className={FIELD_LABEL}
-                  />
-                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-                </summary>
-              <div className="flex flex-col gap-2 mt-2">
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="animationPreset"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Effect
-                </span>
-                <Segmented
-                  value={selectedStandaloneViewportStyle?.animationPreset ?? ""}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      animationPreset: (next || undefined) as BuilderNodeStyleValue["animationPreset"],
-                    })
-                  }
-                  options={BUILDER_NODE_ANIMATION_PRESET_OPTIONS}
+              <div className="flex items-center justify-between gap-2">
+                <InspectorLabelWithInfo
+                  label="Entrance animation"
+                  info="Fade, slide, zoom and the rest moved to the Animation tab, where every option previews before you pick it."
+                  className={FIELD_LABEL}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-builder-node-style-control="animationDuration"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Duration
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0.6s"
-                    value={selectedStandaloneViewportStyle?.animationDuration ?? ""}
-                    onChange={(e) =>
-                      patchSelectedStandaloneStyle({
-                        animationDuration: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-builder-node-style-control="animationDelay"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Delay
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0s"
-                    value={selectedStandaloneViewportStyle?.animationDelay ?? ""}
-                    onChange={(e) =>
-                      patchSelectedStandaloneStyle({
-                        animationDelay: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="animationTrigger"
-              >
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Trigger
+                  Moved to the Animation tab
                 </span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.animationTrigger ?? ""}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      animationTrigger: (next || undefined) as BuilderNodeStyleValue["animationTrigger"],
-                    })
-                  }
-                  options={BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS}
-                />
               </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="animationEasing"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Easing
-                </span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.animationEasing ?? ""}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      animationEasing: (next || undefined) as BuilderNodeStyleValue["animationEasing"],
-                    })
-                  }
-                  options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
-                />
-              </div>
-              {/* Wave 6B (#27) — custom easing curve. A raw cubic-bezier / steps /
-                  linear() that overrides the named easing above for exact timing. */}
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="animationEasingCustom"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  <InspectorLabelWithInfo
-                    label="Custom curve"
-                    info="Overrides the named easing. Any CSS timing function: cubic-bezier(), steps(), linear()."
-                  />
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="cubic-bezier(.2,.8,.2,1)"
-                  value={selectedStandaloneViewportStyle?.animationEasingCustom ?? ""}
-                  onChange={(e) =>
-                    patchSelectedStandaloneStyle({
-                      animationEasingCustom: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              </div>
-              </details>
             </div>
 
             {/* ── Interactions (Wave 6B / #27) — scroll parallax. Hover micro-

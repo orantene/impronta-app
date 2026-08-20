@@ -104,10 +104,10 @@ const MotionPanel = dynamic(
     })),
   { ssr: false, loading: () => null },
 );
-const NodeMotionPanel = dynamic(
+const AnimationPanel = dynamic(
   () =>
-    import("./inspectors/node-motion-panel").then((m) => ({
-      default: m.NodeMotionPanel,
+    import("./inspectors/animation-panel").then((m) => ({
+      default: m.AnimationPanel,
     })),
   { ssr: false, loading: () => null },
 );
@@ -155,8 +155,12 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "content", label: "Content" },
   { key: "layout", label: "Layout" },
   { key: "style", label: "Style" },
+  // Animation before Data, matching `inspector-tab-config.ts`. The two lists
+  // are separate on purpose (this dock predates the config module) but they
+  // must agree on order and label, and `inspector-tab-config.test.ts` asserts
+  // the pairing rather than trusting it.
+  { key: "motion", label: "Animation" },
   { key: "data", label: "Data" },
-  { key: "motion", label: "Motion" },
 ];
 
 /**
@@ -1244,12 +1248,14 @@ export function InspectorDock() {
       if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
         tabs.push("layout");
       }
+      // Animation is offered for every standalone kind (the same set Style is
+      // offered for) and sits before Data, matching TABS above.
+      tabs.push("motion");
       if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
         tabs.push("data");
       } else if (builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)) {
         tabs.push("data");
       }
-      tabs.push("motion");
       resolved = tabs;
     } else {
       const allowed = currentLoadedSection
@@ -1536,7 +1542,7 @@ export function InspectorDock() {
             ) : null}
             {tab === "motion" ? (
               selectedStandaloneBuilderNode ? (
-                <NodeMotionPanel
+                <AnimationPanel
                   node={selectedStandaloneBuilderNode}
                   onPatchNodeProps={async (nodeId, patch) => {
                     const result = await patchBuilderNodeProps(nodeId, patch);

@@ -22,8 +22,12 @@ export const INSPECTOR_TABS: ReadonlyArray<{ key: InspectorTabKey; label: string
   { key: "layout", label: "Layout" },
   { key: "content", label: "Content" },
   { key: "style", label: "Style" },
+  // Animation sits FOURTH, right after Style: it is a design decision about the
+  // element in front of you, not a power-user data concern. `motion` is still
+  // the key -- renaming a persisted tab key would orphan every operator whose
+  // last-open tab was stored.
+  { key: "motion", label: "Animation" },
   { key: "data", label: "Data" },
-  { key: "motion", label: "Motion" },
 ];
 
 export const INSPECTOR_TAB_ICON: Record<InspectorTabKey, LucideIcon> = {
@@ -39,7 +43,7 @@ export const INSPECTOR_TAB_HINT: Record<InspectorTabKey, string> = {
   layout: "Spacing, width, and how the block sits on the page",
   style: "Colors, type, borders, and surfaces",
   data: "Connect this block to live roster or catalog data",
-  motion: "Entrance motion when visitors scroll to this block",
+  motion: "How this block arrives on the page",
 };
 
 const DEFAULT_TABS: ReadonlyArray<InspectorTabKey> = ["layout", "content", "style"];
@@ -106,6 +110,10 @@ export function resolveInspectorVisibleTabs(input: {
     const tabs: InspectorTabKey[] = nodeUsesLayoutInspector(selectedStandaloneBuilderNode)
       ? ["layout", "content", "style"]
       : ["content", "style"];
+    // Animation is available for every kind that gets a Style tab -- which is
+    // every standalone kind -- and is pushed BEFORE Data so the rail order
+    // matches INSPECTOR_TABS.
+    tabs.push("motion");
     if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
       tabs.push("data");
     } else if (
@@ -119,7 +127,6 @@ export function resolveInspectorVisibleTabs(input: {
       // row -- so the rules existed with no way to reach them.
       tabs.push("data");
     }
-    tabs.push("motion");
     return tabs;
   }
   const allowed = tabsForSectionType(sectionTypeKey);

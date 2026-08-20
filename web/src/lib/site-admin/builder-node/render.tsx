@@ -24,6 +24,10 @@ import {
   BACKGROUND_MEDIA_CSS,
   renderBackgroundMediaLayer,
 } from "./background-media-layer";
+import {
+  BUILDER_ANIMATION_DEFAULT_DELAY,
+  BUILDER_ANIMATION_DEFAULT_DURATION,
+} from "./animation-presets";
 import { hasRenderableBackgroundMedia } from "./background-media";
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { carouselSlideVars } from "./carousel-slides-per-view";
@@ -689,11 +693,16 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 
 const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
-@keyframes bn-anim-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bn-anim-fall{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-fall{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-fade-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,24px))}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-fade-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-slide-up{from{opacity:0;transform:translateY(var(--bn-anim-distance,40px))}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-slide-down{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:translateY(0)}}
 @keyframes bn-anim-zoom-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
-@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
-@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-zoom-out{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
+@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,40px))}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:translateX(0)}}
 @keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
 @keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
 @keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
@@ -701,6 +710,19 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-parallax-medium{from{transform:translateY(8%)}to{transform:translateY(-8%)}}
 @keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
+/* Entrance animation, the two lanes that CANNOT ride the inline "animation"
+   shorthand because they must not play at load. Both publish the shorthand as
+   the custom property --bn-anim instead, and let a selector decide when it runs.
+     - hover: the node sits at rest and plays on cursor-over / keyboard focus.
+     - scroll + "play once": the node is armed by the same IntersectionObserver
+       runtime that drives reveal-on-view, hidden while armed, and plays the
+       first time it scrolls in. Before the script arms it (no JS, no IO, or
+       reduced motion) the node renders at rest -- never a flash of hidden
+       content, never a node the visitor cannot read. */
+.site-builder-node[data-bn-anim-trigger="hover"]:hover,.site-builder-node[data-bn-anim-trigger="hover"]:focus-visible{animation:var(--bn-anim)}
+.site-builder-node[data-bn-anim-once][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
+.site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
+@media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-anim-trigger="hover"],.site-builder-node[data-bn-anim-once]{animation:none!important;opacity:1!important}}
 /* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
    The node starts at its hidden/offset pose and eases to rest the first time it
    scrolls into view. The inline IO script toggles [data-bn-revealed]; before the
@@ -1044,7 +1066,11 @@ ${BACKGROUND_MEDIA_CSS}
 
 /**
  * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
- * published page injects ONCE when any node opts into `revealOnView`. It:
+ * published page injects ONCE when any node opts into `revealOnView` -- or, as
+ * of the Animation tab, into a scroll entrance animation set to play ONCE
+ * (`[data-bn-anim-once]`). Both want the identical thing: "tell me the first
+ * time this node is on screen, then stop watching it", so they share one
+ * observer rather than shipping a second copy of it. It:
  *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
  *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
  *      render shows the node at rest (no flash of hidden content, SEO-safe).
@@ -1056,7 +1082,7 @@ ${BACKGROUND_MEDIA_CSS}
  */
 const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
   try{
-    var nodes=document.querySelectorAll('[data-bn-reveal]');
+    var nodes=document.querySelectorAll('[data-bn-reveal],[data-bn-anim-once]');
     if(!nodes.length)return;
     var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(reduce||typeof IntersectionObserver==='undefined'){
@@ -1075,7 +1101,7 @@ const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
     },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
     for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
   }catch(err){
-    var f=document.querySelectorAll('[data-bn-reveal]');
+    var f=document.querySelectorAll('[data-bn-reveal],[data-bn-anim-once]');
     for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
   }
 })();`;
@@ -1353,6 +1379,23 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-bn-reveal":
       style?.revealOnView && style.revealOnView !== "none"
         ? style.revealOnView
+        : undefined,
+    // Entrance animation, non-inline lanes. `data-bn-anim-trigger="hover"` and
+    // `data-bn-anim-once` are the selector hooks the static sheet uses to decide
+    // WHEN to apply the `--bn-anim` shorthand published alongside them. Base
+    // style only: animation keys have no breakpoint lane.
+    "data-bn-anim-trigger":
+      style?.animationPreset &&
+      style.animationPreset !== "none" &&
+      style.animationTrigger === "hover"
+        ? "hover"
+        : undefined,
+    "data-bn-anim-once":
+      style?.animationPreset &&
+      style.animationPreset !== "none" &&
+      style.animationTrigger === "scroll" &&
+      style.animationRepeat === "once"
+        ? ""
         : undefined,
     ...builderNodeContainerQueryStyleAttrs(
       "tablet",
@@ -2483,20 +2526,42 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // Maps a friendly preset to a named @keyframe in the static sheet; `both`
   // fill keeps the end state. Honours prefers-reduced-motion via the sheet.
   if (style.animationPreset && style.animationPreset !== "none") {
-    const duration = style.animationDuration || "0.6s";
-    const delay = style.animationDelay || "0s";
+    const duration = style.animationDuration || BUILDER_ANIMATION_DEFAULT_DURATION;
+    const delay = style.animationDelay || BUILDER_ANIMATION_DEFAULT_DELAY;
     const easing = resolveAnimationEasing(
       style.animationEasing,
       style.animationEasingCustom,
     );
-    out.animation = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
-    if (style.animationTrigger === "scroll") {
-      // CSS scroll-driven animation — progress maps to the node entering the
-      // viewport. Pure CSS; unsupported browsers ignore the timeline and just
-      // play it on load. The view-timeline ignores the duration above.
-      const record = out as Record<string, unknown>;
-      record.animationTimeline = "view()";
-      record.animationRange = "entry 0% cover 35%";
+    const shorthand = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
+    const record = out as Record<string, unknown>;
+    // Travel distance for the directional presets. Every directional keyframe
+    // reads `--bn-anim-distance` with its own baked default as the fallback, so
+    // omitting this key renders byte-identically to before the control existed.
+    if (style.animationDistance) {
+      record["--bn-anim-distance"] = style.animationDistance;
+    }
+    if (style.animationTrigger === "hover") {
+      // HOVER — the shorthand must NOT sit on the element, or it would play at
+      // load. Publish it as a custom property; the sheet applies it on
+      // :hover / :focus-visible only.
+      record["--bn-anim"] = shorthand;
+    } else if (
+      style.animationTrigger === "scroll" &&
+      style.animationRepeat === "once"
+    ) {
+      // SCROLL, PLAY ONCE — same reason: the sheet applies the shorthand only
+      // once the shared IntersectionObserver runtime marks the node revealed.
+      record["--bn-anim"] = shorthand;
+    } else {
+      out.animation = shorthand;
+      if (style.animationTrigger === "scroll") {
+        // CSS scroll-driven animation — progress maps to the node entering the
+        // viewport. Pure CSS; unsupported browsers ignore the timeline and just
+        // play it on load. The view-timeline ignores the duration above. This
+        // is the "replay every time it scrolls in" lane.
+        record.animationTimeline = "view()";
+        record.animationRange = "entry 0% cover 35%";
+      }
     }
   }
   // Wave 6B (#27) — scroll parallax. Persistent scroll-driven drift, independent
@@ -5452,6 +5517,17 @@ export function renderBuilderNodes(
 function hasRevealOnViewNode(nodes: ReadonlyArray<BuilderNode>): boolean {
   const styleReveals = (style: BuilderNodeStyle | undefined): boolean => {
     if (!style) return false;
+    // A scroll entrance animation set to play ONCE is armed by this same
+    // observer (see BUILDER_NODE_REVEAL_SCRIPT), so it has to pull the runtime
+    // in too -- otherwise the node stays armed-and-hidden forever.
+    if (
+      style.animationPreset &&
+      style.animationPreset !== "none" &&
+      style.animationTrigger === "scroll" &&
+      style.animationRepeat === "once"
+    ) {
+      return true;
+    }
     // BASE only. `revealOnView` has no breakpoint lane — the attribute that
     // arms a node (`data-bn-reveal`) is written from the base style alone — so
     // a breakpoint-scoped value armed nothing while still pulling the

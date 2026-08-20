@@ -1,4 +1,9 @@
 /* eslint-disable max-lines -- hand-authored BuilderNode type + schema definitions (discriminated union + the full style-value model); inherently large, like the other builder-node data files. */
+import type {
+  BuilderAnimationPreset,
+  BuilderAnimationRepeat,
+  BuilderAnimationTrigger,
+} from "./animation-presets";
 import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderIconName } from "./icon-registry";
 import type { BuilderVisibilityCondition } from "./visibility";
@@ -304,19 +309,27 @@ export interface BuilderNodeStyleValue {
   // Entrance animation — a named preset that maps to a CSS @keyframe baked into
   // the static renderer sheet. Fires once on the published page. duration/delay
   // are raw CSS time strings ("0.6s", "120ms").
-  animationPreset?:
-    | "none"
-    | "fade-in"
-    | "rise"
-    | "fall"
-    | "zoom-in"
-    | "slide-left"
-    | "slide-right"
-    | "blur-in"
-    | "flip-in"
-    | "bounce-in";
+  //
+  // The vocabulary itself lives in `./animation-presets` — one list that the
+  // zod enum, this type, the renderer keyframes and the inspector gallery all
+  // derive from, so a preset can never exist at three of those four layers.
+  animationPreset?: BuilderAnimationPreset;
   animationDuration?: string;
   animationDelay?: string;
+  /**
+   * Travel distance for the DIRECTIONAL presets (fade up/down/left/right,
+   * slide up/down/left/right). A CSS length; published as
+   * `--bn-anim-distance`. Ignored by presets that do not travel — each of those
+   * keyframes has its own baked default (see `animation-presets.ts`).
+   */
+  animationDistance?: string;
+  /**
+   * How often a SCROLL-triggered animation runs. `once` reveals the node the
+   * first time it scrolls into view and leaves it there;`every` ties playback
+   * to scroll position so it replays on every pass. No effect on the `load` or
+   * `hover` triggers, which are inherently one-shot / per-hover.
+   */
+  animationRepeat?: BuilderAnimationRepeat;
   animationEasing?:
     | "ease"
     | "linear"
@@ -334,7 +347,7 @@ export interface BuilderNodeStyleValue {
   // Trigger: "load" plays once on page load; "scroll" drives the animation by
   // scroll position via CSS scroll-driven animations (animation-timeline:view()).
   // Pure CSS — unsupported browsers fall back to playing it on load.
-  animationTrigger?: "load" | "scroll";
+  animationTrigger?: BuilderAnimationTrigger;
   // Wave 6B (#27) — SCROLL PARALLAX: a tasteful, opt-in scroll-driven vertical
   // parallax independent of the entrance `animationPreset` (a node can have both
   // — an entrance fade AND an ongoing parallax drift). Maps a named intensity to
