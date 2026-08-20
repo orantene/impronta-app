@@ -1,0 +1,21 @@
+-- 20260803204609_public_listing_single_gate_applied_via_mcp_placeholder.sql
+--
+-- HISTORY-RECONCILIATION PLACEHOLDER — this file intentionally does nothing.
+--
+-- `supabase_migrations.schema_migrations` on the linked project carries a row
+-- for version 20260803204609 ("public_listing_single_gate") that had no
+-- corresponding file in this repo. That mismatch made `npm run db:push` fail
+-- repo-wide with LegacyDbPushMissingLocalError, blocking every schema change.
+-- Same healing pattern as PR #842.
+--
+-- WHAT ACTUALLY RAN: the DDL that now lives in
+--     supabase/migrations/20260803203521_public_listing_single_gate.sql
+-- was applied through the Supabase MCP / Management API. That path stamps its
+-- OWN `now()` timestamp as the version instead of the repo filename timestamp,
+-- so the canonical file ended up registered under a DIFFERENT version and this
+-- row is its orphaned duplicate.
+--
+-- Do NOT add DDL here — the canonical file above owns it, and duplicating the
+-- statements would run them twice on a rebuild.
+
+select 'noop: 20260803204609 reconciled; canonical DDL in 20260803203521_public_listing_single_gate.sql' as history_placeholder;
