@@ -33,9 +33,21 @@ import {
  * email) fall back to the cookie-proven guest window at /c/{inquiryId} on the
  * tenant's branded host.
  */
+/**
+ * Every response here MUST be uncacheable. The success redirect carries a
+ * ONE-TIME `token_hash` in its Location header: if a browser (or any
+ * intermediary) caches it, the next click replays an already-consumed OTP and
+ * the visitor gets "link expired" on a link that should have worked. Observed
+ * live during QA — a cached 307 made repeat clicks skip the route entirely.
+ */
+function noStore(response: NextResponse): NextResponse {
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return response;
+}
+
 export async function GET(request: Request) {
   const appUrl = getAppUrl().replace(/\/$/, "");
-  const fail = NextResponse.redirect(`${appUrl}/login?error=link_expired`);
+  const fail = noStore(NextResponse.redirect(`${appUrl}/login?error=link_expired`));
 
   try {
     const { searchParams } = new URL(request.url);
@@ -68,8 +80,8 @@ export async function GET(request: Request) {
     // tenant's branded host (works on the browser the guest used).
     if (!inquiry.client_user_id) {
       const brand = await resolveTenantBrand(inquiry.tenant_id);
-      return NextResponse.redirect(
-        `${brand.homeHref.replace(/\/$/, "")}/c/${inquiry.id}`,
+      return noStore(
+        NextResponse.redirect(`${brand.homeHref.replace(/\/$/, "")}/c/${inquiry.id}`),
       );
     }
 
@@ -80,6 +92,42 @@ export async function GET(request: Request) {
     if (userErr || !email) {
       if (userErr) logServerError("conversation-continue/getUser", userErr);
       return fail;
+    }
+
+    // Idempotent account attach. `ensureGuestClientByEmail` provisions the
+    // inquirer's account with account_status='onboarding', so without this the
+    // magic link signs them in and `resolvePostAuthDestination` sends them to
+    // the ROLE PICKER ("I'm Talent / I'm a Client / I run a business") instead
+    // of their conversation — and a wrong pick there mangles the account. The
+    // role is not actually in question: this account was created as a client
+    // for this very inquiry, and clicking a link sent to that address proves
+    // the email. Mark it active so the `next` deep-link is honored.
+    //
+    // STRICTLY narrowed to app_role='client' AND a non-active status — a staff
+    // or talent account that happens to be the inquiry's client party is never
+    // touched, and an already-active account is left alone (no-op on repeat
+    // clicks, which is what makes this idempotent).
+    const { data: profileRow } = await admin
+      .from("profiles")
+      .select("app_role, account_status")
+      .eq("id", inquiry.client_user_id)
+      .maybeSingle();
+    const profile = profileRow as
+      | { app_role: string | null; account_status: string | null }
+      | null;
+    if (profile?.app_role === "client" && profile.account_status !== "active") {
+      const { error: attachErr } = await admin
+        .from("profiles")
+        .update({
+          account_status: "active",
+          onboarding_completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", inquiry.client_user_id)
+        .eq("app_role", "client");
+      // Non-fatal: a failed attach costs them the role-picker detour, not
+      // access — the magic link below still signs them in.
+      if (attachErr) logServerError("conversation-continue/attach", attachErr);
     }
 
     const { data: slugRow } = await admin
@@ -114,8 +162,10 @@ export async function GET(request: Request) {
       tenantId: inquiry.tenant_id,
     });
 
-    return NextResponse.redirect(
-      `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink&next=${encodeURIComponent(next)}`,
+    return noStore(
+      NextResponse.redirect(
+        `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink&next=${encodeURIComponent(next)}`,
+      ),
     );
   } catch (err) {
     logServerError("conversation-continue", err);
