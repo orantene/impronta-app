@@ -221,8 +221,8 @@ export const HOME_ES_COPY: Record<string, string> = {
     "Una modelo de Impronta en top blanco y jeans claros, sonriendo frente a un fondo de estudio claro.",
   "An Impronta model reclining in an open white shirt and light jeans on a white studio backdrop.":
     "Un modelo de Impronta recostado, con camisa blanca abierta y jeans claros, sobre un fondo de estudio blanco.",
-  "An Impronta model seated on the studio floor in a black bodysuit, sheer tights and heels, against a warm tan backdrop.":
-    "Una modelo de Impronta sentada en el piso del estudio, con body negro, medias transparentes y tacones, sobre un fondo color arena.",
+  "An Impronta model standing in a white shirt over a black top and light jeans, against a grey studio backdrop.":
+    "Una modelo de Impronta de pie, con camisa blanca sobre top negro y jeans claros, sobre un fondo de estudio gris.",
   "An Impronta model in a white tank top, smiling, photographed against a white studio backdrop.":
     "Una modelo de Impronta en top blanco, sonriendo, fotografiada sobre un fondo de estudio blanco.",
 };

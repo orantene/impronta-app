@@ -36,7 +36,7 @@ const hero = pageHero("rb-clients", {
   secondary: { label: "Browse the roster", href: "/directory" },
   footnote: "No account needed · first reply within 24 hours",
   imageSlot: "for-clients-hero",
-  imageAlt: "An Impronta model photographed in the agency studio against a plain backdrop.",
+  imageAlt: "Close-up studio portrait of an Impronta model, one hand at her jaw, against a pale backdrop.",
 });
 
 const occasions = band(
