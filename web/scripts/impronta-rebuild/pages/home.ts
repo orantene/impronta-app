@@ -96,6 +96,11 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
   subheadline: "",
   seeAllLabel: "Explore the roster",
   seeAllHref: "/directory",
+  // The wrapper has to clear the section's own "wide" (1280px) container or
+  // the grid renders at 906px — four 210px cards on a 1440px screen, with
+  // every name and city ellipsized. 1400 leaves room for the section's
+  // gutters and still stops short of a full-bleed row on a large display.
+  contentMaxWidth: "1400px",
   embedConfig: gridOnlyFeaturedTalentConfig({
     limit: 4,
     variant: "grid",
@@ -113,8 +118,11 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
       align: "center",
       background: "canvas",
       dividerTop: "thin-line",
-      paddingTop: "editorial",
-      paddingBottom: "editorial",
+      // "editorial" is clamp(72px, 9vw, 132px) — 130px of empty canvas above
+      // AND below the cards, on top of the freeform header's own 48px. The
+      // roster read as marooned in the middle of the section.
+      paddingTop: "tight",
+      paddingBottom: "standard",
       containerWidth: "wide",
       animation: { entry: "fade-up", reducedMotion: "respect" },
     },
@@ -127,7 +135,7 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
     showBookmarkIcon: true,
     showSecondaryType: true,
     // Verified live profiles (flagship home uses the same set).
-    manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00031", "TAL-00035", "TAL-00037"],
+    manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00035", "TAL-00037"],
     parentCategoryDisplay: false,
   }),
 });

@@ -850,13 +850,18 @@ export function bulletRow(id: string, text: string): BuilderNode {
           layout: "stack",
           layerLabel: "Bullet",
           style: {
-            width: "8px",
-            height: "8px",
-            borderColor: GOLD_BRIGHT,
-            borderWidth: "1px",
-            borderStyle: "solid",
-            borderRadius: "0px",
+            // A HOLLOW square reads as an unticked checkbox — on a list of
+            // things the agency guarantees, that is the opposite of the
+            // meaning. Filled and turned 45deg it is the same diamond the
+            // marquee uses between division names, so the page has one
+            // bullet vocabulary instead of two.
+            width: "7px",
+            height: "7px",
+            backgroundColor: GOLD_BRIGHT,
+            borderRadius: "1px",
+            rotate: "45deg",
             flexShrink: 0,
+            marginTopFree: "1px",
           },
         },
         children: [],
