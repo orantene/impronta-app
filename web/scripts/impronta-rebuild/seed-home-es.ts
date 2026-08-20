@@ -22,6 +22,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+import {
+  applyFormSectionResolution,
+  countFormSectionSlots,
+  describeMissingFormSection,
+  resolveFormSectionId,
+} from "./form-section";
 
 import {
   applyImageSlotResolution,
@@ -146,6 +152,19 @@ async function writePage(
       throw new Error(`Tokens survived resolution: ${applied.unresolvedTokens.join(", ")}`);
     }
     blocks = applied.tree;
+  }
+
+  // 3. Bind any form to the tenant's real cms_sections row. Without it the
+  //    endpoint refuses every submission with 400 "Missing section reference."
+  //    — the form looks perfect and silently loses the brief.
+  if (countFormSectionSlots(blocks) > 0) {
+    const formSectionId = await resolveFormSectionId(supabase, tenantId);
+    if (!formSectionId) throw new Error(`${SLUG}: ${describeMissingFormSection(tenantId)}`);
+    const bound = applyFormSectionResolution(blocks, formSectionId);
+    if (bound.unresolved > 0) {
+      throw new Error(`${SLUG}: ${bound.unresolved} form section token(s) survived resolution.`);
+    }
+    blocks = bound.tree;
   }
 
   const { data: existing } = await supabase

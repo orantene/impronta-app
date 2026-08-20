@@ -104,6 +104,12 @@ import {
   type ImageSlotPinFile,
 } from "./media-curation";
 import {
+  applyFormSectionResolution,
+  countFormSectionSlots,
+  describeMissingFormSection,
+  resolveFormSectionId,
+} from "./form-section";
+import {
   collectPinnedProfileCodes,
   describeBrokenPins,
   findBrokenProfilePins,
@@ -433,6 +439,24 @@ export async function runSeed(
     };
   }
 
+  // Forms need a real cms_sections row or the endpoint refuses every
+  // submission. Resolve once, before any page is written — same discipline as
+  // the image slots above, for the same reason: a page that renders but cannot
+  // work is worse than a seeder that stops.
+  const formSlotCount = filtered.reduce((n, page) => n + countFormSectionSlots(page.blocks), 0);
+  let formSectionId: string | null = null;
+  if (formSlotCount > 0) {
+    formSectionId = await resolveFormSectionId(supabase, options.tenantId);
+    if (!formSectionId) {
+      return {
+        outcomes: [],
+        aborted: true,
+        abortReason: describeMissingFormSection(options.tenantId),
+        imageSlotReport: slotResolution.report,
+      };
+    }
+  }
+
   // Resolve + validate every page BEFORE writing any of them.
   type Prepared = {
     page: ImprontaPageModule;
@@ -457,7 +481,17 @@ export async function runSeed(
       continue;
     }
 
-    const result = validateBuilderNodeTree(resolvedBlocks);
+    const withForms = formSectionId
+      ? applyFormSectionResolution(resolvedBlocks, formSectionId)
+      : { tree: resolvedBlocks, unresolved: 0 };
+    if (withForms.unresolved > 0) {
+      validationFailures.push(
+        `${page.slug}: ${withForms.unresolved} form section token(s) survived resolution.`,
+      );
+      continue;
+    }
+
+    const result = validateBuilderNodeTree(withForms.tree);
     if (!result.ok) {
       const issueList = result.issues.map((issue) => `  - [${issue.path}] ${issue.message}`).join("\n");
       validationFailures.push(`${page.slug}: tree failed validation:\n${issueList}`);
