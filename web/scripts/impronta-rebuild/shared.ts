@@ -1247,8 +1247,12 @@ export function photoTile(
             paddingBottom: "20px",
             paddingLeft: "22px",
             paddingRight: "22px",
+            // The dark has to arrive EARLIER than it did. Reaching 0.88 only
+            // at 78% left the subtitle sitting in the pale part of the fade,
+            // over white studio backdrops — which is why the owner could read
+            // the titles and not the lines under them.
             backgroundImage:
-              "linear-gradient(180deg, rgba(6,6,8,0) 0%, rgba(6,6,8,0.88) 78%)",
+              "linear-gradient(180deg, rgba(6,6,8,0) 0%, rgba(6,6,8,0.55) 42%, rgba(6,6,8,0.93) 100%)",
           },
         },
         children: [
@@ -1279,7 +1283,11 @@ export function photoTile(
                 fontFamily: SANS,
                 fontSize: "13px",
                 lineHeight: "1.5",
-                textColor: MUTED,
+                // On media, not on a panel — the muted token computes to a mid
+                // grey that vanishes here. Warm white held back to 0.74 so it
+                // still reads as secondary to the title.
+                textColor: "rgba(244,238,226,0.74)",
+                textShadow: OVER_MEDIA_SHADOW,
                 marginTopFree: "0px",
                 align: "left",
               },
@@ -1299,14 +1307,19 @@ export function photoTile(
                 fontWeight: 600,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                textColor: GOLD,
+                textColor: GOLD_BRIGHT,
                 backgroundColor: "rgba(0,0,0,0)",
                 paddingTop: "10px",
                 paddingBottom: "0px",
                 paddingLeft: "0px",
                 paddingRight: "0px",
                 borderRadius: "0px",
-                hover: { color: GOLD_BRIGHT },
+                // The button base draws a border; on a caption this reads as a
+                // cheap ad button sitting on the photograph. It is a text link
+                // with an arrow, so it should look like one.
+                borderWidth: "0px",
+                textShadow: OVER_MEDIA_SHADOW,
+                hover: { color: TEXT },
               },
             },
           },
