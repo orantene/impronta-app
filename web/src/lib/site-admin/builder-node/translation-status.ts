@@ -25,9 +25,11 @@
  *
  * STATUS PER TEXT PROP:
  *   translated      — counterpart has a non-empty value that differs.
- *   identical       — counterpart value is byte-identical after trimming.
- *                     Advisory, not an error: brand names and phone numbers
- *                     are legitimately identical in both languages.
+ *   identical       — counterpart value is byte-identical after trimming AND
+ *                     the value is real language. Advisory, not an error:
+ *                     brand names are legitimately identical in both.
+ *   not_translatable— byte-identical, but the value carries no language at all
+ *                     (numerals, symbols, roman numerals). Never a finding.
  *   sibling_empty   — counterpart node exists but the prop is empty/missing.
  *   no_counterpart  — no node matched on the sibling page.
  */
@@ -47,8 +49,35 @@ type TextPropName = (typeof TEXT_PROP_NAMES)[number];
 export type TranslationTextStatus =
   | "translated"
   | "identical"
+  | "not_translatable"
   | "sibling_empty"
   | "no_counterpart";
+
+/**
+ * True when a value carries no translatable language: pure numerals, symbols,
+ * stat figures, step numbers, roman numerals.
+ *
+ * WHY: the first live run on the Impronta homepage reported 14 "identical"
+ * props. Thirteen were `<24h`, `100%`, `27+`, `5`, `I.`, `II.`, `01`–`04` and a
+ * lone `"` glyph — values that are SUPPOSED to be byte-identical in every
+ * language. Only one ("Performers") was a real word worth a second look. An
+ * advisory that is 93% noise trains the operator to ignore it, so these are
+ * classified separately instead of shouting.
+ *
+ * The test is deliberately conservative — it must never swallow a short real
+ * word. A value counts as non-linguistic only when it has no run of two or
+ * more letters, OR it is a bare roman numeral (the one case where a 2+ letter
+ * run still isn't language).
+ */
+export function isNonLinguisticValue(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  // Bare roman numeral, optionally followed by . or ) — "I.", "II", "IV)".
+  if (/^[IVXLCDM]+[.)]?$/.test(trimmed)) return true;
+  // No run of 2+ letters anywhere → digits, symbols, or a single stray letter
+  // like the "h" in "<24h".
+  return !/\p{L}{2,}/u.test(trimmed);
+}
 
 export interface TranslationRow {
   /** Node id on the CURRENT page (locate target). */
@@ -184,7 +213,12 @@ export function buildTranslationReport(
     if (counterpart) {
       matchedSiblingKeys.add(`${counterpart.nodeId}::${counterpart.prop}`);
       siblingText = counterpart.value;
-      status = counterpart.value === entry.value ? "identical" : "translated";
+      status =
+        counterpart.value === entry.value
+          ? isNonLinguisticValue(entry.value)
+            ? "not_translatable"
+            : "identical"
+          : "translated";
     } else if (siblingNodeIds.has(entry.nodeId) || siblingNodePaths.has(entry.pathKey)) {
       // The NODE exists over there; this particular prop is empty/missing.
       status = "sibling_empty";
@@ -207,6 +241,7 @@ export function buildTranslationReport(
   const counts: Record<TranslationTextStatus, number> = {
     translated: 0,
     identical: 0,
+    not_translatable: 0,
     sibling_empty: 0,
     no_counterpart: 0,
   };

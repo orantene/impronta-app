@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTranslationReport } from "./translation-status";
+import { buildTranslationReport, isNonLinguisticValue } from "./translation-status";
 import type { BuilderNode } from "./types";
 
 /** Minimal node factory — the comparer only reads id/kind/props/children. */
@@ -92,4 +92,35 @@ test("label prefers layerLabel and falls back to a tag-stripped excerpt", () => 
   assert.ok(rich.label.includes("Hello"));
   const named = report.rows.find((r) => r.nodeId === "h2")!;
   assert.equal(named.label, "Hero title");
+});
+
+test("non-linguistic values are classified apart from real identical words", () => {
+  // Every one of these came from the FIRST live run on the Impronta homepage,
+  // where they were reported as "identical" and drowned the one real finding.
+  for (const noise of ["<24h", "100%", "27+", "5", "I.", "II.", "01", "02", "03", "04", "\u201c"]) {
+    assert.equal(isNonLinguisticValue(noise), true, `${noise} should be non-linguistic`);
+  }
+  // The one real word from that run must still count as a finding.
+  assert.equal(isNonLinguisticValue("Performers"), false);
+  // Short real words must NOT be swallowed — the guard is conservative.
+  for (const word of ["Go", "Ir", "Ok", "Sí", "No"]) {
+    assert.equal(isNonLinguisticValue(word), false, `${word} is a real word`);
+  }
+});
+
+test("identical numerals report not_translatable; identical words report identical", () => {
+  const en = [
+    node("s1", "heading", { text: "100%" }),
+    node("s2", "heading", { text: "Performers" }),
+  ];
+  const es = [
+    node("s1", "heading", { text: "100%" }),
+    node("s2", "heading", { text: "Performers" }),
+  ];
+  const report = buildTranslationReport(en, es);
+  const byId = new Map(report.rows.map((r) => [r.nodeId, r.status]));
+  assert.equal(byId.get("s1"), "not_translatable");
+  assert.equal(byId.get("s2"), "identical");
+  assert.equal(report.counts.not_translatable, 1);
+  assert.equal(report.counts.identical, 1);
 });

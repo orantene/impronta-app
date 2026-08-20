@@ -465,4 +465,5 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Same text in both languages": "Mismo texto en ambos idiomas",
   "Empty in the other language": "Vacío en el otro idioma",
   "No counterpart block": "Sin bloque equivalente",
+  "Numbers or symbols, nothing to translate": "Números o símbolos, nada que traducir",
 };
