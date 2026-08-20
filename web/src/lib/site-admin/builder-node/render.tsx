@@ -691,34 +691,48 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 }
 `;
 
+/**
+ * The published renderer stylesheet.
+ *
+ * EVERY BYTE IN HERE IS DOWNLOADED BY EVERY VISITOR, and the scoped sheet sits
+ * within a kilobyte of its perf budget (`npm run perf:builder-budget`). Put
+ * rationale in TypeScript comments like this one, not in CSS comments inside
+ * the template -- a 680-byte explanation of two selectors cost more than the
+ * selectors did, and broke the budget on two of the fidelity fixtures.
+ *
+ * ENTRANCE ANIMATION, THE TWO NON-INLINE LANES. Hover and "play once on scroll
+ * in" both need the animation NOT to be on the element at load, so they cannot
+ * ride the inline `animation` shorthand the load / scroll-every lanes use.
+ * Instead the shorthand is published as the custom property `--bn-anim` and a
+ * selector decides when it runs:
+ *   - hover: the node sits at rest and plays on cursor-over / keyboard focus.
+ *   - play once: the node is armed by BUILDER_NODE_ANIM_ONCE_SCRIPT, hidden
+ *     while armed, and plays the first time it scrolls in. The hidden pose hangs
+ *     off `[data-bn-reveal-armed]`, which only JS adds -- so with no JS, no
+ *     IntersectionObserver, or reduced motion the node renders at rest. Never a
+ *     flash of hidden content, never text a reader or crawler cannot see.
+ * Both need their OWN reduced-motion rule: the older `[style*="animation"]`
+ * guard cannot see an animation delivered through a custom property.
+ */
 const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
-@keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:translateY(0)}}
-@keyframes bn-anim-fall{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:translateY(0)}}
-@keyframes bn-anim-fade-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,24px))}to{opacity:1;transform:translateX(0)}}
-@keyframes bn-anim-fade-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:translateX(0)}}
-@keyframes bn-anim-slide-up{from{opacity:0;transform:translateY(var(--bn-anim-distance,40px))}to{opacity:1;transform:translateY(0)}}
-@keyframes bn-anim-slide-down{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:translateY(0)}}
-@keyframes bn-anim-zoom-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
-@keyframes bn-anim-zoom-out{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
-@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,40px))}to{opacity:1;transform:translateX(0)}}
-@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
+@keyframes bn-anim-fall{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:none}}
+@keyframes bn-anim-fade-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
+@keyframes bn-anim-fade-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,24px)))}to{opacity:1;transform:none}}
+@keyframes bn-anim-slide-up{from{opacity:0;transform:translateY(var(--bn-anim-distance,40px))}to{opacity:1;transform:none}}
+@keyframes bn-anim-slide-down{from{opacity:0;transform:translateY(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:none}}
+@keyframes bn-anim-zoom-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:none}}
+@keyframes bn-anim-zoom-out{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:none}}
+@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(var(--bn-anim-distance,40px))}to{opacity:1;transform:none}}
+@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(calc(-1 * var(--bn-anim-distance,40px)))}to{opacity:1;transform:none}}
 @keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
-@keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
+@keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:none}}
 @keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
 @keyframes bn-parallax-subtle{from{transform:translateY(4%)}to{transform:translateY(-4%)}}
 @keyframes bn-parallax-medium{from{transform:translateY(8%)}to{transform:translateY(-8%)}}
 @keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
-/* Entrance animation, the two lanes that CANNOT ride the inline "animation"
-   shorthand because they must not play at load. Both publish the shorthand as
-   the custom property --bn-anim instead, and let a selector decide when it runs.
-     - hover: the node sits at rest and plays on cursor-over / keyboard focus.
-     - scroll + "play once": the node is armed by the same IntersectionObserver
-       runtime that drives reveal-on-view, hidden while armed, and plays the
-       first time it scrolls in. Before the script arms it (no JS, no IO, or
-       reduced motion) the node renders at rest -- never a flash of hidden
-       content, never a node the visitor cannot read. */
 .site-builder-node[data-bn-anim-trigger="hover"]:hover,.site-builder-node[data-bn-anim-trigger="hover"]:focus-visible{animation:var(--bn-anim)}
 .site-builder-node[data-bn-anim-once][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
 .site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
