@@ -106,6 +106,7 @@ test("impronta-rebuild: section structure snapshot", () => {
       "container:Stats",
       "container:The studio",
       "container:Two paths",
+      "container:Events",
       "container:Closing CTA band",
     ],
     about: [

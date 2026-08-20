@@ -193,6 +193,14 @@ export const HOME_ES_COPY: Record<string, string> = {
   "An Impronta model seated in an open white shirt and ripped jeans, hand at his chin, against a white studio backdrop.":
     "Un modelo de Impronta sentado, con camisa blanca abierta y jeans rotos, la mano en el mentón, sobre un fondo de estudio blanco.",
 
+  // ── events band ───────────────────────────────────────────────────────────
+  Events: "Eventos",
+  "Your event, staffed end to end": "Tu evento, con todo el personal cubierto",
+  "One brief covers all of it: hosts and hostesses for the door, performers for the moment the night peaks, a DJ to hold the room, and the faces your brand is remembered by. Build the lineup yourself from the roster, or tell us the date and we build it for you.":
+    "Un solo brief cubre todo: anfitriones y edecanes para la entrada, performers para el momento más alto de la noche, un DJ que sostenga la sala y los rostros con los que se recuerda tu marca. Arma tú mismo el line-up desde el roster, o dinos la fecha y lo armamos nosotros.",
+  "Start building your lineup": "Empieza a armar tu line-up",
+  "Tell us about your event": "Cuéntanos de tu evento",
+
   // ── closing ───────────────────────────────────────────────────────────────
   "The right face is": "El rostro indicado está",
   "one brief away.": "a un brief de distancia.",
