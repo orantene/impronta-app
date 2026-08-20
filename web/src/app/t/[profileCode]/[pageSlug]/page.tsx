@@ -196,6 +196,7 @@ export default async function PublicTalentFreeformPage({
           buildScopedRendererCss falls back to the full sheet on any uncertainty. */}
       <BuilderNodeRendererStyles
         kinds={collectPresentNodeKinds(blocks, components)}
+        nodes={blocks}
       />
       <BuilderNodeFontLinks nodes={blocks} components={components} />
       {/* Load any Google fonts the talent picked in their theme. No-op when no

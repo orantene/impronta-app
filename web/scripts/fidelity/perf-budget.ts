@@ -146,7 +146,21 @@ export const BUDGETS: readonly Budget[] = [
     // the nav link-content rules were missing when 96 was set, so visitors
     // were "under budget" by receiving broken menus. ~2% headroom, still the
     // tighter of the two ceilings on purpose.
-    max: 100 * KB,
+    //
+    // RE-TUNED 2026-08-20: 100 → 102 KB. Measured 100.2 KB on `store`, the
+    // heaviest fixture (festival 100.1 → 99.x). The +1,163 bytes on the full
+    // sheet are the Animation tab's vocabulary: 7 new entrance keyframes
+    // (fade-left/right, slide-up/down, zoom-out) plus the two selector lanes
+    // for the hover and play-once triggers and their reduced-motion rule.
+    // Spent in the SAME commit that raises it, and squeezed first rather than
+    // asked for: a 682-byte CSS COMMENT explaining two selectors moved to a
+    // TypeScript comment above the template (visitors were downloading the
+    // rationale), and `transform:translateX(0)` became `transform:none` across
+    // the entrance keyframes -- together ~790 bytes back, which is what took
+    // festival back under. ~1.8% headroom, deliberately no roomier than the
+    // convention above: the next thing that wants space here should argue for
+    // it. Re-measure with `npm run perf:builder-budget`.
+    max: 102 * KB,
     unit: "bytes",
   },
   // The HTML document itself. Rich pages reference images externally, so the

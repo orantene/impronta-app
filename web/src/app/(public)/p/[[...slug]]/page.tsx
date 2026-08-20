@@ -444,7 +444,10 @@ export default async function CmsPublicPage({
           {/* Renderer styles + fonts once at page level — the root-tree helper
               below sets includeRendererStyles/includeFontLinks=false per block
               (same composition as /t/[code]/[pageSlug]). */}
-          <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(blocks)} />
+          <BuilderNodeRendererStyles
+            kinds={collectPresentNodeKinds(blocks)}
+            nodes={blocks}
+          />
           <BuilderNodeFontLinks nodes={blocks} />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
             {/* Stale-body fix (2026-08-15): when edit mode is active but the

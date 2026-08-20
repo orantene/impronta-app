@@ -7,6 +7,7 @@
  * (it is re-exported there) so consumers never need to know about this file.
  */
 
+import { ES_ANIMATION_TEXT } from "./editor-i18n-es-animation";
 import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
 import { ES_HEADER_TASKS_TEXT } from "./editor-i18n-es-header-tasks";
@@ -37,6 +38,8 @@ export const ES_TEXT: Record<string, string> = {
   // above; see that file's header for why.
   ...ES_INSPECTOR_TEXT_2,
   ...ES_ICON_TEXT,
+  // ── Animation tab (2026-08-20 rebuild of the entrance-motion surface) ──
+  ...ES_ANIMATION_TEXT,
   // WAVE 4.6 (builder registry: node-kind labels + descriptions, element
   // library, "My blocks" / "Component library"). Disjoint from every other
   // catalog by construction, enforced by the cross-file duplicate guard.

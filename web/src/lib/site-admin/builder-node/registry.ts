@@ -10,6 +10,11 @@ import {
   SOCIAL_POST_PROVIDERS,
   parseSocialPostUrl,
 } from "@/lib/social-embed/social-post-url";
+import {
+  BUILDER_ANIMATION_PRESETS,
+  BUILDER_ANIMATION_REPEATS,
+  BUILDER_ANIMATION_TRIGGERS,
+} from "./animation-presets";
 import { backgroundMediaSchema } from "./background-media";
 import type { BuilderNodeKind } from "./types";
 
@@ -342,23 +347,21 @@ export const builderNodeStyleValueSchema = z.object({
   caretColor: tokenAwareStyleString(64),
   // Entrance animation — preset maps to a baked @keyframe; duration/delay are
   // CSS time strings (short-capped).
-  animationPreset: z
-    .enum([
-      "none",
-      "fade-in",
-      "rise",
-      "fall",
-      "zoom-in",
-      "slide-left",
-      "slide-right",
-      "blur-in",
-      "flip-in",
-      "bounce-in",
-    ])
-    .optional(),
+  // The vocabulary is NOT inlined here: it comes from `./animation-presets`, the
+  // one list the TS type, the renderer keyframes and the inspector's Animation
+  // gallery all derive from. Adding a preset means adding it there (plus its
+  // keyframe) -- there is no way to widen this enum without widening the
+  // gallery, which is what `animation-preset-parity.static.test.ts` proves.
+  animationPreset: z.enum(BUILDER_ANIMATION_PRESETS).optional(),
   animationDuration: z.string().max(16).optional(),
   animationDelay: z.string().max(16).optional(),
-  animationTrigger: z.enum(["load", "scroll"]).optional(),
+  // Travel distance for the directional presets, published as
+  // `--bn-anim-distance`. Short-capped like the other CSS-length style keys.
+  animationDistance: z.string().max(16).optional(),
+  // Scroll-trigger replay policy. `once` = IntersectionObserver reveal (plays
+  // the first time it scrolls in); `every` = scroll-linked `view()` timeline.
+  animationRepeat: z.enum(BUILDER_ANIMATION_REPEATS).optional(),
+  animationTrigger: z.enum(BUILDER_ANIMATION_TRIGGERS).optional(),
   animationEasing: z
     .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
     .optional(),

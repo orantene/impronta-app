@@ -160,7 +160,7 @@ const BUDGETS: Record<string, number> = {
   // "Device is controlled by the device rail above" sentence stops printing on
   // every single panel. The live override COUNT stays inline; only the
   // explanation moved.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5611,
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5623,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
@@ -230,7 +230,7 @@ const BUDGETS: Record<string, number> = {
   // here is the dock's own wiring, which is what this file is for; moving two
   // lines of JSX into a module would hide the dispatch table rather than
   // shrink it.
-  "src/components/edit-chrome/inspector-dock.tsx": 1844,
+  "src/components/edit-chrome/inspector-dock.tsx": 1849,
   "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the

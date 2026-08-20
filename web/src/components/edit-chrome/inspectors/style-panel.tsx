@@ -814,6 +814,12 @@ function cleanBuilderNodeStyle(
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
+  // animationDistance / animationRepeat are authored on the Animation tab, but
+  // they are carried HERE too: these cleaners rebuild the whole style object,
+  // so a key they do not know about is silently dropped the next time the Style
+  // panel writes anything at all.
+  if (value.animationDistance) out.animationDistance = value.animationDistance;
+  if (value.animationRepeat) out.animationRepeat = value.animationRepeat;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
   if (value.animationEasingCustom) {
@@ -981,6 +987,12 @@ function cleanBuilderNodeStyleValue(
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
+  // animationDistance / animationRepeat are authored on the Animation tab, but
+  // they are carried HERE too: these cleaners rebuild the whole style object,
+  // so a key they do not know about is silently dropped the next time the Style
+  // panel writes anything at all.
+  if (value.animationDistance) out.animationDistance = value.animationDistance;
+  if (value.animationRepeat) out.animationRepeat = value.animationRepeat;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
   if (value.animationEasingCustom) {

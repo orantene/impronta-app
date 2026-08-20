@@ -369,7 +369,7 @@ export async function HomepageCmsSections({
       const freeformStyles =
         includeBuilderNodeRendererStyles &&
         hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
-          <BuilderNodeRendererStyles kinds={freeformScopedKinds} />
+          <BuilderNodeRendererStyles kinds={freeformScopedKinds} nodes={freeform.tree} />
         ) : null;
 
       // W3 Sub-step B — CLIENT-RENDERED CANVAS (default OFF; flag-gated).
@@ -493,7 +493,10 @@ export async function HomepageCmsSections({
   return (
     <>
       {shouldIncludeBuilderNodeRendererStyles ? (
-        <BuilderNodeRendererStyles kinds={builderScopedKinds} />
+        <BuilderNodeRendererStyles
+          kinds={builderScopedKinds}
+          nodes={builderTreeResolution.tree}
+        />
       ) : null}
       {entries.map((entry) => {
         // Registry entries are keyed by type key; we widen to the generic
