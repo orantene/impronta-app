@@ -579,6 +579,21 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
   // 2026-04-30 — Open color customization. Free-form CSS color values
   // (hex / rgba / hsla / oklch) so operators aren't trapped in a curated
   // palette. Empty string = inherit from the active background mode.
+  "shell.header-nav-font": {
+    key: "shell.header-nav-font",
+    label: "Header menu font",
+    scope: "shell",
+    agencyConfigurable: true,
+    // A CSS font-family LIST ("Inter", sans-serif), so it needs more room than
+    // the 64-char color tokens. Kept permissive on content for the same reason
+    // typography.*-font-family is: the picker writes a family stack, and a
+    // stricter shape would reject legitimate fallbacks.
+    validator: z.string().max(200),
+    defaultValue: "",
+    group: "Site shell",
+    description:
+      "Font family for the header navigation links only. Leave empty to inherit the site font preset. The brand wordmark always follows the site heading font.",
+  },
   "shell.header-bg": {
     key: "shell.header-bg",
     label: "Header background",

@@ -3,7 +3,8 @@
  *
  * The Theme Drawer's GoogleFontPicker writes free-string font-family
  * values into two tokens (`typography.heading-font-family`,
- * `typography.body-font-family`). The storefront must then load the
+ * `typography.body-font-family`), and the Header inspector writes a third
+ * (`shell.header-nav-font`). The storefront must then load the
  * actual font files, which Next's font helpers can't do at runtime
  * (they're build-time only). This component renders a server-side
  * `<link rel="stylesheet">` against fonts.googleapis.com for whatever
@@ -29,6 +30,11 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
   for (const key of [
     "typography.heading-font-family",
     "typography.body-font-family",
+    // The header nav can override the site font (Header inspector → Style →
+    // Typography). Without this entry the token would be stored and projected
+    // but the FILE would never load, so the nav would silently fall back — a
+    // capability wired at three layers out of four.
+    "shell.header-nav-font",
   ] as const) {
     if (tokens[key]) wanted.push(tokens[key]);
   }

@@ -8,23 +8,25 @@
  *   - Accent color         (writes branding.accent_color directly)
  *   - Page background mode (writes background.mode token; optimistic)
  *
- * What's deferred to a follow-up pass:
- *   - Full font picker — Google Fonts integration is its own surface;
- *     for now the current preset is shown with a route to the design
- *     admin where the picker already lives.
+ *   - Nav font override   (writes the shell.header-nav-font token)
  *
  * Why this scope:
  *   The user's mental model in the Style tab is "color + tone of the
  *   bar". Primary + accent + background-mode reach 80% of header
- *   styling decisions; the remainder (fonts, advanced color overrides)
- *   are reasonable to keep one click away in the design admin until we
- *   bring the picker inline.
+ *   styling decisions.
+ *
+ * TYPOGRAPHY, 2026-08-20: the nav links can now take their OWN family
+ * without moving the site preset. Scoped to the nav links only — the brand
+ * wordmark still follows the site heading font, because a logo that drifts
+ * from the rest of the site reads as a bug. Empty = inherit, which stays the
+ * default. The site-wide preset keeps its "Change in design" route below.
  */
 
 import { useEffect, useState } from "react";
 
 import { useEditContext } from "../../../edit-context";
 import { InspectorGroup, InspectorLabelWithInfo, KIT } from "../../kit";
+import { GoogleFontPicker } from "../../../GoogleFontPicker";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -56,6 +58,7 @@ export function StyleTab({ config, patch }: Props) {
       ? `/${workspaceMembershipSlug}/admin/website`
       : "/admin/site-settings/design";
 
+  const navFont = config.branding.themeJson["shell.header-nav-font"] ?? "";
   const primary = config.branding.primaryColor ?? "";
   const accent = config.branding.accentColor ?? "";
   const bgMode = config.branding.themeJson["background.mode"] ?? "plain";
@@ -151,8 +154,31 @@ export function StyleTab({ config, patch }: Props) {
 
       <InspectorGroup
         title="Typography"
-        info="Header type follows the site-wide font preset. Full Google Fonts picker is in design settings."
+        info="Menu links can take their own font. The brand wordmark always follows the site heading font, so the logo stays consistent across pages."
       >
+        <div className={KIT.field}>
+          <InspectorLabelWithInfo
+            label="Menu link font"
+            info="Applies to the header navigation links only. Leave empty to inherit the site font preset below."
+            className={KIT.label}
+          />
+          <GoogleFontPicker
+            slot="nav"
+            value={navFont}
+            onChange={(next) => patch.patchToken("shell.header-nav-font", next)}
+          />
+          {navFont ? (
+            <button
+              type="button"
+              className={KIT.subtleButton}
+              style={{ alignSelf: "flex-start" }}
+              onClick={() => patch.patchToken("shell.header-nav-font", "")}
+            >
+              Reset to the site font
+            </button>
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color] duration-150 hover:border-[#e5e0d5]">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10.5px] uppercase tracking-wider text-stone-500">

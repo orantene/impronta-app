@@ -607,4 +607,12 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // boundary prop made the guard see it, which is the guard working.
   "Device is controlled by the device rail above (synced to the canvas).":
     "El dispositivo se controla desde la barra de dispositivos de arriba (sincronizada con el lienzo).",
+
+  // Header inspector -> Style -> Typography: nav-only font override.
+  "Menu link font": "Fuente de los enlaces del menú",
+  "Applies to the header navigation links only. Leave empty to inherit the site font preset below.":
+    "Se aplica solo a los enlaces de navegación del encabezado. Déjalo vacío para heredar la fuente del sitio de abajo.",
+  "Reset to the site font": "Volver a la fuente del sitio",
+  "Menu links can take their own font. The brand wordmark always follows the site heading font, so the logo stays consistent across pages.":
+    "Los enlaces del menú pueden tener su propia fuente. El logotipo siempre sigue la fuente de títulos del sitio, así se mantiene consistente en todas las páginas.",
 };

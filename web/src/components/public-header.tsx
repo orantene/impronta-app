@@ -273,10 +273,14 @@ export async function PublicHeader() {
   const headerBg = tokenString("shell.header-bg", "");
   const headerText = tokenString("shell.header-text", "");
   const headerBorder = tokenString("shell.header-border", "");
+  // Optional nav-only font override. Empty = inherit the site font preset.
+  const headerNavFont = tokenString("shell.header-nav-font", "");
   const headerStyleVars: React.CSSProperties = {};
   if (headerBg) (headerStyleVars as Record<string, string>)["--token-shell-header-bg"] = headerBg;
   if (headerText) (headerStyleVars as Record<string, string>)["--token-shell-header-text"] = headerText;
   if (headerBorder) (headerStyleVars as Record<string, string>)["--token-shell-header-border"] = headerBorder;
+  if (headerNavFont)
+    (headerStyleVars as Record<string, string>)["--token-shell-header-nav-font"] = headerNavFont;
 
   // CTA pulled from identity (single source). Renders only when both
   // label and href are present and the placement token allows it.
