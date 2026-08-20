@@ -12,6 +12,11 @@ import {
   gridOnlyFeaturedTalentConfig,
 } from "@/lib/site-admin/builder-node/featured-talent-freeform";
 import {
+  buildLocationDiscoveryDecomposedSection,
+  gridOnlyLocationDiscoveryConfig,
+} from "@/lib/site-admin/builder-node/location-discovery-freeform";
+
+import {
   band,
   bulletRow,
   centerHead,
@@ -496,11 +501,63 @@ const closing = closingCta("rb-home-closing", {
   secondary: { label: "Browse the roster", href: "/directory" },
 });
 
+// ── where the roster works (live map, talent orbiting each city) ─────────────
+//
+// mapStyle "talent_orbit" is the REAL Google map with talent photographs
+// orbiting each city pin; the default "editorial" is a hand-drawn SVG with
+// text pins. The section falls back to editorial on its own if the map key or
+// the city coordinates are missing, so this asks for the good one and degrades
+// rather than breaking. Verified before seeding: the tenant's google_maps
+// integration is connected, and Playa del Carmen (37 talent), Cancun (4),
+// Buenos Aires (2) and Tulum (1) all carry latitude/longitude. Mexico City is
+// deliberately absent — its location row has no coordinates, so the renderer
+// would drop it anyway.
+//
+// source "roster_cities" keeps the list honest: it derives from who is
+// actually on the roster instead of a hand-typed list that goes stale the way
+// the pinned featured-talent codes did.
+const locations = buildLocationDiscoveryDecomposedSection({
+  rootId: "rb-home-locations",
+  eyebrow: "Where we work",
+  // Same gold-caps treatment every other eyebrow on the page carries.
+  eyebrowStyle: {
+    fontFamily: SERIF,
+    fontSize: "12px",
+    fontWeight: 600,
+    letterSpacing: "0.32em",
+    textTransform: "uppercase",
+    textColor: GOLD,
+    tone: undefined,
+  },
+  headline: "Local faces, international reach",
+  subheadline:
+    "The roster lives on the Riviera Maya and travels for the brief. Hover a city to see the faces working it.",
+  seeAllLabel: "Browse the roster",
+  seeAllHref: "/directory",
+  embedConfig: gridOnlyLocationDiscoveryConfig({
+    source: "roster_cities",
+    mapStyle: "talent_orbit",
+    showMap: true,
+    showCount: true,
+    maxItems: 8,
+    layout: "grid",
+    emptyStateText: "Markets appear here as talent join the roster.",
+    presentation: {
+      align: "center",
+      background: "canvas",
+      paddingTop: "tight",
+      paddingBottom: "standard",
+      containerWidth: "wide",
+    },
+  }),
+});
+
 const tree: BuilderNode[] = [
   hero,
   marquee,
   featured,
   divisions,
+  locations,
   plate1,
   statement,
   process,
