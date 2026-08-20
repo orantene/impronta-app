@@ -43,8 +43,8 @@ const STATUS_META: Record<
   { dot: string; hollow?: boolean; label: string }
 > = {
   translated: { dot: "#059669", label: "Translated" },
-  identical: { dot: "#d97706", label: "Same text in both languages" },
-  sibling_empty: { dot: "#d97706", hollow: true, label: "Empty in the other language" },
+  identical: { dot: CHROME.amber, label: "Same text in both languages" },
+  sibling_empty: { dot: CHROME.amber, hollow: true, label: "Empty in the other language" },
   no_counterpart: { dot: "#e11d48", hollow: true, label: "No counterpart block" },
 };
 
@@ -124,7 +124,7 @@ export function TranslationStatusButton({
               width: 8,
               height: 8,
               borderRadius: 999,
-              border: "2px solid #d97706",
+              border: `2px solid ${CHROME.amber}`,
               background: "transparent",
               display: "inline-block",
               marginLeft: -3,
