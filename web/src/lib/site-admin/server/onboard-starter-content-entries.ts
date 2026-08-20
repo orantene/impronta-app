@@ -49,18 +49,54 @@ const STARTER_IMG = {
  * House rules: no em dashes, no dead CTAs (every link goes to /contact,
  * which every tenant has; the Free tier has no /directory page).
  */
+/**
+ * Which of the three signup answers to "Which describes you best?" this
+ * workspace gave. The value already travels from the get-started form to the
+ * lead row (`audience`); it used to stop there, at the founder digest, so a
+ * solo photographer and a wedding band both opened a homepage announcing they
+ * "represent makeup, hair, photography, and styling professionals".
+ */
+export type StarterAudience = "operator" | "agency" | "organization";
+
+/** Hero copy per signup audience. Everything else about the page is shared. */
+function heroCopyFor(
+  audience: StarterAudience,
+  name: string,
+): { headline: string; subheadline: string } {
+  switch (audience) {
+    case "operator":
+      return {
+        headline: "Available for your next project.",
+        subheadline: `${name} takes on editorial, event, and campaign work. Tell me about your project and I will come back with availability and a quote.`,
+      };
+    case "organization":
+      return {
+        headline: "Book us for your next event.",
+        subheadline: `${name} performs at events, private functions, and campaigns. Tell us your date and location and we will come back with availability and a quote.`,
+      };
+    case "agency":
+    default:
+      return {
+        headline: "A curated roster, ready for your next production.",
+        subheadline: `${name} represents makeup, hair, photography, and styling professionals for editorial work, events, and campaigns. Tell us about your project and we will assemble the right team.`,
+      };
+  }
+}
+
 export function buildFreeStarterEntries(
   studioName?: string | null,
+  audience: StarterAudience = "agency",
 ): ReadonlyArray<FreeStarterEntry> {
   const name = studioName?.trim() || "Our studio";
+  const hero = heroCopyFor(audience, name);
+  const solo = audience === "operator";
   return [
     {
       slotKey: "hero",
       sectionTypeKey: "hero",
       propsOverride: {
-        headline: "A curated roster, ready for your next production.",
-        subheadline:
-          `${name} represents makeup, hair, photography, and styling professionals for editorial work, events, and campaigns. Tell us about your project and we will assemble the right team.`,
+        headline: hero.headline,
+        subheadline: hero.subheadline,
         primaryCta: { label: "Start an inquiry", href: "/contact" },
         slides: [
           {
@@ -138,7 +174,9 @@ export function buildFreeStarterEntries(
         eyebrow: "Bookings",
         headline: "Tell us about your project.",
         copy:
-          "Share your date, location, and creative direction. We reply within one business day with availability and a suggested team.",
+          solo
+            ? "Share your date, location, and creative direction. I reply within one business day with availability and a quote."
+            : "Share your date, location, and creative direction. We reply within one business day with availability and a suggested team.",
         primaryCta: { label: "Start an inquiry", href: "/contact" },
         backgroundImageUrl: STARTER_IMG.ctaBanner,
         backgroundImageAlt: "",

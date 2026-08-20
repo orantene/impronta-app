@@ -482,3 +482,70 @@ test("shouldSkipFreeStarterHomepageSeed only seeds a pristine draft page", () =>
     );
   }
 });
+
+// ── Signup audience must reach the starter copy ───────────────────────────
+// The get-started form asks "Which describes you best?" and the answer travels
+// to the lead row, but it used to stop at the founder digest. A solo
+// photographer and a wedding band both opened a homepage announcing they
+// "represent makeup, hair, photography, and styling professionals for
+// editorial work" — copy written for an agency, shown to everyone.
+
+function heroOf(entries: ReturnType<typeof buildFreeStarterEntries>) {
+  const hero = entries.find((e) => e.sectionTypeKey === "hero");
+  assert.ok(hero, "no hero entry");
+  return (hero.propsOverride ?? {}) as { headline?: string; subheadline?: string };
+}
+
+test("each signup audience gets its own hero copy, and the name is interpolated", () => {
+  const agency = heroOf(buildFreeStarterEntries("Vera Atelier", "agency"));
+  const operator = heroOf(buildFreeStarterEntries("Vera Atelier", "operator"));
+  const organization = heroOf(buildFreeStarterEntries("Vera Atelier", "organization"));
+
+  // Three genuinely different headlines — not one string with the name swapped.
+  const headlines = [agency.headline, operator.headline, organization.headline];
+  assert.equal(new Set(headlines).size, 3, `expected 3 distinct headlines, got ${JSON.stringify(headlines)}`);
+
+  for (const hero of [agency, operator, organization]) {
+    assert.match(String(hero.subheadline), /Vera Atelier/);
+  }
+
+  // The roster sentence is the agency's alone: it is the one that was wrong
+  // for the other two audiences.
+  assert.match(String(agency.subheadline), /represents makeup, hair/);
+  assert.doesNotMatch(String(operator.subheadline), /represents makeup, hair/);
+  assert.doesNotMatch(String(organization.subheadline), /represents makeup, hair/);
+});
+
+test("a solo operator's starter copy speaks in the first person singular", () => {
+  const entries = buildFreeStarterEntries("Vera Atelier", "operator");
+  const hero = heroOf(entries);
+  assert.match(String(hero.subheadline), /\bI will\b/);
+
+  const cta = entries.find((e) => e.sectionTypeKey === "cta_banner");
+  assert.ok(cta, "no cta_banner entry");
+  const copy = String((cta.propsOverride as { copy?: string } | undefined)?.copy ?? "");
+  assert.match(copy, /\bI reply\b/);
+  assert.doesNotMatch(copy, /\bWe reply\b/);
+});
+
+test("omitting the audience keeps the agency copy — no caller has to change", () => {
+  assert.deepEqual(
+    heroOf(buildFreeStarterEntries("Vera Atelier")),
+    heroOf(buildFreeStarterEntries("Vera Atelier", "agency")),
+  );
+});
+
+test("starter copy keeps the house rules for every audience", () => {
+  for (const audience of ["operator", "agency", "organization"] as const) {
+    for (const entry of buildFreeStarterEntries("Vera Atelier", audience)) {
+      const blob = JSON.stringify(entry.propsOverride ?? {});
+      // No em dashes in user-facing copy (owner rule).
+      assert.ok(!blob.includes("—"), `em dash in ${audience}/${entry.sectionTypeKey}`);
+      // No dead CTAs: every seeded link points at /contact, which every
+      // tenant has (the Free tier has no /directory page).
+      for (const href of blob.match(/"href":"([^"]*)"/g) ?? []) {
+        assert.ok(href.includes("/contact"), `${audience}/${entry.sectionTypeKey} links off-contract: ${href}`);
+      }
+    }
+  }
+});

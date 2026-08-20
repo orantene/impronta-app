@@ -526,6 +526,11 @@ export type RosterTaxonomyChip = {
 
 export type TalentProfile = {
   id: string;
+  /** True for the demo profiles onboarding seeds (talent_profiles.is_starter_seed).
+   *  The setup checklist must not count these as the operator's own talent —
+   *  striking through "Add your first talent" on a 30-second-old workspace is
+   *  exactly the fake progress the signup page promises we don't do. */
+  isStarterSeed?: boolean;
   /** Human-readable canonical talent code (`talent_profiles.profile_code`),
    *  e.g. "TAL-00033". Surfaced on the roster card + profile drawer so
    *  admins can reference a talent by a stable short id. */
