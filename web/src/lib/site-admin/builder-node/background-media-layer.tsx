@@ -62,6 +62,14 @@ const BACKGROUND_SLIDESHOW_CSS = `
  * box" and "the height 16:9 demands for this width" is the cover rule, with
  * `min-width/min-height:100%` as the floor for engines without `cq` units.
  *
+ * WHY THE FRAME FADES IN. A YouTube player paints its own chrome — title bar,
+ * spinner — for about a second before the first frame arrives, and the iframe
+ * sits ON TOP of the poster, so that chrome is what a visitor sees on load.
+ * Holding the frame transparent for that beat lets the poster cover it, then
+ * the video takes over with nothing to see in between. It is keyed off
+ * `data-bn-bg-poster` because without a poster underneath, fading the frame in
+ * would trade a flash of YouTube for a hole. CSS-only: no JS, no hydration.
+ *
  * WHY THE CHILD RULE. `.site-builder-node--container` is flex or grid. The
  * layer itself is `position:absolute`, so it is out of flow and cannot become a
  * flex/grid item — but the AUTHOR'S children still need to sit above it, so
@@ -76,6 +84,8 @@ export const BACKGROUND_MEDIA_CSS = `
 .site-builder-bg-media__poster,.site-builder-bg-media__video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0;display:block}
 .site-builder-bg-media__frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:0;min-width:100%;min-height:100%;width:max(100%,calc(100cqh * 16 / 9));height:max(100%,calc(100cqw * 9 / 16))}
 .site-builder-bg-media__scrim{position:absolute;inset:0;display:block;background:var(--bn-bg-overlay-color,#000);opacity:var(--bn-bg-overlay,0)}
+.site-builder-bg-media[data-bn-bg-poster] .site-builder-bg-media__frame{opacity:0;animation:bn-bg-frame-in 500ms ease 1100ms forwards}
+@keyframes bn-bg-frame-in{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.site-builder-bg-media__video,.site-builder-bg-media__frame{display:none}}
 ${BACKGROUND_SLIDESHOW_CSS}
 `.trim();
@@ -119,6 +129,7 @@ export function renderBackgroundMediaLayer(
       key={`${nodeId}:bg-media`}
       className="site-builder-bg-media"
       data-bn-bg-media-source={resolved.source}
+      {...(resolved.posterUrl ? { "data-bn-bg-poster": "" } : {})}
       aria-hidden="true"
       style={wrapperStyle}
     >
