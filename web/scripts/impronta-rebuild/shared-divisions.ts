@@ -29,6 +29,10 @@ export const GOLD = styleTokenRef("color.primary");
 export const GOLD_BRIGHT = styleTokenRef("color.accent");
 export const TEXT = styleTokenRef("color.ink");
 export const MUTED = styleTokenRef("color.muted");
+
+/** Text on a photograph — see the same pair in shared.ts for why it is not a token. */
+export const OVER_MEDIA_TEXT = "rgba(244,238,226,0.94)";
+export const OVER_MEDIA_SHADOW = "0 1px 12px rgba(6,6,10,0.75)";
 export const HAIRLINE = styleTokenRef("color.line");
 export const CARD = styleTokenRef("color.surface-raised");
 export const SERIF = styleTokenRef("typography.heading-font-family");
@@ -184,6 +188,12 @@ export function lead(
   id: string,
   text: string,
   align: "left" | "center" = "center",
+  /**
+   * Set when this lead sits on a photograph. The muted token is calibrated for
+   * a dark panel; over a bright image it disappears, which is exactly what the
+   * division-page heroes were doing.
+   */
+  onMedia = false,
 ): BuilderNode {
   return {
     id,
@@ -195,7 +205,8 @@ export function lead(
         fontFamily: SANS,
         fontSize: "17px",
         lineHeight: "1.62",
-        textColor: MUTED,
+        textColor: onMedia ? OVER_MEDIA_TEXT : MUTED,
+        ...(onMedia ? { textShadow: OVER_MEDIA_SHADOW } : {}),
         marginTopFree: "18px",
         maxWidthFree: "640px",
         align,
@@ -515,7 +526,7 @@ export function divisionHero(input: DivisionHeroInput): BuilderNode {
               },
             },
           },
-          lead(`${p}-hero-sub`, input.sub),
+          lead(`${p}-hero-sub`, input.sub, "center", true),
           {
             id: `${p}-hero-actions`,
             kind: "container",

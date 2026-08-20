@@ -106,6 +106,17 @@ export const GOLD = styleTokenRef("color.primary");
 export const GOLD_BRIGHT = styleTokenRef("color.accent");
 export const TEXT = styleTokenRef("color.ink");
 export const MUTED = styleTokenRef("color.muted");
+
+/**
+ * Body copy that sits ON a photograph or video.
+ *
+ * Not a token: the token palette's muted grey is calibrated for text on a dark
+ * PANEL, and the whole problem here is that media is not a panel — a bright
+ * video frame swallows it. This is a fixed warm white so the copy holds
+ * whatever passes underneath it, with a shadow doing the rest.
+ */
+export const OVER_MEDIA_TEXT = "rgba(244,238,226,0.94)";
+export const OVER_MEDIA_SHADOW = "0 1px 12px rgba(6,6,10,0.75)";
 export const HAIRLINE = styleTokenRef("color.line");
 export const CARD = styleTokenRef("color.surface-raised");
 export const CARD_BORDER = styleTokenRef("color.line");
@@ -201,7 +212,12 @@ export interface ParagraphOptions {
   maxWidth?: string;
   marginTop?: string;
   size?: "lead" | "body" | "small";
-  tone?: "muted" | "ink" | "faint";
+  /**
+   * `over-media` is the one that matters on a photograph or video: the muted
+   * token is a grey chosen for a dark PANEL, and over a bright video frame it
+   * disappears. Text on media gets warm white and a shadow instead.
+   */
+  tone?: "muted" | "ink" | "faint" | "over-media";
   layerLabel?: string;
 }
 
@@ -218,7 +234,15 @@ export function copy(id: string, text: string, opts: ParagraphOptions = {}): Bui
         fontFamily: SANS,
         fontSize: size === "lead" ? "17px" : size === "body" ? "16px" : "13px",
         lineHeight: size === "small" ? "1.55" : "1.62",
-        textColor: opts.tone === "ink" ? TEXT : MUTED,
+        textColor:
+          opts.tone === "ink"
+            ? TEXT
+            : opts.tone === "over-media"
+              ? OVER_MEDIA_TEXT
+              : MUTED,
+        // A shadow only where there is media underneath: over a flat panel it
+        // would just muddy the type.
+        ...(opts.tone === "over-media" ? { textShadow: OVER_MEDIA_SHADOW } : {}),
         align: opts.align ?? "center",
         ...(opts.maxWidth ? { maxWidthFree: opts.maxWidth } : {}),
         ...(opts.align === "center" && opts.maxWidth
@@ -542,6 +566,9 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
       maxWidth: "660px",
       size: "lead",
       marginTop: "22px",
+      // The hero always sits on a photograph or the video, so its body copy is
+      // over-media by definition — this is the line the owner could not read.
+      tone: "over-media",
     }),
     ...(buttons.length > 0 ? [ctaRow(`${idPrefix}-actions`, buttons)] : []),
     ...(opts.footnote
@@ -551,6 +578,7 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
             size: "small",
             marginTop: "18px",
             layerLabel: "Reassurance",
+            tone: "over-media",
           }),
         ]
       : []),
@@ -577,7 +605,10 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
               src: opts.videoUrl,
               // The scrim below is layered for a PHOTO. Video is busier and
               // moves, so copy needs a touch more protection than a still does.
-              overlay: 58,
+              // 58 was calibrated against a still photograph. Video moves, and
+              // its bright frames are what made the sub-copy vanish; 66 holds
+              // the type without flattening the footage.
+              overlay: 66,
               overlayColor: "#06060a",
               focalPoint: "center",
             },
