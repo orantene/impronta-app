@@ -8,6 +8,19 @@ import { LocationMapLazy } from "./location-map-lazy";
 export type LocationFeaturedPreview = {
   talentId: string;
   thumbnailUrl: string | null;
+  /**
+   * Shown as the floating label when a visitor taps a face in the orbit ring.
+   * Null when the profile has no display name, in which case the ring shows no
+   * label rather than inventing one.
+   */
+  name: string | null;
+  /**
+   * `talent_profiles.profile_code` -- the EXACT code the public profile route
+   * keys on. The href is assembled at the call site so it picks up the tenant
+   * path prefix and locale grammar (see featured-talent-section.tsx). Null when
+   * the profile has no code, in which case the ring offers no profile link.
+   */
+  profileCode: string | null;
 };
 
 export type LocationItem = {
