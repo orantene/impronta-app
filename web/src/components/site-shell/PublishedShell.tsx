@@ -29,6 +29,8 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { localizeHrefsDeep } from "@/lib/saas/locale-hrefs-deep";
+import { localeUrlSettings } from "@/i18n/pathnames";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
@@ -238,15 +240,36 @@ async function renderPublishedShellSide(
   const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
+  // ONE DESIGN PER PAGE (#1345) localized the hrefs authored in a page BODY, but
+  // the header and footer are a separate surface and kept shipping
+  // primary-locale links: on Impronta's Spanish site the logo pointed at `/` and
+  // the footer CONTACT at `/p/contact`, dropping a Spanish visitor onto the
+  // English page from the chrome that appears on EVERY route.
+  //
+  // Safe to apply to the whole tree: the LANGUAGE SWITCHER's links are not in it
+  // — they are built at render time from `options.availableLocales` (render.tsx,
+  // `navMenuLocales`), so localizing the tree cannot rewrite the one control
+  // whose links must point at OTHER locales. Idempotent and a no-op on the
+  // primary locale, so a shell row whose links were already authored `/es/...`
+  // stays correct rather than becoming `/es/es/...`.
+  const shellLocaleSettings = await loadTenantLocaleSettings(tenantId);
   const prepared = prepareShellTree(
     resolveSnapshotBuilderTree(shell.snapshot).tree,
     slots,
   );
-  const plan = resolveShellSidePlan({ tree: prepared.tree, slots, side });
+  const localizedTree = localizeHrefsDeep(
+    prepared.tree,
+    locale,
+    localeUrlSettings(
+      shellLocaleSettings.defaultLocale,
+      shellLocaleSettings.supportedLocales,
+    ),
+  );
+  const plan = resolveShellSidePlan({ tree: localizedTree, slots, side });
   if (plan.mode === "none") return null;
 
   if (plan.mode === "legacy_slot") {
-    const builderTree = prepared.tree;
+    const builderTree = localizedTree;
     const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTree);
     const builderSectionNodes = indexBuilderSectionNodes(builderTree);
     const builderSectionChildNodeIds =
@@ -264,7 +287,7 @@ async function renderPublishedShellSide(
 
   return renderFreeformShellSide({
     nodes: plan.nodes,
-    tree: prepared.tree,
+    tree: localizedTree,
     slots,
     tenantId,
     locale,
