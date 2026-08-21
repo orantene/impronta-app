@@ -139,35 +139,58 @@ function GmAuthFailureBridge({ onFailed }: { onFailed: () => void }) {
 }
 
 /**
- * Share of the roster the opening view is required to contain. Everything else
- * still renders as a pin and is one zoom-out (or one city chip) away.
+ * How far from the busiest city another city can sit and still count as the
+ * same market. Cancun (~68km) and Tulum (~65km) are the same trip as Playa del
+ * Carmen; Mexico City (~1,300km) and Buenos Aires (~7,000km) are not.
  */
-const HOME_MARKET_TALENT_SHARE = 0.8;
+const HOME_MARKET_RADIUS_KM = 400;
+
+/** Great-circle distance in kilometres. */
+function distanceKm(
+  a: { latitude: number | null; longitude: number | null },
+  b: { latitude: number | null; longitude: number | null },
+): number {
+  if (a.latitude == null || a.longitude == null) return Infinity;
+  if (b.latitude == null || b.longitude == null) return Infinity;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
 
 /**
- * The locations that make up the agency's HOME MARKET: the fewest cities that
- * together hold `HOME_MARKET_TALENT_SHARE` of the roster, biggest first.
+ * The agency's HOME MARKET: the city holding the most talent, plus every city
+ * close enough to be the same market.
  *
- * Exported for the unit test — the interesting behaviour is entirely in which
+ * An earlier version of this picked "the fewest cities holding 80% of the
+ * roster", which sounds equivalent and is not. Impronta keeps 40 of 48 talent
+ * in Playa del Carmen -- 83% -- so the rule stopped at ONE city and the map
+ * opened zoomed past Cancun and Tulum onto a single pin. A roster spread across
+ * a coastline read as a roster in one town. Distance is the thing actually
+ * being decided here, so distance is what the rule measures.
+ *
+ * Exported for the unit test -- the interesting behaviour is entirely in which
  * cities get picked, and that is worth pinning without a Google Maps stub.
  */
 export function homeMarketLocations<
-  T extends { talentCount: number },
+  T extends { talentCount: number; latitude: number | null; longitude: number | null },
 >(locations: ReadonlyArray<T>): ReadonlyArray<T> {
   if (locations.length <= 1) return locations;
-  const total = locations.reduce((sum, l) => sum + Math.max(0, l.talentCount), 0);
-  if (total <= 0) return locations;
-
-  const ranked = [...locations].sort((a, b) => b.talentCount - a.talentCount);
-  const target = total * HOME_MARKET_TALENT_SHARE;
-  const picked: T[] = [];
-  let covered = 0;
-  for (const loc of ranked) {
-    picked.push(loc);
-    covered += Math.max(0, loc.talentCount);
-    if (covered >= target) break;
-  }
-  return picked;
+  const anchor = [...locations].sort((a, b) => b.talentCount - a.talentCount)[0];
+  if (!anchor) return locations;
+  const near = locations.filter(
+    (l) => distanceKm(anchor, l) <= HOME_MARKET_RADIUS_KM,
+  );
+  // Anchor always qualifies (distance 0), so `near` is never empty unless the
+  // anchor itself has no coordinates -- in which case fall back to everything
+  // rather than opening on nothing.
+  return near.length > 0 ? near : locations;
 }
 
 /**
