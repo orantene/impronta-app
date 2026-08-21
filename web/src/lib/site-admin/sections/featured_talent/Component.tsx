@@ -6,6 +6,14 @@ import type { FeaturedTalentV1 } from "./schema";
 import { fetchFeaturedTalentForSection } from "./fetch";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { FeaturedTalentCard } from "./FeaturedTalentCard";
+import { loadCardLocaleSettings } from "./card-locale-settings";
+import {
+  headingSize,
+  eyebrowSize,
+  paragraphSize,
+  visibilityDisplay,
+  buttonSize,
+} from "./style-helpers";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { CSSProperties } from "react";
 
@@ -24,41 +32,6 @@ function textToneColor(
   if (tone === "muted") return "var(--token-color-muted)";
   if (tone === "strong") return "var(--foreground)";
   return undefined;
-}
-
-function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
-  if (size === "sm") return "clamp(1.55rem, 3.3vw, 2.4rem)";
-  if (size === "lg") return "clamp(2.1rem, 4.8vw, 3.4rem)";
-  if (size === "xl") return "clamp(2.4rem, 5.6vw, 3.9rem)";
-  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
-  return undefined;
-}
-
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
-  if (size === "sm") return "0.66rem";
-  if (size === "lg") return "0.84rem";
-  if (size === "xl" || size === "display") return "0.92rem";
-  return undefined;
-}
-
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
-  if (size === "sm") return "0.95rem";
-  if (size === "lg") return "1.1rem";
-  if (size === "xl") return "1.2rem";
-  if (size === "display") return "clamp(2rem, 4vw, 4.5rem)";
-  return undefined;
-}
-
-function visibilityDisplay(visibility?: "visible" | "hidden"): CSSProperties["display"] {
-  if (visibility === "hidden") return "none";
-  return undefined;
-}
-
-function buttonSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
-  if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.78rem" };
-  if (size === "lg") return { padding: "0.72rem 1.08rem", fontSize: "0.9rem" };
-  if (size === "xl" || size === "display") return { padding: "0.82rem 1.2rem", fontSize: "0.94rem" };
-  return {};
 }
 
 function toCssDecls(style: CSSProperties): string[] {
@@ -318,6 +291,8 @@ export async function FeaturedTalentComponent({
   const cards = (
     await fetchFeaturedTalentForSection(tenantId, props, locale)
   ).slice(0, 15);
+  // Talent links need the tenant's URL grammar — see card-locale-settings.
+  const cardLocaleSettings = await loadCardLocaleSettings(tenantId);
   const hasCards = cards.length > 0;
   const columns = Math.max(2, Math.min(4, columnsDesktop ?? 3));
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
@@ -717,6 +692,7 @@ export async function FeaturedTalentComponent({
                       : null
                   }
                   locale={locale}
+                  localeSettings={cardLocaleSettings}
                 />
                 <TalentCardActions
                   talentProfileId={card.id}
