@@ -32,6 +32,9 @@ import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-c
 import { StorefrontBodyServerMarker } from "@/components/edit-chrome/storefront-body-server-marker";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { localizeHrefsDeep } from "@/lib/saas/locale-hrefs-deep";
+import { applyNestedI18nOverlay } from "@/lib/site-admin/builder-node/nested-i18n";
+import { localeUrlSettings } from "@/i18n/pathnames";
 import {
   contentLocaleForDesignRow,
   resolveDesignLocale,
@@ -395,7 +398,34 @@ export default async function CmsPublicPage({
       freeformPage?.is_freeform &&
       (freeformPage.status === "published" || draftReaderActive)
     ) {
-      const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
+      // ONE DESIGN PER PAGE — the body now comes from the PRIMARY-locale row in
+      // every language, so two things have to happen at render time that used
+      // to be handled by simply authoring a separate row per language:
+      //
+      //  1. LINKS — authored hrefs are primary-locale paths (`/contact`), which
+      //     on a path-locale site would send a Spanish visitor to the English
+      //     page. `localizeHrefsDeep` prefixes them for the active locale. It is
+      //     a no-op for the primary locale and idempotent for a page whose links
+      //     were authored with a prefix before the collapse.
+      //  2. NESTED TEXT — the renderer resolves TOP-LEVEL props through the
+      //     overlay itself, but not text one level down (the contact form's
+      //     `fields[].label` / `.placeholder`, a section's `requestCta.label`).
+      //     Those dotted-path overlays are what made the Spanish contact form
+      //     render in English after the collapse.
+      const localizedTree = localizeHrefsDeep(
+        (freeformPage.blocks ?? []) as BuilderNode[],
+        locale,
+        localeUrlSettings(
+          localeSettings.defaultLocale,
+          localeSettings.supportedLocales,
+        ),
+      );
+      const blocks = applyNestedI18nOverlay(
+        localizedTree,
+        locale,
+        localeSettings.defaultLocale,
+        localeSettings.fallbackChain(locale),
+      );
       const publicPathPrefix = await getPublicPathPrefix();
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(
         publicScope.tenantId,

@@ -2983,6 +2983,7 @@ function renderFeaturedTalentChildren(
             card={card}
             priority={index < 2}
             publicPathPrefix={options.publicPathPrefix}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         ))}
       </div>
