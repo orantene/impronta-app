@@ -434,13 +434,11 @@ async function renderShellSlot(
   const visibilityContext = editModeActive
     ? undefined
     : { locale, signedIn: Boolean(actorSession.user) };
-  // Phase B.2.B — wrap each shell section in the same `data-cms-section`
-  // outer the homepage composer uses (see homepage-cms-sections.tsx). The
-  // EditShell selection layer queries `[data-cms-section]` to detect
-  // hover / click; without this wrapper, shell sections are visible but
-  // not selectable. Markers + fields are identical to body sections so
-  // selection chrome, inspector binding, and save flow all work without
-  // any special-case code paths.
+  // Phase B.2.B — wrap each shell section in the same `data-cms-section` outer
+  // the homepage composer uses (homepage-cms-sections.tsx): the EditShell
+  // selection layer queries it for hover/click, so without this wrapper shell
+  // sections render but are not selectable. Markers + fields match body
+  // sections, so selection chrome, inspector binding and save need no forks.
   return (
     <div
       key={slot.sectionId}
@@ -457,6 +455,7 @@ async function renderShellSlot(
           : slot.sectionId
       }
       data-section-type-key={slot.sectionTypeKey}
+      data-site-shell-side={slot.slotKey}
       data-slot-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
       data-builder-node-id={
@@ -767,6 +766,7 @@ function renderFreeformShellLandmark({
           : sectionId
       }
       data-section-type-key={sectionTypeKey}
+      data-site-shell-side={node.props.slotKey ?? "header"}
       data-slot-key={node.props.slotKey ?? undefined}
       data-sort-order={node.props.sortOrder}
       data-builder-node-id={

@@ -794,6 +794,17 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
 .site-builder-node{box-sizing:border-box}
+/* OVERFLOW CONTAINMENT (owner report 2026-08-21: "the header is bleeding out
+   the hamburger menu in mobile... it makes all mobile scrolling also left to
+   right all over the page"). A shell header is a nowrap flex row of
+   non-shrinking items; on a narrow phone the row simply exceeded the viewport
+   and, because nothing clipped it, the DOCUMENT gained a horizontal scrollbar —
+   so every page scrolled sideways, not just the header. The shell landmarks now
+   clip their own overflow: a too-wide header can never widen the page. Uses
+   clip (not hidden) so it creates no scroll container and cannot trap the
+   sticky header or the menu drawer. */
+[data-site-shell-side] .site-builder-node--container{max-width:100%}
+[data-site-shell-side]{max-width:100%;overflow-x:clip}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
