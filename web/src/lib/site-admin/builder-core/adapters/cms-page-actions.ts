@@ -20,6 +20,7 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import {
@@ -69,6 +70,28 @@ export async function loadCmsFreeformPage(input: {
   const fallback = await selectRow(BASE_ROW_COLUMNS);
   if (fallback.error || !fallback.data) return null;
   return fallback.data;
+}
+
+/**
+ * ONE DESIGN PER PAGE — the active tenant's language settings, for the adapter.
+ *
+ * The adapter needs these to (a) open and save the PRIMARY-language row no
+ * matter which language the operator is viewing, and (b) report the full
+ * supported set to the composition, which is what re-enables the inspector's
+ * per-element language tabs. Returns null when there's no tenant scope, in
+ * which case the adapter degrades to single-locale behavior.
+ */
+export async function loadCmsFreeformLocaleSettings(): Promise<{
+  defaultLocale: string;
+  supportedLocales: readonly string[];
+} | null> {
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
+  if (!scope) return null;
+  const settings = await loadTenantLocaleSettings(scope.tenantId);
+  return {
+    defaultLocale: settings.defaultLocale,
+    supportedLocales: settings.supportedLocales,
+  };
 }
 
 /** Persist the freeform tree (+ optional title + STYLE-1 registries) to cms_pages. */

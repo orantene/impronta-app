@@ -114,6 +114,8 @@ interface FlatTextEntry {
   prop: TextPropName;
   value: string;
   layerLabel: string | null;
+  /** The node's translation overlay, for the one-design-per-page report. */
+  overlay: Record<string, Record<string, string>> | null;
 }
 
 function textPropsOf(node: BuilderNode): Array<{ prop: TextPropName; value: string }> {
@@ -139,8 +141,19 @@ function flattenTextEntries(tree: ReadonlyArray<BuilderNode>): FlatTextEntry[] {
         typeof (node.props as { layerLabel?: unknown })?.layerLabel === "string"
           ? ((node.props as { layerLabel: string }).layerLabel.trim() || null)
           : null;
+      const overlay =
+        (node as { i18n?: Record<string, Record<string, string>> }).i18n ??
+        ((node.props as { i18n?: Record<string, Record<string, string>> })?.i18n ?? null);
       for (const { prop, value } of textPropsOf(node)) {
-        out.push({ nodeId: node.id, kind: node.kind, pathKey, prop, value, layerLabel });
+        out.push({
+          nodeId: node.id,
+          kind: node.kind,
+          pathKey,
+          prop,
+          value,
+          layerLabel,
+          overlay,
+        });
       }
       const children = (node as { children?: BuilderNode[] }).children;
       if (Array.isArray(children) && children.length > 0) {
@@ -157,6 +170,61 @@ function excerpt(value: string, max = 48): string {
   // comparison itself stays on the raw value, so markup edits still count).
   const plain = value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain;
+}
+
+/**
+ * ONE DESIGN PER PAGE — the per-element translation report for a single tree.
+ *
+ * The page's base props are the design language; `locale`'s text lives in each
+ * node's `i18n` overlay. So the whole audit is a walk of ONE tree, with no
+ * sibling row to fetch and no matching to get wrong:
+ *
+ *   translated       — the overlay carries a value for this locale.
+ *   identical        — the overlay repeats the base text verbatim.
+ *   not_translatable — no overlay, but the base value carries no language at
+ *                      all (numerals, symbols) — never a finding.
+ *   no_counterpart   — no overlay value: this element is NOT translated. This
+ *                      is the row the operator is looking for.
+ *
+ * `sibling_empty` cannot occur here (there is no sibling row); it stays in the
+ * status union so the panel's rendering table needs no special-casing.
+ */
+export function buildOverlayTranslationReport(
+  tree: ReadonlyArray<BuilderNode>,
+  locale: string,
+): TranslationReport {
+  const entries = flattenTextEntries(tree);
+  const rows: TranslationRow[] = entries.map((entry) => {
+    const translated = entry.overlay?.[locale]?.[entry.prop]?.trim() ?? "";
+    let status: TranslationTextStatus;
+    if (translated) {
+      status = translated === entry.value ? "identical" : "translated";
+    } else {
+      status = isNonLinguisticValue(entry.value) ? "not_translatable" : "no_counterpart";
+    }
+    return {
+      nodeId: entry.nodeId,
+      kind: entry.kind,
+      prop: entry.prop,
+      currentText: entry.value,
+      siblingText: translated || null,
+      matchedBy: translated ? "id" : null,
+      status,
+      label: entry.layerLabel ?? excerpt(entry.value),
+    };
+  });
+
+  const counts: Record<TranslationTextStatus, number> = {
+    translated: 0,
+    identical: 0,
+    not_translatable: 0,
+    sibling_empty: 0,
+    no_counterpart: 0,
+  };
+  for (const row of rows) counts[row.status] += 1;
+
+  // Nothing can exist "only on the other side" when there is no other side.
+  return { rows, counts, siblingOnlyCount: 0, total: rows.length };
 }
 
 /**
