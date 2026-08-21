@@ -1000,6 +1000,18 @@ const BUILDER_NODE_RENDERER_CSS = `
 }
 @media (min-width:641px) and (max-width:900px){
   .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
+  /* EDIT-ONLY REVEAL (owner report 2026-08-21: "I don't see all the elements
+     and I can't move them"). A block hidden at this breakpoint is removed from
+     flow, so on the phone canvas it had ZERO size — invisible, un-hoverable,
+     un-clickable. But the "show it again" control only exists for the SELECTED
+     block, which made hiding a ONE-WAY DOOR from the canvas.
+     data-bn-reveal-hidden is set on the canvas body by the editor ONLY while
+     a non-desktop device is being edited and preview is OFF, so it can never
+     reach a visitor. The ancestor attribute raises specificity above the
+     display:none rule above, bringing the block back as a dimmed, dashed ghost
+     that is fully selectable — and the mobile panel's Show toggle is reachable
+     again. Published output is byte-identical (the attribute is absent). */
+  [data-bn-reveal-hidden] .site-builder-node[data-builder-style-tablet-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
 }
 @media (max-width:640px){
   .site-builder-node[data-builder-style-mobile-align]{text-align:var(--bn-mobile-align)!important}
@@ -1024,6 +1036,18 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
   .site-builder-node[data-builder-style-mobile-aspect-free]{aspect-ratio:var(--bn-mobile-aspect-free)!important}
   .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
+  /* EDIT-ONLY REVEAL (owner report 2026-08-21: "I don't see all the elements
+     and I can't move them"). A block hidden at this breakpoint is removed from
+     flow, so on the phone canvas it had ZERO size — invisible, un-hoverable,
+     un-clickable. But the "show it again" control only exists for the SELECTED
+     block, which made hiding a ONE-WAY DOOR from the canvas.
+     data-bn-reveal-hidden is set on the canvas body by the editor ONLY while
+     a non-desktop device is being edited and preview is OFF, so it can never
+     reach a visitor. The ancestor attribute raises specificity above the
+     display:none rule above, bringing the block back as a dimmed, dashed ghost
+     that is fully selectable — and the mobile panel's Show toggle is reachable
+     again. Published output is byte-identical (the attribute is absent). */
+  [data-bn-reveal-hidden] .site-builder-node[data-builder-style-mobile-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
   .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
   .site-builder-node[data-builder-style-mobile-font-size]{font-size:var(--bn-mobile-font-size)!important}
   .site-builder-node[data-builder-style-mobile-font-weight]{font-weight:var(--bn-mobile-font-weight)!important}
