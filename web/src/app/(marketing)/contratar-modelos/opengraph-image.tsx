@@ -9,6 +9,6 @@ export default function Image() {
     kicker: "Contratar modelos",
     title: "Contrata modelos para tu marca o evento.",
     subtitle: "Solicitud estructurada, oferta con precio y pago dentro del chat.",
-    strapline: "La Plataforma de Comercio para el Talento",
+    strapline: "Vende lo que haces, no lo que envías",
   });
 }

@@ -38,7 +38,7 @@ export function PlatformJsonLd() {
           width: 512,
           height: 512,
         },
-        description: "The Commerce Platform for Talent",
+        description: "Sell what you do, not what you ship",
         // Support address published in the FAQ page copy; the product ships
         // EN + ES, so both languages are advertised.
         contactPoint: {

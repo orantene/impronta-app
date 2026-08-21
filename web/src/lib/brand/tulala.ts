@@ -1,5 +1,5 @@
 /**
- * Tulala — The Commerce Platform for Talent.
+ * Tulala — Sell what you do, not what you ship.
  *
  * Single source of truth for the SaaS brand identity (name, domain, tagline,
  * legal entity). Tenant brands (e.g. Impronta) are resolved per-request and
@@ -30,7 +30,7 @@ export const TULALA_BRAND = {
   /** Production marketing surface hostname. */
   domain: TULALA_APEX_HOST,
   /** Primary positioning line — one sentence, no period in buttons. */
-  tagline: "The Commerce Platform for Talent",
+  tagline: "Sell what you do, not what you ship",
   /** Used in meta tags + social cards. */
   description:
     "Tulala is the commerce platform for talent: a branded storefront, a structured booking pipeline, and the shared discovery network that sends new work your way.",
