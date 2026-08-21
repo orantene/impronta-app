@@ -23,7 +23,12 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav{position:relative;width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:1.25rem}
 .site-builder-node--nav-brand{font-weight:700;text-decoration:none;color:inherit}
 .site-builder-node--nav-links{display:flex;flex-direction:row;align-items:center;gap:1.5rem;margin:0;padding:0;list-style:none}
-.site-builder-node--nav-links>li{margin:0;padding:0}
+/* Every top-level item gets the SAME box type as the dropdown item
+   (.nav-has-sub is display:flex). With mixed boxes the "underline" hover
+   variant's padding-bottom:3px grew only the flex item's box, so the ul's
+   align-items:center floated its label ~1.5px above its plain siblings
+   (owner report 2026-08-20: "Our Talents is a little bit higher"). */
+.site-builder-node--nav-links>li{margin:0;padding:0;display:flex;align-items:center}
 .site-builder-node--nav-links a{text-decoration:none;color:inherit}
 .site-builder-node--nav-disclosure{display:none;position:static}
 .site-builder-node--nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;min-width:44px;height:2.75rem;min-height:44px;cursor:pointer;list-style:none;border:1px solid currentColor;border-radius:8px;color:inherit;-webkit-tap-highlight-color:transparent}

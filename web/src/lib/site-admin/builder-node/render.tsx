@@ -4309,7 +4309,17 @@ function renderBuilderNodeElement(
         src,
         node.props.priority ? "100vw" : undefined,
       );
-      return (
+      // Whole-image link (e.g. the shell logo → home). The tree is href-prefixed
+      // and scheme-guarded by prefixPublicHrefsDeep before render, same as
+      // buttons. `display: contents` keeps the anchor layout-transparent so the
+      // img's own node styles keep sizing it; the accessible name is the alt.
+      const imageHref = resolveNodeStringProp(
+        node,
+        "href",
+        node.props.href ?? "",
+        options.repeatItem,
+      ).value.trim();
+      const imageEl = (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
@@ -4340,6 +4350,20 @@ function renderBuilderNodeElement(
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
           })}
         />
+      );
+      if (!imageHref) return imageEl;
+      return (
+        <a
+          key={node.id}
+          href={imageHref}
+          className="site-builder-node--image-link"
+          style={{ display: "contents" }}
+          {...(/^https?:\/\//i.test(imageHref)
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+        >
+          {imageEl}
+        </a>
       );
     }
     case "video":
