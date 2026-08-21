@@ -64,6 +64,10 @@ import {
 } from "@/lib/inquiry/guest-chat-settings";
 import { listPublicTalentIntegrationItems } from "@/lib/talent-integrations/repository";
 import {
+  loadPublicTalentEmbeds,
+  loadPublicTalentPress,
+} from "@/lib/talent/profile-embeds/repository";
+import {
   PublicFeaturedMedia,
   type PublicFeaturedMediaItem,
 } from "@/components/talent/connections/PublicFeaturedMedia";
@@ -1997,6 +2001,16 @@ export async function TalentProfileView({
     title: row.title,
   }));
 
+  // Pro/Portfolio profile extras — the social/video embed band and the press
+  // band the paid plans market. Both loaders return [] for a free talent (the
+  // plan gate lives in the repository, and RLS re-enforces it), so a downgrade
+  // stops publishing without destroying the rows.
+  const talentPlanKeyForExtras = profile.talent_plan_key ?? "talent_basic";
+  const [talentEmbeds, talentPressItems] = await Promise.all([
+    loadPublicTalentEmbeds(profile.id, talentPlanKeyForExtras),
+    loadPublicTalentPress(profile.id, talentPlanKeyForExtras),
+  ]);
+
   // Sidebar section visibility (six taxonomy sections). Read behind the T2.2
   // field-engine seam: the `public_sidebar` flag selects the legacy
   // `field_definitions` base-guard row shape (`a`) or the canonical
@@ -2295,6 +2309,8 @@ export async function TalentProfileView({
         watermarkPreset={watermarkPreset}
         watermarkLogoUrl={watermarkLogoUrl}
         featuredMediaItems={featuredMediaItems}
+        talentEmbeds={talentEmbeds}
+        talentPressItems={talentPressItems}
         resolvedSkills={resolvedSkills}
         availableDaysInNext30={publicAvailability.availableDaysInNext30}
         availabilityDots14d={publicAvailability.availabilityDots14d}

@@ -148,6 +148,21 @@ export function assertTalentCanConnectCustomDomain(planKey: string): boolean {
   return talentPlanGrantsAccessCapability(planKey, "talent.page.connect_custom_domain");
 }
 
+/**
+ * Pro AND Portfolio — the public-profile extras the paid plans market: social /
+ * video embeds and the press band. Both are `profile.enhanced` in the talent
+ * plan catalog, so this reads the catalog rather than hard-coding plan keys;
+ * the DB RLS on `talent_profile_embeds` / `talent_press_items` re-enforces the
+ * same Pro-or-Max requirement via `talent_profile_has_pro_or_max()`, making
+ * this the outer (UX-facing) half of a defense-in-depth pair.
+ *
+ * Deliberately NOT behind `siteExpansionBlocked` — that flag gates the personal
+ * SITE builder, not the /t/[code] profile these extras render on.
+ */
+export function assertTalentCanManageProfileExtras(planKey: string): boolean {
+  return talentPlanGrantsCapability(planKey, "profile.enhanced");
+}
+
 export function assertTemplateAllowedForPlan(
   planKey: string,
   templateKey: TalentSiteTemplateKey,
@@ -157,8 +172,11 @@ export function assertTemplateAllowedForPlan(
 }
 
 export function planDeniedMessage(
-  capability: "template" | "custom_builder" | "edit",
+  capability: "template" | "custom_builder" | "edit" | "profile_extras",
 ): string {
+  if (capability === "profile_extras") {
+    return "Upgrade to Pro to add social and video embeds and a press band to your profile.";
+  }
   if (capability === "template") {
     return "Upgrade to Pro to choose premium templates.";
   }

@@ -36,6 +36,12 @@ import {
   PublicFeaturedMedia,
   type PublicFeaturedMediaItem,
 } from "@/components/talent/connections/PublicFeaturedMedia";
+import { PublicTalentEmbeds } from "@/components/talent/profile-extras/PublicTalentEmbeds";
+import { PublicTalentPressBand } from "@/components/talent/profile-extras/PublicTalentPressBand";
+import type {
+  PublicTalentEmbed,
+  PublicTalentPressItem,
+} from "@/lib/talent/profile-embeds/types";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
@@ -123,6 +129,13 @@ export type LightProfileLayoutProps = {
   watermarkLogoUrl: string | null;
   /** Talent-selected manual featured-media embeds (showcase only, NOT verified). */
   featuredMediaItems: PublicFeaturedMediaItem[];
+  /**
+   * Pro/Portfolio social + video embed band. Already tier-filtered and
+   * src-validated upstream — [] for a free talent.
+   */
+  talentEmbeds: PublicTalentEmbed[];
+  /** Pro/Portfolio press band. Already tier-filtered upstream — [] for free. */
+  talentPressItems: PublicTalentPressItem[];
 
   // ── Skills + availability ────────────────────────────────────────────────
   resolvedSkills: ResolvedSkill[];
@@ -313,6 +326,8 @@ export function LightProfileLayout({
   watermarkPreset,
   watermarkLogoUrl,
   featuredMediaItems,
+  talentEmbeds,
+  talentPressItems,
   resolvedSkills,
   availableDaysInNext30,
   availabilityDots14d,
@@ -504,6 +519,18 @@ export function LightProfileLayout({
             <PublicFeaturedMedia
               items={featuredMediaItems}
               heading={t("public.profile.editorial.watchListen")}
+            />
+
+            {/* Pro/Portfolio social + video embeds (talent_profile_embeds) */}
+            <PublicTalentEmbeds
+              items={talentEmbeds}
+              heading={t("public.profile.editorial.embeds")}
+            />
+
+            {/* Pro/Portfolio press band (talent_press_items) */}
+            <PublicTalentPressBand
+              items={talentPressItems}
+              heading={t("public.profile.editorial.press")}
             />
 
             {/* Mobile availability (shown only on small screens, above services) */}
