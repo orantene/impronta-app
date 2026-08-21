@@ -1,3 +1,4 @@
+import { withLocaleHref } from "@/i18n/pathnames";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -238,7 +239,7 @@ export default async function AgenciaDeTalentoPage() {
           </div>
           <div className="mt-10">
             <Link
-              href="/directory"
+              href={withLocaleHref("/directory", locale)}
               className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
               style={{
                 border: "1px solid var(--plt-hairline-strong)",
@@ -276,7 +277,7 @@ export default async function AgenciaDeTalentoPage() {
               </ul>
               <div className="mt-8">
                 <Link
-                  href="/agencies"
+                  href={withLocaleHref("/agencies", locale)}
                   className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
                   style={{
                     border: "1px solid var(--plt-hairline-strong)",

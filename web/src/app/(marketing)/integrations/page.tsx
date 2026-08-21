@@ -1,3 +1,4 @@
+import { withLocaleHref } from "@/i18n/pathnames";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
@@ -1155,7 +1156,7 @@ function RoadmapSection({ locale }: { locale: string }) {
         >
           {c.footPrefix}{" "}
           <Link
-            href="/get-started"
+            href={withLocaleHref("/get-started", locale)}
             className="underline decoration-[var(--plt-hairline-strong)] underline-offset-[3px] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-ink-soft)" }}
           >
@@ -1395,7 +1396,7 @@ function ConsumerExamplesSection({ locale }: { locale: string }) {
             {c.footPrefix} {PLATFORM_BRAND.name}{c.footSuffix}
           </p>
           <MarketingCta
-            href="/get-started"
+            href={withLocaleHref("/get-started", locale)}
             variant="secondary"
             size="md"
             eventSource="integrations-consumers"
@@ -1653,7 +1654,7 @@ function AccessSection({ locale }: { locale: string }) {
         >
           {PLATFORM_BRAND.name}{" "}{c.footPrefix}{" "}
           <Link
-            href="/how-it-works"
+            href={withLocaleHref("/how-it-works", locale)}
             className="underline decoration-[rgba(241,237,227,0.35)] underline-offset-[3px] transition-colors hover:text-[var(--plt-on-inverse)]"
           >
             {c.footLink}

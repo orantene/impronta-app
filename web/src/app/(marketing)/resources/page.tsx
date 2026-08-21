@@ -8,7 +8,7 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { ResourceArticleList } from "@/components/marketing/resource-article";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { SubscribeModule } from "@/components/marketing/subscribe-module";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, withLocaleHref } from "@/i18n/pathnames";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -104,7 +104,7 @@ export default async function ResourcesPage() {
           <ResourceArticleList locale={locale} />
 
           <Link
-            href="/resources/glossary"
+            href={withLocaleHref("/resources/glossary", locale)}
             className="mt-8 flex flex-col rounded-[22px] p-6 sm:p-7"
             style={{
               background: "var(--plt-bg-elevated)",
