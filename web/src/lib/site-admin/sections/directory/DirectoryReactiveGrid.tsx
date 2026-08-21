@@ -316,7 +316,7 @@ export function DirectoryReactiveGrid({
       computeCaptionNorms(
         items.map((c) => ({
           locationLabel: c.locationLabel,
-          availabilityLabel: formatAvailability(c).label,
+          availabilityLabel: formatAvailability(c, locale).label,
         })),
       ),
     [items],

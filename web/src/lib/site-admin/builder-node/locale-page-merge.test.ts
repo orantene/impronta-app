@@ -198,3 +198,74 @@ test("applies a duplicated node id only once", () => {
   assert.deepEqual(overlayOf(result.tree[0]), { es: { text: "Uno" } });
   assert.deepEqual(overlayOf(result.tree[1]), {});
 });
+
+test("folds NESTED form-field text into dotted overlay keys (the Spanish contact form)", () => {
+  const primaryTree = [
+    {
+      id: "rb-contact-form",
+      kind: "form",
+      props: {
+        fields: [
+          { name: "name", label: "Name", placeholder: "Your name" },
+          { name: "brief", label: "What are you booking?" },
+        ],
+      },
+    },
+  ] as unknown as BuilderNode[];
+  const secondaryTree = [
+    {
+      id: "es-rb-contact-form",
+      kind: "form",
+      props: {
+        fields: [
+          { name: "name", label: "Nombre", placeholder: "Tu nombre" },
+          { name: "brief", label: "\u00bfQu\u00e9 quieres reservar?" },
+        ],
+      },
+    },
+  ] as unknown as BuilderNode[];
+
+  const result = mergeLocalePageIntoOverlays({
+    primaryTree,
+    secondaryTree,
+    locale: "es",
+  });
+
+  const overlay = (result.tree[0] as { i18n?: Record<string, Record<string, string>> })
+    .i18n?.es;
+  assert.equal(overlay?.["fields.0.label"], "Nombre");
+  assert.equal(overlay?.["fields.0.placeholder"], "Tu nombre");
+  assert.equal(overlay?.["fields.1.label"], "\u00bfQu\u00e9 quieres reservar?");
+  assert.equal(
+    result.skipped.filter((s) => s.reason === "unmatched").length,
+    0,
+    "every nested string found its counterpart",
+  );
+});
+
+test("folds a nested OBJECT prop (requestCta.label)", () => {
+  const result = mergeLocalePageIntoOverlays({
+    primaryTree: [
+      {
+        id: "n1",
+        kind: "section",
+        props: { requestCta: { href: "/contact", label: "Request" } },
+      },
+    ] as unknown as BuilderNode[],
+    secondaryTree: [
+      {
+        id: "es-n1",
+        kind: "section",
+        props: { requestCta: { href: "/es/contact", label: "Solicitar" } },
+      },
+    ] as unknown as BuilderNode[],
+    locale: "es",
+  });
+  const overlay = (result.tree[0] as { i18n?: Record<string, Record<string, string>> })
+    .i18n?.es;
+  assert.equal(overlay?.["requestCta.label"], "Solicitar");
+  assert.ok(
+    !Object.keys(overlay ?? {}).some((k) => k.includes("href")),
+    "hrefs are never folded as translations",
+  );
+});

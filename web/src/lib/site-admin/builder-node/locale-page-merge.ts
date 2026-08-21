@@ -48,7 +48,42 @@ import {
  * panel and this merge agree on exactly which strings are translatable.
  */
 const TEXT_PROP_NAMES = ["text", "label", "title", "alt", "brand"] as const;
-type TextPropName = (typeof TEXT_PROP_NAMES)[number];
+
+/**
+ * Text keys carried one level down, inside an object or array prop — the
+ * contact form's `fields[].label` / `.placeholder`, a section's
+ * `requestCta.label`. These are invisible to the renderer's top-level overlay
+ * resolution, so they are stored as DOTTED paths (`fields.3.label`) and applied
+ * by `nested-i18n.ts` at render time. Without them the one-design collapse
+ * silently rendered the whole Spanish contact form in English.
+ */
+const NESTED_TEXT_KEYS = ["label", "placeholder", "text", "title"] as const;
+
+/**
+ * How deep the nested scan goes. Real designs nest text at three levels
+ * (`props.config.requestCta.label` on the homepage's talent grid), so a
+ * two-level scan silently missed copy and shipped it untranslated.
+ */
+const MAX_NESTED_DEPTH = 4;
+
+/**
+ * Prop subtrees that never hold visitor-facing copy. `style` in particular is a
+ * deep object whose keys can collide with text keys.
+ */
+const NESTED_SKIP_KEYS = new Set([
+  "style",
+  "fieldBindings",
+  "styleClasses",
+  "visibilityCondition",
+  "experiment",
+  "i18n",
+]);
+
+/**
+ * A prop name (`text`) or a dotted path into a nested prop
+ * (`fields.3.label`). Overlay keys use the same grammar.
+ */
+type TextPropName = string;
 
 export interface LocaleMergeEntry {
   /** Node id on the PRIMARY tree that received the value. */
@@ -92,16 +127,53 @@ interface FlatEntry {
   value: string;
 }
 
+function pushText(
+  out: Array<{ prop: TextPropName; value: string }>,
+  prop: string,
+  raw: unknown,
+): void {
+  if (typeof raw !== "string") return;
+  const trimmed = raw.trim();
+  if (!trimmed) return;
+  out.push({ prop, value: trimmed });
+}
+
 function textPropsOf(node: BuilderNode): Array<{ prop: TextPropName; value: string }> {
   const props = (node as { props?: Record<string, unknown> }).props;
   if (!props || typeof props !== "object") return [];
   const out: Array<{ prop: TextPropName; value: string }> = [];
   for (const name of TEXT_PROP_NAMES) {
-    const raw = props[name];
-    if (typeof raw !== "string") continue;
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    out.push({ prop: name, value: trimmed });
+    pushText(out, name, props[name]);
+  }
+
+  // Bounded walk for text nested inside object/array props. Only keys in
+  // NESTED_TEXT_KEYS are collected, so hrefs, ids and classes can never be
+  // mistaken for translatable copy no matter how deep they sit.
+  const visit = (value: unknown, trail: string, depth: number): void => {
+    if (depth > MAX_NESTED_DEPTH || value == null || typeof value !== "object") {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => visit(item, `${trail}.${index}`, depth + 1));
+      return;
+    }
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (NESTED_SKIP_KEYS.has(key)) continue;
+      const path = trail ? `${trail}.${key}` : key;
+      if (typeof child === "string") {
+        if (NESTED_TEXT_KEYS.includes(key as (typeof NESTED_TEXT_KEYS)[number])) {
+          pushText(out, path, child);
+        }
+        continue;
+      }
+      visit(child, path, depth + 1);
+    }
+  };
+  for (const [key, child] of Object.entries(props)) {
+    if (NESTED_SKIP_KEYS.has(key) || child == null || typeof child !== "object") {
+      continue;
+    }
+    visit(child, key, 1);
   }
   return out;
 }
