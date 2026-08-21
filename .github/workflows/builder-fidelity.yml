@@ -93,8 +93,11 @@ jobs:
         if: ${{ env.SHOULD_SEED == 'true' }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --project=webkit --update-snapshots
 
+      # `always()` is load-bearing: a seed run that fails ANY frame would
+      # otherwise skip this upload and throw away the frames it DID regenerate,
+      # which is why "just reseed the goldens" never actually produced goldens.
       - name: Upload seeded goldens
-        if: ${{ env.SHOULD_SEED == 'true' }}
+        if: ${{ always() && env.SHOULD_SEED == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: fidelity-goldens-seeded
