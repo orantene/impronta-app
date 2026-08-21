@@ -19,9 +19,16 @@ import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
  * The DB tier slug for the 4th tier is `hub` (the renamed Network from
  * Phase 1); the funnel URL param keeps `network` for backward-compat
  * with any external links / docs / emails that already use `?tier=network`.
+ *
+ * A tier with no entry here is filtered out of the grid, so `website` needed
+ * a row of its own: its `product_tiers` row is `is_active=false` today (the
+ * plan key has not shipped), which means `loadMarketingTiers` does not return
+ * it and the card is absent either way. When the row is activated the CTA is
+ * already here and the card appears with no further code change.
  */
 const TIER_CTA: Record<string, { label: string; href: string; intent: string }> = {
-  free:   { label: "Start free",          href: "/get-started?tier=free",    intent: "free"    },
+  free:    { label: "Start free",          href: "/get-started?tier=free",    intent: "free"    },
+  website: { label: "Get started",         href: "/get-started?tier=website", intent: "website" },
   studio: { label: "Start on Studio",     href: "/get-started?tier=studio",  intent: "studio"  },
   agency: { label: "Start 14-day trial",  href: "/get-started?tier=agency",  intent: "agency"  },
   hub:    { label: "Book a walkthrough",  href: "/get-started?tier=network", intent: "network" },
@@ -79,7 +86,11 @@ export async function PricingTeaserSection({
         )}
 
         <div
-          className={`${hideHeading ? "" : "mt-14 "}grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5`}
+          className={`${hideHeading ? "" : "mt-14 "}grid gap-4 sm:grid-cols-2 lg:gap-5 ${
+            TIERS.length >= 5
+              ? "lg:grid-cols-3 xl:grid-cols-5"
+              : "lg:grid-cols-4"
+          }`}
         >
           {TIERS.map((t) => (
             <TierCard key={t.key} tier={t} />
