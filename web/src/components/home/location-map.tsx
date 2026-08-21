@@ -138,21 +138,78 @@ function GmAuthFailureBridge({ onFailed }: { onFailed: () => void }) {
   return null;
 }
 
-function FitBounds({ points }: { points: google.maps.LatLngLiteral[] }) {
+/**
+ * Share of the roster the opening view is required to contain. Everything else
+ * still renders as a pin and is one zoom-out (or one city chip) away.
+ */
+const HOME_MARKET_TALENT_SHARE = 0.8;
+
+/**
+ * The locations that make up the agency's HOME MARKET: the fewest cities that
+ * together hold `HOME_MARKET_TALENT_SHARE` of the roster, biggest first.
+ *
+ * Exported for the unit test — the interesting behaviour is entirely in which
+ * cities get picked, and that is worth pinning without a Google Maps stub.
+ */
+export function homeMarketLocations<
+  T extends { talentCount: number },
+>(locations: ReadonlyArray<T>): ReadonlyArray<T> {
+  if (locations.length <= 1) return locations;
+  const total = locations.reduce((sum, l) => sum + Math.max(0, l.talentCount), 0);
+  if (total <= 0) return locations;
+
+  const ranked = [...locations].sort((a, b) => b.talentCount - a.talentCount);
+  const target = total * HOME_MARKET_TALENT_SHARE;
+  const picked: T[] = [];
+  let covered = 0;
+  for (const loc of ranked) {
+    picked.push(loc);
+    covered += Math.max(0, loc.talentCount);
+    if (covered >= target) break;
+  }
+  return picked;
+}
+
+/**
+ * Opens the map on the agency's HOME MARKET rather than on every pin.
+ *
+ * Fitting ALL points sounds neutral and is not: one talent in a far-away city
+ * drags the viewport out to continental scale, and the visitor's first look at
+ * a Riviera Maya agency was Campeche-to-Cuba with three unreadable pins in the
+ * corner. The bulk of the roster — the thing the section exists to show — ended
+ * up as the least legible part of it.
+ *
+ * So the opening bounds cover the cities holding most of the talent, and the
+ * outliers stay on the map, reachable by zooming out or via the city chips
+ * above. No coordinates are hardcoded: an agency whose roster sits in Buenos
+ * Aires opens on Buenos Aires by the same rule.
+ */
+function FitBounds({
+  locations,
+}: {
+  locations: ReadonlyArray<{
+    talentCount: number;
+    latitude: number | null;
+    longitude: number | null;
+  }>;
+}) {
   const map = useMap();
   const apiLoaded = useApiIsLoaded();
 
   useEffect(() => {
-    if (!apiLoaded || !map || points.length === 0) return;
+    if (!apiLoaded || !map || locations.length === 0) return;
+    const focus = homeMarketLocations(locations);
+    const points = focus.map((l) => ({ lat: l.latitude!, lng: l.longitude! }));
     if (points.length === 1) {
       map.setCenter(points[0]);
+      // A single market reads best as a city, not as a country.
       map.setZoom(10);
       return;
     }
     const bounds = new google.maps.LatLngBounds();
     for (const p of points) bounds.extend(p);
     map.fitBounds(bounds, 48);
-  }, [apiLoaded, map, points]);
+  }, [apiLoaded, map, locations]);
 
   return null;
 }
@@ -444,19 +501,19 @@ export function LocationMap({
     [locations],
   );
 
-  const points = useMemo(
-    () => locationsWithCoords.map((l) => ({ lat: l.latitude!, lng: l.longitude! })),
-    [locationsWithCoords],
-  );
-
+  // The pre-fit frame. `FitBounds` corrects this once the API is up, but the
+  // first paint uses it -- so it centres on the HOME MARKET too. Averaging every
+  // pin instead would open on the middle of the ocean between the roster and its
+  // furthest outlier, then visibly jump.
   const defaultCenter = useMemo(() => {
-    if (points.length === 0) return { lat: 20, lng: 0 };
-    const sum = points.reduce(
-      (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    const focus = homeMarketLocations(locationsWithCoords);
+    if (focus.length === 0) return { lat: 20, lng: 0 };
+    const sum = focus.reduce(
+      (acc, l) => ({ lat: acc.lat + l.latitude!, lng: acc.lng + l.longitude! }),
       { lat: 0, lng: 0 },
     );
-    return { lat: sum.lat / points.length, lng: sum.lng / points.length };
-  }, [points]);
+    return { lat: sum.lat / focus.length, lng: sum.lng / focus.length };
+  }, [locationsWithCoords]);
 
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
 
@@ -488,7 +545,9 @@ export function LocationMap({
               className="h-full w-full"
               colorScheme={ColorScheme.DARK}
               defaultCenter={defaultCenter}
-              defaultZoom={3}
+              // Regional, not planetary. `FitBounds` sets the real zoom a beat
+              // later; 3 meant the first paint was a view of the hemisphere.
+              defaultZoom={7}
               gestureHandling="cooperative"
               mapTypeControl={false}
               streetViewControl={false}
@@ -497,7 +556,7 @@ export function LocationMap({
               zoomControl
               clickableIcons={false}
             >
-              <FitBounds points={points} />
+              <FitBounds locations={locationsWithCoords} />
               {locationsWithCoords.map((loc, stackIndex) => (
                 <LocationMapMarker
                   key={loc.id}
