@@ -78,7 +78,7 @@ const PLANS: ReadonlyArray<PlanCard> = [
     annual: 1490,
     tagline: "Full branded site on your own domain.",
     features: [
-      { text: `Up to ${seatCapLabel("agency")} talents` },
+      { text: seatCapLabel("agency", "Unlimited talent") },
       { text: "Custom domain + branded site" },
       { text: "Pages, posts, nav, footer" },
       { text: "Theme library + selective import" },

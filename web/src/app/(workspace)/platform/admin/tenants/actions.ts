@@ -454,6 +454,11 @@ export async function actionAddWorkspaceMember(input: {
       return { ok: false, error: "Could not re-add the member." };
     }
   } else {
+    // TEAM-SEAT EXEMPTION (deliberate): platform staff seat members without
+    // a `checkTeamSeatAvailability` call. The plan cap governs what a
+    // workspace can do to itself; a platform override is how support and
+    // operations get in, and must never be blocked by the tenant's plan.
+    // Tenant-side enforcement lives in lib/saas/team-seat-limit.ts.
     const { error } = await sb.from("agency_memberships").insert({
       tenant_id: input.tenantId,
       profile_id: profileId,
@@ -671,6 +676,11 @@ export async function actionAssignOwnerByEmail(input: {
       return { ok: false, error: "Could not assign ownership." };
     }
   } else {
+    // TEAM-SEAT EXEMPTION (deliberate): platform staff seat members without
+    // a `checkTeamSeatAvailability` call. The plan cap governs what a
+    // workspace can do to itself; a platform override is how support and
+    // operations get in, and must never be blocked by the tenant's plan.
+    // Tenant-side enforcement lives in lib/saas/team-seat-limit.ts.
     const { error } = await sb.from("agency_memberships").insert({
       tenant_id: input.tenantId,
       profile_id: profileId,
