@@ -29,6 +29,42 @@ const CW = PAGE_W - ML - MR;
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 6000;
 
+/**
+ * pdf-lib's StandardFonts are WinAnsi-encoded, and `drawText` THROWS on any
+ * character the encoding cannot represent — it does not silently drop it. A
+ * talent whose display name is Cyrillic or CJK would therefore 500 the whole
+ * media-kit route rather than get a slightly wrong PDF.
+ *
+ * Verified against pdf-lib directly: "Bailarín Nocturno" encodes fine (Latin-1
+ * covers the Spanish set, which is what EN/ES actually needs today), while
+ * "Анна Петрова" throws `WinAnsi cannot encode "А" (0x0410)`.
+ *
+ * So: decompose accents that WinAnsi can render in composed form, then replace
+ * anything still unrepresentable. A degraded name beats a failed download.
+ *
+ * Proper non-Latin support means embedding a Unicode TTF via @pdf-lib/fontkit;
+ * that is a real change (font file, subsetting, bundle size) and is deliberately
+ * NOT bundled into this fix.
+ */
+const WIN_ANSI_SAFE = /^[\u0000-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]*$/;
+
+export function toWinAnsiSafe(text: string): string {
+  if (WIN_ANSI_SAFE.test(text)) return text;
+  const normalized = text.normalize("NFC");
+  let out = "";
+  for (const ch of normalized) {
+    if (WIN_ANSI_SAFE.test(ch)) {
+      out += ch;
+      continue;
+    }
+    // Strip combining marks outright; swap any other unrepresentable glyph for
+    // a neutral placeholder so the layout still makes sense.
+    const stripped = ch.normalize("NFD").replace(/\p{M}/gu, "");
+    out += WIN_ANSI_SAFE.test(stripped) ? stripped : "?";
+  }
+  return out.replace(/\?{2,}/g, "?").trim();
+}
+
 function fmtDate(iso: string): string {
   try {
     return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(
@@ -158,7 +194,7 @@ export async function generateTalentMediaKitPdf(
     const f = opts.bold ? fontBold : font;
     const size = opts.size ?? 10;
     const maxWidth = opts.maxWidth ?? CW;
-    let t = text;
+    let t = toWinAnsiSafe(text);
     while (t.length > 1 && f.widthOfTextAtSize(t, size) > maxWidth) t = t.slice(0, -1);
     page.drawText(t, {
       x: opts.x ?? ML,
@@ -333,7 +369,7 @@ export async function generateTalentMediaKitPdf(
     ? `${model.brandName}  ·  ${model.displayName}  ·  ${model.profileCode}  ·  Generated ${fmtDate(model.generatedAtISO)}`
     : `${model.brandName}  ·  ${model.displayName}  ·  Generated ${fmtDate(model.generatedAtISO)}`;
   for (const p of pdf.getPages()) {
-    p.drawText(footer, { x: ML, y: 30, size: 7.5, font, color: muted });
+    p.drawText(toWinAnsiSafe(footer), { x: ML, y: 30, size: 7.5, font, color: muted });
   }
 
   return pdf.save();
