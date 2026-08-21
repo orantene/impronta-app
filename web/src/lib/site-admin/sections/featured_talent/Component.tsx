@@ -716,6 +716,7 @@ export async function FeaturedTalentComponent({
                         }
                       : null
                   }
+                  locale={locale}
                 />
                 <TalentCardActions
                   talentProfileId={card.id}
