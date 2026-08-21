@@ -31,6 +31,11 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-canvas";
 import { StorefrontBodyServerMarker } from "@/components/edit-chrome/storefront-body-server-marker";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  contentLocaleForDesignRow,
+  resolveDesignLocale,
+} from "@/lib/site-admin/server/design-locale";
 import { userHasCapability } from "@/lib/access";
 import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
 import { SITE_SHELL_EDITOR_SLUG } from "@/lib/admin/website-editor-links";
@@ -71,6 +76,33 @@ function JsonLdScript({ script }: { script: string }) {
       dangerouslySetInnerHTML={{ __html: script }}
     />
   );
+}
+
+type FreeformPageRow = {
+  id: string;
+  title: string;
+  blocks: BuilderNode[];
+  is_freeform: boolean;
+  status: string;
+  locale: string;
+};
+
+/**
+ * Pick the row that supplies the DESIGN from a multi-locale lookup: the first
+ * locale in `lookupOrder` that actually came back. That is the primary-language
+ * row when it exists, otherwise the requested locale's own row (a page authored
+ * only in a secondary language). Returns null when neither matched.
+ */
+function pickDesignRow(
+  rows: FreeformPageRow[] | null,
+  lookupOrder: readonly string[],
+): FreeformPageRow | null {
+  if (!rows || rows.length === 0) return null;
+  for (const code of lookupOrder) {
+    const match = rows.find((row) => row.locale === code);
+    if (match) return match;
+  }
+  return null;
 }
 
 type CmsPagePublic = {
@@ -292,7 +324,16 @@ export default async function CmsPublicPage({
     // sets both the JWT and the cookie, so staff editing + preview links still see
     // drafts. On a query error, fall through to the slot/legacy branches.
     const previewActive = await isPreviewActiveForTenant(publicScope.tenantId);
-    const freeformCols = "id, title, blocks, is_freeform, status";
+    const freeformCols = "id, title, blocks, is_freeform, status, locale";
+    // ONE DESIGN PER PAGE — the tenant's PRIMARY-language row supplies the tree
+    // (order, layout, styling, picked talent); the visitor's language is a
+    // per-element text overlay resolved by the renderer. Reading strictly
+    // `.eq("locale", locale)` is what made `/es` a separate page that ignored
+    // every edit made to the primary one. `lookupOrder` still tries the
+    // requested locale second, so a page that exists ONLY in a secondary
+    // language keeps rendering (as its own design).
+    const localeSettings = await loadTenantLocaleSettings(publicScope.tenantId);
+    const designPlan = resolveDesignLocale(localeSettings, locale);
     // The PUBLISHED read goes through cms_public_pages_for_tenant — the same
     // SECURITY-INVOKER RPC the metadata read uses. It runs
     // `set_config('app.current_tenant_id', …)` so the cms_pages RLS policy
@@ -303,7 +344,7 @@ export default async function CmsPublicPage({
     const publishedRead = await supabase
       .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
       .select(freeformCols)
-      .eq("locale", locale)
+      .in("locale", designPlan.lookupOrder as string[])
       .eq("slug", slugPath)
       .eq("is_freeform", true)
       // Defense-in-depth: system-owned pages (homepage, __site_shell__,
@@ -311,9 +352,12 @@ export default async function CmsPublicPage({
       // mis-flagged is_freeform=true can never render through this clause
       // (don't rely solely on the slug "__" prefix heuristic upstream).
       .eq("is_system_owned", false)
-      .maybeSingle()
-      .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
-    let freeformPage = publishedRead.data;
+      // NOT `.maybeSingle()`: the lookup spans two locales, so a tenant with
+      // both rows legitimately matches 2 and maybeSingle would ERROR — the
+      // swallowed-error trap that once blanked every multi-locale page. Take
+      // both and pick by design priority below.
+      .limit(2);
+    let freeformPage = pickDesignRow(publishedRead.data as unknown as FreeformPageRow[] | null, designPlan.lookupOrder);
     let freeformErr = publishedRead.error;
     // Draft preview (staff): the published-only RPC won't surface a draft, so
     // read the row directly — RLS admits it for staff via is_staff_of_tenant
@@ -338,13 +382,12 @@ export default async function CmsPublicPage({
         .from("cms_pages")
         .select(freeformCols)
         .eq("tenant_id", publicScope.tenantId)
-        .eq("locale", locale)
+        .in("locale", designPlan.lookupOrder as string[])
         .eq("slug", slugPath)
         .eq("is_freeform", true)
         .eq("is_system_owned", false)
-        .maybeSingle()
-        .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
-      freeformPage = draftRead.data;
+        .limit(2);
+      freeformPage = pickDesignRow(draftRead.data as unknown as FreeformPageRow[] | null, designPlan.lookupOrder);
       freeformErr = draftRead.error;
     }
     if (
@@ -411,6 +454,20 @@ export default async function CmsPublicPage({
           publicScope.tenantId,
         );
       }
+      // Is an AUTHORIZED editor looking at this page right now? Same proof as
+      // the canvas gate above (capability, or the signed preview JWT that set
+      // `draftReaderActive`) but without the client-canvas flag, because the
+      // untranslated cue belongs on the server-rendered editor body too — which
+      // is the only body that renders while that flag is off. Drives
+      // `editorPreview` only; it grants no data access of its own.
+      const editorViewing =
+        editModeActive &&
+        (draftReaderActive ||
+          mountBodyCanvas ||
+          (await userHasCapability(
+            "agency.site_admin.pages.edit",
+            publicScope.tenantId,
+          )));
       const editCanvasRenderData = mountBodyCanvas
         ? await buildInEditorCanvasRenderData({
             tree: blocks,
@@ -491,6 +548,25 @@ export default async function CmsPublicPage({
                 // providers otherwise read the visitor's BROWSER language, so a
                 // Spanish storefront showed an English challenge.
                 visitorLocale: locale,
+                // ONE DESIGN PER PAGE — resolve each localizable string prop
+                // through the node's `i18n` overlay. `defaultLocale` is the row
+                // we actually loaded, so a page authored only in a secondary
+                // language treats its own text as the base rather than as a
+                // fallback.
+                //
+                // `editorPreview` (the 40% opacity + dotted "needs translation"
+                // outline) is set ONLY while an authorized editor is on the
+                // page. It is what makes a missing translation visible when the
+                // operator switches language in the builder — and the storefront
+                // body here IS the editor canvas, because the client canvas is
+                // flag-gated off. A visitor never takes this branch with edit
+                // mode active, so the cue cannot reach the live site.
+                contentLocale: contentLocaleForDesignRow(
+                  localeSettings,
+                  locale,
+                  freeformPage.locale,
+                  { editorPreview: editorViewing },
+                ),
                 ...experimentContext,
                 renderSectionEmbed: makeSectionEmbedRenderer({
                   tenantId: publicScope.tenantId,

@@ -1,21 +1,17 @@
 "use client";
 
 /**
- * Translation status for FREEFORM surfaces — the one-row-per-locale analogue
- * of the legacy LocaleFieldTabs dots.
+ * Whole-page translation status — which elements are still untranslated.
  *
- * Legacy slot pages kept EN/ES inside one node (`node.i18n`), so the Content
- * panel could show a per-language dot on every field. Freeform pages store a
- * separate `cms_pages` row per locale, which hides those tabs by design (the
- * adapter reports one locale per row) — and an overlay authored here would
- * never render on the sibling URL anyway. This panel restores the audit
- * power the tabs provided, freeform-natively: it loads the sibling locale's
- * row read-only, walks both trees (`buildTranslationReport`), and reports
- * per text component whether the other language has a real value.
+ * ONE DESIGN PER PAGE: the page's base props are the workspace's primary
+ * language, and every other language is per-element text in `node.i18n`. The
+ * Content panel shows that as a dot on each field; this panel is the same
+ * truth for the WHOLE page at once, so the operator can see everything still
+ * missing without clicking every element.
  *
- * The language SET comes from `tenantLocales` (server-mount truth), never
- * the adapter's per-row `availableLocales`. The LocaleFieldTabs path for
- * multi-locale adapters is untouched.
+ * It walks the live tree (`buildOverlayTranslationReport`) — no sibling row is
+ * fetched, because a second per-locale page is exactly what this model
+ * replaced. The language SET comes from `tenantLocales` (server-mount truth).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -27,16 +23,11 @@ import { useBuilderTree } from "./builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { locateCanvasNode } from "./freeform-layer-row";
 import {
-  buildTranslationReport,
+  buildOverlayTranslationReport,
   type TranslationReport,
   type TranslationRow,
   type TranslationTextStatus,
 } from "@/lib/site-admin/builder-node/translation-status";
-import {
-  loadSiblingLocalePageAction,
-  type SiblingLocalePageResult,
-} from "@/lib/site-admin/edit-mode/sibling-locale-page-action";
-import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 
 const STATUS_META: Record<
   TranslationTextStatus,
@@ -49,7 +40,7 @@ const STATUS_META: Record<
   // live run was 13 of these against 1 real finding.
   not_translatable: { dot: CHROME.muted3, label: "Numbers or symbols, nothing to translate" },
   sibling_empty: { dot: CHROME.amber, hollow: true, label: "Empty in the other language" },
-  no_counterpart: { dot: "#e11d48", hollow: true, label: "No counterpart block" },
+  no_counterpart: { dot: "#e11d48", hollow: true, label: "Not translated yet" },
 };
 
 function StatusDot({ status }: { status: TranslationTextStatus }) {
@@ -74,7 +65,7 @@ type PanelState =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "no_sibling" }
-  | { kind: "ready"; report: TranslationReport; siblingStatus: string; duplicateRows: boolean };
+  | { kind: "ready"; report: TranslationReport; siblingStatus: string | null; duplicateRows: boolean };
 
 /**
  * Trigger + panel. Rendered by the topbar beside NavLocaleToggle, only on
@@ -82,32 +73,38 @@ type PanelState =
  */
 export function TranslationStatusButton({
   activeLocale,
+  defaultLocale,
   tenantLocales,
-  pageSlug,
 }: {
   activeLocale: string;
+  /** The workspace's PRIMARY language — the one the base props are written in. */
+  defaultLocale: string;
   tenantLocales: ReadonlyArray<string>;
-  pageSlug: string;
 }) {
   const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
-  const otherLocales = useMemo(
-    () => tenantLocales.filter((code) => code !== activeLocale),
-    [tenantLocales, activeLocale],
-  );
-  // v1 compares against ONE sibling (the first other locale). Every current
-  // tenant is bilingual at most; a third locale extends this to a picker.
-  const siblingLocale = otherLocales[0] ?? null;
-  if (!siblingLocale) return null;
+  // WHICH language does this panel audit? Always a NON-PRIMARY one, because
+  // the primary language is the base props — it is never "missing", and
+  // auditing it would report every element as untranslated (it has no overlay
+  // by design). So: the language being viewed when that is a secondary one,
+  // otherwise the first secondary language.
+  //
+  // v1 reports ONE language at a time. Every current tenant is bilingual at
+  // most; a third language extends this to a picker.
+  const auditLocale = useMemo(() => {
+    if (activeLocale !== defaultLocale) return activeLocale;
+    return tenantLocales.find((code) => code !== defaultLocale) ?? null;
+  }, [activeLocale, defaultLocale, tenantLocales]);
+  if (!auditLocale) return null;
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title={t("Compare this page against the {locale} version").replace(
+        title={t("What still needs translating into {locale}").replace(
           "{locale}",
-          siblingLocale.toUpperCase(),
+          auditLocale.toUpperCase(),
         )}
         className="inline-flex shrink-0 cursor-pointer items-center gap-[5px] rounded-full border-none px-[10px] py-[7px] text-[12px] font-semibold transition-all"
         style={{ background: "rgba(0,0,0,0.05)", color: CHROME.muted }}
@@ -139,9 +136,7 @@ export function TranslationStatusButton({
       </button>
       {open ? (
         <TranslationStatusPanel
-          activeLocale={activeLocale}
-          siblingLocale={siblingLocale}
-          pageSlug={pageSlug}
+          siblingLocale={auditLocale}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -150,14 +145,11 @@ export function TranslationStatusButton({
 }
 
 function TranslationStatusPanel({
-  activeLocale,
   siblingLocale,
-  pageSlug,
   onClose,
 }: {
-  activeLocale: string;
+  /** The language being audited — always a non-primary one (see the button). */
   siblingLocale: string;
-  pageSlug: string;
   onClose: () => void;
 }) {
   const { t } = useEditorLocale();
@@ -174,37 +166,20 @@ function TranslationStatusPanel({
   const [state, setState] = useState<PanelState>({ kind: "loading" });
   const [reloadNonce, setReloadNonce] = useState(0);
 
+  // ONE DESIGN PER PAGE — the translations live in each node's `i18n` overlay
+  // on THIS tree, so the audit is a local walk: no sibling row to fetch, no
+  // network, and no cross-tree matching that could mis-pair two elements. (The
+  // former sibling-row fetch compared a second page that no longer renders.)
   useEffect(() => {
-    let cancelled = false;
-    setState({ kind: "loading" });
-    void (async () => {
-      const result: SiblingLocalePageResult = await safeAction(
-        () => loadSiblingLocalePageAction({ slug: pageSlug, locale: siblingLocale }),
-        {
-          name: "loadSiblingLocalePage",
-          fallback: { ok: false as const, error: "Couldn't load the sibling page. Try again." },
-        },
-      );
-      if (cancelled) return;
-      if (!result.ok) {
-        setState({ kind: "error", message: result.error });
-        return;
-      }
-      if (!result.exists) {
-        setState({ kind: "no_sibling" });
-        return;
-      }
-      setState({
-        kind: "ready",
-        report: buildTranslationReport(builderTreeRef.current, result.blocks),
-        siblingStatus: result.status,
-        duplicateRows: result.duplicateRows,
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pageSlug, siblingLocale, reloadNonce]);
+    setState({
+      kind: "ready",
+      report: buildOverlayTranslationReport(builderTreeRef.current, siblingLocale),
+      siblingStatus: null,
+      duplicateRows: false,
+    });
+    // `builderTree` is a dep so the report refreshes as the operator edits;
+    // the ref keeps the read itself pointed at the newest tree.
+  }, [siblingLocale, reloadNonce, builderTree]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -268,9 +243,10 @@ function TranslationStatusPanel({
               {t("Translation status")}
             </div>
             <div style={{ fontSize: 11, color: CHROME.muted2 }}>
-              {t("{current} page compared with {sibling}")
-                .replace("{current}", upper(activeLocale))
-                .replace("{sibling}", upper(siblingLocale))}
+              {t("Translation coverage for {sibling}").replace(
+                "{sibling}",
+                upper(siblingLocale),
+              )}
             </div>
           </div>
           <button
