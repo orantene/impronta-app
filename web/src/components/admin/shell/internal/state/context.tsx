@@ -341,6 +341,10 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+  /** The talent's OWN page analytics (views + inquiry conversion) from the
+   *  layout bridge. null = not entitled (Free) or not loaded; the surface then
+   *  shows the upsell / an honest empty, never fabricated zeros. */
+  bridgeTalentPageAnalytics: import("@/lib/analytics/talent-analytics").TalentPageAnalyticsResult | null;
   /** The current talent's Stripe Connect payout snapshot (from the layout
    *  bridge), for the in-shell Payouts section. null = not loaded. */
   bridgeTalentPayoutSnapshot:
@@ -2061,6 +2065,7 @@ export function AdminShellProvider({
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+  const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
   const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
@@ -2229,6 +2234,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
       bridgeTalentAgencies,
@@ -2350,6 +2356,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
       bridgeTalentAgencies,

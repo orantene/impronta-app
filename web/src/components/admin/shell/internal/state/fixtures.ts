@@ -4617,7 +4617,14 @@ export function buildFreshTalentProfile(bridge: {
    *  built profile stamped tier "free", so the profile hero's TierPill
    *  contradicted the nav's plan badge (which reads the bridge tier). */
   talentTier?: MyTalentProfile["subscription"]["tier"];
-}): MyTalentProfile {
+},
+  /** ANALYTICS — the talent's REAL page analytics from the layout bridge, when
+   *  their tier includes them. The three engagement fields below were hardcoded
+   *  `0` before this, so a Pro talent with traffic saw a measured-looking zero.
+   *  Absent (Free tier / workspace-only entry) they stay 0 and EngagementStrip
+   *  shows the upsell instead of presenting that zero as a measurement. */
+  pageAnalytics?: import("@/lib/analytics/talent-analytics-group").TalentPageAnalyticsData | null,
+): MyTalentProfile {
   const initials =
     bridge.displayName
       .split(/\s+/)
@@ -4706,10 +4713,13 @@ export function buildFreshTalentProfile(bridge: {
     representation: { kind: "freelance" },
     contactPolicy: { ...DEFAULT_CONTACT_POLICY },
     publishedAt: "",
-    profileViews7d: 0,
-    inquiries7d: 0,
+    // Real when the bridge carried analytics; 0 only when there is none to read.
+    profileViews7d: pageAnalytics?.last7d.views ?? 0,
+    inquiries7d: pageAnalytics?.last7d.inquiries ?? 0,
+    // NOT SOURCED — no Discover-rank computation exists; strip shows "Not yet ranked".
     discoverRank: 0,
-    viewsTrend: 0,
+    // 0 against a zero baseline; the strip reads viewsTrendPct === null and hides the arrow.
+    viewsTrend: pageAnalytics?.viewsTrendPct ?? 0,
     completeness: 0,
     missing: [],
     publicUrl: "",

@@ -66,6 +66,145 @@ const RATING_WORD_KEYS = [
   "dashboard.talentDrawers.analytics.rateExcellent",
 ];
 
+/**
+ * The REAL Pro/Portfolio page-analytics panel. Every number here is read from
+ * `analytics_events` (`view_talent_profile` rows carrying this talent's id) and
+ * from the inquiries this talent is a named participant on — nothing is
+ * modelled, estimated, or filled in with a plausible zero.
+ *
+ * Deliberately NOT rendered here, because no reader exists for them:
+ * Discover rank, offer accept rate, average day rate, per-client spend. They
+ * are absent rather than zeroed.
+ */
+function TalentPageAnalyticsPanel({
+  analytics,
+}: {
+  analytics: import("@/lib/analytics/talent-analytics-group").TalentPageAnalyticsData;
+}) {
+  const copy = useDashboardText();
+  const fmtPct = (n: number) => `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+  const trend = analytics.viewsTrendPct;
+
+  const tiles: {
+    label: string;
+    value: string;
+    sub: string;
+    subTone?: "up" | "down";
+  }[] = [
+    {
+      label: copy.t("Profile views · 7d"),
+      value: analytics.last7d.views.toLocaleString(),
+      sub:
+        trend === null
+          ? copy.t("No prior week to compare")
+          : `${trend >= 0 ? "+" : ""}${trend}% ${copy.t("vs last week")}`,
+      subTone: trend === null ? undefined : trend >= 0 ? "up" : "down",
+    },
+    {
+      label: copy.t("Profile views · 30d"),
+      value: analytics.last30d.views.toLocaleString(),
+      sub: `${analytics.last30d.uniqueViewers.toLocaleString()} ${copy.t("unique viewers")}`,
+    },
+    {
+      label: copy.t("Inquiries · 30d"),
+      value: String(analytics.last30d.inquiries),
+      sub: `${analytics.last7d.inquiries} ${copy.t("in the last 7 days")}`,
+    },
+    {
+      label: copy.t("Views → inquiries · 30d"),
+      value:
+        analytics.last30d.conversionRatePct === null
+          ? "—"
+          : fmtPct(analytics.last30d.conversionRatePct),
+      sub:
+        analytics.last30d.conversionRatePct === null
+          ? copy.t("Needs profile views to measure")
+          : `${analytics.last30d.inquiries} / ${analytics.last30d.views.toLocaleString()} ${copy.t("views")}`,
+    },
+  ];
+
+  // Views-per-day sparkline over the trailing 30 days, straight from the same
+  // rows the tiles count — no smoothing, no interpolation.
+  const sparkW = 260;
+  const sparkH = 44;
+  const series = analytics.viewsByDay30;
+  const maxViews = Math.max(1, ...series.map((d) => d.views));
+  const pts = series
+    .map((d, i) => {
+      const x = series.length > 1 ? (i / (series.length - 1)) * sparkW : 0;
+      const y = sparkH - (d.views / maxViews) * (sparkH - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    // Class-only styling (no inline style objects) — the admin shell freezes new
+    // inline styles behind the design-token ratchet.
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-2.5">
+        {tiles.map((tile) => (
+          <div
+            key={tile.label}
+            className="bg-admin-surface-alt rounded-admin-lg border border-admin-border px-4 py-3.5"
+          >
+            <div className="text-admin-ink-muted mb-1 text-[10.5px] uppercase tracking-[0.06em]">
+              {tile.label}
+            </div>
+            <div className="text-admin-ink mb-0.5 text-[22px] font-extrabold tabular-nums">
+              {tile.value}
+            </div>
+            <div
+              className={`text-admin-11 ${
+                tile.subTone === "up"
+                  ? "text-admin-success-deep"
+                  : tile.subTone === "down"
+                    ? "text-admin-critical-deep"
+                    : "text-admin-ink-muted"
+              }`}
+            >
+              {tile.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {series.length > 0 && (
+        <div className="bg-admin-surface-alt rounded-admin-lg border border-admin-border px-4 py-3.5">
+          <div className="text-admin-ink-muted mb-2.5 text-admin-11 uppercase tracking-[0.06em]">
+            {copy.t("Views per day · last 30 days")}
+          </div>
+          <svg
+            viewBox={`0 0 ${sparkW} ${sparkH}`}
+            width={sparkW}
+            height={sparkH}
+            className="block max-w-full"
+            role="img"
+            aria-label={copy.t("Views per day · last 30 days")}
+          >
+            <polyline
+              points={pts}
+              fill="none"
+              stroke={COLORS.accent}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div className="text-admin-ink-muted mt-1 flex justify-between text-[10.5px]">
+            <span>{series[0]?.date}</span>
+            <span>{series[series.length - 1]?.date}</span>
+          </div>
+        </div>
+      )}
+
+      {/* State what is measured and what is not — the whole point of this build. */}
+      <div className="text-admin-ink-muted text-admin-11 leading-relaxed">
+        {copy.t("Counted from views of your public profile pages and from inquiries you were named on. Booking accept rate, average day rate and per-client spend are not tracked yet.")}
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WS-8.12  Talent career analytics — "Where do my bookings actually come from?"
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,13 +224,19 @@ const CAREER_STATS = {
 };
 
 export function TalentCareerAnalyticsDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile, bridgeTalentPageAnalytics } =
+    useAdminShell();
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-career-analytics";
   const s = CAREER_STATS;
-  // Real talent → honest empty state (the fixture below is demo-only data).
+  // Real talent → real page analytics when their tier includes them, an honest
+  // upsell / empty otherwise. The CAREER_STATS fixture below stays demo-only:
+  // accept rate, average day rate and top-client spend have NO reader behind
+  // them, so this drawer shows the metrics that exist and says nothing about
+  // the ones that don't.
   if (bridgeTalentSelfProfile) {
+    const a = bridgeTalentPageAnalytics?.data ?? null;
     return (
       <DrawerShell
         open={open}
@@ -99,9 +244,13 @@ export function TalentCareerAnalyticsDrawer() {
         title={t("dashboard.talentDrawers.analytics.careerTitle")}
         description={t("dashboard.talentDrawers.analytics.careerDesc")}
       >
-        <AnalyticsNotAvailableYet
-          body={copy.t("Your career stats appear here once you have completed bookings. Your earnings and pipeline are live on the Money page today.")}
-        />
+        {a ? (
+          <TalentPageAnalyticsPanel analytics={a} />
+        ) : (
+          <AnalyticsNotAvailableYet
+            body={copy.t("Page analytics — profile views and inquiry conversion — are part of Pro and Portfolio. Your views are being recorded now; upgrade to read them. Your earnings and pipeline are live on the Money page today.")}
+          />
+        )}
       </DrawerShell>
     );
   }

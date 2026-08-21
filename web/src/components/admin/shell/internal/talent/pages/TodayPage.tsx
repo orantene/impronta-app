@@ -27,6 +27,7 @@ export function TalentTodayPage() {
     openDrawer,
     setTalentPage,
     bridgeTalentSelfProfile,
+    bridgeTalentPageAnalytics,
     bridgeTalentEarnings,
     bridgeTalentPayoutSnapshot,
     bridgeTalentRepresentation,
@@ -40,7 +41,7 @@ export function TalentTodayPage() {
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
-    ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+    ? buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null)
     : MY_TALENT_PROFILE;
   // Bridge-aware conversations. Falls back to MOCK_CONVERSATIONS when the
   // bridge array is empty (prototype / mock-mode sessions). See

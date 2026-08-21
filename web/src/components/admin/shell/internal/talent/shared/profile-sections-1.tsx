@@ -427,7 +427,63 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
   // call sites / standalone prototype demo).
   const p = profile ?? MY_TALENT_PROFILE;
   const copy = useDashboardText();
-  const items = [
+  const { bridgeTalentSelfProfile, bridgeTalentPageAnalytics } = useAdminShell();
+  // ── Real page analytics (Pro / Portfolio) ────────────────────────────────
+  // Three states, and none of them is "render 0 and hope":
+  //   1. entitled + loaded  → real measured numbers from the layout bridge.
+  //   2. real talent, no analytics on the bridge → Free tier: show the upsell.
+  //   3. no bridge talent at all → the standalone prototype/demo fixture path.
+  const analytics = bridgeTalentPageAnalytics?.data ?? null;
+  const isRealTalent = Boolean(bridgeTalentSelfProfile);
+  const gatedOut = isRealTalent && !analytics;
+
+  const fmtPct = (n: number) => `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+
+  const analyticsItems = analytics
+    ? [
+        {
+          label: copy.t("Views · 7d"),
+          value: analytics.last7d.views.toLocaleString(),
+          // A percent change needs a non-zero baseline. When last week had no
+          // views the trend is genuinely undefined, so say that instead of
+          // printing "▲ 0%".
+          sub:
+            analytics.viewsTrendPct === null
+              ? copy.t("No prior week to compare")
+              : `${analytics.viewsTrendPct >= 0 ? "▲" : "▼"} ${Math.abs(analytics.viewsTrendPct)}% ${copy.t("vs last week")}`,
+          tone:
+            analytics.viewsTrendPct !== null && analytics.viewsTrendPct >= 0
+              ? COLORS.success
+              : COLORS.amber,
+        },
+        {
+          label: copy.t("Unique viewers · 7d"),
+          value: analytics.last7d.uniqueViewers.toLocaleString(),
+          sub: `${analytics.last30d.uniqueViewers.toLocaleString()} ${copy.t("in the last 30 days")}`,
+          tone: COLORS.indigo,
+        },
+        {
+          label: copy.t("Inquiries · 7d"),
+          value: String(analytics.last7d.inquiries),
+          sub: `${analytics.last30d.inquiries} ${copy.t("in the last 30 days")}`,
+          tone: COLORS.coral,
+        },
+        {
+          label: copy.t("Views → inquiries · 30d"),
+          value:
+            analytics.last30d.conversionRatePct === null
+              ? "—"
+              : fmtPct(analytics.last30d.conversionRatePct),
+          sub:
+            analytics.last30d.conversionRatePct === null
+              ? copy.t("Needs profile views to measure")
+              : `${analytics.last30d.inquiries} / ${analytics.last30d.views.toLocaleString()} ${copy.t("views")}`,
+          tone: COLORS.success,
+        },
+      ]
+    : null;
+
+  const items = analyticsItems ?? [
     { label: copy.t("Discover rank"), value: p.discoverRank > 0 ? `#${p.discoverRank}` : "—", sub: p.discoverRank > 0 ? copy.t("Updated daily") : copy.t("Not yet ranked"), tone: COLORS.indigo },
     {
       label: copy.t("Views · 7d"),
@@ -440,6 +496,27 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
     { label: copy.t("Inquiries · 7d"), value: String(p.inquiries7d), sub: p.inquiries7d > 0 ? `${p.bookingStats.repeatClients} ${copy.t("repeat clients")}` : copy.t("No inquiries yet"), tone: COLORS.coral },
     { label: copy.t("On-time rate"), value: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.onTimeRate}%` : "—", sub: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.completedBookings} ${copy.t("bookings")}` : copy.t("No bookings yet"), tone: COLORS.success },
   ];
+
+  // Free tier — the honest upsell. Rendering four zero tiles here would read as
+  // "nobody looked at you" when the truth is "we are not showing you the count".
+  if (gatedOut) {
+    return (
+      <div className="font-admin-body">
+        <div className="mb-2.5 flex items-center justify-between">
+          <CapsLabel>{copy.t("Profile performance")}</CapsLabel>
+        </div>
+        <div className="rounded-xl border border-admin-border-soft bg-admin-card px-5 py-[18px]">
+          <div className="text-admin-ink text-admin-13 mb-1.5 font-semibold">
+            {copy.t("Page analytics are part of Pro")}
+          </div>
+          <div className="text-admin-ink-dim text-admin-12 leading-relaxed">
+            {copy.t("Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{
