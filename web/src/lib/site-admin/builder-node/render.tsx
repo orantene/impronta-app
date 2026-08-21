@@ -14,6 +14,7 @@ import {
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
+import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import {
   isSafeRichTextHref,
@@ -3053,6 +3054,18 @@ function renderFeaturedTalentChildren(
             priority={index < 2}
             publicPathPrefix={options.publicPathPrefix}
             locale={options.contentLocale?.locale ?? options.visitorLocale}
+            // The tenant grammar is only knowable here when a contentLocale was
+            // threaded (it carries the default locale + fallback chain). Absent
+            // → the card falls back to platform defaults, which no-op for a
+            // default-locale render.
+            localeSettings={
+              options.contentLocale
+                ? localeUrlSettings(options.contentLocale.defaultLocale, [
+                    options.contentLocale.defaultLocale,
+                    ...options.contentLocale.chain,
+                  ])
+                : undefined
+            }
           />
         ))}
       </div>
