@@ -173,13 +173,30 @@ test("the sheet carries a reduced-motion guard for BOTH non-inline lanes", () =>
   );
 });
 
-test("an armed play-once node is hidden ONLY after the runtime arms it", () => {
-  const html = sheet();
-  // The hidden pose hangs off `[data-bn-reveal-armed]`, which only JS adds. A
-  // rule that hid the node on `[data-bn-anim-once]` alone would leave the text
-  // invisible for every no-JS reader and every crawler.
-  assert.match(
+test("the static sheet never hides a play-once node on its own", () => {
+  // The hidden pose is injected BY THE RUNTIME, so a no-JS reader and every
+  // crawler see the text. Just as important: the runtime arms by appending a
+  // stylesheet rather than writing an attribute onto each node -- it runs at
+  // DOMContentLoaded, before React hydrates, and an attribute written then is
+  // one the server never rendered, which React reports as an unpatchable
+  // hydration mismatch on every node in the lane.
+  const html = sheet(ONCE_TREE);
+  // Only the <style> block -- the runtime <script> in the same output legitimately
+  // CONTAINS that rule as the text it injects at arming time.
+  const styleBlock = /<style[^>]*data-builder-node-renderer-styles[^>]*>([\s\S]*?)<\/style>/.exec(
     html,
-    /\[data-bn-anim-once\]\[data-bn-reveal-armed\]:not\(\[data-bn-revealed\]\)\{opacity:0\}/,
+  );
+  assert.ok(styleBlock, "renderer stylesheet not found in the output");
+  assert.doesNotMatch(
+    styleBlock[1]!,
+    /\[data-bn-anim-once\][^{]*\{[^}]*opacity:0/,
+    "the shipped sheet must not hide play-once nodes; only the runtime may",
+  );
+  assert.match(html, /data-bn-anim-once-armed/);
+  assert.match(html, /createElement\('style'\)/);
+  assert.doesNotMatch(
+    html,
+    /setAttribute\('data-bn-reveal-armed'/,
+    "arming must not touch attributes React owns",
   );
 });

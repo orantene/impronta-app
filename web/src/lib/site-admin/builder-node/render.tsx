@@ -734,7 +734,6 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
 .site-builder-node[data-bn-anim-trigger="hover"]:hover,.site-builder-node[data-bn-anim-trigger="hover"]:focus-visible{animation:var(--bn-anim)}
-.site-builder-node[data-bn-anim-once][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
 .site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-anim-trigger="hover"],.site-builder-node[data-bn-anim-once]{animation:none!important;opacity:1!important}}
 /* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
@@ -1111,10 +1110,16 @@ ${BACKGROUND_MEDIA_CSS}
  * on the first line when no node opts in, and a control that silently does
  * nothing is a worse trade.
  *
- *   1. ARMS every `[data-bn-anim-once]` node, and only then does the sheet
- *      hide it -- so with no JS, no IntersectionObserver, or reduced motion the
- *      node renders at rest. Never a flash of hidden content, never text a
- *      crawler or a reader cannot see.
+ *   1. ARMS the lane by APPENDING A STYLESHEET, not by writing an attribute
+ *      onto each node. That distinction is load-bearing: this script runs at
+ *      DOMContentLoaded, which fires BEFORE React hydrates, so an attribute
+ *      written here is an attribute the server never rendered -- React reports
+ *      a hydration mismatch ("this won't be patched up") on every node in the
+ *      lane. Appending a fresh <style> to <head> touches nothing React owns.
+ *      Until it lands the nodes render at rest, so no JS, no
+ *      IntersectionObserver or reduced motion all mean the content is simply
+ *      visible. Never a flash of hidden content, never text a crawler or a
+ *      reader cannot see.
  *   2. Marks it `data-bn-revealed` the first time >= 12% of it is on screen,
  *      which is when the sheet applies the `--bn-anim` shorthand, then
  *      unobserves it. Plays once, exactly as the panel promises.
@@ -1132,7 +1137,10 @@ const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
       if(!nodes.length)return;
       var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if(reduce||typeof IntersectionObserver==='undefined')return;
-      for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
+      var st=document.createElement('style');
+      st.setAttribute('data-bn-anim-once-armed','');
+      st.textContent='.site-builder-node[data-bn-anim-once]:not([data-bn-revealed]){opacity:0}';
+      document.head.appendChild(st);
       var io=new IntersectionObserver(function(entries){
         for(var k=0;k<entries.length;k++){
           var e=entries[k];
@@ -1144,8 +1152,8 @@ const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
       },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
       for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
     }catch(err){
-      var f=document.querySelectorAll('[data-bn-anim-once]');
-      for(var n=0;n<f.length;n++){f[n].removeAttribute('data-bn-reveal-armed');f[n].setAttribute('data-bn-revealed','');}
+      var s2=document.querySelector('style[data-bn-anim-once-armed]');
+      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
     }
   }
   // This ships with the SHEET, which is emitted in head order -- so at execution
