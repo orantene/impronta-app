@@ -29,6 +29,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { prepareLocalizedShellTree } from "./shell-locale-hrefs";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
@@ -42,13 +43,11 @@ import {
   indexBuilderSectionNodes,
   renderBuilderNodes,
   resolveBuilderNodeRole,
-  resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   collectShellSideFreeformNodes,
   isShellLandmarkNode,
-  prepareShellTree,
   resolveShellSidePlan,
   type ShellSideKey,
 } from "@/lib/site-admin/builder-node/shell-render-plan";
@@ -238,15 +237,17 @@ async function renderPublishedShellSide(
   const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
-  const prepared = prepareShellTree(
-    resolveSnapshotBuilderTree(shell.snapshot).tree,
+  const localizedTree = await prepareLocalizedShellTree(
+    shell.snapshot,
     slots,
+    tenantId,
+    locale,
   );
-  const plan = resolveShellSidePlan({ tree: prepared.tree, slots, side });
+  const plan = resolveShellSidePlan({ tree: localizedTree, slots, side });
   if (plan.mode === "none") return null;
 
   if (plan.mode === "legacy_slot") {
-    const builderTree = prepared.tree;
+    const builderTree = localizedTree;
     const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTree);
     const builderSectionNodes = indexBuilderSectionNodes(builderTree);
     const builderSectionChildNodeIds =
@@ -264,7 +265,7 @@ async function renderPublishedShellSide(
 
   return renderFreeformShellSide({
     nodes: plan.nodes,
-    tree: prepared.tree,
+    tree: localizedTree,
     slots,
     tenantId,
     locale,
