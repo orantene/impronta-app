@@ -16,7 +16,11 @@ import {
 import type { Locale } from "@/i18n/config";
 import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
-import type { LocationItem, LocationSectionCopy } from "./location-section";
+import type {
+  LocationFeaturedPreview,
+  LocationItem,
+  LocationSectionCopy,
+} from "./location-section";
 import { normalizeGoogleApiKeyInput } from "@/lib/env/google-maps-browser-key";
 import {
   LocationMapPinPreview,
@@ -246,12 +250,16 @@ function PinPreviewPortal({
   loc,
   locale,
   copy,
+  onPickTalent,
+  pickedTalentId = null,
   publicPathPrefix = "",
   localeUrl,
 }: {
   loc: LocationItem;
   locale: Locale;
   copy: LocationSectionCopy;
+  onPickTalent?: (item: LocationFeaturedPreview | null) => void;
+  pickedTalentId?: string | null;
   publicPathPrefix?: string;
   /**
    * Tenant URL grammar, passed down from the server render (client components
@@ -379,6 +387,10 @@ function PinPreviewPortal({
           position: "absolute",
           left: px.x - ORBIT_AREA / 2,
           top: px.y - ORBIT_AREA / 2,
+          // `none` here, not `auto`: this box is 276px square and mostly empty,
+          // and if it ate pointer events the visitor could not pan or zoom the
+          // map through it. The ring re-enables events on the rotating layer
+          // alone, so only the ring and its faces are grabbable.
           pointerEvents: "none",
           zIndex: 9999,
           ...fadeStyle,
@@ -388,6 +400,8 @@ function PinPreviewPortal({
           items={loc.featuredPreviews}
           copy={copy}
           locationLabel={loc.displayName}
+          onSelect={onPickTalent}
+          selectedTalentId={pickedTalentId}
         />
       </div>
     </>,
@@ -540,6 +554,37 @@ export function LocationMap({
 
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
 
+  /**
+   * The talent whose profile link sits under the map. Deliberately NOT the same
+   * lifetime as the floating name inside the ring: the name is a glance and
+   * expires on its own, the link is a destination and stays until the visitor
+   * picks someone else or closes the city.
+   */
+  const [pickedTalent, setPickedTalent] = useState<LocationFeaturedPreview | null>(
+    null,
+  );
+  const onPickTalent = useCallback(
+    (item: LocationFeaturedPreview | null) => setPickedTalent(item),
+    [],
+  );
+  // Closing a city (or switching to another one) retires its talent link --
+  // otherwise a link to a Tulum profile would hang under a Cancun ring.
+  useEffect(() => {
+    setPickedTalent(null);
+  }, [selectedId]);
+
+  const pickedHref = useMemo(() => {
+    if (!pickedTalent?.profileCode) return null;
+    return withLocalePath(
+      prefixPublicHref(
+        `/t/${encodeURIComponent(pickedTalent.profileCode)}`,
+        publicPathPrefix,
+      ),
+      locale,
+      localeUrl,
+    );
+  }, [pickedTalent, publicPathPrefix, locale, localeUrl]);
+
   const selectedLoc = useMemo(
     () => locationsWithCoords.find((l) => l.id === selectedId) ?? null,
     [locationsWithCoords, selectedId],
@@ -597,11 +642,31 @@ export function LocationMap({
                   copy={copy}
                   publicPathPrefix={publicPathPrefix}
                   localeUrl={localeUrl}
+                  onPickTalent={onPickTalent}
+                  pickedTalentId={pickedTalent?.talentId ?? null}
                 />
               ) : null}
             </Map>
           </div>
         </APIProvider>
+      </div>
+
+      {/* Picked talent -> a real destination, under the map. Reserved height, so
+          picking a face does not shove the rest of the page down. */}
+      <div className="mt-3 flex min-h-[38px] items-center justify-center">
+        {pickedTalent && pickedHref ? (
+          <a
+            href={pickedHref}
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors"
+            style={{
+              borderColor: "var(--impronta-gold-border)",
+              color: "var(--impronta-gold)",
+            }}
+          >
+            {pickedTalent.name ?? copy.viewTalents}
+            <span aria-hidden>&rarr;</span>
+          </a>
+        ) : null}
       </div>
     </div>
   );
