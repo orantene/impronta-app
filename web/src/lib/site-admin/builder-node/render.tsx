@@ -782,16 +782,14 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-anim-trigger="hover"],.site-builder-node[data-bn-anim-once]{animation:none!important;opacity:1!important}}
 /* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
-   The node starts at its hidden/offset pose and eases to rest the first time it
-   scrolls into view. The inline IO script toggles [data-bn-revealed]; before the
-   script runs (or with no IO / reduced motion) the node is shown at rest. */
+   The node eases to rest the first time it scrolls into view. The hidden poses
+   are NOT in this sheet: the runtime injects them (see
+   BUILDER_NODE_REVEAL_ARMED_CSS) so that with no JS, no IntersectionObserver or
+   reduced motion the node is simply shown at rest. Arming used to write
+   [data-bn-reveal-armed] onto each node, which React reported as a hydration
+   mismatch on every node in the lane -- the runtime runs at DOMContentLoaded,
+   before hydration, so the attribute was one the server never rendered. */
 .site-builder-node[data-bn-reveal]{transition:opacity var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s),transform var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s);will-change:opacity,transform}
-.site-builder-node[data-bn-reveal][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
-.site-builder-node[data-bn-reveal="fade-up"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}
-.site-builder-node[data-bn-reveal="fade-down"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}
-.site-builder-node[data-bn-reveal="fade-left"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}
-.site-builder-node[data-bn-reveal="fade-right"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}
-.site-builder-node[data-bn-reveal="zoom"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:scale(0.92)}
 .site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
 .site-builder-node{box-sizing:border-box}
@@ -1212,29 +1210,68 @@ const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
   }
 })();`;
 
+/**
+ * The hidden/offset poses for the reveal lane, injected by the runtime rather
+ * than shipped in the static sheet.
+ *
+ * WHY IT IS INJECTED, NOT SHIPPED: the poses must not apply until JS has proven
+ * it can un-apply them, or a no-JS / no-IntersectionObserver / reduced-motion
+ * visitor is left staring at permanently invisible content.
+ *
+ * WHY IT IS A STYLESHEET, NOT AN ATTRIBUTE: arming previously wrote
+ * `data-bn-reveal-armed` onto every node in the lane. This runtime executes at
+ * DOMContentLoaded, which fires BEFORE React hydrates, so that attribute was one
+ * the server never rendered -- React reports a hydration mismatch ("this won't
+ * be patched up") on every node. Appending a <style> to <head> touches nothing
+ * React owns. This mirrors BUILDER_NODE_ANIM_ONCE_SCRIPT, which already learned
+ * this lesson; the two lanes now arm the same way.
+ */
+const BUILDER_NODE_REVEAL_ARMED_CSS =
+  '.site-builder-node[data-bn-reveal]:not([data-bn-revealed]){opacity:0}' +
+  '.site-builder-node[data-bn-reveal="fade-up"]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}' +
+  '.site-builder-node[data-bn-reveal="fade-down"]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}' +
+  '.site-builder-node[data-bn-reveal="fade-left"]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}' +
+  '.site-builder-node[data-bn-reveal="fade-right"]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}' +
+  '.site-builder-node[data-bn-reveal="zoom"]:not([data-bn-revealed]){transform:scale(0.92)}';
+
 const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
-  try{
-    var nodes=document.querySelectorAll('[data-bn-reveal]');
-    if(!nodes.length)return;
-    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if(reduce||typeof IntersectionObserver==='undefined'){
-      for(var i=0;i<nodes.length;i++)nodes[i].setAttribute('data-bn-revealed','');
-      return;
-    }
-    for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
-    var io=new IntersectionObserver(function(entries){
-      for(var k=0;k<entries.length;k++){
-        var e=entries[k];
-        if(e.isIntersecting){
-          e.target.setAttribute('data-bn-revealed','');
-          io.unobserve(e.target);
+  if(window.__bnRevealRuntime)return;
+  window.__bnRevealRuntime=1;
+  function run(){
+    try{
+      var nodes=document.querySelectorAll('[data-bn-reveal]');
+      if(!nodes.length)return;
+      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Reduced motion / no IntersectionObserver: never arm. The poses live in
+      // the injected sheet, so skipping injection leaves every node at rest --
+      // no attribute writes, nothing for React to disagree with.
+      if(reduce||typeof IntersectionObserver==='undefined')return;
+      var st=document.createElement('style');
+      st.setAttribute('data-bn-reveal-armed-sheet','');
+      st.textContent=${JSON.stringify(BUILDER_NODE_REVEAL_ARMED_CSS)};
+      document.head.appendChild(st);
+      var io=new IntersectionObserver(function(entries){
+        for(var k=0;k<entries.length;k++){
+          var e=entries[k];
+          if(e.isIntersecting){
+            e.target.setAttribute('data-bn-revealed','');
+            io.unobserve(e.target);
+          }
         }
-      }
-    },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-    for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
-  }catch(err){
-    var f=document.querySelectorAll('[data-bn-reveal]');
-    for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
+      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
+      for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+    }catch(err){
+      // Anything went wrong: drop the poses so the content is visible.
+      var s2=document.querySelector('style[data-bn-reveal-armed-sheet]');
+      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
+    }
+  }
+  // The runtime ships with the SHEET, which is emitted in head order, so at
+  // execution time the body it queries does not exist yet. Wait for the DOM.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run);
+  }else{
+    run();
   }
 })();`;
 
