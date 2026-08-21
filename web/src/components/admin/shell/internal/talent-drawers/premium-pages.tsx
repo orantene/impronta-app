@@ -9,6 +9,7 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { useCallback, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
@@ -584,6 +585,42 @@ export function TalentMediaKitDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-media-kit";
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // The kit is generated on demand from the live profile — there is no stored
+  // artefact to go stale, so "Download" and "Re-generate" are the same call.
+  // The route resolves the talent from the SESSION (no id travels with the
+  // request) and re-checks the Pro gate server-side.
+  const download = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    let objectUrl: string | null = null;
+    try {
+      const res = await fetch("/api/talent/media-kit", { cache: "no-store" });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(payload?.error ?? t("dashboard.talentDrawers.premiumPages.kitFailed"));
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = match?.[1] ?? "media-kit.pdf";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch {
+      setError(t("dashboard.talentDrawers.premiumPages.kitFailed"));
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setBusy(false);
+    }
+  }, [busy, t]);
 
   return (
     <DrawerShell
@@ -594,15 +631,25 @@ export function TalentMediaKitDrawer() {
       width={560}
       footer={
         <>
-          {/* EPK generation isn't built yet — the actions stay disabled rather
-              than implying a downloadable kit is on file. */}
-          <SecondaryButton disabled>{t("dashboard.talentDrawers.premiumPages.regenerate")}</SecondaryButton>
-          <PrimaryButton disabled>{t("dashboard.talentDrawers.premiumPages.downloadPdf")}</PrimaryButton>
+          <SecondaryButton onClick={closeDrawer}>
+            {t("dashboard.talentDrawers.close")}
+          </SecondaryButton>
+          <PrimaryButton onClick={download} disabled={busy}>
+            {busy
+              ? t("dashboard.talentDrawers.premiumPages.kitBuilding")
+              : t("dashboard.talentDrawers.premiumPages.downloadPdf")}
+          </PrimaryButton>
         </>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-        {t("dashboard.talentDrawers.premiumPages.kitEmpty")}
+      {/* One block, two states — a failure replaces the blurb in place rather
+          than stacking a second panel the talent has to hunt for. */}
+      <div
+        role={error ? "alert" : undefined}
+        style={{ fontFamily: FONTS.body, fontSize: 13 }}
+        className={error ? "text-admin-critical" : "text-admin-ink-muted"}
+      >
+        {error ?? t("dashboard.talentDrawers.premiumPages.kitOnDemand")}
       </div>
       <Divider label={t("dashboard.talentDrawers.premiumPages.kitContents")} />
       <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
