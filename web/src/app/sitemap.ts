@@ -25,7 +25,7 @@ const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
  * BUMP THIS when marketing copy materially changes (new page, rewritten
  * positioning, pricing change). Do not bump it for code-only refactors.
  */
-const MARKETING_CONTENT_REVISED = new Date("2026-07-23T00:00:00.000Z");
+const MARKETING_CONTENT_REVISED = new Date("2026-08-21T00:00:00.000Z");
 
 /**
  * Real publication date per resource article, keyed by its sitemap path.
@@ -156,6 +156,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // the discoverable set). One page, both locales: the flatMap emits
       // /contratar-modelos and /es/contratar-modelos.
       "/contratar-modelos",
+      // Website-tier landing pair. `/websites` is the EN route and
+      // `/sitios-web` the Spanish-first SEO sibling (same relationship as
+      // /agencies <-> /agencia-de-talento). Both serve both locales, so the
+      // flatMap emits four URLs: /websites, /es/websites, /sitios-web,
+      // /es/sitios-web.
+      "/websites",
+      "/sitios-web",
       // Supporting marketing pages. (/status and /waitlist are deliberately
       // excluded — operational pages, not content we want ranked.)
       "/integrations",
