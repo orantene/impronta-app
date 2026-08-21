@@ -8551,6 +8551,12 @@
             "crossRosterPool": "Pool entre rosters",
             "hubAnalytics": "Analíticas a nivel de hub",
             "unlimitedEverything": "Todo ilimitado"
+          },
+          "website": {
+            "customDomain": "Tu propio dominio",
+            "bilingualSite": "Inglés y español",
+            "formsInbox": "Formularios y bandeja compartida",
+            "acceptPayments": "Cobra pagos y anticipos"
           }
         }
       },
@@ -12162,11 +12168,13 @@
       "connectMyPayout": "Conectar mi cuenta de pago",
       "billingInactive": "Facturación aún no activa. Contacta soporte para actualizar.",
       "planTaglineFree": "Acceso solo por enlace de amigos. Sin comisión.",
+      "planTaglineWebsite": "Tu propio sitio y dominio. Sin lista de talento.",
       "planTaglineStudio": "Lista auto-exclusiva, ~10-12% de comisión.",
       "planTaglineAgency": "Lista auto-exclusiva, ~15-20% de comisión.",
       "planTaglineNetwork": "Lista ilimitada. Colocación en toda la plataforma.",
       "planPriceStudio": "$29 / mes",
       "planPriceAgency": "$79 / mes",
+      "planPriceWebsite": "$12/mes",
       "billing": {
         "redirecting": "Redirigiendo…",
         "openingPortal": "Abriendo portal…",

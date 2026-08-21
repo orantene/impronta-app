@@ -260,7 +260,12 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
  *  self-contained — when the re-skin lands fully we'll fold this. */
 export function usePlanTierFromShell(): "free" | "studio" | "agency" | "hub-network" {
   const { state } = useAdminShell();
-  return state.plan === "network" ? "hub-network" : state.plan;
+  // `website` has no roster -> same reduced affordances as Free.
+  return state.plan === "network"
+    ? "hub-network"
+    : state.plan === "website"
+      ? "free"
+      : state.plan;
 }
 
 /** Maps the legacy StageTransitionMenu's options into the new header's

@@ -4919,6 +4919,7 @@ export const PLAN_TIER_STYLE: Record<Plan, {
   popular?: boolean;
 }> = {
   free:    { accent: "#94a3b8",  accentSoft: "rgba(148,163,184,0.12)", accentText: "#475569" },
+  website: { accent: "#0d9488",  accentSoft: "rgba(13,148,136,0.10)",  accentText: "#0f766e" },
   studio:  { accent: "#3b82f6",  accentSoft: "rgba(59,130,246,0.08)",  accentText: "#1d4ed8" },
   agency:  { accent: "#0f4f3e",  accentSoft: "rgba(15,79,62,0.08)",    accentText: COLORS.accentDeep, popular: true },
   network: { accent: "#7c3aed",  accentSoft: "rgba(124,58,237,0.08)", accentText: "#5b21b6" },

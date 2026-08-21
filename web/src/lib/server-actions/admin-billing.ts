@@ -14,7 +14,10 @@ import type { ServerActionResult } from "@/lib/server-actions/result";
  * later via a manual UPDATE.
  */
 const SEAT_LIMITS: Record<WorkspacePlan, number | null> = {
+  // `website` is the roster-off tier — 0 is the fail-closed backstop that
+  // makes every roster add reject.
   free: 5,
+  website: 0,
   studio: 50,
   agency: 200,
   network: null,

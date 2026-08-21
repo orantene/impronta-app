@@ -38,6 +38,7 @@ export type TalentMediaPlanKey = "talent_basic" | "talent_pro" | "talent_portfol
  */
 export type WorkspaceMediaPlanTier =
   | "free"
+  | "website"
   | "studio"
   | "agency"
   | "network"
@@ -108,6 +109,7 @@ export const MEDIA_ENTITLEMENT_CONFIG = {
    */
   watermarkOnRelease: {
     free: true,
+    website: true,
     studio: true,
     agency: true,
     network: true,
@@ -128,6 +130,7 @@ export const MEDIA_ENTITLEMENT_CONFIG = {
    */
   releaseRequestsPerMonth: {
     free: null,
+    website: null,
     studio: null,
     agency: null,
     network: null,
@@ -154,6 +157,7 @@ export function normalizeTalentMediaPlanKey(value: unknown): TalentMediaPlanKey 
 
 export function normalizeWorkspaceMediaPlanTier(value: unknown): WorkspaceMediaPlanTier {
   return value === "free" ||
+    value === "website" ||
     value === "studio" ||
     value === "agency" ||
     value === "network" ||

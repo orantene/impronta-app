@@ -11,7 +11,7 @@ import type { WebsiteHealthReport } from "@/lib/admin/website-health";
 // ─── Surface dimensions ──────────────────────────────────────────────
 
 export type Surface = "workspace" | "talent" | "platform";
-export type Plan = "free" | "studio" | "agency" | "network";
+export type Plan = "free" | "website" | "studio" | "agency" | "network";
 export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
 /**
  * Tenant entity model. Orthogonal to Plan tier — both shapes can exist on

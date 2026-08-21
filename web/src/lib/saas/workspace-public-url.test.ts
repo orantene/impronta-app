@@ -29,6 +29,9 @@ test("whitelabel branding is gated to Agency / Network (and grandfathered legacy
   // Free and Studio stay Tulala-branded on their talents' + clients' surfaces.
   assert.equal(whitelabelBrandingEligible("free"), false);
   assert.equal(whitelabelBrandingEligible("studio"), false);
+  // Website ships a custom domain but NOT whitelabel branding — the two
+  // eligibility sets are deliberately different.
+  assert.equal(whitelabelBrandingEligible("website"), false);
 });
 
 test("planTierHasWhitelabel fails closed for null / unknown / non-whitelabel tiers", () => {
@@ -36,6 +39,7 @@ test("planTierHasWhitelabel fails closed for null / unknown / non-whitelabel tie
   assert.equal(planTierHasWhitelabel("network"), true);
   assert.equal(planTierHasWhitelabel("legacy"), true);
   assert.equal(planTierHasWhitelabel("studio"), false);
+  assert.equal(planTierHasWhitelabel("website"), false);
   assert.equal(planTierHasWhitelabel("free"), false);
   assert.equal(planTierHasWhitelabel(null), false);
   assert.equal(planTierHasWhitelabel(undefined), false);
@@ -96,15 +100,44 @@ test("agency plan prefers the connected custom domain when it is primary", () =>
 });
 
 test("customDomainLockedCopy keeps upgrade guidance aligned to plan tier", () => {
-  assert.match(customDomainLockedCopy("free"), /unlock on Studio/i);
-  assert.match(customDomainLockedCopy("studio"), /unlock on Agency and Network/i);
-  assert.match(customDomainLockedCopy("agency"), /unlock on Agency and Network/i);
+  assert.match(customDomainLockedCopy("free"), /unlock on Website and Studio/i);
+  assert.match(customDomainLockedCopy("studio"), /unlock on Website, Agency, and Network/i);
+  assert.match(customDomainLockedCopy("agency"), /unlock on Website, Agency, and Network/i);
+  // Every locked-copy branch must name Website, because Website is the
+  // cheapest tier that unlocks a custom domain.
+  for (const plan of ["free", "studio", "agency"] as const) {
+    assert.match(customDomainLockedCopy(plan), /Website/);
+  }
+});
+
+test("website plan: branded subdomain + custom domain, no whitelabel", () => {
+  assert.equal(brandedSubdomainEligible("website"), true);
+  assert.equal(customDomainEligible("website"), true);
+  assert.equal(whitelabelBrandingEligible("website"), false);
+  assert.equal(planTierHasWhitelabel("website"), false);
+
+  const result = resolveWorkspacePublicAddress({
+    slug: "cafe-tulum",
+    plan: "website",
+    domainState: {
+      primaryHost: "cafetulum.com",
+      primaryHostKind: "custom",
+      subdomainHost: "cafe-tulum.tulala.digital",
+    },
+  });
+  assert.equal(result.customDomainEligible, true);
+  assert.equal(result.primaryKind, "custom");
+  assert.equal(result.primaryHost, "cafetulum.com");
 });
 
 test("workspacePlanPublicModelCopy matches canonical plan model", () => {
   assert.equal(
     workspacePlanPublicModelCopy("free"),
     "Free · tulala.digital/w/<slug> + up to 5 public profiles",
+  );
+  assert.equal(
+    workspacePlanPublicModelCopy("website"),
+    "Website · branded subdomain + custom domain, no talent roster",
   );
   assert.equal(
     workspacePlanPublicModelCopy("studio"),

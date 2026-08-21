@@ -23,7 +23,7 @@ import {
   workspacePathHost,
 } from "@/lib/saas/workspace-public-url";
 
-type TierKey = "free" | "studio" | "agency" | "network";
+type TierKey = "free" | "website" | "studio" | "agency" | "network";
 type AudienceKey = "operator" | "agency" | "organization" | "business";
 
 /**
@@ -46,7 +46,7 @@ export function preferredLinkLabel(tier?: TierKey): string {
 }
 
 export type GetStartedTierPrices = Partial<
-  Record<"free" | "studio" | "agency" | "network", string>
+  Record<"free" | "website" | "studio" | "agency" | "network", string>
 >;
 
 /**
@@ -56,12 +56,13 @@ export type GetStartedTierPrices = Partial<
  * canonical slug-cased label when undefined (mock mode, or before the
  * catalog has loaded).
  */
-export type GetStartedTierNames = Partial<
-  Record<"free" | "studio" | "agency" | "network", string>
->;
+// Keyed off TierKey rather than a second copy of the tier union: the two
+// drifted apart when `website` was added, and only the type checker noticed.
+export type GetStartedTierNames = Partial<Record<TierKey, string>>;
 
 const FALLBACK_TIER_LABEL: Record<TierKey, string> = {
   free: "Free",
+  website: "Website",
   studio: "Studio",
   agency: "Agency",
   network: "Network",

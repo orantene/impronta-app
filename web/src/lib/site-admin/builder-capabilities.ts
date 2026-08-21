@@ -10,6 +10,7 @@ export type BuilderWorkspacePlan = WorkspaceUrlPlan;
 
 const KNOWN_BUILDER_PLANS = new Set<BuilderWorkspacePlan>([
   "free",
+  "website",
   "studio",
   "agency",
   "network",
@@ -45,6 +46,22 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     shellEditMode: "locked",
     brandedSubdomainEligible: brandedSubdomainEligible("free"),
     customDomainEligible: customDomainEligible("free"),
+  },
+  // Website: the full site builder on a custom domain, minus the roster.
+  // `maxVisibleRosterProfiles` stays null on purpose — roster visibility is a
+  // workspace-TYPE concern (`agencies.workspace_type`), not a plan concern,
+  // and `clampFeaturedRosterLimitForPlan` has a floor of 1, so a 0 here would
+  // clamp to 1 rather than hide anything. The roster cap that actually bites
+  // is `PLAN_SEAT_CAPS.website = 0`.
+  website: {
+    plan: "website",
+    maxPublicPages: null,
+    maxVisibleRosterProfiles: null,
+    workspaceTemplateLibrary: true,
+    starterTemplateMode: "paid",
+    shellEditMode: "full",
+    brandedSubdomainEligible: brandedSubdomainEligible("website"),
+    customDomainEligible: customDomainEligible("website"),
   },
   studio: {
     plan: "studio",

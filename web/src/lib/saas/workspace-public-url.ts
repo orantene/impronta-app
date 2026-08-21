@@ -1,7 +1,13 @@
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/surface-allow-list";
 
-export type WorkspaceUrlPlan = "free" | "studio" | "agency" | "network" | "legacy";
+export type WorkspaceUrlPlan =
+  | "free"
+  | "website"
+  | "studio"
+  | "agency"
+  | "network"
+  | "legacy";
 
 export type WorkspaceDomainState = {
   primaryHost: string | null;
@@ -41,8 +47,19 @@ export function brandedSubdomainEligible(plan: WorkspaceUrlPlan): boolean {
   return plan !== "free";
 }
 
+/**
+ * Custom-domain eligibility is a SET, not a rank threshold. `website` ($12,
+ * ranked below Studio) ships a custom domain because "your own domain" is the
+ * entire product for a local business, while Studio (ranked above it) does
+ * not. Any rank-comparison refactor here would silently break that.
+ */
 export function customDomainEligible(plan: WorkspaceUrlPlan): boolean {
-  return plan === "agency" || plan === "network" || plan === "legacy";
+  return (
+    plan === "website" ||
+    plan === "agency" ||
+    plan === "network" ||
+    plan === "legacy"
+  );
 }
 
 /**
@@ -73,14 +90,17 @@ export function planTierHasWhitelabel(planTier: string | null | undefined): bool
 
 export function customDomainLockedCopy(plan: WorkspaceUrlPlan): string {
   if (plan === "free") {
-    return "Branded subdomains unlock on Studio. Custom domains unlock on Agency and Network.";
+    return "Branded subdomains unlock on Website and Studio. Custom domains unlock on Website, Agency, and Network.";
   }
-  return "Studio includes the branded Tulala subdomain. Custom domains unlock on Agency and Network.";
+  return "Studio includes the branded Tulala subdomain. Custom domains unlock on Website, Agency, and Network.";
 }
 
 export function workspacePlanPublicModelCopy(plan: WorkspaceUrlPlan): string {
   if (plan === "free") {
     return "Free · tulala.digital/w/<slug> + up to 5 public profiles";
+  }
+  if (plan === "website") {
+    return "Website · branded subdomain + custom domain, no talent roster";
   }
   if (plan === "studio") {
     return "Studio · branded subdomain (optional)";

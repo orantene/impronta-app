@@ -4,6 +4,13 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { PLAN_SEAT_CAPS, seatCapForPlan, seatCapLabel } from "./plan-seat-caps";
+import { evaluateRosterSeatAvailability } from "./roster-seat-limit";
+import {
+  brandedSubdomainEligible,
+  customDomainEligible,
+  whitelabelBrandingEligible,
+} from "./workspace-public-url";
+import { canUsePitchFeature, pitchLockedReason } from "@/lib/pitch/pitch-plan-gate";
 
 /**
  * Guards the plan-cap contract.
@@ -20,6 +27,9 @@ const REPO_WEB = process.cwd();
 test("the canonical table matches the enforced product contract", () => {
   assert.deepEqual(PLAN_SEAT_CAPS, {
     free: 5,
+    // Website is a site-builder tier with NO talent roster. Zero is the
+    // contract, not an oversight.
+    website: 0,
     studio: 15,
     agency: null,
     network: null,
@@ -108,4 +118,31 @@ test("no surface re-hard-codes a roster cap in copy", () => {
       `${rel} hard-codes a roster cap (${hit?.[0]}) — interpolate seatCapLabel() from plan-seat-caps instead`,
     );
   }
+});
+
+test("website plan: zero roster seats, custom domain, no whitelabel, no pitches", () => {
+  // One tripwire for the whole `website` tier contract, in a CI-gated lane.
+  assert.equal(PLAN_SEAT_CAPS.website, 0);
+  assert.equal(seatCapForPlan("website"), 0);
+  assert.equal(seatCapLabel("website"), "0");
+
+  // Custom domain IS the product for a local business; whitelabel branding
+  // stays Agency+ and pitches stay Studio+.
+  assert.equal(customDomainEligible("website"), true);
+  assert.equal(brandedSubdomainEligible("website"), true);
+  assert.equal(whitelabelBrandingEligible("website"), false);
+  assert.equal(canUsePitchFeature("website"), false);
+  assert.ok(pitchLockedReason("website"));
+});
+
+test("a zero roster cap reads as 'no roster', not 'out of seats'", () => {
+  const verdict = evaluateRosterSeatAvailability({
+    planTier: "website",
+    limit: 0,
+    current: 0,
+    additionalSeats: 1,
+  });
+  assert.equal(verdict.ok, false);
+  assert.ok(!verdict.ok && /does not include a talent roster/i.test(verdict.message));
+  assert.ok(!verdict.ok && !/add more/i.test(verdict.message));
 });

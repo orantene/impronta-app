@@ -5,7 +5,7 @@ import {
   workspacePathHost,
 } from "@/lib/saas/workspace-public-url";
 
-type TierKey = "free" | "studio" | "agency" | "network";
+type TierKey = "free" | "website" | "studio" | "agency" | "network";
 
 export type SubdomainState =
   | { status: "idle" }

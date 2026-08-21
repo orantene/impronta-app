@@ -14,7 +14,7 @@ import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatu
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "platform"];
-export const PLANS: Plan[] = ["free", "studio", "agency", "network"];
+export const PLANS: Plan[] = ["free", "website", "studio", "agency", "network"];
 export const ROLES: Role[] = ["viewer", "editor", "manager", "admin", "owner"];
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
@@ -88,31 +88,28 @@ export const PLATFORM_PAGES: PlatformPage[] = [
 
 export const PLAN_META: Record<Plan, { label: string; theme: string; rank: number }> = {
   free: { label: "Free", theme: "Join the ecosystem", rank: 0 },
-  studio: { label: "Studio", theme: "Gain control", rank: 1 },
-  agency: { label: "Agency", theme: "Branded operation", rank: 2 },
-  network: { label: "Network", theme: "Multi-brand · hub", rank: 3 },
+  website: { label: "Website", theme: "Your site, your domain", rank: 1 },
+  studio: { label: "Studio", theme: "Gain control", rank: 2 },
+  agency: { label: "Agency", theme: "Branded operation", rank: 3 },
+  network: { label: "Network", theme: "Multi-brand · hub", rank: 4 },
 };
 
 /** Canonical plan price string. Used in upgrade modal, locked cards, billing. */
 export function planPrice(plan: Plan): string {
-  return plan === "free"
-    ? "Free forever"
-    : plan === "studio"
-      ? "$29 / month"
-      : plan === "agency"
-        ? "$79 / month"
-        : "Custom pricing";
+  if (plan === "free") return "Free forever";
+  if (plan === "website") return "$12 / month";
+  if (plan === "studio") return "$29 / month";
+  if (plan === "agency") return "$79 / month";
+  return "Custom pricing";
 }
 
 /** Compact price (no "/ month" suffix, used inside chips). */
 export function planPriceCompact(plan: Plan): string {
-  return plan === "free"
-    ? "Free"
-    : plan === "studio"
-      ? "$29/mo"
-      : plan === "agency"
-        ? "$79/mo"
-        : "Custom";
+  if (plan === "free") return "Free";
+  if (plan === "website") return "$12/mo";
+  if (plan === "studio") return "$29/mo";
+  if (plan === "agency") return "$79/mo";
+  return "Custom";
 }
 
 /**
@@ -1536,6 +1533,7 @@ export const ACTIVATION_TASKS: Array<{
 
 export const PLAN_LADDER_HEADER: Record<Plan, { price: string; idealFor: string }> = {
   free: { price: "$0", idealFor: "Your first roster, a single coordinator, listed on the public directory." },
+  website: { price: "$12/mo", idealFor: "A local business that needs a real site on its own domain, with no talent roster." },
   studio: { price: "$29/mo", idealFor: "Private inbox, your own client list, room for a couple of teammates." },
   agency: { price: "$79/mo", idealFor: "Branded site, team workflows, and negotiation tools." },
   network: { price: "Custom", idealFor: "Multi-brand hubs, network distribution, and partner API access." },
@@ -1547,6 +1545,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "How much talent your agency can list at once.",
     values: {
       free: `Up to ${seatCapLabel("free")} talent`,
+      website: "No roster",
       studio: `Up to ${seatCapLabel("studio")} talent`,
       agency: seatCapLabel("agency", "Unlimited talent"),
       network: "Unlimited",
@@ -1557,6 +1556,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "Concurrent live inquiries before workflow hand-offs strain.",
     values: {
       free: "5 / month",
+      website: "50 / month",
       studio: "50 / month",
       agency: "Unlimited · queue priority",
       network: "Unlimited · multi-tenant queue",
@@ -1567,6 +1567,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "Where clients can find you and which doorways stay open.",
     values: {
       free: "Public directory listing",
+      website: "Your own domain, in English and Spanish",
       studio: "Public directory + custom domain",
       agency: "Branded domain · embedded widgets · API",
       network: "Multi-domain · partner network · sub-tenants",
@@ -1577,6 +1578,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "How many people on your side can run the pipeline together.",
     values: {
       free: "1 seat",
+      website: "2 seats",
       studio: "3 seats",
       agency: "12 seats · roles & ownership",
       network: "Unlimited seats · cross-brand",
@@ -1587,6 +1589,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "How much of your visual identity carries through.",
     values: {
       free: "Tulala-branded storefront",
+      website: "Custom domain + your logo",
       studio: "Custom domain + your logo",
       agency: "Full design system · typography · layout",
       network: "Per-brand design systems · multi-identity",
@@ -1597,6 +1600,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "Who owns the client relationship and the inbox.",
     values: {
       free: "Shared (forwarded via Tulala)",
+      website: "Private — your own inbox",
       studio: "Private — your own inbox",
       agency: "Private + coordinator handoffs",
       network: "Per-brand isolated, hub-aggregated",
@@ -1607,6 +1611,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "Ability to operate as multiple agencies / a hub.",
     values: {
       free: "—",
+      website: "—",
       studio: "—",
       agency: "Single entity · agency or hub",
       network: "Multiple entities · hubs of agencies",
@@ -1617,6 +1622,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "Tulala's cut of every payment processed through the platform.",
     values: {
       free: "6.5% + $0.50 per booking",
+      website: "6% per booking",
       studio: "4.5% + $0.50 · faster payout",
       agency: "3.5% + $0.50 · custom receipts",
       network: "Negotiated · per-brand schedule",
@@ -1627,6 +1633,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "How much flexibility coordinators get over who receives the payout.",
     values: {
       free: "Single receiver · standard schedule",
+      website: "Single receiver · standard schedule",
       studio: "Receiver presets · faster payouts",
       agency: "Coordinator-assigned receivers · talent self-payout",
       network: "Multi-entity payouts · reseller economics",
@@ -1637,6 +1644,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     why: "What you can measure across roster, clients, throughput.",
     values: {
       free: "Profile views · basic counts",
+      website: "Site visits · form submissions",
       studio: "Inquiry funnel · reply times",
       agency: "Booking velocity · agency reliability",
       network: "Hub-level aggregates · cohort analytics",
@@ -1778,6 +1786,12 @@ export const PLAN_FEE_META: Record<
     pct: 6.5,
     flat: "$0.50",
     label: "6.5% + $0.50",
+    controlsHint: "Single payout receiver. Standard payout schedule.",
+  },
+  website: {
+    pct: 6,
+    flat: "$0",
+    label: "6% per booking",
     controlsHint: "Single payout receiver. Standard payout schedule.",
   },
   studio: {

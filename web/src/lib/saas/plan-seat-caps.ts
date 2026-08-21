@@ -22,7 +22,7 @@
  * table and the enforcement defaults drift apart.
  */
 
-export type SeatCapPlan = "free" | "studio" | "agency" | "network";
+export type SeatCapPlan = "free" | "website" | "studio" | "agency" | "network";
 
 /**
  * Roster profile cap per plan. `null` = unlimited (Agency, Network).
@@ -30,6 +30,10 @@ export type SeatCapPlan = "free" | "studio" | "agency" | "network";
  */
 export const PLAN_SEAT_CAPS: Record<SeatCapPlan, number | null> = {
   free: 5,
+  // Website is a site-builder tier for local businesses — it deliberately has
+  // NO talent roster. Zero is the fail-closed backstop: every roster-add path
+  // reads this table, so a Website workspace can never seat a talent.
+  website: 0,
   studio: 15,
   agency: null,
   network: null,

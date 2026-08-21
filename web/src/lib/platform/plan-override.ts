@@ -10,10 +10,16 @@
  * the server actions can both use it.
  */
 
-export type WorkspacePlanTier = "free" | "studio" | "agency" | "network";
+export type WorkspacePlanTier =
+  | "free"
+  | "website"
+  | "studio"
+  | "agency"
+  | "network";
 
 export const WORKSPACE_PLAN_TIERS: readonly WorkspacePlanTier[] = [
   "free",
+  "website",
   "studio",
   "agency",
   "network",
@@ -28,6 +34,7 @@ export function isWorkspacePlanTier(value: unknown): value is WorkspacePlanTier 
 
 export const PLAN_TIER_LABEL: Record<WorkspacePlanTier, string> = {
   free: "Free",
+  website: "Website",
   studio: "Studio",
   agency: "Agency",
   network: "Network",
@@ -41,6 +48,8 @@ export const PLAN_TIER_LABEL: Record<WorkspacePlanTier, string> = {
  */
 export const PLAN_TIER_SEAT_LIMIT: Record<WorkspacePlanTier, number | null> = {
   free: 5,
+  // Website has no talent roster at all — see lib/saas/plan-seat-caps.ts.
+  website: 0,
   studio: 50,
   agency: 200,
   network: null,
@@ -49,9 +58,10 @@ export const PLAN_TIER_SEAT_LIMIT: Record<WorkspacePlanTier, number | null> = {
 /** Display rank for "is this an upgrade?" comparisons. */
 export const PLAN_TIER_RANK: Record<WorkspacePlanTier, number> = {
   free: 0,
-  studio: 1,
-  agency: 2,
-  network: 3,
+  website: 1,
+  studio: 2,
+  agency: 3,
+  network: 4,
 };
 
 // ─── Override durations ───────────────────────────────────────────────────────

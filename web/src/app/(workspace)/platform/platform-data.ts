@@ -461,7 +461,7 @@ export async function loadPlatformPlanDistribution(): Promise<PlatformPlanDistri
   }
 
   // Stable ordering — show all plans even if 0.
-  const PLAN_ORDER = ["free", "studio", "agency", "network"];
+  const PLAN_ORDER = ["free", "website", "studio", "agency", "network"];
   const result: PlatformPlanDistributionRow[] = [];
   for (const plan of PLAN_ORDER) {
     result.push({

@@ -33,12 +33,13 @@ import {
  * at /admin/site/<id> stub pages.
  */
 
-export type Plan = "free" | "studio" | "agency" | "network";
+export type Plan = "free" | "website" | "studio" | "agency" | "network";
 
-export const PLAN_ORDER: Plan[] = ["free", "studio", "agency", "network"];
+export const PLAN_ORDER: Plan[] = ["free", "website", "studio", "agency", "network"];
 
 export const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
+  website: "Website",
   studio: "Studio",
   agency: "Agency",
   network: "Network",
@@ -49,6 +50,7 @@ export const PLAN_LABEL: Record<Plan, string> = {
  *  them inline and don't pollute the global theme. */
 export const PLAN_COLOR: Record<Plan, { bg: string; fg: string }> = {
   free: { bg: "#eae7db", fg: "#0b0b0d" },
+  website: { bg: "#2b7a74", fg: "#ffffff" },
   studio: { bg: "#2a5fd1", fg: "#ffffff" },
   agency: { bg: "#8b6d1f", fg: "#ffffff" },
   network: { bg: "#146b3a", fg: "#ffffff" },
@@ -58,6 +60,7 @@ export const PLAN_COLOR: Record<Plan, { bg: string; fg: string }> = {
  *  tier-cta links. Mirrors the mockup's section-divider tier-badge styling. */
 export const PLAN_BADGE_COLOR: Record<Plan, { bg: string; fg: string }> = {
   free: { bg: "#eae7db", fg: "#5b5b63" },
+  website: { bg: "rgba(63,167,160,0.14)", fg: "#2b7a74" },
   studio: { bg: "rgba(58,123,255,0.12)", fg: "#2a5fd1" },
   agency: { bg: "rgba(139,109,31,0.14)", fg: "#6b5215" },
   network: { bg: "rgba(20,107,58,0.12)", fg: "#0e4a26" },
@@ -383,6 +386,9 @@ export type ConversionHero = {
 };
 
 const HERO_BY_PLAN: Record<Plan, ConversionHero | null> = {
+  // Website has no conversion hero yet — its upsell copy is owned by the
+  // marketing PR, not this one.
+  website: null,
   free: {
     fromPlan: "free",
     toPlan: "studio",

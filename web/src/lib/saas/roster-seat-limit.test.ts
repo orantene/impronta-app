@@ -73,3 +73,18 @@ test("public roster display cap respects explicit tenant limit", () => {
 test("public roster display cap stays uncapped on paid plans without limit", () => {
   assert.equal(resolvePublicRosterDisplayCap("studio", null), null);
 });
+
+test("a zero-seat plan says it has no roster instead of offering more seats", () => {
+  // Website ($12 site-builder tier) has PLAN_SEAT_CAPS.website = 0. "Upgrade
+  // to add more" would misdescribe what the customer bought.
+  const verdict = evaluateRosterSeatAvailability({
+    planTier: "website",
+    limit: 0,
+    current: 0,
+  });
+  assert.equal(verdict.ok, false);
+  if (verdict.ok) return;
+  assert.equal(verdict.limit, 0);
+  assert.match(verdict.message, /does not include a talent roster/i);
+  assert.match(verdict.message, /Upgrade to Studio/i);
+});
