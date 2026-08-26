@@ -118,7 +118,8 @@ export interface RenderTalentMaxSiteInput {
 export interface MaxSiteSeo {
   title: string;
   description?: string;
-  /** Set on the draft preview so a preview is never indexed. */
+  /** True on the draft preview (never indexed) or when the page's own
+   *  `talent_pages.noindex` column is set. */
   noindex: boolean;
   /** og:title — falls back to `title` when absent. */
   ogTitle?: string;
@@ -324,7 +325,11 @@ function buildMaxSiteSeo(args: {
   return {
     title,
     ...(description ? { description } : {}),
-    noindex,
+    // The draft preview is ALWAYS noindex; on top of that the page's own
+    // `noindex` column is honoured (it was loaded but never read before). NULL
+    // and `false` stay indexable, matching the column comment. The whole site
+    // is already Max-gated, so no extra tier check belongs here.
+    noindex: noindex || page.noindex === true,
     ...(page.ogTitle?.trim() ? { ogTitle: page.ogTitle.trim() } : {}),
     ...(page.ogDescription?.trim()
       ? { ogDescription: page.ogDescription.trim() }

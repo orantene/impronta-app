@@ -40,9 +40,9 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  // Reviews are a PREMIUM capability, gated on the SURFACE tenant's entitlement.
-  // A non-entitled workspace gets a plain empty state (same ClientPageHeader
-  // shell) instead of the reviews panel. Fails closed via tenantReviewsEnabled.
+  // Review surfaces are switched per SURFACE tenant; the platform default is ON
+  // (collecting reviews is free on every tier). A workspace staff switched OFF
+  // gets a plain empty state (same ClientPageHeader shell) instead of the panel.
   const reviewsEnabled = await tenantReviewsEnabled(scope.tenantId);
   if (!reviewsEnabled) {
     return (

@@ -164,3 +164,32 @@ export function buildTalentMembershipState(
     },
   };
 }
+
+/**
+ * Does the TALENT's own subscription tier remove the "Powered by Tulala" badge
+ * from their public profile?
+ *
+ * Marketed on /pricing as a Pro benefit ("removes the Tulala badge"), so it
+ * holds for Pro AND Max (Max is a superset of Pro). Free stays badged.
+ *
+ * Deliberately INDEPENDENT of the hosting tenant's whitelabel plan — the two
+ * are separate grants and either one suffices. See the badge condition in
+ * `app/t/[profileCode]/profile-view.tsx`.
+ */
+export function talentPlanRemovesPlatformBadge(
+  planKey: string | null | undefined,
+): boolean {
+  const normalized = normalizeTalentPlanKey(planKey);
+  return normalized === "talent_pro" || normalized === "talent_portfolio";
+}
+
+/**
+ * Is this talent on the Max (Portfolio) tier? Gates the marketed Max-only
+ * benefits that are not expressed as a `TalentPlanCapability` — page-level SEO
+ * control on the public talent page, and priority Discover placement.
+ */
+export function isTalentPortfolioTier(
+  planKey: string | null | undefined,
+): boolean {
+  return normalizeTalentPlanKey(planKey) === "talent_portfolio";
+}

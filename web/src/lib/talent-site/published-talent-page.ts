@@ -34,6 +34,10 @@ export type {
 export async function loadPublishedTalentPage(input: {
   profileCode: string;
   slug: string;
+  /** Absolute origin serving this page — feeds the default canonical URL. */
+  canonicalOrigin?: string;
+  /** Origin-relative path of this page — feeds the default canonical URL. */
+  canonicalPath?: string;
 }): Promise<PublishedTalentPageRenderData | null> {
   const pub = createPublicSupabaseClient();
   if (!pub) return null;
@@ -42,7 +46,7 @@ export async function loadPublishedTalentPage(input: {
     async loadTalentByProfileCode(profileCode) {
       const { data, error } = await pub
         .from("talent_profiles")
-        .select("id, display_name, created_by_agency_id")
+        .select("id, display_name, created_by_agency_id, talent_plan_key")
         .eq("profile_code", profileCode)
         .is("deleted_at", null)
         .maybeSingle();
@@ -51,11 +55,13 @@ export async function loadPublishedTalentPage(input: {
         id: string;
         display_name: string | null;
         created_by_agency_id: string | null;
+        talent_plan_key: string | null;
       };
       return {
         id: row.id,
         managingTenantId: row.created_by_agency_id ?? null,
         displayName: row.display_name,
+        talentPlanKey: row.talent_plan_key ?? null,
       };
     },
 
@@ -63,7 +69,10 @@ export async function loadPublishedTalentPage(input: {
       const { data, error } = await pub
         .from("talent_pages")
         .select(
-          "id, talent_profile_id, slug, title, status, blocks, theme, published_at",
+          // SEO-1/SEO-3 columns are selected here so the Portfolio-gated
+          // `<head>` envelope can actually be built — before this they were
+          // written by the builder and read by nothing.
+          "id, talent_profile_id, slug, title, status, blocks, theme, published_at, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
         )
         .eq("talent_profile_id", talentProfileId)
         .eq("slug", slug)

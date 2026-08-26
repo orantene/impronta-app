@@ -44,6 +44,8 @@ import {
   applyDemandSmoothing,
   getDemandScores,
 } from "@/lib/directory/demand-score";
+import { applyPortfolioPlacementBoost } from "@/lib/directory/portfolio-boost";
+import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -91,6 +93,9 @@ type TalentProfileRow = {
   is_featured: boolean;
   featured_level: number;
   featured_position: number;
+  /** Talent's own subscription tier — `talent_portfolio` earns the priority
+   *  Discover placement marketed for the Portfolio (Max) tier. */
+  talent_plan_key: string | null;
   profile_completeness_score: number | string | null;
   manual_rank_override: number | null;
   height_cm: number | null;
@@ -347,7 +352,7 @@ export async function fetchDirectoryPage(
     DIRECTORY_PAGE_SIZE_MAX,
   );
   const tenantScopeId = params.tenantId ?? null;
-  // Reviews are a PREMIUM capability. Card STANDING (rating_avg / rating_count /
+  // Card STANDING (rating_avg / rating_count /
   // would_book_again_pct) is gated on the SURFACE tenant's entitlement, computed
   // ONCE per fetch and applied to every card below. With no tenant scope
   // (platform / global marketplace host) there is nothing to gate, so standing
@@ -761,6 +766,7 @@ export async function fetchDirectoryPage(
       is_featured,
       featured_level,
       featured_position,
+      talent_plan_key,
       profile_completeness_score,
       manual_rank_override,
       height_cm,
@@ -857,6 +863,13 @@ export async function fetchDirectoryPage(
 
   const profiles = (profileRows ?? []) as TalentProfileRow[];
   const profileIds = profiles.map((row) => row.id);
+  // Portfolio (Max) talents on THIS page — feeds the priority-placement
+  // tie-break applied to the loaded page below (see portfolio-boost.ts).
+  const portfolioProfileIds = new Set(
+    profiles
+      .filter((row) => isTalentPortfolioTier(row.talent_plan_key))
+      .map((row) => row.id),
+  );
 
   if (profileIds.length === 0) {
     if (audit) {
@@ -1357,6 +1370,18 @@ export async function fetchDirectoryPage(
   // top_rated — featured block untouched, no window/cursor change).
   if (sort === "recommended" && demandScores.size > 0) {
     applyDemandSmoothing(items, demandScores);
+  }
+
+  // Portfolio (Max) priority placement — marketed as "priority/top Discover
+  // placement". Applied ONLY to the default "recommended" ordering, so an
+  // explicit visitor sort (featured / recent / updated / top_rated) always
+  // wins. Featured and manually-arranged rows keep their exact slots; within
+  // the remaining slots of THIS loaded page, Portfolio talents move ahead,
+  // stably. Nobody is hidden and the offset/limit window and `nextCursor` are
+  // unchanged. Runs AFTER demand smoothing so tier is the outer key and demand
+  // the inner tie-break. See lib/directory/portfolio-boost.ts.
+  if (sort === "recommended") {
+    applyPortfolioPlacementBoost(items, portfolioProfileIds);
   }
 
   if (audit) {

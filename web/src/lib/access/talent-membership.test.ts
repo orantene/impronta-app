@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   buildTalentMembershipState,
+  isTalentPortfolioTier,
   normalizeTalentPlanKey,
+  talentPlanRemovesPlatformBadge,
   talentPlanGrantsAccessCapability,
   talentPlanGrantsCapability,
   talentPlanToTier,
@@ -112,4 +114,24 @@ test("membership state exposes UI-safe capability booleans", () => {
       canConnectPersonalSiteDomain: true,
     },
   });
+});
+
+test("Pro and Max remove the Tulala badge; Free keeps it", () => {
+  assert.equal(talentPlanRemovesPlatformBadge(null), false);
+  assert.equal(talentPlanRemovesPlatformBadge("talent_basic"), false);
+  assert.equal(talentPlanRemovesPlatformBadge("free"), false);
+  assert.equal(talentPlanRemovesPlatformBadge("talent_pro"), true);
+  assert.equal(talentPlanRemovesPlatformBadge("pro"), true);
+  assert.equal(talentPlanRemovesPlatformBadge("talent_portfolio"), true);
+  assert.equal(talentPlanRemovesPlatformBadge("max"), true);
+  // An unknown key normalizes to Free — fail closed, never grant.
+  assert.equal(talentPlanRemovesPlatformBadge("enterprise"), false);
+});
+
+test("Portfolio tier predicate is Max-only", () => {
+  assert.equal(isTalentPortfolioTier("talent_portfolio"), true);
+  assert.equal(isTalentPortfolioTier("max"), true);
+  assert.equal(isTalentPortfolioTier("talent_pro"), false);
+  assert.equal(isTalentPortfolioTier("talent_basic"), false);
+  assert.equal(isTalentPortfolioTier(null), false);
 });
