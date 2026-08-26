@@ -24,7 +24,7 @@ import {
 } from "@/lib/saas/workspace-public-url";
 
 type TierKey = "free" | "studio" | "agency" | "network";
-type AudienceKey = "operator" | "agency" | "organization";
+type AudienceKey = "operator" | "agency" | "organization" | "business";
 
 /**
  * Host shown in the URL-preview row. Studio/Agency provision a branded

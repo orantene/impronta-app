@@ -34,7 +34,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
  */
 
 const SignupSchema = z.object({
-  audience: z.enum(["operator", "agency", "organization"]),
+  // "business" is the Website-tier front door: a local business (restaurant,
+  // café, venue, studio) that wants its own site and books talent when it
+  // needs to. It provisions `agencies.workspace_type = 'business'`; the other
+  // three stay talent-shaped. See workspace-signup.server.ts.
+  audience: z.enum(["operator", "agency", "organization", "business"]),
   businessName: z
     .string()
     .trim()
@@ -463,7 +467,7 @@ async function sendFounderDigest(params: {
   businessDescription: string | null;
   name: string;
   email: string;
-  audience: "operator" | "agency" | "organization";
+  audience: "operator" | "agency" | "organization" | "business";
   rosterSize: string;
   subdomain: string | null;
   tierInterest: "free" | "studio" | "agency" | "network" | null;
