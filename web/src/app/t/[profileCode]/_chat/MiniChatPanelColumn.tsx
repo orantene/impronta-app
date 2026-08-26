@@ -48,7 +48,7 @@ import { GuestDockNav } from "./GuestDockNav";
 import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
-import { GuestPanelHeader } from "./GuestPanelHeader";
+import { GuestPanelHeader, type GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
@@ -405,6 +405,15 @@ export function MiniChatPanelColumn({
   // switcher is a slide-over drawer, also header-triggered.
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  // The header's status line has THREE states, not two. A guest who has opened
+  // the panel without starting anything has no thread at all; reporting that as
+  // "Sent, awaiting reply" would be a flat lie about what the agency has.
+  const headerThreadState: GuestHeaderThreadState = isPrivateDraft
+    ? "draft"
+    : inquiryRecordExists && contactPromoted
+      ? "sent"
+      : "new";
+
   const detailsProgress =
     detailsEnabled && inquiryIntent
       ? countCoreDetails(inquiryIntent, capturedChipValues)
@@ -420,7 +429,7 @@ export function MiniChatPanelColumn({
         talentFirst={talentFirst}
         C={C}
         surfaceMode={surfaceMode}
-        isPrivateDraft={isPrivateDraft}
+        threadState={headerThreadState}
         syncState={syncState}
         onRetrySync={onRetrySync}
         onToggleExpand={onToggleExpand}

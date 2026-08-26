@@ -14,9 +14,9 @@
  *   Account                   → guest: save-this-conversation (reuses the claim
  *                               flow); signed-in: open the client dashboard
  *
- * House rules: tenant accent only (no gold/rust), editorial serif for the agency
- * identity, dark-aware palette, "client"/"lineup" never "buyer"/"cart", no em
- * dashes, real avatar with an initial fallback (never a gray box).
+ * House rules: tenant accent only (no gold/rust), editorial serif for the
+ * greeting, dark-aware palette, "client"/"lineup" never "buyer"/"cart", no em
+ * dashes. The agency identity lives in the panel header, never repeated here.
  */
 
 import { MessageCircle, Users, Sparkles, LayoutDashboard, ChevronRight } from "lucide-react";
@@ -211,52 +211,22 @@ export function GuestDockHomeView({
         flexDirection: "column",
       }}
     >
-      {/* ── Compact hero ─────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "18px 16px 14px",
-        }}
-      >
+      {/* ── Greeting ──────────────────────────────────────────────────────
+          v2.1 opened Home with the agency logo + the agency name + a greeting,
+          sitting directly beneath a header that had just shown the same logo
+          and the same name. The owner read the screen as a repeat, correctly.
+          The header owns the identity; Home only needs to say hello. ────── */}
+      <div style={{ padding: "18px 16px 14px" }}>
         <div
-          aria-hidden
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: brand.logoUrl
-              ? `center / cover no-repeat url(${brand.logoUrl})`
-              : accent,
-            color: accentInk,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            fontFamily: FONT_DISPLAY,
             fontSize: 17,
-            fontWeight: 700,
+            fontWeight: 600,
+            color: C.ink,
+            lineHeight: 1.35,
           }}
         >
-          {!brand.logoUrl && (talentFirst[0]?.toUpperCase() ?? "•")}
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 17,
-              fontWeight: 600,
-              color: C.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {brand.agencyName}
-          </div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, lineHeight: 1.35 }}>
-            {t("public.guestChat.homeHeroLine")}
-          </div>
+          {t("public.guestChat.homeHeroLine")}
         </div>
       </div>
 
@@ -334,9 +304,12 @@ export function GuestDockHomeView({
         )}
       </div>
 
-      {/* ── Account / save-this-conversation (guests only) ───────────────── */}
+      {/* ── Account / save-this-conversation (guests only) ─────────────────
+          Sits directly under the action cards, not pinned to the base. With the
+          identity block gone the panel is short, and the old `marginTop: auto`
+          flung this card to the bottom edge behind a column of nothing. ───── */}
       {!isAccount && (
-        <div style={{ padding: "4px 14px 16px", marginTop: "auto" }}>
+        <div style={{ padding: "8px 14px 16px" }}>
           <GuestAccountToolkit
             inquiryId={inquiryId}
             guestEmail={guestEmail}
