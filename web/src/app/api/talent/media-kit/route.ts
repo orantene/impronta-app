@@ -29,6 +29,13 @@ import { loadTalentMediaKitModel } from "@/lib/talent/media-kit-source";
 import { generateTalentMediaKitPdf } from "@/lib/talent/media-kit-pdf";
 
 export const dynamic = "force-dynamic";
+/**
+ * Explicit, not incidental: the PDF renderer `readFile`s the embedded Noto Sans
+ * subset off disk, and `node:fs` does not exist on the Edge runtime. Matches the
+ * sibling `api/talent/media/*` routes. `next.config.ts` keys this route's path in
+ * `outputFileTracingIncludes` to ship those `.ttf`s into the Function.
+ */
+export const runtime = "nodejs";
 
 /** Deterministic chain: the asked-for locale, then the platform default. */
 function fallbackChainFor(locale: Locale): Locale[] {
