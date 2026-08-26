@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripDefaultLocalePrefixFromPath } from "@/i18n/pathnames";
+import { pinnedMarketingLocale } from "@/lib/seo/spanish-named-routes";
 import {
   isDashboardInnerPathForLocalePrefix,
   isNonDefaultLocalePrefixedPath,
@@ -616,7 +617,9 @@ export async function proxy(request: NextRequest) {
   // return the default locale instead of `es`. Result: the page renders in
   // EN even when the URL is `/es/...`, and the operator-facing locale
   // switcher appears non-functional.
-  const locale = resolveLocaleForPathname(pathname, request, effectiveLangSettings);
+  // Spanish-NAMED routes pin to `es` — see spanish-named-routes.ts for why.
+  const locale = pinnedMarketingLocale(effectiveHostContext.kind, pathname)
+    ?? resolveLocaleForPathname(pathname, request, effectiveLangSettings);
   // Built from the sanitized clone — a forged x-impronta-talent-profile /
   // x-impronta-host-context can never reach the app on non-talent-site hosts.
   const requestHeaders = new Headers(sanitizedInboundHeaders);

@@ -7,7 +7,7 @@ import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildBreadcrumbJsonLd, breadcrumbJsonLdToString } from "@/lib/seo/breadcrumb-json-ld";
 import { buildFaqPageJsonLd, faqJsonLdToString } from "@/lib/seo/faq-json-ld";
-import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildSpanishOnlyMarketingAlternates } from "@/lib/seo/spanish-named-routes";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "@/components/marketing/container";
 import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
@@ -59,7 +59,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
     },
-    ...buildMarketingLocaleAlternates(locale, "/contratar-modelos"),
+    ...buildSpanishOnlyMarketingAlternates("/contratar-modelos"),
   };
 }
 
