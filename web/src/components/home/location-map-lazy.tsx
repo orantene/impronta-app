@@ -23,6 +23,9 @@ export function LocationMapLazy(props: {
   publicPathPrefix?: string;
   /** Tenant URL grammar, forwarded from the server render. */
   localeUrl?: LocaleUrlSettings;
+  /** Controlled city selection, driven by the chips above the map. */
+  selectedId?: string | null;
+  onSelectedIdChange?: (id: string | null) => void;
 }) {
   return <LocationMapClient {...props} />;
 }
