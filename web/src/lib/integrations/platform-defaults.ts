@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import {
   getDecryptedSecret,
   getSecretStatus,
@@ -14,9 +14,9 @@ import {
  *
  * The super-admin can set the platform's own default integration keys (Google
  * Maps, GA4, captcha, email-from) in the platform admin UI. Those are stored as
- * ordinary integration rows under the canonical platform tenant id
- * ({@link DEFAULT_AI_TENANT_ID}) — the same tables every tenant uses, no new
- * schema. This module is the READ side: it surfaces those stored values to the
+ * ordinary integration rows under the platform tenant id
+ * (the network HUB — see `platformTenantId` below) — the same tables every
+ * tenant uses, no new schema. This module is the READ side: it surfaces those stored values to the
  * runtime resolver so a tenant's `inherit` resolution becomes
  *
  *     tenant-custom  →  platform-DB-default  →  process.env
@@ -43,7 +43,32 @@ import {
  * via the explicitly client-safe getter below.
  */
 
-const PLATFORM_TENANT_ID = DEFAULT_AI_TENANT_ID;
+/**
+ * The tenant row that HOLDS the platform's integration defaults.
+ *
+ * This USED to be `DEFAULT_AI_TENANT_ID` — which is a REAL CUSTOMER AGENCY
+ * (Impronta, 00000000-…-0001). So "the default every agency inherits" and
+ * "that one customer's private integration config" were literally the same
+ * database row: if the customer set their own captcha in their workspace
+ * settings, they silently rewrote the default for EVERY other agency. With one
+ * tenant nobody notices; at 1000 tenants it is a cross-customer data bug.
+ *
+ * The platform's own workspace is the network HUB (kind='hub',
+ * plan_tier='network'), which is what "the platform's own keys" actually
+ * means. Resolved rather than hardcoded so dev / preview / prod each find
+ * their own hub.
+ *
+ * Returns null when no hub exists → every getter below returns null → the
+ * resolver falls through to `process.env`, which is this module's documented
+ * zero-regression contract. It never falls back to a customer's row.
+ */
+async function platformTenantId(): Promise<string | null> {
+  return ttlMemo("platform:tenant-id", async () => {
+    const hub = await getPlatformHubTenant();
+    return hub?.tenantId ?? null;
+  });
+}
+
 const TTL_MS = 60_000;
 
 type CacheEntry<T> = { value: T; expires: number };
@@ -72,7 +97,9 @@ async function ttlMemo<T>(key: string, load: () => Promise<T>): Promise<T> {
 export const platformConfigField = cache(
   async (integrationKey: string, field: string): Promise<string | null> => {
     return ttlMemo(`config:${integrationKey}:${field}`, async () => {
-      const row = await getTenantIntegration(PLATFORM_TENANT_ID, integrationKey);
+      const tenantId = await platformTenantId();
+      if (!tenantId) return null;
+      const row = await getTenantIntegration(tenantId, integrationKey);
       const config = (row?.config_json ?? {}) as Record<string, unknown>;
       const v = config[field];
       if (typeof v !== "string") return null;
@@ -92,7 +119,9 @@ export const platformSecret = cache(
   async (integrationKey: string, field: string): Promise<string | null> => {
     return ttlMemo(`secret:${integrationKey}:${field}`, async () => {
       try {
-        const v = await getDecryptedSecret(PLATFORM_TENANT_ID, integrationKey, field);
+        const tenantId = await platformTenantId();
+        if (!tenantId) return null;
+        const v = await getDecryptedSecret(tenantId, integrationKey, field);
         return v?.trim() || null;
       } catch {
         return null;
@@ -110,11 +139,13 @@ export async function platformSecretStatus(
   integrationKey: string,
   field: string,
 ): Promise<{ present: boolean; last4: string | null }> {
-  return getSecretStatus(PLATFORM_TENANT_ID, integrationKey, field);
+  const tenantId = await platformTenantId();
+  if (!tenantId) return { present: false, last4: null };
+  return getSecretStatus(tenantId, integrationKey, field);
 }
 
 /** The canonical platform tenant id these defaults live under. */
-export { PLATFORM_TENANT_ID };
+export { platformTenantId };
 
 /**
  * Drop any memoized platform-default entries. Call after a platform-admin write
