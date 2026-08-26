@@ -8,7 +8,10 @@
 // actions.ts (saveRegistrationSettings / decideJoinRequest /
 // loadRegistrationManageData) is still imported by the in-shell section.
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { assertRosterWorkspace } from "@/lib/saas/assert-roster-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +23,14 @@ export default async function AdminRosterRegistrationRedirect({
   params: PageParams;
 }) {
   const { tenantSlug } = await params;
+
+  // Direct-URL guard, layer 2 (server). "Open for registration" is talent
+  // self-signup onto a roster — a business workspace has none, so the alias
+  // 404s rather than bouncing the user into a Settings section that is not
+  // there. Hides the route; deletes nothing.
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) notFound();
+  await assertRosterWorkspace(scope.tenantId);
+
   redirect(`/${tenantSlug}/admin/settings?focus=registration`);
 }

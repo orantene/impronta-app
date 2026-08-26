@@ -323,6 +323,13 @@ export type BridgeData = {
      * OverviewFree reads this to show the "Network setup pending" banner.
      */
     networkRequestedAt?: string | null;
+    /**
+     * Raw `agencies.workspace_type` — "talent" (represents talent) or
+     * "business" (a local business that books talent as a client). The shell
+     * normalizes it with `normalizeWorkspaceType`, which fails closed to
+     * "talent", so an absent/unknown value shows every surface.
+     */
+    workspaceType?: string;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

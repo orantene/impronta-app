@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, useAdminShell } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, Z, useAdminShell } from "../state";
 import type { ClientPage, PlatformPage, TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -38,7 +38,7 @@ export function MobileBottomNav() {
         roster: rosterPending || undefined,
         messages: effectiveUnread || undefined,
       };
-      return WORKSPACE_PAGES.map((p) => ({
+      return state.visiblePages.map((p) => ({
         id: p,
         label: p === "talent" ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel) : copy.t(PAGE_META[p].label),
         active: state.page === p,

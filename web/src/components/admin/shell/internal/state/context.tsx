@@ -42,7 +42,13 @@ import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
-import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import {
+  clampWorkspacePage,
+  normalizeWorkspaceType,
+  visibleWorkspacePages,
+  type WorkspaceType,
+} from "@/lib/saas/workspace-type";
 import { setRosterCardBadges as persistRosterCardBadges } from "@/lib/server-actions/admin-roster-card-badges";
 import {
   DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
@@ -71,6 +77,19 @@ export type AdminShellState = {
   entityType: EntityType;
   alsoTalent: boolean;
   page: WorkspacePage;
+  /**
+   * `agencies.workspace_type` for this workspace, normalized. "talent"
+   * (the fail-closed default) shows every surface; "business" hides the
+   * roster-shaped ones. Never hides anything for an unknown value.
+   */
+  workspaceType: WorkspaceType;
+  /**
+   * WORKSPACE_PAGES filtered by {@link workspaceType}. EVERY workspace nav
+   * consumer — topbar, mobile bottom nav, command palette, ⌘K nav, the
+   * ControlBar page switcher — reads this, never WORKSPACE_PAGES directly,
+   * so a hidden surface cannot survive in one nav and vanish from another.
+   */
+  visiblePages: WorkspacePage[];
   // talent dimensions
   talentPage: TalentPage;
   /** Talent personal subscription tier — Free / Pro / Max. */
@@ -418,6 +437,9 @@ type Ctx = {
     displayName: string;
     planTier: string;
     kind: string;
+    /** Raw `agencies.workspace_type` ("talent" | "business"). Normalized by
+     *  `normalizeWorkspaceType` before it is used for anything. */
+    workspaceType?: string;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
     /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
@@ -1068,13 +1090,39 @@ export function AdminShellProvider({
   const [alsoTalent, setAlsoTalent] = useState<boolean>(
     initialBridgeData ? Boolean(initialBridgeData.isHybrid) : true,
   );
-  const [page, setPageRaw] = useState<WorkspacePage>(initialPage ?? "overview");
+  // ── Workspace type → which surfaces exist ────────────────────────────────
+  //
+  // Derived from the bridge, never from a fetch, and PURE: the server layout
+  // and this provider run the same `normalizeWorkspaceType` /
+  // `clampWorkspacePage` on the same inputs, so SSR and CSR agree. The shell's
+  // state init is hydration-sensitive (see the removed TENANT singleton
+  // mutation below) — anything that could differ between the two passes resets
+  // the state machine. Prototype/standalone mode (no bridge) normalizes
+  // `undefined` → "talent" and therefore behaves exactly as it always has.
+  const workspaceType: WorkspaceType = normalizeWorkspaceType(
+    initialBridgeData?.tenantIdentity?.workspaceType,
+  );
+  const visiblePages = useMemo(
+    () => visibleWorkspacePages(workspaceType, WORKSPACE_PAGES),
+    [workspaceType],
+  );
+
+  // Direct-URL clamp, layer 1 (SPA). The layout already clamps the page it
+  // derives from the request pathname; this is the belt to that pair of braces
+  // and also covers standalone mode and any in-shell caller.
+  const [page, setPageRaw] = useState<WorkspacePage>(
+    clampWorkspacePage(initialPage ?? "overview", workspaceType),
+  );
 
   // In production (cutover) mode the browser URL is the source of truth
   // for page — driven by Next.js routing, not ?page= query params. When
   // tenantSlug is set we skip the replaceState URL sync and instead push
   // a real navigation so every page change is a proper Next.js route.
   const setPage = useCallback((p: WorkspacePage) => {
+    // Clamp here too, not just at the nav lists: a hidden page can still be
+    // requested by a keyboard shortcut, a deep link, or any in-shell caller
+    // that names a page directly.
+    p = clampWorkspacePage(p, workspaceType);
     setPageRaw(p);
     const slug = tenantSlugRef.current;
     if (slug) {
@@ -1088,14 +1136,18 @@ export function AdminShellProvider({
         router.push(targetHref);
       }
     }
-  }, [router]);
+  }, [router, workspaceType]);
   // Sync-only page setter for PageRouteSyncer: updates the shell's active
   // surface WITHOUT pushing a navigation. Plain setPage maps a page to its
   // canonical segment and pushes there, which would strip deeper sub-routes
   // (e.g. /website/card-design → /website) when the route-mount sync fires.
   const syncPage = useCallback((p: WorkspacePage) => {
-    setPageRaw(p);
-  }, []);
+    // `/admin/roster` is SPA-rendered (its page.tsx is just a PageRouteSyncer),
+    // so this — not setPage — is what a business workspace's `/roster` deep
+    // link would otherwise flow through. Clamp it or the guard has a hole
+    // exactly where the brief said the SPA layer had to cover.
+    setPageRaw(clampWorkspacePage(p, workspaceType));
+  }, [workspaceType]);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
   const setTalentPage = useCallback((p: TalentPage) => {
@@ -2134,6 +2186,8 @@ export function AdminShellProvider({
         entityType,
         alsoTalent,
         page,
+        workspaceType,
+        visiblePages,
         talentPage,
         talentTier,
         clientPlan,
@@ -2278,6 +2332,8 @@ export function AdminShellProvider({
       entityType,
       alsoTalent,
       page,
+      workspaceType,
+      visiblePages,
       talentPage,
       talentTier,
       clientPlan,

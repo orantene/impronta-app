@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { FloatingFab, Icon, Popover, useRovingTabindex } from "../primitives";
-import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
+import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, Z, meetsRole, useAdminShell } from "../state";
 import { ControlBar } from "./ControlBar";
 import { WebsiteNavItem } from "./WebsiteNavDropdown";
 
@@ -74,7 +74,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
             Tenant identity, mode toggle, bell/help/settings, role chip,
             avatar all moved to the persistent identity bar above. */}
         <nav ref={topbarNavRef} data-tulala-app-topbar-nav aria-label={copy.t("Workspace sections")} style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
-          {WORKSPACE_PAGES.map((p) => {
+          {state.visiblePages.map((p) => {
             const active = state.page === p;
             const pageLabel = p === "roster"
               ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel)

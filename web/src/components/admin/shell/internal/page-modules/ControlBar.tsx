@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPES, ENTITY_TYPE_META, FONTS, PAGE_META, PLANS, PLAN_META, PLATFORM_PAGES, PLATFORM_PAGE_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_PAGES, Z, useAdminShell } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPES, ENTITY_TYPE_META, FONTS, PAGE_META, PLANS, PLAN_META, PLATFORM_PAGES, PLATFORM_PAGE_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
 import type { ClientPage, EntityType, Plan, PlatformPage, Role, Surface, TalentPage, WorkspacePage } from "../state";
 
 // ════════════════════════════════════════════════════════════════════
@@ -145,7 +145,7 @@ export function ControlBar() {
           <SegmentedControl
             label="Page"
             value={state.page}
-            options={WORKSPACE_PAGES.map((p) => ({ value: p, label: PAGE_META[p].label }))}
+            options={state.visiblePages.map((p) => ({ value: p, label: PAGE_META[p].label }))}
             onChange={(v) => setPage(v as WorkspacePage)}
           />
         </>
