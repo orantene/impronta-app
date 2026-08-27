@@ -20,10 +20,44 @@
 import type { BuilderNode } from "./types";
 
 /** Props the inspector's localizable text fields edit. */
-export const TEXT_PROP_NAMES = ["text", "label", "title", "alt", "brand"] as const;
+export const TEXT_PROP_NAMES = [
+  "text",
+  "label",
+  "title",
+  "alt",
+  "brand",
+  // Top-level and rendered through the overlay (see builder-i18n-props `form`).
+  "submitLabel",
+] as const;
 
-/** Text keys carried one level or more down, inside an object or array prop. */
-const NESTED_TEXT_KEYS = ["label", "placeholder", "text", "title"] as const;
+/**
+ * Text keys carried one level or more down, inside an object or array prop.
+ *
+ * This list is the one thing here that can silently fall behind reality: a
+ * component shipping copy under a key nobody added stays invisible to the
+ * editor, the audit and the fold at once. `translatable-text-coverage.test.ts`
+ * is the backstop — it scans real page data for copy-looking strings this list
+ * does not reach and fails, so the list cannot quietly rot.
+ *
+ * The last four were added because that scan found them live: 15 real strings
+ * ("Contact Us", "Send inquiry", "Thanks! We've received your inquiry…", the
+ * consent line) were untranslatable and unauditable.
+ */
+const NESTED_TEXT_KEYS = [
+  "label",
+  "placeholder",
+  "text",
+  "title",
+  "eyebrow",
+  "headline",
+  "intro",
+  "submitLabel",
+  "successMessage",
+  "emptyStateText",
+  "consentText",
+  // A newline-delimited option list, stored and translated as one string.
+  "options",
+] as const;
 
 /** Depth 4 — real designs nest at `props.config.requestCta.label`; a
  *  two-level scan silently missed it and shipped "Request" in Spanish. */

@@ -5001,7 +5001,14 @@ function renderBuilderNodeElement(
                       propOverrides can target) wins over the submit field's own
                       label; falls back to it when unset → byte-stable for trees
                       that don't set submitLabel. */}
-                  {formProps.submitLabel ?? field.label}
+                  {formProps.submitLabel
+                    ? resolveNodeLocalizedText(
+                        node,
+                        "submitLabel",
+                        formProps.submitLabel,
+                        options.contentLocale,
+                      ).value
+                    : field.label}
                 </button>
               );
             }

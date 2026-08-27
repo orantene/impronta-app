@@ -34,6 +34,11 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   tab_panel: ["title"],
   embed: ["title"],
   nav: ["brand"],
+  // The form's submit button. Rendered from a TOP-LEVEL prop, so unlike the
+  // field labels (which are nested and handled by `nested-i18n`) it needs an
+  // entry here or the renderer will not resolve its overlay — a translation
+  // that stores fine and never appears.
+  form: ["submitLabel"],
 };
 
 /** The localizable props for a node kind (empty when the kind has none). */
