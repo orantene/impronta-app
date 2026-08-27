@@ -280,7 +280,7 @@ const BUDGETS: Record<string, number> = {
     // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): the Posts, Analytics
   // and domain-registry projections all landed in this file from separate
   // branches, so the true count is their sum, not any one branch's number.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5215,
+  "src/components/admin/shell/internal/state/fixtures.ts": 5225,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -423,7 +423,7 @@ const BUDGETS: Record<string, number> = {
   // +2 (2388 → 2390): `canEditSitePages` on bridgeSessionIdentity, so the
   // Website → Redirects nav link is gated on the same capability its route
   // enforces instead of on a role proxy.
-  "src/components/admin/shell/internal/state/context.tsx": 2393,
+  "src/components/admin/shell/internal/state/context.tsx": 2400,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

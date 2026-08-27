@@ -31,6 +31,7 @@ import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/d
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,7 @@ export default async function PlatformTalentLayout({
     clientFieldSource,
     localeSettings,
     userNotifications,
+    talentPageAnalytics,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -178,6 +180,13 @@ export default async function PlatformTalentLayout({
     // surface and the notifications drawer had nothing but mock rows to
     // render. Returns [] on any failure, so it never breaks the layout.
     loadTalentSurfaceNotifications(),
+    // Pro/Portfolio page analytics — profile views + inquiry conversion for the
+    // signed-in talent's OWN profile. Scoped by the SESSION user id (the
+    // profile id is only a cross-check, never the scope), tier-gated inside the
+    // loader, and returns null for a Free talent so the surface shows the
+    // upsell instead of zeros. Bridged here rather than fetched on mount: an
+    // in-shell fetch on this surface has stuck on "Loading" before.
+    loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -231,6 +240,7 @@ export default async function PlatformTalentLayout({
           : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
+        talentPageAnalytics,
         talentPayoutSnapshot,
         talentPayoutAttention,
         talentInquiries,

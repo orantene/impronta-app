@@ -195,6 +195,20 @@ export type BridgeData = {
    */
   talentSelfProfile?: TalentSelfProfile | null;
   /**
+   * The talent's OWN page analytics (profile views + inquiry conversion),
+   * loaded server-side in the layout and handed down like every other talent
+   * surface's data. `null` means "not entitled or not loaded" — a Free talent
+   * (analytics are a Pro/Portfolio benefit) and a workspace-only entry both
+   * land here, and the surface renders the upsell rather than a grid of zeros.
+   *
+   * Deliberately bridged rather than fetched on mount: an in-shell fetch on
+   * this surface has previously left tiles stuck on "Loading" forever, and a
+   * client fetch would also have to re-prove ownership on every call.
+   */
+  talentPageAnalytics?:
+    | import("@/lib/analytics/talent-analytics").TalentPageAnalyticsResult
+    | null;
+  /**
    * The current talent's Stripe Connect payout snapshot, for the in-shell
    * Payouts section. `null` when not loaded (e.g. workspace-only entry).
    */
@@ -400,6 +414,7 @@ export function createBridgeDataFromRoster(
     teamMembers: null,
     totalUnread: 0,
     talentSelfProfile: null,
+    talentPageAnalytics: null,
     talentPayoutSnapshot: null,
     talentPayoutAttention: null,
     talentInquiries: null,

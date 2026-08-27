@@ -40,6 +40,7 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
+import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
@@ -201,16 +202,21 @@ export default async function WorkspaceAdminLayout({
   // `await Promise.all([unread, prefs])`, which added a needless round-trip
   // to every navigation. Pure-workspace users skip these entirely.
   const isHybrid = talentSelfProfile != null;
-  const [talentInquiries, talentUnread, userPrefs] = isHybrid
+  const [talentInquiries, talentUnread, userPrefs, talentPageAnalytics] = isHybrid
     ? await Promise.all([
         loadTalentInquiries(talentSelfProfile!.id, tenantId),
         loadTalentUnreadCount(talentSelfProfile!.id, tenantId),
         loadUserPrefs(session.user.id),
+        // Pro/Portfolio page analytics for the hybrid user's OWN talent
+        // profile. Scoped by the SESSION user id — the profile id is a
+        // cross-check only — and tier-gated inside the loader (null for Free).
+        loadTalentPageAnalytics(session.user.id, talentSelfProfile!.id),
       ])
     : [
         null as Awaited<ReturnType<typeof loadTalentInquiries>> | null,
         undefined as number | undefined,
         null as UserPrefs | null,
+        null as Awaited<ReturnType<typeof loadTalentPageAnalytics>>,
       ];
 
   // Same capability the Forms page itself gates on (manage_billing). The nav
@@ -287,6 +293,7 @@ export default async function WorkspaceAdminLayout({
           mediaBridgeErrored: mediaBridge.errored,
           mediaTotalCount: mediaBridge.totalCount,
           talentSelfProfile,
+          talentPageAnalytics,
           talentInquiries,
           isHybrid,
           // Phase 5 — cross-mode unread + user prefs
