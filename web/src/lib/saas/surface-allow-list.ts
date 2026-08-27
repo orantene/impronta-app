@@ -619,6 +619,13 @@ const MARKETING_PAGE_PREFIXES = [
   // for models, the one category the directory has real supply for today.
   // Single page, no sub-routes.
   "/contratar-modelos",
+  // Website-tier landing pair: `/websites` (EN) and `/sitios-web` (Spanish-
+  // first SEO sibling), same relationship as `/agencies` <-> `/agencia-de-
+  // talento`. Both are single pages with no sub-routes; each owns an
+  // `opengraph-image` file-route under its own prefix, which these entries
+  // cover.
+  "/websites",
+  "/sitios-web",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {
