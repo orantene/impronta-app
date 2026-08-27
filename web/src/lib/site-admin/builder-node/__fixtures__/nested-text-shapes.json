@@ -1,0 +1,337 @@
+[
+ {
+  "shape": "form:fields.N.label",
+  "page": "studio",
+  "node": {
+   "id": "rb-studio-booking-form",
+   "i18n": {
+    "es": {
+     "fields.0.label": "Nombre",
+     "fields.1.label": "Correo",
+     "fields.2.label": "Teléfono o WhatsApp",
+     "fields.3.label": "¿Qué tipo de sesión?",
+     "fields.4.label": "¿Cuándo te queda bien?",
+     "fields.5.label": "¿Algo más que debamos saber?",
+     "fields.6.label": "Solicitar una sesión",
+     "fields.0.placeholder": "Tu nombre",
+     "fields.3.placeholder": "p. ej. primer portafolio, actualizar el book, sesión personal",
+     "fields.4.placeholder": "p. ej. cualquier día entre semana en marzo, o una fecha específica",
+     "fields.5.placeholder": "Looks que tengas en mente, referencias, o para qué son las imágenes."
+    }
+   },
+   "kind": "form",
+   "props": {
+    "i18n": {
+     "es": {
+      "fields.0.label": "Nombre",
+      "fields.1.label": "Correo",
+      "fields.2.label": "Teléfono o WhatsApp",
+      "fields.3.label": "¿Qué tipo de sesión?",
+      "fields.4.label": "¿Cuándo te queda bien?",
+      "fields.5.label": "¿Algo más que debamos saber?",
+      "fields.6.label": "Solicitar una sesión",
+      "fields.0.placeholder": "Tu nombre",
+      "fields.3.placeholder": "p. ej. primer portafolio, actualizar el book, sesión personal",
+      "fields.4.placeholder": "p. ej. cualquier día entre semana en marzo, o una fecha específica",
+      "fields.5.placeholder": "Looks que tengas en mente, referencias, o para qué son las imágenes."
+     }
+    },
+    "style": {
+     "width": "100%",
+     "maxWidthFree": "620px",
+     "marginTopFree": "8px"
+    },
+    "action": "internal",
+    "fields": [
+     {
+      "id": "rb-studio-f-name",
+      "name": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true,
+      "placeholder": "Your name"
+     },
+     {
+      "id": "rb-studio-f-email",
+      "name": "email",
+      "type": "email",
+      "label": "Email",
+      "required": true,
+      "placeholder": "you@email.com"
+     },
+     {
+      "id": "rb-studio-f-phone",
+      "name": "phone",
+      "type": "tel",
+      "label": "Phone or WhatsApp",
+      "required": true,
+      "placeholder": "+52 ..."
+     },
+     {
+      "id": "rb-studio-f-type",
+      "name": "session_type",
+      "type": "text",
+      "label": "What kind of session?",
+      "required": true,
+      "placeholder": "e.g. first portfolio, book update, personal shoot"
+     },
+     {
+      "id": "rb-studio-f-dates",
+      "name": "dates",
+      "type": "text",
+      "label": "When suits you?",
+      "required": true,
+      "placeholder": "e.g. any weekday in March, or a specific date"
+     },
+     {
+      "id": "rb-studio-f-message",
+      "name": "message",
+      "type": "textarea",
+      "label": "Anything else we should know?",
+      "placeholder": "Looks you have in mind, references, or what the images are for."
+     },
+     {
+      "id": "rb-studio-f-submit",
+      "name": "submit",
+      "type": "submit",
+      "label": "Request a session"
+     }
+    ],
+    "method": "post",
+    "sectionId": "cb91df75-fb5d-4e8d-b66a-c3b575574ae3",
+    "layerLabel": "Booking form",
+    "honeypotName": "website"
+   }
+  }
+ },
+ {
+  "shape": "section_embed:config.fields.N.label",
+  "page": "demo-forms",
+  "node": {
+   "id": "section_embed-bccb0b2e4e6e",
+   "kind": "section_embed",
+   "props": {
+    "style": {
+     "paddingTop": "l",
+     "paddingBottom": "l"
+    },
+    "config": {
+     "intro": "Fill out the form below and we'll be in touch within one business day.",
+     "action": "/api/cms/forms/submit",
+     "fields": [
+      {
+       "name": "name",
+       "type": "text",
+       "label": "Full name",
+       "required": true,
+       "placeholder": "Jane Smith"
+      },
+      {
+       "name": "email",
+       "type": "email",
+       "label": "Email address",
+       "required": true,
+       "placeholder": "jane@example.com"
+      },
+      {
+       "name": "preferred_date",
+       "type": "date",
+       "label": "Preferred event date",
+       "required": false
+      },
+      {
+       "name": "budget",
+       "type": "number",
+       "label": "Budget (USD)",
+       "required": false,
+       "numberMax": 1000000,
+       "numberMin": 500,
+       "placeholder": "5000"
+      },
+      {
+       "name": "newsletter",
+       "type": "checkbox",
+       "label": "Subscribe to our newsletter",
+       "required": false
+      },
+      {
+       "name": "gdpr_consent",
+       "type": "consent",
+       "label": "I agree to the privacy policy",
+       "required": true,
+       "consentText": "By submitting this form you agree to our Privacy Policy and consent to the processing of your personal data."
+      },
+      {
+       "name": "source",
+       "type": "select",
+       "label": "How did you hear about us?",
+       "options": "Google\nSocial media\nReferral\nEvent\nOther",
+       "required": false
+      }
+     ],
+     "method": "POST",
+     "captcha": "none",
+     "eyebrow": "Get in touch",
+     "variant": "card",
+     "headline": "Contact Us",
+     "honeypot": "website",
+     "routingMode": "inquiry",
+     "submitLabel": "Send inquiry",
+     "presentation": {
+      "align": "center",
+      "background": "canvas",
+      "paddingTop": "editorial",
+      "paddingBottom": "editorial",
+      "containerWidth": "standard"
+     },
+     "successMessage": "Thanks! We've received your inquiry and will be in touch shortly.",
+     "inquiryTargetTalentId": "eb97dc64-af2b-4996-a48c-913a143cfa59"
+    },
+    "sectionId": null,
+    "layerLabel": "Contact Form (FORMS-1 + FORMS-2)",
+    "sectionTypeKey": "contact_form"
+   }
+  }
+ },
+ {
+  "shape": "section_embed:config.items.N.text",
+  "page": "home",
+  "node": {
+   "id": "rb-home-marquee",
+   "i18n": {
+    "es": {
+     "config.items.0.text": "Modelos de Moda",
+     "config.items.1.text": "Anfitriones y Promotores",
+     "config.items.2.text": "Artistas",
+     "config.items.3.text": "Música y DJs",
+     "config.items.4.text": "Directorio completo"
+    }
+   },
+   "kind": "section_embed",
+   "props": {
+    "i18n": {
+     "es": {
+      "config.items.0.text": "Modelos de Moda",
+      "config.items.1.text": "Anfitriones y Promotores",
+      "config.items.3.text": "Música y DJs",
+      "config.items.4.text": "Directorio completo"
+     }
+    },
+    "config": {
+     "items": [
+      {
+       "href": "/p/fashion-models",
+       "text": "Fashion Models"
+      },
+      {
+       "href": "/p/hosts-promoters",
+       "text": "Hosts & Promoters"
+      },
+      {
+       "href": "/p/performers",
+       "text": "Performers"
+      },
+      {
+       "href": "/p/music-djs",
+       "text": "Music & DJs"
+      },
+      {
+       "href": "/directory",
+       "text": "Full Roster"
+      }
+     ],
+     "speed": "slow",
+     "variant": "text",
+     "direction": "left",
+     "separator": "diamond",
+     "presentation": {
+      "animation": {
+       "entry": "fade",
+       "reducedMotion": "respect"
+      },
+      "customCss": ".site-marquee { background: var(--token-color-background, #0a0a0a); border-top: 1px solid var(--token-color-line, #1f1f22); border-bottom: 1px solid var(--token-color-line, #1f1f22); } .site-marquee__link, .site-marquee__item > span:not(.site-marquee__sep) { color: var(--token-color-ink, #f4f4f5); font-family: var(--site-heading-font, inherit); font-style: italic; text-decoration: none; } .site-marquee__sep { color: var(--token-color-accent, #d4af37); } .site-marquee__sep::before { content: '\\2726'; } .site-marquee__sep { font-size: 0; } .site-marquee__sep::before { font-size: 1rem; }",
+      "background": "espresso",
+      "dividerTop": "thin-line",
+      "paddingTop": "tight",
+      "paddingBottom": "tight",
+      "containerWidth": "full-bleed"
+     }
+    },
+    "layerLabel": "Discipline Marquee",
+    "sectionTypeKey": "marquee"
+   }
+  }
+ },
+ {
+  "shape": "section_embed:config.requestCta.label",
+  "page": "home",
+  "node": {
+   "id": "builder-section_embed-fd88ba6c-c476-46a4-844e-f36b856e82bd",
+   "i18n": {
+    "es": {
+     "config.requestCta.label": "Solicitar"
+    }
+   },
+   "kind": "section_embed",
+   "props": {
+    "i18n": {
+     "es": {
+      "config.requestCta.label": "Solicitar"
+     }
+    },
+    "config": {
+     "copy": "",
+     "limit": 4,
+     "eyebrow": "",
+     "variant": "grid",
+     "headless": true,
+     "headline": "",
+     "showCity": true,
+     "showName": true,
+     "showBadge": false,
+     "cardChrome": "v11-noir",
+     "requestCta": {
+      "href": "/contact",
+      "label": "Request"
+     },
+     "sourceMode": "manual_pick",
+     "actionStyle": "outline-duo",
+     "cardVariant": "editorial",
+     "headerAlign": "center",
+     "layoutPreset": "v11-showcase",
+     "presentation": {
+      "align": "center",
+      "animation": {
+       "entry": "fade-up",
+       "reducedMotion": "respect"
+      },
+      "background": "canvas",
+      "dividerTop": "thin-line",
+      "paddingTop": "tight",
+      "paddingBottom": "standard",
+      "containerWidth": "wide"
+     },
+     "showLanguages": true,
+     "columnsDesktop": 4,
+     "emptyStateText": "Featured profiles appear here as talent are added to the roster.",
+     "imageTreatment": "cinematic",
+     "showPrimaryType": true,
+     "showAvailability": true,
+     "showBookmarkIcon": true,
+     "filterServiceSlug": "",
+     "showSecondaryType": true,
+     "manualProfileCodes": [
+      "TAL-00045",
+      "TAL-92001",
+      "TAL-92120",
+      "TAL-92072"
+     ],
+     "filterDestinationSlug": "",
+     "parentCategoryDisplay": false
+    },
+    "layerLabel": "Talent Grid",
+    "sectionTypeKey": "featured_talent"
+   }
+  }
+ }
+]
