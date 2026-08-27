@@ -353,6 +353,7 @@ const conferenceTree: BuilderNode[] = [
             backgroundColor: PANEL,
             animationPreset: "rise",
             animationTrigger: "scroll",
+            animationRepeat: "once",
             animationDuration: "0.9s",
             responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px" } },
           },

@@ -162,6 +162,12 @@ const COMPLIANCE_PREFIXES = [
   // a tenant host. Identity is auth-matched server-side inside the action; the
   // token is never trusted for identity.
   "/review",
+  // Inquiry email loop — the "log in to continue the conversation" CTA from
+  // the reply-mirror email. Like unsubscribe, the HMAC-signed token in the
+  // URL is the only credential and the link can be opened from any host
+  // context; the route exchanges it for a magic link and bounces to
+  // /auth/confirm on the app host. Must never 404 on a tenant host.
+  "/api/conversation/continue",
 ] as const;
 
 /**

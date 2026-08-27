@@ -10865,7 +10865,8 @@
       "downloadWorking": "Preparando...",
       "downloadGotOriginal": "Archivo original.",
       "downloadGotWebSize": "Archivo en tamaño web.",
-      "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición."
+      "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición.",
+      "errUnsupportedKind": "Esta página solo acepta fotos. No se subió:"
     },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
@@ -11415,7 +11416,13 @@
         "workspace": "Este espacio",
         "talent": "Talento",
         "platform": "Plataforma"
-      }
+      },
+      "errUnsupportedKind": "Este selector no acepta ese tipo de archivo:",
+      "errSvgSkipped": "Los archivos SVG no se admiten por seguridad.",
+      "errZipTooLarge": "El ZIP debe pesar menos de 500 MB.",
+      "errZipUnreadable": "No se pudo leer el archivo ZIP.",
+      "errZipTruncated": "El ZIP tenía más imágenes de las que se pueden extraer a la vez.",
+      "errBatchTooLarge": "Demasiados archivos a la vez."
     },
     "mediaQuota": {
       "usage": "{used} de {cap} fotos usadas en tu plan.",

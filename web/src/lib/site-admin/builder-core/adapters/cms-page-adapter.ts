@@ -20,6 +20,7 @@ import {
 } from "./cms-page-adapter-core";
 import {
   loadCmsFreeformPage,
+  loadCmsFreeformLocaleSettings,
   saveCmsFreeformPage,
   publishCmsFreeformPage,
   restoreCmsFreeformRevisionAction,
@@ -36,6 +37,10 @@ export {
  *  actions so cms_pages RLS (tenant staff) takes effect on every call. */
 const productionActions: CmsPageAdapterActions = {
   loadPage: loadCmsFreeformPage,
+  // ONE DESIGN PER PAGE — lets the adapter open/save the primary-language row
+  // in every language, and report the full language set so the inspector's
+  // per-element translation tabs render.
+  loadLocaleSettings: loadCmsFreeformLocaleSettings,
   savePage: saveCmsFreeformPage,
   publishPage: publishCmsFreeformPage,
   // REV-1 — restore a saved freeform revision's tree onto the live page

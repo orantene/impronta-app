@@ -197,10 +197,24 @@ export async function applyMotionState(
     case "reveal": {
       const selector = options.targetSelector ?? null;
       await page.evaluate((sel) => {
+        // The entrance animation used to ride the inline `animation` shorthand,
+        // so `[style*="animation"]` found it. Both non-inline lanes now publish
+        // the shorthand as the custom property `--bn-anim` and let a selector
+        // decide when it runs — and "--bn-anim" does NOT contain the substring
+        // "animation", so this query silently matched nothing and every reveal
+        // frame failed with "no animated node found", on a fresh seed too. The
+        // `data-*` hooks are the durable handles: they name the LANE rather
+        // than how the animation happens to be delivered this month.
         const target = sel
           ? document.querySelector<HTMLElement>(sel)
           : document.querySelector<HTMLElement>(
-              '.site-builder-node[style*="animation-timeline"], .site-builder-node[style*="animation"]',
+              [
+                '.site-builder-node[data-bn-anim-once]',
+                '.site-builder-node[data-bn-reveal]',
+                '.site-builder-node[style*="--bn-anim"]',
+                '.site-builder-node[style*="animation-timeline"]',
+                '.site-builder-node[style*="animation"]',
+              ].join(", "),
             );
         if (!target) throw new Error("motion[reveal]: no animated node found");
         target.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });

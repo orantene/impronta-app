@@ -304,6 +304,7 @@ const festivalTree: BuilderNode[] = [
             // at opacity:0), alongside the lineup-card hover-lift.
             animationPreset: "rise",
             animationTrigger: "scroll",
+            animationRepeat: "once",
             animationDuration: "1s",
             responsive: { mobile: { paddingRight: "20px", paddingLeft: "20px", paddingTop: "68px", paddingBottom: "68px" } },
           },

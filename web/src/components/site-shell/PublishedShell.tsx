@@ -29,6 +29,8 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { prepareLocalizedShellTree } from "./shell-locale-hrefs";
+import { resolveShellNavData } from "./shell-nav-data";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
@@ -42,13 +44,11 @@ import {
   indexBuilderSectionNodes,
   renderBuilderNodes,
   resolveBuilderNodeRole,
-  resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   collectShellSideFreeformNodes,
   isShellLandmarkNode,
-  prepareShellTree,
   resolveShellSidePlan,
   type ShellSideKey,
 } from "@/lib/site-admin/builder-node/shell-render-plan";
@@ -88,57 +88,6 @@ export interface SiteShellRenderHints {
   snapshotShellActive: boolean;
 }
 
-
-/**
- * Data the shell's NAV drawer can ask for.
- *
- * Both of these were reachable from the schema and reachable from the panel,
- * and reached the renderer as nothing at all: `dataSources.socialLinks` had no
- * producer anywhere in the codebase (so a `social_links` node "bound" to
- * workspace_social_links silently fell back to its static links), and
- * `availableLocales` was a render option no caller supplied. The drawer then
- * correctly rendered nothing — which is indistinguishable from the feature not
- * existing.
- */
-async function resolveShellNavData(
-  tenantId: string,
-  locale: Locale,
-  publicPathPrefix: string,
-): Promise<{
-  socialLinks: ReadonlyArray<{ platform: string; href: string; label?: string }>;
-  availableLocales: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
-}> {
-  const [social, localeSettings] = await Promise.all([
-    resolveShellSocialContact({ tenantId }).catch(() => null),
-    loadTenantLocaleSettings(tenantId).catch(() => null),
-  ]);
-
-  const supported = (localeSettings?.supportedLocales ?? []) as readonly string[];
-  const defaultLocale = (localeSettings?.defaultLocale ?? "en") as string;
-
-  return {
-    socialLinks: (social?.socialLinks ?? []).map((link: {
-      platform: string;
-      href: string;
-      label?: string | null;
-    }) => ({
-      platform: link.platform,
-      href: link.href,
-      label: link.label ?? undefined,
-    })),
-    // One row per locale the tenant actually publishes. The DEFAULT locale is
-    // unprefixed; every other one carries its segment — the same grammar the
-    // language widget uses, so the two cannot disagree.
-    availableLocales: supported.map((code) => ({
-      code,
-      href:
-        code === defaultLocale
-          ? publicPathPrefix || "/"
-          : `${publicPathPrefix}/${code}`,
-      current: code === locale,
-    })),
-  };
-}
 
 /**
  * Server-side helper for the calling layout to decide whether to mount the
@@ -238,15 +187,17 @@ async function renderPublishedShellSide(
   const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
-  const prepared = prepareShellTree(
-    resolveSnapshotBuilderTree(shell.snapshot).tree,
+  const localizedTree = await prepareLocalizedShellTree(
+    shell.snapshot,
     slots,
+    tenantId,
+    locale,
   );
-  const plan = resolveShellSidePlan({ tree: prepared.tree, slots, side });
+  const plan = resolveShellSidePlan({ tree: localizedTree, slots, side });
   if (plan.mode === "none") return null;
 
   if (plan.mode === "legacy_slot") {
-    const builderTree = prepared.tree;
+    const builderTree = localizedTree;
     const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTree);
     const builderSectionNodes = indexBuilderSectionNodes(builderTree);
     const builderSectionChildNodeIds =
@@ -264,7 +215,7 @@ async function renderPublishedShellSide(
 
   return renderFreeformShellSide({
     nodes: plan.nodes,
-    tree: prepared.tree,
+    tree: localizedTree,
     slots,
     tenantId,
     locale,
@@ -433,13 +384,11 @@ async function renderShellSlot(
   const visibilityContext = editModeActive
     ? undefined
     : { locale, signedIn: Boolean(actorSession.user) };
-  // Phase B.2.B — wrap each shell section in the same `data-cms-section`
-  // outer the homepage composer uses (see homepage-cms-sections.tsx). The
-  // EditShell selection layer queries `[data-cms-section]` to detect
-  // hover / click; without this wrapper, shell sections are visible but
-  // not selectable. Markers + fields are identical to body sections so
-  // selection chrome, inspector binding, and save flow all work without
-  // any special-case code paths.
+  // Phase B.2.B — wrap each shell section in the same `data-cms-section` outer
+  // the homepage composer uses (homepage-cms-sections.tsx): the EditShell
+  // selection layer queries it for hover/click, so without this wrapper shell
+  // sections render but are not selectable. Markers + fields match body
+  // sections, so selection chrome, inspector binding and save need no forks.
   return (
     <div
       key={slot.sectionId}
@@ -456,6 +405,7 @@ async function renderShellSlot(
           : slot.sectionId
       }
       data-section-type-key={slot.sectionTypeKey}
+      data-site-shell-side={slot.slotKey}
       data-slot-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
       data-builder-node-id={
@@ -766,6 +716,7 @@ function renderFreeformShellLandmark({
           : sectionId
       }
       data-section-type-key={sectionTypeKey}
+      data-site-shell-side={node.props.slotKey ?? "header"}
       data-slot-key={node.props.slotKey ?? undefined}
       data-sort-order={node.props.sortOrder}
       data-builder-node-id={

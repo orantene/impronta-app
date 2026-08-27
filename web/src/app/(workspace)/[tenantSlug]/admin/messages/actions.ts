@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
@@ -53,28 +54,37 @@ export async function sendMessage(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated." };
 
-    const { data, error } = await supabase
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: inquiryId,
-        thread_type: threadType,
-        sender_user_id: user.id,
-        body: trimmed,
-        tenant_id: scope.tenantId,
-        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
-      })
-      .select("id, created_at")
-      .single();
+    // Route through the inquiry engine (binding spec: no raw inquiry_messages
+    // inserts from surfaces). The engine owns permission validation, the
+    // in-app bell fanout, @mention notify, and the inquirer email mirror
+    // (maybeSendGuestReplyNudge) — the raw insert this replaced emitted NONE
+    // of those, so coordinator replies from admin Messages were silent.
+    const result = await engineSendMessage(supabase, {
+      inquiryId,
+      tenantId: scope.tenantId,
+      actorUserId: user.id,
+      threadType,
+      body: trimmed,
+      replyToMessageId: replyToMessageId ?? null,
+    });
 
-    if (error) {
-      logServerError("messages.sendMessage", error);
+    if (!result.success) {
+      if (result.rateLimited) return { error: "Sending too fast — wait a moment." };
+      if (result.forbidden) return { error: "Not authorised to message this inquiry." };
+      logServerError(
+        "messages.sendMessage",
+        new Error(result.error ?? "engine send failed"),
+      );
       return { error: "Failed to send message." };
     }
+
+    const messageId = result.data?.messageId ?? "";
+    if (!messageId) return { error: "Failed to send message." };
 
     // Mark read for the sender immediately after sending
     await markThreadRead(tenantSlug, inquiryId, threadType);
 
-    return { id: data.id, created_at: data.created_at };
+    return { id: messageId, created_at: new Date().toISOString() };
   } catch (err) {
     logServerError("messages.sendMessage", err);
     return { error: "Unexpected error." };

@@ -51,6 +51,12 @@ import {
   scheduleLoadKey,
   shouldRunScheduleLoad,
 } from "./schedule-drawer-load-gate";
+import {
+  defaultPickerValue,
+  formatScheduledFor,
+  isoToLocalInputValue,
+  localInputValueToIso,
+} from "./schedule-form";
 import { useEditContext } from "./edit-context";
 
 type FormState =
@@ -79,49 +85,8 @@ function ClockIcon() {
   );
 }
 
-/** Convert ISO UTC → `YYYY-MM-DDTHH:mm` for `<input type="datetime-local">`. */
-function isoToLocalInputValue(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
-}
-
-/** Convert local input value → ISO UTC. Returns null on parse failure. */
-function localInputValueToIso(local: string): string | null {
-  if (!local) return null;
-  const d = new Date(local);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-/** Friendly "Apr 27, 2026 · 9:30 AM" display. */
-function formatScheduledFor(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-}
-
-/** Default "1 hour from now" rounded up to the next 5-minute slot. */
-function defaultPickerValue(): string {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
-  const minutes = d.getMinutes();
-  const rounded = Math.ceil(minutes / 5) * 5;
-  d.setMinutes(rounded === 60 ? 0 : rounded);
-  if (rounded === 60) d.setHours(d.getHours() + 1);
-  d.setSeconds(0, 0);
-  return isoToLocalInputValue(d.toISOString());
-}
+// Datetime helpers now live in `schedule-form.tsx` (shared with the Publish
+// drawer's Schedule tab) — see the imports above.
 
 export function ScheduleDrawer() {
   const ctx = useEditContext();

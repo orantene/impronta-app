@@ -88,27 +88,45 @@ export function projectFormContact(
     fields.find((f) => f.name === "message") ??
     fields.find((f) => f.type === "textarea");
 
-  const email = emailField ? str(payload[emailField.name]) : str(payload.email);
-  const phoneRaw = phoneField
-    ? str(payload[phoneField.name])
-    : str(payload.phone);
-  const name = nameField ? str(payload[nameField.name]) : str(payload.name);
-  const message = messageField
-    ? str(payload[messageField.name])
-    : str(payload.message);
+  // Section-declared key FIRST, canonical key as a fallback when it yields
+  // nothing. The two can legitimately disagree: a freeform builder `form` node
+  // renders its OWN inputs (canonical `name` / `email` / `phone` / `message`)
+  // while merely BINDING to this section for its destination + routing mode.
+  // Without the fallback that mismatch reads every contact field as empty, the
+  // hard-requirement check below fails, and an inquiry-mode form silently
+  // degrades to inbox rows on every real submission — the failure looks like
+  // "inquiry routing does nothing", with no error anywhere.
+  const email = str(payload[emailField?.name ?? "email"]) || str(payload.email);
+  const phoneRaw = str(payload[phoneField?.name ?? "phone"]) || str(payload.phone);
+  const name = str(payload[nameField?.name ?? "name"]) || str(payload.name);
+  const message =
+    str(payload[messageField?.name ?? "message"]) || str(payload.message);
 
   // Fold every OTHER submitted field into "label: value" lines so the
   // coordinator sees the rich-field answers (date / number / select / etc.)
   // that FORMS-1 added. Skip the contact + message fields already projected
   // and any internal/reserved keys.
   const consumed = new Set(
-    [emailField, phoneField, nameField, messageField]
-      .map((f) => f?.name)
-      .filter((n): n is string => !!n),
+    [
+      emailField?.name,
+      phoneField?.name,
+      nameField?.name,
+      messageField?.name,
+      // The canonical keys the projection above also reads as fallbacks —
+      // otherwise a mismatched renderer's `name` would be both the contact
+      // name AND an "extra" line.
+      "name",
+      "email",
+      "phone",
+      "message",
+    ].filter((n): n is string => !!n),
   );
   const extraLines: string[] = [];
   for (const field of fields) {
     if (consumed.has(field.name)) continue;
+    // Mark BEFORE the consent skip: the payload sweep below must not re-admit
+    // a consent answer this loop deliberately dropped.
+    consumed.add(field.name);
     // consent is a legal acknowledgement, not booking signal — keep it out of
     // the visible brief (it was already enforced server-side).
     if (field.type === "consent") continue;
@@ -116,6 +134,18 @@ export function projectFormContact(
     const value = typeof raw === "string" ? raw.trim() : raw == null ? "" : String(raw);
     if (!value) continue;
     extraLines.push(`${field.label}: ${value}`);
+  }
+  // Anything the payload carried that this section never declared. A freeform
+  // form node renders its own inputs, so its extra questions ("What are you
+  // booking?") exist in no section field list — without this sweep the
+  // coordinator silently loses those answers. Reserved/internal keys are
+  // already stripped by the route before this runs; skip any that remain.
+  for (const [key, raw] of Object.entries(payload)) {
+    if (consumed.has(key) || key.startsWith("__tulala")) continue;
+    consumed.add(key);
+    const value = typeof raw === "string" ? raw.trim() : raw == null ? "" : String(raw);
+    if (!value) continue;
+    extraLines.push(`${key}: ${value}`);
   }
 
   return { name, email, phone: phoneRaw || null, message, extraLines };

@@ -441,8 +441,23 @@ test("reveal: revealOnView emits the data-bn-reveal attr + tuning vars + runtime
     "reveal runtime script emitted",
   );
   assert.ok(html.includes("IntersectionObserver"), "runtime uses IntersectionObserver");
-  // The per-direction hidden-pose + reduced-motion guard live in the static sheet.
-  assert.ok(html.includes("data-bn-reveal-armed"), "armed-state CSS present");
+  // The hidden poses are INJECTED by the runtime, not shipped in the static
+  // sheet: a no-JS / no-IO / reduced-motion visitor must see the node at rest.
+  // The runtime arms by appending a <style data-bn-reveal-armed>, never by
+  // writing an attribute React owns (that is a hydration mismatch — the runtime
+  // runs at DOMContentLoaded, before hydration).
+  assert.ok(
+    html.includes("data-bn-reveal-armed-sheet"),
+    "armed-state sheet marker present",
+  );
+  assert.ok(
+    html.includes("createElement('style')"),
+    "reveal runtime arms by injecting a stylesheet",
+  );
+  assert.ok(
+    !html.includes("setAttribute('data-bn-reveal-armed'"),
+    "arming must not touch attributes React owns",
+  );
   assert.ok(html.includes("data-bn-revealed"), "revealed-state CSS present");
 });
 

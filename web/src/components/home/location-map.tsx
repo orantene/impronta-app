@@ -16,7 +16,11 @@ import {
 import type { Locale } from "@/i18n/config";
 import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
-import type { LocationItem, LocationSectionCopy } from "./location-section";
+import type {
+  LocationFeaturedPreview,
+  LocationItem,
+  LocationSectionCopy,
+} from "./location-section";
 import { normalizeGoogleApiKeyInput } from "@/lib/env/google-maps-browser-key";
 import {
   LocationMapPinPreview,
@@ -138,21 +142,101 @@ function GmAuthFailureBridge({ onFailed }: { onFailed: () => void }) {
   return null;
 }
 
-function FitBounds({ points }: { points: google.maps.LatLngLiteral[] }) {
+/**
+ * How far from the busiest city another city can sit and still count as the
+ * same market. Cancun (~68km) and Tulum (~65km) are the same trip as Playa del
+ * Carmen; Mexico City (~1,300km) and Buenos Aires (~7,000km) are not.
+ */
+const HOME_MARKET_RADIUS_KM = 400;
+
+/** Great-circle distance in kilometres. */
+function distanceKm(
+  a: { latitude: number | null; longitude: number | null },
+  b: { latitude: number | null; longitude: number | null },
+): number {
+  if (a.latitude == null || a.longitude == null) return Infinity;
+  if (b.latitude == null || b.longitude == null) return Infinity;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * The agency's HOME MARKET: the city holding the most talent, plus every city
+ * close enough to be the same market.
+ *
+ * An earlier version of this picked "the fewest cities holding 80% of the
+ * roster", which sounds equivalent and is not. Impronta keeps 40 of 48 talent
+ * in Playa del Carmen -- 83% -- so the rule stopped at ONE city and the map
+ * opened zoomed past Cancun and Tulum onto a single pin. A roster spread across
+ * a coastline read as a roster in one town. Distance is the thing actually
+ * being decided here, so distance is what the rule measures.
+ *
+ * Exported for the unit test -- the interesting behaviour is entirely in which
+ * cities get picked, and that is worth pinning without a Google Maps stub.
+ */
+export function homeMarketLocations<
+  T extends { talentCount: number; latitude: number | null; longitude: number | null },
+>(locations: ReadonlyArray<T>): ReadonlyArray<T> {
+  if (locations.length <= 1) return locations;
+  const anchor = [...locations].sort((a, b) => b.talentCount - a.talentCount)[0];
+  if (!anchor) return locations;
+  const near = locations.filter(
+    (l) => distanceKm(anchor, l) <= HOME_MARKET_RADIUS_KM,
+  );
+  // Anchor always qualifies (distance 0), so `near` is never empty unless the
+  // anchor itself has no coordinates -- in which case fall back to everything
+  // rather than opening on nothing.
+  return near.length > 0 ? near : locations;
+}
+
+/**
+ * Opens the map on the agency's HOME MARKET rather than on every pin.
+ *
+ * Fitting ALL points sounds neutral and is not: one talent in a far-away city
+ * drags the viewport out to continental scale, and the visitor's first look at
+ * a Riviera Maya agency was Campeche-to-Cuba with three unreadable pins in the
+ * corner. The bulk of the roster — the thing the section exists to show — ended
+ * up as the least legible part of it.
+ *
+ * So the opening bounds cover the cities holding most of the talent, and the
+ * outliers stay on the map, reachable by zooming out or via the city chips
+ * above. No coordinates are hardcoded: an agency whose roster sits in Buenos
+ * Aires opens on Buenos Aires by the same rule.
+ */
+function FitBounds({
+  locations,
+}: {
+  locations: ReadonlyArray<{
+    talentCount: number;
+    latitude: number | null;
+    longitude: number | null;
+  }>;
+}) {
   const map = useMap();
   const apiLoaded = useApiIsLoaded();
 
   useEffect(() => {
-    if (!apiLoaded || !map || points.length === 0) return;
+    if (!apiLoaded || !map || locations.length === 0) return;
+    const focus = homeMarketLocations(locations);
+    const points = focus.map((l) => ({ lat: l.latitude!, lng: l.longitude! }));
     if (points.length === 1) {
       map.setCenter(points[0]);
+      // A single market reads best as a city, not as a country.
       map.setZoom(10);
       return;
     }
     const bounds = new google.maps.LatLngBounds();
     for (const p of points) bounds.extend(p);
     map.fitBounds(bounds, 48);
-  }, [apiLoaded, map, points]);
+  }, [apiLoaded, map, locations]);
 
   return null;
 }
@@ -166,12 +250,16 @@ function PinPreviewPortal({
   loc,
   locale,
   copy,
+  onPickTalent,
+  pickedTalentId = null,
   publicPathPrefix = "",
   localeUrl,
 }: {
   loc: LocationItem;
   locale: Locale;
   copy: LocationSectionCopy;
+  onPickTalent?: (item: LocationFeaturedPreview | null) => void;
+  pickedTalentId?: string | null;
   publicPathPrefix?: string;
   /**
    * Tenant URL grammar, passed down from the server render (client components
@@ -299,6 +387,10 @@ function PinPreviewPortal({
           position: "absolute",
           left: px.x - ORBIT_AREA / 2,
           top: px.y - ORBIT_AREA / 2,
+          // `none` here, not `auto`: this box is 276px square and mostly empty,
+          // and if it ate pointer events the visitor could not pan or zoom the
+          // map through it. The ring re-enables events on the rotating layer
+          // alone, so only the ring and its faces are grabbable.
           pointerEvents: "none",
           zIndex: 9999,
           ...fadeStyle,
@@ -308,6 +400,8 @@ function PinPreviewPortal({
           items={loc.featuredPreviews}
           copy={copy}
           locationLabel={loc.displayName}
+          onSelect={onPickTalent}
+          selectedTalentId={pickedTalentId}
         />
       </div>
     </>,
@@ -388,6 +482,12 @@ function LocationMapMarker({
   );
 }
 
+/**
+ * Zoom the map settles on when a city is chosen. Close enough that the orbit
+ * ring reads as individual faces rather than a clump of overlapping circles.
+ */
+const CITY_FOCUS_ZOOM = 11;
+
 export function LocationMap({
   locations,
   locale,
@@ -395,6 +495,8 @@ export function LocationMap({
   apiKey: apiKeyProp,
   publicPathPrefix = "",
   localeUrl,
+  selectedId: controlledSelectedId,
+  onSelectedIdChange,
 }: {
   locations: LocationItem[];
   locale: Locale;
@@ -408,6 +510,14 @@ export function LocationMap({
    * tenant whose default locale is not the platform default.
    */
   localeUrl?: LocaleUrlSettings;
+  /**
+   * Externally CONTROLLED city selection. The city chips above the map drive
+   * this so a chip flies the map to its pin and opens the ring, instead of
+   * navigating away. Omitted -> the map owns its own selection, which is how
+   * every other caller uses it.
+   */
+  selectedId?: string | null;
+  onSelectedIdChange?: (id: string | null) => void;
 }) {
   // Tenant-aware: the key is resolved server-side (resolveGoogleMapsKey) and
   // passed via apiKeyProp. We no longer read NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -415,7 +525,18 @@ export function LocationMap({
   // tenant that has deliberately not configured a key. When no key resolves,
   // apiKey is undefined and the existing graceful fallback box renders.
   const apiKey = normalizeGoogleApiKeyInput(apiKeyProp);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState<
+    string | null
+  >(null);
+  const controlled = controlledSelectedId !== undefined;
+  const selectedId = controlled ? controlledSelectedId : uncontrolledSelectedId;
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      if (!controlled) setUncontrolledSelectedId(id);
+      onSelectedIdChange?.(id);
+    },
+    [controlled, onSelectedIdChange],
+  );
   const [loadFailed, setLoadFailed] = useState(false);
 
   const onMapLoadFailed = useCallback(() => {
@@ -444,21 +565,75 @@ export function LocationMap({
     [locations],
   );
 
-  const points = useMemo(
-    () => locationsWithCoords.map((l) => ({ lat: l.latitude!, lng: l.longitude! })),
-    [locationsWithCoords],
-  );
-
+  // The pre-fit frame. `FitBounds` corrects this once the API is up, but the
+  // first paint uses it -- so it centres on the HOME MARKET too. Averaging every
+  // pin instead would open on the middle of the ocean between the roster and its
+  // furthest outlier, then visibly jump.
   const defaultCenter = useMemo(() => {
-    if (points.length === 0) return { lat: 20, lng: 0 };
-    const sum = points.reduce(
-      (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    const focus = homeMarketLocations(locationsWithCoords);
+    if (focus.length === 0) return { lat: 20, lng: 0 };
+    const sum = focus.reduce(
+      (acc, l) => ({ lat: acc.lat + l.latitude!, lng: acc.lng + l.longitude! }),
       { lat: 0, lng: 0 },
     );
-    return { lat: sum.lat / points.length, lng: sum.lng / points.length };
-  }, [points]);
+    return { lat: sum.lat / focus.length, lng: sum.lng / focus.length };
+  }, [locationsWithCoords]);
 
-  const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
+  const onSelect = useCallback((id: string | null) => setSelectedId(id), [setSelectedId]);
+
+  /**
+   * The talent whose profile link sits under the map. Deliberately NOT the same
+   * lifetime as the floating name inside the ring: the name is a glance and
+   * expires on its own, the link is a destination and stays until the visitor
+   * picks someone else or closes the city.
+   */
+  const [pickedTalent, setPickedTalent] = useState<LocationFeaturedPreview | null>(
+    null,
+  );
+  const onPickTalent = useCallback(
+    (item: LocationFeaturedPreview | null) => setPickedTalent(item),
+    [],
+  );
+  // Closing a city (or switching to another one) retires its talent link --
+  // otherwise a link to a Tulum profile would hang under a Cancun ring.
+  useEffect(() => {
+    setPickedTalent(null);
+  }, [selectedId]);
+
+  /**
+   * The flight. Whenever a city becomes selected -- by its pin or by a chip
+   * above the map -- the map travels to it and zooms in enough that the orbit
+   * ring is legible rather than a cluster of overlapping thumbnails.
+   *
+   * `panTo` animates when the move is short and jumps when it is long, which is
+   * Google's behaviour and the right one here: a hop along the coast glides,
+   * and a jump to Buenos Aires does not crawl across the Atlantic.
+   */
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const onMapIdle = useCallback((e: { map: google.maps.Map }) => {
+    mapRef.current = e.map;
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedId) return;
+    const loc = locationsWithCoords.find((l) => l.id === selectedId);
+    if (!loc || loc.latitude == null || loc.longitude == null) return;
+    map.panTo({ lat: loc.latitude, lng: loc.longitude });
+    if ((map.getZoom() ?? 0) < CITY_FOCUS_ZOOM) map.setZoom(CITY_FOCUS_ZOOM);
+  }, [selectedId, locationsWithCoords]);
+
+  const pickedHref = useMemo(() => {
+    if (!pickedTalent?.profileCode) return null;
+    return withLocalePath(
+      prefixPublicHref(
+        `/t/${encodeURIComponent(pickedTalent.profileCode)}`,
+        publicPathPrefix,
+      ),
+      locale,
+      localeUrl,
+    );
+  }, [pickedTalent, publicPathPrefix, locale, localeUrl]);
 
   const selectedLoc = useMemo(
     () => locationsWithCoords.find((l) => l.id === selectedId) ?? null,
@@ -488,7 +663,9 @@ export function LocationMap({
               className="h-full w-full"
               colorScheme={ColorScheme.DARK}
               defaultCenter={defaultCenter}
-              defaultZoom={3}
+              // Regional, not planetary. `FitBounds` sets the real zoom a beat
+              // later; 3 meant the first paint was a view of the hemisphere.
+              defaultZoom={7}
               gestureHandling="cooperative"
               mapTypeControl={false}
               streetViewControl={false}
@@ -496,8 +673,9 @@ export function LocationMap({
               styles={MAP_STYLES}
               zoomControl
               clickableIcons={false}
+              onIdle={onMapIdle}
             >
-              <FitBounds points={points} />
+              <FitBounds locations={locationsWithCoords} />
               {locationsWithCoords.map((loc, stackIndex) => (
                 <LocationMapMarker
                   key={loc.id}
@@ -515,11 +693,31 @@ export function LocationMap({
                   copy={copy}
                   publicPathPrefix={publicPathPrefix}
                   localeUrl={localeUrl}
+                  onPickTalent={onPickTalent}
+                  pickedTalentId={pickedTalent?.talentId ?? null}
                 />
               ) : null}
             </Map>
           </div>
         </APIProvider>
+      </div>
+
+      {/* Picked talent -> a real destination, under the map. Reserved height, so
+          picking a face does not shove the rest of the page down. */}
+      <div className="mt-3 flex min-h-[38px] items-center justify-center">
+        {pickedTalent && pickedHref ? (
+          <a
+            href={pickedHref}
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors"
+            style={{
+              borderColor: "var(--impronta-gold-border)",
+              color: "var(--impronta-gold)",
+            }}
+          >
+            {pickedTalent.name ?? copy.viewTalents}
+            <span aria-hidden>&rarr;</span>
+          </a>
+        ) : null}
       </div>
     </div>
   );

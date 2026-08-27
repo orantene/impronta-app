@@ -61,7 +61,11 @@ export async function HeaderSearchComponent({
       data-header-widget="header_search"
       data-header-widget-mode="live"
     >
-      <Search className="size-5" aria-hidden />
+      {/* size-4, NOT size-5: every sibling header icon is hosted in <Button>,
+          which forces `[&_svg]:size-4` (16px) on its glyph. This widget is a
+          plain link, so a size-5 glyph rendered 20px and read as an oddly
+          oversized icon next to the others (owner report 2026-08-21). */}
+      <Search className="size-4" aria-hidden />
     </Link>
   );
 }

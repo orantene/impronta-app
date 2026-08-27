@@ -47,6 +47,7 @@ export {
   type EditToastTone,
 } from "./edit-toast";
 export { DrawerFootButton } from "./drawer-foot-button";
+export { DrawerScrim } from "./drawer-scrim";
 export { DrawerSkeleton, DrawerSkeletonGrid } from "./drawer-skeleton";
 export {
   Drawer,

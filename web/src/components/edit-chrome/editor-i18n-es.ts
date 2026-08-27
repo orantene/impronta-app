@@ -16,6 +16,7 @@ import { ES_ICON_TEXT } from "./editor-i18n-es-icons";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
 import { ES_CAROUSEL_TEXT } from "./editor-i18n-es-carousel";
 import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
+import { ES_PUBLISH_TEXT } from "./editor-i18n-es-publish";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
@@ -48,6 +49,8 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_MEDIA_TEXT,
   // ── Slider inspector (2026-08-17 rebuild onto the field kit) ──────────
   ...ES_CAROUSEL_TEXT,
+  // ── Publish drawer: tabs, one-click blocker fix, schedule form ────────
+  ...ES_PUBLISH_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',
@@ -479,16 +482,6 @@ export const ES_TEXT: Record<string, string> = {
   // ── All-pages panel — AI create entry (W3-AI1) ───────────────────────────
   "Describe with AI": "Describir con IA",
 
-  // ── Mobile health — one-click Fix mobile issues (W3-M3) ──────────────────
-  "Fix mobile issues": "Corregir problemas de móvil",
-  "Fixing…": "Corrigiendo...",
-  "One click applies mobile-safe overrides.":
-    "Un clic aplica ajustes seguros para móvil.",
-  "Could not fix mobile issues. Please try again.":
-    "No se pudieron corregir los problemas de móvil. Inténtalo de nuevo.",
-  "Fixed {count} mobile issue": "Se corrigió {count} problema de móvil",
-  "Fixed {count} mobile issues": "Se corrigieron {count} problemas de móvil",
-  "No fixable mobile issues": "No hay problemas de móvil corregibles",
   // ── Deep per-block inspector content editors, W5-A4 (hero/cta_banner/gallery_strip/testimonials_trio/featured_talent/category_grid/talent_type_grid/trust_strip Content tabs + generic fallback + content-dispatch hint) ──
   "+ Add card": "+ Agregar tarjeta",
   "+ Add category": "+ Agregar categoría",

@@ -22,6 +22,51 @@ function getFrom(): string {
 }
 
 /**
+ * DEV-ONLY outbox. Without `RESEND_API_KEY` a local send is skipped, so the
+ * rendered HTML of a real dispatch is unobservable and email work can only be
+ * QA'd by reading template source — which is how a broken link or a missing
+ * CTA ships. When `EMAIL_DEV_OUTBOX_DIR` is set on a development server, the
+ * skipped send is written there instead (one .html per email + a .json with
+ * the envelope) so the actual output can be opened in a browser.
+ *
+ * Hard-gated on NODE_ENV === "development" AND an explicit opt-in path;
+ * production builds always have NODE_ENV=production, so this can never write
+ * message content to disk there. Never throws — a QA affordance must not be
+ * able to break a send path.
+ */
+async function writeDevOutbox(input: SendEmailInput): Promise<void> {
+  if (process.env.NODE_ENV !== "development") return;
+  const dir = process.env.EMAIL_DEV_OUTBOX_DIR?.trim();
+  if (!dir) return;
+  try {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    await mkdir(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const slug = input.subject.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48);
+    const base = join(dir, `${stamp}_${slug || "email"}`);
+    await writeFile(`${base}.html`, input.html, "utf8");
+    await writeFile(
+      `${base}.json`,
+      JSON.stringify(
+        {
+          to: input.to,
+          subject: input.subject,
+          replyTo: input.replyTo ?? null,
+          headers: input.headers ?? null,
+          tenantId: input.tenantId ?? null,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  } catch {
+    // Diagnostics only — never surface a QA-affordance failure to the caller.
+  }
+}
+
+/**
  * Resolve the effective `from` for a send. When a caller passes a `tenantId`,
  * a tenant with white_label_email + a VERIFIED custom sending domain gets a
  * branded `from` (via resolveTenantEmailFrom); otherwise the platform default.
@@ -91,6 +136,7 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
       message: "[email] RESEND_API_KEY not set — skipping email:",
       input: input.subject,
     });
+    await writeDevOutbox(input);
     return { status: "skipped" };
   }
 

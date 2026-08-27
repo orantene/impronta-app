@@ -29,6 +29,8 @@ export interface MobileOverflowPreflightIssue {
   category: "mobile_overflow";
   sectionId?: string;
   nodeId: string;
+  /** Always true: `fixAllMobileIssues` resolves every definite overflow. */
+  autoFixable: true;
   message: string;
 }
 
@@ -54,6 +56,7 @@ export function collectMobileOverflowPreflightIssues(
     category: "mobile_overflow" as const,
     sectionId: offender.ownerSectionId ?? undefined,
     nodeId: offender.nodeId,
+    autoFixable: true as const,
     message: mobileOverflowIssueMessage(offender),
   }));
 }

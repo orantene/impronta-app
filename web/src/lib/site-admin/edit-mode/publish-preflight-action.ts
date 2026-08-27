@@ -94,6 +94,13 @@ export interface PreflightIssue {
    * `locateCanvasNode`, more precise than the section-level focus).
    */
   nodeId?: string;
+  /**
+   * True when the client-side one-click fixer (`fixAllMobileIssues`, which
+   * consumes `collectMobileFixes`) resolves this issue deterministically. The
+   * publish drawer shows a "Fix these for me" action when any blocking issue
+   * carries this flag.
+   */
+  autoFixable?: boolean;
   message: string;
 }
 
@@ -501,6 +508,10 @@ export async function runPublishPreflight(input?: {
             category: "layout",
             sectionId: finding.ownerSectionId ?? undefined,
             nodeId: finding.nodeId ?? undefined,
+            // Blocking findings with a quickFixPatch are exactly what the
+            // client-side `fixAllMobileIssues` batch resolves (mobile-fix.ts
+            // pass 3), so the drawer can offer "Fix these for me".
+            autoFixable: blocking && finding.quickFixPatch != null,
             message: blocking
               ? `${finding.message} Resolve this layout issue before publish.`
               : finding.message,

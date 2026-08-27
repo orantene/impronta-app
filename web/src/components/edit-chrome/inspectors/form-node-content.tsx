@@ -32,6 +32,7 @@ import {
   listInboxFormSectionsAction,
   type InboxFormSectionPick,
 } from "@/lib/site-admin/edit-mode/form-inbox-sections-action";
+import { setInboxFormRoutingModeAction } from "@/lib/site-admin/edit-mode/form-routing-mode-action";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { ColorSwatchButton } from "./color-swatch-button";
@@ -47,6 +48,7 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
   const [inboxSections, setInboxSections] = useState<InboxFormSectionPick[] | null>(
     null,
   );
+  const [routingBusy, setRoutingBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +73,34 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
     }
     const result = await patchBuilderNodeProps(node.id, guarded);
     if (!result.ok && result.error) reportMutationError(result.error);
+  }
+
+  /**
+   * Flip the BOUND SECTION's routing mode (inbox row vs real inquiry). Unlike
+   * every other control here this does NOT patch the builder node — the mode
+   * lives on the contact_form section the node points at, and the submit
+   * endpoint reads it there. Saved through the section's own validated save
+   * path, then mirrored into local state so the helper copy updates without a
+   * refetch.
+   */
+  async function applyRoutingMode(
+    sectionId: string,
+    next: "internal" | "inquiry",
+  ) {
+    if (routingBusy) return;
+    setRoutingBusy(true);
+    try {
+      const result = await setInboxFormRoutingModeAction(sectionId, next);
+      if (!result.ok) {
+        reportMutationError(result.error);
+        return;
+      }
+      setInboxSections((prev) =>
+        (prev ?? []).map((s) => (s.id === sectionId ? { ...s, routingMode: next } : s)),
+      );
+    } finally {
+      setRoutingBusy(false);
+    }
   }
 
   const commitTextInput =
@@ -191,16 +221,46 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                   ))}
                 </select>
                 <Helper>
-                  {selectedInbox?.routingMode === "inquiry"
-                    ? t(
-                        "This destination opens a real inquiry, not an inbox row. File fields are not stored on that path.",
-                      )
-                    : t(
-                        "Required for inbox delivery. Without a destination the form renders but submissions are rejected.",
-                      )}
+                  {t(
+                    "Required for inbox delivery. Without a destination the form renders but submissions are rejected.",
+                  )}
                 </Helper>
               </Field>
-            ) : (
+            ) : null}
+            {isInternal && selectedInbox ? (
+              <Field flush>
+                <FieldLabel info="An inquiry opens a real conversation your team replies to, and the sender gets your replies by email. An inbox message is just a recorded submission.">
+                  {t("What happens on submit")}
+                </FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedInbox.routingMode}
+                  onChange={(next) => {
+                    void applyRoutingMode(
+                      selectedInbox.id,
+                      next === "inquiry" ? "inquiry" : "internal",
+                    );
+                  }}
+                  options={[
+                    { value: "internal", label: t("Inbox message") },
+                    { value: "inquiry", label: t("Open an inquiry") },
+                  ]}
+                />
+                <Helper>
+                  {routingBusy
+                    ? t("Saving…")
+                    : selectedInbox.routingMode === "inquiry"
+                      ? t(
+                          "Submissions open a real inquiry your team can reply to. Replies reach the sender by email. File fields are not stored on this path.",
+                        )
+                      : t(
+                          "Submissions are recorded as inbox messages. Nobody can reply to them in a conversation.",
+                        )}
+                </Helper>
+              </Field>
+            ) : null}
+            {!isInternal ? (
               <Field flush>
                 <FieldLabel info="Full https:// URL the form data POSTs to.">
                   {t("Submit URL")}
@@ -220,7 +280,7 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                   })}
                 />
               </Field>
-            )}
+            ) : null}
           </div>
         </CardBody>
       </Card>

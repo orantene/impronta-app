@@ -48,6 +48,8 @@ export async function sendMessage(
     guestSessionId?: string | null;
     threadType: "private" | "group";
     body: string;
+    /** Optional threaded-reply anchor (inquiry_messages.reply_to_message_id). */
+    replyToMessageId?: string | null;
   },
 ): Promise<EngineResult<{ messageId: string }>> {
   const isGuestSender = !ctx.actorUserId && !!ctx.guestSessionId;
@@ -92,6 +94,7 @@ export async function sendMessage(
         guest_session_id: isGuestSender ? ctx.guestSessionId : null,
         body: ctx.body,
         metadata: {},
+        ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
       })
       .select("id")
       .single();
@@ -242,18 +245,22 @@ export async function sendMessage(
       })
       .catch((err) => logServerError("inquiry-engine-messages.notifyFanout", err));
 
-    // W2-F — email the GUEST that the agency replied. When a staff/coordinator
-    // writes into the guest-visible PRIVATE thread, a guest who left the site
-    // otherwise never learns a reply landed (the in-app bell above only reaches
-    // a signed-in client). maybeSendGuestReplyNudge self-gates on
-    // guest-originated + real contact + guest-not-live + 6h throttle and routes
-    // through the notification dispatcher (suppression + unsubscribe + retry).
-    // Fire-and-forget + never throws — a mail failure can't break the send.
+    // W2-F / inquiry email loop — mirror the reply to the INQUIRER's inbox.
+    // When a staff/coordinator writes into the guest-visible PRIVATE thread,
+    // an inquirer who left the site otherwise never learns a reply landed (the
+    // in-app bell above only reaches a signed-in client with the app open).
+    // maybeSendGuestReplyNudge self-gates on reachable-inquirer + real contact
+    // + not-live + per-conversation mute + a minutes-scale coalescing window,
+    // and routes through the notification dispatcher (suppression +
+    // unsubscribe + retry). Fire-and-forget + never throws — a mail failure
+    // can't break the send.
     if (ctx.threadType === "private" && ctx.actorUserId) {
       void maybeSendGuestReplyNudge({
         inquiryId: ctx.inquiryId,
         tenantId: ctx.tenantId,
         senderUserId: ctx.actorUserId,
+        messageId: row.id as string,
+        body: ctx.body,
       }).catch((err) => logServerError("inquiry-engine-messages.guestReplyNudge", err));
     }
 

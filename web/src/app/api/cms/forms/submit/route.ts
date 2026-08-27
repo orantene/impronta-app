@@ -318,8 +318,26 @@ export async function POST(req: Request) {
     400,
   );
 
-  if (tenantCaptcha.provider === "none") {
+  // DEV-ONLY captcha bypass for localhost QA. A tenant-owned captcha secret is
+  // encrypted with the production AI_CREDENTIALS_ENCRYPTION_KEY, which local
+  // checkouts don't have — decryption fails and the fail-closed check below
+  // rejects EVERY local submission, making the inquiry-routing path untestable
+  // on localhost. Opt-in via CAPTCHA_DEV_BYPASS=1 AND NODE_ENV=development
+  // (production builds always have NODE_ENV=production, so this can never run
+  // there). Mirrors the dev-only fallback precedent in resolveGoogleMapsKey.
+  const devCaptchaBypass =
+    process.env.NODE_ENV === "development" &&
+    process.env.CAPTCHA_DEV_BYPASS === "1";
+  if (devCaptchaBypass) {
+    // eslint-disable-next-line no-console -- dev-only diagnostic, never runs in prod
+    console.warn(
+      "[cms-forms/submit] CAPTCHA_DEV_BYPASS=1 — captcha verification skipped (dev only).",
+    );
+  }
+
+  if (tenantCaptcha.provider === "none" || devCaptchaBypass) {
     // No tenant config AND no platform secret → captcha not enforced.
+    // (Or the dev-only bypass above — local QA of the routing path.)
   } else {
     // Resolve the secret for the chosen provider.
     // ONE door for the secret, both branches. `resolveTenantCaptcha` already

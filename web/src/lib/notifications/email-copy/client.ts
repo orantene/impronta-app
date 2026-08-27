@@ -29,10 +29,14 @@ export const CLIENT_EN = {
     preview: "You have a new reply waiting",
     heading: "You have a reply",
     // {name} = contact name, {brand} = agency name.
-    intro:
-      "Hi {name}, {brand} just replied to your inquiry. Open the conversation to read it and keep things moving.",
+    intro: "Hi {name}, {brand} replied to your inquiry:",
     note: "This link opens the conversation you started.",
     button: "Read the reply →",
+    // Log-in CTA variant (inquirer has a client account; the link signs them in).
+    loginNote: "To reply, sign in. The link below opens your conversation, no password needed.",
+    loginButton: "Log in to continue the conversation →",
+    // Per-conversation mute link, shown under the CTA.
+    stopLine: "Stop email notifications for this conversation",
   },
   "client.offer_ready": {
     subject: "Your offer is ready",
@@ -126,10 +130,13 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     subject: "{brand} respondió a tu solicitud",
     preview: "Tienes una nueva respuesta",
     heading: "Tienes una respuesta",
-    intro:
-      "Hola {name}, {brand} acaba de responder a tu solicitud. Abre la conversación para leerla y seguir avanzando.",
+    intro: "Hola {name}, {brand} respondió a tu solicitud:",
     note: "Este enlace abre la conversación que iniciaste.",
     button: "Leer la respuesta →",
+    loginNote:
+      "Para responder, inicia sesión. El enlace de abajo abre tu conversación, sin contraseña.",
+    loginButton: "Inicia sesión para continuar la conversación →",
+    stopLine: "Dejar de recibir correos de esta conversación",
   },
   "client.offer_ready": {
     subject: "Tu propuesta está lista",

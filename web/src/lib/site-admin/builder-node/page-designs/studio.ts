@@ -352,6 +352,7 @@ const studioTree: BuilderNode[] = [
             paddingLeft: "44px",
             animationPreset: "rise",
             animationTrigger: "scroll",
+            animationRepeat: "once",
             animationDuration: "1s",
             responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingBottom: "68px" } },
           },

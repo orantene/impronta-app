@@ -32,6 +32,10 @@ import {
   workspaceAdmins,
 } from "./catalog-audiences";
 import { pageUrl, inquiryPathForRole } from "./catalog-render";
+import {
+  buildConversationContinueUrl,
+  buildConversationMuteUrl,
+} from "@/lib/inquiry/conversation-email-links";
 
 /**
  * Inquiry-engine catalog entries (spec §6, Phase 5) — split out of `catalog.ts`
@@ -465,18 +469,27 @@ const INQUIRY_CANCELLED: CatalogEntry = {
 };
 
 /**
- * inquiry.guest_reply.guest (wave W2-F, decision D7) — email the GUEST that the
- * agency replied in their private thread. The gap message.new leaves open:
- * `messageThreadAudience` does NOT include the client/guest on the PRIVATE
- * thread, so a coordinator's reply never reaches a guest who left the site.
+ * inquiry.guest_reply.guest (wave W2-F, decision D7; inquiry email loop
+ * 2026-08-20) — mirror a staff reply in the private thread to the INQUIRER's
+ * inbox. The gap message.new leaves open: `messageThreadAudience` does NOT
+ * include the client/guest on the PRIVATE thread, so a coordinator's reply
+ * never reaches an inquirer who left the site.
  *
  * This entry is triggered by a dedicated `inquiry.guest_reply_nudge` event that
  * `maybeSendGuestReplyNudge` (guest-reply-nudge.ts) emits ONLY after gating on:
- * staff-authored + private thread + guest-originated + real contact + guest not
- * live + not throttled (6h). So the audience here is simply the client/guest.
- * `clientOrGuest` prefers the provisioned client account (user member) so the
- * unsubscribe footer + suppression work; it falls back to the raw guest email.
- * Immediate (not digest) — a "you have a reply" nudge is time-sensitive.
+ * staff-authored + private thread + reachable inquirer (guest session OR
+ * attached client account) + real contact + inquirer not live + conversation
+ * not muted + not inside the coalescing window. So the audience here is simply
+ * the client/guest. `clientOrGuest` prefers the provisioned client account
+ * (user member) so the unsubscribe footer + suppression work; it falls back to
+ * the raw guest email. Immediate (not digest) — a reply mirror is
+ * time-sensitive.
+ *
+ * The email carries the reply text (support-desk style, `payload.replyBody`),
+ * a "log in to continue" CTA (click-time magic-link exchange — built here at
+ * render so no credential is ever at rest), and the per-conversation mute
+ * link. An inquirer with no client account gets the cookie-based /c/{id} CTA
+ * instead of the log-in one.
  */
 const GUEST_REPLY_READY: CatalogEntry = {
   id: "inquiry.guest_reply.guest",
@@ -491,18 +504,29 @@ const GUEST_REPLY_READY: CatalogEntry = {
     // Localized (EN/ES) subject with {brand} lives in email-copy; this English
     // fallback is only used if that key is ever removed.
     subject: () => "You have a reply about your inquiry",
-    render: ({ event, recipient, brand, unsubscribeUrl }) =>
-      React.createElement(ClientReplyReady, {
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const inquiryId = event.inquiryId ?? "";
+      const hasClientAccount = Boolean(recipient.userId ?? str(event.payload.clientUserId));
+      const continueUrl = hasClientAccount
+        ? buildConversationContinueUrl(inquiryId)
+        : null;
+      return React.createElement(ClientReplyReady, {
         contactName: recipient.displayName ?? str(event.payload.contactName),
         agencyName: brand.accountName ?? "the agency",
-        // The guest full-window thread. Guest access is proven server-side from
-        // the HMAC guest cookie (middleware x-impronta-guest → getGuestFullThread),
-        // so the link opens the conversation on the same browser the guest used.
-        threadUrl: pageUrl(brand, `/c/${event.inquiryId}`),
+        replyText: str(event.payload.replyBody),
+        // Signed-out fallback: the guest full-window thread. Guest access is
+        // proven server-side from the HMAC guest cookie (middleware
+        // x-impronta-guest → getGuestFullThread), so this link opens the
+        // conversation on the same browser the guest used.
+        threadUrl: continueUrl ?? pageUrl(brand, `/c/${inquiryId}`),
+        // True ⇒ the CTA signs the inquirer in ("Log in to continue…").
+        signsIn: Boolean(continueUrl),
+        muteUrl: buildConversationMuteUrl(inquiryId, brand.locale) ?? undefined,
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
-      }),
+      });
+    },
   },
 };
 
