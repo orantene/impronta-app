@@ -30,6 +30,7 @@ import Link from "next/link";
 
 import type { FeaturedTalentCardDTO } from "./fetch";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { withLocaleHref, type LocaleUrlSettings } from "@/i18n/pathnames";
 
 function profileHref(card: FeaturedTalentCardDTO): string {
   const code = encodeURIComponent(card.profileCode);
@@ -77,6 +78,8 @@ function FeaturedTalentCardInner({
   publicPathPrefix = "",
   display,
   requestCta,
+  locale,
+  localeSettings,
 }: {
   card: FeaturedTalentCardDTO;
   /** First row can opt into Next/Image priority for LCP. */
@@ -85,8 +88,36 @@ function FeaturedTalentCardInner({
   display?: FeaturedTalentCardDisplay;
   /** Optional per-card Request/add-to-inquiry CTA. */
   requestCta?: { label: string; href: string } | null;
+  /**
+   * Active content locale. The card's own chrome ("View profile") was a
+   * hardcoded English literal, so a Spanish storefront rendered it right next
+   * to the translated Request button — visible on the live
+   * improntamodels.com/es homepage. Unlike the section's authored copy this is
+   * component chrome, so it is translated here rather than through the
+   * per-element overlay. Omitted / unknown locale → English, so every existing
+   * call site stays byte-identical.
+   */
+  locale?: string;
+  /**
+   * Tenant URL grammar (default locale + published locales). Needed because the
+   * card links to a talent profile, and `/t/<code>` has a real per-locale route
+   * (`/es/t/<code>` renders `lang="es"` with Spanish chrome) — without the
+   * prefix a Spanish visitor clicking a card landed on the English page.
+   * Omitted → platform defaults, which no-op for a default-locale render.
+   */
+  localeSettings?: LocaleUrlSettings;
 }) {
-  const href = prefixPublicHref(profileHref(card), publicPathPrefix);
+  // Tenant path prefix first (path-hosted tenants), then the LOCALE prefix —
+  // `withLocaleHref` no-ops on the default locale, so the English render stays
+  // byte-identical.
+  const tenantScopedHref = prefixPublicHref(profileHref(card), publicPathPrefix);
+  // An EMPTY locale must skip localization entirely: `withLocalePath` would
+  // treat "" as a segment and emit `//t/<code>` — a protocol-relative URL
+  // pointing at another host.
+  const href = locale
+    ? withLocaleHref(tenantScopedHref, locale, localeSettings)
+    : tenantScopedHref;
+  const viewProfileLabel = locale === "es" ? "Ver perfil" : "View profile";
   // New 6A.2 fields are optional on the DTO (back-compat for pre-6A
   // constructors); normalize once so the render path stays clean.
   const cardLanguages = card.languages ?? [];
@@ -263,7 +294,7 @@ function FeaturedTalentCardInner({
       <Link
         href={href}
         className="block"
-        aria-label={`View ${card.displayName}`}
+        aria-label={`${viewProfileLabel}: ${card.displayName}`}
         suppressHydrationWarning
       >
         {media}
@@ -278,7 +309,7 @@ function FeaturedTalentCardInner({
           className="site-prim-cta site-prim-cta--outline site-prim-cta--sm flex-1 justify-center"
           suppressHydrationWarning
         >
-          View profile
+          {viewProfileLabel}
         </Link>
         <a
           href={prefixPublicHref(requestCta.href, publicPathPrefix)}

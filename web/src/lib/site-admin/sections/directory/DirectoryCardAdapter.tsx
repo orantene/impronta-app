@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import { formatPriceFromLabel } from "@/lib/directory/format-price-from";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
@@ -18,6 +19,7 @@ import {
 import { DirectoryCard } from "./DirectoryCard";
 import {
   AVAILABILITY_UNKNOWN,
+  AVAILABILITY_UNKNOWN_ES,
   type DirectoryCardAttribute,
   type DirectoryCardData,
   type DirectoryCardFitLabel,
@@ -426,7 +428,10 @@ function mapDtoToCardData(
     ? clientLocaleHref(pathname, `/t/${encodeURIComponent(card.profileCode)}`)
     : "";
 
-  const availability = formatAvailability(card);
+  const availability = formatAvailability(
+    card,
+    stripLocaleFromPathname(pathname).locale,
+  );
 
   return {
     id: card.id,
@@ -449,18 +454,31 @@ function mapDtoToCardData(
   };
 }
 
-export function formatAvailability(card: DirectoryCardDTO): {
+/**
+ * Availability caption. `locale` was previously hardcoded to "en" for BOTH the
+ * date format and the surrounding words, so a Spanish storefront card read
+ * "Available from Aug 21". Defaults to "en" so every existing call site keeps
+ * its current output; callers that know the active locale pass it.
+ */
+export function formatAvailability(
+  card: DirectoryCardDTO,
+  locale: string = "en",
+): {
   label: string;
   known: boolean;
 } {
+  const isEs = locale === "es";
   if (card.nextAvailableDate) {
     const d = new Date(`${card.nextAvailableDate}T00:00:00`);
     if (!Number.isNaN(d.getTime())) {
-      const when = d.toLocaleDateString("en", {
+      const when = d.toLocaleDateString(isEs ? "es" : "en", {
         month: "short",
         day: "numeric",
       });
-      return { label: `Available from ${when}`, known: true };
+      return {
+        label: isEs ? `Disponible desde el ${when}` : `Available from ${when}`,
+        known: true,
+      };
     }
   }
   if (
@@ -468,10 +486,15 @@ export function formatAvailability(card: DirectoryCardDTO): {
     card.availableDaysInNext30 > 0
   ) {
     return {
-      label: `Available ${card.availableDaysInNext30} days in next 30`,
+      label: isEs
+        ? `Disponible ${card.availableDaysInNext30} días en los próximos 30`
+        : `Available ${card.availableDaysInNext30} days in next 30`,
       known: true,
     };
   }
-  return { label: AVAILABILITY_UNKNOWN, known: false };
+  return {
+    label: isEs ? AVAILABILITY_UNKNOWN_ES : AVAILABILITY_UNKNOWN,
+    known: false,
+  };
 }
 

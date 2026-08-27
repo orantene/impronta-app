@@ -117,7 +117,9 @@ const BUDGETS: Record<string, number> = {
   //       guard, plus the comments that stop this from regressing.
   // +22 (2026-08-20 canvas-affordance audit): the queueRouterRefresh un-wedge
   // (rAF+timeout fire) and the serverRenderedEditTarget post-save refresh gate.
-  "src/components/edit-chrome/edit-context.tsx": 6283,
+// +24 (2026-08-21): the reveal-hidden canvas marker effect (data-bn-reveal-hidden)
+  // that makes breakpoint-hidden blocks selectable again in the editor.
+  "src/components/edit-chrome/edit-context.tsx": 6307,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -374,7 +376,7 @@ const BUDGETS: Record<string, number> = {
   // signed-then-legacy ladder moved to `lib/media/use-media-upload.ts` +
   // `lib/media/media-upload-engine.ts`, where the picker drawer and the
   // branding manager share them. Locked in rather than left as headroom.
-  "src/components/admin/shell/internal/media-page.tsx": 2937,
+  "src/components/admin/shell/internal/media-page.tsx": 2941,
   // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
   // set when a notification's real destination is a routed page rather than a
   // drawer (payout reversals → /talent/payouts, roster applications →

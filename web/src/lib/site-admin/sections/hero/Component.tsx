@@ -526,7 +526,7 @@ export function HeroComponent({
               method="get"
             >
               <label className="sr-only" htmlFor={`site-hero-search-${sectionId ?? "default"}`}>
-                Search the directory
+                {locale === "es" ? "Buscar en el directorio" : "Search the directory"}
               </label>
               <input
                 id={`site-hero-search-${sectionId ?? "default"}`}
