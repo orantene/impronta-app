@@ -280,7 +280,10 @@ const BUDGETS: Record<string, number> = {
     // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): the Posts, Analytics
   // and domain-registry projections all landed in this file from separate
   // branches, so the true count is their sum, not any one branch's number.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5225,
+  // +14 (website plan key) stacked on +10 (analytics tiles) — two branches
+  // landed the same day; the true count is their sum (exact number below is
+  // the measured file size after the rebase, not either branch's claim).
+  "src/components/admin/shell/internal/state/fixtures.ts": 5239,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -423,7 +426,9 @@ const BUDGETS: Record<string, number> = {
   // +2 (2388 → 2390): `canEditSitePages` on bridgeSessionIdentity, so the
   // Website → Redirects nav link is gated on the same capability its route
   // enforces instead of on a role proxy.
-  "src/components/admin/shell/internal/state/context.tsx": 2400,
+  // +4 (website whitelist) stacked on +7 (analytics bridge) — measured after
+  // the rebase, same reconciliation as fixtures.ts above.
+  "src/components/admin/shell/internal/state/context.tsx": 2404,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
