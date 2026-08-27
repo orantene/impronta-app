@@ -1031,7 +1031,11 @@ export function AdminShellProvider({
   // role. Falls back to the prototype's demo defaults in standalone mode.
   const initialPlan: Plan = (() => {
     const t = initialBridgeData?.tenantIdentity?.planTier;
-    return t === "free" || t === "studio" || t === "agency" || t === "network"
+    return t === "free" ||
+      t === "website" ||
+      t === "studio" ||
+      t === "agency" ||
+      t === "network"
       ? (t as Plan)
       : "free";
   })();

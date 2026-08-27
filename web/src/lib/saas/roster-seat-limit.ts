@@ -58,6 +58,21 @@ export function evaluateRosterSeatAvailability(input: {
     };
   }
 
+  if (limit === 0) {
+    // A zero cap is not "you ran out of seats" — it is a plan that has no
+    // talent roster at all (Website). Saying "upgrade to add more" would be
+    // a lie about what the customer bought.
+    return {
+      ok: false,
+      planTier: input.planTier,
+      limit,
+      current,
+      after,
+      message:
+        "This plan does not include a talent roster. Upgrade to Studio to add talent.",
+    };
+  }
+
   return {
     ok: false,
     planTier: input.planTier,

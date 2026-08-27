@@ -58,7 +58,7 @@ function UpgradeCelebration() {
   const { state } = useAdminShell();
   const t = useT();
   const planRanks: Record<Plan, number> = {
-    free: 0, studio: 1, agency: 2, network: 3,
+    free: 0, website: 1, studio: 2, agency: 3, network: 4,
   };
   const SS_KEY = "tulala_prev_plan";
   const [showing, setShowing] = useState<Plan | null>(null);
@@ -88,6 +88,7 @@ function UpgradeCelebration() {
 
   const unlockKeys: Record<Plan, string[]> = {
     free:    [],
+    website: ["customDomain", "bilingualSite", "formsInbox", "acceptPayments"],
     studio:  ["customDomain", "ownedClientList", "upTo50Talents", "privateInquiryInbox"],
     agency:  ["brandedDesignSystem", "customRosterFields", "teamRoles25", "upTo200Talents"],
     network: ["multiBrandWorkspaces", "crossRosterPool", "hubAnalytics", "unlimitedEverything"],
@@ -95,6 +96,7 @@ function UpgradeCelebration() {
   const tier = showing;
   const tierMeta: Record<Plan, { color: string; soft: string; emoji: string }> = {
     free:    { color: COLORS.inkMuted,  soft: "rgba(11,11,13,0.05)",   emoji: "🌱" },
+    website: { color: "#166F65",         soft: "rgba(20,120,110,0.12)", emoji: "◈" },
     studio:  { color: "#3B4A75",         soft: "rgba(91,107,160,0.12)", emoji: "✦" },
     agency:  { color: "#7A5A1F",         soft: "rgba(184,135,49,0.16)", emoji: "★" },
     network: { color: COLORS.accentDeep, soft: "rgba(15,79,62,0.12)",   emoji: "◆" },

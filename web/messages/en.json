@@ -8551,6 +8551,12 @@
             "crossRosterPool": "Cross-roster pool",
             "hubAnalytics": "Hub-level analytics",
             "unlimitedEverything": "Unlimited everything"
+          },
+          "website": {
+            "customDomain": "Your own custom domain",
+            "bilingualSite": "English and Spanish",
+            "formsInbox": "Forms and a shared inbox",
+            "acceptPayments": "Take payments and deposits"
           }
         }
       },
@@ -12162,11 +12168,13 @@
       "connectMyPayout": "Connect my payout account",
       "billingInactive": "Billing not yet active. Contact support to upgrade.",
       "planTaglineFree": "Friend-link access only. No commission.",
+      "planTaglineWebsite": "Your own site and domain. No talent roster.",
       "planTaglineStudio": "Auto-exclusive roster, ~10-12% commission.",
       "planTaglineAgency": "Auto-exclusive roster, ~15-20% commission.",
       "planTaglineNetwork": "Unlimited roster. Platform-wide placement.",
       "planPriceStudio": "$29 / month",
       "planPriceAgency": "$79 / month",
+      "planPriceWebsite": "$12/mo",
       "billing": {
         "redirecting": "Redirecting…",
         "openingPortal": "Opening portal…",

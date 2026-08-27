@@ -185,8 +185,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   // Plan tier drives admin-only affordances inside the booking tab
   // (e.g. Free hides Reassign coordinator). The state plan uses
   // "network" — map to AdminBookingTab's "hub-network" key.
+  // `website` has no roster, so it gets the same reduced booking-tab
+  // affordances as Free; "network" maps to AdminBookingTab's "hub-network".
   const planTier: "free" | "studio" | "agency" | "hub-network" =
-    state.plan === "network" ? "hub-network" : state.plan;
+    state.plan === "network"
+      ? "hub-network"
+      : state.plan === "website"
+        ? "free"
+        : state.plan;
 
   // Finding D: a distinct "approved" bucket so an inquiry that's only approved
   // (all parties signed off, 0 agency_bookings) never reads as "Booked" on the

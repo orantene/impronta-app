@@ -29,7 +29,12 @@ export function GlobalUpgradeModal() {
   function handleSelect(plan: Plan) {
     if (pending) return;
 
-    if (plan === "studio" || plan === "agency" || plan === "network") {
+    if (
+      plan === "website" ||
+      plan === "studio" ||
+      plan === "agency" ||
+      plan === "network"
+    ) {
       const slug = workspace?.slug;
       if (!slug) {
         toast.error("Couldn't identify workspace.");

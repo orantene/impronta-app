@@ -110,9 +110,10 @@ const PLANS: ReadonlyArray<PlanCard> = [
 
 const RANK: Record<Plan, number> = {
   free: 0,
-  studio: 1,
-  agency: 2,
-  network: 3,
+  website: 1,
+  studio: 2,
+  agency: 3,
+  network: 4,
 };
 
 type Cycle = "monthly" | "annual";

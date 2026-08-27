@@ -367,6 +367,8 @@ export async function syncStripeSubscriptionToDb(
 
     const SEAT_LIMITS: Record<string, number | null> = {
       free: 5,
+      // Website has no talent roster — see lib/saas/plan-seat-caps.ts.
+      website: 0,
       studio: 50,
       agency: 200,
       network: null,

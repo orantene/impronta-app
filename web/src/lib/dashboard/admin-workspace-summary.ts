@@ -13,7 +13,7 @@ import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
  *
  * `talent_seat_limit = NULL` means "unlimited" (Network plan).
  */
-export type WorkspacePlan = "free" | "studio" | "agency" | "network";
+export type WorkspacePlan = "free" | "website" | "studio" | "agency" | "network";
 
 export type AdminWorkspaceSummary = {
   tenantId: string;
@@ -31,7 +31,7 @@ export type AdminWorkspaceSummary = {
   status: string;
 };
 
-const VALID_PLANS = new Set(["free", "studio", "agency", "network"] as const);
+const VALID_PLANS = new Set(["free", "website", "studio", "agency", "network"] as const);
 
 /** Coerce an unknown plan_tier string into a WorkspacePlan, falling back to free. */
 function coercePlan(raw: unknown): WorkspacePlan {

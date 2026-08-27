@@ -16,6 +16,7 @@ const ALL_CAPS: ReadonlySet<CapabilityKey> = new Set<CapabilityKey>(CAPABILITY_K
 
 export const PLAN_CAPABILITIES: Record<PlanKey, ReadonlySet<CapabilityKey>> = {
   free: ALL_CAPS,
+  website: ALL_CAPS,
   studio: ALL_CAPS,
   agency: ALL_CAPS,
   network: ALL_CAPS,

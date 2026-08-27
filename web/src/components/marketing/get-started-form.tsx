@@ -21,7 +21,7 @@ import { SubdomainHint, type SubdomainState } from "./get-started-form-subdomain
 
 type AudienceKey = "operator" | "agency" | "organization" | "business";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
-type TierKey = "free" | "studio" | "agency" | "network";
+type TierKey = "free" | "website" | "studio" | "agency" | "network";
 
 export type GetStartedSignedIn = {
   userId: string;

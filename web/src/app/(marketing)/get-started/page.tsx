@@ -144,7 +144,7 @@ function buildHeadlineByTier(
   });
 }
 
-type TierKey = "free" | "studio" | "agency" | "network";
+type TierKey = "free" | "website" | "studio" | "agency" | "network";
 
 export default async function GetStartedPage({
   searchParams,

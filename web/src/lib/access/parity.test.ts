@@ -33,6 +33,7 @@ import {
 import {
   PLAN_KEYS,
   PLAN_CATALOG,
+  getUpgradePathFromPlan,
 } from "@/lib/access/plan-catalog";
 
 const LEGACY_CAPABILITIES: readonly LegacyCapability[] = [
@@ -215,7 +216,7 @@ test("registry contains all expected capability sets", () => {
 test("plans split correctly by audience", () => {
   const workspacePlans = Object.values(PLAN_CATALOG).filter((p) => p.audience === "workspace");
   const talentPlans = Object.values(PLAN_CATALOG).filter((p) => p.audience === "talent");
-  assert.equal(workspacePlans.length, 5, "expected 5 workspace plans");
+  assert.equal(workspacePlans.length, 6, "expected 6 workspace plans");
   assert.equal(talentPlans.length, 3, "expected 3 talent plans (Basic, Pro, Portfolio)");
 
   // Talent_basic is the baseline — free, hidden from pricing page.
@@ -278,8 +279,8 @@ test("new role-cap map matches legacy phase-5 role-cap map for phase-5 capabilit
   }
 });
 
-test("plan catalog has all 4 standard plans plus legacy", () => {
-  for (const required of ["free", "studio", "agency", "network", "legacy"] as const) {
+test("plan catalog has all 5 standard plans plus legacy", () => {
+  for (const required of ["free", "website", "studio", "agency", "network", "legacy"] as const) {
     assert.ok(PLAN_KEYS.includes(required), `missing plan key: ${required}`);
     assert.ok(PLAN_CATALOG[required], `missing plan def: ${required}`);
   }
@@ -338,4 +339,29 @@ test("platform_role-gated capabilities are NOT in any tenant role's set", () => 
       }
     }
   }
+});
+
+test("website sits between free and studio in the workspace rank ladder", () => {
+  // getUpgradePathFromPlan reads rank, so the renumber (studio 1->2,
+  // agency 2->3, network 3->4) is load-bearing: a Website workspace must be
+  // offered Studio/Agency/Network, and a Free workspace must be offered
+  // Website first.
+  const website = PLAN_CATALOG.website;
+  assert.equal(website.audience, "workspace");
+  assert.equal(website.monthlyPriceCents, 1200);
+  assert.equal(website.annualPriceCents, 12000);
+  assert.equal(website.currency, "USD");
+  assert.ok(website.rank > PLAN_CATALOG.free.rank);
+  assert.ok(website.rank < PLAN_CATALOG.studio.rank);
+  assert.ok(PLAN_CATALOG.studio.rank < PLAN_CATALOG.agency.rank);
+  assert.ok(PLAN_CATALOG.agency.rank < PLAN_CATALOG.network.rank);
+
+  assert.deepEqual(
+    getUpgradePathFromPlan("free").map((p) => p.key),
+    ["website", "studio", "agency"],
+  );
+  assert.deepEqual(
+    getUpgradePathFromPlan("website").map((p) => p.key),
+    ["studio", "agency"],
+  );
 });

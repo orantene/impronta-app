@@ -6,6 +6,8 @@
  * Price IDs live in environment variables so they can differ between
  * Vercel environments (test vs. live mode keys):
  *
+ *   STRIPE_PRICE_WEBSITE_MONTHLY   e.g. price_1PxxxxxxxxxxxWebsiteMonthly (unset — not purchasable yet)
+ *   STRIPE_PRICE_WEBSITE_ANNUAL    e.g. price_1PxxxxxxxxxxxWebsiteAnnual  (unset — not purchasable yet)
  *   STRIPE_PRICE_STUDIO_MONTHLY    e.g. price_1PxxxxxxxxxxxxStudioMonthly
  *   STRIPE_PRICE_STUDIO_ANNUAL     e.g. price_1PxxxxxxxxxxxxStudioAnnual
  *   STRIPE_PRICE_AGENCY_MONTHLY    e.g. price_1PxxxxxxxxxxxxAgencyMonthly
@@ -24,9 +26,16 @@ export type BillingInterval = "monthly" | "annual";
 
 // Network is sales-assisted today. Adding the key so a future commit can
 // flip it to self-serve by setting STRIPE_PRICE_NETWORK_MONTHLY/ANNUAL.
-export type WorkspacePlanKey = "studio" | "agency" | "network";
+export type WorkspacePlanKey = "website" | "studio" | "agency" | "network";
 
 const ENV_MAP: Record<WorkspacePlanKey, Record<BillingInterval, string>> = {
+  // Website ($12/mo) is defined but NOT yet purchasable: the env vars are
+  // deliberately unset, so getWorkspacePriceId("website") returns null and
+  // checkout refuses. Setting them is what turns the tier on.
+  website: {
+    monthly: "STRIPE_PRICE_WEBSITE_MONTHLY",
+    annual:  "STRIPE_PRICE_WEBSITE_ANNUAL",
+  },
   studio: {
     monthly: "STRIPE_PRICE_STUDIO_MONTHLY",
     annual:  "STRIPE_PRICE_STUDIO_ANNUAL",

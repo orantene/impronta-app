@@ -68,6 +68,7 @@ const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 
 const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
   free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
+  website: { label: "Website", bg: "rgba(20,120,110,0.10)",  color: "#166F65" },
   studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "#8A6F1A" },
   agency:  { label: "Agency",  bg: "rgba(30,80,160,0.10)",   color: "#2B5F8A" },
   network: { label: "Network", bg: "rgba(100,50,200,0.10)",  color: "#6B3EC2" },
@@ -278,12 +279,14 @@ export default async function WorkspaceAccountPage({
 
   const planTaglines: Record<WorkspacePlan, string> = {
     free:    t("admin.account.planTaglineFree"),
+    website: t("admin.account.planTaglineWebsite"),
     studio:  t("admin.account.planTaglineStudio"),
     agency:  t("admin.account.planTaglineAgency"),
     network: t("admin.account.planTaglineNetwork"),
   };
   const planPrices: Record<WorkspacePlan, string | null> = {
     free:    null,
+    website: t("admin.account.planPriceWebsite"),
     studio:  t("admin.account.planPriceStudio"),
     agency:  t("admin.account.planPriceAgency"),
     network: null,

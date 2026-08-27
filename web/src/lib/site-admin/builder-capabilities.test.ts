@@ -87,10 +87,33 @@ test("clampFeaturedRosterLimitForPlan caps free at five profiles", () => {
 });
 
 test("domain eligibility stays aligned with workspace public URL policy helpers", () => {
-  const plans = ["free", "studio", "agency", "network", "legacy"] as const;
+  const plans = ["free", "website", "studio", "agency", "network", "legacy"] as const;
   for (const plan of plans) {
     const policy = getBuilderPlanPolicy(plan);
     assert.equal(policy.brandedSubdomainEligible, brandedSubdomainEligible(plan));
     assert.equal(policy.customDomainEligible, customDomainEligible(plan));
   }
+});
+
+test("website plan policy: full builder, custom domain, no roster clamp", () => {
+  assert.equal(normalizeBuilderWorkspacePlan("website"), "website");
+
+  const policy = getBuilderPlanPolicy("website");
+  assert.equal(policy.maxPublicPages, null);
+  // Roster visibility is a workspace-TYPE concern, not a plan concern. The
+  // roster cap that bites on Website is PLAN_SEAT_CAPS.website = 0, and a 0
+  // here would be clamped up to 1 by clampFeaturedRosterLimitForPlan.
+  assert.equal(policy.maxVisibleRosterProfiles, null);
+  assert.equal(policy.workspaceTemplateLibrary, true);
+  assert.equal(policy.starterTemplateMode, "paid");
+  assert.equal(policy.shellEditMode, "full");
+  assert.equal(policy.brandedSubdomainEligible, true);
+  assert.equal(policy.customDomainEligible, true);
+
+  assert.equal(builderPlanAllows("website", "builder.shell.edit"), true);
+  assert.equal(builderPlanAllows("website", "builder.domain.subdomain"), true);
+  assert.equal(builderPlanAllows("website", "builder.domain.custom"), true);
+  assert.equal(clampFeaturedRosterLimitForPlan("website", 12), null);
+  assert.equal(cmsAdditionalPageDeniedReason("website"), null);
+  assert.equal(workspaceTemplateLibraryDeniedReason("website"), null);
 });

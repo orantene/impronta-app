@@ -16,9 +16,15 @@ import { logServerError } from "@/lib/server/safe-error";
 // ─── Plan tier ────────────────────────────────────────────────────────────────
 
 /** Valid workspace plan tiers — mirrors WorkspacePlan from admin-workspace-summary. */
-export type WorkspacePlan = "free" | "studio" | "agency" | "network";
+export type WorkspacePlan = "free" | "website" | "studio" | "agency" | "network";
 
-const VALID_WORKSPACE_PLANS = new Set<string>(["free", "studio", "agency", "network"]);
+const VALID_WORKSPACE_PLANS = new Set<string>([
+  "free",
+  "website",
+  "studio",
+  "agency",
+  "network",
+]);
 
 function coercePlan(raw: unknown): WorkspacePlan {
   if (typeof raw === "string" && VALID_WORKSPACE_PLANS.has(raw)) {

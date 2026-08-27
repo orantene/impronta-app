@@ -11,6 +11,7 @@ import { PLAN_COLOR, type ConversionHero, type Plan } from "./capability-catalog
 
 const GRADIENT: Record<Plan, string> = {
   free: "linear-gradient(135deg, #1f2024 0%, #3a3d44 100%)",
+  website: "linear-gradient(135deg, #0b3b36 0%, #0d9488 100%)",
   studio: "linear-gradient(135deg, #1c3a8a 0%, #3a7bff 100%)",
   agency: "linear-gradient(135deg, #3a2c08 0%, #9e7d1b 55%, #c9a227 100%)",
   network: "linear-gradient(135deg, #0e3d23 0%, #146b3a 100%)",

@@ -77,6 +77,15 @@ export const PLAN_LIMITS: Record<PlanKey, Record<LimitKey, number | null>> = {
     max_locales: null,
     max_custom_fields: null,
   },
+  // Website — a site-builder tier for local businesses. No talent roster
+  // (see `plan-seat-caps.ts`), so the only meaningful limit is team seats.
+  website: {
+    max_team_seats: 2,
+    max_active_talent: 0,
+    max_custom_domains: 1,
+    max_locales: 2,
+    max_custom_fields: 0,
+  },
   studio: {
     max_team_seats: 3,
     max_active_talent: null,
