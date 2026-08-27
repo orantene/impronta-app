@@ -34,8 +34,9 @@ type ProfileHeaderProps = {
   hubsIndicator: React.ReactNode;
   isFeatured: boolean;
   /**
-   * Max site URL. Non-null ONLY when the talent is on the Max plan AND has a
-   * published site. When set, renders the "Max" VIP badge + "Visit my site" CTA.
+   * Max site URL. Non-null ONLY when the talent is on the Portfolio plan AND
+   * has a published site. When set, renders the "Portfolio" VIP badge +
+   * "Visit my site" CTA.
    */
   maxSiteUrl?: string | null;
 };
@@ -171,10 +172,10 @@ export function ProfileHeader({
             {/* Discipline chips */}
             <DisciplineChips primaryType={primaryType} allTypes={allTalentTypes} />
 
-            {/* Max VIP badge + "Visit my site" CTA — only when Max + published */}
+            {/* Portfolio VIP badge + "Visit my site" CTA — only when Portfolio + published */}
             {maxSiteUrl ? (
               <div className="flex flex-wrap items-center gap-2">
-                {/* MAX VIP gold pill — premium membership chip */}
+                {/* PORTFOLIO VIP gold pill — premium membership chip */}
                 <span
                   className="plt-mono inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[0.625rem] font-bold uppercase tracking-[0.14em]"
                   style={{
@@ -185,7 +186,7 @@ export function ProfileHeader({
                     color: "#3D2800",
                   }}
                 >
-                  ♔ MAX
+                  ♔ PORTFOLIO
                 </span>
                 {/* "Visit my site" — dark premium button, gold border and text */}
                 <Link

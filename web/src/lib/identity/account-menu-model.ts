@@ -137,9 +137,9 @@ export async function loadAccountMenuModel(
     const profileCode = row?.profile_code ?? null;
     const tier = talentPlanToTier(row?.talent_plan_key ?? null);
     const planBadge: MarketingTalentPage["planBadge"] =
-      tier === "max" ? "MAX" : tier === "pro" ? "PRO" : null;
-    // Free talent → surface an upgrade CTA on their own page (unlocks the Max
-    // custom page builder at /talent/site). Paid talent get a badge instead.
+      tier === "max" ? "PORTFOLIO" : tier === "pro" ? "PRO" : null;
+    // Free talent → surface an upgrade CTA on their own page (unlocks the
+    // Portfolio custom page builder at /talent/site). Paid talent get a badge instead.
     talentUpgradeHref = tier === "free" ? `${appUrl}/talent/settings` : null;
 
     const rep = await loadRepresentation(identity.talent.profileId, profileCode);

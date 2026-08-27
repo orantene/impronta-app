@@ -9086,8 +9086,8 @@
       },
       "planRenew": {
         "free": "Sin renovación. Plan Free.",
-        "studio": "$49 / mes.",
-        "agency": "$149 / mes.",
+        "studio": "$29 / mes.",
+        "agency": "$79 / mes.",
         "network": "Contrato personalizado · contacta a facturación."
       },
       "drawer": {
@@ -12163,8 +12163,8 @@
       "planTaglineStudio": "Lista auto-exclusiva, ~10-12% de comisión.",
       "planTaglineAgency": "Lista auto-exclusiva, ~15-20% de comisión.",
       "planTaglineNetwork": "Lista ilimitada. Colocación en toda la plataforma.",
-      "planPriceStudio": "$49 / mes",
-      "planPriceAgency": "$149 / mes",
+      "planPriceStudio": "$29 / mes",
+      "planPriceAgency": "$79 / mes",
       "billing": {
         "redirecting": "Redirigiendo…",
         "openingPortal": "Abriendo portal…",

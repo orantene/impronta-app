@@ -79,9 +79,10 @@ export interface TalentProfileTokens {
   /** Up to six gallery image URLs (absolute); empty strings when fewer. */
   gallery: string[];
   /**
-   * The talent's published Max site URL. Non-empty ONLY when the talent is on
-   * the Max plan AND has a published site. Empty string "" when absent — the
-   * Max badge / CTA nodes are pruned by `pruneEmptyMaxBadge` when this is "".
+   * The talent's published Portfolio site URL. Non-empty ONLY when the talent
+   * is on the Portfolio plan AND has a published site. Empty string "" when
+   * absent — the Portfolio badge / CTA nodes are pruned by
+   * `pruneEmptyMaxBadge` when this is "".
    */
   maxSiteUrl: string;
 }
@@ -228,11 +229,11 @@ function pruneEmptyServiceCards(tree: BuilderNode[]): BuilderNode[] {
 }
 
 /**
- * Drop the Max badge container (id `default-talent-max-badge`) when the
+ * Drop the Portfolio badge container (id `default-talent-max-badge`) when the
  * `{{maxSiteUrl}}` token resolved to an empty string. This keeps the hero
- * clean for non-Max talents and talents who haven't published their site yet —
- * the same empty-prune gate the discipline chips rely on, applied to a single
- * named container rather than a generic card shape.
+ * clean for non-Portfolio talents and talents who haven't published their
+ * site yet — the same empty-prune gate the discipline chips rely on, applied
+ * to a single named container rather than a generic card shape.
  */
 function pruneEmptyMaxBadge(tree: BuilderNode[]): BuilderNode[] {
   const MAX_BADGE_ID = "default-talent-max-badge";
@@ -482,10 +483,10 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 disciplineChip("secondary-3", "{{secondaryType3}}"),
               ],
             },
-            // ── MAX BADGE + "Visit my site" CTA ───────────────────────────────
+            // ── PORTFOLIO BADGE + "Visit my site" CTA ─────────────────────────
             // Container id `default-talent-max-badge` is the prune anchor: when
             // `{{maxSiteUrl}}` resolves to "" the whole container is dropped by
-            // `pruneEmptyMaxBadge` — so non-Max / unpublished talents see nothing.
+            // `pruneEmptyMaxBadge` — so non-Portfolio / unpublished talents see nothing.
             {
               id: id("max-badge"),
               kind: "container",
@@ -496,7 +497,7 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 style: { flexWrap: "wrap", marginTop: "s" },
               },
               children: [
-                // MAX VIP gold pill — premium membership chip
+                // PORTFOLIO VIP gold pill — premium membership chip
                 {
                   id: id("max-badge-pill"),
                   kind: "card",
@@ -517,7 +518,7 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                       id: id("max-badge-pill-label"),
                       kind: "paragraph",
                       props: {
-                        text: "♔ MAX",
+                        text: "♔ PORTFOLIO",
                         style: {
                           size: "sm",
                           textTransform: "uppercase",
