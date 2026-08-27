@@ -435,7 +435,8 @@
       "headerNewLine": "Nouvelle demande",
       "headerSwitchAria": "Changer de demande. Actuellement : {state}",
       "detailsChipAdd": "Ajouter des détails",
-      "detailsChipProgress": "Détails {filled}/{total}"
+      "detailsChipProgress": "Détails {filled}/{total}",
+      "errTalentUnavailable": "Ce talent ne reçoit pas de demandes ici pour le moment. Vous pouvez toujours écrire à l'agence."
     },
     "profileCta": {
       "addToCurrent": "Ajouter {name} à votre demande en cours ({count} talents)",

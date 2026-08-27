@@ -732,7 +732,14 @@ export async function startGuestChatInquiry(
         "guest-chat-actions.startGuestChatInquiry/roster",
         new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
       );
-      return fail("tenant_unavailable", "We couldn't find this workspace.");
+      // The workspace resolved fine; this talent is not on its visible roster.
+      // Saying "we couldn't find this workspace" sent visitors chasing the
+      // wrong problem. The profile page now 404s before anyone can get here,
+      // so this is the crafted-request / raced-removal path only.
+      return fail(
+        "talent_unavailable",
+        "This talent is not taking inquiries here right now.",
+      );
     }
   }
 
@@ -1847,7 +1854,12 @@ export async function ensureGuestChatInquiry(
           "guest-chat-actions.ensureGuestChatInquiry/roster",
           new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
         );
-        return fail("tenant_unavailable", "We couldn't find this workspace.");
+        // See startGuestChatInquiry: the workspace is fine, the talent is not
+        // bookable on this tenant.
+        return fail(
+          "talent_unavailable",
+          "This talent is not taking inquiries here right now.",
+        );
       }
     }
 

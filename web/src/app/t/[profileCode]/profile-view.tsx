@@ -84,6 +84,7 @@ import {
 } from "@/lib/canonical-location-display";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
+import { assertTalentVisibleOnAgencySurface } from "./_guards/agency-roster-visibility";
 import {
   ALLOW_ALL_TAXONOMY_VISIBILITY,
   loadTenantTaxonomyVisibility,
@@ -1351,6 +1352,16 @@ export async function buildTalentProfileMetadata({
   if (!result) return {};
 
   const { profile } = result;
+
+  // Gate the HEAD too: with only the view gated, this kept emitting the removed
+  // talent's title / OG / canonical. See ./_guards/agency-roster-visibility.
+  if (preview !== "1" && hostCtx.kind === "agency") {
+    const pubForRoster = createPublicSupabaseClient();
+    if (pubForRoster) {
+      await assertTalentVisibleOnAgencySurface(pubForRoster, hostCtx.tenantId, profile.id);
+    }
+  }
+
   const locale = await getRequestLocale();
 
   // Phase 5/6 M2 — the canonical URL for a talent is ALWAYS the app host
@@ -1585,6 +1596,12 @@ export async function TalentProfileView({
       "freelancer",
     );
     if (!decision.visible) notFound();
+  }
+
+  // An agency may only serve talent on ITS OWN visible roster; RLS enforces only
+  // the GLOBAL gate. See ./_guards/agency-roster-visibility.
+  if (!resolvedPreview && surface === "agency" && hostCtx.kind === "agency" && pub) {
+    await assertTalentVisibleOnAgencySurface(pub, hostCtx.tenantId, profile.id);
   }
 
   // Free-plan contract hardening: on agency surfaces, direct profile URLs

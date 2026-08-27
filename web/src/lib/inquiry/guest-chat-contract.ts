@@ -171,6 +171,10 @@ export type GuestChatErrorCode =
   | "disposable_email"    // email gate rejected a disposable domain (Lane B)
   | "captcha_required"    // velocity gate wants a Turnstile token (Lane B)
   | "tenant_unavailable"  // tenant scope could not be resolved
+  // The tenant WAS resolved; the named talent is not on its visible roster.
+  // Distinct from tenant_unavailable so the UI can say something true: the
+  // workspace is fine, this specific talent is not bookable here.
+  | "talent_unavailable"
   | "db_unavailable"      // service-role client missing
   | "limit_reached"       // active-conversation trust gate tripped (U3)
   | "engine_error";       // catch-all engine/insert failure
