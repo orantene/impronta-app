@@ -35,7 +35,7 @@ type MarketingLeadRow = {
   email: string;
   name: string;
   business_name: string | null;
-  audience: "operator" | "agency" | "organization";
+  audience: "operator" | "agency" | "organization" | "business";
   roster_size: string | null;
   subdomain_wanted: string | null;
   tier_interest: string | null;
@@ -90,7 +90,7 @@ async function ensureWorkspaceScaffold(params: {
   displayName: string;
   actorProfileId: string;
   /** Signup answer, so the starter homepage speaks to this kind of business. */
-  audience?: "operator" | "agency" | "organization";
+  audience?: "operator" | "agency" | "organization" | "business";
 }): Promise<void> {
   // READ-AFTER-WRITE: this whole trampoline executes inside a Server Component
   // render (`/onboarding/workspace`), where Next memoizes identical fetch GETs
@@ -598,11 +598,23 @@ export async function provisionWorkspaceFromLead(params: {
     .insert({
       slug,
       display_name: displayName,
+      // `kind` stays "agency" for EVERY self-serve workspace, business ones
+      // included. Host routing in `proxy.ts` gates on positive `kind`
+      // predicates (`kind: "agency" | "hub"`), so a third kind would fall
+      // through every one of them and 404 the tenant's own storefront.
+      // What a business IS gets said by `workspace_type`, not by `kind`.
       kind: "agency",
       status: "active",
       template_key: "default",
       supported_locales: ["en"],
       onboarding_completed_at: now,
+      // A local business runs the business-shaped workspace (no roster to
+      // represent); everyone else stays talent-shaped.
+      workspace_type: lead.audience === "business" ? "business" : "talent",
+      // Deliberately NOT the Website tier. Website is PAID: the upgrade runs
+      // through the existing post-provision checkout and the Stripe webhook
+      // sets `plan_tier`. Provisioning anyone straight onto a paid tier would
+      // hand out a paid plan nobody has paid for.
       plan_tier: "free",
       talent_seat_limit: 5,
       settings: buildSignupSettings(lead),
