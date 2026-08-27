@@ -37,6 +37,8 @@ import {
   patchUploadItem,
   prepareUploadFiles,
   revokeUploadItemUrls,
+  classifyUploadKind,
+  type UploadKind,
   runUploadPool,
   summarizeUploadItems,
   type MediaUploadItem,
@@ -45,7 +47,12 @@ import {
   type ZipLoader,
 } from "./media-upload-engine";
 
-export type { MediaUploadItem, MediaUploadStatus, PrepareRejection } from "./media-upload-engine";
+export type {
+  MediaUploadItem,
+  MediaUploadStatus,
+  PrepareRejection,
+  UploadKind,
+} from "./media-upload-engine";
 
 /** What a transport reports back. `registered` is the purpose's own payload. */
 export type MediaUploadTransportResult =
@@ -75,6 +82,14 @@ export interface UseMediaUploadOptions<Extra> {
   concurrency?: number;
   /** Media page only — the other surfaces have no zip affordance. */
   allowZip?: boolean;
+  /**
+   * Kinds this surface accepts. Omit for images only.
+   *
+   * Set it wherever the surface advertises more than images — an `accept`
+   * attribute or a Videos/Documents tab is a promise, and the engine drops
+   * (with a reported rejection) every kind not listed here.
+   */
+  allowKinds?: readonly UploadKind[];
   /** Test seam for zip extraction. */
   loadZip?: ZipLoader;
   /** Fires per successful item, in completion order, before the batch ends. */
@@ -148,6 +163,7 @@ export function useMediaUpload<Extra = NoUploadExtra>(
       const prepared = await prepareUploadFiles(input, {
         allowZip: opts.allowZip,
         loadZip: opts.loadZip,
+        allowKinds: opts.allowKinds,
       });
       if (prepared.rejections.length > 0) opts.onRejections?.(prepared.rejections);
       if (prepared.aborted || prepared.files.length === 0) return [];
@@ -349,24 +365,16 @@ const brandingTransport: MediaUploadTransport = async ({ file, onProgress }) => 
   };
 };
 
-/** MEDIA-1 — infer the upload kind from a chosen file's MIME / extension. */
-export function detectUploadKind(file: File): "image" | "video" | "document" {
-  const mime = (file.type || "").toLowerCase();
-  if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("image/")) return "image";
-  if (
-    mime === "application/pdf" ||
-    mime.startsWith("application/vnd.") ||
-    mime === "application/msword" ||
-    mime === "text/plain" ||
-    mime === "text/csv"
-  ) {
-    return "document";
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (["mp4", "mov", "webm", "avi", "mkv", "m4v"].includes(ext)) return "video";
-  if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"].includes(ext)) {
-    return "document";
-  }
-  return "image";
+/**
+ * MEDIA-1 — infer the upload kind from a chosen file.
+ *
+ * Delegates to the engine's classifier so the gate that decides whether a file
+ * is allowed through and the switch that picks its server lane can never drift
+ * apart. Kept exported: callers outside the hook import it by this name.
+ */
+export function detectUploadKind(file: File): UploadKind {
+  // The gate returns null for anything no lane takes; by the time a file
+  // reaches a transport it has already passed that gate, so the remaining
+  // job is only to name a lane. "image" is the historical default.
+  return classifyUploadKind(file) ?? "image";
 }

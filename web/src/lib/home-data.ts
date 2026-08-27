@@ -418,6 +418,28 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
    * leak peer tenants' cities (e.g. Impronta's Tulum/Cancún showing under
    * Midnight Muse). `hasRoster=false` → hide the whole section.
    */
+  /**
+   * Name + profile_code for the faces in the orbit ring. The ring lets a
+   * visitor tap a face to get that talent's name and a link to their profile,
+   * and neither is derivable from the media rows above -- those are keyed by
+   * talent id and carry no identity. One extra query over ids we already have.
+   */
+  const previewIdentity: Record<string, { name: string | null; profileCode: string | null }> = {};
+  if (allPreviewIds.length > 0) {
+    const { data: previewProfiles } = await supabase
+      .from("talent_profiles")
+      .select("id, profile_code, display_name")
+      .in("id", allPreviewIds)
+      .eq("is_publicly_hidden", false)
+      .is("deleted_at", null);
+    for (const row of previewProfiles ?? []) {
+      previewIdentity[row.id] = {
+        name: row.display_name ?? null,
+        profileCode: row.profile_code ?? null,
+      };
+    }
+  }
+
   const locations: LocationItem[] = locationData
     .filter((l) => (locationCounts[l.id] ?? 0) > 0)
     .map((l) => {
@@ -428,6 +450,11 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
       const featuredPreviews: LocationFeaturedPreview[] = previewIds.map((tid) => ({
         talentId: tid,
         thumbnailUrl: locationThumbnailMap[tid] ?? null,
+        // A talent hidden from public listings drops out of `previewIdentity`
+        // above, so it stays a faceless orbiting thumbnail with no name and no
+        // link rather than becoming a way to reach a hidden profile.
+        name: previewIdentity[tid]?.name ?? null,
+        profileCode: previewIdentity[tid]?.profileCode ?? null,
       }));
       return {
         id: l.id,
