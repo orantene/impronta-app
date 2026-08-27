@@ -14,7 +14,8 @@ import {
 } from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import {
   findFreeWorkspaceLimitBlocker,
   findLeadOwnedFreeWorkspace,
@@ -351,7 +352,7 @@ async function finalizeProvisionResult(params: {
       ownerName,
     });
 
-    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    const networkPriceId = await resolveWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {
       // No self-serve price configured — sales-contact handoff.
       return {

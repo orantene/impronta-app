@@ -1,109 +1,78 @@
-import assert from "node:assert/strict";
 import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import {
+  INTERVAL_COLUMN,
+  TALENT_TIER_SLUG,
+  WORKSPACE_TIER_SLUG,
+} from "./price-catalog";
 
-import { getWorkspacePriceId } from "./price-ids";
+/**
+ * Checkout resolves Stripe prices from the `product_prices` catalog, not from
+ * `STRIPE_PRICE_*` environment variables. These tests hold that line.
+ *
+ * The env-var era is why the 2026 repricing was dangerous: marketing read the
+ * DB while checkout read env, so the site could advertise one price while
+ * checkout billed another — or billed on a different Stripe account entirely.
+ */
 
-const NETWORK_MONTHLY = "STRIPE_PRICE_NETWORK_MONTHLY";
-const NETWORK_ANNUAL = "STRIPE_PRICE_NETWORK_ANNUAL";
-const STUDIO_MONTHLY = "STRIPE_PRICE_STUDIO_MONTHLY";
-const WEBSITE_MONTHLY = "STRIPE_PRICE_WEBSITE_MONTHLY";
-const WEBSITE_ANNUAL = "STRIPE_PRICE_WEBSITE_ANNUAL";
+test("every workspace plan key maps to a tier slug (or an explicit null)", () => {
+  // A missing key would make the resolver return null and silently refuse
+  // checkout for a plan that is supposed to be purchasable.
+  assert.deepEqual(Object.keys(WORKSPACE_TIER_SLUG).sort(), [
+    "agency",
+    "network",
+    "studio",
+    "website",
+  ]);
+  // Network is sales-assisted: null is the intended value, not an oversight.
+  assert.equal(WORKSPACE_TIER_SLUG.network, null);
+  assert.equal(WORKSPACE_TIER_SLUG.studio, "studio");
+});
 
-// Snapshot + restore env around each case so tests don't leak state into
-// the wider suite (env vars are process-global).
-function withEnv(values: Record<string, string | undefined>, fn: () => void) {
-  const previous: Record<string, string | undefined> = {};
-  for (const key of Object.keys(values)) {
-    previous[key] = process.env[key];
-    if (values[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = values[key];
+test("talent plan keys map to their historical tier slugs", () => {
+  // `max` is the slug behind the tier DISPLAYED as "Portfolio". Renaming the
+  // slug would orphan every subscription row that references it.
+  assert.equal(TALENT_TIER_SLUG.talent_portfolio, "max");
+  assert.equal(TALENT_TIER_SLUG.talent_pro, "pro");
+  assert.deepEqual(Object.keys(TALENT_TIER_SLUG).sort(), [
+    "talent_portfolio",
+    "talent_pro",
+  ]);
+});
+
+test("billing intervals map to the catalog's interval vocabulary", () => {
+  // product_prices.interval is CHECK-constrained to month/year/once/lifetime.
+  assert.equal(INTERVAL_COLUMN.monthly, "month");
+  assert.equal(INTERVAL_COLUMN.annual, "year");
+});
+
+test("no source file reads a STRIPE_PRICE_* environment variable", () => {
+  // The drift tripwire. If someone reintroduces an env price lookup, checkout
+  // and the pricing dashboard become two sources of truth again.
+  const offenders: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir)) {
+      if (entry === "node_modules" || entry === ".next") continue;
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry)) continue;
+      if (full.endsWith("price-ids.test.ts")) continue;
+      const text = readFileSync(full, "utf8");
+      // Match an actual env read, not prose mentioning the old variable names.
+      if (/process\.env\s*(\.\s*STRIPE_PRICE_|\[\s*["'`]STRIPE_PRICE_)/.test(text)) {
+        offenders.push(full);
+      }
     }
-  }
-  try {
-    fn();
-  } finally {
-    for (const [key, prior] of Object.entries(previous)) {
-      if (prior === undefined) delete process.env[key];
-      else process.env[key] = prior;
-    }
-  }
-}
-
-test("getWorkspacePriceId returns null when the network monthly env var is not set", () => {
-  withEnv({ [NETWORK_MONTHLY]: undefined }, () => {
-    assert.equal(getWorkspacePriceId("network", "monthly"), null);
-  });
-});
-
-test("getWorkspacePriceId returns the env value when STRIPE_PRICE_NETWORK_MONTHLY is set", () => {
-  withEnv({ [NETWORK_MONTHLY]: "price_test_network_monthly_abc123" }, () => {
-    assert.equal(
-      getWorkspacePriceId("network", "monthly"),
-      "price_test_network_monthly_abc123",
-    );
-  });
-});
-
-test("getWorkspacePriceId reads the annual variant independently", () => {
-  withEnv(
-    {
-      [NETWORK_MONTHLY]: "price_monthly",
-      [NETWORK_ANNUAL]: "price_annual",
-    },
-    () => {
-      assert.equal(getWorkspacePriceId("network", "monthly"), "price_monthly");
-      assert.equal(getWorkspacePriceId("network", "annual"), "price_annual");
-    },
-  );
-});
-
-test("getWorkspacePriceId trims whitespace and treats empty strings as unset", () => {
-  withEnv({ [NETWORK_MONTHLY]: "   " }, () => {
-    assert.equal(getWorkspacePriceId("network", "monthly"), null);
-  });
-  withEnv({ [NETWORK_MONTHLY]: "  price_with_spaces  " }, () => {
-    assert.equal(getWorkspacePriceId("network", "monthly"), "price_with_spaces");
-  });
-});
-
-test("getWorkspacePriceId handles studio independently from network", () => {
-  withEnv(
-    {
-      [STUDIO_MONTHLY]: "price_studio_monthly",
-      [NETWORK_MONTHLY]: undefined,
-    },
-    () => {
-      assert.equal(getWorkspacePriceId("studio", "monthly"), "price_studio_monthly");
-      assert.equal(getWorkspacePriceId("network", "monthly"), null);
-    },
-  );
-});
-
-test("website is a defined plan key that is NOT purchasable until its env vars are set", () => {
-  withEnv(
-    {
-      [WEBSITE_MONTHLY]: undefined,
-      [WEBSITE_ANNUAL]: undefined,
-    },
-    () => {
-      // Deliberate: the tier exists in the type system and the catalog, but
-      // no Stripe price is configured, so checkout cannot start.
-      assert.equal(getWorkspacePriceId("website", "monthly"), null);
-      assert.equal(getWorkspacePriceId("website", "annual"), null);
-    },
-  );
-
-  // ...and it reads its own env vars once they ARE set.
-  withEnv(
-    {
-      [WEBSITE_MONTHLY]: "price_website_monthly",
-      [WEBSITE_ANNUAL]: "price_website_annual",
-    },
-    () => {
-      assert.equal(getWorkspacePriceId("website", "monthly"), "price_website_monthly");
-      assert.equal(getWorkspacePriceId("website", "annual"), "price_website_annual");
-    },
+  };
+  walk("src");
+  assert.deepEqual(
+    offenders,
+    [],
+    `Checkout prices must come from product_prices, not env: ${offenders.join(", ")}`,
   );
 });

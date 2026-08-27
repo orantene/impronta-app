@@ -13,7 +13,8 @@
 
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import { getTalentPriceId, type TalentPlanKey } from "@/lib/stripe/price-ids";
+import { type TalentPlanKey } from "@/lib/stripe/price-ids";
+import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
@@ -151,7 +152,7 @@ export async function createTalentCheckoutSession(opts: {
   }
   const stripe = getStripe()!;
 
-  const priceId = getTalentPriceId(opts.planKey, "monthly");
+  const priceId = await resolveTalentPriceId(opts.planKey, "monthly");
   if (!priceId) {
     return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
   }
