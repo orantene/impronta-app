@@ -58,9 +58,16 @@ export const LIMITS: Record<LimitKey, LimitDef> = {
 };
 
 /**
- * Per-plan limits. Mirrors `SEAT_LIMITS` from billing-actions.ts for
- * `max_team_seats`. Other limits start permissive (null = unlimited) and
- * are tightened during Track C alongside the DB migration.
+ * Per-plan limits. `max_team_seats` is the RATIFIED 2026 team-seat ladder
+ * and is CANONICAL: free=2, studio=3, agency/network unlimited. It is
+ * enforced by `lib/saas/team-seat-limit.ts` (invite creation + invite
+ * redemption) and mirrored into the `plan_tier_caps` reference table by
+ * migration `20261130000000_studio_roster_fifteen_and_team_seat_caps.sql`.
+ * Moving a number here is a commercial decision — ship the migration in
+ * the same change so the two never drift.
+ *
+ * Other limits start permissive (null = unlimited) and are tightened
+ * during Track C alongside the DB migration.
  */
 export const PLAN_LIMITS: Record<PlanKey, Record<LimitKey, number | null>> = {
   free: {
@@ -71,14 +78,14 @@ export const PLAN_LIMITS: Record<PlanKey, Record<LimitKey, number | null>> = {
     max_custom_fields: null,
   },
   studio: {
-    max_team_seats: 10,
+    max_team_seats: 3,
     max_active_talent: null,
     max_custom_domains: null,
     max_locales: null,
     max_custom_fields: null,
   },
   agency: {
-    max_team_seats: 25,
+    max_team_seats: null,
     max_active_talent: null,
     max_custom_domains: null,
     max_locales: null,

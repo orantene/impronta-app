@@ -3,7 +3,8 @@
  *
  * These numbers are the product contract and they are ENFORCED by
  * `agencies.talent_seat_limit` (see the column comment, kept in step by
- * migration `20260902130000_free_plan_seat_limit_five.sql`) and by
+ * migrations `20260902130000_free_plan_seat_limit_five.sql` and
+ * `20261130000000_studio_roster_fifteen_and_team_seat_caps.sql`) and by
  * `checkRosterSeatAvailability`. Every surface that *states* a cap to a
  * human — pricing ladder, upgrade modals, plan-comparison tables, seat
  * meters — must read it from here rather than hard-coding a number.
@@ -24,13 +25,13 @@
 export type SeatCapPlan = "free" | "studio" | "agency" | "network";
 
 /**
- * Roster profile cap per plan. `null` = unlimited (Network).
+ * Roster profile cap per plan. `null` = unlimited (Agency, Network).
  * Mirrors the `agencies.talent_seat_limit` documented defaults exactly.
  */
 export const PLAN_SEAT_CAPS: Record<SeatCapPlan, number | null> = {
   free: 5,
-  studio: 50,
-  agency: 200,
+  studio: 15,
+  agency: null,
   network: null,
 };
 
@@ -43,7 +44,7 @@ export function seatCapForPlan(plan: string): number | null {
 
 /**
  * Human cap for UI copy: the number, or the caller's unlimited wording.
- * e.g. `seatCapLabel("studio")` → "50"; `seatCapLabel("network")` → "Unlimited".
+ * e.g. `seatCapLabel("studio")` → "15"; `seatCapLabel("network")` → "Unlimited".
  */
 export function seatCapLabel(plan: string, unlimited = "Unlimited"): string {
   const cap = seatCapForPlan(plan);

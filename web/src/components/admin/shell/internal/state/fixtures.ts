@@ -1548,7 +1548,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     values: {
       free: `Up to ${seatCapLabel("free")} talent`,
       studio: `Up to ${seatCapLabel("studio")} talent`,
-      agency: `Up to ${seatCapLabel("agency")} talent`,
+      agency: seatCapLabel("agency", "Unlimited talent"),
       network: "Unlimited",
     },
   },
