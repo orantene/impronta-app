@@ -207,7 +207,7 @@ export function TalentTierCompareDrawer() {
             <span>{t("dashboard.talentDrawers.premiumPages.colFeature")}</span>
             <span className="text-center">Free</span>
             <span className="text-center">Pro</span>
-            <span className="text-center">Max</span>
+            <span className="text-center">Portfolio</span>
           </div>
           {/* Rows — grouped by section */}
           {(["page", "discovery", "money", "tools"] as TalentTierGroup[]).map((group, gi) => {

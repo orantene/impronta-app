@@ -482,6 +482,12 @@ function LocationMapMarker({
   );
 }
 
+/**
+ * Zoom the map settles on when a city is chosen. Close enough that the orbit
+ * ring reads as individual faces rather than a clump of overlapping circles.
+ */
+const CITY_FOCUS_ZOOM = 11;
+
 export function LocationMap({
   locations,
   locale,
@@ -489,6 +495,8 @@ export function LocationMap({
   apiKey: apiKeyProp,
   publicPathPrefix = "",
   localeUrl,
+  selectedId: controlledSelectedId,
+  onSelectedIdChange,
 }: {
   locations: LocationItem[];
   locale: Locale;
@@ -502,6 +510,14 @@ export function LocationMap({
    * tenant whose default locale is not the platform default.
    */
   localeUrl?: LocaleUrlSettings;
+  /**
+   * Externally CONTROLLED city selection. The city chips above the map drive
+   * this so a chip flies the map to its pin and opens the ring, instead of
+   * navigating away. Omitted -> the map owns its own selection, which is how
+   * every other caller uses it.
+   */
+  selectedId?: string | null;
+  onSelectedIdChange?: (id: string | null) => void;
 }) {
   // Tenant-aware: the key is resolved server-side (resolveGoogleMapsKey) and
   // passed via apiKeyProp. We no longer read NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -509,7 +525,18 @@ export function LocationMap({
   // tenant that has deliberately not configured a key. When no key resolves,
   // apiKey is undefined and the existing graceful fallback box renders.
   const apiKey = normalizeGoogleApiKeyInput(apiKeyProp);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState<
+    string | null
+  >(null);
+  const controlled = controlledSelectedId !== undefined;
+  const selectedId = controlled ? controlledSelectedId : uncontrolledSelectedId;
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      if (!controlled) setUncontrolledSelectedId(id);
+      onSelectedIdChange?.(id);
+    },
+    [controlled, onSelectedIdChange],
+  );
   const [loadFailed, setLoadFailed] = useState(false);
 
   const onMapLoadFailed = useCallback(() => {
@@ -552,7 +579,7 @@ export function LocationMap({
     return { lat: sum.lat / focus.length, lng: sum.lng / focus.length };
   }, [locationsWithCoords]);
 
-  const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
+  const onSelect = useCallback((id: string | null) => setSelectedId(id), [setSelectedId]);
 
   /**
    * The talent whose profile link sits under the map. Deliberately NOT the same
@@ -572,6 +599,29 @@ export function LocationMap({
   useEffect(() => {
     setPickedTalent(null);
   }, [selectedId]);
+
+  /**
+   * The flight. Whenever a city becomes selected -- by its pin or by a chip
+   * above the map -- the map travels to it and zooms in enough that the orbit
+   * ring is legible rather than a cluster of overlapping thumbnails.
+   *
+   * `panTo` animates when the move is short and jumps when it is long, which is
+   * Google's behaviour and the right one here: a hop along the coast glides,
+   * and a jump to Buenos Aires does not crawl across the Atlantic.
+   */
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const onMapIdle = useCallback((e: { map: google.maps.Map }) => {
+    mapRef.current = e.map;
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedId) return;
+    const loc = locationsWithCoords.find((l) => l.id === selectedId);
+    if (!loc || loc.latitude == null || loc.longitude == null) return;
+    map.panTo({ lat: loc.latitude, lng: loc.longitude });
+    if ((map.getZoom() ?? 0) < CITY_FOCUS_ZOOM) map.setZoom(CITY_FOCUS_ZOOM);
+  }, [selectedId, locationsWithCoords]);
 
   const pickedHref = useMemo(() => {
     if (!pickedTalent?.profileCode) return null;
@@ -623,6 +673,7 @@ export function LocationMap({
               styles={MAP_STYLES}
               zoomControl
               clickableIcons={false}
+              onIdle={onMapIdle}
             >
               <FitBounds locations={locationsWithCoords} />
               {locationsWithCoords.map((loc, stackIndex) => (

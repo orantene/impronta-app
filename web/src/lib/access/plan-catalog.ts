@@ -88,8 +88,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     tagline: "For solo operators",
     description: "Embed your roster anywhere. Studio adds widgets and API access.",
     rank: 1,
-    monthlyPriceCents: 4900,
-    annualPriceCents: 49000,
+    monthlyPriceCents: 2900,
+    annualPriceCents: 29000,
     currency: "USD",
     trialDays: 14,
     badgeColor: "#3a7bff",
@@ -105,8 +105,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     tagline: "For full agencies",
     description: "Your domain. Your pages. Your brand. Pages, posts, navigation, theme.",
     rank: 2,
-    monthlyPriceCents: 14900,
-    annualPriceCents: 149000,
+    monthlyPriceCents: 7900,
+    annualPriceCents: 79000,
     currency: "USD",
     trialDays: 14,
     badgeColor: "#c9a227",
@@ -118,11 +118,12 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   network: {
     key: "network",
     audience: "workspace",
-    // Product label is "Hub" (private talent hubs / enterprise tier). The
+    // Product label is "Network" (private talent hubs / enterprise tier). The
     // internal plan key stays `network` to avoid a high-blast-radius DB enum
-    // rename (same staged caution as coordinator→manager). Surface "Hub"
-    // everywhere via this displayName.
-    displayName: "Hub",
+    // rename (same staged caution as coordinator→manager). Surface "Network"
+    // everywhere via this displayName. Custom, sales-led pricing — never
+    // show a dollar price for this tier.
+    displayName: "Network",
     tagline: "Private hubs + enterprise",
     description: "Run private talent hubs and reach the cross-agency discovery network. Enterprise-level, multi-brand.",
     rank: 3,
@@ -183,10 +184,10 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     displayName: "Pro",
     tagline: "Richer presentation",
     description:
-      "Pro layout, video and audio embeds, social-link surfacing, better media gallery, stronger portfolio presentation. Same canonical URL at tulala.digital/t/<slug>, richer page render. Founder pricing 2026-04-25: $12/mo placeholder.",
+      "Pro layout, video and audio embeds, social-link surfacing, better media gallery, stronger portfolio presentation. Same canonical URL at tulala.digital/t/<slug>, richer page render. Ratified pricing 2026-08-20: $9/mo.",
     rank: 1,
-    monthlyPriceCents: 1200,
-    annualPriceCents: 12000,
+    monthlyPriceCents: 900,
+    annualPriceCents: 9000,
     currency: "USD",
     trialDays: 14,
     badgeColor: "#7d5cff",
@@ -198,13 +199,13 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   talent_portfolio: {
     key: "talent_portfolio",
     audience: "talent",
-    displayName: "Max",
+    displayName: "Portfolio",
     tagline: "Your branded talent page",
     description:
-      "Personal-site builder access, preview and publish controls, a talent-owned section library, and SEO controls. The canonical URL tulala.digital/t/<slug> remains the first public destination; custom domains come later. Founder pricing 2026-04-25: $29/mo placeholder.",
+      "Personal-site builder access, preview and publish controls, a talent-owned section library, and SEO controls. The canonical URL tulala.digital/t/<slug> remains the first public destination; custom domains come later. Ratified pricing 2026-08-20: $15/mo.",
     rank: 2,
-    monthlyPriceCents: 2900,
-    annualPriceCents: 29000,
+    monthlyPriceCents: 1500,
+    annualPriceCents: 15000,
     currency: "USD",
     trialDays: 14,
     badgeColor: "#d96b3a",

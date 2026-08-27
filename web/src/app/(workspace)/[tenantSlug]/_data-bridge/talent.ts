@@ -49,7 +49,7 @@ export type TalentSelfProfile = {
   profileCode: string | null;
   /** Canonical talent subscription plan key on talent_profiles.talent_plan_key. */
   talentPlanKey: TalentMembershipState["planKey"];
-  /** Dashboard tier label used by the talent shell: Free / Pro / Max. */
+  /** Dashboard tier label used by the talent shell: Free / Pro / Portfolio. */
   talentTier: TalentMembershipState["tier"];
   /** Server-derived talent plan capabilities for client rendering. */
   talentCapabilities: TalentMembershipState["capabilities"];

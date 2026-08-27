@@ -12,9 +12,8 @@ import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 function planLabel(plan: string): string {
   if (plan === "agency") return "Agency";
   if (plan === "studio") return "Studio";
-  // Network surfaces as "Hub" in the plan catalog; legacy = grandfathered
-  // Agency. The old fallthrough mislabeled BOTH as "Free" (a Network-tier
-  // agency's card showed FREE on the talent Money page).
+  // legacy = grandfathered Agency. The old fallthrough mislabeled BOTH as
+  // "Free" (a Network-tier agency's card showed FREE on the talent Money page).
   if (plan === "network") return "Network";
   if (plan === "legacy") return "Agency";
   return "Free";

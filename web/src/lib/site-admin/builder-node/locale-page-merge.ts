@@ -37,6 +37,7 @@
  */
 
 import type { BuilderNode } from "./types";
+import { translatableTextOf } from "./translatable-text";
 import {
   normalizeNodeI18nOverlay,
   setOverlayProp,
@@ -127,57 +128,6 @@ interface FlatEntry {
   value: string;
 }
 
-function pushText(
-  out: Array<{ prop: TextPropName; value: string }>,
-  prop: string,
-  raw: unknown,
-): void {
-  if (typeof raw !== "string") return;
-  const trimmed = raw.trim();
-  if (!trimmed) return;
-  out.push({ prop, value: trimmed });
-}
-
-function textPropsOf(node: BuilderNode): Array<{ prop: TextPropName; value: string }> {
-  const props = (node as { props?: Record<string, unknown> }).props;
-  if (!props || typeof props !== "object") return [];
-  const out: Array<{ prop: TextPropName; value: string }> = [];
-  for (const name of TEXT_PROP_NAMES) {
-    pushText(out, name, props[name]);
-  }
-
-  // Bounded walk for text nested inside object/array props. Only keys in
-  // NESTED_TEXT_KEYS are collected, so hrefs, ids and classes can never be
-  // mistaken for translatable copy no matter how deep they sit.
-  const visit = (value: unknown, trail: string, depth: number): void => {
-    if (depth > MAX_NESTED_DEPTH || value == null || typeof value !== "object") {
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => visit(item, `${trail}.${index}`, depth + 1));
-      return;
-    }
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      if (NESTED_SKIP_KEYS.has(key)) continue;
-      const path = trail ? `${trail}.${key}` : key;
-      if (typeof child === "string") {
-        if (NESTED_TEXT_KEYS.includes(key as (typeof NESTED_TEXT_KEYS)[number])) {
-          pushText(out, path, child);
-        }
-        continue;
-      }
-      visit(child, path, depth + 1);
-    }
-  };
-  for (const [key, child] of Object.entries(props)) {
-    if (NESTED_SKIP_KEYS.has(key) || child == null || typeof child !== "object") {
-      continue;
-    }
-    visit(child, key, 1);
-  }
-  return out;
-}
-
 /** Path signature — kind AND child index must agree at every step. */
 function pathKeyFor(parentKey: string, node: BuilderNode, index: number): string {
   return `${parentKey}/${node.kind}@${index}`;
@@ -188,7 +138,7 @@ function flatten(tree: ReadonlyArray<BuilderNode>): FlatEntry[] {
   const walk = (nodes: ReadonlyArray<BuilderNode>, parentKey: string) => {
     nodes.forEach((node, index) => {
       const pathKey = pathKeyFor(parentKey, node, index);
-      for (const { prop, value } of textPropsOf(node)) {
+      for (const { prop, value } of translatableTextOf(node)) {
         out.push({ nodeId: node.id, kind: node.kind, pathKey, prop, value });
       }
       const children = (node as { children?: BuilderNode[] }).children;

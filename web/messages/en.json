@@ -9088,8 +9088,8 @@
       },
       "planRenew": {
         "free": "No renewal. Free plan.",
-        "studio": "$49 / month.",
-        "agency": "$149 / month.",
+        "studio": "$29 / month.",
+        "agency": "$79 / month.",
         "network": "Custom contract · contact billing."
       },
       "drawer": {
@@ -10867,7 +10867,8 @@
       "downloadWorking": "Preparing...",
       "downloadGotOriginal": "Original file.",
       "downloadGotWebSize": "Web-size file.",
-      "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition."
+      "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition.",
+      "errUnsupportedKind": "This page takes photos only. Not uploaded:"
     },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",
@@ -11417,7 +11418,13 @@
         "workspace": "This workspace",
         "talent": "Talent",
         "platform": "Platform"
-      }
+      },
+      "errUnsupportedKind": "Not a file type this picker takes:",
+      "errSvgSkipped": "SVG files aren't supported for security reasons.",
+      "errZipTooLarge": "ZIP must be under 500 MB.",
+      "errZipUnreadable": "Could not read ZIP file.",
+      "errZipTruncated": "The ZIP held more images than we can extract at once.",
+      "errBatchTooLarge": "Too many files at once."
     },
     "mediaQuota": {
       "usage": "{used} of {cap} photos used on your plan.",
@@ -12158,8 +12165,8 @@
       "planTaglineStudio": "Auto-exclusive roster, ~10-12% commission.",
       "planTaglineAgency": "Auto-exclusive roster, ~15-20% commission.",
       "planTaglineNetwork": "Unlimited roster. Platform-wide placement.",
-      "planPriceStudio": "$49 / month",
-      "planPriceAgency": "$149 / month",
+      "planPriceStudio": "$29 / month",
+      "planPriceAgency": "$79 / month",
       "billing": {
         "redirecting": "Redirecting…",
         "openingPortal": "Opening portal…",

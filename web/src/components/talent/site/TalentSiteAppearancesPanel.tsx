@@ -160,7 +160,7 @@ function TulalaPlanBadge({ tier }: { tier: "free" | "pro" | "max" }) {
       : tier === "pro"
         ? { bg: COLORS.indigoSoft, fg: COLORS.indigo }
         : { bg: "rgba(11,11,13,0.06)", fg: COLORS.inkMuted };
-  const label = tier === "max" ? "Max" : tier === "pro" ? "Pro" : "Free";
+  const label = tier === "max" ? "Portfolio" : tier === "pro" ? "Pro" : "Free";
   return (
     <span
       style={{

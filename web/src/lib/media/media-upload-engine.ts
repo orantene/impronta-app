@@ -77,7 +77,16 @@ export type PrepareRejection =
   | { code: "zip_too_large" }
   | { code: "zip_unreadable" }
   | { code: "zip_truncated"; cap: number }
-  | { code: "batch_too_large"; max: number };
+  | { code: "batch_too_large"; max: number }
+  /**
+   * Dropped because the surface does not take that kind of file at all.
+   *
+   * Carries the names so the operator knows WHICH file went missing. This code
+   * replaced an unreported drop: `prepareUploadFiles` used to filter every
+   * non-image out and return `rejections: []`, which is how the builder's
+   * asset library came to accept a video, discard it, and say nothing.
+   */
+  | { code: "unsupported_kind"; names: string[] };
 
 export type PrepareResult = {
   /** Files cleared to upload. Empty is a legitimate no-op, not an error. */
@@ -116,6 +125,43 @@ export function isAllowedRasterImage(f: File): boolean {
   return f.type.startsWith("image/") && !isSvgFile(f);
 }
 
+/** What a surface is willing to take. A surface that omits `allowKinds` gets
+ *  images only — the behaviour every caller had before video/document lanes
+ *  existed, so the Media page and the branding lane are unchanged. */
+export type UploadKind = "image" | "video" | "document";
+
+export const IMAGE_ONLY_KINDS: readonly UploadKind[] = ["image"];
+
+const VIDEO_EXTS = /\.(mp4|mov|m4v|webm|avi|mkv)$/i;
+const DOCUMENT_EXTS = /\.(pdf|docx?|xlsx?|pptx?|txt|csv)$/i;
+
+/**
+ * Classify a chosen file, or `null` when it is not a kind any lane takes.
+ *
+ * STRICT ON PURPOSE — this is the gate, not the router. `detectUploadKind`
+ * downstream defaults an unrecognised file to "image" because by then the file
+ * has already been cleared here and only needs a lane. If THIS function did
+ * the same, a `.DS_Store` swept up in a folder drop (MIME "", no extension)
+ * would read as an image, upload, and come back a 415 — so anything that does
+ * not positively match a kind is refused instead.
+ */
+export function classifyUploadKind(f: File): UploadKind | null {
+  const mime = (f.type || "").toLowerCase();
+  if (mime.startsWith("video/") || VIDEO_EXTS.test(f.name)) return "video";
+  if (mime.startsWith("image/")) return "image";
+  if (
+    mime === "application/pdf" ||
+    mime.startsWith("application/vnd.") ||
+    mime === "application/msword" ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    DOCUMENT_EXTS.test(f.name)
+  ) {
+    return "document";
+  }
+  return null;
+}
+
 /**
  * Turn a raw drop / file-input selection into the list that should actually
  * upload, plus every reason something was held back.
@@ -135,10 +181,13 @@ export async function prepareUploadFiles(
     allowZip?: boolean;
     loadZip?: ZipLoader;
     maxBatch?: number;
+    /** Kinds this surface accepts. Defaults to images only. */
+    allowKinds?: readonly UploadKind[];
   } = {},
 ): Promise<PrepareResult> {
   const allowZip = opts.allowZip ?? false;
   const maxBatch = opts.maxBatch ?? MAX_BATCH_FILES;
+  const allowKinds = opts.allowKinds ?? IMAGE_ONLY_KINDS;
   const rawFiles = Array.from(input);
   const rejections: PrepareRejection[] = [];
 
@@ -148,7 +197,26 @@ export async function prepareUploadFiles(
   const svgCount = nonZip.filter(isSvgFile).length;
   if (svgCount > 0) rejections.push({ code: "svg_skipped", count: svgCount });
 
-  let files = nonZip.filter(isAllowedRasterImage);
+  // A file is cleared when the surface takes its kind. SVG never is — it has
+  // its own message above and must not fall through to `unsupported_kind`.
+  //
+  // Before this predicate the filter was `isAllowedRasterImage` unconditionally
+  // and the result was NOT reported: the asset library shipped a Videos tab, an
+  // `accept` list carrying video/* and application/pdf, a kind-aware transport
+  // and a 200 MB server video lane, and every video an operator chose was
+  // dropped right here without a single byte moving or a word on screen.
+  const cleared: File[] = [];
+  const unsupported: string[] = [];
+  for (const f of nonZip) {
+    if (isSvgFile(f)) continue;
+    const fileKind = classifyUploadKind(f);
+    if (fileKind && allowKinds.includes(fileKind)) cleared.push(f);
+    else unsupported.push(f.name);
+  }
+  if (unsupported.length > 0) {
+    rejections.push({ code: "unsupported_kind", names: unsupported });
+  }
+  let files = cleared;
 
   if (zips.length > 0) {
     const loadZip = opts.loadZip ?? defaultZipLoader;
