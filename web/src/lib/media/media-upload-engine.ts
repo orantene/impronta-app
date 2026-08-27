@@ -86,7 +86,14 @@ export type PrepareRejection =
    * non-image out and return `rejections: []`, which is how the builder's
    * asset library came to accept a video, discard it, and say nothing.
    */
-  | { code: "unsupported_kind"; names: string[] };
+  | { code: "unsupported_kind"; names: string[] }
+  /**
+   * The file's kind is welcome but the file itself is over that kind's cap.
+   * Refused HERE, before any bytes move: the server would 413 it anyway, and
+   * making an operator watch a 30-second upload die at the end is the slow
+   * version of silence. Carries names + the cap so the message can say both.
+   */
+  | { code: "file_too_large"; names: string[]; maxMb: number };
 
 export type PrepareResult = {
   /** Files cleared to upload. Empty is a legitimate no-op, not an error. */
@@ -183,6 +190,13 @@ export async function prepareUploadFiles(
     maxBatch?: number;
     /** Kinds this surface accepts. Defaults to images only. */
     allowKinds?: readonly UploadKind[];
+    /**
+     * Per-kind byte caps, checked AFTER the kind gate. A kind with no entry
+     * is uncapped here (the server still enforces its own ceiling). Image
+     * caps should stay generous — the raw input is compressed in-browser
+     * before it ever goes over the wire, so this gates the pick, not the PUT.
+     */
+    maxBytesByKind?: Partial<Record<UploadKind, number>>;
   } = {},
 ): Promise<PrepareResult> {
   const allowZip = opts.allowZip ?? false;
@@ -207,14 +221,34 @@ export async function prepareUploadFiles(
   // dropped right here without a single byte moving or a word on screen.
   const cleared: File[] = [];
   const unsupported: string[] = [];
+  // One rejection per distinct cap, so "3 videos over 30 MB" reads as one
+  // line with three names rather than three lines.
+  const oversizeByCap = new Map<number, string[]>();
   for (const f of nonZip) {
     if (isSvgFile(f)) continue;
     const fileKind = classifyUploadKind(f);
-    if (fileKind && allowKinds.includes(fileKind)) cleared.push(f);
-    else unsupported.push(f.name);
+    if (!fileKind || !allowKinds.includes(fileKind)) {
+      unsupported.push(f.name);
+      continue;
+    }
+    const cap = opts.maxBytesByKind?.[fileKind];
+    if (cap != null && f.size > cap) {
+      const bucket = oversizeByCap.get(cap) ?? [];
+      bucket.push(f.name);
+      oversizeByCap.set(cap, bucket);
+      continue;
+    }
+    cleared.push(f);
   }
   if (unsupported.length > 0) {
     rejections.push({ code: "unsupported_kind", names: unsupported });
+  }
+  for (const [cap, names] of oversizeByCap) {
+    rejections.push({
+      code: "file_too_large",
+      names,
+      maxMb: Math.round(cap / 1024 / 1024),
+    });
   }
   let files = cleared;
 

@@ -77,6 +77,8 @@ export function MediaLibraryToolbar(props: {
   onClearFilters: () => void;
   labels: ToolbarLabels;
   uploading?: boolean;
+  /** Whole-batch percent (0–100) while uploading; null hides the number. */
+  uploadProgressPct?: number | null;
   onUploadClick?: () => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -266,8 +268,35 @@ export function MediaLibraryToolbar(props: {
           ) : (
             <Upload className="mr-1.5 size-3.5" />
           )}
-          {props.uploading ? labels.uploading : labels.upload}
+          {props.uploading
+            ? props.uploadProgressPct != null
+              ? `${labels.uploading} ${props.uploadProgressPct}%`
+              : labels.uploading
+            : labels.upload}
         </Button>
+      ) : null}
+
+      {/* Byte-real batch progress. The spinner alone reads as "maybe hung" on
+          a 20 MB video over hotel wifi; the bar is the difference between an
+          operator waiting and an operator re-clicking Upload. */}
+      {props.uploading && props.uploadProgressPct != null ? (
+        <div
+          className="h-1 w-full overflow-hidden rounded-full"
+          style={{ background: FIELD_KIT.border }}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={props.uploadProgressPct}
+          aria-label={labels.uploading}
+        >
+          <div
+            className="h-full rounded-full [transition:width_200ms]"
+            style={{
+              width: `${props.uploadProgressPct}%`,
+              background: FIELD_KIT.accent,
+            }}
+          />
+        </div>
       ) : null}
     </div>
   );

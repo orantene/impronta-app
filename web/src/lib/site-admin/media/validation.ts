@@ -1,18 +1,36 @@
+/**
+ * KEEP THIS MODULE IMPORT-FREE AND CLIENT-SAFE.
+ *
+ * `lib/media/use-media-upload.ts` is a `"use client"` module and imports the
+ * caps below so the browser refuses a file at exactly the size the server
+ * would 413 it. That only works while this file pulls in nothing server-only
+ * (`server-only`, `next/headers`, the service-role client). It has no imports
+ * today; adding one breaks the client bundle AND the tsx test lanes.
+ */
+
 export const MEDIA_PUBLIC_BUCKET = "media-public";
 export const MEDIA_LIBRARY_MAX_ITEMS = 60;
 export const MEDIA_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 
 /**
- * Per-kind upload caps. These are the numbers migration
- * 20261103000000_media_public_bucket_widen.sql documents as "enforced
- * in-process before storage" (image 8 MB / document 25 MB / video 200 MB).
- * The legacy multipart route did enforce them; the signed-upload lane
- * (upload/init + upload/register) shipped without any size check at all,
- * so the only effective ceiling was the bucket's 200 MB. These constants
- * are the single source of truth for BOTH lanes now.
+ * Per-kind upload caps. Migration 20261103000000_media_public_bucket_widen.sql
+ * documented image 8 MB / document 25 MB / video 200 MB as "enforced
+ * in-process before storage". The legacy multipart route did enforce them; the
+ * signed-upload lane (upload/init + upload/register) shipped without any size
+ * check at all, so the only effective ceiling was the bucket's 200 MB. These
+ * constants are the single source of truth for BOTH lanes now.
+ *
+ * VIDEO IS 30 MB ON PURPOSE (2026-08-27). This lane serves ONE thing: assets
+ * the page builder plays back on the public site. A 200 MB hero background is
+ * not a bigger feature, it is a broken page — Supabase serves these objects
+ * `cache-control: no-cache`, so every visitor re-pulls the full file. Talent
+ * hello-reels do NOT ride this lane (they go through
+ * `actionCreateSignedUploadUrl`, which keeps its own 200 MB allowance), so
+ * tightening here cannot strand a reel. The UI recommends ~15 MB; 30 is the
+ * hard stop for people uploading straight camera exports.
  */
 export const MEDIA_DOCUMENT_MAX_BYTES = 25 * 1024 * 1024;
-export const MEDIA_VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+export const MEDIA_VIDEO_MAX_BYTES = 30 * 1024 * 1024;
 
 export type MediaUploadKind = "image" | "document" | "video";
 

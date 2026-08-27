@@ -391,3 +391,57 @@ test("classifyUploadKind refuses what no lane takes, rather than guessing image"
   assert.equal(classifyUploadKind(file("d.pdf", "application/pdf")), "document");
   assert.equal(classifyUploadKind(file("e.csv", "text/csv")), "document");
 });
+
+// ── Per-kind size caps (2026-08-27) ─────────────────────────────────────────
+//
+// The CMS lanes gate video at 30 MB client-side, matched to the server's
+// MEDIA_VIDEO_MAX_BYTES. The refusal must happen before any bytes move and
+// must NAME the file with its cap: a 413 after a 30-second upload is the slow
+// version of the silent drop #1369 fixed.
+
+test("an over-cap video is refused with its name and the cap in MB", async () => {
+  const big = new File([new Uint8Array(8)], "raw-export.mp4", { type: "video/mp4" });
+  Object.defineProperty(big, "size", { value: 31 * 1024 * 1024 });
+  const ok = new File([new Uint8Array(8)], "hero.mp4", { type: "video/mp4" });
+  const res = await prepareUploadFiles([big, ok], {
+    allowKinds: ["video"],
+    maxBytesByKind: { video: 30 * 1024 * 1024 },
+  });
+  assert.deepEqual(res.files.map((f) => f.name), ["hero.mp4"]);
+  assert.deepEqual(res.rejections, [
+    { code: "file_too_large", names: ["raw-export.mp4"], maxMb: 30 },
+  ]);
+  assert.equal(res.aborted, false, "an oversize file must never abort the batch");
+});
+
+test("a kind with no cap entry is uncapped at the client gate", async () => {
+  const big = new File([new Uint8Array(8)], "huge.mp4", { type: "video/mp4" });
+  Object.defineProperty(big, "size", { value: 500 * 1024 * 1024 });
+  const res = await prepareUploadFiles([big], {
+    allowKinds: ["video"],
+    maxBytesByKind: { image: 30 * 1024 * 1024 },
+  });
+  assert.deepEqual(res.files.map((f) => f.name), ["huge.mp4"]);
+  assert.deepEqual(res.rejections, []);
+});
+
+test("size gate runs AFTER the kind gate: a wrong-kind file reads unsupported, not too-large", async () => {
+  const doc = new File([new Uint8Array(8)], "brief.pdf", { type: "application/pdf" });
+  Object.defineProperty(doc, "size", { value: 90 * 1024 * 1024 });
+  const res = await prepareUploadFiles([doc], {
+    allowKinds: ["image"],
+    maxBytesByKind: { document: 25 * 1024 * 1024 },
+  });
+  assert.deepEqual(res.rejections, [{ code: "unsupported_kind", names: ["brief.pdf"] }]);
+});
+
+test("the hook's default caps agree with the server validator", async () => {
+  const { DEFAULT_UPLOAD_MAX_BYTES } = await import("./use-media-upload");
+  const { maxBytesForMediaKind } = await import("@/lib/site-admin/media/validation");
+  // Video and document refuse client-side exactly where the server 413s.
+  assert.equal(DEFAULT_UPLOAD_MAX_BYTES.video, maxBytesForMediaKind("video"));
+  assert.equal(DEFAULT_UPLOAD_MAX_BYTES.document, maxBytesForMediaKind("document"));
+  // Image gates the raw pick generously; compression shrinks it below the
+  // server's 8 MB before the PUT, so it must be >= the server cap, not equal.
+  assert.ok((DEFAULT_UPLOAD_MAX_BYTES.image ?? 0) >= maxBytesForMediaKind("image"));
+});

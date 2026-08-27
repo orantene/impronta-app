@@ -32,6 +32,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SignedUploadProgress } from "@/lib/client/signed-upload-core";
 import {
+  MEDIA_DOCUMENT_MAX_BYTES,
+  MEDIA_VIDEO_MAX_BYTES,
+} from "@/lib/site-admin/media/validation";
+import {
   createUploadItems,
   DEFAULT_UPLOAD_CONCURRENCY,
   patchUploadItem,
@@ -53,6 +57,18 @@ export type {
   PrepareRejection,
   UploadKind,
 } from "./media-upload-engine";
+
+/**
+ * Default per-kind caps for every surface on this hook, tied to the SERVER
+ * constants so client refusal and server 413 can never disagree. Image is
+ * capped on the raw pick (in-browser compression shrinks it before the PUT),
+ * so it stays deliberately generous.
+ */
+export const DEFAULT_UPLOAD_MAX_BYTES: Partial<Record<UploadKind, number>> = {
+  image: 30 * 1024 * 1024,
+  video: MEDIA_VIDEO_MAX_BYTES,
+  document: MEDIA_DOCUMENT_MAX_BYTES,
+};
 
 /** What a transport reports back. `registered` is the purpose's own payload. */
 export type MediaUploadTransportResult =
@@ -103,6 +119,13 @@ export interface UseMediaUpload<Extra> {
   /** True from the first queued file until the last worker settles. */
   uploading: boolean;
   summary: { total: number; inFlight: number; ready: number; errors: number };
+  /**
+   * Whole-batch progress, 0–100, or null when idle / before any byte totals
+   * are known. Bytes actually sent over every item that reported a total,
+   * with settled items counted as complete — so it never runs backwards when
+   * a fast small file finishes before a big one reports in.
+   */
+  progressPct: number | null;
   /**
    * Prepare + stage + run a batch. Resolves with the finished item list (the
    * same objects the `items` state ends on), so a caller that needs the
@@ -164,6 +187,7 @@ export function useMediaUpload<Extra = NoUploadExtra>(
         allowZip: opts.allowZip,
         loadZip: opts.loadZip,
         allowKinds: opts.allowKinds,
+        maxBytesByKind: DEFAULT_UPLOAD_MAX_BYTES,
       });
       if (prepared.rejections.length > 0) opts.onRejections?.(prepared.rejections);
       if (prepared.aborted || prepared.files.length === 0) return [];
@@ -244,10 +268,31 @@ export function useMediaUpload<Extra = NoUploadExtra>(
     [patch],
   );
 
+  let progressPct: number | null = null;
+  if (uploading && items.length > 0) {
+    let sent = 0;
+    let total = 0;
+    for (const it of items) {
+      if (it.status === "ready" || it.status === "error") {
+        // Settled: count as its own full weight (use bytesTotal when known,
+        // else the raw file size) so the bar keeps moving monotonically.
+        const w = it.bytesTotal ?? it.file.size;
+        sent += w;
+        total += w;
+      } else {
+        const w = it.bytesTotal ?? it.file.size;
+        total += w;
+        sent += Math.min(it.bytesSent, w);
+      }
+    }
+    if (total > 0) progressPct = Math.min(100, Math.round((sent / total) * 100));
+  }
+
   return {
     items,
     uploading,
     summary: summarizeUploadItems(items),
+    progressPct,
     upload,
     patch,
     reset,

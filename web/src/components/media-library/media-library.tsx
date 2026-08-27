@@ -98,6 +98,11 @@ export type MediaLibraryProps = {
   /** Drag-and-drop + the Upload button. Absent ⇒ no upload affordance. */
   onUpload?: (files: File[]) => Promise<void>;
   uploading?: boolean;
+  /** Whole-batch percent from useMediaUpload.progressPct. */
+  uploadProgressPct?: number | null;
+  /** One muted line under the toolbar: formats + caps, shown before anything
+   *  goes wrong. The rejection copy is the same promise enforced. */
+  uploadHint?: string;
   uploadAccept?: string;
   /** Rendered above the grid (quota line, upload error, source chips). */
   header?: ReactNode;
@@ -353,10 +358,23 @@ export function MediaLibrary(props: MediaLibraryProps) {
         onClearFilters={clearFilters}
         labels={toolbarLabels}
         uploading={props.uploading}
+        uploadProgressPct={props.uploadProgressPct}
         onUploadClick={
           props.onUpload ? () => fileInputRef.current?.click() : undefined
         }
       />
+
+      {props.uploadHint ? (
+        <p
+          style={{
+            color: FIELD_KIT.mutedSoft,
+            fontSize: FIELD_KIT.font.label,
+            margin: 0,
+          }}
+        >
+          {props.uploadHint}
+        </p>
+      ) : null}
 
       {props.header}
 

@@ -373,7 +373,14 @@ export function MediaPickerDrawer({
   if (!open) return null;
 
   const chip = uploading ? (
-    <SaveChip status="saving" label="Uploading" />
+    <SaveChip
+      status="saving"
+      label={
+        uploader.progressPct != null
+          ? `${t("dashboard.mediaLibrary.uploading")} ${uploader.progressPct}%`
+          : t("dashboard.mediaLibrary.uploading")
+      }
+    />
   ) : library.error || uploadError || saveError ? (
     <SaveChip status="error" label="Needs attention" />
   ) : (
@@ -444,6 +451,14 @@ export function MediaPickerDrawer({
             onSaveTags={isTalentScope ? undefined : saveTags}
             onUpload={handleUpload}
             uploading={uploading}
+            uploadProgressPct={uploader.progressPct}
+            uploadHint={
+              kind === "video"
+                ? t("dashboard.mediaLibrary.uploadHintVideo")
+                : isTalentScope
+                  ? undefined
+                  : t("dashboard.mediaLibrary.uploadHintAssets")
+            }
             uploadAccept={
               kind === "video"
                 ? VIDEO_ACCEPT

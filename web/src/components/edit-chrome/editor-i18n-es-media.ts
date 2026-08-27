@@ -49,6 +49,13 @@ export const ES_MEDIA_TEXT: Record<string, string> = {
   "dashboard.mediaLibrary.assetCount": "{count} archivos",
   "dashboard.mediaLibrary.needsAttention": "Requiere atención",
   "dashboard.mediaLibrary.uploading": "Subiendo",
+  "dashboard.mediaLibrary.uploadedChip": "Subido",
+  "dashboard.mediaLibrary.uploadHintVideo":
+    "MP4 o WebM, hasta 30 MB. Ideal para fondos: unos 15 MB, 1080p, de 15 a 30 segundos, sin sonido.",
+  "dashboard.mediaLibrary.uploadHintAssets":
+    "Imágenes hasta 30 MB (se comprimen automáticamente), videos hasta 30 MB, documentos hasta 25 MB.",
+  "dashboard.mediaLibrary.errFileTooLarge":
+    "Demasiado grande (máx. {max} MB), no se subió:",
   "dashboard.mediaLibrary.cropSaveFailed":
     "No se pudo guardar la imagen recortada. Inténtalo de nuevo.",
   "dashboard.mediaLibrary.usedBadge": "En uso {count}",

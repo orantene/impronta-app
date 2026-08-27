@@ -32,6 +32,8 @@ export function describeRejections(
     switch (r.code) {
       case "unsupported_kind":
         return `${t("dashboard.mediaLibrary.errUnsupportedKind")} ${namesForMessage(r.names)}`;
+      case "file_too_large":
+        return `${t("dashboard.mediaLibrary.errFileTooLarge").replace("{max}", String(r.maxMb))} ${namesForMessage(r.names)}`;
       case "svg_skipped":
         return t("dashboard.mediaLibrary.errSvgSkipped");
       case "zip_too_large":

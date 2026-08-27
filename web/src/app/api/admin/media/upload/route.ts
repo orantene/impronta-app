@@ -33,7 +33,10 @@ import {
 } from "@/lib/server/media-resize";
 import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
-import { validateImageUpload } from "@/lib/site-admin/media/validation";
+import {
+  validateImageUpload,
+  MEDIA_VIDEO_MAX_BYTES,
+} from "@/lib/site-admin/media/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +46,7 @@ export const dynamic = "force-dynamic";
 // media-resize.ts for the egress rationale.
 const MAX_BYTES_IMAGE = MAX_UPLOAD_BYTES;
 const MAX_BYTES_DOCUMENT = 25 * 1024 * 1024;    // 25 MB
-const MAX_BYTES_VIDEO = 200 * 1024 * 1024;      // 200 MB
+const MAX_BYTES_VIDEO = MEDIA_VIDEO_MAX_BYTES;  // 30 MB — see validation.ts
 const BUCKET = "media-public";
 
 // MIME → file-extension maps per asset kind. Kind comes from the
