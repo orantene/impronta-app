@@ -33,6 +33,8 @@
 import { useEffect, useState } from "react";
 
 import type { AddClaimEmailCallback, CheckGuestClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 
 import {
   EMAIL_RE,
@@ -84,6 +86,13 @@ export type GuestAccountToolkitProps = {
   deemphasizeButton?: boolean;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /**
+   * REQUIRED, deliberately. This card shipped with every string hardcoded in
+   * English, so a Spanish or French storefront rendered a fully translated
+   * panel with an English block in the middle of it. Making the translator a
+   * required prop means a new call site cannot reintroduce that silently.
+   */
+  t: Translator;
 };
 
 export function GuestAccountToolkit({
@@ -97,6 +106,7 @@ export function GuestAccountToolkit({
   onGuestEmailUpdated,
   deemphasizeButton = false,
   surfaceMode = "light",
+  t,
 }: GuestAccountToolkitProps) {
   const C = paletteFor(surfaceMode);
   const [sending, setSending] = useState(false);
@@ -165,7 +175,7 @@ export function GuestAccountToolkit({
         <span aria-hidden style={{ color: accent, fontWeight: 700 }}>
           ✓
         </span>
-        <span>Your conversations are saved to your Tulala account.</span>
+        <span>{t("public.guestChat.accountSavedConfirm")}</span>
       </div>
     );
   }
@@ -183,7 +193,7 @@ export function GuestAccountToolkit({
     if (!onAddClaimEmail || !inquiryId || sending || inCooldown) return;
     const addr = targetEmail.trim();
     if (!EMAIL_RE.test(addr)) {
-      setError("Enter a valid email address.");
+      setError(t("public.guestChat.accountInvalidEmail"));
       return;
     }
 
@@ -199,7 +209,9 @@ export function GuestAccountToolkit({
     setSending(false);
 
     if (!res.ok) {
-      setError(res.message || "Couldn't send the link. Please try again.");
+      // The server message is hardcoded English, so prefer the catalog copy
+      // and keep `res.message` only as a last resort for an unmapped failure.
+      setError(t("public.guestChat.accountLinkFailed"));
       return;
     }
 
@@ -263,27 +275,43 @@ export function GuestAccountToolkit({
       };
 
   const resendLabel = sending
-    ? "Sending…"
+    ? t("public.guestChat.accountSending")
     : inCooldown
-      ? `Try again in ${cooldownSecs}s`
-      : "Email me a sign-in link";
+      ? interpolate(t("public.guestChat.accountRetryIn"), {
+          secs: String(cooldownSecs),
+        })
+      : t("public.guestChat.accountEmailLink");
 
   return (
     <div style={cardStyle(C)}>
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>
-          Save this conversation
+          {t("public.guestChat.accountTitle")}
         </div>
         <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>
           {email
-            ? "Create your free Tulala account to keep every conversation in one place and pick up on any device."
-            : "Send your first message and we'll set up a free Tulala account so this conversation is always saved to you."}
+            ? t("public.guestChat.accountBodyWithEmail")
+            : t("public.guestChat.accountBodyNoEmail")}
         </div>
       </div>
 
       {sentTo && (
         <div style={{ fontSize: 11.5, color: C.inkMuted }}>
-          Check <strong style={{ color: C.ink }}>{sentTo}</strong> for your sign-in link.
+          {(() => {
+            // Split on the placeholder rather than concatenating fragments, so
+            // a translation may put the address anywhere in the sentence and
+            // still get it bold.
+            const [before, after] = t(
+              "public.guestChat.accountCheckInbox",
+            ).split("{email}");
+            return (
+              <>
+                {before}
+                <strong style={{ color: C.ink }}>{sentTo}</strong>
+                {after}
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -316,13 +344,13 @@ export function GuestAccountToolkit({
                   color: C.inkMuted,
                 }}
               >
-                <span>or</span>
+                <span>{t("public.guestChat.accountOr")}</span>
                 <button
                   type="button"
                   onClick={openChangeEmail}
                   style={textLinkStyle(C)}
                 >
-                  change email
+                  {t("public.guestChat.accountChangeEmail")}
                 </button>
               </div>
             )}
@@ -331,7 +359,7 @@ export function GuestAccountToolkit({
           {showChangeEmail && onAddClaimEmail && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, color: C.inkMuted }}>
-                Your email
+                {t("public.guestChat.accountYourEmail")}
               </label>
               <input
                 value={editEmail}
@@ -356,7 +384,7 @@ export function GuestAccountToolkit({
                     color: C.inkMuted,
                   }}
                 >
-                  This is already the email on this conversation.
+                  {t("public.guestChat.accountSameEmail")}
                 </div>
               )}
               {editEmailNotice && (
@@ -386,7 +414,13 @@ export function GuestAccountToolkit({
                     cursor: editReady ? "pointer" : "not-allowed",
                   }}
                 >
-                  {sending ? "Saving…" : inCooldown ? `Wait ${cooldownSecs}s` : "Save & send link"}
+                  {sending
+                    ? t("public.guestChat.accountSaving")
+                    : inCooldown
+                      ? interpolate(t("public.guestChat.accountWaitSecs"), {
+                          secs: String(cooldownSecs),
+                        })
+                      : t("public.guestChat.accountSaveAndSend")}
                 </button>
                 <button
                   type="button"
@@ -398,7 +432,7 @@ export function GuestAccountToolkit({
                   }}
                   style={textLinkStyle(C)}
                 >
-                  Cancel
+                  {t("public.guestChat.accountCancel")}
                 </button>
               </div>
             </div>
@@ -406,7 +440,7 @@ export function GuestAccountToolkit({
         </>
       ) : (
         <div style={{ fontSize: 11, color: C.inkDim, fontStyle: "italic" }}>
-          Type a message below to get started.
+          {t("public.guestChat.accountTypeToStart")}
         </div>
       )}
 

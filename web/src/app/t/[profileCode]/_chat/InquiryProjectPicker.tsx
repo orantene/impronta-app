@@ -266,8 +266,8 @@ export function InquiryProjectPicker({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            padding: "9px 8px",
+            gap: 9,
+            padding: "8px",
             borderRadius: 10,
             border: "none",
             background: "transparent",
@@ -298,9 +298,32 @@ export function InquiryProjectPicker({
           >
             +
           </span>
-          {busyId === "__new__"
-            ? t("public.guestChat.pickerStartingNew")
-            : interpolate(t("public.guestChat.pickerStartNew"), { name: firstName })}
+          {busyId === "__new__" ? (
+            t("public.guestChat.pickerStartingNew")
+          ) : (
+            // Title + subtext, each a single line. The old copy was one long
+            // sentence ("Start a new inquiry with just Anto") that wrapped to
+            // two lines and repeated a name the header had already said.
+            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+              <span style={{ whiteSpace: "nowrap" }}>
+                {t("public.guestChat.pickerStartNew")}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: C.inkMuted,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {interpolate(t("public.guestChat.pickerStartNewSub"), {
+                  name: firstName,
+                })}
+              </span>
+            </span>
+          )}
         </button>
       </div>
       </PortaledOverlay>
