@@ -15,8 +15,17 @@
  * skipped — a missing photo must never fail the whole kit.
  */
 
-import { PDFDocument, StandardFonts, rgb, PageSizes, type PDFImage } from "pdf-lib";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  PageSizes,
+  type PDFImage,
+  type PDFFont,
+} from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { isAllowedLogoUrl } from "@/lib/media/logo-url-allowlist";
+import { loadMediaKitTypeface } from "@/lib/talent/media-kit-font";
 import type { TalentMediaKitModel } from "@/lib/talent/media-kit-model";
 
 const PAGE_W = PageSizes.A4[0];
@@ -42,27 +51,61 @@ const IMAGE_FETCH_TIMEOUT_MS = 6000;
  * So: decompose accents that WinAnsi can render in composed form, then replace
  * anything still unrepresentable. A degraded name beats a failed download.
  *
- * Proper non-Latin support means embedding a Unicode TTF via @pdf-lib/fontkit;
- * that is a real change (font file, subsetting, bundle size) and is deliberately
- * NOT bundled into this fix.
+ * SINCE THEN: `media-kit-font.ts` embeds a Latin/Greek/Cyrillic subset of Noto
+ * Sans via @pdf-lib/fontkit, so those scripts now render for real and the
+ * sanitiser runs against the FONT'S OWN coverage instead of WinAnsi. The
+ * WinAnsi path below is still live and still tested — it is what runs if the
+ * font file did not make it into the deployment and Helvetica is the fallback.
+ *
+ * Note the asymmetry that makes the coverage check mandatory: WinAnsi Helvetica
+ * THROWS on an unrepresentable codepoint, but an embedded custom font silently
+ * draws `.notdef` (a blank box). Sanitising against real coverage is what stops
+ * a CJK name becoming invisible tofu instead of a legible placeholder.
  */
 const WIN_ANSI_SAFE = /^[\u0000-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]*$/;
 
-export function toWinAnsiSafe(text: string): string {
-  if (WIN_ANSI_SAFE.test(text)) return text;
+/**
+ * Shared sanitiser. `supports` decides what the active font can draw; anything
+ * it rejects is stripped (combining marks) or swapped for a neutral `?`.
+ */
+function sanitiseForFont(text: string, supports: (ch: string) => boolean): string {
+  let clean = true;
+  for (const ch of text) {
+    if (!supports(ch)) {
+      clean = false;
+      break;
+    }
+  }
+  if (clean) return text;
+
   const normalized = text.normalize("NFC");
   let out = "";
   for (const ch of normalized) {
-    if (WIN_ANSI_SAFE.test(ch)) {
+    if (supports(ch)) {
       out += ch;
       continue;
     }
     // Strip combining marks outright; swap any other unrepresentable glyph for
     // a neutral placeholder so the layout still makes sense.
     const stripped = ch.normalize("NFD").replace(/\p{M}/gu, "");
-    out += WIN_ANSI_SAFE.test(stripped) ? stripped : "?";
+    out += stripped && [...stripped].every(supports) ? stripped : "?";
   }
   return out.replace(/\?{2,}/g, "?").trim();
+}
+
+export function toWinAnsiSafe(text: string): string {
+  return sanitiseForFont(text, (ch) => WIN_ANSI_SAFE.test(ch));
+}
+
+/**
+ * Sanitise against the codepoints an embedded font actually carries. Exported
+ * so a test can assert Cyrillic survives and CJK still degrades.
+ */
+export function toFontSafe(text: string, coverage: ReadonlySet<number>): string {
+  return sanitiseForFont(text, (ch) => {
+    const cp = ch.codePointAt(0);
+    return cp !== undefined && coverage.has(cp);
+  });
 }
 
 function fmtDate(iso: string): string {
@@ -136,8 +179,39 @@ export async function generateTalentMediaKitPdf(
   model: TalentMediaKitModel,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  /**
+   * Prefer the embedded Noto Sans subset (Latin + Greek + Cyrillic). If it is
+   * missing or unembeddable for any reason, fall back to WinAnsi Helvetica and
+   * the `?` placeholder — the download must survive a font that did not ship.
+   */
+  const typeface = await loadMediaKitTypeface();
+  let font: PDFFont | null = null;
+  let fontBold: PDFFont | null = null;
+  let safe: (text: string) => string = toWinAnsiSafe;
+  if (typeface) {
+    try {
+      pdf.registerFontkit(fontkit);
+      // `subset: true` keeps only the glyphs actually drawn, so a 234 KB pair of
+      // faces adds single-digit KB to the finished kit.
+      font = await pdf.embedFont(typeface.regular, { subset: true });
+      fontBold = await pdf.embedFont(typeface.bold, { subset: true });
+      const { coverage } = typeface;
+      safe = (text: string) => toFontSafe(text, coverage);
+    } catch {
+      // The loader already proved the file parses, so this is a long shot — but
+      // an embed failure must still cost the reader a placeholder, not a 500.
+      font = null;
+      fontBold = null;
+      safe = toWinAnsiSafe;
+    }
+  }
+  if (!font || !fontBold) {
+    font = await pdf.embedFont(StandardFonts.Helvetica);
+    fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  }
+  const fontRegular: PDFFont = font;
+  const fontBoldFace: PDFFont = fontBold;
 
   const ink = rgb(0.043, 0.043, 0.051);
   const muted = rgb(0.44, 0.44, 0.47);
@@ -163,7 +237,7 @@ export async function generateTalentMediaKitPdf(
 
   /** Greedy word-wrap. Returns the lines it drew so callers can advance. */
   function wrap(text: string, size: number, maxWidth: number, bold = false): string[] {
-    const f = bold ? fontBold : font;
+    const f = bold ? fontBoldFace : fontRegular;
     const lines: string[] = [];
     for (const paragraph of text.split(/\r?\n/)) {
       let line = "";
@@ -191,10 +265,10 @@ export async function generateTalentMediaKitPdf(
       maxWidth?: number;
     } = {},
   ) {
-    const f = opts.bold ? fontBold : font;
+    const f = opts.bold ? fontBoldFace : fontRegular;
     const size = opts.size ?? 10;
     const maxWidth = opts.maxWidth ?? CW;
-    let t = toWinAnsiSafe(text);
+    let t = safe(text);
     while (t.length > 1 && f.widthOfTextAtSize(t, size) > maxWidth) t = t.slice(0, -1);
     page.drawText(t, {
       x: opts.x ?? ML,
@@ -369,7 +443,7 @@ export async function generateTalentMediaKitPdf(
     ? `${model.brandName}  ·  ${model.displayName}  ·  ${model.profileCode}  ·  Generated ${fmtDate(model.generatedAtISO)}`
     : `${model.brandName}  ·  ${model.displayName}  ·  Generated ${fmtDate(model.generatedAtISO)}`;
   for (const p of pdf.getPages()) {
-    p.drawText(toWinAnsiSafe(footer), { x: ML, y: 30, size: 7.5, font, color: muted });
+    p.drawText(safe(footer), { x: ML, y: 30, size: 7.5, font: fontRegular, color: muted });
   }
 
   return pdf.save();

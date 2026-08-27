@@ -281,6 +281,19 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   /**
+   * The talent media-kit PDF embeds a Noto Sans subset so Cyrillic/Greek names
+   * render instead of degrading to `?`. `src/lib/talent/media-kit-font.ts`
+   * `readFile`s those `.ttf`s at request time, and Next's tracer only follows
+   * `import`s — a runtime path string is invisible to it, so without this entry
+   * the files simply are not in the serverless Function and every kit silently
+   * falls back to Helvetica. Listing them copies them into the Function with
+   * their path relative to this project root preserved, which is what the
+   * loader's `process.cwd()`-based lookup expects.
+   */
+  outputFileTracingIncludes: {
+    "/api/talent/media-kit": ["./src/lib/talent/fonts/*.ttf"],
+  },
+  /**
    * Opt into Next.js' integration with React's `<ViewTransition>` component
    * (https://react.dev/reference/react/ViewTransition). Enabling this is
    * harmless on its own — it only takes effect where content is wrapped
