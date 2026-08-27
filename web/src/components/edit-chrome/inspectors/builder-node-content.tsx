@@ -83,6 +83,7 @@ import {
 import { VariantIntentCards } from "./variant-intent-cards";
 import { CarouselSettingsPanel } from "./carousel";
 import { FormNodeContentInspector } from "./form-node-content";
+import { BuilderNodeNestedTextFields } from "./nested-text-fields";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -336,7 +337,26 @@ const DIVIDER_TONE_OPTIONS: ReadonlyArray<GlyphTileOption> = [
   { id: "muted", label: "Muted", glyph: (ink) => <DividerToneGlyph muted color={ink} /> },
 ];
 
-export function BuilderNodeContentInspector({
+/**
+ * ONE seam for nested-text editing. Every kind — including `form`, which
+ * delegates to its own inspector below — renders through this function, so
+ * appending the generic editor here gives every component a locale editor for
+ * its nested text without touching a single kind branch. Building it per kind
+ * would mean re-solving it for the next component that grows nested copy, and
+ * the gap would silently reopen each time.
+ */
+export function BuilderNodeContentInspector(
+  props: BuilderNodeContentInspectorProps,
+) {
+  return (
+    <>
+      <BuilderNodeContentInspectorBody {...props} />
+      <BuilderNodeNestedTextFields node={props.node} />
+    </>
+  );
+}
+
+function BuilderNodeContentInspectorBody({
   node,
   tenantId,
 }: BuilderNodeContentInspectorProps) {
