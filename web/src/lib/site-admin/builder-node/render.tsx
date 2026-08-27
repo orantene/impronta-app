@@ -703,6 +703,25 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  * the template -- a 680-byte explanation of two selectors cost more than the
  * selectors did, and broke the budget on two of the fidelity fixtures.
  *
+ * EDIT-ONLY REVEAL of hidden blocks (`[data-bn-reveal-hidden]`). A block hidden
+ * at a breakpoint is removed from flow, so on the phone canvas it had ZERO size
+ * -- invisible, un-hoverable, un-clickable. The "show it again" control only
+ * exists for the SELECTED block, which made hiding a ONE-WAY DOOR. The editor
+ * sets `data-bn-reveal-hidden` on the canvas body ONLY while a non-desktop
+ * device is being edited and preview is OFF, so it can never reach a visitor;
+ * the ancestor attribute out-specifies the `display:none` rule and brings the
+ * block back as a dimmed, dashed, fully selectable ghost. Published output is
+ * byte-identical (the attribute is absent).
+ *
+ * The rule is emitted ONCE, outside both media blocks, for the tablet and
+ * mobile hidden attributes together. It used to be two copies, each preceded by
+ * an identical 11-line CSS comment INSIDE the template -- ~1.5 KB shipped to
+ * every visitor, which pushed the sheet over its 111 KB budget. That is the
+ * exact trap this file's header warns about two paragraphs up: rationale goes
+ * in TypeScript comments like this one, never in CSS comments in the template.
+ * Neither media query was needed anyway -- the ancestor attribute exists only
+ * on the editor canvas, and the rule it overrides is breakpoint-scoped itself.
+ *
  * ENTRANCE ANIMATION, THE TWO NON-INLINE LANES. Hover and "play once on scroll
  * in" both need the animation NOT to be on the element at load, so they cannot
  * ride the inline `animation` shorthand the load / scroll-every lanes use.
@@ -742,6 +761,40 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  *     it to retry. `!important` because the field wrappers carry inline
  *     `display:grid`, which beats any sheet rule.
  */
+/**
+ * RATIONALE FOR THE RULES BELOW (moved out of the template 2026-08-21).
+ * These were CSS comments INSIDE the sheet, i.e. ~1.8 KB shipped to every
+ * visitor, which is what pushed the sheet past its 111 KB budget. Same trap
+ * this file's header names: rationale goes in TypeScript comments, never in
+ * CSS comments in the template.
+ *
+ * After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
+ * * An emptied form sitting under a success banner reads as "fill me in again" -
+ * * and a second identical submission is exactly what the rate limiter and the
+ * * coordinator reading the inbox do not need. Errors keep the form: the visitor
+ * * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
+ * * !important because the field wrappers carry inline display:grid, which beats
+ * * any sheet rule - measured: without it the attribute lands and nothing hides.
+ *
+ * Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+ * The node eases to rest the first time it scrolls into view. The hidden poses
+ * are NOT in this sheet: the runtime injects them (see
+ * BUILDER_NODE_REVEAL_ARMED_CSS) so that with no JS, no IntersectionObserver or
+ * reduced motion the node is simply shown at rest. Arming used to write
+ * [data-bn-reveal-armed] onto each node, which React reported as a hydration
+ * mismatch on every node in the lane -- the runtime runs at DOMContentLoaded,
+ * before hydration, so the attribute was one the server never rendered.
+ *
+ * OVERFLOW CONTAINMENT (owner report 2026-08-21: "the header is bleeding out
+ * the hamburger menu in mobile... it makes all mobile scrolling also left to
+ * right all over the page"). A shell header is a nowrap flex row of
+ * non-shrinking items; on a narrow phone the row simply exceeded the viewport
+ * and, because nothing clipped it, the DOCUMENT gained a horizontal scrollbar —
+ * so every page scrolled sideways, not just the header. The shell landmarks now
+ * clip their own overflow: a too-wide header can never widen the page. Uses
+ * clip (not hidden) so it creates no scroll container and cannot trap the
+ * sticky header or the menu drawer.
+ */
 const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--form .bn-ff{width:100%;font:inherit;font-size:0.95rem;line-height:1.5;color:var(--token-color-ink,inherit);background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));border-radius:var(--bn-form-field-radius,3px);padding:0.72rem 0.85rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;-webkit-appearance:none;appearance:none}
 .site-builder-node--form textarea.bn-ff{min-height:8.5rem;resize:vertical}
@@ -753,13 +806,6 @@ const BUILDER_NODE_RENDERER_CSS = `
 @media (any-hover:none){.site-builder-node--form .bn-ff{font-size:16px}}
 .site-builder-node--form input[type="checkbox"],.site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
 .site-builder-node--form[data-form-submitted]>:not([data-form-result-banner]){display:none!important}
-/* After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
- * An emptied form sitting under a success banner reads as "fill me in again" -
- * and a second identical submission is exactly what the rate limiter and the
- * coordinator reading the inbox do not need. Errors keep the form: the visitor
- * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
- * !important because the field wrappers carry inline display:grid, which beats
- * any sheet rule - measured: without it the attribute lands and nothing hides. */
 .site-builder-node--form[data-form-submitted] > :not([data-form-result-banner]){display:none !important}
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
@@ -782,27 +828,11 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-bn-anim-trigger="hover"]:hover,.site-builder-node[data-bn-anim-trigger="hover"]:focus-visible{animation:var(--bn-anim)}
 .site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-anim-trigger="hover"],.site-builder-node[data-bn-anim-once]{animation:none!important;opacity:1!important}}
-/* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
-   The node eases to rest the first time it scrolls into view. The hidden poses
-   are NOT in this sheet: the runtime injects them (see
-   BUILDER_NODE_REVEAL_ARMED_CSS) so that with no JS, no IntersectionObserver or
-   reduced motion the node is simply shown at rest. Arming used to write
-   [data-bn-reveal-armed] onto each node, which React reported as a hydration
-   mismatch on every node in the lane -- the runtime runs at DOMContentLoaded,
-   before hydration, so the attribute was one the server never rendered. */
 .site-builder-node[data-bn-reveal]{transition:opacity var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s),transform var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s);will-change:opacity,transform}
 .site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
+[data-bn-reveal-hidden] .site-builder-node[data-builder-style-tablet-hidden],[data-bn-reveal-hidden] .site-builder-node[data-builder-style-mobile-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
 .site-builder-node{box-sizing:border-box}
-/* OVERFLOW CONTAINMENT (owner report 2026-08-21: "the header is bleeding out
-   the hamburger menu in mobile... it makes all mobile scrolling also left to
-   right all over the page"). A shell header is a nowrap flex row of
-   non-shrinking items; on a narrow phone the row simply exceeded the viewport
-   and, because nothing clipped it, the DOCUMENT gained a horizontal scrollbar —
-   so every page scrolled sideways, not just the header. The shell landmarks now
-   clip their own overflow: a too-wide header can never widen the page. Uses
-   clip (not hidden) so it creates no scroll container and cannot trap the
-   sticky header or the menu drawer. */
 [data-site-shell-side] .site-builder-node--container{max-width:100%}
 [data-site-shell-side]{max-width:100%;overflow-x:clip}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
@@ -1012,18 +1042,6 @@ const BUILDER_NODE_RENDERER_CSS = `
 }
 @media (min-width:641px) and (max-width:900px){
   .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
-  /* EDIT-ONLY REVEAL (owner report 2026-08-21: "I don't see all the elements
-     and I can't move them"). A block hidden at this breakpoint is removed from
-     flow, so on the phone canvas it had ZERO size — invisible, un-hoverable,
-     un-clickable. But the "show it again" control only exists for the SELECTED
-     block, which made hiding a ONE-WAY DOOR from the canvas.
-     data-bn-reveal-hidden is set on the canvas body by the editor ONLY while
-     a non-desktop device is being edited and preview is OFF, so it can never
-     reach a visitor. The ancestor attribute raises specificity above the
-     display:none rule above, bringing the block back as a dimmed, dashed ghost
-     that is fully selectable — and the mobile panel's Show toggle is reachable
-     again. Published output is byte-identical (the attribute is absent). */
-  [data-bn-reveal-hidden] .site-builder-node[data-builder-style-tablet-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
 }
 @media (max-width:640px){
   .site-builder-node[data-builder-style-mobile-align]{text-align:var(--bn-mobile-align)!important}
@@ -1048,18 +1066,6 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
   .site-builder-node[data-builder-style-mobile-aspect-free]{aspect-ratio:var(--bn-mobile-aspect-free)!important}
   .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
-  /* EDIT-ONLY REVEAL (owner report 2026-08-21: "I don't see all the elements
-     and I can't move them"). A block hidden at this breakpoint is removed from
-     flow, so on the phone canvas it had ZERO size — invisible, un-hoverable,
-     un-clickable. But the "show it again" control only exists for the SELECTED
-     block, which made hiding a ONE-WAY DOOR from the canvas.
-     data-bn-reveal-hidden is set on the canvas body by the editor ONLY while
-     a non-desktop device is being edited and preview is OFF, so it can never
-     reach a visitor. The ancestor attribute raises specificity above the
-     display:none rule above, bringing the block back as a dimmed, dashed ghost
-     that is fully selectable — and the mobile panel's Show toggle is reachable
-     again. Published output is byte-identical (the attribute is absent). */
-  [data-bn-reveal-hidden] .site-builder-node[data-builder-style-mobile-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
   .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
   .site-builder-node[data-builder-style-mobile-font-size]{font-size:var(--bn-mobile-font-size)!important}
   .site-builder-node[data-builder-style-mobile-font-weight]{font-weight:var(--bn-mobile-font-weight)!important}
