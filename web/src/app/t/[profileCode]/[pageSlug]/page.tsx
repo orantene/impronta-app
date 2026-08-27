@@ -28,6 +28,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPublishedTalentPage } from "@/lib/talent-site/published-talent-page";
 import {
+  maxSiteJsonLdString,
+  maxSiteSeoToMetadata,
+} from "@/lib/talent-site/server/site-metadata";
+import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
+import {
   renderFreeformPageRootTree,
 } from "@/lib/site-admin/builder-node/freeform-page-blocks";
 import {
@@ -57,6 +62,11 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
+/** English (unprefixed) path of this page — feeds canonical + shared hreflang. */
+function talentPagePath(profileCode: string, pageSlug: string): string {
+  return `/t/${encodeURIComponent(profileCode)}/${encodeURIComponent(pageSlug)}`;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -64,9 +74,22 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const { profileCode, pageSlug } = await params;
-  const page = await loadPublishedTalentPage({ profileCode, slug: pageSlug });
+  const [locale, page] = await Promise.all([
+    getRequestLocale(),
+    loadPublishedTalentPage({
+      profileCode,
+      slug: pageSlug,
+      canonicalOrigin: publicSiteMetadataBase().origin,
+      canonicalPath: talentPagePath(profileCode, pageSlug),
+    }),
+  ]);
   if (!page) return { title: "Not found" };
-  return { title: page.title };
+  // SEO read path — the Portfolio-gated `talent_pages` SEO columns go through
+  // the SAME mapper the /t/site routes use. No second metadata stack.
+  return maxSiteSeoToMetadata(page.seo, {
+    localePathWithoutLocale: talentPagePath(profileCode, pageSlug),
+    locale,
+  });
 }
 
 export default async function PublicTalentFreeformPage({
@@ -82,8 +105,14 @@ export default async function PublicTalentFreeformPage({
     getPublicPathPrefix(),
   ]);
 
-  const page = await loadPublishedTalentPage({ profileCode, slug: pageSlug });
+  const page = await loadPublishedTalentPage({
+    profileCode,
+    slug: pageSlug,
+    canonicalOrigin: publicSiteMetadataBase().origin,
+    canonicalPath: talentPagePath(profileCode, pageSlug),
+  });
   if (!page) notFound();
+  const talentPageJsonLd = maxSiteJsonLdString(page.seo);
 
   const {
     blocks,
@@ -177,6 +206,14 @@ export default async function PublicTalentFreeformPage({
           header and all navigation (matches the storefront /p/ + profile +
           talent-site render branches). */}
       <SkipToContent />
+      {/* SEO — Portfolio-gated structured data from `talent_pages.json_ld`,
+          emitted through the SAME shared serializer as the /t/site routes. */}
+      {talentPageJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: talentPageJsonLd }}
+        />
+      ) : null}
       {/* ANALYTICS-2 — first-party page-view for a published talent freeform
           sub-page. surface=talent-profile so it shares the talent's analytics
           lane; tenantId = the managing agency tenant (may be empty for an

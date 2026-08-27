@@ -26,6 +26,10 @@ import {
   readTalentDesignSlice,
   readTalentStyleClasses,
 } from "@/lib/site-admin/edit-mode/talent-design-store";
+import {
+  buildTalentPageSeo,
+  type TalentPageSeoEnvelope,
+} from "./talent-page-seo";
 
 /** Minimal `talent_pages` row the loader reads for a public render. */
 export interface PublishedTalentPageRow {
@@ -37,6 +41,17 @@ export interface PublishedTalentPageRow {
   blocks: unknown;
   theme: unknown;
   published_at: string | null;
+  // SEO-1/SEO-3 `talent_pages` columns. All nullable + optional so a read from
+  // a pre-migration row (or a caller that does not select them) degrades to
+  // "no overrides" instead of throwing.
+  meta_title?: string | null;
+  meta_description?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image_url?: string | null;
+  canonical_url?: string | null;
+  noindex?: boolean | null;
+  json_ld?: unknown;
 }
 
 /** The resolved talent + page handle the public renderer needs. */
@@ -47,6 +62,8 @@ export interface ResolvedTalentProfileRef {
   managingTenantId: string | null;
   /** Display name for the document title fallback. */
   displayName: string | null;
+  /** `talent_profiles.talent_plan_key` — gates the Portfolio-only SEO controls. */
+  talentPlanKey?: string | null;
 }
 
 /** Normalized render payload for `/t/[profileCode]/[pageSlug]`. */
@@ -68,6 +85,13 @@ export interface PublishedTalentPageRenderData {
   /** Talent-scoped LIVE per-component-type default styles
    *  (`talent_pages.theme.__design.componentStyles`). Empty when unset. */
   componentStyleDefaults: ComponentStyleDefaults;
+  /**
+   * `<head>` envelope for this page, built from the `talent_pages` SEO columns
+   * and GATED on the Portfolio (Max) tier. Structurally a `MaxSiteSeo`, so the
+   * route feeds it to the shared `maxSiteSeoToMetadata` mapper. For a
+   * non-Portfolio talent this collapses to `{ title, noindex:false }`.
+   */
+  seo: TalentPageSeoEnvelope;
 }
 
 /**
@@ -117,7 +141,14 @@ export function coerceTheme(theme: unknown): BuilderStyleClassRegistry {
  */
 export async function resolvePublishedTalentPage(
   actions: PublishedTalentPageActions,
-  input: { profileCode: string; slug: string },
+  input: {
+    profileCode: string;
+    slug: string;
+    /** Absolute origin serving this page — feeds the default canonical URL. */
+    canonicalOrigin?: string;
+    /** Origin-relative path of this page — feeds the default canonical URL. */
+    canonicalPath?: string;
+  },
 ): Promise<PublishedTalentPageRenderData | null> {
   const talent = await actions.loadTalentByProfileCode(input.profileCode);
   if (!talent) return null;
@@ -143,5 +174,22 @@ export async function resolvePublishedTalentPage(
     theme: coerceTheme(row.theme),
     designTokens: designSlice.tokens,
     componentStyleDefaults: designSlice.componentStyles,
+    seo: buildTalentPageSeo({
+      page: {
+        title: row.title,
+        metaTitle: row.meta_title ?? null,
+        metaDescription: row.meta_description ?? null,
+        ogTitle: row.og_title ?? null,
+        ogDescription: row.og_description ?? null,
+        ogImageUrl: row.og_image_url ?? null,
+        canonicalUrl: row.canonical_url ?? null,
+        noindex: row.noindex ?? null,
+        jsonLd: row.json_ld ?? null,
+      },
+      planKey: talent.talentPlanKey ?? null,
+      fallbackTitle: talent.displayName ?? "",
+      canonicalOrigin: input.canonicalOrigin,
+      canonicalPath: input.canonicalPath,
+    }),
   };
 }

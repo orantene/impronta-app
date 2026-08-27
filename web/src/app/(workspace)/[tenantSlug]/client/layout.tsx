@@ -183,9 +183,10 @@ export default async function ClientLayout({
   // D1 — seed initial notifications for the bell (zero client waterfalls).
   // Locale settings are also pre-fetched here so the DashboardLocaleToggle
   // inside ClientAccountMenu knows the tenant's supported languages.
-  // Reviews are a PREMIUM capability gated on the surface tenant's entitlement.
-  // Resolved here (server component) so the nav can hide the "reviews" entry on
-  // a non-entitled workspace. Fails closed via tenantReviewsEnabled.
+  // Review surfaces are switched per SURFACE tenant. Resolved here (server
+  // component) so the nav can hide the "reviews" entry on a workspace that has
+  // been switched off. Collection is free on every tier and the platform
+  // default is ON, so this is only false when staff stored an explicit false.
   const [
     favoriteIds,
     savedIds,

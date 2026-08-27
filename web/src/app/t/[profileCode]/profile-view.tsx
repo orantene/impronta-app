@@ -95,6 +95,7 @@ import {
   loadPublicIdentity,
   loadPublicBranding,
 } from "@/lib/site-admin/server/reads";
+import { talentPlanRemovesPlatformBadge } from "@/lib/access/talent-membership";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
@@ -2263,12 +2264,11 @@ export async function TalentProfileView({
     ? "dark"
     : "light";
 
-  // Whitelabel (Agency/Network tier) hides the "Powered by Tulala" footer mark
-  // so the profile page reads as fully the hosting agency's own. Only meaningful
-  // on an agency-hosted profile; the platform directory keeps the mark.
-  const profileWhitelabel = currentTenantId
-    ? await loadTenantWhitelabel(currentTenantId)
-    : false;
+  // Host whitelabel plan OR the talent's own Pro/Max tier hides the Tulala
+  // mark — independent grants; why: talentPlanRemovesPlatformBadge's JSDoc.
+  const profileWhitelabel =
+    talentPlanRemovesPlatformBadge(profile.talent_plan_key) ||
+    (currentTenantId ? await loadTenantWhitelabel(currentTenantId) : false);
 
   // Exclusive representation. Deliberately NOT derived from `profileWhitelabel`
   // — that is a different tier set (agency|network|legacy) and a Studio tenant
