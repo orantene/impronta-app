@@ -693,7 +693,7 @@ export function LightProfileLayout({
               className="plt-mono mb-6 text-[0.6875rem] font-semibold uppercase tracking-[0.24em]"
               style={{ color: "var(--plt-forest)" }}
             >
-              More from this roster
+              {t("public.profile.moreFromRoster")}
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {similarTalent.map((st) => (

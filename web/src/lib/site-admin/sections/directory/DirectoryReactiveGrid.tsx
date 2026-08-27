@@ -385,11 +385,14 @@ export function DirectoryReactiveGrid({
           className="font-display text-xl tracking-wide text-[var(--token-color-ink,var(--foreground))]"
           style={{ fontFamily: "var(--site-heading-font, inherit)" }}
         >
-          Nothing in the roster matches that yet.
+          {locale === "es"
+            ? "Todavía no hay nadie en el roster que coincida."
+            : "Nothing in the roster matches that yet."}
         </p>
         <p className="mt-3 text-[13px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
-          Try a broader discipline, clear filters, or check back as the
-          roster grows.
+          {locale === "es"
+            ? "Prueba una disciplina más amplia, quita filtros o vuelve cuando el roster crezca."
+            : "Try a broader discipline, clear filters, or check back as the roster grows."}
         </p>
       </div>
     );

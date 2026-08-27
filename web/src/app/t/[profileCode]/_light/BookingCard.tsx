@@ -100,7 +100,7 @@ export function BookingCard({
       >
         <Shield className="mt-0.5 size-3.5 shrink-0" style={{ color: "var(--plt-forest)" }} />
         <p className="text-[0.6875rem] leading-relaxed" style={{ color: "var(--plt-muted)" }}>
-          All inquiries are handled securely through Tulala
+          {t("public.profile.securePayments")}
         </p>
       </div>
 

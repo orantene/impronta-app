@@ -255,7 +255,9 @@
       "exclusivelyRepresentedBy": "Exclusively represented by {agency}",
       "exclusivityInfoAria": "What does exclusive representation mean?",
       "exclusivityInfoBody": "Bookings for this talent go through {agency}. Inquiries started anywhere on Tulala are routed to them.",
-      "representedBy": "Represented by"
+      "representedBy": "Represented by",
+      "securePayments": "All inquiries are handled securely through Tulala",
+      "moreFromRoster": "More from this roster"
     },
     "reviews": {
       "sectionAria": "Client reviews",
