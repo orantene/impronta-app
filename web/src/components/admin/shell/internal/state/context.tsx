@@ -77,18 +77,9 @@ export type AdminShellState = {
   entityType: EntityType;
   alsoTalent: boolean;
   page: WorkspacePage;
-  /**
-   * `agencies.workspace_type` for this workspace, normalized. "talent"
-   * (the fail-closed default) shows every surface; "business" hides the
-   * roster-shaped ones. Never hides anything for an unknown value.
-   */
+  /** Normalized `agencies.workspace_type` — see lib/saas/workspace-type.ts. */
   workspaceType: WorkspaceType;
-  /**
-   * WORKSPACE_PAGES filtered by {@link workspaceType}. EVERY workspace nav
-   * consumer — topbar, mobile bottom nav, command palette, ⌘K nav, the
-   * ControlBar page switcher — reads this, never WORKSPACE_PAGES directly,
-   * so a hidden surface cannot survive in one nav and vanish from another.
-   */
+  /** WORKSPACE_PAGES filtered by type. EVERY nav consumer reads this, never WORKSPACE_PAGES. */
   visiblePages: WorkspacePage[];
   // talent dimensions
   talentPage: TalentPage;
@@ -1090,15 +1081,9 @@ export function AdminShellProvider({
   const [alsoTalent, setAlsoTalent] = useState<boolean>(
     initialBridgeData ? Boolean(initialBridgeData.isHybrid) : true,
   );
-  // ── Workspace type → which surfaces exist ────────────────────────────────
-  //
-  // Derived from the bridge, never from a fetch, and PURE: the server layout
-  // and this provider run the same `normalizeWorkspaceType` /
-  // `clampWorkspacePage` on the same inputs, so SSR and CSR agree. The shell's
-  // state init is hydration-sensitive (see the removed TENANT singleton
-  // mutation below) — anything that could differ between the two passes resets
-  // the state machine. Prototype/standalone mode (no bridge) normalizes
-  // `undefined` → "talent" and therefore behaves exactly as it always has.
+  // Workspace type → which surfaces exist. From the bridge, never a fetch, and
+  // PURE so SSR and CSR agree — this state init is hydration-sensitive, and any
+  // difference between the passes resets the state machine. No bridge → "talent".
   const workspaceType: WorkspaceType = normalizeWorkspaceType(
     initialBridgeData?.tenantIdentity?.workspaceType,
   );
