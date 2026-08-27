@@ -37,7 +37,6 @@ import {
   SURFACE_META,
   TALENT_PAGES,
   TALENT_PAGE_META,
-  WORKSPACE_PAGES,
   Z,
   useAdminShell,
   type ClientPage,
@@ -141,7 +140,7 @@ export function CommandPalette() {
 
     // Active-surface page jumps
     if (state.surface === "workspace") {
-      WORKSPACE_PAGES.forEach((p) => {
+      state.visiblePages.forEach((p) => {
         items.push({
           id: `wp-${p}`,
           label: `${t("dashboard.adminShell.commandPalette.surfaceWorkspace")} · ${PAGE_META[p].label}`,

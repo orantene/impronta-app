@@ -15,6 +15,7 @@ import { userHasCapability } from "@/lib/access";
 import { loadAgencyApplications } from "@/lib/talent/apply-loaders";
 import { AdminApplicationsClient } from "@/components/admin/applications/AdminApplicationsClient";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertRosterWorkspace } from "@/lib/saas/assert-roster-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,11 @@ export default async function AdminRosterApplicationsPage({ params }: { params: 
   // Roster admin is the right capability bar — same as Roster tab.
   const canView = await userHasCapability("view_dashboard", scope.tenantId);
   if (!canView) notFound();
+
+  // Direct-URL guard, layer 2 (server) — business workspaces have no roster,
+  // so no roster applications. Hides the route; deletes nothing.
+  await assertRosterWorkspace(scope.tenantId);
+
   const canDecide = await userHasCapability("manage_talent_roster", scope.tenantId);
 
   const [applications, acceptsApplications] = await Promise.all([

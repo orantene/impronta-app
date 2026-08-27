@@ -14,6 +14,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
+import { assertRosterWorkspace } from "@/lib/saas/assert-roster-workspace";
 import { NewRosterTalentForm } from "./NewRosterTalentForm";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -89,6 +90,11 @@ export default async function WorkspaceRosterNewPage({
 
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
+
+  // Direct-URL guard, layer 2 (server). A business workspace represents no
+  // talent, so the roster's server routes do not exist for it. Nothing is
+  // deleted — flip the workspace back to "talent" and this route returns.
+  await assertRosterWorkspace(scope.tenantId);
 
   const locale = await getRequestLocale();
   const t = createTranslator(locale);

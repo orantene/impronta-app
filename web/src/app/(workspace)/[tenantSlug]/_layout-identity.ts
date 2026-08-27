@@ -31,6 +31,14 @@ export type TenantIdentityPayload = {
   displayName: string;
   planTier: string;
   kind: string;
+  /**
+   * Raw `agencies.workspace_type` — "talent" (an agency that represents
+   * talent) or "business" (a local business that wants a site and books
+   * talent as a client). Deliberately typed as the raw string: normalize it
+   * with `normalizeWorkspaceType` at the point of use, which fails closed to
+   * "talent" so an unknown value can never hide an existing agency's roster.
+   */
+  workspaceType: string;
   /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
@@ -92,7 +100,9 @@ export async function loadTenantIdentity(
   const [agencyRes, brandingRes, domainRes, coordTalentRes] = await Promise.all([
     admin
       .from("agencies")
-      .select("id, slug, display_name, plan_tier, kind, default_coordinator_user_id, settings")
+      .select(
+        "id, slug, display_name, plan_tier, kind, workspace_type, default_coordinator_user_id, settings",
+      )
       .eq("id", tenantId)
       .maybeSingle(),
     admin
@@ -149,6 +159,12 @@ export async function loadTenantIdentity(
     displayName: data.display_name ?? "Workspace",
     planTier,
     kind: data.kind ?? "agency",
+    // Raw pass-through — normalized (fail-closed to "talent") at the point of
+    // use so a null/unknown column value keeps every surface visible.
+    workspaceType:
+      typeof (data as { workspace_type?: unknown }).workspace_type === "string"
+        ? ((data as { workspace_type: string }).workspace_type)
+        : "talent",
     logoUrl,
     accentColor,
     verifiedDomain,

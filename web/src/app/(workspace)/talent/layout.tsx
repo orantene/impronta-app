@@ -68,6 +68,9 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   displayName: TULALA_BRAND.name,
   planTier: "free",
   kind: "app",
+  // The platform talent surface is not a tenant workspace at all; "talent"
+  // is the every-surface-visible default and changes nothing here.
+  workspaceType: "talent",
   logoUrl: null,
   accentColor: null,
   verifiedDomain: null,

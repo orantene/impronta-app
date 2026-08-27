@@ -43,6 +43,7 @@ import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state";
+import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace-type";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
@@ -122,7 +123,9 @@ export default async function WorkspaceAdminLayout({
   if (!canView) notFound();
 
   // ── Derive initialPage from URL (avoids hard-refresh flash) ───────────────
-  const initialPage = deriveInitialPage(pathname, adminPrefix);
+  // NB: this is the RAW derivation. It is clamped against the workspace type
+  // below, once `loadTenantIdentity` has come back — see the clamp comment.
+  const rawInitialPage = deriveInitialPage(pathname, adminPrefix);
 
   // ── Prefetch all surface data in parallel ──────────────────────────────────
   // Errors in any loader return an empty/null value — never crash the layout.
@@ -244,6 +247,23 @@ export default async function WorkspaceAdminLayout({
     website: websiteData,
     canManageBilling,
   });
+
+  // ── Direct-URL clamp, layer 1 (SPA) ───────────────────────────────────────
+  //
+  // A business workspace has no roster and no pitches, so `/admin/roster` and
+  // `/admin/pitches` must not open those surfaces. `/admin/roster` in
+  // particular is SPA-rendered (its page.tsx is a bare PageRouteSyncer) with no
+  // canonical matcher behind it, so THIS is what covers that deep link; the
+  // roster's server-rendered sub-routes get `assertRosterWorkspace` instead.
+  //
+  // Computed SERVER-side and passed down, deliberately. The shell's state init
+  // is hydration-sensitive — a page derived differently on the client than on
+  // the server resets the state machine. `clampWorkspacePage` is pure, so the
+  // provider re-running it on the same inputs produces the same answer.
+  const initialPage = clampWorkspacePage(
+    rawInitialPage,
+    normalizeWorkspaceType(tenantIdentity?.workspaceType),
+  );
 
   const sessionIdentity = {
     userId: session.user.id,

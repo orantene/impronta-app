@@ -428,7 +428,10 @@ const BUDGETS: Record<string, number> = {
   // enforces instead of on a role proxy.
   // +4 (website whitelist) stacked on +7 (analytics bridge) — measured after
   // the rebase, same reconciliation as fixtures.ts above.
-  "src/components/admin/shell/internal/state/context.tsx": 2404,
+  // +41 for workspace_type: the bridge field, visiblePages, and the
+  // clamped page setters. Logic lives in lib/saas/workspace-type.ts;
+  // the prose that was here moved there too.
+  "src/components/admin/shell/internal/state/context.tsx": 2445,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

@@ -26,6 +26,7 @@ import {
   updatePitchDraft as updatePitchDraftEngine,
 } from "@/lib/pitch/pitch-engine";
 import { canUsePitchFeature } from "@/lib/pitch/pitch-plan-gate";
+import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";
 import {
   signPitchToken,
   buildPitchShareUrl,
@@ -71,12 +72,22 @@ async function authorise(tenantSlug: string): Promise<AuthOk | AuthErr> {
   // to render the upsell card instead of the compose UI.
   const { data: agency, error: agencyErr } = await admin
     .from("agencies")
-    .select("plan_tier")
+    .select("plan_tier, workspace_type")
     .eq("id", scope.tenantId)
     .maybeSingle();
   if (agencyErr) {
     logServerError("pitches.authorise.loadPlan", agencyErr);
     return { ok: false, reason: "internal_error" };
+  }
+
+  // Workspace-type gate (2026-08 — business workspaces). A pitch is "here is
+  // the talent I represent"; a business workspace represents nobody, so the
+  // feature does not exist for it regardless of plan tier. `forbidden` rather
+  // than `plan_not_eligible` deliberately — this is not an upsell, no plan
+  // unlocks it. Fails CLOSED toward "talent": only a row that positively says
+  // 'business' is refused, so an unknown value never locks an agency out.
+  if (!rosterEnabled(normalizeWorkspaceType(agency?.workspace_type))) {
+    return { ok: false, reason: "forbidden" };
   }
   // QA 2026-06-13: the column is `plan_tier`, not `plan` — selecting the
   // nonexistent `plan` errored the query → every pitch compose hit the plan

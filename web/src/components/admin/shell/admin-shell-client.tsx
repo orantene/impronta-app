@@ -44,7 +44,7 @@ import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
 import {
   AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole,
-  WORKSPACE_PAGES, PAGE_META,
+  PAGE_META,
   TALENT_PAGE_META, CLIENT_PAGE_META, PLATFORM_PAGE_META,
   FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT,
   type FabPaletteChangedDetail,
@@ -608,7 +608,7 @@ function BottomActionFab() {
       { id: "share-card",     label: copy.t("Share talent"), sub: copy.t("Send a client-facing standalone link"), icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("talent-share-card") },
     ];
-    const nav: Item[] = WORKSPACE_PAGES.map((p) => ({
+    const nav: Item[] = state.visiblePages.map((p) => ({
       id: `nav-ws-${p}`,
       label: goTo(PAGE_META[p]?.label ?? p),
       sub: copy.t(PAGE_META[p]?.description ?? "Workspace surface"),
