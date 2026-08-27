@@ -1,98 +1,28 @@
 /**
- * lib/stripe/price-ids.ts
+ * lib/stripe/price-ids.ts — the plan-key vocabulary shared by billing code.
  *
- * Maps workspace plan keys to Stripe Price IDs.
+ * This file USED to map plan keys to Stripe Price IDs through ten
+ * `STRIPE_PRICE_*` environment variables. It no longer does: checkout resolves
+ * prices from the `product_prices` catalog (see `price-catalog.ts`), so the
+ * Platform HQ pricing dashboard is the single source of truth and a price
+ * change never needs an env edit or a redeploy.
  *
- * Price IDs live in environment variables so they can differ between
- * Vercel environments (test vs. live mode keys):
+ * Env now holds only what cannot live in a database the app reads: the Stripe
+ * API credentials (`STRIPE_SECRET_KEY`, the publishable key, the webhook
+ * secret).
  *
- *   STRIPE_PRICE_WEBSITE_MONTHLY   e.g. price_1PxxxxxxxxxxxWebsiteMonthly (unset — not purchasable yet)
- *   STRIPE_PRICE_WEBSITE_ANNUAL    e.g. price_1PxxxxxxxxxxxWebsiteAnnual  (unset — not purchasable yet)
- *   STRIPE_PRICE_STUDIO_MONTHLY    e.g. price_1PxxxxxxxxxxxxStudioMonthly
- *   STRIPE_PRICE_STUDIO_ANNUAL     e.g. price_1PxxxxxxxxxxxxStudioAnnual
- *   STRIPE_PRICE_AGENCY_MONTHLY    e.g. price_1PxxxxxxxxxxxxAgencyMonthly
- *   STRIPE_PRICE_AGENCY_ANNUAL     e.g. price_1PxxxxxxxxxxxxAgencyAnnual
- *
- * Network plan has no self-serve Price ID (requires sales contact).
- * Free plan has no Price ID (no Stripe subscription).
- *
- * Returns null when the env var is not set (billing not yet wired for
- * that plan/interval).
+ * Only the type vocabulary remains here, kept in its own module so the plan
+ * unions have one definition site.
  */
-
-import "server-only";
 
 export type BillingInterval = "monthly" | "annual";
 
-// Network is sales-assisted today. Adding the key so a future commit can
-// flip it to self-serve by setting STRIPE_PRICE_NETWORK_MONTHLY/ANNUAL.
+/**
+ * Workspace (business) plans that can carry a Stripe subscription. `network` is
+ * sales-assisted and deliberately has no catalog price; `free` is absent
+ * because it never reaches Stripe.
+ */
 export type WorkspacePlanKey = "website" | "studio" | "agency" | "network";
 
-const ENV_MAP: Record<WorkspacePlanKey, Record<BillingInterval, string>> = {
-  // Website ($12/mo) is defined but NOT yet purchasable: the env vars are
-  // deliberately unset, so getWorkspacePriceId("website") returns null and
-  // checkout refuses. Setting them is what turns the tier on.
-  website: {
-    monthly: "STRIPE_PRICE_WEBSITE_MONTHLY",
-    annual:  "STRIPE_PRICE_WEBSITE_ANNUAL",
-  },
-  studio: {
-    monthly: "STRIPE_PRICE_STUDIO_MONTHLY",
-    annual:  "STRIPE_PRICE_STUDIO_ANNUAL",
-  },
-  agency: {
-    monthly: "STRIPE_PRICE_AGENCY_MONTHLY",
-    annual:  "STRIPE_PRICE_AGENCY_ANNUAL",
-  },
-  network: {
-    monthly: "STRIPE_PRICE_NETWORK_MONTHLY",
-    annual:  "STRIPE_PRICE_NETWORK_ANNUAL",
-  },
-};
-
-/**
- * Returns the Stripe Price ID for a given workspace plan + interval, or null
- * when the environment variable is not set.
- */
-export function getWorkspacePriceId(
-  plan: WorkspacePlanKey,
-  interval: BillingInterval = "monthly",
-): string | null {
-  const envKey = ENV_MAP[plan]?.[interval];
-  if (!envKey) return null;
-  return process.env[envKey]?.trim() || null;
-}
-
-// ─── Talent plan price IDs ────────────────────────────────────────────────────
-//
-// Env vars:
-//   STRIPE_PRICE_TALENT_PRO_MONTHLY        e.g. price_1PxxxxxxxxxxxxTalentProMonthly
-//   STRIPE_PRICE_TALENT_PRO_ANNUAL         e.g. price_1PxxxxxxxxxxxxTalentProAnnual
-//   STRIPE_PRICE_TALENT_PORTFOLIO_MONTHLY  e.g. price_1PxxxxxxxxxxxxPortfolioMonthly
-//   STRIPE_PRICE_TALENT_PORTFOLIO_ANNUAL   e.g. price_1PxxxxxxxxxxxxPortfolioAnnual
-
+/** Paid talent plans. `talent_basic` (Free) is absent — it never bills. */
 export type TalentPlanKey = "talent_pro" | "talent_portfolio";
-
-const TALENT_ENV_MAP: Record<TalentPlanKey, Record<BillingInterval, string>> = {
-  talent_pro: {
-    monthly: "STRIPE_PRICE_TALENT_PRO_MONTHLY",
-    annual:  "STRIPE_PRICE_TALENT_PRO_ANNUAL",
-  },
-  talent_portfolio: {
-    monthly: "STRIPE_PRICE_TALENT_PORTFOLIO_MONTHLY",
-    annual:  "STRIPE_PRICE_TALENT_PORTFOLIO_ANNUAL",
-  },
-};
-
-/**
- * Returns the Stripe Price ID for a given talent plan + interval, or null
- * when the environment variable is not set.
- */
-export function getTalentPriceId(
-  plan: TalentPlanKey,
-  interval: BillingInterval = "monthly",
-): string | null {
-  const envKey = TALENT_ENV_MAP[plan]?.[interval];
-  if (!envKey) return null;
-  return process.env[envKey]?.trim() || null;
-}

@@ -15,7 +15,8 @@
 
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
@@ -158,16 +159,17 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
   const stripe = getStripe()!;
 
-  // Network is sales-assisted; refuse self-serve checkout unless an env price
-  // ID is explicitly configured (future flip: set STRIPE_PRICE_NETWORK_MONTHLY).
+  // Network is sales-assisted; it has no catalog price, so the resolver returns
+  // null and self-serve checkout refuses. Giving Network an active price row in
+  // the pricing dashboard is what would flip it to self-serve.
   if (opts.planKey === "network") {
-    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    const networkPriceId = await resolveWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {
       return { ok: false, error: "Network is sales-assisted — no self-serve price configured." };
     }
   }
 
-  const priceId = getWorkspacePriceId(opts.planKey, "monthly");
+  const priceId = await resolveWorkspacePriceId(opts.planKey, "monthly");
   if (!priceId) {
     return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
   }
