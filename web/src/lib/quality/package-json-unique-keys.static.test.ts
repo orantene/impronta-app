@@ -17,25 +17,15 @@ import { readFileSync } from "node:fs";
 test("package.json has no duplicate keys anywhere", () => {
   const raw = readFileSync("package.json", "utf8");
 
-  // Walk the raw text with a tiny tokenizer: track object depth and record
-  // each key at its depth+path. A real JSON parser cannot see duplicates, so
-  // this deliberately does not use JSON.parse for detection.
-  const seen = new Map<string, number>();
-  const path: string[] = [];
-  let pendingKey: string | null = null;
-  const keyRe = /"((?:[^"\\]|\\.)*)"\s*:/g;
-  const structural = /[{}[\]]/g;
-
-  // Simpler and robust for this file's shape: count `"key":` occurrences per
-  // enclosing object by splitting on braces at depth transitions.
-  let depth = 0;
+  // Walk the raw text with a tiny scanner, counting `"key":` occurrences per
+  // enclosing object. A JSON parser cannot see duplicates by construction —
+  // it keeps the last one — so detection deliberately never calls JSON.parse.
   const stack: Map<string, number>[] = [new Map()];
   let i = 0;
   let inString = false;
   let escape = false;
   let stringStart = -1;
   let lastString = "";
-  let lastWasKey = false;
   while (i < raw.length) {
     const ch = raw[i];
     if (inString) {
