@@ -450,6 +450,10 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "Compara esta página con la versión en {locale}",
   "{current} page compared with {sibling}":
     "Página en {current} comparada con {sibling}",
+  "What still needs translating into {locale}":
+    "Qué falta por traducir al {locale}",
+  "Translation coverage for {sibling}":
+    "Cobertura de traducción en {sibling}",
   "Refresh": "Actualizar",
   "Comparing both language versions…": "Comparando ambas versiones de idioma…",
   "The {locale} version of this page doesn't exist yet, so every block below is untranslated.":
@@ -465,6 +469,7 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Same text in both languages": "Mismo texto en ambos idiomas",
   "Empty in the other language": "Vacío en el otro idioma",
   "No counterpart block": "Sin bloque equivalente",
+  "Not translated yet": "Sin traducir todavía",
   "Numbers or symbols, nothing to translate": "Números o símbolos, nada que traducir",
   // Shell hand-off dialog (Structure -> Site header / Site footer).
   "Edit the site header?": "¿Editar el encabezado del sitio?",

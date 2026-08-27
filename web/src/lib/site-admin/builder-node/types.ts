@@ -840,6 +840,14 @@ export interface BuilderImageNode extends BuilderNodeBase {
      * lazy loader (used for the LCP hero image). Defaults to lazy when unset.
      */
     priority?: boolean;
+    /**
+     * Whole-image link (mirrors rich_text's whole-block `href`). Rendered as a
+     * wrapping `<a>`; empty/absent = plain image. Prefixed + scheme-guarded by
+     * `prefixPublicHrefsDeep` like every other builder href. Owner report
+     * (2026-08-20): the shell logo could not link to the homepage — image
+     * nodes had no link support at all.
+     */
+    href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;

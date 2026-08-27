@@ -118,11 +118,11 @@ export function TulalaLogo({
   );
 }
 
-const BRAND_DESCRIPTOR_EN = "The Commerce Platform for Talent";
-const BRAND_DESCRIPTOR_ES = "La Plataforma de Comercio para el Talento";
+const BRAND_DESCRIPTOR_EN = "Sell what you do, not what you ship";
+const BRAND_DESCRIPTOR_ES = "Vende lo que haces, no lo que envías";
 
 /**
- * The full brand lockup — wordmark + "The Commerce Platform for Talent"
+ * The full brand lockup — wordmark + "Sell what you do, not what you ship"
  * tagline, stacked. This is THE default logo: every surface (marketing,
  * directory, auth, workspace/talent/client app shell, platform HQ) shows
  * this unless the current tenant/user is on a plan tier that unlocks a

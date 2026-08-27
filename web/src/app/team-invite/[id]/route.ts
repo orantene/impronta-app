@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkTeamSeatAvailability } from "@/lib/saas/team-seat-limit";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -90,6 +91,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .eq("profile_id", session.user.id)
       .in("status", ["active", "invited", "pending_acceptance", "suspended"])
       .maybeSingle();
+
+    if (!existing) {
+      // Team-seat cap, re-checked at REDEEM time: an invite can outlive a
+      // plan change or a burst of other redemptions, so a token issued
+      // under the cap can still land over it. Only a NEW membership row
+      // consumes a seat — an existing member being promoted does not.
+      // This token itself is still counted as pending (it isn't marked
+      // redeemed yet), so we ask for 0 additional seats.
+      const seats = await checkTeamSeatAvailability(admin, row.tenant_id, 0);
+      if (!seats.ok) {
+        return NextResponse.redirect(`${origin}/?team_invite=seat_limit`);
+      }
+    }
 
     if (existing) {
       // Promote to the target role if downgraded; otherwise leave as-is.

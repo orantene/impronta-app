@@ -9,8 +9,8 @@
  * in-window row at render time and falls back to canonical outside
  * the window. So the operator's mental model is:
  *
- *   "I want to discount Studio USD/month from $49 to $24.50 for the
- *    next 7 days." → pick USD/month + amount 24.50 + start now +
+ *   "I want to discount Studio USD/month from $29 to $19.50 for the
+ *    next 7 days." → pick USD/month + amount 19.50 + start now +
  *    end now+7d → DONE.
  *
  * Lives in its own file so PricingTab.tsx stays under the 800-line

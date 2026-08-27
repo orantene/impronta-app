@@ -30,10 +30,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 
 import { RequestReleaseButton } from "./media-picker-request-release";
+import { describeRejections } from "@/components/media-library/rejection-copy";
 import { useT } from "@/i18n/use-t";
 import { compressImage } from "@/lib/client/image-compress";
 import {
   useMediaUpload,
+  type UploadKind,
   type MediaUploadTransport,
 } from "@/lib/media/use-media-upload";
 import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
@@ -94,6 +96,16 @@ export interface MediaPickedItem {
 
 /** Upload accept list for a picker opened by a video-only field. */
 const VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm";
+
+/** The engine-side twin of the `uploadAccept` ternary at the mount below. */
+function pickerAllowKinds(
+  kind: MediaLibraryKindFilter | undefined,
+  isTalentScope: boolean,
+): readonly UploadKind[] {
+  if (kind === "video") return ["video"];
+  if (isTalentScope) return ["image"];
+  return ["image", "video", "document"];
+}
 
 interface MediaPickerDrawerProps {
   tenantId: string;
@@ -258,6 +270,12 @@ export function MediaPickerDrawer({
     purpose: isTalentScope
       ? { kind: "custom", transport: talentTransport }
       : { kind: "cms", tenantId },
+    // Mirror `uploadAccept` below exactly. These two are the same promise made
+    // twice — the attribute filters the OS dialog, this clears the engine — and
+    // when only the attribute said "video" the picker took the file and threw
+    // it away without a word.
+    allowKinds: pickerAllowKinds(kind, isTalentScope),
+    onRejections: (rejections) => setUploadError(describeRejections(rejections, t)),
     onItemReady: (staged) => {
       const item = staged.registered as MediaLibraryWireItem | undefined;
       if (!item) return;

@@ -6,7 +6,7 @@
  * Replaces the old static "Plan · coming soon" Demo card. Lazy-loads
  * `loadTalentPlanSummary` (self-scoped — a talent only sees their own plan)
  * and renders, through the SAME pure trial engine the workspace badge uses:
- *   • the effective plan (Free / Pro / Max) + honest price,
+ *   • the effective plan (Free / Pro / Portfolio) + honest price,
  *   • a live free-trial block with three visually distinct states —
  *       green while comfortably active, slate while expiring, royal once it
  *       has ended (the "your data is safe, bring it back" re-upgrade nudge),

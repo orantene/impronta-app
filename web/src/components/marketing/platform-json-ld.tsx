@@ -38,7 +38,13 @@ export function PlatformJsonLd() {
           width: 512,
           height: 512,
         },
-        description: "The Commerce Platform for Talent",
+        // `description` has to say what Tulala IS — search engines surface it
+        // as the organization descriptor. The brand line is a SLOGAN, so it
+        // belongs in schema.org's dedicated `slogan` property instead; putting
+        // it here would drop the only sentence that explains the product.
+        description:
+          "Tulala is the commerce platform for talent: a branded storefront, a structured booking pipeline, and the shared discovery network that sends new work your way.",
+        slogan: "Sell what you do, not what you ship",
         // Support address published in the FAQ page copy; the product ships
         // EN + ES, so both languages are advertised.
         contactPoint: {

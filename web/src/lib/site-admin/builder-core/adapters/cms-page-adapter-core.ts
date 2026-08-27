@@ -96,6 +96,23 @@ export interface CmsPageAdapterActions {
   /** Load the freeform cms_pages row by (locale, slug); tenant resolved
    *  server-side. Locale is REQUIRED for correct selection on multi-locale tenants. */
   loadPage: (input: { slug: string; locale?: string }) => Promise<CmsFreeformPageRow | null>;
+  /**
+   * ONE DESIGN PER PAGE — the tenant's language settings.
+   *
+   * The PRIMARY language row is the design; other languages are per-element
+   * text overlays on it. So the editor must open and save the primary row no
+   * matter which language the operator is viewing, and the inspector must be
+   * told the FULL supported set (that is what re-enables the per-element
+   * language tabs — the gate in `builder-node-content.tsx` shows a plain field
+   * whenever only one locale is reported).
+   *
+   * Optional so an injected test surface can omit it: absent → single-locale
+   * behavior, byte-identical to before this model.
+   */
+  loadLocaleSettings?: () => Promise<{
+    defaultLocale: string;
+    supportedLocales: readonly string[];
+  } | null>;
   /** Persist blocks (+ optional title). NEVER touches cms_page_sections. */
   savePage: (input: {
     pageId: string;
@@ -112,10 +129,16 @@ export interface CmsPageAdapterActions {
   }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
 }
 
-/** Minimal empty freeform composition for a cms page. Pure — no I/O. */
+/** Minimal empty freeform composition for a cms page. Pure — no I/O.
+ *
+ *  `supportedLocales` (when the tenant speaks more than one language) is what
+ *  restores the inspector's per-element language tabs: the field gate renders a
+ *  plain input whenever only one locale is reported. `locale` here is the
+ *  DESIGN row's language — the language the base props are written in. */
 export function buildCmsFreeformComposition(
   row: CmsFreeformPageRow,
   locale: string,
+  supportedLocales?: readonly string[],
 ): CompositionData {
   return {
     locale: locale as CompositionData["locale"],
@@ -146,8 +169,49 @@ export function buildCmsFreeformComposition(
     // localStorage seed; coercion tolerates a malformed blob.
     styleClasses: coerceStyleClassRegistry(row.style_classes),
     stylePresets: coerceStylePresetRegistry(row.style_presets),
-    availableLocales: [locale as CompositionData["locale"]],
+    availableLocales: (supportedLocales && supportedLocales.length > 0
+      ? supportedLocales
+      : [locale]) as CompositionData["availableLocales"],
   };
+}
+
+/**
+ * Resolve which row the editor should open, save and publish for this surface.
+ *
+ * ALWAYS the tenant's primary-language row when it exists: that row IS the
+ * design, and every language renders from it. Editing `/es` therefore edits the
+ * same page the English view edits — moving a block moves it for both, which is
+ * the behavior the per-locale-row model broke.
+ *
+ * Falls back to the requested locale's own row for a page that exists only in a
+ * secondary language, so such a page stays editable (as its own design).
+ */
+async function resolveDesignRow(
+  actions: CmsPageAdapterActions,
+  ctx: BuilderSurfaceContext,
+): Promise<{
+  row: CmsFreeformPageRow;
+  designLocale: string;
+  supportedLocales: readonly string[];
+} | null> {
+  const slug = ctx.pageSlug ?? "";
+  if (!slug) return null;
+
+  const settings = actions.loadLocaleSettings
+    ? await actions.loadLocaleSettings().catch(() => null)
+    : null;
+  const supportedLocales = settings?.supportedLocales ?? [];
+  const primaryLocale = settings?.defaultLocale ?? ctx.locale;
+
+  if (primaryLocale !== ctx.locale) {
+    const primaryRow = await actions.loadPage({ slug, locale: primaryLocale });
+    if (primaryRow) {
+      return { row: primaryRow, designLocale: primaryLocale, supportedLocales };
+    }
+  }
+  const ownRow = await actions.loadPage({ slug, locale: ctx.locale });
+  if (!ownRow) return null;
+  return { row: ownRow, designLocale: ctx.locale, supportedLocales };
 }
 
 /** STYLE-1 — build the style-registry slice of a `cms_pages` patch from a save
@@ -186,11 +250,17 @@ export function createCmsPageAdapter(
     kind: "cms_page",
 
     async load(ctx: BuilderSurfaceContext): Promise<CompositionLoadResult> {
-      const slug = ctx.pageSlug ?? "";
-      if (!slug) return { ok: false, error: "cms_page load: pageSlug is required." };
-      const row = await actions.loadPage({ slug, locale: ctx.locale });
-      if (!row) return { ok: false, error: "Could not open this page." };
-      return { ok: true, data: buildCmsFreeformComposition(row, ctx.locale) };
+      if (!ctx.pageSlug) return { ok: false, error: "cms_page load: pageSlug is required." };
+      const design = await resolveDesignRow(actions, ctx);
+      if (!design) return { ok: false, error: "Could not open this page." };
+      return {
+        ok: true,
+        data: buildCmsFreeformComposition(
+          design.row,
+          design.designLocale,
+          design.supportedLocales,
+        ),
+      };
     },
 
     async save(
@@ -222,10 +292,10 @@ export function createCmsPageAdapter(
       if (!ctx.pageSlug) {
         return { ok: false, error: "cms_page saveDraft: pageSlug is required." };
       }
-      const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
-      if (!row) return { ok: false, error: "Page not found for saveDraft." };
+      const design = await resolveDesignRow(actions, ctx);
+      if (!design) return { ok: false, error: "Page not found for saveDraft." };
       const result = await actions.savePage({
-        pageId: row.id,
+        pageId: design.row.id,
         patch: {
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
@@ -249,9 +319,9 @@ export function createCmsPageAdapter(
       if (!ctx.pageSlug) {
         return { ok: false, error: "cms_page publish: pageSlug is required." };
       }
-      const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
-      if (!row) return { ok: false, error: "Page not found for publish." };
-      const result = await actions.publishPage({ pageId: row.id });
+      const design = await resolveDesignRow(actions, ctx);
+      if (!design) return { ok: false, error: "Page not found for publish." };
+      const result = await actions.publishPage({ pageId: design.row.id });
       if (!result.ok) return { ok: false, error: result.error };
       return {
         ok: true,
@@ -270,10 +340,10 @@ export function createCmsPageAdapter(
             if (!ctx.pageSlug) {
               return { ok: false, error: "cms_page restoreRevision: pageSlug is required." };
             }
-            const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
-            if (!row) return { ok: false, error: "Page not found for restoreRevision." };
+            const design = await resolveDesignRow(actions, ctx);
+            if (!design) return { ok: false, error: "Page not found for restoreRevision." };
             const result = await actions.restoreRevision!({
-              pageId: row.id,
+              pageId: design.row.id,
               revisionId: input.revisionId,
             });
             if (!result.ok) return { ok: false, error: result.error };

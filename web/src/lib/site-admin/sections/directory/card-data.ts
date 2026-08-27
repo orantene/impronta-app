@@ -73,3 +73,8 @@ export type DirectoryCardData = {
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */
 export const AVAILABILITY_UNKNOWN =
   "Availability unknown, ask to confirm";
+
+/** Spanish counterpart. The caption is card chrome, not authored page copy, so
+ *  it lives here rather than in a per-element translation overlay. */
+export const AVAILABILITY_UNKNOWN_ES =
+  "Disponibilidad por confirmar, escríbenos";

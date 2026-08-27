@@ -4,7 +4,7 @@
  * Platform-admin server actions for the PLATFORM-DEFAULT integration keys.
  *
  * These manage the integration rows stored under the canonical platform tenant
- * id ({@link DEFAULT_AI_TENANT_ID}) — the values every tenant INHERITS (the
+ * id (the network HUB — see `requirePlatformTenantId`) — the values every tenant INHERITS (the
  * platform-DB layer of the tenant-custom → platform-DB → env fallback chain in
  * resolve.ts / analytics-resolver.ts / resend-client.ts).
  *
@@ -37,7 +37,7 @@ import {
 } from "@/lib/integrations/repository";
 import {
   invalidatePlatformDefaultsCache,
-  PLATFORM_TENANT_ID,
+  platformTenantId,
   platformConfigField,
   platformSecretStatus,
 } from "@/lib/integrations/platform-defaults";
@@ -92,6 +92,16 @@ export type PlatformIntegrationDefaultsView = {
  * gated. Returns PUBLIC config + MASKED secret status only — never a decrypted
  * secret.
  */
+/**
+ * The tenant row holding the platform's integration defaults — the network hub.
+ * Previously a hardcoded constant pointing at a REAL CUSTOMER agency, so HQ
+ * writes landed on that customer's row (and their own edits rewrote everyone's
+ * defaults). Resolved so reads and writes agree on the same hub row.
+ */
+async function requirePlatformTenantId(): Promise<string | null> {
+  return platformTenantId();
+}
+
 export async function loadPlatformIntegrationDefaults(): Promise<PlatformIntegrationDefaultsView> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return { ok: false, items: [] };
@@ -180,6 +190,8 @@ export async function savePlatformGoogleMapsKey(
 ): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
 
   const value = (apiKey ?? "").trim();
   const def = getIntegrationDef(GOOGLE_MAPS_INTEGRATION_KEY);
@@ -190,7 +202,7 @@ export async function savePlatformGoogleMapsKey(
   }
 
   const stored = await setSecret(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     GOOGLE_MAPS_INTEGRATION_KEY,
     "api_key",
     value,
@@ -199,7 +211,7 @@ export async function savePlatformGoogleMapsKey(
     logServerError("platform-integrations/savePlatformGoogleMapsKey", {});
     return { ok: false, error: "Couldn't save. Please try again." };
   }
-  await setIntegrationConfig(PLATFORM_TENANT_ID, GOOGLE_MAPS_INTEGRATION_KEY, {}, {
+  await setIntegrationConfig(platformTenant, GOOGLE_MAPS_INTEGRATION_KEY, {}, {
     status: "connected",
     connectionMethod: "manual",
     lastVerifiedAt: new Date().toISOString(),
@@ -215,8 +227,10 @@ export async function savePlatformGoogleMapsKey(
 export async function clearPlatformGoogleMapsKey(): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
-  await deleteSecret(PLATFORM_TENANT_ID, GOOGLE_MAPS_INTEGRATION_KEY, "api_key");
-  await setIntegrationConfig(PLATFORM_TENANT_ID, GOOGLE_MAPS_INTEGRATION_KEY, {}, {
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
+  await deleteSecret(platformTenant, GOOGLE_MAPS_INTEGRATION_KEY, "api_key");
+  await setIntegrationConfig(platformTenant, GOOGLE_MAPS_INTEGRATION_KEY, {}, {
     status: "not_configured",
     lastVerifiedAt: null,
     lastError: null,
@@ -234,6 +248,8 @@ export async function savePlatformGa4Id(
 ): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
 
   const value = (measurementId ?? "").trim();
   const def = getIntegrationDef(GA4_INTEGRATION_KEY);
@@ -244,7 +260,7 @@ export async function savePlatformGa4Id(
   }
 
   const row = await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     GA4_INTEGRATION_KEY,
     { measurement_id: value },
     {
@@ -267,8 +283,10 @@ export async function savePlatformGa4Id(
 export async function clearPlatformGa4Id(): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
   await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     GA4_INTEGRATION_KEY,
     { measurement_id: null },
     { status: "not_configured", lastVerifiedAt: null, lastError: null, actorId: guard.actorId },
@@ -287,6 +305,8 @@ export async function savePlatformCaptcha(input: {
 }): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
 
   const def = getIntegrationDef(CAPTCHA_INTEGRATION_KEY);
   if (!def) return { ok: false, error: "Unknown integration." };
@@ -307,7 +327,7 @@ export async function savePlatformCaptcha(input: {
   }
 
   const row = await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     CAPTCHA_INTEGRATION_KEY,
     { provider, site_key: siteKey },
     { connectionMethod: "manual", lastError: null, actorId: guard.actorId },
@@ -323,7 +343,7 @@ export async function savePlatformCaptcha(input: {
       return { ok: false, error: "That doesn't look like a valid Secret key." };
     }
     const stored = await setSecret(
-      PLATFORM_TENANT_ID,
+      platformTenant,
       CAPTCHA_INTEGRATION_KEY,
       "secret_key",
       secretKey,
@@ -336,7 +356,7 @@ export async function savePlatformCaptcha(input: {
 
   const secretStatus = await platformSecretStatus(CAPTCHA_INTEGRATION_KEY, "secret_key");
   const connected = !!provider && !!siteKey && secretStatus.present;
-  await setIntegrationConfig(PLATFORM_TENANT_ID, CAPTCHA_INTEGRATION_KEY, {}, {
+  await setIntegrationConfig(platformTenant, CAPTCHA_INTEGRATION_KEY, {}, {
     status: connected ? "connected" : "not_configured",
     connectionMethod: "manual",
     lastVerifiedAt: connected ? new Date().toISOString() : null,
@@ -352,9 +372,11 @@ export async function savePlatformCaptcha(input: {
 export async function clearPlatformCaptcha(): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
-  await deleteSecret(PLATFORM_TENANT_ID, CAPTCHA_INTEGRATION_KEY, "secret_key");
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
+  await deleteSecret(platformTenant, CAPTCHA_INTEGRATION_KEY, "secret_key");
   await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     CAPTCHA_INTEGRATION_KEY,
     { provider: null, site_key: null },
     { status: "not_configured", lastVerifiedAt: null, lastError: null, actorId: guard.actorId },
@@ -378,6 +400,8 @@ export async function savePlatformEmailFrom(input: {
 }): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
 
   const fromAddress = (input.from_address ?? "").trim();
   const domain = (input.domain ?? "").trim().toLowerCase();
@@ -397,7 +421,7 @@ export async function savePlatformEmailFrom(input: {
   }
 
   const row = await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     EMAIL_DOMAIN_INTEGRATION_KEY,
     {
       from_address: fromAddress || null,
@@ -423,8 +447,10 @@ export async function savePlatformEmailFrom(input: {
 export async function clearPlatformEmailFrom(): Promise<PlatformIntegrationActionResult> {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
+  const platformTenant = await requirePlatformTenantId();
+  if (!platformTenant) return { ok: false, error: "No platform hub workspace is configured." };
   await setIntegrationConfig(
-    PLATFORM_TENANT_ID,
+    platformTenant,
     EMAIL_DOMAIN_INTEGRATION_KEY,
     { from_address: null, domain: null },
     { status: "not_configured", lastVerifiedAt: null, lastError: null, actorId: guard.actorId },

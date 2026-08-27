@@ -24,7 +24,7 @@ export function renderOgCard({
   kicker,
   title,
   subtitle,
-  strapline = "The Commerce Platform for Talent",
+  strapline = "Sell what you do, not what you ship",
 }: {
   kicker: string;
   title: string;

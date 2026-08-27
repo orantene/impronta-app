@@ -20,34 +20,60 @@ const REPO_WEB = process.cwd();
 test("the canonical table matches the enforced product contract", () => {
   assert.deepEqual(PLAN_SEAT_CAPS, {
     free: 5,
-    studio: 50,
-    agency: 200,
+    studio: 15,
+    agency: null,
     network: null,
   });
 });
 
 test("the table matches the agencies.talent_seat_limit documented defaults", () => {
-  // The migration's column COMMENT is the DB-side statement of the same
-  // contract; if someone changes one without the other, this fails.
+  // The column COMMENT is the DB-side statement of the same contract. On a
+  // fresh database the migrations replay in FILENAME order, so the one that
+  // sorts LAST is the comment the database ends up with — that is the only
+  // one required to be current. Earlier files are historical records and must
+  // NOT be edited after they have been applied.
+  const CURRENT = "20261130000000_studio_roster_fifteen_and_team_seat_caps.sql";
+  const SUPERSEDED = "20260902130000_free_plan_seat_limit_five.sql";
+
+  // Guard the ordering itself: repo migrations are FUTURE-dated, so a
+  // real-clock timestamp would sort BEFORE the superseded file and lose.
+  assert.ok(
+    CURRENT > SUPERSEDED,
+    "the migration stating the current defaults must sort last, or a stale comment wins on replay",
+  );
+
+  const migration = readFileSync(
+    join(REPO_WEB, "..", "supabase", "migrations", CURRENT),
+    "utf8",
+  );
+  const documented = migration.match(
+    /Current defaults:\s*free=(\w+),\s*studio=(\w+),\s*agency=(\w+),\s*network=(\w+)/,
+  );
+  assert.ok(documented, `${CURRENT}: the column comment must state the current defaults`);
+  assert.equal(Number(documented![1]), PLAN_SEAT_CAPS.free);
+  assert.equal(Number(documented![2]), PLAN_SEAT_CAPS.studio);
+  assert.equal(documented![3], "NULL");
+  assert.equal(PLAN_SEAT_CAPS.agency, null);
+  assert.equal(documented![4], "NULL");
+  assert.equal(PLAN_SEAT_CAPS.network, null);
+});
+
+test("the Studio roster cut ships with a grandfathering UPDATE", () => {
+  // Studio moved 50 -> 15. Never strand an existing customer below their
+  // current usage: the migration must raise the floor to what they use.
   const migration = readFileSync(
     join(
       REPO_WEB,
       "..",
       "supabase",
       "migrations",
-      "20260902130000_free_plan_seat_limit_five.sql",
+      "20261130000000_studio_roster_fifteen_and_team_seat_caps.sql",
     ),
     "utf8",
   );
-  const documented = migration.match(
-    /Current defaults:\s*free=(\d+),\s*studio=(\d+),\s*agency=(\d+),\s*network=(\w+)/,
-  );
-  assert.ok(documented, "the column comment must state the current defaults");
-  assert.equal(Number(documented![1]), PLAN_SEAT_CAPS.free);
-  assert.equal(Number(documented![2]), PLAN_SEAT_CAPS.studio);
-  assert.equal(Number(documented![3]), PLAN_SEAT_CAPS.agency);
-  assert.equal(documented![4], "NULL");
-  assert.equal(PLAN_SEAT_CAPS.network, null);
+  assert.match(migration, /GREATEST\(15,/);
+  assert.match(migration, /plan_tier = 'studio'/);
+  assert.match(migration, /status <> 'removed'/);
 });
 
 test("unknown plans fall back to Free, never to unlimited", () => {
@@ -57,8 +83,8 @@ test("unknown plans fall back to Free, never to unlimited", () => {
 
 test("seatCapLabel renders numbers and the unlimited wording", () => {
   assert.equal(seatCapLabel("free"), "5");
-  assert.equal(seatCapLabel("studio"), "50");
-  assert.equal(seatCapLabel("agency"), "200");
+  assert.equal(seatCapLabel("studio"), "15");
+  assert.equal(seatCapLabel("agency"), "Unlimited");
   assert.equal(seatCapLabel("network"), "Unlimited");
   assert.equal(seatCapLabel("network", "∞"), "∞");
 });

@@ -3,7 +3,7 @@
 /**
  * TalentSubscriptionShell — subscription section in talent settings.
  *
- * Shows current tier (Free / Pro / Max), what each tier unlocks,
+ * Shows current tier (Free / Pro / Portfolio), what each tier unlocks,
  * and upgrade / manage CTAs wired through Stripe.
  */
 
@@ -51,7 +51,7 @@ const PLAN_META = {
   },
   talent_pro: {
     label: "Pro",
-    price: "$12 / month",
+    price: "$9 / month",
     tagline: "Richer presentation and media embeds",
     color: C.violet,
     bg: C.violetSoft,
@@ -65,8 +65,8 @@ const PLAN_META = {
     ],
   },
   talent_portfolio: {
-    label: "Max",
-    price: "$29 / month",
+    label: "Portfolio",
+    price: "$15 / month",
     tagline: "Your branded talent page with custom domain",
     color: C.orange,
     bg: C.orangeSoft,
@@ -76,7 +76,7 @@ const PLAN_META = {
       "Preview and publish controls",
       "Talent-owned section library",
       "SEO controls",
-      "Custom domain reserved for a later Max release",
+      "Custom domain reserved for a later Portfolio release",
     ],
   },
 } as const;
@@ -382,7 +382,7 @@ export function TalentSubscriptionShell({
 
       {/* Pro → upgrade to Portfolio */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Upgrade to Max — $29/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Upgrade to Portfolio — $15/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}

@@ -24,7 +24,7 @@ export type MarketingTalentPage = {
   href: string;
   status: "live" | "hidden" | "pending" | "winding_down";
   /** Subscription-tier badge on the talent's own page only. */
-  planBadge: "MAX" | "PRO" | null;
+  planBadge: "PORTFOLIO" | "PRO" | null;
 };
 
 /** A tenant a client has engaged, linking to that tenant's client dashboard. */
@@ -56,8 +56,8 @@ export type MarketingAccount = {
     bookings: string;
     messages: string;
   } | null;
-  /** Upgrade CTA target for Free-tier talent (unlocks the Max custom page
-   *  builder); null for paid tiers or non-talent. */
+  /** Upgrade CTA target for Free-tier talent (unlocks the Portfolio custom
+   *  page builder); null for paid tiers or non-talent. */
   talentUpgradeHref: string | null;
   /** Pure-client account (no workspace roles, not a talent). */
   isClient: boolean;
@@ -436,8 +436,8 @@ function TabButton({
   );
 }
 
-function PlanBadge({ label }: { label: "MAX" | "PRO" }) {
-  const isMax = label === "MAX";
+function PlanBadge({ label }: { label: "PORTFOLIO" | "PRO" }) {
+  const isMax = label === "PORTFOLIO";
   return (
     <span
       className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide"

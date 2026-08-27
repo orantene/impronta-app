@@ -3216,16 +3216,16 @@ export function TopBar({
       {headerVariant === "lab" && labHeaderActions ? (
         <>{labHeaderActions}</>
       ) : null}
-      {availableLocales.length > 1 ? (
+      {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? (
         <ContentLocaleToggle
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
         />
       ) : tenantLocales.length > 1 ? (
-        // Freeform surfaces store one cms_pages row per locale, so there is no
-        // in-place content flip — switching language means loading the sibling
-        // row. This pill navigates (edit mode is a cookie, so the editor stays
-        // open on the destination page).
+        // Freeform locale comes from the URL segment (the body is server-
+        // rendered, so an in-place flip would repaint nothing). This pill
+        // navigates; edit mode is a cookie, so the editor stays open. Both URLs
+        // load the SAME design row — only the overlay text changes.
         <>
           <NavLocaleToggle
             activeLocale={activeLocale ?? defaultLocale}
@@ -3238,8 +3238,8 @@ export function TopBar({
           {editCtx?.surfaceKind === "cms_page" && editCtx.pageSlug ? (
             <TranslationStatusButton
               activeLocale={activeLocale ?? defaultLocale}
+              defaultLocale={defaultLocale}
               tenantLocales={tenantLocales}
-              pageSlug={editCtx.pageSlug}
             />
           ) : null}
         </>

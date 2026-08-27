@@ -261,6 +261,7 @@ function sectionHeadAlignDecls(align?: "left" | "center" | "right"): string[] {
 }
 
 export function DonationFormComponent({
+  locale,
   props,
   sectionId,
   builderNodeBindings,
@@ -373,7 +374,7 @@ export function DonationFormComponent({
           {allowCustom ? (
             <div className="site-donate__custom">
               <label htmlFor="donate-custom" className="site-donate__custom-label">
-                Or enter a custom amount
+                {locale === "es" ? "O ingresa otro monto" : "Or enter a custom amount"}
               </label>
               <div className="site-donate__custom-input">
                 <span aria-hidden>{symbol}</span>

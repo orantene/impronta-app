@@ -4919,11 +4919,19 @@ export function SelectionLayer() {
        *  pointer-transparent). The drag arms the SAME "move" canvas drag the
        *  chip grip uses → identical drop math + `moveBuilderNodeToParentIndex`
        *  commit, so reordering is discoverable without changing the engine. */}
+      {/* Owner report (2026-08-21): "I can't move them or drag them around" on
+       *  the phone canvas. The rail — the ONLY canvas-side move affordance —
+       *  was desktop-only, so the mobile canvas had no grip and no ↑/↓ at all
+       *  and dragging simply did nothing. The device toggle previews a phone
+       *  WIDTH in a desktop browser: the operator still has a mouse, and the
+       *  rail's own drag/move path is device-independent (it commits through
+       *  `moveBuilderNodeWithinParent` / the shared drop math). Rendering it at
+       *  every device gives the phone canvas the same grab handle + one-click
+       *  reorder the desktop canvas has. */}
       {showNodeMoveRail &&
       hoveredNodeIsMovableBlock &&
       hoveredBuilderNodeId &&
-      hoveredBuilderNode &&
-      device === "desktop" ? (
+      hoveredBuilderNode ? (
         <CanvasNodeMoveRail
           rect={nodeHoverRect}
           label={hoveredBlockLabel}
