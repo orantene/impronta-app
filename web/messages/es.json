@@ -1136,7 +1136,8 @@
       "headerNewLine": "Nueva solicitud",
       "headerSwitchAria": "Cambiar de solicitud. Actualmente: {state}",
       "detailsChipAdd": "Añadir detalles",
-      "detailsChipProgress": "Detalles {filled}/{total}"
+      "detailsChipProgress": "Detalles {filled}/{total}",
+      "errTalentUnavailable": "Este talento no está recibiendo solicitudes aquí en este momento. Aún puedes escribir a la agencia."
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",

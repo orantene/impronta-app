@@ -1136,7 +1136,8 @@
       "headerNewLine": "New inquiry",
       "headerSwitchAria": "Switch inquiry. Currently: {state}",
       "detailsChipAdd": "Add details",
-      "detailsChipProgress": "Details {filled}/{total}"
+      "detailsChipProgress": "Details {filled}/{total}",
+      "errTalentUnavailable": "This talent is not taking inquiries here right now. You can still message the agency."
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",

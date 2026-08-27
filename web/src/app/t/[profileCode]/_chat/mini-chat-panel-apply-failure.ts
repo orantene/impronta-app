@@ -61,6 +61,15 @@ export function createApplyFailure({
       setError(message || "Please use a non-disposable email so we can reach you.");
       return;
     }
+    if (code === "talent_unavailable") {
+      // Deliberately IGNORES the server message. Every other branch here
+      // prefers `message`, but these action strings are hardcoded English, so
+      // a Spanish or French guest would be told in English that the talent is
+      // unavailable. The catalog copy also adds the way forward (message the
+      // agency instead), which the server string cannot know to offer.
+      setError(t("public.guestChat.errTalentUnavailable"));
+      return;
+    }
     if (code === "blocked") {
       setError(message || "This conversation can't continue.");
       return;
