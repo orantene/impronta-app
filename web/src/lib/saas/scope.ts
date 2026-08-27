@@ -480,7 +480,21 @@ export async function getPublicPathPrefix(): Promise<string> {
   try {
     const h = await headers();
     const prefix = h.get(PUBLIC_PATH_PREFIX_HEADER) ?? "";
-    return /^\/[a-z0-9][a-z0-9-]{1,62}$/.test(prefix) ? prefix : "";
+    // The proxy sets the CANONICAL two-segment workspace prefix
+    // (`/w/<slug>` — see WORKSPACE_PATH_SEGMENT). This guard used to accept
+    // only a SINGLE segment (`/<slug>`, the retired flat shape), so it
+    // rejected every real value and returned "" — which silently stripped the
+    // tenant prefix from every href the shell renders. Result: on a
+    // path-based workspace host (localhost/w/<slug> AND the production
+    // tulala.digital/w/<slug> for any workspace without a custom domain) the
+    // whole nav, the CTAs and the form actions pointed at the PLATFORM root
+    // and 404'd (owner report 2026-08-27: "For Clients" → Tulala "Page not
+    // found"). Both shapes are accepted: the flat one is still 301'd to the
+    // canonical form, so a request mid-redirect must not lose its prefix.
+    const SEGMENT = "[a-z0-9][a-z0-9-]{1,62}";
+    const isWorkspacePrefix = new RegExp(`^/w/${SEGMENT}$`).test(prefix);
+    const isLegacyFlatPrefix = new RegExp(`^/${SEGMENT}$`).test(prefix);
+    return isWorkspacePrefix || isLegacyFlatPrefix ? prefix : "";
   } catch {
     return "";
   }
