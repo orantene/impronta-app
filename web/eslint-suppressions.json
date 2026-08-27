@@ -1053,7 +1053,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 39
+      "count": 36
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
