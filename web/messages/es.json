@@ -10878,7 +10878,8 @@
       "downloadGotOriginal": "Archivo original.",
       "downloadGotWebSize": "Archivo en tamaño web.",
       "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición.",
-      "errUnsupportedKind": "Esta página solo acepta fotos. No se subió:"
+      "errUnsupportedKind": "Esta página solo acepta fotos. No se subió:",
+      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:"
     },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
@@ -11434,7 +11435,11 @@
       "errZipTooLarge": "El ZIP debe pesar menos de 500 MB.",
       "errZipUnreadable": "No se pudo leer el archivo ZIP.",
       "errZipTruncated": "El ZIP tenía más imágenes de las que se pueden extraer a la vez.",
-      "errBatchTooLarge": "Demasiados archivos a la vez."
+      "errBatchTooLarge": "Demasiados archivos a la vez.",
+      "uploadedChip": "Subido",
+      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:",
+      "uploadHintVideo": "MP4 o WebM, hasta 30 MB. Ideal para fondos: unos 15 MB, 1080p, de 15 a 30 segundos, sin sonido.",
+      "uploadHintAssets": "Imágenes hasta 30 MB (se comprimen automáticamente), videos hasta 30 MB, documentos hasta 25 MB."
     },
     "mediaQuota": {
       "usage": "{used} de {cap} fotos usadas en tu plan.",

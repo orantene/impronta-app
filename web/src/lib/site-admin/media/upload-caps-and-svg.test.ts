@@ -34,13 +34,55 @@ import { sanitizeSvgLogoBuffer } from "../sanitize-svg-upload";
 // ── T1 · cap boundaries ────────────────────────────────────────────────
 
 describe("T1 media upload size caps", () => {
-  it("documents the caps migration 20261103000000 claims are enforced", () => {
+  it("pins the per-kind in-process caps", () => {
     assert.equal(MEDIA_IMAGE_MAX_BYTES, 8 * 1024 * 1024);
     assert.equal(MEDIA_DOCUMENT_MAX_BYTES, 25 * 1024 * 1024);
-    assert.equal(MEDIA_VIDEO_MAX_BYTES, 200 * 1024 * 1024);
+    // 30 MB, NOT the 200 MB migration 20261103000000 documents. That
+    // migration set the BUCKET ceiling to 200 MB and said per-kind caps stay
+    // "enforced in-process"; this is that in-process cap, tightened on
+    // 2026-08-27 because the CMS lane's videos are played back as page
+    // backgrounds on the public site and Supabase serves them
+    // `cache-control: no-cache`. The bucket ceiling is unchanged — talent
+    // hello-reels still need it (see the reel-lane test below).
+    assert.equal(MEDIA_VIDEO_MAX_BYTES, 30 * 1024 * 1024);
     assert.equal(maxBytesForMediaKind("image"), MEDIA_IMAGE_MAX_BYTES);
     assert.equal(maxBytesForMediaKind("document"), MEDIA_DOCUMENT_MAX_BYTES);
     assert.equal(maxBytesForMediaKind("video"), MEDIA_VIDEO_MAX_BYTES);
+  });
+
+  it("never lets an in-process cap exceed the bucket ceiling", () => {
+    // The invariant the old 200-MB assertion was really protecting: an
+    // in-process cap ABOVE `file_size_limit` would have the app accept a file
+    // that storage then rejects, which surfaces as a signed PUT failing after
+    // every byte is on the wire. Direction matters; the exact number does not.
+    const BUCKET_CEILING_BYTES = 209_715_200; // migration 20261103000000
+    for (const kind of ["image", "document", "video"] as const) {
+      assert.ok(
+        maxBytesForMediaKind(kind) <= BUCKET_CEILING_BYTES,
+        `${kind} cap must not exceed the bucket ceiling`,
+      );
+    }
+  });
+
+  it("the talent hello-reel lane does NOT inherit the CMS video cap", () => {
+    // Reels are 200 MB and ride `actionCreateSignedUploadUrl`, a different
+    // path that skips the shared validator entirely. Tightening the CMS cap
+    // must never strand a reel, so pin that the reel lane does not import
+    // these constants — the moment it does, 30 MB silently becomes the reel
+    // cap too and a talent's video upload starts failing.
+    const actions = readFileSync(
+      path.join(
+        process.cwd(),
+        "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts",
+      ),
+      "utf8",
+    );
+    assert.ok(
+      !/maxBytesForMediaKind|MEDIA_VIDEO_MAX_BYTES|validateMediaUploadSize/.test(
+        actions,
+      ),
+      "the reel lane must keep its own 200 MB allowance, independent of the CMS caps",
+    );
   });
 
   it("accepts a file exactly AT the cap for every kind", () => {

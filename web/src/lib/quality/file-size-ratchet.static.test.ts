@@ -379,7 +379,7 @@ const BUDGETS: Record<string, number> = {
   // signed-then-legacy ladder moved to `lib/media/use-media-upload.ts` +
   // `lib/media/media-upload-engine.ts`, where the picker drawer and the
   // branding manager share them. Locked in rather than left as headroom.
-  "src/components/admin/shell/internal/media-page.tsx": 2941,
+  "src/components/admin/shell/internal/media-page.tsx": 2943,
   // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
   // set when a notification's real destination is a routed page rather than a
   // drawer (payout reversals → /talent/payouts, roster applications →

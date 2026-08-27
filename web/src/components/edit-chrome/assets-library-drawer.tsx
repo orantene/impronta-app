@@ -135,6 +135,15 @@ export function AssetsLibraryDrawer() {
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Brief "Uploaded" confirmation. The old behaviour ended an upload by
+  // silently reverting the chip to the asset count, which is how "did it
+  // finish or did it die?" became a support question.
+  const [justUploaded, setJustUploaded] = useState(false);
+  useEffect(() => {
+    if (!justUploaded) return;
+    const timer = setTimeout(() => setJustUploaded(false), 2500);
+    return () => clearTimeout(timer);
+  }, [justUploaded]);
 
   // In-editor crop. The cropped result goes through the SAME upload pipeline
   // as any other file and lands as a NEW asset — the original is never
@@ -164,6 +173,7 @@ export function AssetsLibraryDrawer() {
       setUploadError(null);
       const finished = await uploader.upload(files);
       const failed = finished.filter((it) => it.status === "error");
+      if (finished.length > 0 && failed.length === 0) setJustUploaded(true);
       if (failed.length > 0) {
         setUploadError(
           failed
@@ -234,7 +244,16 @@ export function AssetsLibraryDrawer() {
 
   const uploading = uploader.uploading;
   const chip = uploading ? (
-    <SaveChip status="saving" label={t("dashboard.mediaLibrary.uploading")} />
+    <SaveChip
+      status="saving"
+      label={
+        uploader.progressPct != null
+          ? `${t("dashboard.mediaLibrary.uploading")} ${uploader.progressPct}%`
+          : t("dashboard.mediaLibrary.uploading")
+      }
+    />
+  ) : justUploaded ? (
+    <SaveChip status="saved" label={t("dashboard.mediaLibrary.uploadedChip")} />
   ) : library.error || uploadError || saveError ? (
     <SaveChip status="error" label={t("dashboard.mediaLibrary.needsAttention")} />
   ) : (
@@ -287,6 +306,8 @@ export function AssetsLibraryDrawer() {
             await handleUpload(files);
           }}
           uploading={uploading}
+          uploadProgressPct={uploader.progressPct}
+          uploadHint={t("dashboard.mediaLibrary.uploadHintAssets")}
           uploadAccept={STAFF_ACCEPT}
           header={
             uploadError || saveError ? (

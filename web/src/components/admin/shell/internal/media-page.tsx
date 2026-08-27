@@ -138,6 +138,8 @@ function rejectionMessage(
     case "unsupported_kind":
       // Photos-only page; name what did not upload rather than dropping it mute.
       return `${t("dashboard.adminMedia.errUnsupportedKind")} ${namesForMessage(r.names)}`;
+    case "file_too_large":
+      return `${interpolate(t("dashboard.adminMedia.errFileTooLarge"), { max: r.maxMb })} ${namesForMessage(r.names)}`;
   }
 }
 

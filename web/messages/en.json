@@ -10878,7 +10878,8 @@
       "downloadGotOriginal": "Original file.",
       "downloadGotWebSize": "Web-size file.",
       "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition.",
-      "errUnsupportedKind": "This page takes photos only. Not uploaded:"
+      "errUnsupportedKind": "This page takes photos only. Not uploaded:",
+      "errFileTooLarge": "Too large (max {max} MB), not uploaded:"
     },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",
@@ -11434,7 +11435,11 @@
       "errZipTooLarge": "ZIP must be under 500 MB.",
       "errZipUnreadable": "Could not read ZIP file.",
       "errZipTruncated": "The ZIP held more images than we can extract at once.",
-      "errBatchTooLarge": "Too many files at once."
+      "errBatchTooLarge": "Too many files at once.",
+      "uploadedChip": "Uploaded",
+      "errFileTooLarge": "Too large (max {max} MB), not uploaded:",
+      "uploadHintVideo": "MP4 or WebM, up to 30 MB. Best for backgrounds: about 15 MB, 1080p, 15 to 30 seconds, no sound.",
+      "uploadHintAssets": "Images up to 30 MB (compressed automatically), videos up to 30 MB, documents up to 25 MB."
     },
     "mediaQuota": {
       "usage": "{used} of {cap} photos used on your plan.",
