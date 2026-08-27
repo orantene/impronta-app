@@ -28,16 +28,61 @@ import path from "node:path";
  * separators, "·", numerals) is ignored.
  */
 
-const SECTIONS_DIR = path.join(process.cwd(), "src/lib/site-admin/sections");
+/**
+ * TENANT-STOREFRONT surfaces — what a visitor to a Spanish agency site sees.
+ *
+ * Deliberately NOT the whole app. Tulala's own marketing pages and the app/hub
+ * landings are a different product surface with their own i18n, and scanning
+ * them adds false positives (a demo fixture named "Nova Roster" is not copy to
+ * translate). Widen this list when a new storefront surface ships, not to chase
+ * a bigger number.
+ */
+const STOREFRONT_DIRS = [
+  "src/lib/site-admin/sections",
+  "src/app/t/[profileCode]",
+].map((dir) => path.join(process.cwd(), dir));
 
-/** Wording that is already locale-aware, i.e. chosen from a `locale` value. */
-const LOCALE_AWARE = /locale\s*===|pickLocale|withLocale|useT\(|\bt\(/;
+/**
+ * Strings a PR already in flight is fixing. Each entry must name the PR and
+ * disappear when it lands — this is a dated handoff, not a place to park debt.
+ * #1374 ("the account card spoke English on a Spanish store") rewrites these
+ * exact lines; guarding them here too would collide with it.
+ */
+const IN_FLIGHT_FIXES = new Set([
+  "Use a different email",                              // #1374
+  "Save this conversation",                             // #1374
+  "Your email",                                         // #1374
+  "This is already the email on this conversation.",    // #1374
+  "Type a message below to get started.",               // #1374
+]);
 
+/**
+ * There is deliberately NO file-level "this file is locale-aware" skip.
+ *
+ * It used to exempt any file mentioning `locale ===`, which meant localizing
+ * ONE string in a file hid every other hardcoded string in it — the guard
+ * reported green on a file it had stopped reading. The line matcher below is
+ * already the right filter: a localized line (`{isEs ? "…" : "…"}`) is an
+ * expression, not a bare JSX text child, so it never matches in the first place.
+ */
+
+/**
+ * EVERY `.tsx` under a storefront directory, not just `Component.tsx` /
+ * `Card.tsx`. That narrower pattern was the guard's own blind spot: three real
+ * strings sat in `AIInterpretChip.tsx` and `DirectoryReactiveGrid.tsx`, inside
+ * a directory the guard already scanned, and it could not see them.
+ */
 function componentFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return out; // a surface that does not exist in this checkout
+  }
+  for (const entry of entries) {
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) componentFiles(full, out);
-    else if (/^Component\.tsx$|Card\.tsx$/.test(entry)) out.push(full);
+    else if (entry.endsWith(".tsx") && !entry.endsWith(".test.tsx")) out.push(full);
   }
   return out;
 }
@@ -57,13 +102,15 @@ function hardcodedSentences(source: string): string[] {
   return hits;
 }
 
-test("no NEW user-visible English is hardcoded in a section renderer", () => {
+test("no NEW user-visible English is hardcoded in a storefront component", () => {
   const offenders: string[] = [];
-  for (const file of componentFiles(SECTIONS_DIR)) {
-    const source = readFileSync(file, "utf8");
-    if (LOCALE_AWARE.test(source)) continue; // already chooses wording by locale
-    for (const text of hardcodedSentences(source)) {
-      offenders.push(`${path.relative(process.cwd(), file)}: ${JSON.stringify(text)}`);
+  for (const dir of STOREFRONT_DIRS) {
+    for (const file of componentFiles(dir)) {
+      const source = readFileSync(file, "utf8");
+      for (const text of hardcodedSentences(source)) {
+        if (IN_FLIGHT_FIXES.has(text)) continue;
+        offenders.push(`${path.relative(process.cwd(), file)}: ${JSON.stringify(text)}`);
+      }
     }
   }
   assert.deepEqual(

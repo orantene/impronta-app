@@ -255,7 +255,9 @@
       "exclusivelyRepresentedBy": "Representado en exclusiva por {agency}",
       "exclusivityInfoAria": "¿Qué significa la representación en exclusiva?",
       "exclusivityInfoBody": "Las reservas de este talento se gestionan a través de {agency}. Las consultas iniciadas en cualquier parte de Tulala se dirigen a ellos.",
-      "representedBy": "Representado por"
+      "representedBy": "Representado por",
+      "securePayments": "Todas las solicitudes se gestionan de forma segura a través de Tulala",
+      "moreFromRoster": "Más de este roster"
     },
     "reviews": {
       "sectionAria": "Reseñas de clientes",

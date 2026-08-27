@@ -1,5 +1,6 @@
 "use client";
 
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
@@ -24,6 +25,10 @@ import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigat
 export function AIInterpretChip({ summary }: { summary: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  // Client component with no locale prop: derive it from the path, the same
+  // source `clientLocaleHref` uses. Without this the chip spoke English on a
+  // Spanish storefront.
+  const isEs = stripLocaleFromPathname(pathname ?? "/").locale === "es";
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
@@ -64,7 +69,7 @@ export function AIInterpretChip({ summary }: { summary: string }) {
       />
       <span className="min-w-0 flex-1 truncate">
         <span className="mr-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-          AI applied
+          {isEs ? "IA aplicada" : "AI applied"}
         </span>
         <span className="text-foreground">{summary}</span>
       </span>
@@ -74,7 +79,7 @@ export function AIInterpretChip({ summary }: { summary: string }) {
         disabled={pending}
         className="shrink-0 rounded-full border border-border bg-transparent px-3 py-1 text-[11px] font-medium tracking-wide text-muted-foreground outline-none transition-colors hover:border-foreground/35 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
       >
-        Clear AI
+        {isEs ? "Quitar IA" : "Clear AI"}
       </button>
     </div>
   );

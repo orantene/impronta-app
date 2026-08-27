@@ -462,6 +462,10 @@
       "accept": "Voir en français",
       "dismiss": "Non merci",
       "regionLabel": "Suggestion de langue"
+    },
+    "profile": {
+      "securePayments": "Toutes les demandes sont traitées en toute sécurité via Tulala",
+      "moreFromRoster": "Plus de ce roster"
     }
   },
   "dashboard": {

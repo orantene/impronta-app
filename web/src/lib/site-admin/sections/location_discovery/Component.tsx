@@ -72,7 +72,18 @@ function pinStyle(index: number): CSSProperties {
   };
 }
 
-function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
+function MarketMap({
+  locs,
+  showCount,
+  locale,
+}: {
+  locs: Loc[];
+  showCount?: boolean;
+  // The caller has the locale; without it this map's own chrome spoke English
+  // on a Spanish storefront while the section around it was translated.
+  locale?: string;
+}) {
+  const isEs = locale === "es";
   const featured = locs.find((l) => l.featured) ?? locs[0];
   const activeCount = locs.filter((l) => l.status !== "coming_soon").length;
   const comingSoonCount = locs.length - activeCount;
@@ -138,7 +149,13 @@ function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
           className="site-locdisc__market-kicker"
           data-status={featuredIsComingSoon ? "coming-soon" : "active"}
         >
-          {featuredIsComingSoon ? "Coming soon" : "Featured market"}
+          {featuredIsComingSoon
+            ? isEs
+              ? "Próximamente"
+              : "Coming soon"
+            : isEs
+              ? "Mercado destacado"
+              : "Featured market"}
         </span>
         <h3 className="site-locdisc__market-title">{featured.label}</h3>
         {featured.region ? (
@@ -156,18 +173,18 @@ function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
         <div className="site-locdisc__market-stats">
           <span>
             <b>{activeCount}</b>
-            Active markets
+            {isEs ? "Mercados activos" : "Active markets"}
           </span>
           {comingSoonCount > 0 ? (
             <span>
               <b>{comingSoonCount}</b>
-              Coming soon
+              {isEs ? "Próximamente" : "Coming soon"}
             </span>
           ) : null}
         </div>
         {featuredIsComingSoon ? null : (
           <a href={featured.href} className="site-locdisc__market-link">
-            Browse market
+            {isEs ? "Ver el mercado" : "Browse market"}
           </a>
         )}
       </aside>
@@ -453,7 +470,7 @@ export async function LocationDiscoveryComponent({
               : "No locations to show yet."}
           </p>
         ) : showMap ? (
-          <MarketMap locs={locs} showCount={showCount} />
+          <MarketMap locs={locs} showCount={showCount} locale={locale} />
         ) : (
           <div className="site-locdisc__grid">
             {locs.map((l) => (
