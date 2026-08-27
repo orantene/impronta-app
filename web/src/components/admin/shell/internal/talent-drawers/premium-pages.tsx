@@ -27,6 +27,10 @@ import {
   type TalentTierGroup,
 } from "../state";
 import {
+  TalentEmbedsManager,
+  TalentPressManager,
+} from "@/components/talent/profile-extras/TalentProfileExtrasManagers";
+import {
   CapsLabel,
   Divider,
   DrawerShell,
@@ -486,7 +490,6 @@ export function TalentMediaEmbedsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-media-embeds";
-  const copy = useDashboardText();
 
   const supported: Array<{ kind: string; label: string; thumb: string }> = [
     { kind: "instagram", label: "Instagram", thumb: "📷" },
@@ -511,11 +514,9 @@ export function TalentMediaEmbedsDrawer() {
         </>
       }
     >
-      <ManageOnPublicPage
-        blurb={copy.t(
-          "Embeds live on your public page. Add or remove them from My pages, where the changes are saved and published.",
-        )}
-      />
+      {/* W14 → Phase 2: the fixture is gone. This is the talent's OWN store
+          (talent_profile_embeds), saved through tier-gated server actions. */}
+      <TalentEmbedsManager active={open} />
       <Divider label={t("dashboard.talentDrawers.premiumPages.supportedSources")} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {supported.map((s) => (
@@ -553,7 +554,6 @@ export function TalentPressDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-press";
-  const copy = useDashboardText();
 
   return (
     <DrawerShell
@@ -569,11 +569,8 @@ export function TalentPressDrawer() {
         </>
       }
     >
-      <ManageOnPublicPage
-        blurb={copy.t(
-          "Press clippings are part of your public page content. Add them from My pages so they publish with the rest of your site.",
-        )}
-      />
+      {/* W14 → Phase 2: real per-talent press store (talent_press_items). */}
+      <TalentPressManager active={open} />
     </DrawerShell>
   );
 }

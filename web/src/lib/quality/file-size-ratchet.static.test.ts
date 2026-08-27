@@ -453,7 +453,9 @@ const BUDGETS: Record<string, number> = {
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
   "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2421,
-  "src/app/t/[profileCode]/profile-view.tsx": 2634,
+  // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
+  // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
+  "src/app/t/[profileCode]/profile-view.tsx": 2650,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:
