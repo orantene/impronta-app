@@ -4363,6 +4363,23 @@
       "brandingMediaDesc": "Logo, colors, watermark, photo library, and brand assets.",
       "advancedLabel": "Advanced",
       "advancedDesc": "Feature toggles, data tools, and workspace deletion.",
+      "workspaceType": {
+        "title": "What is this workspace for?",
+        "desc": "Roster and Pitches appear when you represent talent, and are hidden when this workspace is your own business. Nothing is deleted either way.",
+        "talentLabel": "I represent talent",
+        "talentDesc": "An agency, studio, or network with a roster of people you book out.",
+        "businessLabel": "This is my own business",
+        "businessDesc": "A business with its own site that books talent as a client. Roster and Pitches are hidden.",
+        "confirmTitle": "Switch to a business workspace?",
+        "confirmOne": "1 talent profile will be hidden, not deleted. You can switch back at any time and they return.",
+        "confirmOther": "{count} talent profiles will be hidden, not deleted. You can switch back at any time and they return.",
+        "confirmNone": "Roster and Pitches will be hidden. Nothing is deleted, and you can switch back at any time.",
+        "confirmCta": "Switch to business",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "ownerOnly": "Only the workspace owner can change what this workspace is for."
+      },
       "defaultCurrency": {
         "desc": "Which currency tab opens first on Business Financials when multiple are present. Display-only, no FX conversion."
       },

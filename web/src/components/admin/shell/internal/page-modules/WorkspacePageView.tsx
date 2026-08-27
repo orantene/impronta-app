@@ -22,6 +22,7 @@ import { RegistrationSection } from "./RegistrationSection";
 import { DiscoverExposureSection } from "./DiscoverExposureSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
+import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 
 // ════════════════════════════════════════════════════════════════════════
 // 2026-07-24 flat redesign — replaces the old tabs + 13-accordion wall with
@@ -382,8 +383,20 @@ export function WorkspacePageView() {
             right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
           },
         ],
-        extra: <DefaultCurrencySettingsRow />,
+        extra: (
+          <>
+            {/* Owner-only, and the ONLY caller of `setWorkspaceType`. Lives in
+                its own file because this one is already past the 800-line
+                max-lines cap. */}
+            <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
+            <DefaultCurrencySettingsRow />
+          </>
+        ),
         extraSearch: [
+          {
+            title: t("dashboard.adminWorkspace.workspaceType.title"),
+            desc: t("dashboard.adminWorkspace.workspaceType.desc"),
+          },
           {
             // The row this indexes is `DefaultCurrencySettingsRow`; mirror ITS
             // own title/desc keys. `dashboard.adminWorkspace.defaultCurrency` is
@@ -871,7 +884,7 @@ export function WorkspacePageView() {
     ];
     return list;
   }, [
-    t, state.plan, state.role, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
+    t, state.plan, state.role, state.workspaceType, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
     bridgeTalentSelfProfile, effectiveTeamMembers.length, pendingTrustCount, disputedClaimsCount,
     pendingTalent.length, openDrawer, openUpgrade, setPage,
   ]);

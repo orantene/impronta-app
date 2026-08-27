@@ -4363,6 +4363,23 @@
       "brandingMediaDesc": "Logo, colores, marca de agua, galería de fotos y recursos de marca.",
       "advancedLabel": "Avanzado",
       "advancedDesc": "Controles de funciones, herramientas de datos y eliminación del espacio de trabajo.",
+      "workspaceType": {
+        "title": "¿Para qué es este espacio de trabajo?",
+        "desc": "Roster y Pitches aparecen cuando representas talento, y se ocultan cuando este espacio es tu propio negocio. No se borra nada en ninguno de los dos casos.",
+        "talentLabel": "Represento talento",
+        "talentDesc": "Una agencia, estudio o red con un roster de personas a las que representas.",
+        "businessLabel": "Es mi propio negocio",
+        "businessDesc": "Un negocio con su propio sitio que contrata talento como cliente. Roster y Pitches se ocultan.",
+        "confirmTitle": "¿Cambiar a un espacio de negocio?",
+        "confirmOne": "1 perfil de talento se ocultará, no se borrará. Puedes volver a cambiarlo cuando quieras y reaparecerá.",
+        "confirmOther": "{count} perfiles de talento se ocultarán, no se borrarán. Puedes volver a cambiarlo cuando quieras y reaparecerán.",
+        "confirmNone": "Roster y Pitches se ocultarán. No se borra nada y puedes volver a cambiarlo cuando quieras.",
+        "confirmCta": "Cambiar a negocio",
+        "cancel": "Cancelar",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "ownerOnly": "Solo el propietario del espacio de trabajo puede cambiar para qué se usa."
+      },
       "defaultCurrency": {
         "desc": "Qué pestaña de moneda se abre primero en Finanzas del negocio cuando hay varias. Solo para visualización, sin conversión de divisas."
       },
