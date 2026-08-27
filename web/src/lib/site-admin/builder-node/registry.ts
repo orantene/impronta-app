@@ -739,6 +739,8 @@ const imagePropsSchema = z.object({
   alt: z.string().max(240).optional(),
   // Above-the-fold hint — eager-load + fetchpriority=high (LCP hero image).
   priority: z.boolean().optional(),
+  // Whole-image link (the shell logo → home). Same cap as a button href.
+  href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,

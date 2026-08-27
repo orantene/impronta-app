@@ -608,6 +608,30 @@ export function EditProvider({
   // knowing which tier it's previewing, instead of always defaulting to
   // "desktop" the way a top-level (non-iframe) EditProvider correctly does.
   const [device, setDeviceRaw] = useState<EditDevice>(initialDevice ?? "desktop");
+  // Owner report (2026-08-21): "I don't see all the elements" on the phone
+  // canvas. A block hidden at a breakpoint is display:none there, so it has no
+  // box to hover or click — and the Show toggle only exists for the SELECTED
+  // block, making hide a one-way door from the canvas. While a NON-DESKTOP
+  // device is being edited (and preview is off) mark the canvas body so the
+  // renderer's edit-only rule brings those blocks back as dimmed, dashed,
+  // still-selectable ghosts. Preview mode and the published site never carry
+  // the attribute, so the visitor-facing render is unchanged. This effect runs
+  // in the device-preview IFRAME's own provider too, which is the document
+  // whose body actually needs the marker.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const reveal = device !== "desktop" && !previewing;
+    if (reveal) {
+      document.body.dataset.bnRevealHidden = "1";
+    } else {
+      delete document.body.dataset.bnRevealHidden;
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        delete document.body.dataset.bnRevealHidden;
+      }
+    };
+  }, [device, previewing]);
   // Responsive-preview frame override (job #17). Reset whenever the operator
   // picks a device tier so a custom width / rotation from a previous tier never
   // silently carries over to the next.

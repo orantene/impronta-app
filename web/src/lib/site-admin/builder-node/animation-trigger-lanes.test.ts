@@ -173,13 +173,93 @@ test("the sheet carries a reduced-motion guard for BOTH non-inline lanes", () =>
   );
 });
 
-test("an armed play-once node is hidden ONLY after the runtime arms it", () => {
-  const html = sheet();
-  // The hidden pose hangs off `[data-bn-reveal-armed]`, which only JS adds. A
-  // rule that hid the node on `[data-bn-anim-once]` alone would leave the text
-  // invisible for every no-JS reader and every crawler.
-  assert.match(
+test("the static sheet never hides a play-once node on its own", () => {
+  // The hidden pose is injected BY THE RUNTIME, so a no-JS reader and every
+  // crawler see the text. Just as important: the runtime arms by appending a
+  // stylesheet rather than writing an attribute onto each node -- it runs at
+  // DOMContentLoaded, before React hydrates, and an attribute written then is
+  // one the server never rendered, which React reports as an unpatchable
+  // hydration mismatch on every node in the lane.
+  const html = sheet(ONCE_TREE);
+  // Only the <style> block -- the runtime <script> in the same output legitimately
+  // CONTAINS that rule as the text it injects at arming time.
+  const styleBlock = /<style[^>]*data-builder-node-renderer-styles[^>]*>([\s\S]*?)<\/style>/.exec(
     html,
-    /\[data-bn-anim-once\]\[data-bn-reveal-armed\]:not\(\[data-bn-revealed\]\)\{opacity:0\}/,
+  );
+  assert.ok(styleBlock, "renderer stylesheet not found in the output");
+  assert.doesNotMatch(
+    styleBlock[1]!,
+    /\[data-bn-anim-once\][^{]*\{[^}]*opacity:0/,
+    "the shipped sheet must not hide play-once nodes; only the runtime may",
+  );
+  assert.match(html, /data-bn-anim-once-armed/);
+  assert.match(html, /createElement\('style'\)/);
+  assert.doesNotMatch(
+    html,
+    /setAttribute\('data-bn-reveal-armed'/,
+    "arming must not touch attributes React owns",
   );
 });
+
+/**
+ * HYDRATION INVARIANT for the reveal lane.
+ *
+ * Every inline runtime the renderer ships runs at DOMContentLoaded, which fires
+ * BEFORE React hydrates. An attribute a runtime writes onto a NODE is therefore
+ * one the server never rendered: React reports a hydration mismatch it
+ * explicitly "won't patch up", and the arming state can diverge from what the
+ * CSS expects. Arming must happen by injecting a <style>, never by writing an
+ * attribute onto an element React owns.
+ *
+ * The assertion keys on the exact node-attribute form — `'data-bn-reveal-armed'`
+ * with its closing quote — because the injected stylesheet is legitimately
+ * MARKED `data-bn-reveal-armed-sheet`. That rename is what keeps the two cases
+ * distinguishable by a static check at all.
+ *
+ * `data-bn-revealed` is deliberately exempt: it is written from an
+ * IntersectionObserver callback, which cannot fire before the observer is
+ * constructed, i.e. after hydration.
+ */
+const REVEAL_TREE: BuilderNode[] = [
+  {
+    id: "h1",
+    kind: "heading",
+    props: { text: "Hello", level: 2, style: { revealOnView: "fade-up" } },
+  } as BuilderNode,
+];
+
+const revealLaneHtml = (): string =>
+  renderToStaticMarkup(
+    renderBuilderNodes(REVEAL_TREE, {
+      mode: "freeform",
+      includeRendererStyles: true,
+      includeFontLinks: false,
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+test("the reveal lane never arms by writing an attribute React owns", () => {
+  assert.doesNotMatch(
+    revealLaneHtml(),
+    /setAttribute\('data-bn-reveal-armed'/,
+    "arming must mark an injected <style>, never a node",
+  );
+});
+
+test("the reveal lane injects its hidden poses instead of shipping them", () => {
+  const html = revealLaneHtml();
+  assert.match(html, /data-bn-reveal-armed-sheet/, "style marker present");
+  assert.match(html, /createElement\('style'\)/, "poses injected at arm time");
+
+  // With no JS, no IntersectionObserver or reduced motion the node has to
+  // render at rest, or the content is permanently invisible to a reader and to
+  // a crawler — so no hidden pose may ship in the static sheet.
+  const styleBlock =
+    /<style[^>]*data-builder-node-renderer-styles[^>]*>([\s\S]*?)<\/style>/.exec(html);
+  assert.ok(styleBlock, "renderer stylesheet not found in the output");
+  assert.doesNotMatch(
+    styleBlock[1]!,
+    /\[data-bn-reveal\][^{]*\{[^}]*opacity:0/,
+    "the shipped sheet must not hide reveal nodes; only the runtime may",
+  );
+});
+

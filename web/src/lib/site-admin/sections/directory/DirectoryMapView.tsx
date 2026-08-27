@@ -312,7 +312,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   const captionNorms = computeCaptionNorms(
     visibleCards.map((c) => ({
       locationLabel: c.locationLabel,
-      availabilityLabel: formatAvailability(c).label,
+      availabilityLabel: formatAvailability(c, locale).label,
     })),
   );
 

@@ -1,13 +1,23 @@
-import Link from "next/link";
-import { MapPin } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
-import { LocationMapLazy } from "./location-map-lazy";
+import type { LocaleUrlSettings } from "@/i18n/pathnames";
+import { LocationCityBoard } from "./location-city-board";
 
 export type LocationFeaturedPreview = {
   talentId: string;
   thumbnailUrl: string | null;
+  /**
+   * Shown as the floating label when a visitor taps a face in the orbit ring.
+   * Null when the profile has no display name, in which case the ring shows no
+   * label rather than inventing one.
+   */
+  name: string | null;
+  /**
+   * `talent_profiles.profile_code` -- the EXACT code the public profile route
+   * keys on. The href is assembled at the call site so it picks up the tenant
+   * path prefix and locale grammar (see featured-talent-section.tsx). Null when
+   * the profile has no code, in which case the ring offers no profile link.
+   */
+  profileCode: string | null;
 };
 
 export type LocationItem = {
@@ -69,43 +79,11 @@ export function LocationSection({
           {copy.sectionTitle}
         </p>
 
-        {/* Horizontal scroll on mobile, wrap on desktop */}
-        <div className="-mx-4 mt-10 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:overflow-x-visible sm:px-0 sm:pb-0">
-          <div className="flex w-max gap-3 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-4">
-            {locations.map((loc) => (
-              <Link
-                key={loc.id}
-                href={withLocalePath(
-                  prefixPublicHref(
-                    `/directory?location=${loc.citySlug}`,
-                    publicPathPrefix,
-                  ),
-                  locale,
-                  localeUrl,
-                )}
-                className="group flex shrink-0 items-center gap-2.5 rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
-              >
-                <MapPin className="size-4 text-[var(--impronta-gold)]" />
-                <div>
-                  <span className="block text-sm font-medium text-foreground transition-colors group-hover:text-[var(--impronta-gold)]">
-                    {loc.displayName}
-                  </span>
-                  <span className="text-xs text-[var(--impronta-muted)]">
-                    {loc.talentCount === 1
-                      ? copy.talentCountOne
-                      : copy.talentCountMany.replace("{count}", String(loc.talentCount))}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <LocationMapLazy
+        <LocationCityBoard
           locations={locations}
           locale={locale}
           copy={copy}
-          apiKey={mapsApiKey}
+          mapsApiKey={mapsApiKey}
           publicPathPrefix={publicPathPrefix}
           localeUrl={localeUrl}
         />

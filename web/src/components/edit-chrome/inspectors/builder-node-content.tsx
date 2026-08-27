@@ -795,6 +795,23 @@ export function BuilderNodeContentInspector({
               patch={commitPatch}
             />
           </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Link</label>
+            <input
+              key={`${node.id}:href:${node.props.href ?? ""}`}
+              defaultValue={node.props.href ?? ""}
+              className={KIT.input}
+              placeholder="/ or /contact or https://..."
+              onBlur={(event) => {
+                void commitTextInput("href", node.props.href ?? "", true)(
+                  event.currentTarget.value,
+                );
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("href", node.props.href ?? "", true)(value);
+              })}
+            />
+          </div>
           <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
           <div style={{ padding: "4px 0" }}>
             <Toggle
