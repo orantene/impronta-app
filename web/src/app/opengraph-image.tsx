@@ -9,13 +9,13 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 // improntamodels.com, etc.), this renders a branded card with the
 // agency name, primary brand color, and a "Discover N talent" line.
 // On the platform host (tulala.digital) it renders a Tulala-branded
-// card carrying the current brand line, "The Commerce Platform for
-// Talent". Falls back to a calm Tulala card if anything fails.
+// card carrying the current brand line, "Sell what you do, not what
+// you ship". Falls back to a calm Tulala card if anything fails.
 //
 // The sibling `twitter-image.tsx` re-exports this route so Twitter/X
 // cards stay in lockstep with the OG card on both host kinds.
 
-export const alt = "Tulala. The Commerce Platform for Talent";
+export const alt = "Tulala. Sell what you do, not what you ship";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -77,7 +77,7 @@ export default async function Image() {
     ? data.talentCount > 0
       ? `Discover ${data.talentCount} talent on ${data.name}`
       : `Send an inquiry to ${data.name}`
-    : "The Commerce Platform for Talent";
+    : "Sell what you do, not what you ship";
   const kicker = isAgency ? "AGENCY" : "TULALA";
 
   return new ImageResponse(
