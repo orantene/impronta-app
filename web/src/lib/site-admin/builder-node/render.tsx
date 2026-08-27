@@ -14,6 +14,7 @@ import {
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
+import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import {
   isSafeRichTextHref,
@@ -702,6 +703,25 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  * the template -- a 680-byte explanation of two selectors cost more than the
  * selectors did, and broke the budget on two of the fidelity fixtures.
  *
+ * EDIT-ONLY REVEAL of hidden blocks (`[data-bn-reveal-hidden]`). A block hidden
+ * at a breakpoint is removed from flow, so on the phone canvas it had ZERO size
+ * -- invisible, un-hoverable, un-clickable. The "show it again" control only
+ * exists for the SELECTED block, which made hiding a ONE-WAY DOOR. The editor
+ * sets `data-bn-reveal-hidden` on the canvas body ONLY while a non-desktop
+ * device is being edited and preview is OFF, so it can never reach a visitor;
+ * the ancestor attribute out-specifies the `display:none` rule and brings the
+ * block back as a dimmed, dashed, fully selectable ghost. Published output is
+ * byte-identical (the attribute is absent).
+ *
+ * The rule is emitted ONCE, outside both media blocks, for the tablet and
+ * mobile hidden attributes together. It used to be two copies, each preceded by
+ * an identical 11-line CSS comment INSIDE the template -- ~1.5 KB shipped to
+ * every visitor, which pushed the sheet over its 111 KB budget. That is the
+ * exact trap this file's header warns about two paragraphs up: rationale goes
+ * in TypeScript comments like this one, never in CSS comments in the template.
+ * Neither media query was needed anyway -- the ancestor attribute exists only
+ * on the editor canvas, and the rule it overrides is breakpoint-scoped itself.
+ *
  * ENTRANCE ANIMATION, THE TWO NON-INLINE LANES. Hover and "play once on scroll
  * in" both need the animation NOT to be on the element at load, so they cannot
  * ride the inline `animation` shorthand the load / scroll-every lanes use.
@@ -741,6 +761,40 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  *     it to retry. `!important` because the field wrappers carry inline
  *     `display:grid`, which beats any sheet rule.
  */
+/**
+ * RATIONALE FOR THE RULES BELOW (moved out of the template 2026-08-21).
+ * These were CSS comments INSIDE the sheet, i.e. ~1.8 KB shipped to every
+ * visitor, which is what pushed the sheet past its 111 KB budget. Same trap
+ * this file's header names: rationale goes in TypeScript comments, never in
+ * CSS comments in the template.
+ *
+ * After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
+ * * An emptied form sitting under a success banner reads as "fill me in again" -
+ * * and a second identical submission is exactly what the rate limiter and the
+ * * coordinator reading the inbox do not need. Errors keep the form: the visitor
+ * * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
+ * * !important because the field wrappers carry inline display:grid, which beats
+ * * any sheet rule - measured: without it the attribute lands and nothing hides.
+ *
+ * Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+ * The node eases to rest the first time it scrolls into view. The hidden poses
+ * are NOT in this sheet: the runtime injects them (see
+ * BUILDER_NODE_REVEAL_ARMED_CSS) so that with no JS, no IntersectionObserver or
+ * reduced motion the node is simply shown at rest. Arming used to write
+ * [data-bn-reveal-armed] onto each node, which React reported as a hydration
+ * mismatch on every node in the lane -- the runtime runs at DOMContentLoaded,
+ * before hydration, so the attribute was one the server never rendered.
+ *
+ * OVERFLOW CONTAINMENT (owner report 2026-08-21: "the header is bleeding out
+ * the hamburger menu in mobile... it makes all mobile scrolling also left to
+ * right all over the page"). A shell header is a nowrap flex row of
+ * non-shrinking items; on a narrow phone the row simply exceeded the viewport
+ * and, because nothing clipped it, the DOCUMENT gained a horizontal scrollbar —
+ * so every page scrolled sideways, not just the header. The shell landmarks now
+ * clip their own overflow: a too-wide header can never widen the page. Uses
+ * clip (not hidden) so it creates no scroll container and cannot trap the
+ * sticky header or the menu drawer.
+ */
 const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--form .bn-ff{width:100%;font:inherit;font-size:0.95rem;line-height:1.5;color:var(--token-color-ink,inherit);background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));border-radius:var(--bn-form-field-radius,3px);padding:0.72rem 0.85rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;-webkit-appearance:none;appearance:none}
 .site-builder-node--form textarea.bn-ff{min-height:8.5rem;resize:vertical}
@@ -752,13 +806,6 @@ const BUILDER_NODE_RENDERER_CSS = `
 @media (any-hover:none){.site-builder-node--form .bn-ff{font-size:16px}}
 .site-builder-node--form input[type="checkbox"],.site-builder-node--form input[type="radio"]{accent-color:var(--token-color-primary,#9a7326)}
 .site-builder-node--form[data-form-submitted]>:not([data-form-result-banner]){display:none!important}
-/* After a SUCCESSFUL send the fields disappear and the thank-you stands alone.
- * An emptied form sitting under a success banner reads as "fill me in again" -
- * and a second identical submission is exactly what the rate limiter and the
- * coordinator reading the inbox do not need. Errors keep the form: the visitor
- * needs it to retry. The attribute is set by FormResultBanner on the ok flag.
- * !important because the field wrappers carry inline display:grid, which beats
- * any sheet rule - measured: without it the attribute lands and nothing hides. */
 .site-builder-node--form[data-form-submitted] > :not([data-form-result-banner]){display:none !important}
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bn-anim-rise{from{opacity:0;transform:translateY(var(--bn-anim-distance,24px))}to{opacity:1;transform:none}}
@@ -781,20 +828,13 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-bn-anim-trigger="hover"]:hover,.site-builder-node[data-bn-anim-trigger="hover"]:focus-visible{animation:var(--bn-anim)}
 .site-builder-node[data-bn-anim-once][data-bn-revealed]{animation:var(--bn-anim)}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-anim-trigger="hover"],.site-builder-node[data-bn-anim-once]{animation:none!important;opacity:1!important}}
-/* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
-   The node starts at its hidden/offset pose and eases to rest the first time it
-   scrolls into view. The inline IO script toggles [data-bn-revealed]; before the
-   script runs (or with no IO / reduced motion) the node is shown at rest. */
 .site-builder-node[data-bn-reveal]{transition:opacity var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s),transform var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s);will-change:opacity,transform}
-.site-builder-node[data-bn-reveal][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
-.site-builder-node[data-bn-reveal="fade-up"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}
-.site-builder-node[data-bn-reveal="fade-down"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}
-.site-builder-node[data-bn-reveal="fade-left"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}
-.site-builder-node[data-bn-reveal="fade-right"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}
-.site-builder-node[data-bn-reveal="zoom"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:scale(0.92)}
 .site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
+[data-bn-reveal-hidden] .site-builder-node[data-builder-style-tablet-hidden],[data-bn-reveal-hidden] .site-builder-node[data-builder-style-mobile-hidden]{display:revert!important;opacity:0.34!important;outline:1px dashed rgba(124,58,237,0.75)!important;outline-offset:2px!important}
 .site-builder-node{box-sizing:border-box}
+[data-site-shell-side] .site-builder-node--container{max-width:100%}
+[data-site-shell-side]{max-width:100%;overflow-x:clip}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
@@ -1212,29 +1252,68 @@ const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
   }
 })();`;
 
+/**
+ * The hidden/offset poses for the reveal lane, injected by the runtime rather
+ * than shipped in the static sheet.
+ *
+ * WHY IT IS INJECTED, NOT SHIPPED: the poses must not apply until JS has proven
+ * it can un-apply them, or a no-JS / no-IntersectionObserver / reduced-motion
+ * visitor is left staring at permanently invisible content.
+ *
+ * WHY IT IS A STYLESHEET, NOT AN ATTRIBUTE: arming previously wrote
+ * `data-bn-reveal-armed` onto every node in the lane. This runtime executes at
+ * DOMContentLoaded, which fires BEFORE React hydrates, so that attribute was one
+ * the server never rendered -- React reports a hydration mismatch ("this won't
+ * be patched up") on every node. Appending a <style> to <head> touches nothing
+ * React owns. This mirrors BUILDER_NODE_ANIM_ONCE_SCRIPT, which already learned
+ * this lesson; the two lanes now arm the same way.
+ */
+const BUILDER_NODE_REVEAL_ARMED_CSS =
+  '.site-builder-node[data-bn-reveal]:not([data-bn-revealed]){opacity:0}' +
+  '.site-builder-node[data-bn-reveal="fade-up"]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}' +
+  '.site-builder-node[data-bn-reveal="fade-down"]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}' +
+  '.site-builder-node[data-bn-reveal="fade-left"]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}' +
+  '.site-builder-node[data-bn-reveal="fade-right"]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}' +
+  '.site-builder-node[data-bn-reveal="zoom"]:not([data-bn-revealed]){transform:scale(0.92)}';
+
 const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
-  try{
-    var nodes=document.querySelectorAll('[data-bn-reveal]');
-    if(!nodes.length)return;
-    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if(reduce||typeof IntersectionObserver==='undefined'){
-      for(var i=0;i<nodes.length;i++)nodes[i].setAttribute('data-bn-revealed','');
-      return;
-    }
-    for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
-    var io=new IntersectionObserver(function(entries){
-      for(var k=0;k<entries.length;k++){
-        var e=entries[k];
-        if(e.isIntersecting){
-          e.target.setAttribute('data-bn-revealed','');
-          io.unobserve(e.target);
+  if(window.__bnRevealRuntime)return;
+  window.__bnRevealRuntime=1;
+  function run(){
+    try{
+      var nodes=document.querySelectorAll('[data-bn-reveal]');
+      if(!nodes.length)return;
+      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Reduced motion / no IntersectionObserver: never arm. The poses live in
+      // the injected sheet, so skipping injection leaves every node at rest --
+      // no attribute writes, nothing for React to disagree with.
+      if(reduce||typeof IntersectionObserver==='undefined')return;
+      var st=document.createElement('style');
+      st.setAttribute('data-bn-reveal-armed-sheet','');
+      st.textContent=${JSON.stringify(BUILDER_NODE_REVEAL_ARMED_CSS)};
+      document.head.appendChild(st);
+      var io=new IntersectionObserver(function(entries){
+        for(var k=0;k<entries.length;k++){
+          var e=entries[k];
+          if(e.isIntersecting){
+            e.target.setAttribute('data-bn-revealed','');
+            io.unobserve(e.target);
+          }
         }
-      }
-    },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-    for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
-  }catch(err){
-    var f=document.querySelectorAll('[data-bn-reveal]');
-    for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
+      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
+      for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+    }catch(err){
+      // Anything went wrong: drop the poses so the content is visible.
+      var s2=document.querySelector('style[data-bn-reveal-armed-sheet]');
+      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
+    }
+  }
+  // The runtime ships with the SHEET, which is emitted in head order, so at
+  // execution time the body it queries does not exist yet. Wait for the DOM.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run);
+  }else{
+    run();
   }
 })();`;
 
@@ -2992,6 +3071,18 @@ function renderFeaturedTalentChildren(
             priority={index < 2}
             publicPathPrefix={options.publicPathPrefix}
             locale={options.contentLocale?.locale ?? options.visitorLocale}
+            // The tenant grammar is only knowable here when a contentLocale was
+            // threaded (it carries the default locale + fallback chain). Absent
+            // → the card falls back to platform defaults, which no-op for a
+            // default-locale render.
+            localeSettings={
+              options.contentLocale
+                ? localeUrlSettings(options.contentLocale.defaultLocale, [
+                    options.contentLocale.defaultLocale,
+                    ...options.contentLocale.chain,
+                  ])
+                : undefined
+            }
           />
         ))}
       </div>

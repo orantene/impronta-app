@@ -23,9 +23,9 @@ export type TalentPlanCapability =
 export type TalentMembershipState = {
   planKey: TalentPlanKey;
   tier: TalentPlanTier;
-  displayName: "Free" | "Pro" | "Max";
+  displayName: "Free" | "Pro" | "Portfolio";
   capabilities: {
-    /** @deprecated Use canUseCustomBuilder — Max custom section composer only */
+    /** @deprecated Use canUseCustomBuilder — Portfolio custom section composer only */
     canBuildPersonalSite: boolean;
     canEditPersonalSite: boolean;
     canPublishPersonalSite: boolean;
@@ -52,7 +52,7 @@ const TIER_TO_PLAN: Record<TalentPlanTier, TalentPlanKey> = {
 const DISPLAY_NAME: Record<TalentPlanTier, TalentMembershipState["displayName"]> = {
   free: "Free",
   pro: "Pro",
-  max: "Max",
+  max: "Portfolio",
 };
 
 const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapability>> = {
@@ -75,9 +75,9 @@ const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapa
     "personalSitePublish",
     "personalSiteTemplate",
     "personalSiteCustomBuilder",
-    // Max-only — connect / verify / manage a custom domain for the Max site.
-    // The DB RLS on `talent_site_domains` enforces the same Max gate
-    // (`talent_profile_has_max`) as a defense-in-depth backstop.
+    // Portfolio-only — connect / verify / manage a custom domain for the
+    // Portfolio site. The DB RLS on `talent_site_domains` enforces the same
+    // gate (`talent_profile_has_max`) as a defense-in-depth backstop.
     "personalSiteCustomDomain",
   ]),
 };

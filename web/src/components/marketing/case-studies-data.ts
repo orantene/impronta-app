@@ -29,7 +29,7 @@ export const CASE_STUDIES: CaseStudy[] = [
   {
     key: "singer",
     motion: "Talent",
-    plan: "Talent · Max",
+    plan: "Talent · Portfolio",
     persona: "Daniela Sol",
     role: "Indie singer-songwriter",
     location: "Mexico City",
@@ -42,7 +42,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       "Built a personal site in one click, then embedded her Spotify and a live reel with the page builder",
       "Published a rate card and availability so venues self-qualify before reaching out",
       "Takes requests through the booking messenger: quote, deposit, and contract in one thread",
-      "Upgraded to Talent · Max for a custom domain and unlimited media",
+      "Upgraded to Talent · Portfolio for a custom domain and unlimited media",
     ],
     outcome: [
       { stat: "3×", label: "more booking requests" },
@@ -56,7 +56,7 @@ export const CASE_STUDIES: CaseStudy[] = [
   {
     key: "massage",
     motion: "Talent",
-    plan: "Talent · Max",
+    plan: "Talent · Portfolio",
     persona: "Renata Cruz",
     role: "Mobile massage therapist",
     location: "Playa del Carmen",
@@ -110,7 +110,7 @@ export const CASE_STUDIES: CaseStudy[] = [
   {
     key: "tattoo",
     motion: "Talent",
-    plan: "Talent · Max",
+    plan: "Talent · Portfolio",
     persona: "Iván Mora",
     role: "Tattoo artist",
     location: "Tulum",
@@ -374,7 +374,7 @@ type LocalizedStudy = Pick<
 /** Natural Mexican-Spanish ("tú") translations, keyed by study `key`. */
 const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
   singer: {
-    plan: "Talento · Max",
+    plan: "Talento · Portfolio",
     role: "Cantautora independiente",
     location: "Ciudad de México",
     cardTitle: "Una página de reservas que suena a su disco",
@@ -386,7 +386,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       "Creó su sitio personal en un clic y le integró su Spotify y un reel en vivo con el editor de páginas",
       "Publicó sus tarifas y disponibilidad para que los venues se filtren solos antes de escribir",
       "Recibe solicitudes por el mensajero de reservas: cotización, depósito y contrato en un mismo hilo",
-      "Pasó a Talento · Max por el dominio propio y media ilimitada",
+      "Pasó a Talento · Portfolio por el dominio propio y media ilimitada",
     ],
     outcome: [
       { stat: "3×", label: "más solicitudes de reserva" },
@@ -397,7 +397,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     tags: ["Editor de páginas", "Spotify integrado", "Reservas"],
   },
   massage: {
-    plan: "Talento · Max",
+    plan: "Talento · Portfolio",
     role: "Masajista a domicilio",
     location: "Playa del Carmen",
     cardTitle: "Agenda llena desde un solo link tranquilo",
@@ -443,7 +443,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     tags: ["Mensajero de reservas", "Ofertas y depósitos", "Bodas"],
   },
   tattoo: {
-    plan: "Talento · Max",
+    plan: "Talento · Portfolio",
     role: "Tatuador",
     location: "Tulum",
     cardTitle: "Una lista de espera que se filtra sola",

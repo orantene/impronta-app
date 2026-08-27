@@ -100,7 +100,7 @@ export function planPrice(plan: Plan): string {
     : plan === "studio"
       ? "$29 / month"
       : plan === "agency"
-        ? "$149 / month"
+        ? "$79 / month"
         : "Custom pricing";
 }
 
@@ -111,7 +111,7 @@ export function planPriceCompact(plan: Plan): string {
     : plan === "studio"
       ? "$29/mo"
       : plan === "agency"
-        ? "$149/mo"
+        ? "$79/mo"
         : "Custom";
 }
 
@@ -1536,9 +1536,9 @@ export const ACTIVATION_TASKS: Array<{
 
 export const PLAN_LADDER_HEADER: Record<Plan, { price: string; idealFor: string }> = {
   free: { price: "$0", idealFor: "Your first roster, a single coordinator, listed on the public directory." },
-  studio: { price: "$79/mo", idealFor: "Private inbox, your own client list, room for a couple of teammates." },
-  agency: { price: "$149/mo", idealFor: "Branded site, team workflows, and negotiation tools." },
-  network: { price: "$899/mo", idealFor: "Multi-brand hubs, network distribution, and partner API access." },
+  studio: { price: "$29/mo", idealFor: "Private inbox, your own client list, room for a couple of teammates." },
+  agency: { price: "$79/mo", idealFor: "Branded site, team workflows, and negotiation tools." },
+  network: { price: "Custom", idealFor: "Multi-brand hubs, network distribution, and partner API access." },
 };
 
 export const PLAN_LADDER: PlanLadderRow[] = [
@@ -2279,14 +2279,14 @@ export const TALENT_TIER_META: Record<
   pro: {
     label: "Pro",
     tagline: "Get seen, keep more",
-    monthlyPrice: "$12 / mo",
+    monthlyPrice: "$9 / mo",
     blurb: "Template choices, video + social embeds, press band, media kit, priority discovery — and a lower Tulala fee on direct bookings.",
     accent: "gold",
   },
   max: {
-    label: "Max",
+    label: "Portfolio",
     tagline: "Your own brand",
-    monthlyPrice: "$29 / mo",
+    monthlyPrice: "$15 / mo",
     blurb: "A multi-section page builder, custom domain, SEO controls, branded invoices, full analytics — and the lowest fee on direct bookings.",
     accent: "deep",
   },
@@ -2294,7 +2294,7 @@ export const TALENT_TIER_META: Record<
 
 /**
  * The single talent-tier catalog — the source of truth for the
- * Free / Pro / Max split. Drives the compare-drawer matrix, the
+ * Free / Pro / Portfolio split. Drives the compare-drawer matrix, the
  * per-feature gates (`tierAllows`), and per-plan lock states. Change
  * a feature's split here and every consumer follows.
  */
@@ -2312,7 +2312,7 @@ export const TALENT_TIER_CATALOG: TalentTierCatalogRow[] = [
   { group: "page", label: "SEO controls + meta", free: false, pro: false, max: true, feature: "seo-controls", unlockedAt: "max" },
   // ── Getting found ──
   { group: "discovery", label: "Listed in Tulala Discover", free: "Standard", pro: "Priority", max: "Top + featured", feature: "priority-discovery", unlockedAt: "pro" },
-  { group: "discovery", label: "Plan badge on cards & inquiries", free: false, pro: "Pro badge", max: "Max badge" },
+  { group: "discovery", label: "Plan badge on cards & inquiries", free: false, pro: "Pro badge", max: "Portfolio badge" },
   // ── Bookings & money ──
   { group: "money", label: "Inquiry inbox + bookings", free: true, pro: true, max: true },
   { group: "money", label: "Tulala fee on direct bookings", free: "Standard", pro: "Reduced", max: "Lowest" },
@@ -2866,7 +2866,7 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     toggleable: true,
     badge: "Pro tier",
     description:
-      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Max tier.",
+      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Portfolio tier.",
     feeRate: 0,
   },
   // 2 — Tulala Hub
@@ -4064,8 +4064,8 @@ export const AGENCY_RELIABILITY: AgencyReliability[] = [
 ];
 
 export const PLATFORM_TENANTS: PlatformTenant[] = [
-  { id: "tn1", name: "Atelier Roma", slug: "acme-models", plan: "agency", entityType: "agency", seats: 8, talentCount: 47, mrr: "$149", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
-  { id: "tn2", name: "Praline London", slug: "praline-london", plan: "agency", entityType: "agency", seats: 12, talentCount: 84, mrr: "$149", health: "healthy", signupAt: "Sep 2024", lastActivity: "12m ago" },
+  { id: "tn1", name: "Atelier Roma", slug: "acme-models", plan: "agency", entityType: "agency", seats: 8, talentCount: 47, mrr: "$79", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
+  { id: "tn2", name: "Praline London", slug: "praline-london", plan: "agency", entityType: "agency", seats: 12, talentCount: 84, mrr: "$79", health: "healthy", signupAt: "Sep 2024", lastActivity: "12m ago" },
   { id: "tn3", name: "Maison Sud", slug: "maison-sud", plan: "studio", entityType: "agency", seats: 3, talentCount: 18, mrr: "$79", health: "healthy", signupAt: "Mar 2026", lastActivity: "1h ago" },
   { id: "tn4", name: "Nord Talent", slug: "nord-talent", plan: "studio", entityType: "agency", seats: 5, talentCount: 22, mrr: "$79", health: "at-risk", signupAt: "Nov 2025", lastActivity: "11d ago" },
   { id: "tn5", name: "Bottega Roma", slug: "bottega-roma", plan: "free", entityType: "agency", seats: 1, talentCount: 4, mrr: "$0", health: "at-risk", signupAt: "Apr 2026", lastActivity: "2d ago" },
@@ -4090,8 +4090,8 @@ export const HUB_SUBMISSIONS: HubSubmission[] = [
 ];
 
 export const PLATFORM_INVOICES: PlatformInvoice[] = [
-  { id: "inv1", tenant: "Atelier Roma", amount: "$149", date: "Apr 12, 2026", plan: "agency", status: "paid" },
-  { id: "inv2", tenant: "Praline London", amount: "$149", date: "Apr 9, 2026", plan: "agency", status: "paid" },
+  { id: "inv1", tenant: "Atelier Roma", amount: "$79", date: "Apr 12, 2026", plan: "agency", status: "paid" },
+  { id: "inv2", tenant: "Praline London", amount: "$79", date: "Apr 9, 2026", plan: "agency", status: "paid" },
   { id: "inv3", tenant: "Tokyo Faces", amount: "$899", date: "Apr 8, 2026", plan: "network", status: "paid" },
   { id: "inv4", tenant: "Maison Sud", amount: "$79", date: "Apr 4, 2026", plan: "studio", status: "paid" },
   { id: "inv5", tenant: "Nord Talent", amount: "$79", date: "Apr 2, 2026", plan: "studio", status: "failed" },

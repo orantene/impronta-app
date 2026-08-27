@@ -1182,14 +1182,14 @@ export type MyTalentProfile = {
 //                no embeds, no custom domain, basic discovery only.
 //   pro        — richer template options, social embeds (Spotify /
 //                IG / TikTok / YouTube), press band, media-kit PDF,
-//                SEO controls. ~ $12 / mo.
+//                SEO controls. ~ $9 / mo.
 //   portfolio  — page-builder-lite with multiple sections, video hero,
 //                custom domain (yourname.com), press kit, EPK download,
-//                priority discovery placement. ~ $29 / mo. Custom domain
+//                priority discovery placement. ~ $15 / mo. Custom domain
 //                is RESERVED FOR PORTFOLIO ONLY — Pro stays on the
 //                canonical tulala.digital/t/<slug> route.
 //
-// Tiers are ADDITIVE, not exclusive. A talent on Max still
+// Tiers are ADDITIVE, not exclusive. A talent on Portfolio still
 // appears on agency rosters and hubs the same way — the personal
 // page is a parallel surface, not a replacement.
 

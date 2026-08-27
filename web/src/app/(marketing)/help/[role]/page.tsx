@@ -50,7 +50,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
           "Every inquiry has a shareable link. Send it instead of forwarding photos and PDFs through chat. Clients can browse the proposed talent, approve, request changes, and you have a real timeline + audit log instead of scrollback.",
       },
       {
-        heading: "When to upgrade to Studio ($49/mo)",
+        heading: "When to upgrade to Studio ($29/mo)",
         body:
           "Studio adds WhatsApp inquiry notifications (so you never miss a fresh DM-to-inquiry conversion), up to 50 profiles, up to 3 seats, and priority email routing. Worth it once you've hit ~10 inquiries/month or want to bring on a coordinator.",
       },
@@ -108,7 +108,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Build your personal site (Pro+)",
         body:
-          "On the Pro tier ($12/mo) you get a personal landing page at tulala.digital/<your-slug> with 3 templates. On Max ($29/mo) you get all 7 templates + custom composition mode (drag-and-drop sections). Build it under Talent → My Site.",
+          "On the Pro tier ($9/mo) you get a personal landing page at tulala.digital/<your-slug> with 3 templates. On Portfolio ($15/mo) you get all 7 templates + custom composition mode (drag-and-drop sections). Build it under Talent → My Site.",
       },
       {
         heading: "Set your availability",

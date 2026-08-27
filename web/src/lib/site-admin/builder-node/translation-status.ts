@@ -35,6 +35,7 @@
  */
 
 import type { BuilderNode } from "./types";
+import { translatableTextOf } from "./translatable-text";
 
 /**
  * The prop names the inspector's localizable text fields edit
@@ -43,8 +44,8 @@ import type { BuilderNode } from "./types";
  * participates; structural kinds (container, spacer, …) fall out naturally
  * because they carry none of them.
  */
-const TEXT_PROP_NAMES = ["text", "label", "title", "alt", "brand"] as const;
-type TextPropName = (typeof TEXT_PROP_NAMES)[number];
+/** A prop name or a dotted path into a nested prop — see `translatable-text`. */
+type TextPropName = string;
 
 export type TranslationTextStatus =
   | "translated"
@@ -118,20 +119,6 @@ interface FlatTextEntry {
   overlay: Record<string, Record<string, string>> | null;
 }
 
-function textPropsOf(node: BuilderNode): Array<{ prop: TextPropName; value: string }> {
-  const props = (node as { props?: Record<string, unknown> }).props;
-  if (!props || typeof props !== "object") return [];
-  const out: Array<{ prop: TextPropName; value: string }> = [];
-  for (const name of TEXT_PROP_NAMES) {
-    const raw = props[name];
-    if (typeof raw !== "string") continue;
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    out.push({ prop: name, value: trimmed });
-  }
-  return out;
-}
-
 function flattenTextEntries(tree: ReadonlyArray<BuilderNode>): FlatTextEntry[] {
   const out: FlatTextEntry[] = [];
   const walk = (nodes: ReadonlyArray<BuilderNode>, parentKey: string) => {
@@ -144,7 +131,7 @@ function flattenTextEntries(tree: ReadonlyArray<BuilderNode>): FlatTextEntry[] {
       const overlay =
         (node as { i18n?: Record<string, Record<string, string>> }).i18n ??
         ((node.props as { i18n?: Record<string, Record<string, string>> })?.i18n ?? null);
-      for (const { prop, value } of textPropsOf(node)) {
+      for (const { prop, value } of translatableTextOf(node)) {
         out.push({
           nodeId: node.id,
           kind: node.kind,

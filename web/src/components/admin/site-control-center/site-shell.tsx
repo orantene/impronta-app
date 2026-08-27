@@ -159,7 +159,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     title: "Domain & Home",
     titleKey: "dashboard.adminSiteDrawers.domain.title",
     // Hostname — never translated.
-    subtitle: "nova.rostra.app",
+    subtitle: "nova.tulala.digital",
     subtitleKey: "",
     icon: Globe2,
     body: ({ t }) => (
