@@ -41,6 +41,27 @@ import {
   TextInput,
   Toggle,
 } from "../primitives";
+import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
+import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
+import type { TalentPlanKey } from "@/lib/stripe/price-ids";
+
+/**
+ * The compare drawer's paid tiers → the plan keys checkout understands.
+ * "free" has no checkout, so it is absent rather than mapped to null.
+ */
+const TIER_PLAN_KEY: Partial<Record<TalentSubscriptionTier, TalentPlanKey>> = {
+  pro: "talent_pro",
+  max: "talent_portfolio",
+};
+
+/** Monthly price for a tier, from the single catalog source. USD only. */
+function tierMonthlyPrice(tier: TalentSubscriptionTier): string | null {
+  const planKey = TIER_PLAN_KEY[tier];
+  if (!planKey) return null;
+  const cents = PLAN_CATALOG[planKey]?.monthlyPriceCents;
+  if (typeof cents !== "number") return null;
+  return `$${(cents / 100).toFixed(0)}`;
+}
 
 // ─── Tier-group discriminant → catalog-key map (render via t(), keep raw union) ──
 const TIER_GROUP_KEYS: Record<TalentTierGroup, string> = {
@@ -150,9 +171,14 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.tagline}
               </div>
-              {/* Pricing intentionally omitted — talent billing isn't live,
-                  so we don't show a per-month price the talent can't yet be
-                  charged. The waitlist card below is the single honest CTA. */}
+              {/* Price from PLAN_CATALOG, the same source checkout bills against. */}
+              <div className="mt-2 text-[13px] font-semibold">
+                {tierMonthlyPrice(tierId)
+                  ? interpolate(t("dashboard.talentDrawers.premiumPages.perMonth"), {
+                      price: tierMonthlyPrice(tierId)!,
+                    })
+                  : t("dashboard.talentDrawers.premiumPages.freePrice")}
+              </div>
               <p
                 style={{
                   fontFamily: FONTS.body,
@@ -249,30 +275,87 @@ export function TalentTierCompareDrawer() {
         {t("dashboard.talentDrawers.premiumPages.independenceNote")}
       </div>
 
-      {/* Phase 1.5: Pro & Max not yet available for launch — waitlist card replaces trial CTA */}
-      <div
-        style={{
-          marginTop: 16,
-          padding: "18px 20px",
-          background: "#fff",
-          border: `1.5px solid rgba(91,107,160,0.28)`,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          fontFamily: FONTS.body,
-        }}
-      >
-        <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="text-admin-indigo-deep">
-            {t("dashboard.talentDrawers.premiumPages.launchingSoon")}
-          </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-            {t("dashboard.talentDrawers.premiumPages.launchingSoonBody")}
-          </div>
-        </div>
-      </div>
+      <TierUpgradeCta current={current} />
     </DrawerShell>
+  );
+}
+
+/**
+ * The real checkout CTA. Every paid tier above the talent's current one gets a
+ * button that opens Stripe Checkout via `startTalentUpgrade`.
+ *
+ * Two honest degradations rather than a dead button:
+ *  - no `tenantSlug` (prototype / standalone shell) → the buttons do not render
+ *    at all, because there is no workspace to bill against;
+ *  - Stripe not configured yet → the action itself returns "Billing is not
+ *    available yet" and that message is what the talent sees. The button is
+ *    live the moment the price IDs land in env; nothing here needs redeploying.
+ */
+function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
+  const { tenantSlug } = useAdminShell();
+  const t = useT();
+  const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const upgradeable = (["pro", "max"] as const).filter(
+    (tier) => tier !== current && !(current === "max" && tier === "pro"),
+  );
+
+  const onUpgrade = useCallback(
+    async (tier: TalentSubscriptionTier) => {
+      const planKey = TIER_PLAN_KEY[tier];
+      if (!planKey || !tenantSlug) return;
+      setPending(tier);
+      setError(null);
+      try {
+        const result = await startTalentUpgrade(planKey, tenantSlug);
+        if (result.ok) {
+          window.location.assign(result.redirectUrl);
+          return;
+        }
+        setError(result.error);
+      } catch {
+        setError(t("dashboard.talentDrawers.premiumPages.upgradeFailed"));
+      } finally {
+        setPending(null);
+      }
+    },
+    [tenantSlug, t],
+  );
+
+  if (!tenantSlug || upgradeable.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap gap-[10px]">
+        {upgradeable.map((tier) => {
+          const price = tierMonthlyPrice(tier);
+          const label = TALENT_TIER_META[tier].label;
+          return (
+            <PrimaryButton
+              key={tier}
+              onClick={() => void onUpgrade(tier)}
+              disabled={pending !== null}
+            >
+              {pending === tier
+                ? t("dashboard.talentDrawers.premiumPages.upgradeStarting")
+                : interpolate(t("dashboard.talentDrawers.premiumPages.upgradeTo"), {
+                    tier: label,
+                    price: price ?? "",
+                  })}
+            </PrimaryButton>
+          );
+        })}
+      </div>
+      <div className="mt-2 text-[12px] leading-[1.5] text-admin-ink-muted">
+        {t("dashboard.talentDrawers.premiumPages.upgradeNote")}
+      </div>
+      {error && (
+        <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">
+          {error}
+        </div>
+      )}
+    </div>
   );
 }
 
