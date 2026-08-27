@@ -165,8 +165,16 @@ export async function exitEditModeAction(): Promise<void> {
     const admin = createServiceRoleClient();
     if (admin) {
       const hdrs = await headers();
+      // Prefer the RAW Host header: it still carries the dev PORT. The
+      // proxy's x-impronta-host-name is normalized through `normalize()`,
+      // which strips ":3310" — so using it made "Exit to live site" always
+      // resolve to localhost:3000 and land the operator on a dead origin
+      // whenever the dev server ran on any other port (owner report
+      // 2026-08-27). Consumers normalize the hostname themselves
+      // (requestHostnameFromHostHeader), so the port is safe to pass along
+      // and is ignored in production, where no port is ever appended.
       const requestHost =
-        hdrs.get("x-impronta-host-name") ?? hdrs.get("host");
+        hdrs.get("host") ?? hdrs.get("x-impronta-host-name");
       const liveUrl = await getTenantPreviewUrl(admin, scope.tenantId, {
         requestHost,
       });

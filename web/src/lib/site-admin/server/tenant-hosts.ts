@@ -36,6 +36,24 @@ type PreviewDomainRow = {
 
 const READY_STATUSES = ["active", "ssl_provisioned", "verified"] as const;
 const LOCAL_DEV_ORIGIN = "http://localhost:3000";
+const DEFAULT_DEV_PORT = "3000";
+
+/**
+ * The dev port of the CURRENT request, not a hardcoded 3000.
+ *
+ * Owner report (2026-08-27): "Exit to live site" did nothing. It always sent
+ * the operator to localhost:3000 even when the dev server was on another port
+ * (agents routinely run 3011 / 3310 / 3002 side by side), so the button
+ * navigated to a dead origin and looked like a no-op. The request Host header
+ * carries the real port, so derive it instead of assuming. Production is
+ * unaffected: isDev is false there and no port is ever appended.
+ */
+function devPortFromRequestHost(requestHost?: string | null): string {
+  const raw = requestHost?.trim();
+  if (!raw) return DEFAULT_DEV_PORT;
+  const port = raw.split(":")[1]?.replace(/[^0-9]/g, "");
+  return port && port.length > 0 ? port : DEFAULT_DEV_PORT;
+}
 
 const KNOWN_WORKSPACE_URL_PLANS = new Set<WorkspaceUrlPlan>([
   "free",
@@ -76,9 +94,14 @@ function normalizeWorkspaceUrlPlan(plan: string | null | undefined): WorkspaceUr
   return "free";
 }
 
-function workspacePathPreviewUrl(slug: string, options?: { isDev?: boolean }): string {
+function workspacePathPreviewUrl(
+  slug: string,
+  options?: { isDev?: boolean; requestHost?: string | null },
+): string {
   const isDev = options?.isDev ?? process.env.NODE_ENV !== "production";
-  const base = isDev ? LOCAL_DEV_ORIGIN : "https://tulala.digital";
+  const base = isDev
+    ? `http://localhost:${devPortFromRequestHost(options?.requestHost)}`
+    : "https://tulala.digital";
   return `${base}/${slug}`;
 }
 
@@ -149,12 +172,12 @@ export function pickPreferredTenantPreviewHost(
 
 export function tenantPreviewOriginFromHostname(
   hostname: string | null,
-  options?: { isDev?: boolean },
+  options?: { isDev?: boolean; requestHost?: string | null },
 ): string | null {
   if (!hostname) return null;
   const isDev = options?.isDev ?? process.env.NODE_ENV !== "production";
   const scheme = isDev ? "http" : "https";
-  const port = isDev ? ":3000" : "";
+  const port = isDev ? `:${devPortFromRequestHost(options?.requestHost)}` : "";
   return `${scheme}://${hostname}${port}`;
 }
 
@@ -183,21 +206,23 @@ export function resolveWorkspacePreviewUrl(input: {
     return publicAddress.primaryUrl;
   }
 
-  if (shouldUsePathPreviewForRequestHost(input.requestHost, { isDev })) {
-    return workspacePathPreviewUrl(input.slug, { isDev });
+  const requestHost = input.requestHost;
+
+  if (shouldUsePathPreviewForRequestHost(requestHost, { isDev })) {
+    return workspacePathPreviewUrl(input.slug, { isDev, requestHost });
   }
 
   if (publicAddress.primaryKind === "path") {
-    return workspacePathPreviewUrl(input.slug, { isDev });
+    return workspacePathPreviewUrl(input.slug, { isDev, requestHost });
   }
 
   const previewHost = pickPreferredTenantPreviewHost(input.domainRows, { isDev });
   if (previewHost && isDevPreviewHost(previewHost)) {
-    return tenantPreviewOriginFromHostname(previewHost, { isDev })
-      ?? workspacePathPreviewUrl(input.slug, { isDev });
+    return tenantPreviewOriginFromHostname(previewHost, { isDev, requestHost })
+      ?? workspacePathPreviewUrl(input.slug, { isDev, requestHost });
   }
 
-  return workspacePathPreviewUrl(input.slug, { isDev });
+  return workspacePathPreviewUrl(input.slug, { isDev, requestHost });
 }
 
 export async function getTenantPreviewUrl(
