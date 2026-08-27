@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
+import { SPANISH_NAMED_MARKETING_PATHS } from "@/lib/seo/spanish-named-routes";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import { publicRequestSiteBase } from "@/lib/seo/request-base";
@@ -184,6 +185,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const lastModified = marketingLastModified(path);
         const enUrl = new URL(path, base).toString();
         const esUrl = new URL(withLocalePath(path, "es"), base).toString();
+        // A Spanish-NAMED route has no English version. It renders Spanish at
+        // BOTH URLs (pinned in proxy.ts) and canonicalises to the /es/ form, so
+        // advertising the un-prefixed twin would list a URL whose own canonical
+        // points elsewhere — that is how an English-at-a-Spanish-URL page
+        // became crawlable in the first place. Same principle as the `fr` note
+        // below: an hreflang pointing at the wrong language is worse than none.
+        if ((SPANISH_NAMED_MARKETING_PATHS as readonly string[]).includes(path)) {
+          const esOnly = { es: esUrl, "x-default": esUrl };
+          return [{ url: esUrl, lastModified, alternates: { languages: esOnly } }];
+        }
         // EN + ES only. `fr` is enabled in the global app_locales registry but
         // has zero translated marketing content, so it must not be annotated
         // here — an hreflang pointing at an untranslated page is a worse signal
