@@ -38,6 +38,7 @@ import {
   type PrepareRejection,
 } from "@/lib/media/media-upload-engine";
 import { useMediaUpload, type MediaUploadItem } from "@/lib/media/use-media-upload";
+import { namesForMessage } from "@/components/media-library/rejection-copy";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -134,6 +135,9 @@ function rejectionMessage(
       return interpolate(t("dashboard.adminMedia.errZipTruncated"), { cap: r.cap });
     case "batch_too_large":
       return t("dashboard.adminMedia.errMaxBatch");
+    case "unsupported_kind":
+      // Photos-only page; name what did not upload rather than dropping it mute.
+      return `${t("dashboard.adminMedia.errUnsupportedKind")} ${namesForMessage(r.names)}`;
   }
 }
 
