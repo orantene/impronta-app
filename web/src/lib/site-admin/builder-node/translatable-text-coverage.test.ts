@@ -24,7 +24,11 @@ import type { BuilderNode } from "./types";
  * original migration's "0 unmatched" audit lacked.
  *
  * Fixtures: one representative node per (kind + prop-key signature) across the
- * whole site. Refresh them when new component shapes ship.
+ * whole site. They are the guard's ONE limit — it cannot see a component shape
+ * that shipped after they were captured. Refresh when a new component lands:
+ *
+ *     npx tsx scripts/refresh-nested-text-fixtures.ts           # rewrite
+ *     npx tsx scripts/refresh-nested-text-fixtures.ts --check   # is it stale?
  */
 const NODES = JSON.parse(
   readFileSync(new URL("./__fixtures__/site-nodes.json", import.meta.url), "utf8"),
