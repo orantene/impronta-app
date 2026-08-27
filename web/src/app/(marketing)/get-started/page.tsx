@@ -1,3 +1,4 @@
+import { withLocaleHref } from "@/i18n/pathnames";
 import type { Metadata } from "next";
 import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import Link from "next/link";
@@ -917,7 +918,7 @@ function PlanLadderSection({ tiers, locale }: { tiers: MarketingTier[]; locale: 
             {c.startFree}
           </MarketingCta>
           <MarketingCta
-            href="/pricing"
+            href={withLocaleHref("/pricing", locale)}
             variant="inline"
             size="md"
             eventSource="get-started-plans"
@@ -1480,7 +1481,7 @@ function FinalCtaSection({ locale }: { locale: string }) {
               {c.startFree}
             </MarketingCta>
             <MarketingCta
-              href="/how-it-works"
+              href={withLocaleHref("/how-it-works", locale)}
               variant="ghost"
               size="lg"
               eventSource="get-started-final"

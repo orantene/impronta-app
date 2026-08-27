@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { withLocaleHref } from "@/i18n/pathnames";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 type Props = { params: Promise<{ role: string }> };
 
@@ -180,6 +182,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function HelpRolePage({ params }: Props) {
   const { role } = await params;
+  // /help ships under both locales (see the sitemap), so the back-link has to
+  // keep a Spanish reader in the Spanish URL space.
+  const locale = await getRequestLocale();
   if (!isRole(role)) notFound();
 
   const c = ROLE_LABELS[role];
@@ -195,7 +200,7 @@ export default async function HelpRolePage({ params }: Props) {
       }}
     >
       <Link
-        href="/help"
+        href={withLocaleHref("/help", locale)}
         style={{ color: "#1f4a3a", fontSize: "0.85rem", textDecoration: "underline" }}
       >
         ← All help topics

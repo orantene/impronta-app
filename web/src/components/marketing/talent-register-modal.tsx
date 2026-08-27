@@ -17,6 +17,7 @@
  *   so the role-selection step is bypassed.
  */
 
+import { withLocaleHref } from "@/i18n/pathnames";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -310,7 +311,7 @@ export function TalentRegisterModal({
                   </a>
                 ) : (
                   <Link
-                    href="/login"
+                    href={withLocaleHref("/login", locale)}
                     onClick={onClose}
                     className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                     style={{ color: "var(--plt-ink-soft)" }}

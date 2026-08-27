@@ -1,3 +1,4 @@
+import { withLocaleHref } from "@/i18n/pathnames";
 import type { Metadata } from "next";
 import { TalentCategoryLinks } from "@/components/marketing/category-landing";
 import { ContrastSection } from "@/components/marketing/contrast-section";
@@ -288,7 +289,7 @@ export default async function OperatorsPage() {
               </p>
               <div className="mt-8">
                 <MarketingCta
-                  href="/get-started?audience=operator"
+                  href={withLocaleHref("/get-started?audience=operator", locale)}
                   variant="primary"
                   size="md"
                   eventSource="operators-shifts"

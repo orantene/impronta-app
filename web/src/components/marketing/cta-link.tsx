@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { stripLocaleFromPathname, withLocaleHref } from "@/i18n/pathnames";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 
 type Variant = "primary" | "secondary" | "ghost" | "inline" | "inverse";
@@ -54,6 +56,20 @@ export function MarketingCta({
   withArrow = true,
   onClick,
 }: MarketingCtaProps) {
+  // Every marketing path is served at BOTH `/path` and `/es/path` (see the
+  // sitemap flatMap), so an un-prefixed href silently drops a Spanish reader
+  // back onto the English page mid-journey. Localise here rather than at each
+  // call site: callers that already pass `withLocaleHref(...)` are unaffected
+  // because `withLocalePath` strips any existing locale prefix before adding
+  // one, so applying it twice is idempotent.
+  //
+  // `external` hrefs are left alone, and `withLocaleHref` itself returns
+  // anything that is not an internal absolute path (mailto:, tel:, #anchor,
+  // //host) untouched.
+  const pathname = usePathname();
+  const { locale } = stripLocaleFromPathname(pathname ?? "/");
+  const resolvedHref = external ? href : withLocaleHref(href, locale);
+
   const handleClick = () => {
     if (eventSource) {
       trackProductEvent("marketing_cta_clicked", {
@@ -78,7 +94,7 @@ export function MarketingCta({
   if (external) {
     return (
       <a
-        href={href}
+        href={resolvedHref}
         target="_blank"
         rel="noreferrer noopener"
         className={classes}
@@ -90,7 +106,7 @@ export function MarketingCta({
   }
 
   return (
-    <Link href={href} className={classes} onClick={handleClick}>
+    <Link href={resolvedHref} className={classes} onClick={handleClick}>
       {content}
     </Link>
   );

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, withLocaleHref } from "@/i18n/pathnames";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
@@ -258,7 +258,7 @@ export default async function ContratarModelosPage() {
               </div>
               <div className="mt-10">
                 <Link
-                  href="/directory"
+                  href={withLocaleHref("/directory", locale)}
                   className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
                   style={{
                     border: "1px solid var(--plt-hairline-strong)",
@@ -286,7 +286,7 @@ export default async function ContratarModelosPage() {
           </p>
           <div className="mt-8">
             <Link
-              href="/agencia-de-talento"
+              href={withLocaleHref("/agencia-de-talento", locale)}
               className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
               style={{
                 border: "1px solid var(--plt-hairline-strong)",
