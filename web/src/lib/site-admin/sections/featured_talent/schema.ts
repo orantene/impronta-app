@@ -54,6 +54,11 @@ export const featuredTalentSchemaV1 = z.object({
   /** Image grading treatment for this section's cards. */
   imageTreatment: z.enum(["natural", "cinematic"]).optional(),
   /** Show a non-mutating bookmark glyph for the prototype card silhouette. */
+  /** Retired 2026-08-27 — the decorative bookmark chip rendered a dark disc
+   *  UNDER the real favourite/inquiry buttons in the card's top-right corner
+   *  (same pixel; it also swallowed pointer events while doing nothing).
+   *  Kept in the schema, unread, so tenants with the flag saved still
+   *  validate; nothing renders it. */
   showBookmarkIcon: z.boolean().optional(),
   /** Card action treatment when requestCta is enabled. */
   actionStyle: z.enum(["primary-duo", "outline-duo"]).optional(),

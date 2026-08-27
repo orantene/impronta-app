@@ -226,40 +226,6 @@
   padding-inline: clamp(1.15rem, 1.5vw, 1.55rem) !important;
   padding-bottom: clamp(1.05rem, 1.45vw, 1.35rem) !important;
 }
-.site-featured-talent__bookmark {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 3;
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid rgba(244, 241, 232, 0.16);
-  border-radius: 50%;
-  background: rgba(8, 8, 7, 0.58);
-  color: rgba(244, 241, 232, 0.86);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  transition:
-    background 200ms ease,
-    border-color 200ms ease,
-    color 200ms ease,
-    transform 260ms cubic-bezier(0.2, 0.72, 0.18, 1);
-}
-.site-featured-talent__bookmark svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-}
-.site-featured-talent__card:hover .site-featured-talent__bookmark,
-.site-featured-talent__card:focus-within .site-featured-talent__bookmark {
-  border-color: rgba(201, 162, 39, 0.52);
-  color: var(--tt-gold, #c9a227);
-  transform: scale(1.04);
-}
 .site-featured-talent[data-ft-card-chrome="v11-noir"]
   .site-featured-talent__card [data-card-name] {
   color: var(--tt-ivory, #f4f1e8) !important;
@@ -443,7 +409,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .site-featured-talent__card,
-  .site-featured-talent__bookmark,
   .site-featured-talent__card [data-card-media] img,
   .site-featured-talent__card [data-card-actions] .site-prim-cta {
     transition-duration: 0.01ms !important;

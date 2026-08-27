@@ -232,14 +232,6 @@ export function FeaturedTalentEditor({
             <option value="outline-duo">{t("Outline duo")}</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 self-end text-sm">
-          <input
-            type="checkbox"
-            checked={value.showBookmarkIcon === true}
-            onChange={(e) => patch({ showBookmarkIcon: e.target.checked })}
-          />
-          {t("Show bookmark glyph")}
-        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

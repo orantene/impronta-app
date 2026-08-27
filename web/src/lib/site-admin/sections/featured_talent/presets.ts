@@ -12,7 +12,7 @@ export const v11FeaturedTalentPreset = {
   headerAlign: "center",
   cardChrome: "v11-noir",
   imageTreatment: "cinematic",
-  showBookmarkIcon: true,
+  showBookmarkIcon: false,
   actionStyle: "outline-duo",
   cardVariant: "editorial",
   showName: true,

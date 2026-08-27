@@ -178,18 +178,6 @@ function FeaturedTalentCardInner({
         aria-hidden
       />
 
-      {display?.showBookmarkIcon ? (
-        <span
-          className="site-featured-talent__bookmark"
-          data-card-bookmark
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 24 24" focusable="false">
-            <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-        </span>
-      ) : null}
-
       {showBadge ? (
         <div
           className="absolute left-3 top-3 z-[2] flex flex-wrap items-center gap-1.5"

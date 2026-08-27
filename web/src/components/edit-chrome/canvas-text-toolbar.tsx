@@ -190,18 +190,23 @@ function computeToolbarPosition(
     typeof window !== "undefined" ? window.innerWidth : TOOLBAR_MAX_WIDTH;
   const widthEstimate =
     measuredWidth ?? Math.min(viewportWidth * 0.96, TOOLBAR_MAX_WIDTH);
-  // The zoom bar shares this baseline, so the left clamp must clear it rather
-  // than pinning to the viewport edge — otherwise a narrow window slides this
-  // toolbar underneath it. Only clamp when the toolbar would actually reach
-  // that far, so wide viewports keep a true centre.
+  // Centre on the SCREEN, then clamp off the chrome.
+  //
+  // This used to centre inside an ASYMMETRIC band: it subtracted the full
+  // right-hand inspector reserve (~300px) but only an 8px gutter on the left,
+  // while the left CLAMP used the 232px rail reserve. On any normal viewport
+  // the computed "centre" therefore landed left of the rail and got clamped —
+  // so the bar sat pinned against the left rail instead of centred, which is
+  // what the owner saw (2026-08-27: "this bar is not centered").
+  //
+  // True viewport centre is the predictable default. The clamps stay as pure
+  // collision guards: never under the left rail / zoom bar, never under the
+  // inspector. They only bite on a narrow window, where something has to give.
   const leftLimit = Math.max(
     VIEWPORT_LEFT_GUTTER,
     CANVAS_FLOATING_BAR.leftReserve,
   );
-  const availableWidth =
-    viewportWidth - VIEWPORT_LEFT_GUTTER - rightReservePx;
-  const centeredLeft =
-    VIEWPORT_LEFT_GUTTER + (availableWidth - widthEstimate) / 2;
+  const centeredLeft = (viewportWidth - widthEstimate) / 2;
   const maxLeft = viewportWidth - rightReservePx - widthEstimate;
   return {
     left: Math.max(leftLimit, Math.min(centeredLeft, maxLeft)),

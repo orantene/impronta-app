@@ -253,7 +253,6 @@ export async function FeaturedTalentComponent({
     headerAlign,
     cardChrome,
     imageTreatment,
-    showBookmarkIcon,
     actionStyle,
     headless,
   } = props;
@@ -281,7 +280,6 @@ export async function FeaturedTalentComponent({
     showBadge: props.showBadge,
     parentCategoryDisplay: props.parentCategoryDisplay,
     cardVariant: props.cardVariant,
-    showBookmarkIcon,
     cardChrome: effectiveCardChrome,
     imageTreatment: effectiveImageTreatment,
     actionStyle: effectiveActionStyle,
@@ -381,7 +379,6 @@ export async function FeaturedTalentComponent({
       data-ft-card-chrome={effectiveCardChrome}
       data-ft-image-treatment={effectiveImageTreatment}
       data-ft-action-style={effectiveActionStyle}
-      data-ft-bookmark={showBookmarkIcon === true ? "on" : "off"}
       data-source-mode={sourceMode}
       data-card-count={cards.length}
       {...presentationDataAttrs(presentation)}
