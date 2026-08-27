@@ -84,10 +84,7 @@ import {
   wrapNodeAsInstanceRoot,
   canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
-import {
-  ejectSectionInTree,
-  unejectSectionInTree,
-} from "@/lib/site-admin/builder-node/section-eject";
+import { runEjectSection, runUnejectSection } from "./eject-lossless";
 import {
   applyBuilderNodeOperation,
   convertBuilderTextNodeRole as convertBuilderTextNodeRoleInTree,
@@ -4067,41 +4064,21 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
-  // "2018 bye-bye" — eject a curated section to freeform: re-mint its children
-  // roleless + flag it ejected (renderer skips the curated component). Reversible
-  // via unejectSection. Pure transform + shared commit path.
+  // "2018 bye-bye" — eject a curated section to freeform (LOSSLESS: saved
+  // per-role styling is fetched + carried; see eject-lossless.ts). Reversible
+  // via unejectSection, which DESTROYS freeform children — callers confirm.
   const ejectSection = useCallback<EditContextValue["ejectSection"]>(
-    async (sectionNodeId) => {
-      let didEject = false;
-      const result = await executeBuilderNodeOperation({
-        operation: "patch",
-        nodeId: sectionNodeId,
-        run: (tree) => {
-          const out = ejectSectionInTree(tree, sectionNodeId);
-          didEject = out.ejected;
-          return { ok: true, tree: out.tree };
-        },
-      });
-      if (!result.ok) return { ok: false, error: result.error };
-      return { ok: true, ejected: didEject };
-    },
+    (sectionNodeId) =>
+      runEjectSection(
+        builderTreeRef.current,
+        sectionNodeId,
+        executeBuilderNodeOperation,
+      ),
     [executeBuilderNodeOperation],
   );
   const unejectSection = useCallback<EditContextValue["unejectSection"]>(
-    async (sectionNodeId) => {
-      let didUneject = false;
-      const result = await executeBuilderNodeOperation({
-        operation: "patch",
-        nodeId: sectionNodeId,
-        run: (tree) => {
-          const out = unejectSectionInTree(tree, sectionNodeId);
-          didUneject = out.ejected;
-          return { ok: true, tree: out.tree };
-        },
-      });
-      if (!result.ok) return { ok: false, error: result.error };
-      return { ok: true, ejected: didUneject };
-    },
+    (sectionNodeId) =>
+      runUnejectSection(sectionNodeId, executeBuilderNodeOperation),
     [executeBuilderNodeOperation],
   );
   // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
