@@ -30,6 +30,7 @@ import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { prepareLocalizedShellTree } from "./shell-locale-hrefs";
+import { resolveShellNavData } from "./shell-nav-data";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
@@ -87,57 +88,6 @@ export interface SiteShellRenderHints {
   snapshotShellActive: boolean;
 }
 
-
-/**
- * Data the shell's NAV drawer can ask for.
- *
- * Both of these were reachable from the schema and reachable from the panel,
- * and reached the renderer as nothing at all: `dataSources.socialLinks` had no
- * producer anywhere in the codebase (so a `social_links` node "bound" to
- * workspace_social_links silently fell back to its static links), and
- * `availableLocales` was a render option no caller supplied. The drawer then
- * correctly rendered nothing — which is indistinguishable from the feature not
- * existing.
- */
-async function resolveShellNavData(
-  tenantId: string,
-  locale: Locale,
-  publicPathPrefix: string,
-): Promise<{
-  socialLinks: ReadonlyArray<{ platform: string; href: string; label?: string }>;
-  availableLocales: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
-}> {
-  const [social, localeSettings] = await Promise.all([
-    resolveShellSocialContact({ tenantId }).catch(() => null),
-    loadTenantLocaleSettings(tenantId).catch(() => null),
-  ]);
-
-  const supported = (localeSettings?.supportedLocales ?? []) as readonly string[];
-  const defaultLocale = (localeSettings?.defaultLocale ?? "en") as string;
-
-  return {
-    socialLinks: (social?.socialLinks ?? []).map((link: {
-      platform: string;
-      href: string;
-      label?: string | null;
-    }) => ({
-      platform: link.platform,
-      href: link.href,
-      label: link.label ?? undefined,
-    })),
-    // One row per locale the tenant actually publishes. The DEFAULT locale is
-    // unprefixed; every other one carries its segment — the same grammar the
-    // language widget uses, so the two cannot disagree.
-    availableLocales: supported.map((code) => ({
-      code,
-      href:
-        code === defaultLocale
-          ? publicPathPrefix || "/"
-          : `${publicPathPrefix}/${code}`,
-      current: code === locale,
-    })),
-  };
-}
 
 /**
  * Server-side helper for the calling layout to decide whether to mount the
