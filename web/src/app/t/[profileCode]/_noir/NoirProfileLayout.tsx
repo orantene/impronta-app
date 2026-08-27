@@ -47,6 +47,7 @@ import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
+import { TalentExtrasBands } from "../_shared/TalentExtrasBands";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
@@ -644,6 +645,8 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           <PublicFeaturedMedia items={featuredMediaItems} heading="" />
         </section>
       ) : null}
+
+      <TalentExtrasBands family="noir" locale={locale} embeds={props.talentEmbeds} press={props.talentPressItems} />
 
       {/* ── 7. CLIENTS band ─────────────────────────────────────────────── */}
       {showClients ? (

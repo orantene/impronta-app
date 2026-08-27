@@ -56,7 +56,7 @@ const STARTER_IMG = {
  * solo photographer and a wedding band both opened a homepage announcing they
  * "represent makeup, hair, photography, and styling professionals".
  */
-export type StarterAudience = "operator" | "agency" | "organization";
+export type StarterAudience = "operator" | "agency" | "organization" | "business";
 
 /** Hero copy per signup audience. Everything else about the page is shared. */
 function heroCopyFor(
@@ -68,6 +68,11 @@ function heroCopyFor(
       return {
         headline: "Available for your next project.",
         subheadline: `${name} takes on editorial, event, and campaign work. Tell me about your project and I will come back with availability and a quote.`,
+      };
+    case "business":
+      return {
+        headline: "Come see what we do.",
+        subheadline: `${name} is open for bookings, events, and private hire. Tell us what you have in mind and we will come back with availability.`,
       };
     case "organization":
       return {

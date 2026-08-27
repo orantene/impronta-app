@@ -1,0 +1,25 @@
+-- 20260806003246_starter_seed_excluded_from_discover_index_applied_via_mcp_placeholder.sql
+--
+-- HISTORY-RECONCILIATION PLACEHOLDER — this file intentionally does nothing.
+--
+-- `supabase_migrations.schema_migrations` carries a row for version
+-- 20260806003246 ("starter_seed_excluded_from_discover_index") with no file in
+-- this repo, which made `npm run db:push` fail repo-wide with
+-- LegacyDbPushMissingLocalError. Same healing pattern as PR #842.
+--
+-- WHAT ACTUALLY RAN (recovered from the stored `statements`): it was section 5
+-- of supabase/migrations/20260806002850_starter_seed_not_in_platform_hub.sql —
+-- it flipped `is_discoverable = false` for starter-seed talent, then dropped and
+-- recreated the `talent_discover_index` materialized view with a
+-- `COALESCE(tp.is_starter_seed, false) = false` predicate.
+--
+-- Deliberately NOT reproduced here. That materialized view is redefined by four
+-- LATER migrations already on main:
+--     20261110110000_discover_index_rating_columns.sql
+--     20261110140000_discover_index_public_hygiene.sql
+--     20261111090000_tenant_discover_exposure.sql
+--     20261111100000_discover_index_restore_public_listing_gate.sql
+-- so a rebuild reaches the correct final shape without this file, and copying
+-- the 2026-08 view body here would only add a stale definition to replay.
+
+select 'noop: 20260806003246 reconciled; see 20260806002850 + the four later discover_index migrations' as history_placeholder;

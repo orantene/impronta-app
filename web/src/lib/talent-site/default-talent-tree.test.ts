@@ -428,12 +428,12 @@ test("MAX BADGE — badge container present and 'Visit my site' link set when ma
     "https://max.example.com",
   );
 
-  // The max badge pill text must appear somewhere in the tree.
+  // The Portfolio badge pill text must appear somewhere in the tree.
   const texts: string[] = [];
   for (const node of hydrated) collectText(node, texts);
   assert.ok(
-    texts.some((t) => /max/i.test(t)),
-    "Expected a 'Max' label text in the hydrated tree",
+    texts.some((t) => /portfolio/i.test(t)),
+    "Expected a 'Portfolio' label text in the hydrated tree",
   );
 });
 

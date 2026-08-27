@@ -5,6 +5,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { auditMemberEvent } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkTeamSeatAvailability } from "@/lib/saas/team-seat-limit";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
@@ -108,6 +109,15 @@ export async function inviteTeamMember(
       .ilike("invited_email", trimmed)
       .is("redeemed_at", null)
       .is("revoked_at", null);
+
+    // Team-seat cap. Checked AFTER the revoke above so re-inviting the same
+    // address doesn't count the invite it replaces, and before the insert so
+    // an over-cap workspace never creates a token it can't honour. Pending
+    // invites occupy seats — see lib/saas/team-seat-limit.ts.
+    const seats = await checkTeamSeatAvailability(admin, tenantId, 1);
+    if (!seats.ok) {
+      return { ok: false, error: seats.message, reason: "forbidden" };
+    }
 
     const { data: token, error: insertErr } = await admin
       .from("team_invite_tokens")

@@ -24,7 +24,7 @@ import {
 } from "@/lib/saas/workspace-public-url";
 
 type TierKey = "free" | "studio" | "agency" | "network";
-type AudienceKey = "operator" | "agency" | "organization";
+type AudienceKey = "operator" | "agency" | "organization" | "business";
 
 /**
  * Host shown in the URL-preview row. Studio/Agency provision a branded
@@ -110,7 +110,7 @@ export function formFinePrint(
   names?: GetStartedTierNames,
 ): string {
   if (tier === "studio") {
-    return `${nameOf("studio", names)} · ${prices?.studio ?? "$49"}/mo · Cancel any time`;
+    return `${nameOf("studio", names)} · ${prices?.studio ?? "$29"}/mo · Cancel any time`;
   }
   if (tier === "agency") {
     // Agency leads with the 14-day trial framing, not a sticker price.

@@ -6,7 +6,7 @@
 // duplicating the agency-aware data lookup: the route re-exports the
 // sibling `opengraph-image.tsx` wholesale, so agency hosts keep their
 // branded card (name, tagline, talent count) and the platform apex keeps
-// the "The Commerce Platform for Talent" card. Any future change to the
+// the "Sell what you do, not what you ship" card. Any future change to the
 // OG card flows here automatically; there is nothing to keep in sync.
 
 export { default, alt, size, contentType } from "./opengraph-image";

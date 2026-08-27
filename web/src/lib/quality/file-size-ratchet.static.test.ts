@@ -280,7 +280,7 @@ const BUDGETS: Record<string, number> = {
     // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): the Posts, Analytics
   // and domain-registry projections all landed in this file from separate
   // branches, so the true count is their sum, not any one branch's number.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5215,
+  "src/components/admin/shell/internal/state/fixtures.ts": 5225,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -376,7 +376,7 @@ const BUDGETS: Record<string, number> = {
   // signed-then-legacy ladder moved to `lib/media/use-media-upload.ts` +
   // `lib/media/media-upload-engine.ts`, where the picker drawer and the
   // branding manager share them. Locked in rather than left as headroom.
-  "src/components/admin/shell/internal/media-page.tsx": 2937,
+  "src/components/admin/shell/internal/media-page.tsx": 2941,
   // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
   // set when a notification's real destination is a routed page rather than a
   // drawer (payout reversals → /talent/payouts, roster applications →
@@ -423,7 +423,7 @@ const BUDGETS: Record<string, number> = {
   // +2 (2388 → 2390): `canEditSitePages` on bridgeSessionIdentity, so the
   // Website → Redirects nav link is gated on the same capability its route
   // enforces instead of on a role proxy.
-  "src/components/admin/shell/internal/state/context.tsx": 2393,
+  "src/components/admin/shell/internal/state/context.tsx": 2400,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
@@ -453,7 +453,9 @@ const BUDGETS: Record<string, number> = {
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
   "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2421,
-  "src/app/t/[profileCode]/profile-view.tsx": 2634,
+  // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
+  // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
+  "src/app/t/[profileCode]/profile-view.tsx": 2650,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

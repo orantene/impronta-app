@@ -1,0 +1,33 @@
+-- 20260725081045_fix_mark_thread_read_staff_scope_applied_via_mcp_placeholder.sql
+--
+-- HISTORY-RECONCILIATION PLACEHOLDER — intentionally does nothing HERE.
+-- The real DDL is deliberately carried by a LATER file; read on, the ordering
+-- is the whole point.
+--
+-- `supabase_migrations.schema_migrations` carried a row for version
+-- 20260725081045 ("fix_mark_thread_read_staff_scope") with no file in this repo
+-- — one of the 15 orphans that made `npm run db:push` fail repo-wide with
+-- LegacyDbPushMissingLocalError.
+--
+-- WHAT ACTUALLY RAN: a CREATE OR REPLACE of public.inquiry_mark_thread_read
+-- swapping the access guard from public.is_agency_staff() (which reads
+-- profiles.app_role) to public.is_staff_of_tenant(v_tenant_id) (which reads
+-- agency_memberships). Without it, membership-based workspace staff get
+-- P0001 'forbidden' opening admin message threads even though the app-layer
+-- capability check lets them in — the same class of bug PR #995 fixed across
+-- the server actions.
+--
+-- WHY THE DDL IS NOT REPLAYED AT THIS VERSION — a real ordering trap:
+-- this fix was applied through the Management API in AUGUST but stamped with a
+-- JULY version (20260725081045). Main's last definition of the function,
+-- 20260921000000_rls_mark_read_client_user.sql, sorts AFTER it and still uses
+-- the OLD is_agency_staff() guard. Replaying the fix here would therefore be
+-- overwritten by 20260921000000 on any fresh rebuild, silently restoring the
+-- bug — while production stayed correct, hiding it.
+--
+-- So the corrected function is re-asserted at a version that sorts LAST:
+--     supabase/migrations/20261128000000_restore_mark_thread_read_staff_scope.sql
+-- Verified against production 2026-08-20: the live function uses
+-- is_staff_of_tenant and not is_agency_staff.
+
+select 'noop: 20260725081045 reconciled; corrected DDL re-asserted in 20261128000000' as history_placeholder;

@@ -348,6 +348,9 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/agencia-de-talento",
     "/about",
     "/contratar-modelos",
+    // Website-tier landing pair (EN + Spanish-first sibling).
+    "/websites",
+    "/sitios-web",
     // Internal route path behind the /directory rewrite. Must stay reachable
     // or the directory's og:image (served at /global-directory/opengraph-image-*)
     // 404s and the page unfurls with no social card.

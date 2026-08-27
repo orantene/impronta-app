@@ -204,7 +204,7 @@ export function ProTierValueCard({
       <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
         {copy.t(isFree
           ? "Three things Pro unlocks that move inquiry rate"
-          : "What Max adds on top of Pro")}
+          : "What Portfolio adds on top of Pro")}
       </h3>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>

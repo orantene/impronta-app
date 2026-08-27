@@ -4,7 +4,7 @@
  * Natural Mexican-Spanish ("tú").
  */
 
-type AudienceKey = "operator" | "agency" | "organization";
+type AudienceKey = "operator" | "agency" | "organization" | "business";
 
 /** Self-identification radio options. Keys are stable (wired to the server
  *  action + analytics); only labels/descriptions are localized. */
@@ -18,11 +18,13 @@ export function getAudienceOptions(
       { key: "operator", label: "Just me", description: "I sell my own services." },
       { key: "agency", label: "An agency or studio", description: "We represent other people." },
       { key: "organization", label: "A band, team, or network", description: "We're a group working together." },
+      { key: "business", label: "A local business", description: "A restaurant, café, venue or studio. Your own website, and you can book talent when you need it." },
     ],
     es: [
       { key: "operator", label: "Solo yo", description: "Vendo mis propios servicios." },
       { key: "agency", label: "Una agencia o estudio", description: "Representamos a otras personas." },
       { key: "organization", label: "Una banda, equipo o red", description: "Somos un grupo que trabaja junto." },
+      { key: "business", label: "Un negocio local", description: "Un restaurante, café, venue o estudio. Tu propio sitio web, y puedes contratar talento cuando lo necesites." },
     ],
   });
 }

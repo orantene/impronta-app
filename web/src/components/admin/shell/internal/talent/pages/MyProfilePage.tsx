@@ -14,7 +14,7 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 
 export function MyProfilePage() {
   const t = useT();
-  const { openDrawer, toast, bridgeTalentSelfProfile, tenantSlug, bridgeTenantIdentity } = useAdminShell();
+  const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentPageAnalytics, tenantSlug, bridgeTenantIdentity } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Subscribe to override store + read the MERGED profile. Edits in
@@ -30,7 +30,11 @@ export function MyProfilePage() {
   const baseProfile = applyProfileOverride(
     selfTalentId,
     bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId]
-      ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+      // Hand the real page analytics in so profileViews7d / inquiries7d /
+      // viewsTrend carry measured values instead of the placeholder zeros.
+      // Null (Free tier) leaves them at 0 and the EngagementStrip renders the
+      // upsell rather than presenting that zero as a measurement.
+      ? buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null)
       : getProfileById(selfTalentId),
   );
   // Catalog-driven completeness — replaces the static `completeness`

@@ -30,6 +30,15 @@ type FeatureRow = {
   cells: Record<WorkspacePlanKey, Cell>;
 };
 
+/**
+ * Team-seat cell copy, read from the canonical ladder in `plan-limits.ts`.
+ * `null` there means unlimited (Agency, Network) — never render "null".
+ */
+function teamSeatCell(plan: WorkspacePlanKey): string {
+  const seats = PLAN_LIMITS[plan].max_team_seats;
+  return seats == null ? "Unlimited" : String(seats);
+}
+
 const FEATURE_MATRIX: FeatureRow[] = [
   // ── Core
   {
@@ -52,10 +61,10 @@ const FEATURE_MATRIX: FeatureRow[] = [
     section: "Team",
     label: "Team seats",
     cells: {
-      free: `${PLAN_LIMITS.free.max_team_seats}`,
-      studio: `${PLAN_LIMITS.studio.max_team_seats}`,
-      agency: `${PLAN_LIMITS.agency.max_team_seats}`,
-      network: "Unlimited",
+      free: teamSeatCell("free"),
+      studio: teamSeatCell("studio"),
+      agency: teamSeatCell("agency"),
+      network: teamSeatCell("network"),
     },
   },
   {

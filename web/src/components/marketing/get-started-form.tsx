@@ -19,7 +19,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { AudiencePicker, SuccessTick, TextField } from "./get-started-form-fields";
 import { SubdomainHint, type SubdomainState } from "./get-started-form-subdomain-hint";
 
-type AudienceKey = "operator" | "agency" | "organization";
+type AudienceKey = "operator" | "agency" | "organization" | "business";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
 type TierKey = "free" | "studio" | "agency" | "network";
 

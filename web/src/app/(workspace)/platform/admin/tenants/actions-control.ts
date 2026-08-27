@@ -431,6 +431,10 @@ export async function actionCreateTenant(input: {
     const email = input.ownerEmail.trim().toLowerCase();
     const profileId = await findProfileIdByEmail(sb, email);
     if (profileId) {
+      // TEAM-SEAT EXEMPTION (deliberate): seating the first owner of a
+      // workspace the platform just created is a platform override and is
+      // not subject to the plan's team-seat cap. Tenant-side enforcement
+      // lives in lib/saas/team-seat-limit.ts.
       await sb.from("agency_memberships").insert({
         tenant_id: tenantId,
         profile_id: profileId,

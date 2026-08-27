@@ -26,7 +26,7 @@ export default async function Image({
     return renderOgCard({
       kicker: "TULALA",
       title: "Tulala",
-      subtitle: "The Commerce Platform for Talent",
+      subtitle: "Sell what you do, not what you ship",
     });
   }
 

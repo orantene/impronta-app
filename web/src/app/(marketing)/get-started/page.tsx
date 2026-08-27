@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
 const STUDIO_LINK_EXAMPLE = reservedBrandedSubdomainHost("your-roster");
 
-type AudienceKey = "operator" | "agency" | "organization";
+type AudienceKey = "operator" | "agency" | "organization" | "business";
 
 /**
  * Tier-specific marketing copy. The Studio eyebrow is templated with the
@@ -60,7 +60,7 @@ type TierHeadline = { eyebrow: string; title: string; subtitle: string };
 
 function studioEyebrow(studioTier: MarketingTier | undefined): string {
   if (!studioTier) return "Studio";
-  // E.g. "Studio · $49/mo" or "Studio · MX$849/mo"
+  // E.g. "Studio · $29/mo" or "Studio · MX$509/mo"
   const priceText =
     studioTier.cadence === "per month"
       ? `${studioTier.price}/mo`
@@ -183,7 +183,7 @@ export default async function GetStartedPage({
 
   const tierKey = resolved.tier && resolved.tier in HEADLINE_BY_TIER ? resolved.tier : "default";
   const copy = HEADLINE_BY_TIER[tierKey];
-  const initialAudience = mapAudience(resolved.audience ?? null);
+  const initialAudience = mapAudience(resolved.audience ?? null, resolved.tier ?? null);
   const tier: TierKey | undefined =
     tierKey === "free" || tierKey === "studio" || tierKey === "agency" || tierKey === "network"
       ? (tierKey as TierKey)
@@ -247,8 +247,17 @@ export default async function GetStartedPage({
   );
 }
 
-function mapAudience(raw: string | null): AudienceKey {
-  if (raw === "agency" || raw === "organization") return raw;
+/**
+ * Resolves the radio the form opens on.
+ *
+ * `rawTier` is read too because the Website tier has no audience of its own on
+ * /pricing — a visitor arriving on `?tier=website` has already said "I am a
+ * local business", so the form should not make them say it again. An explicit
+ * `?audience=` still wins; the tier is only a fallback.
+ */
+function mapAudience(raw: string | null, rawTier?: string | null): AudienceKey {
+  if (raw === "agency" || raw === "organization" || raw === "business") return raw;
+  if (!raw && rawTier === "website") return "business";
   return "operator";
 }
 
