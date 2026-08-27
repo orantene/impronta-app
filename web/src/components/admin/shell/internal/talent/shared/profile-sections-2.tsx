@@ -165,8 +165,8 @@ export function PersonalPageBand() {
               allowKit
                 ? sub.mediaKit
                   ? `${sub.mediaKit.filename} · ${sub.mediaKit.size} · ${copy.t("updated")} ${sub.mediaKit.updatedAt}.`
-                  : copy.t("Generate a downloadable EPK PDF: bio, credits, comp card, contact CTA.")
-                : copy.t("One-click downloadable EPK · credits · comp card · contact CTA. Pro+.")
+                  : copy.t("Generate a downloadable EPK PDF: photo, bio, talent types, rate and booking link.")
+                : copy.t("One-click downloadable EPK · photo · bio · rate · booking link. Pro+.")
             }
             meta={allowKit ? <><StatDot tone="green" /> {copy.t("Ready")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowKit ? "Manage media kit" : "Unlock media kit")}

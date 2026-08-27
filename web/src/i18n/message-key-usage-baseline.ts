@@ -226,7 +226,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "dashboard.talentDrawers.premiumPages.dnsConfig",
   "dashboard.talentDrawers.premiumPages.domainHint",
   "dashboard.talentDrawers.premiumPages.domainLabel",
-  "dashboard.talentDrawers.premiumPages.kitUpdated",
   "dashboard.talentDrawers.premiumPages.liveOnPage",
   "dashboard.talentDrawers.premiumPages.recheck",
   "dashboard.talentDrawers.premiumPages.remove",

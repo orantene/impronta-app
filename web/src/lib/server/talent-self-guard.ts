@@ -163,6 +163,19 @@ export function assertTalentCanManageProfileExtras(planKey: string): boolean {
   return talentPlanGrantsCapability(planKey, "profile.enhanced");
 }
 
+/**
+ * Pro+ — generate / download the media kit (EPK) PDF.
+ *
+ * Rides on `profile.enhanced`, the capability already held by exactly
+ * `talent_pro` and `talent_portfolio`, rather than minting a parallel gate
+ * that could drift away from the marketed lineup. Deliberately NOT coupled to
+ * `siteExpansionBlocked` — the kit is a profile export, not a personal-site
+ * feature, so the site-tier kill switch has no say over it.
+ */
+export function assertTalentCanGenerateMediaKit(planKey: string): boolean {
+  return talentPlanGrantsCapability(planKey, "profile.enhanced");
+}
+
 export function assertTemplateAllowedForPlan(
   planKey: string,
   templateKey: TalentSiteTemplateKey,
@@ -172,13 +185,16 @@ export function assertTemplateAllowedForPlan(
 }
 
 export function planDeniedMessage(
-  capability: "template" | "custom_builder" | "edit" | "profile_extras",
+  capability: "template" | "custom_builder" | "edit" | "profile_extras" | "media_kit",
 ): string {
   if (capability === "profile_extras") {
     return "Upgrade to Pro to add social and video embeds and a press band to your profile.";
   }
   if (capability === "template") {
     return "Upgrade to Pro to choose premium templates.";
+  }
+  if (capability === "media_kit") {
+    return "Upgrade to Pro to download your media kit.";
   }
   if (capability === "custom_builder") {
     return "Upgrade to Portfolio to customize sections and build your service website.";
