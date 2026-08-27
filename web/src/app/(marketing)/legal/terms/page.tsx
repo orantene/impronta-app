@@ -75,8 +75,8 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                Paid plans are billed monthly or annually. Annual plans are pre-paid and
-                save 20%. You can cancel at any time; access continues until the end of the
+                Paid plans are billed monthly or annually. Annual plans are pre-paid at ten
+                times the monthly rate, so twelve months cost the price of ten. You can cancel at any time; access continues until the end of the
                 current period. Taxes and currency localization apply by region.
               </p>
             </>
