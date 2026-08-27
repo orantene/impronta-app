@@ -231,7 +231,7 @@ export function SettingsPage() {
       ) : (
         <SecondaryCard
           title={copy.t("Plan")}
-          description={copy.t("Talent subscription tiers (Free / Pro / Max). Sign in as a talent to see your live plan and any active trial.")}
+          description={copy.t("Talent subscription tiers (Free / Pro / Portfolio). Sign in as a talent to see your live plan and any active trial.")}
           meta={<><StatDot tone="dim" /> {copy.t("Preview")}</>}
           affordance={copy.t("Compare plans")}
           onClick={() => openDrawer("talent-tier-compare")}
@@ -240,7 +240,7 @@ export function SettingsPage() {
       <Grid cols="2">
         <SecondaryCard
           title={copy.t("Personal page builder")}
-          description={copy.t("Templates, sections, embeds and a Max custom domain. Coexists with all your agency rosters.")}
+          description={copy.t("Templates, sections, embeds and a Portfolio custom domain. Coexists with all your agency rosters.")}
           affordance={copy.t("Open page builder")}
           onClick={() => setTalentPage("public-page")}
         />

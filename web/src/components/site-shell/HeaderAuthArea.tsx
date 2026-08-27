@@ -22,7 +22,7 @@ import "server-only";
  */
 
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 
 import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/account-menu";
@@ -181,17 +181,6 @@ export async function HeaderAuthArea({
                 signOutAction={signOut}
               />
             )}
-            <form action={signOut} className="ml-0.5">
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-foreground"
-                aria-label={t("public.header.signOutAria")}
-              >
-                <LogOut className="size-5" />
-              </Button>
-            </form>
           </>
         ) : (
           <Button size="icon" variant="ghost" className="shrink-0" asChild>

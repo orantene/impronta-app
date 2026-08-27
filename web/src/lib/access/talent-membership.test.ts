@@ -101,7 +101,7 @@ test("membership state exposes UI-safe capability booleans", () => {
   assert.deepEqual(buildTalentMembershipState("talent_portfolio"), {
     planKey: "talent_portfolio",
     tier: "max",
-    displayName: "Max",
+    displayName: "Portfolio",
     capabilities: {
       canBuildPersonalSite: true,
       canEditPersonalSite: true,

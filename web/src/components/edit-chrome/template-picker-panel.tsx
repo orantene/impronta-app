@@ -164,7 +164,7 @@ export function TemplatePickerPanel({
                 <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{def.label}</span>
                 {selected ? <Pill tone="indigo">Current</Pill> : null}
                 {def.tier && def.tier !== "free" ? (
-                  <Pill tone="muted">{def.tier === "max" ? "Max" : "Pro"}</Pill>
+                  <Pill tone="muted">{def.tier === "max" ? "Portfolio" : "Pro"}</Pill>
                 ) : null}
               </div>
 

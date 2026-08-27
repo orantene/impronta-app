@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  classifyUploadKind,
   createUploadItems,
   isAllowedRasterImage,
   isSvgFile,
@@ -160,10 +161,16 @@ test("prepareUploadFiles refuses SVG once, with a count, and keeps the rest", as
   assert.equal(res.aborted, false, "SVGs are skipped, not fatal");
 });
 
-test("prepareUploadFiles drops non-images silently (a dropped folder of docs)", async () => {
+test("prepareUploadFiles drops non-images from an image-only surface AND names them", async () => {
+  // This test used to assert `rejections: []` — the drop was silent by design,
+  // for the case of a dropped shoot folder carrying a stray notes.txt. That
+  // same silence is what let the builder's asset library swallow a hero video
+  // whole: no bytes, no error, nothing to debug from. The photo still uploads;
+  // the operator now also learns which file did not.
   const res = await prepareUploadFiles([file("notes.txt", "text/plain"), file("a.jpg")]);
   assert.deepEqual(res.files.map((f) => f.name), ["a.jpg"]);
-  assert.deepEqual(res.rejections, []);
+  assert.deepEqual(res.rejections, [{ code: "unsupported_kind", names: ["notes.txt"] }]);
+  assert.equal(res.aborted, false, "a stray file must never abort the batch");
 });
 
 test("prepareUploadFiles: zips are ignored entirely unless allowZip", async () => {
@@ -316,4 +323,71 @@ test("isAllowedRasterImage accepts rasters and refuses SVG + non-images", () => 
   assert.equal(isAllowedRasterImage(file("a.webp", "image/webp")), true);
   assert.equal(isAllowedRasterImage(file("a.svg", "image/svg+xml")), false);
   assert.equal(isAllowedRasterImage(file("a.pdf", "application/pdf")), false);
+});
+
+// ── Kind allowance (2026-08-27 incident: silent video drop) ─────────────────
+//
+// The builder's asset library shipped a Videos tab, an `accept` list carrying
+// video/* and application/pdf, a kind-aware CMS transport and a 200 MB server
+// video lane — and every video an operator chose was filtered out of
+// `prepareUploadFiles` before a byte moved, with no rejection reported. Three
+// consecutive uploads produced zero network calls and zero on-screen text.
+//
+// These pin both halves of the fix: a surface that asks for a kind gets it,
+// and a kind nobody asked for is REPORTED rather than dropped in silence.
+
+test("default (no allowKinds) is images-only — Media page behaviour unchanged", async () => {
+  const res = await prepareUploadFiles([
+    file("a.jpg", "image/jpeg"),
+    file("b.mp4", "video/mp4"),
+  ]);
+  assert.deepEqual(res.files.map((f) => f.name), ["a.jpg"]);
+  assert.deepEqual(res.rejections, [{ code: "unsupported_kind", names: ["b.mp4"] }]);
+  assert.equal(res.aborted, false);
+});
+
+test("allowKinds video → the video is cleared, not dropped", async () => {
+  const res = await prepareUploadFiles([file("hero.mp4", "video/mp4")], {
+    allowKinds: ["image", "video", "document"],
+  });
+  assert.deepEqual(res.files.map((f) => f.name), ["hero.mp4"]);
+  assert.deepEqual(res.rejections, []);
+});
+
+test("a junk file is never cleared, even on an all-kinds surface", async () => {
+  const res = await prepareUploadFiles([file(".DS_Store", ""), file("a.jpg")], {
+    allowKinds: ["image", "video", "document"],
+  });
+  assert.deepEqual(res.files.map((f) => f.name), ["a.jpg"]);
+  assert.deepEqual(res.rejections, [{ code: "unsupported_kind", names: [".DS_Store"] }]);
+});
+
+test("a video with an empty MIME still classifies by extension", async () => {
+  // Chrome hands over `type: ""` for some containers; the extension fallback is
+  // what keeps a .mov from reading as an image and being posted to the wrong lane.
+  const res = await prepareUploadFiles([file("clip.mov", "")], {
+    allowKinds: ["video"],
+  });
+  assert.deepEqual(res.files.map((f) => f.name), ["clip.mov"]);
+});
+
+test("SVG keeps its own message and never doubles as unsupported_kind", async () => {
+  const res = await prepareUploadFiles([file("logo.svg", "image/svg+xml")], {
+    allowKinds: ["image", "video", "document"],
+  });
+  assert.deepEqual(res.files, []);
+  assert.deepEqual(res.rejections, [{ code: "svg_skipped", count: 1 }]);
+});
+
+test("classifyUploadKind refuses what no lane takes, rather than guessing image", async () => {
+  // The router (`detectUploadKind`) defaults to "image"; the gate must not.
+  // A folder drop sweeps up .DS_Store — MIME "", no extension — and guessing
+  // image there means uploading junk and reading a 415 back.
+  assert.equal(classifyUploadKind(file(".DS_Store", "")), null);
+  assert.equal(classifyUploadKind(file("archive.bin", "application/octet-stream")), null);
+  assert.equal(classifyUploadKind(file("a.jpg", "image/jpeg")), "image");
+  assert.equal(classifyUploadKind(file("b.mp4", "video/mp4")), "video");
+  assert.equal(classifyUploadKind(file("c.mkv", "")), "video");
+  assert.equal(classifyUploadKind(file("d.pdf", "application/pdf")), "document");
+  assert.equal(classifyUploadKind(file("e.csv", "text/csv")), "document");
 });
