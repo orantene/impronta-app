@@ -49,10 +49,12 @@ import { MediaLibrary } from "@/components/media-library/media-library";
 import { LibraryNotice } from "@/components/media-library/media-library-kit";
 import { useMediaLibrary } from "@/components/media-library/use-media-library";
 import { useMediaUpload } from "@/lib/media/use-media-upload";
+import { describeRejections } from "@/components/media-library/rejection-copy";
 import { scanAssetUsageAction } from "@/lib/site-admin/edit-mode/assets-actions";
 import type { MediaLibraryWireItem } from "@/lib/media/library-wire";
 
 const TITLE_ID = "assets-drawer-title";
+
 
 /** Staff lane accepts everything the CMS upload route accepts. */
 const STAFF_ACCEPT = [
@@ -144,6 +146,11 @@ export function AssetsLibraryDrawer() {
 
   const uploader = useMediaUpload({
     purpose: { kind: "cms", tenantId },
+    // STAFF_ACCEPT advertises video and documents and the CMS transport has a
+    // lane for both, so the engine must clear them. Without this the drawer
+    // takes a video, drops it in `prepareUploadFiles`, and reports nothing.
+    allowKinds: ["image", "video", "document"],
+    onRejections: (rejections) => setUploadError(describeRejections(rejections, t)),
     onItemReady: (staged) => {
       const item = staged.registered as MediaLibraryWireItem | undefined;
       if (!item) return;

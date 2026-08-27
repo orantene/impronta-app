@@ -721,7 +721,9 @@ export async function FeaturedTalentComponent({
                 storefront. The empty note above still renders (never blank). */}
             {preview ? (
               <a href={rosterAddHref} className="site-featured-talent__empty-action">
-                Add or publish roster profiles
+                {locale === "es"
+                  ? "Agrega o publica perfiles del roster"
+                  : "Add or publish roster profiles"}
               </a>
             ) : null}
           </div>

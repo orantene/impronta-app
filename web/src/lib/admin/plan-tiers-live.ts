@@ -2,7 +2,7 @@
  * plan-tiers-live.ts — server-only, catalog-backed version of TIER_RENEW.
  *
  * The static `TIER_RENEW` in `plan-tiers.ts` is a hard-coded fallback
- * ("$49 / month."). This module reads the live monthly price from
+ * ("$29 / month."). This module reads the live monthly price from
  * `product_prices` (via `loadActivePrices`) and returns the same shape
  * with current values, optionally currency-localized.
  *
@@ -14,7 +14,7 @@
  * i18n: this is the LIVE renew path, so the copy it composes is what the
  * plan badge actually renders. Callers pass the request locale and every
  * line resolves through `createTranslator(locale)` — the cadence word, the
- * price template (English "$49 / month.", Spanish "$49 al mes."), and the
+ * price template (English "$29 / month.", Spanish "$29 al mes."), and the
  * no-price fallbacks, which reuse the shared `dashboard.adminShared.planRenew.*`
  * catalog entries rather than duplicating them.
  *

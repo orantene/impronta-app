@@ -60,7 +60,7 @@ type TierHeadline = { eyebrow: string; title: string; subtitle: string };
 
 function studioEyebrow(studioTier: MarketingTier | undefined): string {
   if (!studioTier) return "Studio";
-  // E.g. "Studio · $49/mo" or "Studio · MX$849/mo"
+  // E.g. "Studio · $29/mo" or "Studio · MX$509/mo"
   const priceText =
     studioTier.cadence === "per month"
       ? `${studioTier.price}/mo`

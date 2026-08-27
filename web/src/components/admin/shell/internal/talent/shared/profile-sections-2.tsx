@@ -88,7 +88,7 @@ export function PersonalPageBand() {
         title={`${copy.t("Your personal Tulala page")} · ${meta.label}`}
         description={copy.t(
           resolvedTier === "pro"
-            ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Max."
+            ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio."
             : "Full mini personal site. Multi-section page builder, custom domain, EPK kit, SEO controls, priority discover placement."
         )}
         icon={<Icon name="globe" size={14} stroke={1.7} />}
@@ -123,7 +123,7 @@ export function PersonalPageBand() {
             description={
               allowEmbeds
                 ? `${copy.t("Active:")} ${activeTemplate.label}. ${activeTemplate.blurb}`
-                : copy.t("Roster style only on Free. Pro unlocks Editorial / Studio. Max adds Stage / Creator / EPK.")
+                : copy.t("Roster style only on Free. Pro unlocks Editorial / Studio. Portfolio adds Stage / Creator / EPK.")
             }
             meta={
               tierAllows(resolvedTier, "template-picker")
@@ -179,7 +179,7 @@ export function PersonalPageBand() {
                 ? sub.customDomain
                   ? `${copy.t("Live at")} ${sub.customDomain} · ${sub.customDomainStatus}`
                   : copy.t("Connect your own domain. yourname.com → personal page.")
-                : copy.t("Personal domain (yourname.com) routed straight to your Tulala page. Max only.")
+                : copy.t("Personal domain (yourname.com) routed straight to your Tulala page. Portfolio only.")
             }
             meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {copy.t(sub.customDomain ? "Live" : "Not set")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowDomain ? "Manage domain" : "Unlock custom domain")}
@@ -190,7 +190,7 @@ export function PersonalPageBand() {
             description={copy.t(
               allowExtraSections
                 ? "Bio · About · Press · Tour dates · Show calendar · Contact CTA. Drag to re-order."
-                : "Multi-section page: story, tour dates, show calendar, contact CTA. Max only."
+                : "Multi-section page: story, tour dates, show calendar, contact CTA. Portfolio only."
             )}
             meta={allowExtraSections ? <><StatDot tone="green" /> 6 {copy.t("sections")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowExtraSections ? "Edit sections" : "Unlock sections")}
@@ -207,7 +207,7 @@ export function PersonalPageBand() {
 
 /**
  * Tier pill shown on hero. Tone scales with tier — Free ink, Pro
- * forest accent, Max deep ink. Click opens the tier-compare drawer.
+ * forest accent, Portfolio deep ink. Click opens the tier-compare drawer.
  */
 export function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onClick: () => void }) {
   const copy = useDashboardText();

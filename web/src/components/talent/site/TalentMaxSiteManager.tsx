@@ -96,12 +96,12 @@ function UpsellCard() {
   const { openDrawer } = useAdminShell();
   return (
     <Card>
-      <Badge>MAX FEATURE</Badge>
+      <Badge>PORTFOLIO FEATURE</Badge>
       <h3 style={{ margin: "10px 0 6px", fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>
         Your own website
       </h3>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 560 }}>
-        Upgrade to Max to build a full multi-page website with your own header, logo,
+        Upgrade to Portfolio to build a full multi-page website with your own header, logo,
         footer, and a custom address — published at its own link, separate from your
         discovery profile.
       </p>
