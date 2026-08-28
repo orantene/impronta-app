@@ -29,6 +29,8 @@ import type { AccountDiscountRow } from "@/lib/billing/subscription-discounts";
 import { HQ, F } from "../_tokens";
 import { SectionLabel, EmptyHint } from "../_primitives";
 import { DiscountCreateDrawer } from "./DiscountCreateDrawer";
+import { DiscountEditDrawer } from "./DiscountEditDrawer";
+import { DiscountUsageDrawer } from "./DiscountUsageDrawer";
 import { AccountDiscountDrawer } from "./AccountDiscountDrawer";
 import {
   AccountGrantRow,
@@ -67,6 +69,15 @@ export function DiscountsView({
   // dismissed, since the prop cannot change without a fresh navigation.
   const [closed, setClosed] = React.useState(false);
   const openDrawer = urlDrawer ?? (closed ? null : initialDrawerId);
+
+  const editId = openDrawer?.startsWith("edit:") ? openDrawer.slice(5) : null;
+  const usageId = openDrawer?.startsWith("uses:") ? openDrawer.slice(5) : null;
+  const editingDiscount = editId
+    ? (discounts.find((d) => d.id === editId) ?? null)
+    : null;
+  const usageDiscount = usageId
+    ? (discounts.find((d) => d.id === usageId) ?? null)
+    : null;
 
   const activeCodes = discounts.filter((d) => d.isActive);
   const archivedCodes = discounts.filter((d) => !d.isActive);
@@ -118,7 +129,19 @@ export function DiscountsView({
           ]}
         >
           {activeCodes.map((row) => (
-            <DiscountCodeRow key={row.id} row={row} tiers={tiers} />
+            <DiscountCodeRow
+              key={row.id}
+              row={row}
+              tiers={tiers}
+              onEdit={() => {
+                setClosed(false);
+                setOpenDrawer(`edit:${row.id}`);
+              }}
+              onViewUses={() => {
+                setClosed(false);
+                setOpenDrawer(`uses:${row.id}`);
+              }}
+            />
           ))}
         </Table>
       )}
@@ -131,7 +154,16 @@ export function DiscountsView({
         >
           <Table grid={CODE_GRID} headers={[]} dimmed>
             {archivedCodes.map((row) => (
-              <DiscountCodeRow key={row.id} row={row} tiers={tiers} dimmed />
+              <DiscountCodeRow
+                key={row.id}
+                row={row}
+                tiers={tiers}
+                dimmed
+                onViewUses={() => {
+                  setClosed(false);
+                  setOpenDrawer(`uses:${row.id}`);
+                }}
+              />
             ))}
           </Table>
         </Archived>
@@ -179,6 +211,25 @@ export function DiscountsView({
       {openDrawer === "new" && (
         <DiscountCreateDrawer
           tiers={tiers}
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
+      )}
+      {editingDiscount && (
+        <DiscountEditDrawer
+          row={editingDiscount}
+          tiers={tiers}
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
+      )}
+      {usageDiscount && (
+        <DiscountUsageDrawer
+          row={usageDiscount}
           onClose={() => {
             setClosed(true);
             setOpenDrawer(null);

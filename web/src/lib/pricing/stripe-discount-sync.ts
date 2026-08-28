@@ -199,3 +199,40 @@ export async function archiveDiscountInStripe(input: {
     return { ok: false, error: message };
   }
 }
+
+/**
+ * Rename the coupon behind a code.
+ *
+ * The ONLY field Stripe lets us change after creation. `percent_off`,
+ * `amount_off`, `duration`, `duration_in_months` and `max_redemptions` are
+ * frozen the moment the coupon exists — which is why changing a cap means
+ * archiving the code and minting a new one. Promotion codes are stricter
+ * still: `active` and `metadata`, nothing else.
+ *
+ * Best-effort by design. The database is the source of truth for the operator
+ * label, so a Stripe hiccup must not block the rename; it only means the name
+ * in the Stripe dashboard lags until the next edit.
+ */
+export async function renameDiscountInStripe(input: {
+  stripeCouponId: string | null;
+  name: string;
+}): Promise<DiscountArchiveResult> {
+  if (!isStripeConfigured()) {
+    return { ok: true, stub: true, reason: "STRIPE_SECRET_KEY not set." };
+  }
+  if (!input.stripeCouponId) {
+    return { ok: true, stub: true, reason: "No Stripe Coupon linked." };
+  }
+  const stripe = getStripe();
+  if (!stripe) {
+    return { ok: true, stub: true, reason: "Stripe client unavailable." };
+  }
+  try {
+    await stripe.coupons.update(input.stripeCouponId, { name: input.name });
+    return { ok: true, stub: false };
+  } catch (err) {
+    logServerError("stripe-discount-sync.rename", err);
+    const message = err instanceof Error ? err.message : "Stripe API error";
+    return { ok: false, error: message };
+  }
+}

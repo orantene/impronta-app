@@ -7306,7 +7306,24 @@
           "precedenceHint": "An account discount beats any code the buyer types. Only one can be active per account at a time.",
           "grantDiscount": "Give the discount",
           "granting": "Saving…",
-          "grantedSynced": "Saved. The coupon is on their subscription."
+          "grantedSynced": "Saved. The coupon is on their subscription.",
+          "editTitle": "Edit discount code",
+          "editSubtitle": "Four fields can still change. The rest are frozen.",
+          "edit": "Edit",
+          "saveChanges": "Save changes",
+          "savingChanges": "Saving…",
+          "savedChanges": "Saved.",
+          "lockedSection": "Fixed at creation",
+          "lockedHint": "Stripe freezes a coupon's amount, duration and redemption cap the moment it exists. To change any of these, archive this code and create a new one.",
+          "usageTitle": "Redemptions",
+          "usageSubtitle": "Who has used {code}",
+          "usageEmpty": "Nobody has redeemed this code yet.",
+          "usageLoading": "Loading…",
+          "colWhen": "When",
+          "colEmail": "Billing email",
+          "colSubscription": "Subscription",
+          "emailDerivedHint": "The billing email comes from the workspace's Stripe customer record, not from the redemption itself. Talent redemptions have none.",
+          "usageCapped": "Showing the {count} most recent."
         }
       },
       "common": {

@@ -39,10 +39,16 @@ export function DiscountCodeRow({
   row,
   tiers,
   dimmed,
+  onEdit,
+  onViewUses,
 }: {
   row: PricingDiscountRow;
   tiers: DiscountTierOption[];
   dimmed?: boolean;
+  /** Opens the edit drawer. Absent on archived rows — nothing left to change. */
+  onEdit?: () => void;
+  /** Opens the redemption list. The uses count is the affordance. */
+  onViewUses?: () => void;
 }) {
   const t = useT();
   const [state, setState] = useState<"idle" | "confirm" | "busy" | "error">(
@@ -90,7 +96,27 @@ export function DiscountCodeRow({
         </span>
       </span>
       <span style={{ color: HQ.inkMuted, fontVariantNumeric: "tabular-nums" }}>
-        {uses}
+        {onViewUses ? (
+          <button
+            type="button"
+            onClick={onViewUses}
+            title={t(`${P}.usageTitle`)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              font: "inherit",
+              color: HQ.ink,
+              cursor: "pointer",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+            }}
+          >
+            {uses}
+          </button>
+        ) : (
+          uses
+        )}
         <span style={{ display: "block", fontSize: 10.5, color: HQ.inkDim }}>
           {interpolate(t(`${P}.perCustomerShort`), {
             count: row.perCustomerLimit,
@@ -116,6 +142,26 @@ export function DiscountCodeRow({
           {t(`${P}.archivedLabel`)}
         </span>
       ) : (
+        <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                fontFamily: F,
+                fontSize: 11.5,
+                color: HQ.inkMuted,
+                cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+              }}
+            >
+              {t(`${P}.edit`)}
+            </button>
+          )}
         <ConfirmInline
           state={state}
           idleLabel={t(`${P}.archive`)}
@@ -127,6 +173,7 @@ export function DiscountCodeRow({
           onConfirm={doArchive}
           onCancel={() => setState("idle")}
         />
+        </span>
       )}
     </div>
   );
