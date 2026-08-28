@@ -22,6 +22,7 @@ import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import {
   publishCmsFreeformPageWithClient,
@@ -130,9 +131,10 @@ export async function saveCmsFreeformPage(input: {
     .eq("is_freeform", true)
     .maybeSingle()
     .returns<{ blocks: unknown }>();
-  const enforcedBlocks = enforceLockedPropsOnTree(
-    input.patch.blocks ?? [],
-    current?.blocks,
+  // Draft-save normalization gate (content-preserving; strict validate stays
+  // at publish). Runs at the same C1 chokepoint as the lock re-assert.
+  const enforcedBlocks = normalizeUnknownBuilderTreeLayout(
+    enforceLockedPropsOnTree(input.patch.blocks ?? [], current?.blocks),
   );
 
   const patch: Record<string, unknown> = {
@@ -280,7 +282,9 @@ export async function restoreCmsFreeformRevisionAction(input: {
     .eq("is_freeform", true)
     .maybeSingle()
     .returns<{ blocks: unknown; title: string }>();
-  const enforced = enforceLockedPropsOnTree(restoredTree, current?.blocks);
+  const enforced = normalizeUnknownBuilderTreeLayout(
+    enforceLockedPropsOnTree(restoredTree, current?.blocks),
+  );
 
   // 3. Write the restored tree back to blocks (status → draft for review).
   const nowIso = new Date().toISOString();
