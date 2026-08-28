@@ -20,8 +20,8 @@ import {
 } from "@/lib/pricing/pricing-types";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, F, FD, FAMILY_COLORS } from "./_tokens";
-import { Pill } from "./_primitives";
+import { HQ, F, FD, FAMILY_COLORS } from "../_tokens";
+import { Pill } from "../_primitives";
 
 export function PackagesView({
   catalog,

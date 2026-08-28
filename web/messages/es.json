@@ -5807,7 +5807,7 @@
         "users": "Usuarios",
         "network": "Red",
         "billing": "Facturación",
-        "pricing": "Precios",
+        "commerce": "Comercio",
         "operations": "Operaciones",
         "integrations": "Integraciones",
         "aiProviders": "IA",
@@ -6826,15 +6826,7 @@
         }
       },
       "pricing": {
-        "eyebrow": "Tulala HQ",
-        "title": "Precios de producto",
-        "subtitle": "Fuente de verdad para los precios de nivel, productos, funciones y descuentos. Marketing lee desde aquí en la Fase 2.",
         "loadError": "No se pudo cargar el catálogo de precios. El cliente de rol de servicio no está disponible, o las tablas product_* aún no se han migrado. Revisa la migración y los registros del servidor.",
-        "tabs": {
-          "packages": "Paquetes",
-          "discounts": "Descuentos",
-          "trials": "Pruebas"
-        },
         "stripeAccount": {
           "label": "Cuenta de Stripe",
           "reverify": "Volver a verificar",
@@ -6865,8 +6857,6 @@
           "noStripeProduct": "Sin producto de Stripe"
         },
         "drawer": {
-          "closeLabel": "Cerrar panel",
-          "settingsLabel": "Ajustes de precio de {tier}",
           "tabPricing": "Precios",
           "tabFeatures": "Funciones",
           "tabDisplay": "Presentación",
@@ -7213,6 +7203,45 @@
           "expiresSuffix": "vence {date}",
           "unlimited": "∞",
           "disable": "Desactivar"
+        }
+      },
+      "commerce": {
+        "eyebrow": "Tulala HQ",
+        "title": "Comercio",
+        "subtitle": "Una sola página para precios, descuentos, ingresos y la conexión con Stripe que los sostiene.",
+        "tabsAriaLabel": "Secciones de comercio",
+        "tabs": {
+          "health": "Estado",
+          "catalog": "Catálogo",
+          "discounts": "Descuentos",
+          "revenue": "Ingresos",
+          "commission": "Comisión"
+        },
+        "catalog": {
+          "trialsSummary": "Pruebas gratuitas",
+          "trialsSummaryHint": "Duración de la prueba y el texto que se muestra al ofrecerla"
+        },
+        "comingSoon": {
+          "title": "Se traslada aquí en la próxima versión",
+          "body": "Esta sección todavía vive en la página de Facturación. Se muda a Comercio en la próxima entrega, junto con las cifras de ingresos, para que todas las superficies de dinero queden bajo un solo elemento de navegación."
+        },
+        "health": {
+          "title": "Estado de Stripe",
+          "intro": "Todo lo que aparece abajo se lee en vivo desde Stripe y desde el catálogo de precios. Responde la pregunta que de otro modo solo se contesta a mano: ¿la clave que usamos apunta a la cuenta que tiene nuestros precios, nuestros webhooks y nuestros vendedores?",
+          "rerun": "Volver a ejecutar",
+          "checkedAt": "Revisado {when}",
+          "status": {
+            "ok": "Correcto",
+            "warn": "Revisar",
+            "fail": "Roto",
+            "unknown": "Desconocido"
+          },
+          "checks": {
+            "account": "Cuenta de Stripe",
+            "prices": "Precios de nivel",
+            "webhooks": "Webhooks",
+            "connect": "Cuentas de Connect"
+          }
         }
       },
       "common": {

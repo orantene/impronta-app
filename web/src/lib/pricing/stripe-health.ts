@@ -25,7 +25,15 @@ export type HealthCheck = {
   id: string;
   label: string;
   status: HealthStatus;
-  /** One plain-language line. No jargon — this panel is read under pressure. */
+  /**
+   * One plain-language line. No jargon — this panel is read under pressure.
+   *
+   * TODO(i18n): these sentences are composed here in English and rendered
+   * as-is. The panel CHROME (title, intro, status labels, check labels) is
+   * translated; the dynamic details are not. Translating them means returning
+   * a key + params from each check instead of a finished sentence, which is a
+   * refactor of every branch below and was deliberately deferred.
+   */
   detail: string;
   /** Optional per-item breakdown (tiers, endpoints, connected accounts). */
   items?: { name: string; status: HealthStatus; detail: string }[];
@@ -37,6 +45,12 @@ export type StripeHealth = {
 };
 
 const STRIPE_API = "https://api.stripe.com/v1";
+
+/**
+ * How many stored Connect accounts the health check verifies per run. See the
+ * note in `checkConnect` — this is the N+1 cap, not a data limit.
+ */
+const CONNECT_CHECK_LIMIT = 25;
 
 async function stripeGet<T>(
   path: string,
@@ -238,13 +252,33 @@ async function checkConnect(key: string): Promise<HealthCheck> {
       detail: "Could not read stored Connect accounts.",
     };
   }
-  const [agencies, talent] = await Promise.all([
-    supabase.from("agencies").select("slug, stripe_account_id").not("stripe_account_id", "is", null),
+  // CAPPED ON PURPOSE. Each stored account costs one live Stripe round trip, so
+  // an uncapped sweep is an N+1 that grows with the seller base and would one
+  // day turn this panel into a minute-long page load. 25 is enough to prove the
+  // key points at the right platform account (the failure this check exists
+  // for); the detail line says how many were skipped so the cap never reads as
+  // a clean bill of health for accounts nobody looked at.
+  const [agencies, talent, agencyCount, talentCount] = await Promise.all([
+    supabase
+      .from("agencies")
+      .select("slug, stripe_account_id")
+      .not("stripe_account_id", "is", null)
+      .limit(CONNECT_CHECK_LIMIT),
     supabase
       .from("talent_profiles")
       .select("profile_code, stripe_account_id")
+      .not("stripe_account_id", "is", null)
+      .limit(CONNECT_CHECK_LIMIT),
+    supabase
+      .from("agencies")
+      .select("slug", { count: "exact", head: true })
+      .not("stripe_account_id", "is", null),
+    supabase
+      .from("talent_profiles")
+      .select("profile_code", { count: "exact", head: true })
       .not("stripe_account_id", "is", null),
   ]);
+  const totalStored = (agencyCount.count ?? 0) + (talentCount.count ?? 0);
 
   const stored: { name: string; id: string }[] = [
     ...((agencies.data ?? []) as { slug: string; stripe_account_id: string }[]).map((a) => ({
@@ -291,14 +325,20 @@ async function checkConnect(key: string): Promise<HealthCheck> {
   );
 
   const unreachable = items.filter((i) => i.status === "fail").length;
+  const capped = totalStored > items.length;
+  const scope = capped
+    ? `checked first ${items.length} of ${totalStored}`
+    : `${items.length} stored`;
   return {
     id: "connect",
     label: "Connect accounts",
     status: unreachable > 0 ? "warn" : "ok",
     detail:
       unreachable > 0
-        ? `${unreachable} of ${items.length} stored accounts are NOT on this platform account.`
-        : `All ${items.length} stored accounts are reachable.`,
+        ? `${unreachable} of ${items.length} accounts are NOT on this platform account (${scope}).`
+        : capped
+          ? `All reachable (${scope}).`
+          : `All ${items.length} stored accounts are reachable.`,
     items,
   };
 }

@@ -384,9 +384,24 @@ const nextConfig: NextConfig = {
     ];
   },
   /** Common typo: inqueries → the talent inbox (the talent inquiry surface is
-   *  /talent/inbox; there is no /talent/inquiries route — it 404s). */
+   *  /talent/inbox; there is no /talent/inquiries route — it 404s).
+   *
+   *  Plus the Commerce consolidation: Pricing and Stripe health became tabs of
+   *  /platform/admin/commerce. `permanent: false` on purpose — the consolidation
+   *  is still in flight (Billing folds in next), and a 308 would be cached by
+   *  every admin's browser long after the shape settles. */
   async redirects() {
     return [
+      {
+        source: "/platform/admin/pricing",
+        destination: "/platform/admin/commerce?tab=catalog",
+        permanent: false,
+      },
+      {
+        source: "/platform/admin/stripe-health",
+        destination: "/platform/admin/commerce?tab=health",
+        permanent: false,
+      },
       {
         source: "/talent/inqueries",
         destination: "/talent/inbox",

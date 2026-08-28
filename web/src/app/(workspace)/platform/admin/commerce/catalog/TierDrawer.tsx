@@ -5,18 +5,23 @@
  * 4 tabs: Pricing (editable) · Features (read-only) · Display (editable)
  * · Stripe (read-only IDs + deep-links).
  *
- * Backdrop click closes. Drawer is `position: fixed` overlaying the
- * page; the parent renders it inside a portal-like full-viewport div.
+ * The chrome (overlay, backdrop, header, close button) used to be hand-rolled
+ * here as a `position: fixed` div. It is now the shared `DrawerShell`
+ * (Radix Dialog), which brings Esc-to-close, a focus trap, a real portal and
+ * the mobile bottom-sheet behaviour that the hand-rolled version never had.
+ * Everything below the header — the 4-tab strip and the four tab views — is
+ * unchanged; only the shell around it swapped.
  */
 
 import { useState } from "react";
+import { Layers } from "lucide-react";
 import type {
   PricingTierRow,
   PricingPackageRow,
 } from "@/lib/pricing/pricing-types";
+import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
-import { HQ, F, FD, FAMILY_COLORS } from "./_tokens";
+import { HQ, F, FAMILY_COLORS } from "../_tokens";
 import { PricingTab } from "./drawer/PricingTab";
 import { FeaturesTab } from "./drawer/FeaturesTab";
 import { DisplayTab } from "./drawer/DisplayTab";
@@ -42,107 +47,39 @@ export function TierDrawer({
   const t = useT();
 
   return (
-    <div
-      role="dialog"
-      aria-label={interpolate(
-        t("dashboard.platform.pricing.drawer.settingsLabel"),
-        { tier: tier.name },
-      )}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        zIndex: 100,
-        display: "flex",
-        justifyContent: "flex-end",
+    <DrawerShell
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      title={tier.name}
+      subtitle={pkg.label}
+      icon={Layers}
+      size="md"
     >
-      <div
-        style={{
-          width: "min(560px, 100vw)",
-          background: HQ.bg,
-          borderLeft: `1px solid ${HQ.border}`,
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: F,
-        }}
-      >
-        {/* Drawer header */}
-        <div
-          style={{
-            padding: "18px 22px",
-            borderBottom: `1px solid ${HQ.borderSoft}`,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 2,
-              background: accent,
-              display: "inline-block",
-            }}
-            aria-hidden
-          />
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontSize: 10.5,
-                color: HQ.inkMuted,
-                letterSpacing: 1,
-                textTransform: "uppercase",
-                fontWeight: 600,
-              }}
-            >
-              {pkg.label}
-            </div>
-            <div
-              style={{
-                fontFamily: FD,
-                fontSize: 18,
-                fontWeight: 600,
-                color: HQ.ink,
-                letterSpacing: -0.2,
-              }}
-            >
-              {tier.name}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("dashboard.platform.pricing.drawer.closeLabel")}
-            style={{
-              background: "transparent",
-              border: `1px solid ${HQ.borderHover}`,
-              color: HQ.inkMuted,
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 14,
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Drawer tabs */}
+      <div style={{ fontFamily: F, color: HQ.ink }}>
+        {/* Family accent + tab strip */}
         <div
           role="tablist"
           style={{
             display: "flex",
             gap: 0,
             borderBottom: `1px solid ${HQ.borderSoft}`,
-            padding: "0 22px",
+            marginBottom: 18,
           }}
         >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 2,
+              background: accent,
+              alignSelf: "center",
+              marginRight: 10,
+              flexShrink: 0,
+            }}
+          />
           <DrawerTab
             label={t("dashboard.platform.pricing.drawer.tabPricing")}
             active={activeTab === "pricing"}
@@ -166,23 +103,20 @@ export function TierDrawer({
           />
         </div>
 
-        {/* Drawer body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 22 }}>
-          {activeTab === "pricing" && (
-            <PricingTab tier={tier} stripeConfigured={stripeConfigured} />
-          )}
-          {activeTab === "features" && <FeaturesTab tier={tier} />}
-          {activeTab === "display" && <DisplayTab tier={tier} />}
-          {activeTab === "stripe" && (
-            <StripeTab
-              tier={tier}
-              stripeConfigured={stripeConfigured}
-              testMode={testMode}
-            />
-          )}
-        </div>
+        {activeTab === "pricing" && (
+          <PricingTab tier={tier} stripeConfigured={stripeConfigured} />
+        )}
+        {activeTab === "features" && <FeaturesTab tier={tier} />}
+        {activeTab === "display" && <DisplayTab tier={tier} />}
+        {activeTab === "stripe" && (
+          <StripeTab
+            tier={tier}
+            stripeConfigured={stripeConfigured}
+            testMode={testMode}
+          />
+        )}
       </div>
-    </div>
+    </DrawerShell>
   );
 }
 

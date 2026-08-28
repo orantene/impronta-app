@@ -14,14 +14,13 @@
  * "create" path. The matching reader lives in `@/lib/plan-trials/offers`.
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
-const PRICING_PATH = "/platform/admin/pricing";
 
 // ─── Auth gate ───────────────────────────────────────────────────────────────
 
@@ -96,6 +95,6 @@ export async function upsertTrialOffer(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
   return { ok: true };
 }

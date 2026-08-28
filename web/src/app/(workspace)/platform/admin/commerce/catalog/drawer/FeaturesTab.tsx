@@ -27,14 +27,14 @@ import {
   reorderFeature,
 } from "@/lib/server-actions/admin-product-features";
 import { useT } from "@/i18n/use-t";
-import { HQ, F } from "../_tokens";
+import { HQ, F } from "../../_tokens";
 import {
   SectionLabel,
   Field,
   EmptyHint,
   inputStyle,
   Pill,
-} from "../_primitives";
+} from "../../_primitives";
 
 export function FeaturesTab({ tier }: { tier: PricingTierRow }) {
   const t = useT();
