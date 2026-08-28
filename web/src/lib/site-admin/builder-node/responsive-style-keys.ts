@@ -25,7 +25,8 @@ export type BuilderNodeStyleKey = keyof BuilderNodeStyleValue;
 export const RESPONSIVE_PLUMBED_KEYS: ReadonlySet<string> = new Set([
   "accentColor", "align", "alignItems", "alignSelf", "aspectRatio",
   "aspectRatioFree", "backdropFilter", "background", "backgroundColor",
-  "backgroundImage", "borderColor", "borderRadius", "borderStyle",
+  "backgroundImage", "backgroundPosition", "backgroundRepeat",
+  "backgroundSize", "borderColor", "borderRadius", "borderStyle",
   "borderWidth", "bottom", "boxShadow", "caretColor", "clipPath", "cursor",
   "filter", "flexBasis", "flexGrow", "flexShrink", "flexWrap", "fontFamily",
   "fontSize", "fontStyle", "fontWeight", "gap", "gridAutoFlow", "gridColumn",

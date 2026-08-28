@@ -726,4 +726,13 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "aligned to the center": "alineado al centro",
   "aligned to the end": "alineado al final",
   "stretched to fill": "estirado para llenar",
+
+  // ── Per-device image source (art direction, Image panel) ─────────────────
+  "Image for this device": "Imagen para este dispositivo",
+  "Different image on smaller screens":
+    "Imagen distinta en pantallas pequeñas",
+  "This device shows its own photo. Reset to use the desktop image.":
+    "Este dispositivo muestra su propia foto. Restablece para usar la imagen de escritorio.",
+  "Leave this empty and {device} keeps the desktop image. Set it to swap in a photo framed for this screen; the alt text is shared.":
+    "Déjalo vacío y {device} conserva la imagen de escritorio. Elige una foto para cambiarla por otra encuadrada para esta pantalla; el texto alternativo es el mismo.",
 };

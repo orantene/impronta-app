@@ -405,6 +405,9 @@ const CONTAINER_QUERY_STYLE_RULES: ReadonlyArray<{
   { attr: "shadow", css: (p) => `box-shadow:var(--bn-${p}-shadow)!important` },
   { attr: "text-shadow", css: (p) => `text-shadow:var(--bn-${p}-text-shadow)!important` },
   { attr: "bg-image", css: (p) => `background-image:var(--bn-${p}-bg-image)!important` },
+  { attr: "bg-size", css: (p) => `background-size:var(--bn-${p}-bg-size)!important` },
+  { attr: "bg-position", css: (p) => `background-position:var(--bn-${p}-bg-position)!important` },
+  { attr: "bg-repeat", css: (p) => `background-repeat:var(--bn-${p}-bg-repeat)!important` },
   { attr: "opacity", css: (p) => `opacity:var(--bn-${p}-opacity)!important` },
   { attr: "radius-free", css: (p) => `border-radius:var(--bn-${p}-radius-free)!important` },
   { attr: "gap-free", css: (p) => `--bn-gap:var(--bn-${p}-gap-free)!important` },
@@ -1047,6 +1050,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
   .site-builder-node[data-builder-style-tablet-text-shadow]{text-shadow:var(--bn-tablet-text-shadow)!important}
   .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important}
+  .site-builder-node[data-builder-style-tablet-bg-size]{background-size:var(--bn-tablet-bg-size)!important}
+  .site-builder-node[data-builder-style-tablet-bg-position]{background-position:var(--bn-tablet-bg-position)!important}
+  .site-builder-node[data-builder-style-tablet-bg-repeat]{background-repeat:var(--bn-tablet-bg-repeat)!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
   .site-builder-node[data-builder-style-tablet-gap-free]{--bn-gap:var(--bn-tablet-gap-free)!important}
@@ -1158,6 +1164,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
   .site-builder-node[data-builder-style-mobile-text-shadow]{text-shadow:var(--bn-mobile-text-shadow)!important}
   .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important}
+  .site-builder-node[data-builder-style-mobile-bg-size]{background-size:var(--bn-mobile-bg-size)!important}
+  .site-builder-node[data-builder-style-mobile-bg-position]{background-position:var(--bn-mobile-bg-position)!important}
+  .site-builder-node[data-builder-style-mobile-bg-repeat]{background-repeat:var(--bn-mobile-bg-repeat)!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
   .site-builder-node[data-builder-style-mobile-gap-free]{--bn-gap:var(--bn-mobile-gap-free)!important}
@@ -1561,6 +1570,9 @@ const CONTAINER_QUERY_STYLE_ATTR_KEYS: ReadonlyArray<[
   ["boxShadow", "shadow"],
   ["textShadow", "text-shadow"],
   ["backgroundImage", "bg-image"],
+  ["backgroundSize", "bg-size"],
+  ["backgroundPosition", "bg-position"],
+  ["backgroundRepeat", "bg-repeat"],
   ["opacity", "opacity"],
   ["borderRadius", "radius-free"],
   ["gap", "gap-free"],
@@ -1731,6 +1743,9 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-shadow": tablet?.boxShadow ? "" : undefined,
     "data-builder-style-tablet-text-shadow": tablet?.textShadow ? "" : undefined,
     "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
+    "data-builder-style-tablet-bg-size": tablet?.backgroundSize ? "" : undefined,
+    "data-builder-style-tablet-bg-position": tablet?.backgroundPosition ? "" : undefined,
+    "data-builder-style-tablet-bg-repeat": tablet?.backgroundRepeat ? "" : undefined,
     "data-builder-style-tablet-opacity":
       typeof tablet?.opacity === "number" ? "" : undefined,
     "data-builder-style-tablet-radius-free": tablet?.borderRadius ? "" : undefined,
@@ -1833,6 +1848,9 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-shadow": mobile?.boxShadow ? "" : undefined,
     "data-builder-style-mobile-text-shadow": mobile?.textShadow ? "" : undefined,
     "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
+    "data-builder-style-mobile-bg-size": mobile?.backgroundSize ? "" : undefined,
+    "data-builder-style-mobile-bg-position": mobile?.backgroundPosition ? "" : undefined,
+    "data-builder-style-mobile-bg-repeat": mobile?.backgroundRepeat ? "" : undefined,
     "data-builder-style-mobile-opacity":
       typeof mobile?.opacity === "number" ? "" : undefined,
     "data-builder-style-mobile-radius-free": mobile?.borderRadius ? "" : undefined,
@@ -2033,6 +2051,9 @@ function containerQueryStyleVars(
     [`${prefix}-shadow`]: styleToken(style?.boxShadow),
     [`${prefix}-text-shadow`]: style?.textShadow,
     [`${prefix}-bg-image`]: style?.backgroundImage,
+    [`${prefix}-bg-size`]: style?.backgroundSize,
+    [`${prefix}-bg-position`]: style?.backgroundPosition,
+    [`${prefix}-bg-repeat`]: style?.backgroundRepeat,
     [`${prefix}-opacity`]: style?.opacity,
     [`${prefix}-radius-free`]: styleToken(style?.borderRadius),
     [`${prefix}-gap-free`]: styleToken(style?.gap),
@@ -2244,10 +2265,16 @@ function responsiveStyleVars(
     "--bn-tablet-shadow": styleToken(style?.responsive?.tablet?.boxShadow),
     "--bn-tablet-text-shadow": style?.responsive?.tablet?.textShadow,
     "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
+    "--bn-tablet-bg-size": style?.responsive?.tablet?.backgroundSize,
+    "--bn-tablet-bg-position": style?.responsive?.tablet?.backgroundPosition,
+    "--bn-tablet-bg-repeat": style?.responsive?.tablet?.backgroundRepeat,
     "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
     "--bn-mobile-shadow": styleToken(style?.responsive?.mobile?.boxShadow),
     "--bn-mobile-text-shadow": style?.responsive?.mobile?.textShadow,
     "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
+    "--bn-mobile-bg-size": style?.responsive?.mobile?.backgroundSize,
+    "--bn-mobile-bg-position": style?.responsive?.mobile?.backgroundPosition,
+    "--bn-mobile-bg-repeat": style?.responsive?.mobile?.backgroundRepeat,
     "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
     "--bn-tablet-radius-free": styleToken(style?.responsive?.tablet?.borderRadius),
     "--bn-mobile-radius-free": styleToken(style?.responsive?.mobile?.borderRadius),
@@ -4486,6 +4513,57 @@ function renderBuilderNodeElement(
         node.props.href ?? "",
         options.repeatItem,
       ).value.trim();
+      // ── Art direction (per-device image SOURCE) ────────────────────
+      // `objectFit` / `objectPosition` already re-frame ONE file per
+      // breakpoint. They cannot answer the case the owner named first: a 21:9
+      // desktop banner is frequently the wrong PHOTO at 375px, not merely the
+      // wrong crop. `props.sources.{tablet,mobile}` swaps the file.
+      //
+      // WHY `<picture>` AND NOT A PER-TIER CSS PROP:
+      //  - It is the ONE mechanism that makes the browser download exactly one
+      //    file. Two stacked <img>s toggled by CSS download both; a CSS
+      //    `background-image` swap loses the alt, the semantics and the
+      //    optimizer's `sizes` negotiation.
+      //  - It needs NO second rendering path: each <source> carries the SAME
+      //    `srcSet`/`sizes` that `builderImageSrcSet` already computes for the
+      //    base <img>, so every tier rides the same /_next/image optimizer and
+      //    the same host allow-list. A non-optimizable src (data: URI, foreign
+      //    host) falls back to a single-candidate srcset, which is the same
+      //    file the plain <img> would have served.
+      //  - It is inert when unused: no `sources` -> the exact <img> below, with
+      //    no wrapper, so every existing page renders byte-identically.
+      //
+      // The <source> ORDER reproduces the stylesheet's own cascade: the
+      // responsive buckets are `max-width:900px` (tablet and below) and
+      // `max-width:640px` (phone and below), phone written last so it wins.
+      // First matching <source> wins in `<picture>`, so phone is listed FIRST
+      // and a phone with only a tablet source correctly falls to the tablet
+      // rendition, identical to how `style.responsive` behaves.
+      //
+      // ALT TEXT: there is exactly one, on the inner <img>, because
+      // `<picture>` has no per-source accessible name and art direction means
+      // alternate renditions of the SAME subject. That is also why this cannot
+      // introduce a node that publishes with a missing alt: it adds no new
+      // alt-bearing element, and `collectMissingAlt` still sees one image node.
+      const deviceSources = node.props.sources;
+      const artDirection = (
+        [
+          ["mobile", "(max-width:640px)"],
+          ["tablet", "(max-width:900px)"],
+        ] as const
+      )
+        .map(([tier, media]) => {
+          const entry = deviceSources?.[tier];
+          const tierAsset =
+            entry?.mediaId && options.dataSources.mediaAssets
+              ? options.dataSources.mediaAssets.find(
+                  (asset) => asset.id === entry.mediaId,
+                )
+              : null;
+          const tierSrc = (tierAsset?.publicUrl ?? entry?.src ?? "").trim();
+          return { tier, media, src: tierSrc };
+        })
+        .filter((entry) => isSafeBuilderImageSrc(entry.src));
       const imageEl = (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -4518,7 +4596,33 @@ function renderBuilderNodeElement(
           })}
         />
       );
-      if (!imageHref) return imageEl;
+      // `display:contents` keeps the wrapper layout-transparent (same idiom as
+      // the whole-image link below), so wrapping cannot move a positioned or
+      // flex-child image. The node id / style attrs stay on the <img>, which is
+      // what the editor's selection layer resolves.
+      const mediaEl =
+        artDirection.length > 0 ? (
+          <picture key={node.id} style={{ display: "contents" }}>
+            {artDirection.map((entry) => {
+              const tierOpt = builderImageSrcSet(
+                entry.src,
+                node.props.priority ? "100vw" : undefined,
+              );
+              return (
+                <source
+                  key={entry.tier}
+                  media={entry.media}
+                  srcSet={tierOpt ? tierOpt.srcSet : entry.src}
+                  {...(tierOpt ? { sizes: tierOpt.sizes } : {})}
+                />
+              );
+            })}
+            {imageEl}
+          </picture>
+        ) : (
+          imageEl
+        );
+      if (!imageHref) return mediaEl;
       return (
         <a
           key={node.id}
@@ -4529,7 +4633,7 @@ function renderBuilderNodeElement(
             ? { target: "_blank", rel: "noopener noreferrer" }
             : {})}
         >
-          {imageEl}
+          {mediaEl}
         </a>
       );
     }

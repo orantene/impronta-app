@@ -737,9 +737,23 @@ const buttonPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** One art-direction rendition. Same caps as the base `src` / `mediaId`. */
+const imageDeviceSourceSchema = z.object({
+  src: z.string().max(2048),
+  mediaId: pgUuidSchema().optional(),
+});
+
 const imagePropsSchema = z.object({
   src: z.string().max(2048),
   mediaId: pgUuidSchema().optional(),
+  // Art direction — a different FILE at tablet / phone. Keyed by the two
+  // render-backed override tiers, so the keys match `style.responsive`.
+  sources: z
+    .object({
+      tablet: imageDeviceSourceSchema.optional(),
+      mobile: imageDeviceSourceSchema.optional(),
+    })
+    .optional(),
   alt: z.string().max(240).optional(),
   // Above-the-fold hint — eager-load + fetchpriority=high (LCP hero image).
   priority: z.boolean().optional(),

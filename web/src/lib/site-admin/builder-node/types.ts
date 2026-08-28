@@ -835,11 +835,38 @@ export interface BuilderButtonNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * One art-direction rendition: a DIFFERENT file for a narrower device.
+ *
+ * Not a crop and not a style — `objectFit` / `objectPosition` already re-frame
+ * one file per breakpoint. This is the case those cannot serve: a 21:9 desktop
+ * banner is often the wrong PHOTO at 375px, not merely the wrong crop, and art
+ * direction means swapping the file.
+ */
+export interface BuilderImageDeviceSource {
+  src: string;
+  mediaId?: string;
+}
+
 export interface BuilderImageNode extends BuilderNodeBase {
   kind: "image";
   props: {
     src: string;
     mediaId?: string;
+    /**
+     * Per-device image sources (art direction). Keyed by the render-backed
+     * override tiers — the same `tablet` / `mobile` ids `style.responsive`
+     * uses, at the same width boundaries. Absent (the overwhelming default)
+     * means the node emits exactly the `<img>` it always has.
+     *
+     * There is deliberately no per-tier `alt`: `<picture>` carries ONE
+     * accessible name on its inner `<img>`, and the tiers are renditions of
+     * the same subject. See the "image" case in `render.tsx`.
+     */
+    sources?: {
+      tablet?: BuilderImageDeviceSource;
+      mobile?: BuilderImageDeviceSource;
+    };
     alt?: string;
     /**
      * Above-the-fold hint. When `true` the image is emitted with
