@@ -9,6 +9,7 @@
 
 import * as React from "react";
 import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
+import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -124,7 +125,7 @@ function UpgradeButton({
     if (pending) return;
     setError(null);
     startTransition(async () => {
-      const result = await startTalentUpgrade(plan, tenantSlug);
+      const result = await startTalentUpgrade(plan, tenantSlug, readPromoCodeFromUrl());
       if (result.ok) {
         window.location.href = result.redirectUrl;
       } else {

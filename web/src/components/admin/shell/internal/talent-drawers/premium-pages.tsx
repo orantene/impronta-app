@@ -42,6 +42,7 @@ import {
   Toggle,
 } from "../primitives";
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
+import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -308,7 +309,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       setPending(tier);
       setError(null);
       try {
-        const result = await startTalentUpgrade(planKey, tenantSlug);
+        const result = await startTalentUpgrade(planKey, tenantSlug, readPromoCodeFromUrl());
         if (result.ok) {
           window.location.assign(result.redirectUrl);
           return;
