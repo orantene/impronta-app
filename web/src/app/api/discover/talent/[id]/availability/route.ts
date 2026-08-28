@@ -71,7 +71,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // Confirm the talent is discoverable + approved. Opt-in enforcement.
   const { data: profile, error: profileErr } = await admin
     .from("talent_profiles")
-    .select("id, is_discoverable, workflow_status")
+    .select("id, is_discoverable, workflow_status, profile_kind")
     .eq("id", id)
     .maybeSingle();
 
@@ -83,7 +83,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   const wfOk = profile.workflow_status === "approved" || profile.workflow_status === "published";
-  if (!profile.is_discoverable || !wfOk) {
+  if (!profile.is_discoverable || !wfOk || profile.profile_kind === "resource") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 

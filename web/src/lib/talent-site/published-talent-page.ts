@@ -46,8 +46,9 @@ export async function loadPublishedTalentPage(input: {
     async loadTalentByProfileCode(profileCode) {
       const { data, error } = await pub
         .from("talent_profiles")
-        .select("id, display_name, created_by_agency_id, talent_plan_key")
+        .select("id, display_name, created_by_agency_id, talent_plan_key, profile_kind")
         .eq("profile_code", profileCode)
+        .neq("profile_kind", "resource")
         .is("deleted_at", null)
         .maybeSingle();
       if (error || !data) return null;
@@ -56,7 +57,9 @@ export async function loadPublishedTalentPage(input: {
         display_name: string | null;
         created_by_agency_id: string | null;
         talent_plan_key: string | null;
+        profile_kind: string | null;
       };
+      if (row.profile_kind === "resource") return null;
       return {
         id: row.id,
         managingTenantId: row.created_by_agency_id ?? null,

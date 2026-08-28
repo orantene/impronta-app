@@ -399,6 +399,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
           // Preview is owner-only. This also prevents authenticated users from
           // previewing someone else's profile by guessing a code.
           .eq("user_id", user.id)
+          .neq("profile_kind", "resource")
           .is("deleted_at", null)
           .maybeSingle();
 
@@ -457,6 +458,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
     `,
     )
     .eq("profile_code", profileCode)
+    .neq("profile_kind", "resource")
     .is("deleted_at", null)
     .maybeSingle();
 
@@ -1145,6 +1147,7 @@ async function fetchSimilarTalent(
     )
     .in("id", profileIds)
     .in("workflow_status", ["published", "approved"])
+    .neq("profile_kind", "resource")
     .is("deleted_at", null)
     .limit(limit);
 

@@ -478,7 +478,7 @@ const BUDGETS: Record<string, number> = {
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
   // view. Its rationale and notFound() live in
   // _guards/agency-roster-visibility.ts so only the call sites are here.
-  "src/app/t/[profileCode]/profile-view.tsx": 2667,
+  "src/app/t/[profileCode]/profile-view.tsx": 2670,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

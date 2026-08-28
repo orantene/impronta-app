@@ -81,6 +81,7 @@ export default async function Image({
       .eq("profile_code", profileCode)
       .eq("workflow_status", "approved")
       .eq("visibility", "public")
+      .neq("profile_kind", "resource")
       .is("deleted_at", null)
       .maybeSingle();
     profile = (data as unknown as (OgProfile & { id: string }) | null) ?? null;

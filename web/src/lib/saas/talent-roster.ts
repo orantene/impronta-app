@@ -28,12 +28,13 @@ export async function filterTalentIdsOnTenantRoster(
   if (talentProfileIds.length === 0) return [];
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("talent_profile_id")
+    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .in("agency_visibility", PUBLIC_VISIBILITIES)
     .eq("talent_site_hidden", false)
-    .in("talent_profile_id", talentProfileIds);
+    .in("talent_profile_id", talentProfileIds)
+    .eq("talent_profiles.profile_kind", "person");
   if (error) return [];
   const valid = new Set(
     (data ?? []).map((row) => row.talent_profile_id as string),
@@ -55,11 +56,12 @@ export async function listTalentIdsOnTenantRoster(
 ): Promise<string[]> {
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("talent_profile_id")
+    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .in("agency_visibility", PUBLIC_VISIBILITIES)
-    .eq("talent_site_hidden", false);
+    .eq("talent_site_hidden", false)
+    .eq("talent_profiles.profile_kind", "person");
   if (error) return [];
   return (data ?? []).map((row) => row.talent_profile_id as string);
 }
@@ -96,12 +98,13 @@ export async function isTalentOnTenantRoster(
 ): Promise<boolean> {
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("talent_profile_id")
+    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .in("agency_visibility", PUBLIC_VISIBILITIES)
     .eq("talent_site_hidden", false)
     .eq("talent_profile_id", talentProfileId)
+    .eq("talent_profiles.profile_kind", "person")
     .maybeSingle();
   if (error) return false;
   return Boolean(data);
