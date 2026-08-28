@@ -32,6 +32,7 @@ import {
   parseCornerRadius,
   type BorderSideWidths,
   type CornerRadiusParts,
+  type ParsedCornerRadius,
 } from "./visual-effect-models";
 
 const CORNER_KEYS = [
@@ -100,16 +101,38 @@ export function CornerRadiusField({
   const [linked, setLinked] = useState(true);
   const parsed = parseCornerRadius(value);
   const isForeign = Boolean(value && value.trim()) && parsed === null;
+  const elliptical = Boolean(parsed?.y);
   const corners: CornerRadiusParts =
-    parsed ?? { topLeft: "0", topRight: "0", bottomRight: "0", bottomLeft: "0" };
+    parsed?.x ?? { topLeft: "0", topRight: "0", bottomRight: "0", bottomLeft: "0" };
+  const yCorners: CornerRadiusParts =
+    parsed?.y ?? corners;
 
-  function setCorner(key: keyof CornerRadiusParts, next: LengthValue | null) {
-    const term = formatLengthValue(next);
-    const nextCorners = linked
-      ? { topLeft: term, topRight: term, bottomRight: term, bottomLeft: term }
-      : { ...corners, [key]: term };
-    const composed = composeCornerRadius(nextCorners);
+  function emit(next: ParsedCornerRadius) {
+    const composed = composeCornerRadius(next);
     onChange(composed === "0" ? undefined : composed);
+  }
+
+  function setCorner(key: keyof CornerRadiusParts, next: LengthValue | null, axis: "x" | "y") {
+    const term = formatLengthValue(next);
+    if (axis === "x") {
+      const nextX = linked
+        ? { topLeft: term, topRight: term, bottomRight: term, bottomLeft: term }
+        : { ...corners, [key]: term };
+      emit({ x: nextX, y: elliptical ? yCorners : null });
+      return;
+    }
+    const nextY = linked
+      ? { topLeft: term, topRight: term, bottomRight: term, bottomLeft: term }
+      : { ...yCorners, [key]: term };
+    emit({ x: corners, y: nextY });
+  }
+
+  function toggleElliptical() {
+    if (elliptical) {
+      emit({ x: corners, y: null });
+      return;
+    }
+    emit({ x: corners, y: { ...corners } });
   }
 
   return (
@@ -132,12 +155,31 @@ export function CornerRadiusField({
           {t("Each corner")} {open ? "▾" : "›"}
         </button>
         {open && !isForeign ? (
-          <LinkToggle
-            linked={linked}
-            dataAttr="data-builder-corner-radius-link"
-            onToggle={() => setLinked((v) => !v)}
-            label={linked ? t("Linked") : t("Per corner")}
-          />
+          <div className="flex items-center gap-1.5">
+            <LinkToggle
+              linked={linked}
+              dataAttr="data-builder-corner-radius-link"
+              onToggle={() => setLinked((v) => !v)}
+              label={linked ? t("Linked") : t("Per corner")}
+            />
+            <button
+              type="button"
+              data-builder-corner-radius-ellipse=""
+              className="cursor-pointer rounded text-[10px] font-semibold"
+              style={{
+                height: 20,
+                padding: "0 7px",
+                background: elliptical ? CHROME.ink : CHROME.surface2,
+                color: elliptical ? "#fff" : CHROME.ink,
+                border: `1px solid ${elliptical ? CHROME.ink : CHROME.controlBorder}`,
+                outline: "none",
+              }}
+              aria-pressed={elliptical}
+              onClick={toggleElliptical}
+            >
+              {t("Elliptical")}
+            </button>
+          </div>
         ) : null}
       </div>
       {open ? (
@@ -152,24 +194,50 @@ export function CornerRadiusField({
         ) : (
           <div className="grid grid-cols-2 gap-1.5">
             {CORNER_KEYS.map(([key, short]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <span
-                  className="w-5 shrink-0 text-[10px] font-semibold"
-                  style={{ color: CHROME.muted }}
-                >
-                  {short}
-                </span>
-                <div data-builder-corner-input={key} style={{ flex: 1, minWidth: 0 }}>
-                  <NumberUnit
-                    units={["px", "rem", "%"]}
-                    defaultUnit="px"
-                    min={0}
-                    showButtons={false}
-                    placeholder="0"
-                    value={parseCssLength(corners[key])}
-                    onChange={(next) => setCorner(key, next)}
-                  />
+              <div key={key} className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-5 shrink-0 text-[10px] font-semibold"
+                    style={{ color: CHROME.muted }}
+                  >
+                    {short}
+                  </span>
+                  <div data-builder-corner-input={key} style={{ flex: 1, minWidth: 0 }}>
+                    <NumberUnit
+                      units={["px", "rem", "%"]}
+                      defaultUnit="px"
+                      min={0}
+                      showButtons={false}
+                      placeholder="0"
+                      value={parseCssLength(corners[key])}
+                      onChange={(next) => setCorner(key, next, "x")}
+                    />
+                  </div>
                 </div>
+                {elliptical ? (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-5 shrink-0 text-[10px] font-semibold"
+                      style={{ color: CHROME.muted }}
+                    >
+                      Y
+                    </span>
+                    <div
+                      data-builder-corner-input={`${key}Y`}
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <NumberUnit
+                        units={["px", "rem", "%"]}
+                        defaultUnit="px"
+                        min={0}
+                        showButtons={false}
+                        placeholder="0"
+                        value={parseCssLength(yCorners[key])}
+                        onChange={(next) => setCorner(key, next, "y")}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

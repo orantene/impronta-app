@@ -120,3 +120,28 @@ test("every key the token-scale controls write has a breakpoint lane", () => {
   assert.equal(isResponsivePlumbedStyleKey("size"), true);
   assert.equal(isResponsivePlumbedStyleKey("fontSize"), true);
 });
+
+test("B8 keys have a breakpoint lane and a custom-tier write stays off desktop", () => {
+  for (const key of [
+    "backgroundLayers",
+    "lineClamp",
+    "stickyAnchor",
+    "stickyOffset",
+    "transitionProperty",
+    "transitionDuration",
+    "transitionTimingFunction",
+    "transitionDelay",
+  ]) {
+    assert.equal(isResponsivePlumbedStyleKey(key), true, `${key} must have a lane`);
+  }
+  const next = styleWithViewportPatch(
+    { paddingTop: "120px" },
+    "wide",
+    "viewport",
+    { paddingTop: "1.5rem", lineClamp: 2 },
+    CLEANERS,
+  );
+  assert.equal(next?.responsive?.wide?.paddingTop, "1.5rem");
+  assert.equal(next?.responsive?.wide?.lineClamp, 2);
+  assert.equal(next?.paddingTop, "120px", "desktop padding survives a custom-tier write");
+});

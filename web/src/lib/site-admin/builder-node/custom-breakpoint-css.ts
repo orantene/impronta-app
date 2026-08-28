@@ -85,6 +85,219 @@ export const BUILTIN_EXTRA_TIERS: ReadonlyArray<CustomBreakpoint> = [
  */
 const BUILTIN_TIER_IDS: ReadonlySet<string> = new Set(["tablet", "mobile"]);
 
+/** True for an operator-defined custom tier id the generators will emit. */
+export function isCustomBreakpointTierId(id: string): boolean {
+  return SLUG.test(id) && !BUILTIN_TIER_IDS.has(id);
+}
+
+/**
+ * Compose stacked backgroundLayers into a CSS background-image value.
+ * Mirrors the desktop inline path in `render.tsx` so a breakpoint lane that
+ * stores layers emits the same stack, not a snapped approximation.
+ */
+export function composeBackgroundLayersCss(
+  layers:
+    | ReadonlyArray<{ type: "gradient" | "image" | "color"; value: string }>
+    | undefined
+    | null,
+): string | undefined {
+  if (!layers || layers.length === 0) return undefined;
+  return layers
+    .map((layer) =>
+      layer.type === "color"
+        ? `linear-gradient(${layer.value},${layer.value})`
+        : layer.value,
+    )
+    .join(",");
+}
+
+/**
+ * Extra responsive lanes that the static tablet/mobile sheet did not ship:
+ * line-clamp, stacked backgroundLayers, sticky pin. Interpolated into the
+ * static sheet (B8) AND into generated custom-tier CSS (B5).
+ */
+export function extraResponsiveLaneRules(id: string): string {
+  const sel = (attr: string) =>
+    `.site-builder-node[data-builder-style-${id}-${attr}]`;
+  const offset = `var(--bn-${id}-sticky-offset,0px)`;
+  return [
+    `  ${sel("line-clamp")}{display:-webkit-box!important;-webkit-box-orient:vertical!important;overflow:hidden!important;-webkit-line-clamp:var(--bn-${id}-line-clamp)!important}`,
+    `  ${sel("bg-layers")}{background-image:var(--bn-${id}-bg-layers)!important}`,
+    `  ${sel('sticky-anchor="top"')}:not([data-builder-style-${id}-position]){position:sticky!important}`,
+    `  ${sel('sticky-anchor="bottom"')}:not([data-builder-style-${id}-position]){position:sticky!important}`,
+    `  ${sel('sticky-anchor="top"')}:not([data-builder-style-${id}-inset-top]){top:${offset}!important}`,
+    `  ${sel('sticky-anchor="bottom"')}:not([data-builder-style-${id}-inset-bottom]){bottom:${offset}!important}`,
+  ].join("\n");
+}
+
+/**
+ * BuilderNodeStyle lanes for one custom tier. Mirrors the static tablet
+ * `@media (max-width:900px)` block in `render.tsx` (presence attr → CSS var),
+ * so a freeform node with `style.responsive.wide.paddingTop = "1.5rem"` emits
+ * that exact authored value through `--bn-wide-padding-top`. Curated token
+ * maps stay in {@link rulesFor}; this is additive and never snaps raw values
+ * to ivory/tight/narrow.
+ */
+export function freeformStyleRulesFor(id: string): string {
+  const sel = (attr: string) =>
+    `.site-builder-node[data-builder-style-${id}-${attr}]`;
+  const v = (name: string) => `var(--bn-${id}-${name})`;
+  const rule = (attr: string, decl: string) => `  ${sel(attr)}{${decl}}`;
+  const sizeClamp: Record<string, string> = {
+    sm: "clamp(0.9rem,1vw,1rem)",
+    md: "clamp(1rem,1.3vw,1.25rem)",
+    lg: "clamp(1.35rem,2vw,2.25rem)",
+    xl: "clamp(2rem,4vw,4.5rem)",
+    display: "clamp(3.5rem,6vw,6rem)",
+  };
+  const paraClamp: Record<string, string> = {
+    lg: "clamp(1.1rem,1.45vw,1.45rem)",
+    xl: "clamp(1.25rem,1.8vw,1.8rem)",
+    display: "clamp(2rem,4vw,4.5rem)",
+  };
+  const lines: string[] = [
+    rule("align", `text-align:${v("align")}!important`),
+    ...Object.entries(sizeClamp).map(
+      ([k, css]) =>
+        `  .site-builder-node[data-builder-style-${id}-size="${k}"]{font-size:${css}!important}`,
+    ),
+    ...Object.entries(paraClamp).map(
+      ([k, css]) =>
+        `  .site-builder-node--paragraph[data-builder-style-${id}-size="${k}"]{font-size:${css}!important}`,
+    ),
+    rule("tone", `color:${v("color")}!important`),
+    rule("width", `max-width:${v("max-width")}!important`),
+    rule("margin-top", `margin-top:${v("margin-top")}!important`),
+    rule("margin-bottom", `margin-bottom:${v("margin-bottom")}!important`),
+    rule(
+      "padding-x",
+      `padding-left:${v("padding-x")}!important;padding-right:${v("padding-x")}!important`,
+    ),
+    rule(
+      "padding-y",
+      `padding-top:${v("padding-y")}!important;padding-bottom:${v("padding-y")}!important`,
+    ),
+    rule("background", `background:${v("background")}!important`),
+    rule("radius", `border-radius:${v("radius")}!important`),
+    rule("fit", `object-fit:${v("fit")}!important`),
+    rule(
+      "object-position",
+      `object-position:${v("object-position")}!important`,
+    ),
+    rule("ratio", `aspect-ratio:${v("ratio")}!important`),
+    rule("aspect-free", `aspect-ratio:${v("aspect-free")}!important`),
+    rule("hidden", "display:none!important"),
+    rule("font-family", `font-family:${v("font-family")}!important`),
+    rule("font-size", `font-size:${v("font-size")}!important`),
+    rule("font-weight", `font-weight:${v("font-weight")}!important`),
+    rule("line-height", `line-height:${v("line-height")}!important`),
+    rule("letter-spacing", `letter-spacing:${v("letter-spacing")}!important`),
+    rule("text-transform", `text-transform:${v("text-transform")}!important`),
+    rule("font-style", `font-style:${v("font-style")}!important`),
+    rule("text-decoration", `text-decoration:${v("text-decoration")}!important`),
+    rule("text-color", `color:${v("text-color")}!important`),
+    rule("bg-color", `background-color:${v("bg-color")}!important`),
+    rule("border-color", `border-color:${v("border-color")}!important`),
+    rule("border-width", `border-width:${v("border-width")}!important`),
+    rule("border-style", `border-style:${v("border-style")}!important`),
+    rule("free-width", `width:${v("free-width")}!important`),
+    rule("height", `height:${v("height")}!important`),
+    rule("min-height", `min-height:${v("min-height")}!important`),
+    rule("min-width", `min-width:${v("min-width")}!important`),
+    rule("max-width-free", `max-width:${v("max-width-free")}!important`),
+    rule("max-height", `max-height:${v("max-height")}!important`),
+    rule("padding-top", `padding-top:${v("padding-top")}!important`),
+    rule("padding-right", `padding-right:${v("padding-right")}!important`),
+    rule("padding-bottom", `padding-bottom:${v("padding-bottom")}!important`),
+    rule("padding-left", `padding-left:${v("padding-left")}!important`),
+    rule("margin-top-free", `margin-top:${v("margin-top-free")}!important`),
+    rule("margin-right-free", `margin-right:${v("margin-right-free")}!important`),
+    rule(
+      "margin-bottom-free",
+      `margin-bottom:${v("margin-bottom-free")}!important`,
+    ),
+    rule("margin-left-free", `margin-left:${v("margin-left-free")}!important`),
+    rule("shadow", `box-shadow:${v("shadow")}!important`),
+    rule("text-shadow", `text-shadow:${v("text-shadow")}!important`),
+    rule("bg-image", `background-image:${v("bg-image")}!important`),
+    rule("bg-size", `background-size:${v("bg-size")}!important`),
+    rule("bg-position", `background-position:${v("bg-position")}!important`),
+    rule("bg-repeat", `background-repeat:${v("bg-repeat")}!important`),
+    rule("opacity", `opacity:${v("opacity")}!important`),
+    rule("radius-free", `border-radius:${v("radius-free")}!important`),
+    rule("gap-free", `--bn-gap:${v("gap-free")}!important`),
+    rule("position", `position:${v("position")}!important`),
+    rule("inset-top", `top:${v("inset-top")}!important`),
+    rule("inset-right", `right:${v("inset-right")}!important`),
+    rule("inset-bottom", `bottom:${v("inset-bottom")}!important`),
+    rule("inset-left", `left:${v("inset-left")}!important`),
+    rule("z-index", `z-index:${v("z-index")}!important`),
+    rule("overflow", `overflow:${v("overflow")}!important`),
+    rule("rotate", `rotate:${v("rotate")}!important`),
+    rule("scale", `scale:${v("scale")}!important`),
+    rule("translate", `translate:${v("translate")}!important`),
+    rule("transform-origin", `transform-origin:${v("transform-origin")}!important`),
+    rule("align-self", `align-self:${v("align-self")}!important`),
+    rule("flex-grow", `flex-grow:${v("flex-grow")}!important`),
+    rule("flex-shrink", `flex-shrink:${v("flex-shrink")}!important`),
+    rule("flex-basis", `flex-basis:${v("flex-basis")}!important`),
+    rule("grid-column", `grid-column:${v("grid-column")}!important`),
+    rule("grid-row", `grid-row:${v("grid-row")}!important`),
+    rule("order", `order:${v("order")}!important`),
+    rule("filter", `filter:${v("filter")}!important`),
+    rule(
+      "backdrop-filter",
+      `backdrop-filter:${v("backdrop-filter")}!important;-webkit-backdrop-filter:${v("backdrop-filter")}!important`,
+    ),
+    rule("mix-blend-mode", `mix-blend-mode:${v("mix-blend-mode")}!important`),
+    rule("justify-content", `justify-content:${v("justify-content")}!important`),
+    rule("align-items", `align-items:${v("align-items")}!important`),
+    rule("flex-wrap", `flex-wrap:${v("flex-wrap")}!important`),
+    rule(
+      "grid-template-columns",
+      `grid-template-columns:${v("grid-template-columns")}!important`,
+    ),
+    rule(
+      "grid-template-rows",
+      `grid-template-rows:${v("grid-template-rows")}!important`,
+    ),
+    rule("grid-auto-flow", `grid-auto-flow:${v("grid-auto-flow")}!important`),
+    rule(
+      "clip-path",
+      `clip-path:${v("clip-path")}!important;-webkit-clip-path:${v("clip-path")}!important`,
+    ),
+    rule(
+      "mask-image",
+      `mask-image:${v("mask-image")}!important;-webkit-mask-image:${v("mask-image")}!important`,
+    ),
+    rule("text-stroke", `-webkit-text-stroke:${v("text-stroke")}!important`),
+    rule("cursor", `cursor:${v("cursor")}!important`),
+    rule(
+      "user-select",
+      `user-select:${v("user-select")}!important;-webkit-user-select:${v("user-select")}!important`,
+    ),
+    rule("pointer-events", `pointer-events:${v("pointer-events")}!important`),
+    rule(
+      "scroll-snap-type",
+      `scroll-snap-type:${v("scroll-snap-type")}!important`,
+    ),
+    rule(
+      "scroll-snap-align",
+      `scroll-snap-align:${v("scroll-snap-align")}!important`,
+    ),
+    rule("outline", `outline:${v("outline")}!important`),
+    rule("outline-offset", `outline-offset:${v("outline-offset")}!important`),
+    rule("accent-color", `accent-color:${v("accent-color")}!important`),
+    rule("caret-color", `caret-color:${v("caret-color")}!important`),
+    rule(
+      "transition",
+      `transition-property:var(--bn-${id}-transition-property,var(--bn-transition-property,all))!important;transition-duration:var(--bn-${id}-transition-duration,var(--bn-transition-duration,.2s))!important;transition-timing-function:var(--bn-${id}-transition-timing-function,var(--bn-transition-timing-function,ease))!important;transition-delay:var(--bn-${id}-transition-delay,var(--bn-transition-delay,0s))!important`,
+    ),
+    extraResponsiveLaneRules(id),
+  ];
+  return lines.join("\n");
+}
+
 /**
  * Builder 2026 "first-class responsive" — runtime CSS for custom-tier CONTAINER
  * LAYOUT overrides (`BuilderContainerNode.props.responsive[<tierId>]`). Mirrors
@@ -162,6 +375,7 @@ function rulesFor(id: string): string {
     lines.push(`  [data-section-${id}-align="${v}"] { ${decl} }`);
   for (const [v, decl] of Object.entries(DIVIDER))
     lines.push(`  [data-section-${id}-divider-top="${v}"] { ${decl} }`);
+  lines.push(freeformStyleRulesFor(id));
   return lines.join("\n");
 }
 

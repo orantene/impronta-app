@@ -52,6 +52,11 @@ import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
+  composeBackgroundLayersCss,
+  extraResponsiveLaneRules,
+  isCustomBreakpointTierId,
+} from "./custom-breakpoint-css";
+import {
   GAP_BY_SIZE,
   ICON_SIZE,
   NODE_MAX_WIDTH,
@@ -1096,6 +1101,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-accent-color]{accent-color:var(--bn-tablet-accent-color)!important}
   .site-builder-node[data-builder-style-tablet-caret-color]{caret-color:var(--bn-tablet-caret-color)!important}
   .site-builder-node[data-builder-style-tablet-transition]{transition-property:var(--bn-tablet-transition-property,var(--bn-transition-property,all))!important;transition-duration:var(--bn-tablet-transition-duration,var(--bn-transition-duration,.2s))!important;transition-timing-function:var(--bn-tablet-transition-timing-function,var(--bn-transition-timing-function,ease))!important;transition-delay:var(--bn-tablet-transition-delay,var(--bn-transition-delay,0s))!important}
+${extraResponsiveLaneRules("tablet")}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -1210,6 +1216,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-accent-color]{accent-color:var(--bn-mobile-accent-color)!important}
   .site-builder-node[data-builder-style-mobile-caret-color]{caret-color:var(--bn-mobile-caret-color)!important}
   .site-builder-node[data-builder-style-mobile-transition]{transition-property:var(--bn-mobile-transition-property,var(--bn-transition-property,all))!important;transition-duration:var(--bn-mobile-transition-duration,var(--bn-transition-duration,.2s))!important;transition-timing-function:var(--bn-mobile-transition-timing-function,var(--bn-transition-timing-function,ease))!important;transition-delay:var(--bn-mobile-transition-delay,var(--bn-transition-delay,0s))!important}
+${extraResponsiveLaneRules("mobile")}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -1471,6 +1478,51 @@ function hasTransitionLonghands(style: BuilderNodeStyleValue | undefined): boole
       style?.transitionTimingFunction ||
       style?.transitionDelay,
   );
+}
+
+function customTierStylePresenceAttrs(
+  style: BuilderNodeStyle | undefined,
+): Record<string, string | undefined> {
+  const responsive = style?.responsive;
+  if (!responsive) return {};
+  const out: Record<string, string | undefined> = {};
+  for (const [id, bucket] of Object.entries(responsive)) {
+    if (!bucket || !isCustomBreakpointTierId(id)) continue;
+    const prefix = `data-builder-style-${id}`;
+    if (bucket.size) out[`${prefix}-size`] = bucket.size;
+    if (bucket.visibility === "hidden") out[`${prefix}-hidden`] = "";
+    if (bucket.borderColor || bucket.borderWidth || bucket.borderStyle) {
+      out[`${prefix}-border-width`] = "";
+      out[`${prefix}-border-style`] = "";
+    }
+    if (hasTransitionLonghands(bucket)) out[`${prefix}-transition`] = "";
+    if (typeof bucket.lineClamp === "number" && bucket.lineClamp > 0) {
+      out[`${prefix}-line-clamp`] = "";
+    }
+    if (bucket.backgroundLayers && bucket.backgroundLayers.length > 0) {
+      out[`${prefix}-bg-layers`] = "";
+    }
+    if (bucket.stickyAnchor) out[`${prefix}-sticky-anchor`] = bucket.stickyAnchor;
+    if (bucket.stickyOffset) out[`${prefix}-sticky-offset`] = "";
+    for (const [key, attr] of CONTAINER_QUERY_STYLE_ATTR_KEYS) {
+      const value = bucket[key];
+      if (value !== undefined && value !== "") out[`${prefix}-${attr}`] = "";
+    }
+  }
+  return out;
+}
+
+function customTierStyleVars(
+  style: BuilderNodeStyle | undefined,
+): Record<string, string | number | undefined> {
+  const responsive = style?.responsive;
+  if (!responsive) return {};
+  const out: Record<string, string | number | undefined> = {};
+  for (const [id, bucket] of Object.entries(responsive)) {
+    if (!bucket || !isCustomBreakpointTierId(id)) continue;
+    Object.assign(out, bucketStyleVars(`--bn-${id}`, bucket, style));
+  }
+  return out;
 }
 
 const MARKDOWN_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -1797,9 +1849,25 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-outline-offset": tablet?.outlineOffset ? "" : undefined,
     "data-builder-style-tablet-accent-color": tablet?.accentColor ? "" : undefined,
     "data-builder-style-tablet-caret-color": tablet?.caretColor ? "" : undefined,
-    "data-builder-style-tablet-transition": hasTransitionLonghands(tablet)
+    "data-builder-style-tablet-line-clamp":
+      typeof tablet?.lineClamp === "number" && tablet.lineClamp > 0
+        ? ""
+        : undefined,
+    "data-builder-style-tablet-bg-layers":
+      tablet?.backgroundLayers && tablet.backgroundLayers.length > 0
+        ? ""
+        : undefined,
+    "data-builder-style-tablet-sticky-anchor": tablet?.stickyAnchor,
+    "data-builder-style-tablet-sticky-offset": tablet?.stickyOffset
       ? ""
       : undefined,
+    "data-builder-style-tablet-transition":
+      tablet?.transitionProperty ||
+      tablet?.transitionDuration ||
+      tablet?.transitionTimingFunction ||
+      tablet?.transitionDelay
+        ? ""
+        : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -1902,9 +1970,26 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-outline-offset": mobile?.outlineOffset ? "" : undefined,
     "data-builder-style-mobile-accent-color": mobile?.accentColor ? "" : undefined,
     "data-builder-style-mobile-caret-color": mobile?.caretColor ? "" : undefined,
-    "data-builder-style-mobile-transition": hasTransitionLonghands(mobile)
+    "data-builder-style-mobile-line-clamp":
+      typeof mobile?.lineClamp === "number" && mobile.lineClamp > 0
+        ? ""
+        : undefined,
+    "data-builder-style-mobile-bg-layers":
+      mobile?.backgroundLayers && mobile.backgroundLayers.length > 0
+        ? ""
+        : undefined,
+    "data-builder-style-mobile-sticky-anchor": mobile?.stickyAnchor,
+    "data-builder-style-mobile-sticky-offset": mobile?.stickyOffset
       ? ""
       : undefined,
+    "data-builder-style-mobile-transition":
+      mobile?.transitionProperty ||
+      mobile?.transitionDuration ||
+      mobile?.transitionTimingFunction ||
+      mobile?.transitionDelay
+        ? ""
+        : undefined,
+    ...customTierStylePresenceAttrs(style),
     // Hover-state gates — each presence attr arms the matching :hover rule in the
     // static sheet (which reads the --bn-hover-* var). No attr ⇒ no rule ⇒ resting
     // value is untouched.
@@ -1988,7 +2073,14 @@ function containerQueryStyleVars(
   style: BuilderNodeStyleValue | undefined,
   base: BuilderNodeStyle | undefined,
 ): Record<string, string | number | undefined> {
-  const prefix = `--bn-cq-${breakpoint}`;
+  return bucketStyleVars(`--bn-cq-${breakpoint}`, style, base);
+}
+
+function bucketStyleVars(
+  prefix: string,
+  style: BuilderNodeStyleValue | undefined,
+  base: BuilderNodeStyle | undefined,
+): Record<string, string | number | undefined> {
   return {
     [`${prefix}-align`]: style?.align,
     [`${prefix}-color`]: styleColor(style?.tone),
@@ -2102,6 +2194,14 @@ function containerQueryStyleVars(
     [`${prefix}-outline-offset`]: style?.outlineOffset,
     [`${prefix}-accent-color`]: styleToken(style?.accentColor),
     [`${prefix}-caret-color`]: styleToken(style?.caretColor),
+    [`${prefix}-line-clamp`]:
+      typeof style?.lineClamp === "number" && style.lineClamp > 0
+        ? style.lineClamp
+        : undefined,
+    [`${prefix}-bg-layers`]: composeBackgroundLayersCss(style?.backgroundLayers),
+    [`${prefix}-sticky-offset`]: style?.stickyAnchor
+      ? style.stickyOffset?.trim() || "0px"
+      : undefined,
   };
 }
 
@@ -2372,6 +2472,29 @@ function responsiveStyleVars(
     "--bn-mobile-transition-timing-function":
       style?.responsive?.mobile?.transitionTimingFunction,
     "--bn-mobile-transition-delay": style?.responsive?.mobile?.transitionDelay,
+    "--bn-tablet-line-clamp":
+      typeof style?.responsive?.tablet?.lineClamp === "number" &&
+      style.responsive.tablet.lineClamp > 0
+        ? style.responsive.tablet.lineClamp
+        : undefined,
+    "--bn-mobile-line-clamp":
+      typeof style?.responsive?.mobile?.lineClamp === "number" &&
+      style.responsive.mobile.lineClamp > 0
+        ? style.responsive.mobile.lineClamp
+        : undefined,
+    "--bn-tablet-bg-layers": composeBackgroundLayersCss(
+      style?.responsive?.tablet?.backgroundLayers,
+    ),
+    "--bn-mobile-bg-layers": composeBackgroundLayersCss(
+      style?.responsive?.mobile?.backgroundLayers,
+    ),
+    "--bn-tablet-sticky-offset": style?.responsive?.tablet?.stickyAnchor
+      ? style.responsive.tablet.stickyOffset?.trim() || "0px"
+      : undefined,
+    "--bn-mobile-sticky-offset": style?.responsive?.mobile?.stickyAnchor
+      ? style.responsive.mobile.stickyOffset?.trim() || "0px"
+      : undefined,
+    ...customTierStyleVars(style),
     // Hover-state overrides — a single (non-viewport) layer. Each var only renders
     // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
     // the static sheet so the override applies only while hovered/focused, and an

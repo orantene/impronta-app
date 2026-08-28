@@ -20,8 +20,6 @@ import type {
 } from "@/lib/site-admin/builder-node";
 import { isResponsivePlumbedStyleKey } from "@/lib/site-admin/builder-node/responsive-style-keys";
 
-import type { NodeViewport } from "./section-types";
-
 /**
  * Split a patch by whether the renderer has a breakpoint lane for each key.
  *
@@ -67,7 +65,7 @@ export interface StyleCleaners {
 export type StyleWriteTarget = "base" | "container" | "responsive";
 
 export function styleWriteTarget(
-  viewport: NodeViewport,
+  viewport: string,
   scope: string,
 ): StyleWriteTarget {
   if (viewport === "desktop") return "base";
@@ -83,7 +81,7 @@ export function styleWriteTarget(
  */
 export function styleWithViewportPatch(
   currentStyle: BuilderNodeStyle | undefined,
-  viewport: NodeViewport,
+  viewport: string,
   scope: string,
   patch: Partial<BuilderNodeStyleValue>,
   { cleanStyle, cleanValue }: StyleCleaners,
@@ -92,7 +90,10 @@ export function styleWithViewportPatch(
   // bucket writes below index their maps without a cast.
   if (viewport === "desktop") return cleanStyle({ ...currentStyle, ...patch });
 
-  if (styleWriteTarget(viewport, scope) === "container") {
+  if (
+    styleWriteTarget(viewport, scope) === "container" &&
+    (viewport === "tablet" || viewport === "mobile")
+  ) {
     return cleanStyle({
       ...currentStyle,
       containerQueries: {

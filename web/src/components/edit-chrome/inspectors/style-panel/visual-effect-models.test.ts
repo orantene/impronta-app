@@ -19,12 +19,14 @@ import {
   composeGlassBackdrop,
   composeShadowLayer,
   composeShadowStack,
+  composeCssFilter,
   GLASS_SURFACE_PATCH,
   parseBorderSideWidths,
   parseCornerRadius,
   parseGlassBackdrop,
   parseShadowLayer,
   parseShadowStack,
+  parseCssFilter,
   splitTopLevelCommas,
 } from "./visual-effect-models";
 
@@ -76,36 +78,56 @@ test("glass: the one-click preset parses back into its own controls", () => {
 
 test("corner radius: every shorthand arity expands per CSS rules", () => {
   assert.deepEqual(parseCornerRadius("16px"), {
-    topLeft: "16px", topRight: "16px", bottomRight: "16px", bottomLeft: "16px",
+    x: { topLeft: "16px", topRight: "16px", bottomRight: "16px", bottomLeft: "16px" },
+    y: null,
   });
   assert.deepEqual(parseCornerRadius("16px 0"), {
-    topLeft: "16px", topRight: "0", bottomRight: "16px", bottomLeft: "0",
+    x: { topLeft: "16px", topRight: "0", bottomRight: "16px", bottomLeft: "0" },
+    y: null,
   });
   assert.deepEqual(parseCornerRadius("1px 2px 3px"), {
-    topLeft: "1px", topRight: "2px", bottomRight: "3px", bottomLeft: "2px",
+    x: { topLeft: "1px", topRight: "2px", bottomRight: "3px", bottomLeft: "2px" },
+    y: null,
   });
   assert.deepEqual(parseCornerRadius("16px 16px 0 0"), {
-    topLeft: "16px", topRight: "16px", bottomRight: "0", bottomLeft: "0",
+    x: { topLeft: "16px", topRight: "16px", bottomRight: "0", bottomLeft: "0" },
+    y: null,
   });
 });
 
 test("corner radius: compose is minimal and round-trips", () => {
   assert.equal(
-    composeCornerRadius({ topLeft: "16px", topRight: "16px", bottomRight: "16px", bottomLeft: "16px" }),
+    composeCornerRadius({
+      x: { topLeft: "16px", topRight: "16px", bottomRight: "16px", bottomLeft: "16px" },
+      y: null,
+    }),
     "16px",
   );
   assert.equal(
-    composeCornerRadius({ topLeft: "16px", topRight: "16px", bottomRight: "0", bottomLeft: "0" }),
+    composeCornerRadius({
+      x: { topLeft: "16px", topRight: "16px", bottomRight: "0", bottomLeft: "0" },
+      y: null,
+    }),
     "16px 16px 0 0",
   );
   assert.equal(
-    composeCornerRadius({ topLeft: "8px", topRight: "0", bottomRight: "8px", bottomLeft: "0" }),
+    composeCornerRadius({
+      x: { topLeft: "8px", topRight: "0", bottomRight: "8px", bottomLeft: "0" },
+      y: null,
+    }),
     "8px 0",
   );
 });
 
-test("corner radius: elliptical, calc, and token values refuse to parse", () => {
-  assert.equal(parseCornerRadius("16px / 8px"), null);
+test("corner radius: elliptical 16px / 8px is owned; calc and tokens still refuse", () => {
+  assert.deepEqual(parseCornerRadius("16px / 8px"), {
+    x: { topLeft: "16px", topRight: "16px", bottomRight: "16px", bottomLeft: "16px" },
+    y: { topLeft: "8px", topRight: "8px", bottomRight: "8px", bottomLeft: "8px" },
+  });
+  assert.equal(
+    composeCornerRadius(parseCornerRadius("16px / 8px")!),
+    "16px / 8px",
+  );
   assert.equal(parseCornerRadius("calc(1rem + 2px)"), null);
   assert.equal(parseCornerRadius("token:radius.md"), null);
   assert.equal(parseCornerRadius("var(--r)"), null);
@@ -133,11 +155,17 @@ test("border sides: non-px values refuse to parse", () => {
   assert.equal(parseBorderSideWidths("calc(1px)"), null);
 });
 
-test("border sides: a compose past the 16-char save cap returns null, never a doomed value", () => {
-  const out = composeBorderSideWidths({ top: 10, right: 11, bottom: 12, left: 13 });
+test("border sides: a compose past the 64-char save cap returns null, never a doomed value", () => {
+  const out = composeBorderSideWidths({
+    top: 100000, right: 100000, bottom: 100000, left: 100001,
+  });
   assert.equal(out, null);
-  // The cap constant matches the zod schema's cap (registry.ts).
-  assert.equal(BORDER_WIDTH_MAX_CHARS, 16);
+  assert.equal(BORDER_WIDTH_MAX_CHARS, 64);
+  // Realistic per-side shorthand now fits (it did not under the 16-char cap).
+  assert.equal(
+    composeBorderSideWidths({ top: 10, right: 11, bottom: 12, left: 13 }),
+    "10px 11px 12px 13px",
+  );
 });
 
 // ── Shadow stack ────────────────────────────────────────────────────────────
@@ -195,4 +223,23 @@ test("shadow stack: a compose past the 200-char save cap returns null", () => {
   const many = Array.from({ length: 10 }, () => layer);
   assert.equal(composeShadowStack(many), null);
   assert.equal(BOX_SHADOW_MAX_CHARS, 200);
+});
+
+test("filter: owned functions round-trip; invert/drop-shadow refuse", () => {
+  assert.deepEqual(parseCssFilter("blur(8px) grayscale(0.4)"), {
+    blur: 8,
+    brightness: null,
+    contrast: null,
+    grayscale: 0.4,
+    saturate: null,
+    sepia: null,
+    hueRotate: null,
+  });
+  assert.equal(
+    composeCssFilter(parseCssFilter("blur(8px) grayscale(0.4)")!),
+    "blur(8px) grayscale(0.4)",
+  );
+  assert.equal(parseCssFilter("blur(8px) invert(1)"), null);
+  assert.equal(parseCssFilter("drop-shadow(0 2px 4px red)"), null);
+  assert.equal(parseCssFilter("url(#f)"), null);
 });

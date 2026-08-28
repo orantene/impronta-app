@@ -12,6 +12,7 @@ import { CHROME } from "../../kit/tokens";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { StateStyleFields } from "../style-panel-state-style-fields";
 import { GlassBackdropField } from "./glass-backdrop-field";
+import { FilterField } from "./filter-field";
 import { BUILDER_NODE_BLEND_OPTIONS } from "./style-options";
 import type { StandaloneSectionCtx } from "./section-types";
 
@@ -43,35 +44,10 @@ export function EffectsStatesSection({
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="filter"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Filter
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="blur(8px) grayscale(1)"
-                  value={selectedStandaloneViewportStyle?.filter ?? ""}
-                  onChange={(e) =>
-                    patchSelectedStandaloneStyle({
-                      filter: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
+              <FilterField
+                value={selectedStandaloneViewportStyle?.filter}
+                onPatch={patchSelectedStandaloneStyle}
+              />
               {/* Backdrop filter + the one-click glass surface preset. The raw
                   input lives inside the field (verbatim escape hatch); blur and
                   saturation get real controls whenever the value is one the

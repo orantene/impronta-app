@@ -16,7 +16,7 @@ import {
   BUILDER_ANIMATION_TRIGGERS,
 } from "./animation-presets";
 import { backgroundMediaSchema } from "./background-media";
-import type { BuilderNodeKind } from "./types";
+import { BUILDER_MIX_BLEND_MODES, type BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
 const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
@@ -170,7 +170,9 @@ export const builderNodeStyleValueSchema = z.object({
   textColor: tokenAwareStyleString(64),
   backgroundColor: tokenAwareStyleString(64),
   borderColor: tokenAwareStyleString(64),
-  borderWidth: z.string().max(16).optional(),
+  // 64, not 16: a per-side shorthand (`10px 8px 12px 4px`) is the normal way
+  // to write an uneven border and the old cap rejected every realistic combo.
+  borderWidth: z.string().max(64).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
   // after the radius token so an exact value wins. Also accepts a `token:radius.*`
@@ -271,9 +273,7 @@ export const builderNodeStyleValueSchema = z.object({
   filter: z.string().max(120).optional(),
   backdropFilter: z.string().max(120).optional(),
   // Compositing — blend this node against the backdrop (overlays/duotone).
-  mixBlendMode: z
-    .enum(["multiply", "screen", "overlay", "darken", "lighten"])
-    .optional(),
+  mixBlendMode: z.enum(BUILDER_MIX_BLEND_MODES).optional(),
   // Flex/grid container layout — main-axis distribution + cross-axis alignment
   // of children, plus row-wrap control. Complements the structured layout/align.
   justifyContent: z
@@ -404,12 +404,8 @@ const builderNodeHoverStyleSchema = z.object({
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
   .extend({
-    responsive: z
-      .object({
-        tablet: builderNodeStyleValueSchema.optional(),
-        mobile: builderNodeStyleValueSchema.optional(),
-      })
-      .optional(),
+    // Built-in `tablet`/`mobile` plus any operator-defined custom tier id.
+    responsive: z.record(z.string(), builderNodeStyleValueSchema).optional(),
     containerQueries: z
       .object({
         tablet: builderNodeStyleValueSchema.optional(),
