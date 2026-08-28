@@ -79,7 +79,7 @@ type Props = {
    * renames without a redeploy.
    */
   tierNames?: GetStartedTierNames;
-  /** Pre-formatted promo label (appended to fine-print). */
+  /** Pre-formatted promo label; fine print shows it only for a PAID tier. */
   appliedDiscountLabel?: string;
   /** Server-validated promo code; rides the lead row to checkout. */
   promoCode?: string;
@@ -791,7 +791,8 @@ export function GetStartedForm({
         {freeLimitWorkspace ? t.freeLimitFinePrint : null}
         {!freeLimitWorkspace && tier ? formFinePrint(tier, tierPrices, tierNames) : null}
         {!freeLimitWorkspace && !tier ? t.ctaFinePrint : null}
-        {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
+        {/* Paid only: the free path opens no checkout, so this read as a claim. */}
+        {appliedDiscountLabel && tier && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>
   );
