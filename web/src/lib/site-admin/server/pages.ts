@@ -55,6 +55,7 @@ import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapsh
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
+import { loadRoleDeletionBlockReason } from "./page-deletion-guard";
 import type { Locale } from "@/lib/site-admin/locales";
 import type {
   PageArchiveValues,
@@ -630,6 +631,20 @@ export async function deletePage(
     );
   }
 
+  // DEFAULT PAGES CONTRACT — never delete the last `home` / `notFound` holder.
+  // The role pointer would silently empty and the site would revert to the
+  // built-in default with no warning. Swapping the role onto another published
+  // page clears this block.
+  const roleBlock = await loadRoleDeletionBlockReason(
+    supabase,
+    tenantId,
+    beforeRow.slug,
+    "delete",
+  );
+  if (roleBlock) {
+    return fail("SYSTEM_PAGE_IMMUTABLE", roleBlock);
+  }
+
   if (beforeRow.version !== values.expectedVersion) {
     return versionConflict(beforeRow.version);
   }
@@ -857,6 +872,19 @@ export async function archivePage(
       "SYSTEM_PAGE_IMMUTABLE",
       "system-owned pages cannot be archived",
     );
+  }
+
+  // Archiving unpublishes, and `resolveRolePageSlug` only serves a PUBLISHED
+  // page — so archiving the home/404 holder empties the role just as surely as
+  // deleting it. Same guard, same escape hatch.
+  const roleBlock = await loadRoleDeletionBlockReason(
+    supabase,
+    tenantId,
+    beforeRow.slug,
+    "archive",
+  );
+  if (roleBlock) {
+    return fail("SYSTEM_PAGE_IMMUTABLE", roleBlock);
   }
 
   if (beforeRow.version !== values.expectedVersion) {
