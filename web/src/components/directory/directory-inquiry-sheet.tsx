@@ -99,6 +99,11 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
         bindToInquiryCart
         enableDraftAutosave={false}
         initialIntent={{
+          // The event fields this visitor already gave the guest chat. Spread
+          // FIRST so the explicit sections below always win: requester/client
+          // come from the account, and talent from the shared lineup, both of
+          // which are more current than anything a draft carries.
+          ...(ready.carriedIntent ?? {}),
           requester: {
             name: ready.defaultName ?? "",
             email: ready.defaultEmail ?? "",
