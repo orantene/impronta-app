@@ -318,7 +318,9 @@ function HeroSection({
       founderNote:
         "Free workspaces are available immediately, claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel, just a product we\u2019re building with the people who use it.",
       founderSign: `Oran, founder · ${PLATFORM_BRAND.name}`,
-      promoApplied: "Promo applied:",
+      promoApplied: "Saved for your first upgrade:",
+      promoHeldHint:
+        "A free workspace costs nothing, so there is nothing to discount yet. We keep this code on your account and apply it the day you upgrade.",
       alreadyAccount: "Already have an account?",
       signIn: "Sign in",
     },
@@ -334,7 +336,9 @@ function HeroSection({
       founderNote:
         "Los workspaces gratis están disponibles al instante, reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking, solo un producto que construimos con quienes lo usan.",
       founderSign: `Oran, fundador · ${PLATFORM_BRAND.name}`,
-      promoApplied: "Promo aplicada:",
+      promoApplied: "Guardada para tu primera mejora:",
+      promoHeldHint:
+        "Un workspace gratis no cuesta nada, así que todavía no hay nada que descontar. Guardamos este código en tu cuenta y lo aplicamos el día que mejores tu plan.",
       alreadyAccount: "¿Ya tienes cuenta?",
       signIn: "Entrar",
     },
@@ -439,6 +443,7 @@ function HeroSection({
                   style={{ background: "var(--plt-forest)" }}
                 />
                 {c.promoApplied} <strong>{appliedDiscountLabel}</strong>
+                <span className="mt-1 block opacity-70">{c.promoHeldHint}</span>
               </div>
             )}
             <GetStartedForm

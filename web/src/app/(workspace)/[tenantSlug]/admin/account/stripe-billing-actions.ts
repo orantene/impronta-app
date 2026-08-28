@@ -19,6 +19,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isStripeConfigured } from "@/lib/stripe/client";
+import { loadTenantCampaignPromo } from "@/lib/billing/tenant-campaign-promo";
 import {
   createWorkspaceCheckoutSession,
   createBillingPortalSession,
@@ -79,6 +80,14 @@ export async function startWorkspaceUpgrade(
 
   const appBaseUrl = await deriveAppBaseUrl();
 
+  // A campaign code reaches an upgrade two ways: on the URL the operator just
+  // followed, or — far more often — from the signup that created this
+  // workspace months ago. The free-first funnel means most people who claimed
+  // an offer never had a checkout to spend it at, so the recorded code IS the
+  // promise. Explicit `?promo=` still wins.
+  const campaignPromo =
+    promoCode ?? (await loadTenantCampaignPromo(scope.tenantId));
+
   const result = await createWorkspaceCheckoutSession({
     tenantId:    scope.tenantId,
     planKey,
@@ -89,7 +98,7 @@ export async function startWorkspaceUpgrade(
     // The app already resolved this owner's language; hand it to Stripe so
     // Checkout does not fall back to guessing from the browser.
     locale: await getRequestLocale(),
-    promoCode: promoCode ?? null,
+    promoCode: campaignPromo,
   });
 
   if (!result.ok) {
