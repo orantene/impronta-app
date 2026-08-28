@@ -214,7 +214,7 @@ const BUDGETS: Record<string, number> = {
   // tier mapping and the patch construction live in
   // lib/site-admin/builder-node/carousel-slides-per-view.ts (unit-tested);
   // this file holds only the two calls and the label.
-  "src/components/edit-chrome/inspectors/layout-panel.tsx": 2548,
+  "src/components/edit-chrome/inspectors/layout-panel.tsx": 1915,
   // +66 (publish-drawer declutter, 2026-08-19): the "What publishing does"
   // essay card collapsed to one consequence line + an ⓘ (the bilingual JSX
   // moved INSIDE the tip, costing indentation, not new copy), and the two

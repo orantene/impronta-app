@@ -36,8 +36,16 @@ import { scaleStepperView, stepScale } from "./scale-stepper-state";
 import { FIELD_KIT } from "./tokens";
 
 export interface ScaleStepperProps {
-  /** The side/field name shown above the control. */
+  /**
+   * The side/field name shown above the control. Pass `""` when the caller
+   * already draws its own label row (the Layout tab's gap cell carries a
+   * per-breakpoint override dot the kit knows nothing about); the visible span
+   * is then dropped and `ariaLabel` names the group instead, so the control is
+   * never left with a dangling `aria-labelledby`.
+   */
   label: string;
+  /** Accessible name when `label` is empty. Ignored otherwise. */
+  ariaLabel?: string;
   /** The scale to walk. Use a `preset-values` table. */
   presets: PresetTable;
   /** What the field currently holds. */
@@ -61,6 +69,7 @@ const BUTTON_WIDTH = 24;
 
 export function ScaleStepper({
   label,
+  ariaLabel,
   presets,
   value,
   onChange,
@@ -105,19 +114,22 @@ export function ScaleStepper({
 
   return (
     <div className="flex flex-col gap-1" style={{ minWidth: 0 }}>
-      <span
-        id={labelId}
-        style={{
-          fontSize: FIELD_KIT.font.caption,
-          fontWeight: FIELD_KIT.weight.caption,
-          color: FIELD_KIT.muted,
-        }}
-      >
-        {t(label)}
-      </span>
+      {label ? (
+        <span
+          id={labelId}
+          style={{
+            fontSize: FIELD_KIT.font.caption,
+            fontWeight: FIELD_KIT.weight.caption,
+            color: FIELD_KIT.muted,
+          }}
+        >
+          {t(label)}
+        </span>
+      ) : null}
       <div
         role="group"
-        aria-labelledby={labelId}
+        aria-labelledby={label ? labelId : undefined}
+        aria-label={label ? undefined : t(ariaLabel ?? "")}
         data-builder-node-style-control={dataControl}
         data-field-kit-scale-stepper=""
         data-scale-mode={boundLabel ? "bound" : view.mode}
