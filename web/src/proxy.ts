@@ -26,6 +26,7 @@ import {
   HOST_TENANT_SLUG_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
+import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import {
@@ -271,6 +272,8 @@ export async function proxy(request: NextRequest) {
       target.hostname = canonicalHost;
       return NextResponse.redirect(target, 308);
     }
+    const off = await offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM);
+    if (off) return off;
   }
 
   // ── Preview handoff ─────────────────────────────────────────────────────
