@@ -375,6 +375,7 @@ export function SupportPanel({
           ) : null}
           <Composer
           disabled={!ticketId || ticket?.status === "closed"}
+          ticketId={ticketId}
           onSend={async (body) => {
             if (!ticketId) return false;
             const r = await contract.sendMessage({ ticketId, body });

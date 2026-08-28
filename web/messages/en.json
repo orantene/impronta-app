@@ -8289,6 +8289,11 @@
         "cannedDelete": "Delete",
         "closeEditor": "Close",
         "viewingNow": "viewing now",
+        "pastDigests": "Past digests",
+        "noDigests": "The first weekly digest arrives Monday morning.",
+        "insightsPending": "Data appears after the nightly insights run.",
+        "summarizeAi": "Summarize with AI",
+        "summarizeFailed": "Could not summarize.",
         "filterNeedsYou": "Needs you",
         "filterWaitingThem": "Waiting on them",
         "filterNew": "New",
@@ -11935,7 +11940,9 @@
       "ratingSkip": "Skip",
       "ratingThanks": "Thank you. Glad we could help.",
       "oranOnline": "Oran is online",
-      "oranTyping": "Oran is typing"
+      "oranTyping": "Oran is typing",
+      "attachAria": "Attach an image",
+      "attachmentUnavailable": "Attachment unavailable"
     }
   },
   "admin": {

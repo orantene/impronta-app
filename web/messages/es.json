@@ -8289,6 +8289,11 @@
         "cannedDelete": "Eliminar",
         "closeEditor": "Cerrar",
         "viewingNow": "viendo ahora",
+        "pastDigests": "Resumenes anteriores",
+        "noDigests": "El primer resumen semanal llega el lunes por la manana.",
+        "insightsPending": "Los datos aparecen despues de la ejecucion nocturna de insights.",
+        "summarizeAi": "Resumir con IA",
+        "summarizeFailed": "No se pudo resumir.",
         "filterNeedsYou": "Te necesitan",
         "filterWaitingThem": "Esperando de ellos",
         "filterNew": "Nuevos",
@@ -11935,7 +11940,9 @@
       "ratingSkip": "Omitir",
       "ratingThanks": "Gracias. Nos alegra haber ayudado.",
       "oranOnline": "Oran esta en linea",
-      "oranTyping": "Oran esta escribiendo"
+      "oranTyping": "Oran esta escribiendo",
+      "attachAria": "Adjuntar una imagen",
+      "attachmentUnavailable": "Adjunto no disponible"
     }
   },
   "admin": {

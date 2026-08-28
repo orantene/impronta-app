@@ -51,6 +51,7 @@ export type HqInsightsDashboard = {
   friction: Array<{ area: string; count: number }>;
   weeklyVolume: Array<{ weekLabel: string; count: number }>;
   digest: WeeklyDigestSnapshot | null;
+  pastDigests: Array<{ weekStart: string; summary: string }>;
   shipped: Array<{
     id: string;
     ticketId: string;

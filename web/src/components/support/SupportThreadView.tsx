@@ -151,7 +151,6 @@ export function SupportThreadView({
               );
             }
             if (m.authorKind === "system" || m.messageKind === "system") {
-              const resolved = /resolv/i.test(m.body);
               return (
                 <div
                   key={m.id}
@@ -170,7 +169,7 @@ export function SupportThreadView({
                       width: 6,
                       height: 6,
                       borderRadius: "50%",
-                      background: resolved ? COLORS.success : COLORS.coral,
+                      background: COLORS.coral,
                     }}
                   />
                   {m.body}

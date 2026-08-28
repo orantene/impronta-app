@@ -9,6 +9,7 @@ import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
 import { TicketReplayPanel } from "./TicketReplayPanel";
 import { TicketInsightsPanel } from "./TicketInsightsPanel";
 import { ProposeFixComposer } from "./ProposeFixComposer";
+import { SupportAttachButton } from "@/components/support/SupportAttachButton";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -272,7 +273,13 @@ export function SupportTicketHqDrawer({
                   ))}
                 </div>
               ) : null}
-              <textarea
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <SupportAttachButton
+                  ticketId={ticket?.id ?? null}
+                  disabled={busy || ticket?.status === "closed"}
+                  tone="hq"
+                />
+                <textarea
                 value={body}
                 onChange={(e) => {
                   setBody(e.target.value);
@@ -282,7 +289,7 @@ export function SupportTicketHqDrawer({
                 rows={3}
                 placeholder={t("dashboard.platform.support.replyPlaceholder")}
                 style={{
-                  width: "100%",
+                  flex: 1,
                   background: HQ.card,
                   color: HQ.ink,
                   border: `1px solid ${HQ.border}`,
@@ -292,6 +299,7 @@ export function SupportTicketHqDrawer({
                   resize: "vertical",
                 }}
               />
+              </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
                 <label style={{ fontSize: 12, color: HQ.inkMuted, display: "flex", gap: 6, alignItems: "center" }}>
                   <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} />

@@ -20,6 +20,14 @@ export const maxDuration = 60;
 const MODEL = "claude-haiku-4-5";
 const TIMEOUT_MS = 6000;
 
+function mondayUtc(d: Date): string {
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = x.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setUTCDate(x.getUTCDate() + diff);
+  return x.toISOString().slice(0, 10);
+}
+
 function timeoutNull<T>(ms: number): Promise<T | null> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(null), ms);
@@ -98,7 +106,7 @@ export async function GET(request: Request) {
   }
 
   const snapshot = {
-    weekStart: new Date().toISOString().slice(0, 10),
+    weekStart: mondayUtc(new Date()),
     summary,
     suggestedFixes,
     generatedAt: new Date().toISOString(),
@@ -106,6 +114,10 @@ export async function GET(request: Request) {
   await supportFrom(admin, "platform_settings")
     .update({ support_weekly_digest: snapshot })
     .eq("id", true);
+  await supportFrom(admin, "support_weekly_digests").upsert(
+    { week_start: snapshot.weekStart, snapshot },
+    { onConflict: "week_start" },
+  );
 
   await dispatchEventNotifications({
     type: "support.weekly_digest",

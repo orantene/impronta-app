@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
+import { SupportAttachButton } from "./SupportAttachButton";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import type { SupportContract } from "./support-contract";
 
@@ -154,10 +155,12 @@ export function NewTicketForm({
 export function Composer({
   disabled,
   onSend,
+  ticketId = null,
 }: {
   disabled: boolean;
   /** Resolves true on success; false keeps the text in the box. */
   onSend: (body: string) => Promise<boolean>;
+  ticketId?: string | null;
 }) {
   const t = useT();
   const [body, setBody] = useState("");
@@ -191,6 +194,7 @@ export function Composer({
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+        <SupportAttachButton ticketId={ticketId ?? null} disabled={disabled || busy} />
         <textarea
           value={body}
           disabled={disabled || busy}

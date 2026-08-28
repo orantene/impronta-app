@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
+import { parseSupportDeepLink } from "./support-deep-link";
 
 const VIEW_KEY = "tulala.support.view";
 
@@ -50,13 +51,14 @@ export function useSupportDeepLink(
 ): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("support");
-    if (!id) return;
-    openToTicket(id);
-    params.delete("support");
-    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
-    window.history.replaceState({}, "", next);
+    const parsed = parseSupportDeepLink(window.location.search);
+    if (!parsed.ticketId) return;
+    openToTicket(parsed.ticketId);
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${parsed.nextQuery}${window.location.hash}`,
+    );
   }, [openToTicket]);
 }
 

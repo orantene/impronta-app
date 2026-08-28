@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { COLORS, RADIUS } from "./support-tokens";
@@ -10,6 +10,7 @@ import {
   approveProposedActionAction,
   declineProposedActionAction,
 } from "@/lib/support/proposed-actions/actions";
+import { getSupportAttachmentUrlAction } from "@/lib/support/attachment-actions";
 
 export type SupportThreadTone = "light" | "hq";
 
@@ -115,6 +116,12 @@ export function SupportCardRenderer({
         </div>
       </div>
     );
+  }
+
+  if (kind === "attachment") {
+    const attachmentId = typeof payload.attachmentId === "string" ? payload.attachmentId : "";
+    const name = typeof payload.name === "string" ? payload.name : "Image";
+    return <AttachmentCard attachmentId={attachmentId} name={name} />;
   }
 
   if (kind === "issue-fixed") {
@@ -299,6 +306,58 @@ export function SupportCardRenderer({
         </>
       ) : null}
     </div>
+  );
+}
+
+function AttachmentCard({ attachmentId, name }: { attachmentId: string; name: string }) {
+  const t = useT();
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!attachmentId) {
+      setFailed(true);
+      return;
+    }
+    let cancelled = false;
+    void getSupportAttachmentUrlAction({ attachmentId }).then((r) => {
+      if (cancelled) return;
+      if (r.ok) setUrl(r.url);
+      else setFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [attachmentId]);
+
+  if (failed) {
+    return (
+      <div style={{ fontSize: 12, color: COLORS.inkMuted, margin: "8px auto", maxWidth: "86%" }}>
+        {t("dashboard.adminSupport.attachmentUnavailable")}
+      </div>
+    );
+  }
+  if (!url) {
+    return (
+      <div
+        aria-hidden
+        style={{
+          width: "86%",
+          maxWidth: 320,
+          height: 160,
+          margin: "8px auto",
+          borderRadius: 10,
+          background: COLORS.surfaceAlt,
+        }}
+      />
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={name}
+      style={{ display: "block", maxWidth: "100%", borderRadius: 10, margin: "8px auto" }}
+    />
   );
 }
 

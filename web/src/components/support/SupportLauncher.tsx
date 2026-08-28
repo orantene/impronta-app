@@ -43,12 +43,12 @@ export function SupportLauncher({
 
   return (
     <>
-      {!hide ? (
-        <button
+      <button
           type="button"
           data-tulala-support-launcher=""
           aria-haspopup="dialog"
           aria-expanded={open}
+          aria-controls="tulala-support-panel"
           aria-label={t("dashboard.adminSupport.launcherAria")}
           onClick={toggle}
           style={{
@@ -70,6 +70,8 @@ export function SupportLauncher({
             justifyContent: "center",
             gap: 6,
             boxShadow: "0 4px 16px rgba(11,11,13,0.08)",
+            visibility: hide ? "hidden" : "visible",
+            pointerEvents: hide ? "none" : "auto",
           }}
         >
           <Icon name="life-buoy" size={18} color={COLORS.ink} />
@@ -97,7 +99,6 @@ export function SupportLauncher({
             />
           ) : null}
         </button>
-      ) : null}
       <SupportPanel
         open={open}
         onClose={() => setOpen(false)}

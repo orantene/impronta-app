@@ -783,7 +783,15 @@
       "ratingSkip": "Passer",
       "ratingThanks": "Merci. Heureux d'avoir pu aider.",
       "oranOnline": "Oran est en ligne",
-      "oranTyping": "Oran est en train d'ecrire"
+      "oranTyping": "Oran est en train d'ecrire",
+      "attachAria": "Joindre une image",
+      "attachmentUnavailable": "Piece jointe indisponible"
+    },
+    "adminWorkspace": {
+      "replayBufferTitle": "Buffer de replay du support",
+      "replayBufferDesc": "Conserver un enregistrement glissant prive des dernieres minutes dans cet espace pour que l'equipe puisse le joindre a un ticket. Desactive par defaut. Les saisies restent masquees.",
+      "replayBufferToggle": "Activer le buffer",
+      "replayBufferSaving": "Enregistrement"
     },
     "platform": {
       "nav": {
@@ -812,6 +820,11 @@
         "cannedDelete": "Supprimer",
         "closeEditor": "Fermer",
         "viewingNow": "en train de voir",
+        "pastDigests": "Resumes precedents",
+        "noDigests": "Le premier resume hebdomadaire arrive lundi matin.",
+        "insightsPending": "Les donnees apparaissent apres l'analyse nocturne.",
+        "summarizeAi": "Resumer avec l'IA",
+        "summarizeFailed": "Impossible de resumer.",
         "filterNeedsYou": "A traiter",
         "filterWaitingThem": "En attente d'eux",
         "filterNew": "Nouveaux",
@@ -910,7 +923,16 @@
         "fixNote": "Note (affichee au demandeur si vous notifiez)",
         "notifyRequester": "Notifier le demandeur",
         "saveFixLink": "Enregistrer le lien"
+      },
+      "operations": {
+        "flagAiSupportLabel": "IA, premier repondant du support",
+        "flagAiSupportDesc": "Reponses de support in-app ancrees dans les guides, avec escalade vers une personne. Desactive par defaut."
       }
+    }
+  },
+  "client": {
+    "settings": {
+      "channelPush": "Push"
     }
   }
 }
