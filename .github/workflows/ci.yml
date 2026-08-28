@@ -355,6 +355,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:reviews
 
+      - name: tests — scheduling
+        if: ${{ !cancelled() }}
+        run: npm run test:scheduling
+
       # ── Component test gate (10th test step) ─────────────────────────
       # Vitest + @testing-library/react + jsdom. Smoke tests for the
       # top god-files (primitives, profile-shell-internal, WorkspacePageView,
