@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DrawerShell } from "./drawer-shared";
 import { useAdminShell } from "../state";
 import { useT } from "@/i18n/use-t";
@@ -13,6 +13,8 @@ import {
   type SupportTicketRow,
 } from "@/lib/support/support-types";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
+import { markSupportTicketReadAction } from "@/lib/support/actions";
+import { useSupportRealtime } from "@/components/support/support-hooks";
 
 export function SupportTicketDrawer() {
   const { state, closeDrawer } = useAdminShell();
@@ -38,8 +40,18 @@ export function SupportTicketDrawer() {
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       setMessages((msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[]);
+      // A ticket opened from the bell must clear its unread state, exactly
+      // like the panel path does.
+      void markSupportTicketReadAction({ ticketId });
     })();
   }, [open, ticketId]);
+
+  // Live-update the open drawer so a reply arriving mid-read shows up.
+  const onMessage = useCallback((row: SupportMessageRow) => {
+    setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+  }, []);
+  const onTicket = useCallback((row: SupportTicketRow) => setTicket(row), []);
+  useSupportRealtime({ ticketId: open ? ticketId : null, onMessage, onTicket });
 
   return (
     <DrawerShell

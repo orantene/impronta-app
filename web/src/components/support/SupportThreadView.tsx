@@ -5,7 +5,6 @@ import { useT } from "@/i18n/use-t";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
-import type { SupportContract } from "./support-contract";
 import { acceptLiveShareFromCard } from "@/lib/support/replay/LiveShareHost";
 import { declineLiveViewAction } from "@/lib/support/replay/live-actions";
 import {
@@ -42,10 +41,14 @@ export function SupportCardRenderer({
   payload,
   onAction,
   tone,
+  liveShareAvailable = true,
 }: {
   payload: Record<string, unknown>;
   onAction?: (action: string) => void;
   tone: SupportThreadTone;
+  /** False on surfaces with no LiveShareHost (client) — accepting there would
+   *  mark the session accepted while no stream ever starts. */
+  liveShareAvailable?: boolean;
 }) {
   const t = useT();
   const [liveDone, setLiveDone] = useState(false);
@@ -57,7 +60,8 @@ export function SupportCardRenderer({
   const ticketId = typeof payload.ticketId === "string" ? payload.ticketId : null;
   const actionId = typeof payload.actionId === "string" ? payload.actionId : null;
   const [fixDone, setFixDone] = useState(false);
-  const showLiveActions = kind === "live-view" && tone !== "hq" && !liveDone && ticketId;
+  const showLiveActions =
+    kind === "live-view" && tone !== "hq" && !liveDone && ticketId && liveShareAvailable;
   const showFixActions = kind === "proposed-action" && tone !== "hq" && !fixDone && actionId;
 
   return (
@@ -221,6 +225,7 @@ export function SupportThreadView({
   messages,
   tone = "light",
   thinking = false,
+  liveShareAvailable = true,
   onRate,
   onRequestHuman,
   onCardAction,
@@ -229,10 +234,10 @@ export function SupportThreadView({
   messages: SupportMessageRow[];
   tone?: SupportThreadTone;
   thinking?: boolean;
+  liveShareAvailable?: boolean;
   onRate?: (rating: number) => void;
   onRequestHuman?: () => void;
   onCardAction?: (action: string) => void;
-  contract?: SupportContract;
 }) {
   const t = useT();
   const [acked, setAcked] = useState<Record<string, boolean>>({});
@@ -275,6 +280,7 @@ export function SupportThreadView({
                   payload={m.cardPayload}
                   onAction={onCardAction}
                   tone={tone}
+                  liveShareAvailable={liveShareAvailable}
                 />
               );
             }

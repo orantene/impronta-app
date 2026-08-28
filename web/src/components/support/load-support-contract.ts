@@ -61,6 +61,9 @@ export async function loadSupportContract(input: {
     initialTickets,
     originSlug: input.originSlug ?? null,
     replayBufferEnabled,
+    // The client surface mounts no LiveShareHost, so accepting a live view
+    // there would strand HQ waiting on a stream that never starts.
+    liveShareAvailable: input.surface !== "client",
     createTicket: createSupportTicketAction,
     sendMessage: sendSupportMessageAction,
     markRead: markSupportTicketReadAction,

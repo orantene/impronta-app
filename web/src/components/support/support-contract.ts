@@ -15,9 +15,12 @@ export type SupportContract = {
   canSeeWorkspaceTickets: boolean;
   observeShellDrawers: boolean;
   initialTickets: SupportTicketSummary[];
-    originSlug?: string | null;
-    replayBufferEnabled: boolean;
-    createTicket: (input: {
+  originSlug?: string | null;
+  replayBufferEnabled: boolean;
+  /** False on surfaces without a LiveShareHost (client) — the thread hides
+   *  the live-view accept so users cannot accept a stream that cannot start. */
+  liveShareAvailable?: boolean;
+  createTicket: (input: {
     tenantSlug: string | null;
     surface: "workspace" | "talent" | "client";
     body: string;

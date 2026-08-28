@@ -11859,6 +11859,7 @@
       "createTicket": "Create ticket",
       "aiMicrocopy": "AI replies instantly. Oran sees every ticket.",
       "composerPlaceholder": "Write a reply",
+      "sendFailed": "That did not send. Your text is still here, try again.",
       "cardTitle": "Update",
       "addNumber": "Add a number for a call back",
       "keepOpen": "Keep this ticket open",

@@ -62,13 +62,14 @@ const SUPPORT_CHAT_SCHEMA = {
   },
 } as const;
 
+// Reasons the MODEL may claim. staff_initiated / user_requested are
+// deliberately excluded — those are asserted by real actors, never by
+// model output (a loose provider response must not forge attribution).
 const REASONS = new Set<SupportEscalationReason>([
-  "user_requested",
   "ai_low_confidence",
   "ai_sentiment",
   "ai_suggested",
   "ai_unavailable",
-  "staff_initiated",
 ]);
 
 const FAIL_OPEN_BODY =
@@ -196,15 +197,13 @@ export async function POST(request: Request) {
     }
 
     let planTier: string | null = null;
-    let tenantSlug: string | null = null;
     if (access.ticket.tenantId) {
       const { data: agency } = await admin
         .from("agencies")
-        .select("plan_tier, slug")
+        .select("plan_tier")
         .eq("id", access.ticket.tenantId)
         .maybeSingle();
       planTier = (agency?.plan_tier as string | null) ?? null;
-      tenantSlug = (agency?.slug as string | null) ?? null;
     }
 
     const lastThree = messages.slice(-3).map((m) => m.body);
@@ -267,8 +266,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ skipped: "parse" }, { status: 200 });
     }
 
-    const extraPaths = tenantSlug ? [`/${tenantSlug}`, `/${tenantSlug}/`] : [];
-    const safe = sanitizeSupportAiOutput(model.answer, { extraPathPrefixes: extraPaths });
+    const safe = sanitizeSupportAiOutput(model.answer);
     const confidence = Math.min(1, Math.max(0, model.confidence));
 
     const persisted = await supportEngine.appendMessage({

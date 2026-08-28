@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { requireSession, requireAdmin } from "@/lib/server/action-guards";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadTicketById } from "./support-engine";
 import { supportFrom } from "./support-from";
@@ -73,14 +74,30 @@ export async function resolveSupportRequester(input: {
       .eq("user_id", session.user.id)
       .maybeSingle();
     if (!cp?.id) return { ok: false, error: "No client profile." };
+    // The slug is client-sent: attribute the ticket to that tenant only when
+    // this client actually has a relationship with it, else keep it
+    // platform-scoped. Attribution feeds HQ context; never trust the slug.
+    // Service-role read: the relationship table is not client-readable.
     let tenantId: string | null = null;
     if (input.tenantSlug) {
-      const { data: agency } = await session.supabase
+      const admin = createServiceRoleClient();
+      const db = admin ?? session.supabase;
+      const { data: agency } = await db
         .from("agencies")
         .select("id")
         .eq("slug", input.tenantSlug)
         .maybeSingle();
-      tenantId = agency?.id ?? null;
+      const candidate = agency?.id ?? null;
+      if (candidate) {
+        const { data: rel } = await db
+          .from("agency_client_relationships")
+          .select("id")
+          .eq("tenant_id", candidate)
+          .eq("client_profile_id", cp.id)
+          .limit(1)
+          .maybeSingle();
+        tenantId = rel ? candidate : null;
+      }
     }
     return {
       ok: true,

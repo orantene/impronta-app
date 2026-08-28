@@ -733,6 +733,7 @@
       "createTicket": "Creer le ticket",
       "aiMicrocopy": "L'IA repond tout de suite. Oran voit chaque ticket.",
       "composerPlaceholder": "Ecrire une reponse",
+      "sendFailed": "L'envoi a echoue. Votre texte est toujours la, reessayez.",
       "cardTitle": "Mise a jour",
       "addNumber": "Ajouter un numero pour un rappel",
       "keepOpen": "Garder ce ticket ouvert",

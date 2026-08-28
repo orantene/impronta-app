@@ -270,7 +270,10 @@ export default async function PlatformTalentLayout({
           supportedLocales: localeSettings.supportedLocales,
           defaultLocale: localeSettings.defaultLocale,
         },
-        workspaceUi,
+        // Bridge only the support switch: passing fabEnabled through would
+        // silently un-gate the workspace FAB on the talent surface (the shell
+        // renders it without a surface check).
+        workspaceUi: workspaceUi ? { ...workspaceUi, fabEnabled: false } : workspaceUi,
       }}
       supportSlot={
         <SupportLauncherShellMount

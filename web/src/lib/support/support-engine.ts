@@ -2,10 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
-import { logPlatformAdminAction } from "@/lib/platform/audit";
-import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import {
   mapEventRow,
@@ -61,58 +59,6 @@ async function insertEvent(
     return null;
   }
   return data.id as string;
-}
-
-function notify(event: {
-  type: string;
-  tenantId: string | null;
-  eventId: string;
-  userId?: string | null;
-  payload: Record<string, unknown>;
-}): void {
-  void dispatchEventNotifications(event).catch((err) => {
-    logServerError("support.notify", err);
-  });
-}
-
-function auditTenant(
-  tenantId: string | null,
-  action: string,
-  summary: string,
-  actorUserId: string | null,
-  targetId: string,
-  metadata?: Record<string, unknown>,
-): void {
-  if (!tenantId) return;
-  scheduleWorkspaceAudit({
-    tenantId,
-    category: "messages",
-    action,
-    summary,
-    actorUserId,
-    actorKind: "staff",
-    targetType: "support_ticket",
-    targetId,
-    metadata,
-  });
-}
-
-async function auditHq(
-  actorUserId: string | null,
-  ticketId: string,
-  action: string,
-  after?: Record<string, unknown>,
-): Promise<void> {
-  if (!actorUserId) return;
-  await logPlatformAdminAction({
-    actorUserId,
-    targetKind: "workspace",
-    targetId: ticketId,
-    action,
-    after,
-    supportMode: "read_only",
-    context: { ticketId, support_mode: "read_only" },
-  });
 }
 
 export async function loadTicketById(
@@ -231,10 +177,21 @@ export async function createTicket(input: {
     },
   });
   if (input.messageOranDirectly) {
+    // Own event row: the dispatcher's dedupe key is eventId:user:channel with
+    // no entry id, so sharing createdEventId here would suppress whichever of
+    // created/escalated dispatches second for the same admin + channel.
+    const escalatedEventId = await insertEvent(admin, {
+      ticketId: ticket.id,
+      tenantId: ticket.tenantId,
+      actorKind: "requester",
+      actorUserId: input.requesterUserId,
+      eventType: "escalated",
+      newValue: { reason: "user_requested" },
+    });
     notify({
       type: "support.ticket.escalated",
       tenantId: null,
-      eventId: createdEventId,
+      eventId: escalatedEventId ?? crypto.randomUUID(),
       payload: {
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
@@ -343,19 +300,27 @@ export async function appendMessage(input: {
           subject: working.subject,
           preview: input.body.slice(0, 140),
           surface: working.surface,
+          platformFrom: true,
         },
       });
     }
     if (input.authorKind === "requester" && working.handledBy === "human") {
+      // tenantId MUST be null: this alerts platform admins, and the
+      // platformAdmins audience contract resolves platform brand + platform
+      // host links only for null-tenant events (a tenant-scoped emit sends
+      // /platform/admin/* links on the agency's custom domain and writes
+      // in-app rows the HQ feed never reads).
       notify({
         type: "support.ticket.reply",
-        tenantId: working.tenantId,
+        tenantId: null,
         eventId: eventId ?? crypto.randomUUID(),
         userId: working.assigneeUserId,
         payload: {
           ticketId: working.id,
           ticketNumber: working.ticketNumber,
           subject: working.subject,
+          tenantId: working.tenantId,
+          requesterUserId: working.requesterUserId,
           preview: input.body.slice(0, 140),
           assigneeUserId: working.assigneeUserId,
         },
@@ -430,6 +395,7 @@ export async function changeStatus(input: {
         ticketNumber: ticket.ticketNumber,
         subject: ticket.subject,
         surface: ticket.surface,
+        platformFrom: true,
       },
     });
   }

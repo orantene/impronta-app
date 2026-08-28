@@ -11,7 +11,6 @@ const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.62)",
   borderSoft: "rgba(24,24,27,0.08)",
-  success: "#16a34a",
   error: "#dc2626",
 } as const;
 
@@ -35,7 +34,26 @@ export function SupportReplaySettingsRow() {
     };
   }, []);
 
-  if (loading) return null;
+  // Explicit load state (house rule: no silent waits) — a skeleton row keeps
+  // the section from jumping when the setting arrives.
+  if (loading) {
+    return (
+      <div
+        aria-busy="true"
+        style={{
+          background: "#fff",
+          border: `1px solid ${C.borderSoft}`,
+          padding: "14px 16px",
+          marginBottom: 8,
+          borderRadius: 10,
+          height: 64,
+        }}
+      >
+        <div style={{ width: 180, height: 10, borderRadius: 5, background: "rgba(24,24,27,0.06)" }} />
+        <div style={{ width: 260, height: 8, borderRadius: 4, background: "rgba(24,24,27,0.05)", marginTop: 8 }} />
+      </div>
+    );
+  }
 
   return (
     <div

@@ -27,33 +27,26 @@ function hostOf(url: string): string | null {
   }
 }
 
-function isAllowedUrl(url: string, extraPathPrefixes: string[]): boolean {
+function isAllowedUrl(url: string): boolean {
+  // MD_LINK / BARE_URL only ever match absolute http(s) URLs, so an allowed
+  // link must be on a Tulala host, full stop. Path-prefix allowances would be
+  // host-blind (https://evil.example/{slug}/… would pass) — never add one.
   const host = hostOf(url);
   if (!host) return false;
   if (ALLOWED_HOSTS.has(host) || ALLOWED_HOSTS.has(`www.${host}`)) return true;
-  if (host.endsWith(".tulala.digital")) return true;
-  try {
-    const parsed = new URL(url);
-    if (parsed.origin === "null") return false;
-    return extraPathPrefixes.some((p) => parsed.pathname.startsWith(p));
-  } catch {
-    return false;
-  }
+  return host.endsWith(".tulala.digital");
 }
 
-export function sanitizeSupportAiOutput(
-  raw: string,
-  opts: { extraPathPrefixes?: string[] } = {},
-): SupportAiGuardrailResult {
+export function sanitizeSupportAiOutput(raw: string): SupportAiGuardrailResult {
   const escalate = FORBIDDEN.test(raw);
   let s = raw;
 
   s = s.replace(MD_LINK, (full, label: string, href: string) => {
-    if (isAllowedUrl(href, opts.extraPathPrefixes ?? [])) return full;
+    if (isAllowedUrl(href)) return full;
     return label;
   });
   s = s.replace(BARE_URL, (url) => {
-    if (isAllowedUrl(url, opts.extraPathPrefixes ?? [])) return url;
+    if (isAllowedUrl(url)) return url;
     return "";
   });
 

@@ -12,6 +12,18 @@ function redact(text: string): string {
     .replace(/\+?\d[\d\s().-]{8,}\d/g, (m) => `[phone:${hashPii(m.replace(/\D/g, ""))}]`);
 }
 
+/**
+ * Deep-redact emails/phones from any JSON-serializable value. The bundle's
+ * sanitize contract must hold for `?format=json` exactly as it does for the
+ * markdown export — both feed external investigation tooling.
+ */
+export function redactPii<T>(value: T): T {
+  if (value == null) return value;
+  const serialized = JSON.stringify(value);
+  if (!serialized) return value;
+  return JSON.parse(redact(serialized)) as T;
+}
+
 export type InvestigationInputs = {
   ticket: SupportTicketRow;
   messages: SupportMessageRow[];

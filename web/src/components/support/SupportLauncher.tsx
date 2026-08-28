@@ -8,7 +8,7 @@ import { COLORS } from "./support-tokens";
 import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
 import type { SupportContract } from "./support-contract";
-import { useSupportUnread } from "./support-hooks";
+import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
 
 export function SupportLauncher({
   contract,
@@ -20,10 +20,24 @@ export function SupportLauncher({
   const t = useT();
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
+  const [tickets, setTicketsState] = useState(contract.initialTickets);
+  const [deepLinkTicketId, setDeepLinkTicketId] = useState<string | null>(null);
+  const setTickets = useCallback(
+    (updater: (prev: typeof tickets) => typeof tickets) => setTicketsState(updater),
+    [],
+  );
   useEffect(() => {
     startDiagnosticsCollector();
   }, []);
-  const unread = useSupportUnread(contract.initialTickets);
+  // Email "Reply in app" CTAs land with ?support=<ticketId>: the deep link
+  // must OPEN the panel, not just preselect a thread inside a closed one.
+  useSupportDeepLink(
+    useCallback((id: string) => {
+      setDeepLinkTicketId(id);
+      setOpen(true);
+    }, []),
+  );
+  const unread = useSupportUnread(tickets);
   const toggle = useCallback(() => setOpen((v) => !v), []);
   const hide = drawerOpen || open;
 
@@ -84,7 +98,14 @@ export function SupportLauncher({
           ) : null}
         </button>
       ) : null}
-      <SupportPanel open={open} onClose={() => setOpen(false)} contract={contract} />
+      <SupportPanel
+        open={open}
+        onClose={() => setOpen(false)}
+        contract={contract}
+        tickets={tickets}
+        setTickets={setTickets}
+        deepLinkTicketId={deepLinkTicketId}
+      />
       <style>{`@keyframes tulala-support-pulse{0%{box-shadow:0 0 0 0 rgba(194,106,69,.45)}100%{box-shadow:0 0 0 10px rgba(194,106,69,0)}}@media (prefers-reduced-motion:reduce){button[data-tulala-support-launcher] span{animation:none!important}}`}</style>
     </>
   );

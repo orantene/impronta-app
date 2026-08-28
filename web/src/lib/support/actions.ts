@@ -13,6 +13,47 @@ import type { SupportCallbackPref, SupportSurface } from "./support-types";
 
 const uuid = z.string().uuid();
 
+// Server-side mirror of the collector's caps: the snapshot is client-sent
+// telemetry, so every bound the collector applies client-side is re-enforced
+// here (arbitrary blobs must never reach the platform-only diagnostics row).
+const diagnosticsSchema = z
+  .object({
+    appVersion: z.string().max(80),
+    route: z.string().max(300),
+    url: z.string().max(600),
+    viewport: z.object({ w: z.number(), h: z.number(), dpr: z.number() }).strip(),
+    userAgent: z.string().max(400),
+    locale: z.string().max(40),
+    timezone: z.string().max(80),
+    online: z.boolean(),
+    consoleEvents: z
+      .array(
+        z
+          .object({ level: z.string().max(10), message: z.string().max(500), ts: z.number() })
+          .strip(),
+      )
+      .max(50),
+    networkFailures: z
+      .array(
+        z
+          .object({
+            method: z.string().max(10),
+            pathOnly: z.string().max(300),
+            status: z.number().nullable(),
+            durationMs: z.number(),
+            ts: z.number(),
+          })
+          .strip(),
+      )
+      .max(25),
+    routeHistory: z
+      .array(z.object({ path: z.string().max(300), ts: z.number() }).strip())
+      .max(20),
+    sentryLastEventId: z.string().max(80).nullable(),
+    collectedAt: z.string().max(40),
+  })
+  .strip();
+
 const createSchema = z.object({
   tenantSlug: z.string().min(1).nullable(),
   surface: z.enum(["workspace", "talent", "client"]),
@@ -24,7 +65,9 @@ const createSchema = z.object({
   callbackRequested: z.boolean().optional(),
   callbackPref: z.enum(["anytime", "morning", "afternoon", "evening"]).optional(),
   messageOranDirectly: z.boolean().optional(),
-  diagnostics: z.unknown().optional(),
+  // .catch: diagnostics are best-effort — a malformed snapshot is dropped,
+  // never allowed to fail the ticket creation itself.
+  diagnostics: diagnosticsSchema.optional().catch(undefined),
 });
 
 export type SupportActionOk<T extends object = object> = { ok: true } & T;
@@ -39,7 +82,9 @@ async function rateLimited(
 }
 
 export async function createSupportTicketAction(
-  raw: z.infer<typeof createSchema>,
+  // diagnostics arrives untyped from the client; the zod schema (with .catch)
+  // narrows or drops it at runtime.
+  raw: Omit<z.infer<typeof createSchema>, "diagnostics"> & { diagnostics?: unknown },
 ): Promise<SupportActionOk<{ ticketId: string; ticketNumber: number }> | SupportActionFail> {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };

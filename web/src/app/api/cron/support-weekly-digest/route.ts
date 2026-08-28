@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     .update({ support_weekly_digest: snapshot })
     .eq("id", true);
 
-  void dispatchEventNotifications({
+  await dispatchEventNotifications({
     type: "support.weekly_digest",
     tenantId: null,
     eventId: `support-weekly-digest-${snapshot.weekStart}`,
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
       suggestedFixes,
       adminPath: "/platform/admin/support?view=insights",
     },
-  });
+  }).catch(() => undefined);
 
   return NextResponse.json({ ok: true, snapshot });
 }

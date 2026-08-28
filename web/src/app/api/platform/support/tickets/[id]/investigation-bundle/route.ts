@@ -1,20 +1,29 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/server/action-guards";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { supportFrom } from "@/lib/support/support-from";
 import { loadHqTicketDetail } from "@/lib/support/load-hq";
-import { renderInvestigationMarkdown } from "@/lib/support/investigation/bundle";
+import { redactPii, renderInvestigationMarkdown } from "@/lib/support/investigation/bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function tokenMatches(token: string, bearer: string): boolean {
+  const a = Buffer.from(token, "utf8");
+  const b = Buffer.from(bearer, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 async function authorized(request: Request): Promise<boolean> {
   const token = process.env.SUPPORT_INVESTIGATION_TOKEN?.trim();
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (token && bearer && bearer === token) return true;
+  if (token && bearer && tokenMatches(token, bearer)) return true;
   const admin = await requireAdmin();
   return admin.ok;
 }
@@ -49,8 +58,8 @@ export async function GET(request: Request, ctx: Ctx) {
   if (format === "json") {
     return NextResponse.json({
       markdown: md,
-      ticket: detail.ticket,
-      diagnostics,
+      ticket: redactPii(detail.ticket),
+      diagnostics: redactPii(diagnostics),
     });
   }
 

@@ -32,13 +32,16 @@ export async function GET(request: Request) {
     const rows = data ?? [];
     let deleted = 0;
     for (const row of rows as Array<{ id: string; storage_prefix: string | null }>) {
-      if (enabled && row.storage_prefix) {
+      if (!enabled) continue;
+      if (row.storage_prefix) {
         const { data: objects } = await admin.storage.from(BUCKET).list(row.storage_prefix, { limit: 100 });
         const paths = (objects ?? []).map((o) => `${row.storage_prefix}/${o.name}`);
         if (paths.length) await admin.storage.from(BUCKET).remove(paths);
-        await supportFrom(admin, "support_replay_sessions").update({ status: "expired" }).eq("id", row.id);
-        deleted += 1;
       }
+      // Flip even prefix-less rows (accepted live sessions that never
+      // uploaded) — otherwise they re-match this sweep forever.
+      await supportFrom(admin, "support_replay_sessions").update({ status: "expired" }).eq("id", row.id);
+      deleted += 1;
     }
     return NextResponse.json({
       ok: true,

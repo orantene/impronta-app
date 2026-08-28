@@ -23,8 +23,13 @@ export async function startLiveTransport(sessionId: string): Promise<boolean> {
   liveSessionId = sessionId;
   seq = 0;
   lastSentSeq = -1;
+  // private channel: the raw rrweb stream must never be joinable by anyone
+  // who merely learns the session UUID — RLS on realtime.messages restricts
+  // the topic to the recorded user + platform admins. setAuth forwards the
+  // session JWT the authorization check runs against.
+  await supabase.realtime.setAuth();
   const ch = supabase.channel(replayChannelName(sessionId), {
-    config: { broadcast: { ack: false } },
+    config: { broadcast: { ack: false }, private: true },
   });
   ch.on("broadcast", { event: "viewer.request_snapshot" }, () => {
     takeReplayCheckpoint();
@@ -83,8 +88,9 @@ export function subscribeLiveViewer(
 ): () => void {
   const supabase = createClient();
   if (!supabase) return () => undefined;
+  void supabase.realtime.setAuth();
   const ch = supabase.channel(replayChannelName(sessionId), {
-    config: { broadcast: { ack: false } },
+    config: { broadcast: { ack: false }, private: true },
   });
   ch.on("broadcast", { event: "batch" }, (e) => {
     const p = e.payload as LiveReplayMessage;
@@ -107,7 +113,10 @@ export function sendLiveGuidance(
 ): void {
   const supabase = createClient();
   if (!supabase) return;
-  const ch = supabase.channel(replayChannelName(sessionId));
+  void supabase.realtime.setAuth();
+  const ch = supabase.channel(replayChannelName(sessionId), {
+    config: { private: true },
+  });
   void ch.subscribe((status) => {
     if (status === "SUBSCRIBED") {
       void ch.send({ type: "broadcast", event, payload });
@@ -126,7 +135,10 @@ export function subscribeLiveGuidance(
 ): () => void {
   const supabase = createClient();
   if (!supabase) return () => undefined;
-  const ch = supabase.channel(replayChannelName(sessionId));
+  void supabase.realtime.setAuth();
+  const ch = supabase.channel(replayChannelName(sessionId), {
+    config: { private: true },
+  });
   ch.on("broadcast", { event: "support.pointer" }, (e) => {
     const p = e.payload as { xPct?: number; yPct?: number };
     if (typeof p.xPct === "number" && typeof p.yPct === "number") handlers.pointer?.(p as { xPct: number; yPct: number });

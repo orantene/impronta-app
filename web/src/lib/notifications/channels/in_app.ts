@@ -36,10 +36,17 @@ export async function sendInAppNotification(
 
   const tenantId = event.tenantId;
   const payloadSurface = event.payload.surface;
+  // The payload surface routes the row to the REQUESTER's bell (talent/client
+  // surfaces have their own readers). It must apply per-recipient: a platform
+  // admin receiving the same event still needs the platform surface, or the
+  // HQ feed (tenant IS NULL AND surface='platform') never shows the row.
+  const isRequesterRecipient =
+    typeof event.userId === "string" && recipient.userId === event.userId;
   const surfaceFromPayload =
-    payloadSurface === "workspace" ||
-    payloadSurface === "talent" ||
-    payloadSurface === "client"
+    isRequesterRecipient &&
+    (payloadSurface === "workspace" ||
+      payloadSurface === "talent" ||
+      payloadSurface === "client")
       ? payloadSurface
       : null;
 

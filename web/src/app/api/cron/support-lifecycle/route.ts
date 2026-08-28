@@ -85,7 +85,7 @@ export async function GET(request: Request) {
           })
           .select("id")
           .single();
-        void dispatchEventNotifications({
+        await dispatchEventNotifications({
           type: "support.ticket.autoclose",
           tenantId: ticket.tenantId,
           eventId: ev?.id ?? crypto.randomUUID(),
@@ -95,8 +95,9 @@ export async function GET(request: Request) {
             ticketNumber: ticket.ticketNumber,
             subject: ticket.subject,
             surface: ticket.surface,
+            platformFrom: true,
           },
-        });
+        }).catch(() => undefined);
         stats.warned += 1;
       } else if (idleHours >= 7 * 24) {
         await supportFrom(admin, "support_tickets")
@@ -139,7 +140,7 @@ export async function GET(request: Request) {
         })
         .select("id")
         .single();
-      void dispatchEventNotifications({
+      await dispatchEventNotifications({
         type: "support.ticket.escalated",
         tenantId: null,
         eventId: ev?.id ?? crypto.randomUUID(),
@@ -153,7 +154,7 @@ export async function GET(request: Request) {
           reason: ticket.escalationReason ?? "user_requested",
           deepLink: `/platform/admin/support?ticket=${ticket.id}`,
         },
-      });
+      }).catch(() => undefined);
       stats.reAlerted += 1;
     }
 
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
         .select("id")
         .single();
       const loaded = await loadTicketById(ticketId, admin);
-      void dispatchEventNotifications({
+      await dispatchEventNotifications({
         type: "support.proposed_action.expired",
         tenantId: typeof row.tenant_id === "string" ? row.tenant_id : null,
         eventId: ev?.id ?? crypto.randomUUID(),
@@ -191,7 +192,7 @@ export async function GET(request: Request) {
           subject: loaded?.subject ?? "",
           surface: loaded?.surface ?? "workspace",
         },
-      });
+      }).catch(() => undefined);
       stats.expiredFixes += 1;
     }
 

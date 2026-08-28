@@ -135,17 +135,23 @@ export async function approveProposedActionAction(raw: {
   if (!loaded.ok) return loaded;
   if (loaded.row.status !== "proposed") return { ok: false, error: "This proposal is no longer open." };
 
-  const { error } = await supportFrom(loaded.admin, "support_proposed_actions")
+  const { data: claimed, error } = await supportFrom(loaded.admin, "support_proposed_actions")
     .update({
       status: "approved",
       approved_by: loaded.userId,
       approved_at: new Date().toISOString(),
     })
     .eq("id", parsed.data.actionId)
-    .eq("status", "proposed");
+    .eq("status", "proposed")
+    .select("id");
   if (error) {
     logServerError("support.proposed.approve", error);
     return { ok: false, error: "Could not approve this change." };
+  }
+  // Zero rows = a concurrent approve won the conditional UPDATE; without this
+  // check both callers would run applyApprovedAction (double settings write).
+  if (!claimed || claimed.length === 0) {
+    return { ok: false, error: "This proposal is no longer open." };
   }
 
   const applied = await applyApprovedAction({

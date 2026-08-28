@@ -18,6 +18,13 @@ test("strips off-allowlist links and keeps tulala.digital", () => {
   assert.equal(r.text.includes("docs"), true);
 });
 
+test("a tenant-slug path on a foreign host never survives (host-blind bypass)", () => {
+  const r = sanitizeSupportAiOutput(
+    "Reset here: https://attacker.tld/impronta/reset-password and [go](https://attacker.tld/impronta/admin)",
+  );
+  assert.equal(r.text.includes("attacker.tld"), false);
+});
+
 test("forbidden refund/legal/payout language forces escalate", () => {
   const r = sanitizeSupportAiOutput("We can issue a refund of $400 today.");
   assert.equal(r.escalate, true);

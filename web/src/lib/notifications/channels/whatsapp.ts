@@ -33,7 +33,6 @@ export async function sendWhatsAppNotification(
   if (!whatsappConfigured()) return null;
   if (!entry.whatsapp) return null;
   if (sentThisInvocation.has(event.eventId)) return null;
-  sentThisInvocation.add(event.eventId);
 
   const body = entry.whatsapp.render(event, recipient).trim();
   if (!body) return null;
@@ -49,6 +48,10 @@ export async function sendWhatsAppNotification(
       to: process.env.SUPPORT_OWNER_WHATSAPP_TO!.trim(),
       body,
     });
+    // Mark deduped only AFTER a successful send — adding before the call
+    // would turn the dispatcher's failed-send retry into a silent no-op.
+    if (sentThisInvocation.size > 500) sentThisInvocation.clear();
+    sentThisInvocation.add(event.eventId);
     return msg.sid ?? "sent";
   } catch (err) {
     logServerError("notifications.whatsapp.send", err);

@@ -70,7 +70,11 @@ export async function hqAddFixLinkAction(raw: {
     .object({
       ticketId: uuid,
       kind: z.enum(["commit", "pr", "release", "doc"]),
-      url: z.string().url().max(800),
+      url: z
+        .string()
+        .url()
+        .max(800)
+        .refine((u) => /^https?:\/\//i.test(u), "http(s) links only"),
       note: z.string().trim().max(200).optional(),
       notifyRequester: z.boolean().optional(),
     })
@@ -95,7 +99,7 @@ export async function hqAddFixLinkAction(raw: {
   if (parsed.data.notifyRequester) {
     const ticket = await loadTicketById(parsed.data.ticketId, admin);
     if (ticket) {
-      void dispatchEventNotifications({
+      await dispatchEventNotifications({
         type: "support.ticket.fixed",
         tenantId: ticket.tenantId,
         eventId: crypto.randomUUID(),
@@ -106,8 +110,9 @@ export async function hqAddFixLinkAction(raw: {
           subject: ticket.subject,
           surface: ticket.surface,
           note: parsed.data.note ?? "",
+          platformFrom: true,
         },
-      });
+      }).catch(() => undefined);
     }
   }
   return { ok: true };

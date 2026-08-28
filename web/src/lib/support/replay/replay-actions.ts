@@ -193,7 +193,7 @@ export async function completeReplayUploadAction(raw: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Not configured." };
   const { data: row } = await supportFrom(admin, "support_replay_sessions")
-    .select("id, user_id, ticket_id")
+    .select("id, user_id, ticket_id, storage_prefix")
     .eq("id", parsed.data.sessionId)
     .maybeSingle();
   if (!row) return { ok: false, error: "Session not found." };
@@ -203,6 +203,15 @@ export async function completeReplayUploadAction(raw: {
     const access = await assertTicketAccess(String(row.ticket_id), session.user.id);
     if (!access.ok) return access;
     if (session.user.id !== String(row.user_id)) return { ok: false, error: "Not authorized." };
+  }
+  // Chunk paths are client-echoed; never store one outside this session's own
+  // server-minted prefix — HQ later mints signed READ urls for these exact
+  // paths, so a foreign path here would exfiltrate another session's replay.
+  const prefix = typeof row.storage_prefix === "string" ? row.storage_prefix : null;
+  if (!prefix) return { ok: false, error: "Session has no storage prefix." };
+  const pathOk = (c: { index: number; path: string }) => c.path === `${prefix}/${c.index}.bin`;
+  if (!parsed.data.chunks.every(pathOk)) {
+    return { ok: false, error: "Invalid chunk paths." };
   }
   const totalBytes = parsed.data.chunks.reduce((n, c) => n + c.bytes, 0);
   const { error } = await supportFrom(admin, "support_replay_sessions")

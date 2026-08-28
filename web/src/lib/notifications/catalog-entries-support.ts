@@ -2,6 +2,7 @@ import "server-only";
 
 import * as React from "react";
 import TicketCreatedAlert from "../../../emails/support/TicketCreatedAlert";
+import TicketReplyAlert from "../../../emails/support/TicketReplyAlert";
 import TicketEscalatedAlert from "../../../emails/support/TicketEscalatedAlert";
 import AgentReply from "../../../emails/support/AgentReply";
 import TicketResolved from "../../../emails/support/TicketResolved";
@@ -10,7 +11,7 @@ import TicketFixed from "../../../emails/support/TicketFixed";
 import WeeklyDigest from "../../../emails/support/WeeklyDigest";
 import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent } from "./types";
 import { eventUser, platformAdmins, str } from "./catalog-audiences";
-import { pageUrl } from "./catalog-render";
+import { appPageUrl, pageUrl } from "./catalog-render";
 
 const SUPPORT_TICKET_DRAWER = "support-ticket";
 
@@ -28,14 +29,16 @@ async function hydrateSupportLinks(
   const ticketId = str(event.payload.ticketId) ?? "";
   const surface = str(event.payload.surface);
   let tenantSlug = str(event.payload.tenantSlug);
+  let tenantName: string | null = null;
   const tenantId = str(event.payload.tenantId) ?? event.tenantId;
-  if (!tenantSlug && tenantId) {
+  if (tenantId) {
     const { data } = await ctx.admin
       .from("agencies")
-      .select("slug")
+      .select("slug, display_name")
       .eq("id", tenantId)
       .maybeSingle();
-    tenantSlug = data?.slug ?? null;
+    tenantSlug = tenantSlug ?? data?.slug ?? null;
+    tenantName = typeof data?.display_name === "string" ? data.display_name : null;
   }
   let replyPath = `/talent?support=${ticketId}`;
   if (surface === "client") {
@@ -43,9 +46,25 @@ async function hydrateSupportLinks(
   } else if (surface === "workspace") {
     replyPath = tenantSlug ? `/${tenantSlug}/admin?support=${ticketId}` : `/admin?support=${ticketId}`;
   }
+
+  // "Maya at Impronta" beats "A user" in the owner's alert. Best-effort.
+  let requesterLabel: string | null = null;
+  const requesterUserId = str(event.payload.requesterUserId);
+  if (requesterUserId) {
+    const { data: profile } = await ctx.admin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", requesterUserId)
+      .maybeSingle();
+    const name = typeof profile?.display_name === "string" ? profile.display_name.trim() : "";
+    const at = tenantName ?? tenantSlug;
+    if (name) requesterLabel = at ? `${name} at ${at}` : name;
+  }
+
   return {
     tenantSlug,
     replyPath,
+    requesterLabel,
     adminPath: `/platform/admin/support?ticket=${ticketId}`,
   };
 }
@@ -123,8 +142,9 @@ const TICKET_ESCALATED: CatalogEntry = {
       }),
   },
   whatsapp: {
+    // Absolute app-host URL — a relative path is not tappable in WhatsApp.
     render: (event) =>
-      `Tulala #${num(event, "ticketNumber")} needs you: ${str(event.payload.subject) ?? "support ticket"}. ${str(event.payload.contactPhone) ? `Phone ${str(event.payload.contactPhone)}. ` : ""}Open /platform/admin/support?ticket=${str(event.payload.ticketId) ?? ""}`,
+      `Tulala #${num(event, "ticketNumber")} needs you: ${str(event.payload.subject) ?? "support ticket"}. ${str(event.payload.contactPhone) ? `Phone ${str(event.payload.contactPhone)}. ` : ""}Open ${appPageUrl(str(event.payload.adminPath) ?? `/platform/admin/support?ticket=${str(event.payload.ticketId) ?? ""}`)}`,
   },
 };
 
@@ -213,10 +233,11 @@ const REQUESTER_REPLY_WATCH: CatalogEntry = {
     subject: (event) =>
       `New reply on #${num(event, "ticketNumber")} - ${str(event.payload.subject) ?? "ticket"}`,
     render: ({ event, brand, unsubscribeUrl }) =>
-      React.createElement(TicketCreatedAlert, {
+      React.createElement(TicketReplyAlert, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        requesterLabel: "The requester",
+        requesterLabel: str(event.payload.requesterLabel) ?? "The requester",
+        preview: str(event.payload.preview) ?? "",
         adminUrl: pageUrl(brand, str(event.payload.adminPath) ?? "/platform/admin/support"),
         brand,
         unsubscribeUrl,
