@@ -413,6 +413,8 @@ export const ES_TEXT: Record<string, string> = {
   Undo: "Deshacer",
   applied: "aplicado",
   "Builder change blocked": "Cambio del editor bloqueado",
+  // DEPTH-CAP HONESTY — the save had to flatten over-deep wrapper chains.
+  "Layout changed on save": "El diseño cambió al guardar",
   "Next step:": "Siguiente paso:",
   "Reload latest": "Cargar lo más reciente",
   "Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets.":

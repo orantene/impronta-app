@@ -149,6 +149,9 @@ export const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string
   { value: "", label: "Default" },
   { value: "relative", label: "Relative" },
   { value: "absolute", label: "Absolute" },
+  // Pins to the browser viewport (floating CTA / side rail / overlay). The
+  // panel prints the containing-block + canvas-zoom caveats when it is picked.
+  { value: "fixed", label: "Fixed" },
   { value: "sticky", label: "Sticky" },
 ];
 

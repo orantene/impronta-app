@@ -40,6 +40,7 @@
 
 import { applyMobileFixes, collectMobileFixes } from "./mobile-fix";
 import { validateBuilderNodeTree } from "./validate";
+import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import type { BuilderNodeTree } from "./types";
 
 // ── Clamp thresholds (each documented with its one-line rationale) ──────────
@@ -107,12 +108,28 @@ export const TRANSLATE_MAX_PERCENT = 300;
 export const Z_INDEX_MAX = 9999;
 
 /**
- * Nesting depth cap — mirrors `validateBuilderNodeTree`'s maxDepth (8): a
- * root section + 6 layout levels + a leaf. Deeper wrapper chains are flattened
- * (children spliced up a level) so the strict publish validator never has a
- * reason to DROP an over-deep subtree.
+ * Max |inset| (top / right / bottom / left) in px. These are the OTHER half of
+ * the positioning escapes — `position` itself is an enum the schema bounds, so
+ * the insets are the only positioning values that can carry a typo. They matter
+ * more now that `position: fixed` exists: a fixed node offset by a mistyped
+ * "-99999px" is pinned OFF the viewport, with no scroll that can bring it back
+ * and no in-flow box to grab, i.e. unrecoverable by eye. 4000px clears a 4K
+ * viewport in either direction, so every deliberate off-screen / overlap trick
+ * still fits. Negatives are preserved — pulling a node out of its box is a real
+ * technique, so only the MAGNITUDE is bounded.
  */
-export const MAX_TREE_DEPTH = 8;
+export const INSET_MAX_PX = 4000;
+
+/**
+ * Nesting depth cap — the SHARED `BUILDER_MAX_TREE_DEPTH` (12), the same number
+ * `validateBuilderNodeTree` defaults its `maxDepth` to, so this gate can never
+ * leave behind a tree the strict publish validator would DROP a subtree from.
+ * Deeper wrapper chains are flattened (children spliced up a level) — and,
+ * unlike before, never silently: `normalizeBuilderTreeLayoutWithReport` reports
+ * exactly which blocks were restructured and the editor tells the operator at
+ * save time. See tree-depth.ts for why 12 and not 8.
+ */
+export const MAX_TREE_DEPTH = BUILDER_MAX_TREE_DEPTH;
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 
@@ -240,6 +257,12 @@ const LENGTH_CLAMPS: ReadonlyArray<{
     maxPx: PADDING_MAX_PX,
   },
   { keys: ["gap"], maxPx: GAP_MAX_PX },
+  // Positioning insets — bounded in magnitude, sign preserved (see INSET_MAX_PX).
+  {
+    keys: ["top", "right", "bottom", "left"],
+    maxPx: INSET_MAX_PX,
+    allowNegative: true,
+  },
   {
     keys: [
       "marginTopFree",
@@ -420,17 +443,88 @@ function canSpliceInto(parentKind: string | null, node: Bag): boolean {
   );
 }
 
+// ── Flatten REPORT (the operator has to be told) ────────────────────────────
+
+/**
+ * One wrapper the depth cap had to splice away. The whole point of this record
+ * is that a restructure can be NAMED back to the operator ("the wrapper inside
+ * Pricing"), because a save that silently rewrites structure is, from where the
+ * operator sits, data corruption — not a guardrail.
+ */
+export interface BuilderTreeFlattenNotice {
+  /** Node id of the spliced wrapper (null on a malformed node with no id). */
+  nodeId: string | null;
+  /** Node kind, always `container` today (only containers are splice-able). */
+  nodeKind: string;
+  /** Operator-facing name of the wrapper itself. */
+  label: string;
+  /** Operator-facing name of the nearest ancestor section, when there is one. */
+  sectionLabel: string | null;
+}
+
+/** Trim + collapse a candidate label; "" when there is nothing usable. */
+function cleanLabel(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const text = value.replace(/\s+/g, " ").trim();
+  if (text.length === 0) return "";
+  return text.length > 48 ? `${text.slice(0, 47)}…` : text;
+}
+
+/**
+ * First heading / text string within `depth` levels of `node`, so a generic
+ * wrapper can borrow the name the operator actually recognises. Deliberately
+ * shape-tolerant and dependency-free: this module is the shape-TOLERANT gate and
+ * must not start importing the registry / layer-name resolver (which assume a
+ * strictly-valid node) just to build a toast string.
+ */
+function borrowedText(node: Bag, depth: number): string {
+  const props = isBag(node.props) ? node.props : null;
+  if (props) {
+    const own =
+      cleanLabel(props.name) || cleanLabel(props.label) || cleanLabel(props.title);
+    if (own) return own;
+    if (node.kind === "heading" || node.kind === "text" || node.kind === "rich_text") {
+      const text = cleanLabel(props.text);
+      if (text) return text;
+    }
+  }
+  if (depth <= 0) return "";
+  const children = Array.isArray(node.children) ? node.children : [];
+  for (const child of children) {
+    if (!isBag(child)) continue;
+    const found = borrowedText(child, depth - 1);
+    if (found) return found;
+  }
+  return "";
+}
+
+/** Operator-facing name for a node in a flatten notice. */
+function noticeLabel(node: Bag): string {
+  const borrowed = borrowedText(node, 2);
+  if (borrowed) return borrowed;
+  const kind = typeof node.kind === "string" ? node.kind : "block";
+  const layout = isBag(node.props) ? cleanLabel(node.props.layout) : "";
+  const base = kind.replace(/_/g, " ");
+  return layout ? `${base} (${layout})` : base;
+}
+
 /**
  * Cap the height of every subtree in `list` to `budget` levels by flattening
  * pass-through container wrappers (splicing their children up one level).
  * Content is NEVER discarded: when no flattenable wrapper exists on an
  * over-deep path (a pathological structural chain), the subtree is left
  * as-is rather than truncated. Copy-on-write.
+ *
+ * Every splice is appended to `report` so the caller can tell the operator what
+ * changed and where. Recording is free when nothing is flattened (the common
+ * case), and the report never affects the OUTPUT tree — the two lanes cannot
+ * drift, because the report is written from inside the one splice branch.
  */
 function capList(
   parentKind: string | null,
   list: unknown[],
   budget: number,
+  ctx: { report: BuilderTreeFlattenNotice[]; sectionLabel: string | null },
 ): unknown[] {
   const out: unknown[] = [];
   let changed = false;
@@ -438,14 +532,25 @@ function capList(
   for (const item of list) {
     if (isBag(item) && subtreeHeight(item) > budget && canSpliceInto(parentKind, item)) {
       // Flatten: the wrapper's children take its place at the SAME budget.
+      ctx.report.push({
+        nodeId: typeof item.id === "string" ? item.id : null,
+        nodeKind: typeof item.kind === "string" ? item.kind : "container",
+        label: noticeLabel(item),
+        sectionLabel: ctx.sectionLabel,
+      });
       const children = Array.isArray(item.children) ? item.children : [];
-      out.push(...capList(parentKind, children, budget));
+      out.push(...capList(parentKind, children, budget, ctx));
       changed = true;
       continue;
     }
     if (isBag(item) && Array.isArray(item.children) && item.children.length > 0) {
       const kind = typeof item.kind === "string" ? item.kind : null;
-      const cappedChildren = capList(kind, item.children, budget - 1);
+      const cappedChildren = capList(kind, item.children, budget - 1, {
+        report: ctx.report,
+        // A section renames the context for everything beneath it, so a notice
+        // reads "inside Pricing" rather than "inside the page".
+        sectionLabel: kind === "section" ? noticeLabel(item) : ctx.sectionLabel,
+      });
       if (cappedChildren !== item.children) {
         out.push({ ...item, children: cappedChildren });
         changed = true;
@@ -467,7 +572,25 @@ function capList(
  * mangles a value it doesn't.
  */
 export function normalizeUnknownBuilderTreeLayout(tree: unknown): unknown {
-  if (!Array.isArray(tree)) return tree;
+  return normalizeUnknownBuilderTreeLayoutWithReport(tree).tree;
+}
+
+/**
+ * The same gate, plus the RESTRUCTURE REPORT.
+ *
+ * `flattened` lists every wrapper the depth cap spliced away, newest-outermost
+ * first, each named well enough to find on the canvas. It is empty on the
+ * overwhelmingly common path (nothing was restructured), and non-empty is the
+ * signal the caller MUST NOT swallow: the operator's structure changed, and
+ * `collectBuilderTreeFlattenNotices` lets the editor say so at save time,
+ * before the write, naming the block.
+ */
+export function normalizeUnknownBuilderTreeLayoutWithReport(tree: unknown): {
+  tree: unknown;
+  flattened: BuilderTreeFlattenNotice[];
+} {
+  const flattened: BuilderTreeFlattenNotice[] = [];
+  if (!Array.isArray(tree)) return { tree, flattened };
 
   // Pass 1 — clamp absurd / unrenderable raw-CSS escape values in place.
   let current: unknown[] = tree;
@@ -482,7 +605,10 @@ export function normalizeUnknownBuilderTreeLayout(tree: unknown): unknown {
   if (clamped !== null) current = clamped;
 
   // Pass 2 — flatten wrapper chains past the depth cap (roots sit at depth 1).
-  current = capList(null, current, MAX_TREE_DEPTH);
+  current = capList(null, current, MAX_TREE_DEPTH, {
+    report: flattened,
+    sectionLabel: null,
+  });
 
   // Pass 3 — fold the deterministic mobile repairs into `responsive.mobile`.
   // GUARDED on strict validity: `applyMobileFixes` routes through
@@ -503,7 +629,7 @@ export function normalizeUnknownBuilderTreeLayout(tree: unknown): unknown {
     }
   }
 
-  return current;
+  return { tree: current, flattened };
 }
 
 /**
@@ -512,4 +638,36 @@ export function normalizeUnknownBuilderTreeLayout(tree: unknown): unknown {
  */
 export function normalizeBuilderTreeLayout(tree: BuilderNodeTree): BuilderNodeTree {
   return normalizeUnknownBuilderTreeLayout(tree) as BuilderNodeTree;
+}
+
+/**
+ * Typed entry that also returns the restructure report — the server-side twin
+ * of the editor's pre-save check.
+ */
+export function normalizeBuilderTreeLayoutWithReport(tree: BuilderNodeTree): {
+  tree: BuilderNodeTree;
+  flattened: BuilderTreeFlattenNotice[];
+} {
+  const result = normalizeUnknownBuilderTreeLayoutWithReport(tree);
+  return { tree: result.tree as BuilderNodeTree, flattened: result.flattened };
+}
+
+/**
+ * WOULD this tree be restructured by the depth cap? Returns the same notices
+ * `normalize…WithReport` produces, without keeping the normalized tree.
+ *
+ * This is the EDITOR's hook, and it is deliberately the same code path as the
+ * server's: the editor calls it on the exact tree it is about to send, so the
+ * warning it shows cannot drift from what the save actually does (a second,
+ * re-implemented "would this flatten?" heuristic in the client is precisely how
+ * a warning goes stale and starts lying). Pure, cheap, no I/O — it runs the
+ * depth pass only, which is a single subtree-height walk.
+ */
+export function collectBuilderTreeFlattenNotices(
+  tree: unknown,
+): BuilderTreeFlattenNotice[] {
+  if (!Array.isArray(tree)) return [];
+  const report: BuilderTreeFlattenNotice[] = [];
+  capList(null, tree, MAX_TREE_DEPTH, { report, sectionLabel: null });
+  return report;
 }

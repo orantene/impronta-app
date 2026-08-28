@@ -250,6 +250,7 @@ import {
 } from "./edit-context-internal";
 import { useEditorChrome } from "./use-editor-chrome";
 import { useEditorToasts } from "./use-editor-toasts";
+import { useLayoutFlattenWarning } from "./use-layout-flatten-warning";
 import { useStarterSyncBridge } from "./use-starter-sync";
 import { useUndoPersistence } from "./use-undo-persistence";
 import { useWorkspacePanels } from "./use-workspace-panels";
@@ -1223,6 +1224,8 @@ export function EditProvider({
   } = useEditorToasts({
     onDismissMutationError: dropConflictRecoveryOnErrorDismiss,
   });
+  const { layoutFlattenToast, clearLayoutFlattenToast, warnIfSaveWillFlatten } =
+    useLayoutFlattenWarning(); // DEPTH-CAP HONESTY (see the module)
   // Perf spine (save-cycle bridge) — `lastDraftSavedAt` is transient toast
   // state (set on save, auto-cleared 4s later), so it flipped the value memo
   // TWICE per save. It is no longer on the context value; readers (topbar
@@ -2968,6 +2971,8 @@ export function EditProvider({
           error: "This page is still loading. Try again in a moment.",
         };
       }
+      // DEPTH-CAP HONESTY — warn BEFORE the write, on the tree we send.
+      warnIfSaveWillFlatten(nextTree);
       const prevTree = rollbackTarget ?? builderTreeRef.current;
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
@@ -3163,6 +3168,7 @@ export function EditProvider({
       nextEditSession,
       // W1-T5(a)/Wave 3 (3.4) — idle-scheduled undo-stack re-stamp on save success.
       scheduleIdleUndoPersistFlush,
+      warnIfSaveWillFlatten,
     ],
   );
 
@@ -5634,6 +5640,8 @@ export function EditProvider({
       return { ok: false, error: "This page is still loading. Try again in a moment." };
     }
     const snap = currentSnapshot();
+    // DEPTH-CAP HONESTY — the explicit press hits the same server normalizer.
+    warnIfSaveWillFlatten(reconcileBuilderTreeFromSlots(builderTreeRef.current, snap.slots));
     setSaving(true);
     const res = await safeAction(
       () =>
@@ -5696,6 +5704,7 @@ export function EditProvider({
     surfaceAdapter,
     reportMutationError,
     nextEditSession,
+    warnIfSaveWillFlatten,
   ]);
 
   /**
@@ -6015,6 +6024,8 @@ export function EditProvider({
       notifyTemplateApplied,
       clipboardActionToast,
       clearClipboardActionToast,
+      layoutFlattenToast,
+      clearLayoutFlattenToast,
 
       mutationError,
       clearMutationError,
@@ -6267,6 +6278,8 @@ export function EditProvider({
       notifyTemplateApplied,
       clipboardActionToast,
       clearClipboardActionToast,
+      layoutFlattenToast,
+      clearLayoutFlattenToast,
       mutationError,
       clearMutationError,
       reportMutationError,

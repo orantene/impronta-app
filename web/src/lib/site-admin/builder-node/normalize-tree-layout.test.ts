@@ -13,8 +13,10 @@ import {
   PADDING_MAX_PX,
   TRANSLATE_MAX_PERCENT,
   TRANSLATE_MAX_PX,
+  collectBuilderTreeFlattenNotices,
   normalizeBuilderTreeLayout,
   normalizeUnknownBuilderTreeLayout,
+  normalizeUnknownBuilderTreeLayoutWithReport,
 } from "./normalize-tree-layout";
 import { renderBuilderNodes } from "./render";
 import type { BuilderNode, BuilderNodeTree } from "./types";
@@ -176,7 +178,9 @@ function randomTree(rnd: () => number, tame = false): unknown[] {
     const chainDepth = tame
       ? 2 + Math.floor(rnd() * 4)
       : deep
-        ? 6 + Math.floor(rnd() * 8)
+        // Wild chains must still clear the (raised) cap by a wide margin, or the
+        // depth property test stops measuring anything. See tree-depth.ts.
+        ? MAX_TREE_DEPTH + Math.floor(rnd() * 8)
         : 2 + Math.floor(rnd() * 3);
     const chain = containerChain(rnd, chainDepth, tame);
     if (rnd() < 0.5) {
@@ -312,7 +316,9 @@ test("property: container wrapper chains are flattened to the depth cap, content
         id: freshId("s"),
         kind: "section",
         props: { sectionTypeKey: "custom" },
-        children: [containerChain(rnd, 8 + Math.floor(rnd() * 8))],
+        children: [
+          containerChain(rnd, MAX_TREE_DEPTH + Math.floor(rnd() * 8)),
+        ],
       },
     ];
     const snapshot = structuredClone(input);
@@ -521,14 +527,14 @@ test("incident regression: a non-shrinking header row cannot make the page scrol
 });
 
 test("depth flattening splices wrapper children in place, preserving order", () => {
-  // 10 nested containers around one heading → flattened to ≤ 8 levels with the
-  // heading (and every sibling) intact and in order.
+  // A chain well past the cap around one heading → flattened to <= the cap with
+  // the heading (and every sibling) intact and in order.
   let inner: Record<string, unknown> = {
     id: "leaf-h",
     kind: "heading",
     props: { text: "Deep headline", level: 2 },
   };
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < MAX_TREE_DEPTH + 2; i += 1) {
     inner = {
       id: `wrap-${i}`,
       kind: "container",
@@ -548,4 +554,179 @@ test("depth flattening splices wrapper children in place, preserving order", () 
   assert.ok(treeDepth(output[0]) <= MAX_TREE_DEPTH);
   assertContentPreserved(tree, output, "deep chain");
   assert.ok(validateBuilderNodeTree(output).ok, "flattened tree passes strict validation");
+});
+
+// ── The depth cap must not bite a REAL design ──────────────────────────────
+
+/**
+ * The nine-level shape that made the old cap of 8 a bug: a perfectly ordinary
+ * card grid. If this ever flattens again, the cap is too low for real work.
+ */
+function realisticNineLevelMockup(): unknown[] {
+  const iconAndLabel = {
+    id: "row-icon-label",
+    kind: "container",
+    props: { layout: "row" },
+    children: [
+      { id: "icon-1", kind: "icon", props: { name: "check" } },
+      { id: "label-1", kind: "paragraph", props: { text: "Included in every plan" } },
+    ],
+  };
+  const stack = {
+    id: "stack-1",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [iconAndLabel],
+  };
+  const overlay = {
+    id: "overlay-1",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [stack],
+  };
+  const mediaWrap = {
+    id: "media-wrap-1",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [overlay],
+  };
+  const card = {
+    id: "card-1",
+    kind: "card",
+    props: {},
+    children: [mediaWrap],
+  };
+  const grid = {
+    id: "grid-1",
+    kind: "container",
+    props: { layout: "grid" },
+    children: [card],
+  };
+  const band = {
+    id: "band-1",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [grid],
+  };
+  return [
+    {
+      id: "section-pricing",
+      kind: "section",
+      props: { sectionTypeKey: "custom", label: "Pricing" },
+      children: [band],
+    },
+  ];
+}
+
+test("a realistic 9-level mockup survives the save untouched (the cap is not a bug)", () => {
+  const input = realisticNineLevelMockup();
+  assert.equal(treeDepth(input[0]), 9, "fixture must actually be nine levels deep");
+  const { tree, flattened } = normalizeUnknownBuilderTreeLayoutWithReport(input);
+  assert.deepEqual(flattened, [], "a routine card grid must not be restructured");
+  assert.equal(treeDepth((tree as unknown[])[0]), 9);
+  assertContentPreserved(input, tree as unknown[], "realistic mockup");
+});
+
+test("the normalizer and the strict validator share ONE depth cap", () => {
+  // A chain exactly AT the cap validates; one level past it does not — which is
+  // precisely why the normalizer flattens to the same number.
+  const chainAt = (levels: number) => {
+    let node: Record<string, unknown> = {
+      id: "leaf",
+      kind: "paragraph",
+      props: { text: "Bottom" },
+    };
+    for (let i = levels - 1; i > 0; i -= 1) {
+      node = {
+        id: `w-${i}`,
+        kind: i === 1 ? "section" : "container",
+        props: i === 1 ? { sectionTypeKey: "custom" } : { layout: "stack" },
+        children: [node],
+      };
+    }
+    return [node];
+  };
+  assert.ok(validateBuilderNodeTree(chainAt(MAX_TREE_DEPTH)).ok);
+  assert.equal(validateBuilderNodeTree(chainAt(MAX_TREE_DEPTH + 1)).ok, false);
+  // …and the normalizer brings the over-deep one back under the cap.
+  const capped = normalizeUnknownBuilderTreeLayout(chainAt(MAX_TREE_DEPTH + 4));
+  assert.ok(treeDepth((capped as unknown[])[0]) <= MAX_TREE_DEPTH);
+});
+
+// ── Flattening is never silent ─────────────────────────────────────────────
+
+test("flattening reports the affected block, named, with its section", () => {
+  let chain: Record<string, unknown> = {
+    id: "leaf-p",
+    kind: "paragraph",
+    props: { text: "From $49 a month" },
+  };
+  for (let i = 0; i < MAX_TREE_DEPTH + 2; i += 1) {
+    chain = {
+      id: `wrap-${i}`,
+      kind: "container",
+      props: { layout: "stack" },
+      children: [chain],
+    };
+  }
+  const tree = [
+    {
+      id: "root-section",
+      kind: "section",
+      props: { sectionTypeKey: "custom", label: "Pricing" },
+      children: [
+        {
+          id: "outer-wrap",
+          kind: "container",
+          props: { layout: "stack" },
+          // The heading sits beside the over-deep chain, so the wrapper the cap
+          // splices can borrow a name the operator will recognise on canvas.
+          children: [
+            { id: "h-1", kind: "heading", props: { text: "Plans that scale", level: 2 } },
+            chain,
+          ],
+        },
+      ],
+    },
+  ];
+  const { flattened } = normalizeUnknownBuilderTreeLayoutWithReport(tree);
+  assert.ok(flattened.length > 0, "an over-deep chain must be reported");
+  for (const notice of flattened) {
+    assert.equal(notice.nodeKind, "container");
+    assert.equal(notice.sectionLabel, "Pricing", "the section names the location");
+    assert.ok(notice.label.length > 0, "every notice must be nameable on canvas");
+    assert.ok(typeof notice.nodeId === "string" && notice.nodeId.length > 0);
+  }
+  // A wrapper borrows the heading beneath it, so the operator recognises it.
+  assert.ok(
+    flattened.some((n) => n.label === "Plans that scale"),
+    "a wrapper should borrow the nearest heading for its name",
+  );
+});
+
+test("the editor's pre-save check matches the save exactly", () => {
+  const rnd = mulberry32(0x5eed);
+  for (let run = 0; run < 60; run += 1) {
+    const input = randomTree(rnd);
+    const snapshot = structuredClone(input);
+    const server = normalizeUnknownBuilderTreeLayoutWithReport(input);
+    // The editor runs the same collector on the tree it is about to send.
+    const client = collectBuilderTreeFlattenNotices(snapshot);
+    assert.deepEqual(
+      client,
+      server.flattened,
+      `run ${run}: the warning the operator sees must equal what the save does`,
+    );
+  }
+});
+
+test("a tree the cap leaves alone reports nothing", () => {
+  const rnd = mulberry32(0xbeef);
+  for (let run = 0; run < 60; run += 1) {
+    const input = randomTree(rnd, true);
+    const { flattened } = normalizeUnknownBuilderTreeLayoutWithReport(input);
+    if (flattened.length > 0) {
+      assert.fail(`run ${run}: a tame tree must never be restructured`);
+    }
+  }
 });
