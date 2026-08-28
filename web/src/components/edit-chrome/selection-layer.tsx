@@ -5866,18 +5866,20 @@ export function SelectionLayer() {
               {selectedNodeIsEditableBlock && selectedBuilderNode ? (
                 <ResponsiveOverrideBadge
                   style={
-                    selectedBuilderNode.props.style as
-                      | Record<string, unknown>
-                      | undefined
+                    (selectedBuilderNode.props as {
+                      style?: Record<string, unknown>;
+                    }).style
                   }
                   bucket={canvasStyleBucket}
                   onReset={() => {
                     if (!selectedBuilderNodeId) return;
                     void patchBuilderNodeProps(selectedBuilderNodeId, {
                       style: clearResponsiveOverrides({
-                        style: selectedBuilderNode.props.style as
-                          | Record<string, unknown>
-                          | undefined,
+                        style: (
+                          selectedBuilderNode.props as {
+                            style?: Record<string, unknown>;
+                          }
+                        ).style,
                         bucket: canvasStyleBucket,
                       }),
                     });
