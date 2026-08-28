@@ -346,6 +346,20 @@ export async function PublicHeader() {
   // Reusable brand element — composed once so the three columns can
   // each conditionally drop it in based on `brand-position` without
   // duplicating the logo + label markup.
+  //
+  // OVERLAP INVARIANT (owner report 2026-08-27, 390px phone: the centred
+  // wordmark painted over the icon buttons on BOTH sides). The bar grid
+  // already reserves the two icon clusters — `auto minmax(0,1fr) auto` — so
+  // the brand only ever gets the leftover track. What leaked was the wrapper
+  // `<span>` each column mounts around `brandLink`: as a flex item its
+  // `min-width` was still `auto`, i.e. the wordmark's full min-content width,
+  // so it refused to shrink into the narrow centre track and
+  // `justify-content:center` spilled the overflow symmetrically over both
+  // clusters. `min-w-0` here + `data-brand-slot-wrap` / `data-brand-slot` /
+  // `data-brand-label` (whose structural floor lives in token-presets.css, so
+  // it survives a utility-class edit) make the brand shrink and ellipsise
+  // instead. The icon clusters deliberately keep `min-width:auto` — they are
+  // the non-shrinking floor the `auto` tracks are measured from.
   const brandLink = (
     <Link
       href={headerHref("/")}
@@ -360,7 +374,9 @@ export async function PublicHeader() {
         />
       ) : null}
       {showBrandText ? (
-        <span className="truncate">{brandLabel}</span>
+        <span className="min-w-0 truncate" data-brand-label>
+          {brandLabel}
+        </span>
       ) : null}
     </Link>
   );
@@ -451,7 +467,9 @@ export async function PublicHeader() {
             </Link>
           </Button>
           {brandInLeftCol ? (
-            <span className="ml-1 hidden md:inline-flex">{brandLink}</span>
+            <span className="ml-1 hidden min-w-0 md:inline-flex" data-brand-slot-wrap>
+              {brandLink}
+            </span>
           ) : null}
           {navInLeftCol.length > 0 ? (
             <nav
@@ -482,12 +500,16 @@ export async function PublicHeader() {
         <div className="flex min-w-0 items-center justify-center gap-3 sm:gap-5">
           {/* Desktop brand (when centered) */}
           {brandInCenterCol ? (
-            <span className="hidden md:inline-flex">{brandLink}</span>
+            <span className="hidden min-w-0 md:inline-flex" data-brand-slot-wrap>
+              {brandLink}
+            </span>
           ) : null}
           {/* Mobile brand fallback — always visible <md, regardless of
            *  the chosen brand-position, so the bar never reads "where's
            *  the logo" on a phone. */}
-          <span className="md:hidden">{brandLink}</span>
+          <span className="min-w-0 md:hidden" data-brand-slot-wrap>
+            {brandLink}
+          </span>
           {navInCenterCol.length > 0 ? (
             <nav
               className="public-header__nav public-header__nav--center hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
@@ -524,7 +546,9 @@ export async function PublicHeader() {
             </nav>
           ) : null}
           {brandInRightCol ? (
-            <span className="mr-2 hidden md:inline-flex">{brandLink}</span>
+            <span className="mr-2 hidden min-w-0 md:inline-flex" data-brand-slot-wrap>
+              {brandLink}
+            </span>
           ) : null}
           {showCtaInDesktopBar ? (
             <Button
