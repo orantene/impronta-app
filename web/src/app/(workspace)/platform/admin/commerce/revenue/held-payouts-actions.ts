@@ -3,7 +3,7 @@
 /**
  * Platform Admin — held-payouts reconciliation actions.
  *
- * Lets a super_admin manually re-attempt held payout legs from the billing
+ * Lets a super_admin manually re-attempt held payout legs from the Commerce
  * console (alongside the automatic account.updated release + the daily
  * reconcile cron). Gated to `super_admin`.
  */
@@ -46,7 +46,7 @@ export async function retryHeldPayoutsForPayee(
     const stillHeld = outcomes.filter((o) => o.result === "still_held").length;
     const failed = outcomes.filter((o) => o.result === "failed").length;
 
-    revalidatePath("/platform/admin/billing");
+    revalidatePath("/platform/admin/commerce");
     return { ok: true, released, stillHeld, failed };
   } catch (err) {
     logServerError("platform.held-payouts.retry", err);

@@ -5806,7 +5806,6 @@
         "tenants": "Inquilinos",
         "users": "Usuarios",
         "network": "Red",
-        "billing": "Facturación",
         "commerce": "Comercio",
         "operations": "Operaciones",
         "integrations": "Integraciones",
@@ -5886,9 +5885,9 @@
         "sectionTenantsDesc": "Todas las agencias y hubs",
         "sectionUsersDesc": "Todas las cuentas registradas",
         "sectionNetworkDesc": "Hub y superficie de descubrimiento",
-        "sectionBillingDesc": "MRR, facturas, gestión de impagos",
         "sectionOperationsDesc": "Feature flags y trabajos del sistema",
-        "sectionSettingsDesc": "Equipo de HQ y registro de auditoría"
+        "sectionSettingsDesc": "Equipo de HQ y registro de auditoría",
+        "sectionCommerceDesc": "Precios, descuentos, ingresos, comisión"
       },
       "network": {
         "title": "Red",
@@ -7059,22 +7058,18 @@
         }
       },
       "billing": {
-        "title": "Facturación",
-        "subtitle": "Ingresos por reservas del motor de comisiones, MRR de planes y controles de comisión. La facturación/gestión de cobros de suscripciones aún se estima.",
-        "discountCodesLink": "Códigos de descuento →",
-        "commissionLink": "Configuración de comisiones →",
         "stat": {
-          "estimatedMrr": "MRR estimado",
-          "estimatedMrrCaption": "de planes de pago activos",
-          "paidTenants": "Tenants de pago",
-          "paidTenantsCaption": "de {total} activos",
-          "churn": "Cancelación (30 d)",
-          "churnCaption": "Integración de Stripe pendiente",
+          "estimatedMrr": "Ingresos recurrentes mensuales",
+          "estimatedMrrCaption": "Neto de descuentos, desde suscripciones activas",
+          "paidTenants": "Suscripciones que pagan",
+          "paidTenantsCaption": "más {total} sin cargo por excepción de plan",
+          "churn": "Cancelaciones (30 d)",
+          "churnCaption": "Suscripciones canceladas en los últimos 30 días",
           "failedPayments": "Pagos fallidos",
-          "failedPaymentsCaption": "Aún sin facturación activa"
+          "failedPaymentsCaption": "Suscripciones con pago vencido ahora mismo"
         },
         "planDistribution": {
-          "title": "Distribución de planes",
+          "title": "Planes asignados",
           "subtitle": "{total} tenants en total · {active} activos"
         },
         "bookingRevenue": {
@@ -7121,7 +7116,6 @@
           "retryFailed": "Reintento fallido: {error}"
         },
         "commission": {
-          "eyebrow": "Tulala HQ · Facturación",
           "title": "Configuración de comisiones",
           "subtitle": "Edita las tasas de comisión de toda la plataforma. La comisión predeterminada se aplica a cada reserva donde no haya activa una anulación por nivel de plan o por tenant. Las anulaciones por tenant se configuran desde el panel de Tenants. Todas las escrituras se auditan en platform_audit_log.",
           "loadFailed": "Error al cargar la configuración: {error}",
@@ -7163,7 +7157,7 @@
           "errTier": "La comisión de {tier} debe estar entre 0% y 50%, o déjala en blanco para heredar el predeterminado."
         },
         "discountCodes": {
-          "eyebrow": "Tulala HQ · Facturación",
+          "eyebrow": "Tulala HQ · Commerce",
           "title": "Códigos de descuento",
           "subtitle": "Crea cupones + códigos promocionales de Stripe. Los códigos de 100% de descuento son útiles para QA interno, acuerdos con amigos y familiares, y tenants cortesía. Los códigos viven en Stripe (Stripe es la fuente de verdad) y se pueden usar en cada flujo de pago de espacio de trabajo, Talent y cliente porque cada sesión ya acepta códigos promocionales.",
           "notConfigured": "Stripe no está configurado. Configura STRIPE_SECRET_KEY en el proyecto de Vercel para crear códigos.",
@@ -7221,10 +7215,6 @@
           "trialsSummary": "Pruebas gratuitas",
           "trialsSummaryHint": "Duración de la prueba y el texto que se muestra al ofrecerla"
         },
-        "comingSoon": {
-          "title": "Se traslada aquí en la próxima versión",
-          "body": "Esta sección todavía vive en la página de Facturación. Se muda a Comercio en la próxima entrega, junto con las cifras de ingresos, para que todas las superficies de dinero queden bajo un solo elemento de navegación."
-        },
         "health": {
           "title": "Estado de Stripe",
           "intro": "Todo lo que aparece abajo se lee en vivo desde Stripe y desde el catálogo de precios. Responde la pregunta que de otro modo solo se contesta a mano: ¿la clave que usamos apunta a la cuenta que tiene nuestros precios, nuestros webhooks y nuestros vendedores?",
@@ -7241,6 +7231,18 @@
             "prices": "Precios de nivel",
             "webhooks": "Webhooks",
             "connect": "Cuentas de Connect"
+          }
+        },
+        "revenue": {
+          "planDistributionNote": "Cuenta a qué plan tiene derecho cada cuenta, incluidos los planes sin cargo. No es un desglose de ingresos; los ingresos de arriba solo cuentan suscripciones.",
+          "notes": {
+            "comped": "{count} sin cargo por una excepción de plan activa (sin suscripción, sin ingresos)",
+            "trialing": "{count} en prueba, todavía sin pagar",
+            "discounted": "{amount} de descuento sobre {gross} bruto",
+            "unpriced": "{count} suscripción(es) sin precio de catálogo resoluble, contadas como cero",
+            "canceling": "{count} con cancelación al final del periodo",
+            "trialEndingSoon": "{count} prueba(s) que terminan en 7 días",
+            "degraded": "Algunas lecturas fallaron, así que estos números están incompletos."
           }
         }
       },

@@ -50,7 +50,20 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const totalCents = rows.reduce((n, r) => n + r.amountCents, 0);
+  // Held legs are per-payee and payees are not all in one currency, so a single
+  // sum was meaningless: it added MXN centavos to USD cents and then formatted
+  // the result with whatever currency the FIRST row happened to carry. Group
+  // by currency instead and print one figure per currency, largest first.
+  const byCurrency: Array<[string, number]> = [];
+  for (const r of rows) {
+    const code = (r.currency || "mxn").toLowerCase();
+    const found = byCurrency.find(([c]) => c === code);
+    if (found) found[1] += r.amountCents;
+    else byCurrency.push([code, r.amountCents]);
+  }
+  byCurrency.sort((a, b) => b[1] - a[1]);
+  const totalLabel = byCurrency.map(([code, cents]) => fmt(cents, code)).join(" · ");
+
   const heldCount = rows.filter((r) => r.status === "held").length;
   const failedCount = rows.filter((r) => r.status === "failed").length;
 
@@ -106,7 +119,7 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
         <>
           <div style={{ fontSize: 12.5, color: HQ.ink, marginBottom: 10 }}>
             {interpolate(t("dashboard.platform.billing.heldPayouts.totalHeld"), {
-              amount: fmt(totalCents, rows[0]?.currency ?? "mxn"),
+              amount: totalLabel,
               count: rows.length,
             })}
           </div>

@@ -5806,7 +5806,6 @@
         "tenants": "Tenants",
         "users": "Users",
         "network": "Network",
-        "billing": "Billing",
         "commerce": "Commerce",
         "operations": "Operations",
         "integrations": "Integrations",
@@ -5886,9 +5885,9 @@
         "sectionTenantsDesc": "All agencies and hubs",
         "sectionUsersDesc": "All registered accounts",
         "sectionNetworkDesc": "Hub and discovery surface",
-        "sectionBillingDesc": "MRR, invoices, dunning",
         "sectionOperationsDesc": "Feature flags and system jobs",
-        "sectionSettingsDesc": "HQ team and audit trail"
+        "sectionSettingsDesc": "HQ team and audit trail",
+        "sectionCommerceDesc": "Prices, discounts, revenue, commission"
       },
       "network": {
         "title": "Network",
@@ -7059,22 +7058,18 @@
         }
       },
       "billing": {
-        "title": "Billing",
-        "subtitle": "Booking revenue from the commission engine, plan MRR, and commission controls. Subscription invoicing/dunning is still estimated.",
-        "discountCodesLink": "Discount codes →",
-        "commissionLink": "Commission config →",
         "stat": {
-          "estimatedMrr": "Estimated MRR",
-          "estimatedMrrCaption": "from active paid plans",
-          "paidTenants": "Paid tenants",
-          "paidTenantsCaption": "of {total} active",
-          "churn": "Churn (30d)",
-          "churnCaption": "Stripe integration pending",
+          "estimatedMrr": "Monthly recurring revenue",
+          "estimatedMrrCaption": "Net of discounts, from live subscriptions",
+          "paidTenants": "Paying subscriptions",
+          "paidTenantsCaption": "plus {total} comped by plan override",
+          "churn": "Cancellations (30d)",
+          "churnCaption": "Subscriptions cancelled in the last 30 days",
           "failedPayments": "Failed payments",
-          "failedPaymentsCaption": "No active billing yet"
+          "failedPaymentsCaption": "Subscriptions past due right now"
         },
         "planDistribution": {
-          "title": "Plan distribution",
+          "title": "Plan entitlements",
           "subtitle": "{total} total tenants · {active} active"
         },
         "bookingRevenue": {
@@ -7121,7 +7116,6 @@
           "retryFailed": "Retry failed: {error}"
         },
         "commission": {
-          "eyebrow": "Tulala HQ · Billing",
           "title": "Commission config",
           "subtitle": "Edit the platform-wide commission rates. Default take applies to every booking where no plan-tier override or per-tenant override is active. Per-tenant overrides are set from the Tenants drawer. All writes are audited to platform_audit_log.",
           "loadFailed": "Failed to load config: {error}",
@@ -7163,7 +7157,7 @@
           "errTier": "{tier} take must be between 0% and 50%, or leave blank to inherit the default."
         },
         "discountCodes": {
-          "eyebrow": "Tulala HQ · Billing",
+          "eyebrow": "Tulala HQ · Commerce",
           "title": "Discount codes",
           "subtitle": "Mint Stripe coupons + promotion codes. 100% off codes are useful for internal QA, friends and family deals, and comped tenants. The codes live in Stripe (Stripe is the source of truth) and are usable in every workspace, talent, and client checkout flow because each session already accepts promotion codes.",
           "notConfigured": "Stripe is not configured. Set STRIPE_SECRET_KEY in the Vercel project to mint codes.",
@@ -7221,10 +7215,6 @@
           "trialsSummary": "Free trials",
           "trialsSummaryHint": "Trial length and the copy shown on the start-a-trial prompt"
         },
-        "comingSoon": {
-          "title": "Moving here in the next release",
-          "body": "This section still lives on the Billing page. It moves into Commerce next, together with the revenue numbers, so every money surface finally sits behind one nav item."
-        },
         "health": {
           "title": "Stripe health",
           "intro": "Everything below is read live from Stripe and the pricing catalog. It answers the question that is otherwise only answerable by hand: is the key we are using pointed at the account that holds our prices, our webhooks and our sellers?",
@@ -7241,6 +7231,18 @@
             "prices": "Tier prices",
             "webhooks": "Webhooks",
             "connect": "Connect accounts"
+          }
+        },
+        "revenue": {
+          "planDistributionNote": "Counts what each tenant is entitled to, including comped plans. It is not a revenue breakdown; MRR above counts subscriptions only.",
+          "notes": {
+            "comped": "{count} comped by an active plan override (no subscription, no revenue)",
+            "trialing": "{count} on trial, paying nothing yet",
+            "discounted": "{amount} discounted off {gross} gross",
+            "unpriced": "{count} subscription(s) with no resolvable catalog price, counted as zero",
+            "canceling": "{count} set to cancel at period end",
+            "trialEndingSoon": "{count} trial(s) ending within 7 days",
+            "degraded": "Some reads failed, so these numbers are incomplete."
           }
         }
       },

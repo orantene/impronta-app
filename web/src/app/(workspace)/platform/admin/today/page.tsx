@@ -664,7 +664,7 @@ export default async function PlatformTodayPage() {
             { href: "/platform/admin/tenants",   label: t("dashboard.platform.nav.tenants"),    desc: t("dashboard.platform.today.sectionTenantsDesc") },
             { href: "/platform/admin/users",      label: t("dashboard.platform.nav.users"),      desc: t("dashboard.platform.today.sectionUsersDesc") },
             { href: "/platform/admin/network",    label: t("dashboard.platform.nav.network"),    desc: t("dashboard.platform.today.sectionNetworkDesc") },
-            { href: "/platform/admin/billing",    label: t("dashboard.platform.nav.billing"),    desc: t("dashboard.platform.today.sectionBillingDesc") },
+            { href: "/platform/admin/commerce",   label: t("dashboard.platform.nav.commerce"),   desc: t("dashboard.platform.today.sectionCommerceDesc") },
             { href: "/platform/admin/operations", label: t("dashboard.platform.nav.operations"), desc: t("dashboard.platform.today.sectionOperationsDesc") },
             { href: "/platform/admin/settings",   label: t("dashboard.platform.nav.settings"),   desc: t("dashboard.platform.today.sectionSettingsDesc") },
           ].map((item) => (
