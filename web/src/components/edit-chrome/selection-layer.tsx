@@ -100,6 +100,11 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import {
+  ChipBtn,
+  ChipTextAction,
+  SectionUnlockChipButton,
+} from "./chip-buttons";
 import { useEditorLocale } from "./use-editor-locale";
 import { useNestedBlocksPanelPreference } from "./use-nested-blocks-preference";
 import { useBuilderTree } from "./builder-tree-bridge";
@@ -4536,6 +4541,17 @@ export function SelectionLayer() {
     }
   }
   const isHidden = selectedVisibility === "hidden";
+  // "Unlock design" on the chip — same gate the context menu uses, resolved
+  // for the SELECTED section instead of the right-clicked one.
+  const pickedSection = selectedSectionNodeId
+    ? builderTree.find((n) => n.kind === "section" && n.id === selectedSectionNodeId)
+    : undefined;
+  const unlockableSectionId =
+    pickedSection?.kind === "section" &&
+    !NON_EJECTABLE_SECTION_TYPE_KEYS.has(pickedSection.props.sectionTypeKey)
+      ? pickedSection.id
+      : null;
+  const sectionUnlocked = pickedSection?.kind === "section" && pickedSection.props.ejected;
 
   // Sprint 3.x — when device != desktop the parent body's storefront
   // content is hidden (DeviceFrameSurface CSS) and the canvas is the
@@ -6176,6 +6192,17 @@ export function SelectionLayer() {
                     }
                   });
                 }}
+                unlockScopeKey={selectedSectionNodeId ?? undefined}
+                onUnlockDesign={
+                  unlockableSectionId && !sectionUnlocked
+                    ? () => void ejectSection(unlockableSectionId)
+                    : null
+                }
+                onRelockDesign={
+                  unlockableSectionId && sectionUnlocked
+                    ? () => void unejectSection(unlockableSectionId)
+                    : null
+                }
                 onRemoveTrigger={() => setConfirmRemove(true)}
                 onRemoveConfirm={() => {
                   const ids = getAllSelectedIds();
@@ -7023,9 +7050,7 @@ function SelectionContextMenu({
               disabled={saving}
               onClick={() => (isEjected ? onUneject?.() : onEject?.())}
             >
-              {isEjected
-                ? t("Restore curated section")
-                : t("Make editable (eject to blocks)")}
+              {isEjected ? t("Relock design") : t("Unlock design")}
             </ContextMenuButton>
           ) : null}
           <ContextMenuSeparator />
@@ -7165,95 +7190,6 @@ function CanvasNodeInsertMenu({
  * ChipToolBar — the icon-button cluster on the right side of the selection chip.
  * 34×34px per button, matching `.chip-tool` from the mockup.
  */
-function ChipTextAction({
-  label,
-  disabled,
-  onClick,
-  active = false,
-  light = false,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  active?: boolean;
-  light?: boolean;
-}) {
-  // `label` stays the English key (icon selection below compares against it);
-  // only the rendered text goes through t().
-  const { t } = useEditorLocale();
-  const lightActive = light && active;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex h-full cursor-pointer items-center gap-[5px] border-none px-[10px] text-[11px] font-semibold tracking-[-0.01em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      style={{
-        background: lightActive
-          ? "rgba(124, 58, 237, 0.10)"
-          : "transparent",
-        color: lightActive
-          ? CHROME.accent
-          : light
-            ? CHROME.ink
-            : "rgba(255,255,255,0.88)",
-        borderLeft: light
-          ? `1px solid ${CHROME.line}`
-          : "1px solid rgba(255,255,255,0.10)",
-        boxShadow: lightActive
-          ? `inset 0 0 0 1px ${CHROME.accent}`
-          : undefined,
-        borderRadius: lightActive ? 6 : undefined,
-        margin: lightActive ? "4px 2px" : undefined,
-      }}
-      onMouseEnter={(e) => {
-        if (disabled || lightActive) return;
-        e.currentTarget.style.background = light
-          ? CHROME.paper2
-          : "rgba(255,255,255,0.08)";
-      }}
-      onMouseLeave={(e) => {
-        if (lightActive) return;
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {light && label === "Edit Content" ? (
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-      ) : null}
-      {light && label === "Design" ? (
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m12 19 7-7-7-7-7 7 7 7Z" />
-          <path d="M18.5 5.5 12 12" />
-        </svg>
-      ) : null}
-      {t(label)}
-    </button>
-  );
-}
-
 function ChipToolBar({
   confirmRemove,
   isHidden,
@@ -7267,6 +7203,9 @@ function ChipToolBar({
   onMoveDown,
   onToggleHide,
   onDuplicate,
+  unlockScopeKey,
+  onUnlockDesign,
+  onRelockDesign,
   onRemoveTrigger,
   onRemoveConfirm,
   onRemoveCancel,
@@ -7292,6 +7231,11 @@ function ChipToolBar({
   onMoveDown: () => void;
   onToggleHide: () => void;
   onDuplicate: () => void;
+  /** Selection identity — resets a half-open relock confirm on a new pick. */
+  unlockScopeKey?: string;
+  /** Curated <-> blocks. Each is null unless the section is in that state. */
+  onUnlockDesign?: (() => void) | null;
+  onRelockDesign?: (() => void) | null;
   onRemoveTrigger: () => void;
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
@@ -7321,7 +7265,9 @@ function ChipToolBar({
             background: "rgba(196,61,61,0.90)",
             color: "white",
             border: "none",
-            borderLeft: `1px solid ${CHROME.line}`,
+            borderLeft: light
+              ? `1px solid ${CHROME.line}`
+              : "1px solid rgba(255,255,255,0.10)",
             cursor: "pointer",
           }}
         >
@@ -7337,9 +7283,11 @@ function ChipToolBar({
             fontSize: 11,
             fontWeight: 500,
             background: "transparent",
-            color: CHROME.muted,
+            color: light ? CHROME.muted : "rgba(255,255,255,0.72)",
             border: "none",
-            borderLeft: `1px solid ${CHROME.line}`,
+            borderLeft: light
+              ? `1px solid ${CHROME.line}`
+              : "1px solid rgba(255,255,255,0.10)",
             cursor: "pointer",
           }}
         >
@@ -7386,7 +7334,8 @@ function ChipToolBar({
           one selection level without it. */}
       {onReviseWithAi ? (
         <ChipBtn
-          style={{ ...btnStyle, color: CHROME.accent }}
+          light={light}
+          style={{ ...btnStyle, color: light ? CHROME.accent : "#c4b5fd" }}
           disabled={disabled}
           onClick={onReviseWithAi}
           aria-label={t("Revise this section with AI")}
@@ -7396,7 +7345,21 @@ function ChipToolBar({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
         </ChipBtn>
       ) : null}
+      {/* The ONE visible door between a curated section and blocks: it used to
+          hide in the right-click menu. Relock takes an inline confirm. */}
+      {onUnlockDesign || onRelockDesign ? (
+        <SectionUnlockChipButton
+          key={unlockScopeKey}
+          light={light}
+          disabled={disabled}
+          btnStyle={btnStyle}
+          isUnlocked={Boolean(onRelockDesign)}
+          onUnlock={() => onUnlockDesign?.()}
+          onRelock={() => onRelockDesign?.()}
+        />
+      ) : null}
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveUp}
@@ -7406,6 +7369,7 @@ function ChipToolBar({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveDown}
@@ -7415,6 +7379,7 @@ function ChipToolBar({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
@@ -7424,6 +7389,7 @@ function ChipToolBar({
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onToggleHide}
@@ -7443,6 +7409,7 @@ function ChipToolBar({
         )}
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
@@ -7896,48 +7863,5 @@ function BlockChipOverflowMenu({
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Thin wrapper so we can add hover-state CSS for the chip tool buttons. */
-function ChipBtn({
-  children,
-  style,
-  disabled,
-  onClick,
-  danger,
-  light = false,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  danger?: boolean;
-  /** Light floating toolbar — inverts the idle/hover ink for a white surface. */
-  light?: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  // NOTE: these win over anything in `style` (spread first), so a light chip
-  // MUST pass `light` — a colour on `style` alone gets overwritten and the
-  // icon renders white-on-white.
-  const idleColor = light ? CHROME.muted : "rgba(255,255,255,0.72)";
-  const hoverColor = light ? CHROME.ink : "white";
-  const dangerColor = light ? "#b91c1c" : "#ff8b8b";
-  const hoverBg = light ? "rgba(24,24,27,0.05)" : "rgba(255,255,255,0.10)";
-  const dangerBg = light ? "rgba(196,61,61,0.10)" : "rgba(196,61,61,0.20)";
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      style={{
-        ...style,
-        background: hovered ? (danger ? dangerBg : hoverBg) : "transparent",
-        color: hovered ? (danger ? dangerColor : hoverColor) : idleColor,
-        opacity: disabled ? 0.4 : 1,
-      }}
-      {...rest}
-    >
-      {children}
-    </button>
   );
 }
