@@ -14,6 +14,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -65,26 +66,19 @@ export async function TalentSiteFreeformRenderer({
   const tenantId = context?.tenantId ?? null;
   const publicPathPrefix = context?.publicPathPrefix ?? "";
 
-  // Curated section_embed nodes need a tenant render context. previewSubject
-  // points the curated sections at THIS talent. NOTE: the default tree is
-  // stripped of embeds upstream, so this renderer is effectively no-op for
-  // embeds today; the plumbing is retained for forward-compatibility.
-  const renderSectionEmbed =
-    tenantId && context
-      ? makeSectionEmbedRenderer({
-          tenantId,
-          locale,
-          publicPathPrefix,
-          previewSubject: { kind: "talent", id: context.talentProfileId, locale },
-        })
-      : null;
+  const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasForm);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "form" || hasForm(n.children);
+  })(tree);
 
   // Data sources + live component instances — only load when the tree actually
   // binds them AND a managing tenant exists (the loaders are tenant-scoped
   // service-role reads). Empty objects are the no-op default. The platform-
   // default theme provides componentStyleDefaults + tokens (light Modern 2026)
   // so the page renders at parity with the published talent freeform page.
-  const [dataSources, components, platformDefault, experimentContext] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(tree, tenantId, locale)
@@ -99,7 +93,29 @@ export async function TalentSiteFreeformRenderer({
         tenantId,
         surface: context?.experimentSurface ?? "talentSite",
       }),
+      tenantId && pageHasFormNode
+        ? resolveTenantCaptcha(tenantId)
+        : Promise.resolve(null),
     ]);
+
+  const captchaConfig = pageCaptcha
+    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+    : null;
+
+  // Curated section_embed nodes need a tenant render context. previewSubject
+  // points the curated sections at THIS talent. NOTE: the default tree is
+  // stripped of embeds upstream, so this renderer is effectively no-op for
+  // embeds today; the plumbing is retained for forward-compatibility.
+  const renderSectionEmbed =
+    tenantId && context
+      ? makeSectionEmbedRenderer({
+          tenantId,
+          locale,
+          publicPathPrefix,
+          previewSubject: { kind: "talent", id: context.talentProfileId, locale },
+          captcha: captchaConfig,
+        })
+      : null;
 
   // Project the platform-default tokens as CSS vars + data-attrs on a
   // `data-theme-canvas-root` wrapper so every bound node's `var(--token-x,
@@ -143,6 +159,8 @@ export async function TalentSiteFreeformRenderer({
         dataSources,
         components,
         componentStyleDefaults: platformDefault.componentStyles,
+        captcha: captchaConfig,
+        visitorLocale: locale,
         ...experimentContext,
         renderSectionEmbed,
       })}

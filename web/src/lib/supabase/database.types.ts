@@ -11847,6 +11847,67 @@ export type Database = {
           },
         ]
       }
+
+      talent_booking_hours: {
+        Row: {
+          buffer_after_min: number
+          buffer_before_min: number
+          created_at: string
+          exceptions: Json
+          horizon_days: number
+          min_notice_min: number
+          slot_minutes: number
+          talent_profile_id: string
+          tenant_id: string
+          timezone: string
+          updated_at: string
+          weekly: Json
+        }
+        Insert: {
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          exceptions?: Json
+          horizon_days?: number
+          min_notice_min?: number
+          slot_minutes?: number
+          talent_profile_id: string
+          tenant_id: string
+          timezone?: string
+          updated_at?: string
+          weekly?: Json
+        }
+        Update: {
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          exceptions?: Json
+          horizon_days?: number
+          min_notice_min?: number
+          slot_minutes?: number
+          talent_profile_id?: string
+          tenant_id?: string
+          timezone?: string
+          updated_at?: string
+          weekly?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_booking_hours_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: true
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_booking_hours_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_bookings: {
         Row: {
           all_day: boolean
@@ -13636,6 +13697,7 @@ export type Database = {
           phone: string | null
           phone_e164: string | null
           preferred_locale: string | null
+          profile_kind: string
           profile_code: string
           profile_completeness_pct: number | null
           profile_completeness_score: number
@@ -13739,6 +13801,7 @@ export type Database = {
           phone?: string | null
           phone_e164?: string | null
           preferred_locale?: string | null
+          profile_kind?: string
           profile_code: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number
@@ -13842,6 +13905,7 @@ export type Database = {
           phone?: string | null
           phone_e164?: string | null
           preferred_locale?: string | null
+          profile_kind?: string
           profile_code?: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number

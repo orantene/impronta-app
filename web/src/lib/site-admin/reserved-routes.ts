@@ -93,6 +93,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "directory",
   "models",
   "posts",
+  // Appointments booking page. Seeded as system-owned in PR-6; reserved so a
+  // tenant cannot author a colliding CMS page that would never open.
+  "book",
   // The legacy CMS namespace itself. Still serves (it 301s to the clean form),
   // so a page slugged "p" would fight its own redirect.
   "p",

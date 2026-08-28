@@ -80,6 +80,9 @@
     },
     "src/app/api/cron/refresh-social-feeds/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/expire-calendar-holds/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [
@@ -142,6 +145,10 @@
     {
       "path": "/api/cron/expire-free-reserves",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/expire-calendar-holds",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/refresh-demand-scores",

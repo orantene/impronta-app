@@ -34,7 +34,8 @@ export type ClaimReason =
   | "email_mismatch"
   | "profile_unavailable"
   | "profile_already_claimed"
-  | "claimer_has_profile";
+  | "claimer_has_profile"
+  | "resource_profile";
 
 export type ClaimVerdict = {
   ok: boolean;
@@ -137,6 +138,7 @@ export function presentClaimOutcome(verdict: ClaimVerdict): ClaimPresentation {
 
     case "invite_not_found":
     case "profile_unavailable":
+    case "resource_profile":
       return {
         success: false,
         titleKey: `${C}.notFoundTitle`,

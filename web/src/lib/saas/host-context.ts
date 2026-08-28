@@ -312,6 +312,7 @@ export async function isProfileCodeOnTenantRoster(
       .from("talent_profiles")
       .select("id, agency_talent_roster!inner(tenant_id, status, agency_visibility, talent_site_hidden)")
       .eq("profile_code", profileCode)
+      .neq("profile_kind", "resource")
       .eq("agency_talent_roster.tenant_id", tenantId)
       .eq("agency_talent_roster.status", "active")
       .in("agency_talent_roster.agency_visibility", ["site_visible", "featured"])

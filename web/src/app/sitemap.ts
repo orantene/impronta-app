@@ -429,6 +429,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("created_by_agency_id", publicScope.tenantId)
     .in("workflow_status", ["approved", "published"])
     .eq("visibility", "public")
+    .neq("profile_kind", "resource")
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(5000); // Sitemap spec allows 50k; 5k is plenty for a single agency.

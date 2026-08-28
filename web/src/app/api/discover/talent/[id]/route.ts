@@ -71,7 +71,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       `
       id, display_name, first_name, last_name, profile_code,
       home_country_text, home_city_text,
-      workflow_status, is_discoverable,
+      workflow_status, is_discoverable, profile_kind,
       short_bio, bio_i18n,
       talent_profile_taxonomy (
         relationship_type,
@@ -106,6 +106,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     home_city_text: string | null;
     workflow_status: string | null;
     is_discoverable: boolean | null;
+    profile_kind: string | null;
     short_bio: string | null;
     bio_i18n: Record<string, string | null> | null;
     talent_profile_taxonomy: Array<{
@@ -126,7 +127,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // Enforce opt-in: a talent who hasn't toggled is_discoverable on stays
   // hidden even if the client previously knew their id.
   const workflowOk = row.workflow_status === "approved" || row.workflow_status === "published";
-  if (!row.is_discoverable || !workflowOk) {
+  if (!row.is_discoverable || !workflowOk || row.profile_kind === "resource") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
