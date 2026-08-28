@@ -13,7 +13,16 @@ name: Main red alert
 
 on:
   workflow_run:
-    workflows: ["CI — structural quality gate"]
+    # EVERY gate that runs on a main push belongs here. Watching only the
+    # structural gate meant a red perf budget or a broken fidelity golden sat
+    # on main with no alarm at all — which is exactly what happened on
+    # 2026-08-28: two builder merges pushed the renderer stylesheet over budget
+    # and left two type errors, main stayed red unnoticed, and three unrelated
+    # PRs inherited the failure and looked like the culprits.
+    workflows:
+      - "CI — structural quality gate"
+      - "Builder fidelity visual regression"
+      - "CI — admin boot (prod build)"
     types: [completed]
     branches: [main]
 
@@ -47,7 +56,7 @@ jobs:
 
             if (conclusion === "failure") {
               const body = [
-                `CI failed on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
+                `\`${run.name}\` failed on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
                 "",
                 `Run: ${runUrl}`,
                 "",
@@ -62,7 +71,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: existing.number,
-                  body: `Still red: \`${sha}\` — ${runUrl}`,
+                  body: `Still red: \`${run.name}\` at \`${sha}\` — ${runUrl}`,
                 });
               } else {
                 await github.rest.issues.create({
@@ -74,16 +83,61 @@ jobs:
                 });
               }
             } else if (conclusion === "success" && existing) {
-              await github.rest.issues.createComment({
+              // With several gates watched, THIS one being green proves nothing
+              // about the others. Closing on a single success would let a green
+              // fidelity run clear an alarm the type gate raised, which is worse
+              // than no alarm: it reads as "main recovered" when it did not.
+              // So ask about every watched gate at this exact commit, and only
+              // close when they all agree.
+              const WATCHED = [
+                "CI — structural quality gate",
+                "Builder fidelity visual regression",
+                "CI — admin boot (prod build)",
+              ];
+              const { data: shaRuns } = await github.rest.actions.listWorkflowRunsForRepo({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: existing.number,
-                body: `Main is green again at \`${sha}\` — ${runUrl}. Closing.`,
+                head_sha: run.head_sha,
+                per_page: 100,
               });
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existing.number,
-                state: "closed",
+
+              // Newest run wins per workflow — a re-run should count, not the
+              // original failure it replaced.
+              const latest = new Map();
+              for (const r of shaRuns.workflow_runs ?? []) {
+                if (!WATCHED.includes(r.name)) continue;
+                const prev = latest.get(r.name);
+                if (!prev || new Date(r.created_at) > new Date(prev.created_at)) {
+                  latest.set(r.name, r);
+                }
+              }
+
+              const notGreen = WATCHED.filter((name) => {
+                const r = latest.get(name);
+                // A gate that has not reported at this commit is unknown, not
+                // green. Silence is not evidence.
+                return !r || r.conclusion !== "success";
               });
+
+              if (notGreen.length > 0) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `\`${run.name}\` is green at \`${sha}\`, but still waiting on: ${notGreen.map((n) => `\`${n}\``).join(", ")}. Leaving this open.`,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Main is green again at \`${sha}\` — every watched gate passed. ${runUrl}. Closing.`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  state: "closed",
+                });
+              }
             }
