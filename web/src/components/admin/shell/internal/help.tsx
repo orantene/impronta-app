@@ -2295,6 +2295,19 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     relatedDrawers: ["talent-trust-detail", "talent-payouts"],
     ticketCategory: "Billing",
   },
+
+  "support-ticket": {
+    audience: [W_ADMIN, TALENT, CLIENT, HQ],
+    category: "Help",
+    purpose:
+      "Your conversation with Tulala support. Every ticket stays attached to this workspace and this user.",
+    youCanHere: [
+      "Read the full thread, including system updates",
+      "Reply so support can keep helping",
+      "Rate the resolution when the ticket is marked resolved",
+    ],
+    ticketCategory: "General",
+  },
 };
 
 // ─── Public API ──────────────────────────────────────────────────────

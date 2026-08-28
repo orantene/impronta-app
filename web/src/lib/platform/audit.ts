@@ -6,6 +6,8 @@ export type PlatformAuditTargetKind =
   | "workspace"
   | "membership";
 
+export type PlatformSupportMode = "read_only" | "assisted_edit" | "emergency_override";
+
 export interface LogPlatformAdminActionParams {
   actorUserId: string;
   targetKind: PlatformAuditTargetKind;
@@ -14,6 +16,8 @@ export interface LogPlatformAdminActionParams {
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   context?: Record<string, unknown>;
+  /** When set, written onto platform_audit_log.support_mode (HQ support console). */
+  supportMode?: PlatformSupportMode;
 }
 
 /**
@@ -45,6 +49,7 @@ export async function logPlatformAdminAction(
       before_jsonb: params.before ?? null,
       after_jsonb: params.after ?? null,
       context_jsonb: params.context ?? null,
+      support_mode: params.supportMode ?? null,
     });
 
     if (error) {

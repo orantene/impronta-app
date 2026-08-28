@@ -28,6 +28,7 @@ const schema = z
     fabEnabled: z.boolean(),
     tourEnabled: z.boolean(),
     quickBarEnabled: z.boolean(),
+    supportEnabled: z.boolean(),
   })
   .strict();
 

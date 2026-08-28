@@ -48,6 +48,11 @@
  *   data-tulala-stale-pill          — stale-data refresh pill (WS-6.6)
  *   data-tulala-conflict-dialog     — conflict-resolution dialog (WS-6.8)
  *   data-tulala-guided-tour         — GuidedTour spotlight (WS-9.7)
+ *   data-tulala-support-launcher    — Support Center docked launcher tab
+ *   data-tulala-support-panel       — Support Center chat panel
+ *   data-tulala-support-composer    — Support Center message composer
+ *   data-tulala-support-ticket-row  — Support Center ticket list row
+ *   data-tulala-support-hq-queue    — HQ support queue table
  *
  * When adding a new interactive container, add the attribute AND
  * append it to this list. Never silently rename — downstream tests

@@ -42,6 +42,7 @@ import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
+import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace-type";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
@@ -333,6 +334,14 @@ export default async function WorkspaceAdminLayout({
           },
           workspaceUi,
         }}
+        supportSlot={
+          <SupportLauncherShellMount
+            surface="workspace"
+            tenantSlug={tenantSlug}
+            tenantId={tenantId}
+            canSeeWorkspaceTickets
+          />
+        }
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
         {children}

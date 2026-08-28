@@ -42,7 +42,7 @@ test("the resize/spacing gate is no longer desktop-only", () => {
 test("rotate is the ONE handle left desktop-only, and deliberately", () => {
   assert.match(
     SRC,
-    /const canRotateSelectedNode = canResizeSelectedNode && device === "desktop";/,
+    /const canRotateSelectedNode =\s*selectedNodeIsEditableBlock && !!selectedCaps\?\.rotate && device === "desktop";/,
     "rotate's separate gate is what lets the others be device-agnostic",
   );
   assert.ok(

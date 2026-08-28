@@ -14,7 +14,7 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 export type PlatformNotification = {
   id: string;
-  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile";
+  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile" | "ticket";
   title: string;
   body: string | null;
   read: boolean;

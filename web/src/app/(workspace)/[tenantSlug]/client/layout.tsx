@@ -33,6 +33,7 @@ import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { loadClientTrustBillingState } from "../_data-bridge";
 import { ClientAccountMenu } from "./_components/ClientAccountMenu";
 import { ClientNotificationBell } from "./_components/ClientNotificationBell";
+import { SupportLauncherMount } from "@/components/support/SupportLauncherMount";
 import { GlobalSearch } from "./_components/GlobalSearch";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -459,6 +460,11 @@ export default async function ClientLayout({
         toastOptions={{
           className: "!rounded-xl !border-border/50 !shadow-lg",
         }}
+      />
+      <SupportLauncherMount
+        surface="client"
+        tenantSlug={tenantSlug}
+        tenantId={scope.tenantId}
       />
     </>
   );

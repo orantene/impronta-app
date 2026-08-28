@@ -33,6 +33,9 @@
     "src/app/api/cron/retry-failed-emails/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/support-lifecycle/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/booking-reminders/route.ts": {
       "maxDuration": 60
     },
@@ -102,6 +105,10 @@
     {
       "path": "/api/cron/retry-failed-emails",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/support-lifecycle",
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/cron/booking-reminders",

@@ -170,6 +170,7 @@ export type DrawerId =
   | "day-detail"
   | "inbox-snippets"
   | "notifications-prefs"
+  | "support-ticket"
   | "data-export"
   | "audit-log"
   | "tenant-switcher"

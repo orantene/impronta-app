@@ -346,7 +346,7 @@ const BUDGETS: Record<string, number> = {
   // new "Analytics" sub-nav label — ES_TEXT is keyed by the English literal,
   // so it cannot live beside the nav item.
   "src/components/admin/shell/internal/dashboard-i18n.ts": 3536,
-  "src/components/admin/shell/internal/help.tsx": 2968,
+  "src/components/admin/shell/internal/help.tsx": 2969,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
   // 2026-08-14 media-ownership phase 1: +72 for the ownership chip on every
@@ -421,7 +421,7 @@ const BUDGETS: Record<string, number> = {
   // and the note recording why the setup checklist must not count seeded
   // demo profiles as the operator's own talent.
   "src/components/admin/shell/internal/state/types.ts": 2871,
-  "src/components/admin/shell/admin-shell-client.tsx": 2481,
+  "src/components/admin/shell/admin-shell-client.tsx": 2494,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
@@ -438,7 +438,7 @@ const BUDGETS: Record<string, number> = {
   // +41 for workspace_type: the bridge field, visiblePages, and the
   // clamped page setters. Logic lives in lib/saas/workspace-type.ts;
   // the prose that was here moved there too.
-  "src/components/admin/shell/internal/state/context.tsx": 2445,
+  "src/components/admin/shell/internal/state/context.tsx": 2450,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

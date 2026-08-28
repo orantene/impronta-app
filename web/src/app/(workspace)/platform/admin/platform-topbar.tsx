@@ -40,6 +40,7 @@ const TABS = [
   { id: "languages",  labelKey: "dashboard.platform.nav.languages",    segment: "languages"  },
   { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
   { id: "builder-lab", labelKey: "dashboard.platform.nav.builderLab",  segment: "builder-lab" },
+  { id: "support",    labelKey: "dashboard.platform.nav.support",      segment: "support"     },
   { id: "settings",   labelKey: "dashboard.platform.nav.settings",     segment: "settings"   },
   { id: "audit-log", labelKey: "dashboard.platform.nav.auditLog",      segment: "audit-log" },
 ] as const;
@@ -48,7 +49,7 @@ const BASE = "/platform/admin";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PlatformTopbar() {
+export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: number }) {
   const pathname = usePathname();
   const t = useT();
   const locale = useDashboardLocale();
@@ -158,6 +159,25 @@ export function PlatformTopbar() {
                 }}
               >
                 {t(tab.labelKey)}
+                {tab.id === "support" && supportOpenCount > 0 ? (
+                  <span
+                    style={{
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      background: "#C26A45",
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {supportOpenCount > 99 ? "99+" : supportOpenCount}
+                  </span>
+                ) : null}
 
                 {/* Active underline */}
                 <span

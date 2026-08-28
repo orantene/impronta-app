@@ -404,7 +404,7 @@ export type BridgeData = {
    * (BottomActionFab) and the first-run guided tour. `null`/omitted = both
    * hidden (the platform default).
    */
-  workspaceUi?: { fabEnabled: boolean; tourEnabled: boolean } | null;
+  workspaceUi?: { fabEnabled: boolean; tourEnabled: boolean; supportEnabled?: boolean } | null;
 };
 
 export function createBridgeDataFromRoster(

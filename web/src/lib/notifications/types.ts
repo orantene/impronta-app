@@ -108,7 +108,7 @@ export type EmailTemplateArgs = {
 };
 
 export type InAppConfig = {
-  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile";
+  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile" | "ticket";
   surface: "workspace" | "talent" | "client";
   title: (event: NotificationEvent, recipient: ResolvedRecipient) => string;
   body?: (event: NotificationEvent, recipient: ResolvedRecipient) => string | null;

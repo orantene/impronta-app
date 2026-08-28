@@ -517,6 +517,8 @@ type Ctx = {
   workspaceFabEnabled: boolean;
   /** Platform-wide switch for the first-run guided tour. Same source; false = never fires. */
   workspaceTourEnabled: boolean;
+  /** Platform-wide switch for the in-app support launcher. Same source; false = hidden. */
+  workspaceSupportEnabled: boolean;
   /** Current UI locale resolved from the locale cookie. */
   locale: string;
   /** Dot-path translator for the current locale. */
@@ -2041,6 +2043,7 @@ export function AdminShellProvider({
   // gate the floating "+" FAB and the first-run tour. Default hidden.
   const workspaceFabEnabled = initialBridgeData?.workspaceUi?.fabEnabled ?? false;
   const workspaceTourEnabled = initialBridgeData?.workspaceUi?.tourEnabled ?? false;
+  const workspaceSupportEnabled = initialBridgeData?.workspaceUi?.supportEnabled ?? false;
 
   // DB-backed profile-editor sidebar layout (or the client-safe hardcoded
   // fallback when the bridge didn't carry one). Never null, so the drawer can
@@ -2307,6 +2310,7 @@ export function AdminShellProvider({
       tenantDefaultLocale,
       workspaceFabEnabled,
       workspaceTourEnabled,
+      workspaceSupportEnabled,
       locale,
       t: createTranslator(locale),
     }),
@@ -2431,6 +2435,7 @@ export function AdminShellProvider({
       tenantDefaultLocale,
       workspaceFabEnabled,
       workspaceTourEnabled,
+      workspaceSupportEnabled,
       locale,
     ],
   );
