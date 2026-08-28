@@ -37,6 +37,13 @@ export type BuilderNodeKind =
   | "nav"
   | "social_links"
   | "form"
+  // WS7 Phase 0 — NATIVE data blocks. These replace the `section_embed`
+  // round-trip to the frozen curated sections of the same name: they render
+  // from `dataSources` the SERVER caller resolved (tenant-scoped), so the
+  // legacy section registry can be deleted without losing the homepage's two
+  // data-driven blocks. Structural leaves (`children: { type: "none" }`).
+  | "hero_search"
+  | "talent_type_grid"
   | "section_embed";
 
 export interface BuilderNodeBase {
@@ -66,6 +73,20 @@ export interface BuilderNodeBase {
    * the renderer reads `node.experiment` directly. See experiment.ts.
    */
   experiment?: import("./experiment").NodeExperimentConfig;
+  /**
+   * EJECT PROVENANCE — the curated role this node was minted from when its
+   * section was unlocked ("Unlock design"). Ejecting re-mints the derived
+   * children with fresh ROLELESS ids, which is the whole point (they become
+   * ordinary freeform blocks), but it also destroys the only link back to the
+   * curated `headline` / `primaryCta` / … the child used to be. Without that
+   * link, "Restore original styling" on an already-unlocked section has to
+   * GUESS which child is the headline. This stamp removes the guess for every
+   * eject from #1178 onward; historical ejects fall back to the inference
+   * ladder in `section-eject-repair.ts`. Absent → pre-stamp node, or a block
+   * the operator added themselves. SOURCE OF TRUTH = `props.originRole`;
+   * mirrored here by validate's base-field allow-list.
+   */
+  originRole?: import("./role-bindings").BuilderNodeRole;
 }
 
 export interface BuilderNodeStyleValue {
@@ -173,7 +194,21 @@ export interface BuilderNodeStyleValue {
   containerName?: string;
   // Positioning escapes — establish a positioning context and nudge the node
   // with inset offsets (CSS length strings; negatives allowed for overlaps).
-  position?: "relative" | "absolute" | "sticky";
+  //
+  // `fixed` pins the node to the BROWSER VIEWPORT (a floating CTA, a side rail,
+  // a chat button, a full-viewport overlay) — it leaves the flow entirely and
+  // does not scroll. Two caveats the inspector surfaces to the operator, both
+  // real CSS, neither fixable in code:
+  //   1. Any ANCESTOR with transform / filter / backdrop-filter / perspective /
+  //      contain:paint becomes the containing block for a fixed descendant, so
+  //      the node pins to THAT box instead of the viewport. `mobile-health.ts`
+  //      warns and names the trapping block at authoring time (same failure the
+  //      nav off-canvas drawer hit — see the CAVEAT in nav-css.ts).
+  //   2. The editor canvas is honest at 100% zoom, where no transform exists in
+  //      the ancestry; zooming applies `transform: scale()` to the canvas root,
+  //      which re-anchors fixed nodes to the canvas. The Position inspector says
+  //      so next to the control.
+  position?: "relative" | "absolute" | "fixed" | "sticky";
   top?: string;
   right?: string;
   bottom?: string;
@@ -828,11 +863,38 @@ export interface BuilderButtonNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * One art-direction rendition: a DIFFERENT file for a narrower device.
+ *
+ * Not a crop and not a style — `objectFit` / `objectPosition` already re-frame
+ * one file per breakpoint. This is the case those cannot serve: a 21:9 desktop
+ * banner is often the wrong PHOTO at 375px, not merely the wrong crop, and art
+ * direction means swapping the file.
+ */
+export interface BuilderImageDeviceSource {
+  src: string;
+  mediaId?: string;
+}
+
 export interface BuilderImageNode extends BuilderNodeBase {
   kind: "image";
   props: {
     src: string;
     mediaId?: string;
+    /**
+     * Per-device image sources (art direction). Keyed by the render-backed
+     * override tiers — the same `tablet` / `mobile` ids `style.responsive`
+     * uses, at the same width boundaries. Absent (the overwhelming default)
+     * means the node emits exactly the `<img>` it always has.
+     *
+     * There is deliberately no per-tier `alt`: `<picture>` carries ONE
+     * accessible name on its inner `<img>`, and the tiers are renditions of
+     * the same subject. See the "image" case in `render.tsx`.
+     */
+    sources?: {
+      tablet?: BuilderImageDeviceSource;
+      mobile?: BuilderImageDeviceSource;
+    };
     alt?: string;
     /**
      * Above-the-fold hint. When `true` the image is emitted with
@@ -926,6 +988,98 @@ export interface BuilderSocialFeedNode extends BuilderNodeBase {
     loadMore?: "button" | "auto" | "none";
     autoplayVideos?: boolean;
     items: BuilderSocialFeedItem[];
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * WS7 Phase 0 — NATIVE search-first hero.
+ *
+ * Behavioural spec = the frozen `hero_search` curated section: eyebrow /
+ * headline (+ highlight) / subheadline, an optional real GET search form
+ * pointed at the tenant's directory route, manual quick-filter chips, and a
+ * stat line that is either manual items or ONE tenant-derived talent count.
+ *
+ * The derived count is NOT fetched here. The renderer reads
+ * `dataSources.tenantTalentCount`, which the server caller resolves via
+ * `listTalentIdsOnTenantRoster(tenantId)` — the same visible-roster gate the
+ * curated section honoured. No dataSources ⇒ no stat line, and never another
+ * tenant's numbers.
+ */
+export interface BuilderHeroSearchNode extends BuilderNodeBase {
+  kind: "hero_search";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    /** Emphasised phrase appended to the headline. */
+    highlight?: string;
+    subheadline?: string;
+    /** Show the search form. */
+    searchEnabled?: boolean;
+    searchPlaceholder?: string;
+    /** Form action; defaults to the tenant-prefixed `/directory`. */
+    searchActionHref?: string;
+    searchSubmitLabel?: string;
+    primaryCtaLabel?: string;
+    primaryCtaHref?: string;
+    secondaryCtaLabel?: string;
+    secondaryCtaHref?: string;
+    /** Manual quick-filter chips. */
+    chips?: Array<{ label: string; href?: string }>;
+    /** `manual` renders `statItems`; `tenant_talent_count` renders the derived count. */
+    statSource?: "manual" | "tenant_talent_count";
+    statItems?: Array<{ value: string; label: string }>;
+    /** Label paired with the derived count. */
+    statCountLabel?: string;
+    layout?: "centered" | "split" | "minimal" | "editorial";
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * WS7 Phase 0 — NATIVE "Talent, by discipline" taxonomy grid.
+ *
+ * Behavioural spec = the frozen `talent_type_grid` curated section. Two modes:
+ *   - `manual`  : operator-authored cards.
+ *   - `dynamic` : categories derived from THIS tenant's visible roster ∩
+ *                 `talent_profile_taxonomy` ∩ `taxonomy_terms`, resolved by the
+ *                 SERVER caller and handed over on
+ *                 `dataSources.talentDisciplines`. The renderer itself never
+ *                 queries, so it cannot reach another tenant's roster.
+ */
+export interface BuilderTalentTypeGridNode extends BuilderNodeBase {
+  kind: "talent_type_grid";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    subheadline?: string;
+    mode?: "manual" | "dynamic";
+    items?: Array<{
+      label: string;
+      description?: string;
+      imageUrl?: string;
+      imageAlt?: string;
+      imagePosition?: string;
+      taxonomyTermId?: string;
+      href?: string;
+      featured?: boolean;
+    }>;
+    /** dynamic mode — restrict to these taxonomy_term ids (empty = whole roster). */
+    selectedTermIds?: string[];
+    /** dynamic mode — roll child talent types up to their parent_category. */
+    parentCategoryMode?: boolean;
+    maxItems?: number;
+    columns?: number;
+    showCount?: boolean;
+    showImages?: boolean;
+    showDescriptions?: boolean;
+    cardRatio?: "1/1" | "3/4" | "4/3" | "16/9";
+    textPosition?: "overlay-bottom" | "below";
+    seeAllLabel?: string;
+    seeAllHref?: string;
+    emptyStateText?: string;
     layerLabel?: string;
     style?: BuilderNodeStyle;
   };
@@ -1391,6 +1545,8 @@ export type BuilderNode =
   | BuilderEmbedNode
   | BuilderSocialPostNode
   | BuilderSocialFeedNode
+  | BuilderHeroSearchNode
+  | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode
   | BuilderRichTextNode

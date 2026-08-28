@@ -47,7 +47,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       headline: "Tell us about your celebration.",
       copy: "Share a few details and your concierge will return a curated team.",
       reassurance: "Quiet, unhurried, always in the same key.",
-      primaryCta: { label: "Start a request", href: "/contact" },
+      primaryCta: { label: "Start a request", href: "/directory" },
       variant: "centered-overlay",
       imageSide: "right",
       bandTone: "ivory",
@@ -91,7 +91,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         placeholder: "Search talent by role, location or fit…",
         submitLabel: "Search",
       },
-      primaryCta: { label: "Start an Inquiry", href: "/contact" },
+      primaryCta: { label: "Start an Inquiry", href: "/directory" },
       secondaryCta: { label: "Apply as talent", href: "/register" },
       chipsSource: "manual",
       chips: [
@@ -154,7 +154,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       highlight: "destination cities.",
       body: "Premium models, hosts, performers and creators for events, productions and brand experiences in Riviera Maya, Mexico City, Buenos Aires & beyond.",
       primaryCta: { label: "Explore talent", href: "/directory" },
-      secondaryCta: { label: "Start an inquiry", href: "/contact" },
+      secondaryCta: { label: "Start an inquiry", href: "/directory" },
       discoveryForm: {
         enabled: true,
         actionHref: "/directory",
@@ -430,9 +430,9 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       eyebrow: "Investment",
       headline: "Three ways to work with us.",
       plans: [
-        { name: "Essential", price: "$2,400", cadence: "starting at", description: "Half-day coverage.", features: ["Trial session", "4-hour day-of", "Single revision"], ctaLabel: "Inquire", ctaHref: "/contact", highlighted: false },
-        { name: "Signature", price: "$4,800", cadence: "starting at", description: "Full-day coverage with extras.", features: ["Trial session", "8-hour day-of", "Travel included", "Two revision rounds"], ctaLabel: "Inquire", ctaHref: "/contact", highlighted: true, badge: "Most popular" },
-        { name: "Destination", price: "Custom", cadence: "scoped per trip", features: ["Trial + planning call", "Multi-day", "International logistics"], ctaLabel: "Talk to us", ctaHref: "/contact", highlighted: false },
+        { name: "Essential", price: "$2,400", cadence: "starting at", description: "Half-day coverage.", features: ["Trial session", "4-hour day-of", "Single revision"], ctaLabel: "Inquire", ctaHref: "/directory", highlighted: false },
+        { name: "Signature", price: "$4,800", cadence: "starting at", description: "Full-day coverage with extras.", features: ["Trial session", "8-hour day-of", "Travel included", "Two revision rounds"], ctaLabel: "Inquire", ctaHref: "/directory", highlighted: true, badge: "Most popular" },
+        { name: "Destination", price: "Custom", cadence: "scoped per trip", features: ["Trial + planning call", "Multi-day", "International logistics"], ctaLabel: "Talk to us", ctaHref: "/directory", highlighted: false },
       ],
       variant: "cards",
     },
@@ -743,7 +743,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       headline: "Upcoming events.",
       events: [
         { date: "Apr 28", time: "7pm", title: "Open studio", description: "Drinks and demos.", location: "Studio" },
-        { date: "May 12", time: "2pm", title: "Bridal trial day", description: "By appointment.", location: "Studio", rsvpUrl: "/contact" },
+        { date: "May 12", time: "2pm", title: "Bridal trial day", description: "By appointment.", location: "Studio", rsvpUrl: "/directory" },
       ],
       variant: "list",
     },
@@ -788,7 +788,8 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       navItems: [
         { label: "Roster", href: "/talent" },
         { label: "About", href: "/p/about" },
-        { label: "Contact", href: "/p/contact" },
+        // Contact deliberately omitted — see `createNav` in builder-node/create.ts:
+        // no default may ship a link to a page the workspace does not have.
       ],
       primaryCta: undefined,
       sticky: true,
@@ -809,7 +810,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
           links: [
             { label: "Roster", href: "/talent" },
             { label: "About", href: "/p/about" },
-            { label: "Contact", href: "/p/contact" },
+            // Contact deliberately omitted — see the site_header default above.
           ],
         },
       ],

@@ -100,6 +100,13 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import {
+  ChipBtn,
+  ChipRemoveConfirm,
+  ChipTextAction,
+  SectionUnlockChipButton,
+  type SectionRestoreStylingTarget,
+} from "./chip-buttons";
 import { useEditorLocale } from "./use-editor-locale";
 import { useNestedBlocksPanelPreference } from "./use-nested-blocks-preference";
 import { useBuilderTree } from "./builder-tree-bridge";
@@ -138,6 +145,7 @@ import {
 import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
   computeZOrderTarget,
+  resolveZOrderAvailability,
   effectiveZIndex,
   type ZOrderCommand,
   type ZOrderSibling,
@@ -211,6 +219,27 @@ import {
   nudgeStepForRepeatCount,
   resolveNudgeBucket,
 } from "./kit/nudge";
+import {
+  buildResponsiveCanvasStyle,
+  clearResponsiveOverrides,
+  resolveCanvasStyleBucket,
+  type CanvasStylePatch,
+} from "./responsive-canvas-style";
+import { ResponsiveOverrideBadge } from "./responsive-override-badge";
+import { armTouchDragSurface } from "./canvas-touch-drag-surface";
+import { useCanvasBoxModelCommits } from "./use-canvas-box-model-commits";
+import {
+  nodeHasRotationEscape,
+  resolveNodeMoveContext,
+} from "./context-menu-node-capabilities";
+import {
+  SECTION_UNLOCK_EMPTY_HINT,
+  SECTION_UNLOCK_EMPTY_LABEL,
+  resolveSectionUnlockGate,
+  sectionRejectsNestedInsert,
+  unlockSectionBeforeInsert,
+} from "./section-unlock-gate";
+import { commitCanvasPaletteDrop } from "./canvas-palette-drop";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import {
@@ -701,15 +730,6 @@ function findCanvasNodeParentContext(
   return visit(tree, null);
 }
 
-// Section types that may NOT be ejected to freeform: the already-freeform
-// blank_section, and the site-shell sections (header/footer), which render via
-// PublishedShell with no eject gate.
-const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
-  "blank_section",
-  "site_header",
-  "site_footer",
-]);
-
 export function SelectionLayer() {
   const { t } = useEditorLocale();
   const {
@@ -762,6 +782,7 @@ export function SelectionLayer() {
     convertBuilderTextNodeRole,
     ejectSection,
     unejectSection,
+    repairSectionStyling,
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
@@ -1252,12 +1273,17 @@ export function SelectionLayer() {
       if (!nodeInsertTarget) return;
       const target = nodeInsertTarget;
       setNodeInsertTarget(null);
+      const unlocked = await unlockSectionBeforeInsert({
+        node: findBuilderNodeById(builderTree, target.nodeId),
+        ejectSection,
+      });
+      if (!unlocked.ok) return reportMutationError(unlocked.error ?? "");
       const inserted = await insertBuilderNode(target.nodeId, kind, target.index);
       if (!inserted.ok && inserted.error) {
         reportMutationError(inserted.error);
       }
     },
-    [insertBuilderNode, nodeInsertTarget, reportMutationError],
+    [builderTree, ejectSection, insertBuilderNode, nodeInsertTarget, reportMutationError],
   );
 
   const commitNodeInsertSectionEmbed = useCallback(
@@ -1265,6 +1291,11 @@ export function SelectionLayer() {
       if (!nodeInsertTarget) return;
       const target = nodeInsertTarget;
       setNodeInsertTarget(null);
+      const unlocked = await unlockSectionBeforeInsert({
+        node: findBuilderNodeById(builderTree, target.nodeId),
+        ejectSection,
+      });
+      if (!unlocked.ok) return reportMutationError(unlocked.error ?? "");
       const inserted = await insertBuilderSectionEmbed(
         target.nodeId,
         sectionTypeKey,
@@ -1274,7 +1305,7 @@ export function SelectionLayer() {
         reportMutationError(inserted.error);
       }
     },
-    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+    [builderTree, ejectSection, insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
   );
 
   // #20 — between-blocks insert callbacks (root-level, index-targeted).
@@ -1784,6 +1815,7 @@ export function SelectionLayer() {
   // every render. Same shape as `callbacksRef` above.
   const canvasDropDepsRef = useRef({
     builderTree,
+    ejectSection,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -1794,6 +1826,7 @@ export function SelectionLayer() {
   useEffect(() => {
     canvasDropDepsRef.current = {
       builderTree,
+      ejectSection,
       insertBuilderNode,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
@@ -1803,6 +1836,7 @@ export function SelectionLayer() {
     };
   }, [
     builderTree,
+    ejectSection,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -2090,36 +2124,12 @@ export function SelectionLayer() {
       event.preventDefault();
 
       if (state.phase === "palette") {
-        if (state.payload.kind === "gallery_item") {
-          void performAddGalleryInsertById(
-            state.payload.itemId,
-            { parentId: drop.parentNodeId, index: drop.index },
-            deps,
-          ).then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-            else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
-          });
-        } else if (state.payload.kind === "section_embed") {
-          void deps
-            .insertBuilderSectionEmbed(
-              drop.parentNodeId,
-              state.payload.sectionTypeKey,
-              drop.index,
-            )
-            .then((result) => {
-              if (!result.ok && result.error) deps.reportMutationError(result.error);
-            });
-        } else {
-          void deps
-            .insertBuilderNode(
-              drop.parentNodeId,
-              state.payload.elementKind,
-              drop.index,
-            )
-            .then((result) => {
-              if (!result.ok && result.error) deps.reportMutationError(result.error);
-            });
-        }
+        void commitCanvasPaletteDrop({
+          payload: state.payload,
+          parentNodeId: drop.parentNodeId,
+          index: drop.index,
+          deps,
+        });
         return;
       }
 
@@ -2243,32 +2253,12 @@ export function SelectionLayer() {
       clearAddGalleryDrag();
       if (!drop || !drop.allowed) return;
       const deps = canvasDropDepsRef.current;
-      if (payload.kind === "gallery_item") {
-        void performAddGalleryInsertById(
-          payload.itemId,
-          { parentId: drop.parentNodeId, index: drop.index },
-          deps,
-        ).then((result) => {
-          if (!result.ok && result.error) deps.reportMutationError(result.error);
-          else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
-        });
-      } else if (payload.kind === "section_embed") {
-        void deps
-          .insertBuilderSectionEmbed(
-            drop.parentNodeId,
-            payload.sectionTypeKey,
-            drop.index,
-          )
-          .then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-          });
-      } else {
-        void deps
-          .insertBuilderNode(drop.parentNodeId, payload.elementKind, drop.index)
-          .then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-          });
-      }
+      void commitCanvasPaletteDrop({
+        payload,
+        parentNodeId: drop.parentNodeId,
+        index: drop.index,
+        deps,
+      });
     });
   }, [computeCanvasNodeDrop]);
 
@@ -2954,6 +2944,9 @@ export function SelectionLayer() {
   const canvasTopRailOffset = canvasClassBadgeLabel ? 32 : 0;
   const selectedNodeAllowedKinds = useMemo(() => {
     if (!selectedBuilderNode) return [];
+    // A locked section that can never be unlocked would swallow the block on
+    // the next field edit — offer nothing rather than a silent no-op.
+    if (sectionRejectsNestedInsert(selectedBuilderNode)) return [];
     const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
     const raw = policy.type === "allow_list" ? [...policy.kinds] : [];
     return gateNestedInsertKinds(raw, advancedElementLibraryEnabled, canInsertRawHtmlElements);
@@ -3334,177 +3327,68 @@ export function SelectionLayer() {
     selectedNodeIsLocked,
     chipPrimaryLabel,
   ]);
+  // Which responsive bucket a canvas handle's commit lands in: `null` on
+  // desktop (base style), "tablet"/"mobile" on those canvases. Every commit
+  // below routes through it, so a drag taken on the phone canvas changes the
+  // phone value and leaves desktop byte-identical (responsive-canvas-style.ts).
+  const canvasStyleBucket = resolveCanvasStyleBucket(device);
+  // Direct manipulation is NO LONGER desktop-only. It was, and the phone
+  // canvas was consequently look-but-do-not-touch: the operator could see the
+  // block at 375px and had to go back to desktop, or into the Style panel, to
+  // change anything about it. The keyboard nudge already proved the per-device
+  // commit path (see `canNudgeSelectedNode` below); resize, spacing and the
+  // move grip now take the same route.
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
+  // ROTATE stays desktop-only, on ergonomics not plumbing: its hit zone is the
+  // few pixels just OUTSIDE each corner, which on a 375px canvas sits under
+  // the corner resize handles and the canvas frame, and a rotation is almost
+  // never a breakpoint-specific decision anyway. `style.rotate` remains
+  // per-device settable from the Style panel for the rare case that it is.
+  const canRotateSelectedNode = canResizeSelectedNode && device === "desktop";
   // #32 leftover — the keyboard NUDGE is the one direct-manipulation gesture
   // that doesn't need the resize/spacing/rotate/move-grip chrome to be on
-  // screen, so it doesn't need `canResizeSelectedNode`'s desktop-only gate:
-  // unlike those handles it now writes into the ACTIVE device's responsive
+  // screen, so it doesn't need `canResizeSelectedNode`'s locked/multi gate:
+  // unlike those handles it writes into the ACTIVE device's responsive
   // bucket (kit/nudge.ts's resolveNudgeBucket) instead of always the base
   // style, so nudging in tablet/mobile preview moves the block on that
   // breakpoint only. Deliberately device-agnostic — matching the multi-select
   // nudge path below, which already ignored this gate.
   const canNudgeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
+  // TOUCH — hand the selected block's pan gesture back to the canvas so the
+  // pointer-driven move drag survives a finger (canvas-touch-drag-surface.ts
+  // explains why it did not). Coarse pointers only; the mouse path is
+  // untouched. Re-runs on selection change so exactly one block carries it.
+  useEffect(
+    () => armTouchDragSurface(canNudgeSelectedNode ? getSelectedBuilderNodeEl() : null),
+    [canNudgeSelectedNode, getSelectedBuilderNodeEl, selectedBuilderNodeId],
+  );
   // #21 — gap handles apply only to the layout-container kinds that honour the
   // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
-  // the resize gate so locked / multi-select / non-desktop are all excluded.
+  // the resize gate so locked / multi-select nodes are excluded.
   const isSelectedLayoutContainer =
     canResizeSelectedNode &&
     !!selectedBuilderNode &&
     BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
-  const commitSelectedNodeSize = useCallback(
-    (dims: {
-      width?: number | null;
-      height?: number | null;
-      // West/north-handle anchor compensation (keep the opposite edge
-      // planted) rides in the SAME patch as the size — one undo step.
-      translate?: { x: number; y: number };
-    }) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      // Clear any leftover inline preview written during a drag, so a reset
-      // (null) visibly returns the element to content-driven size instead of
-      // being masked by the stale inline style until the next refresh.
-      const liveEl = getSelectedBuilderNodeEl();
-      // number → set px · null → clear back to auto · undefined → leave as-is
-      if (typeof dims.width === "number") {
-        nextStyle.width = `${Math.round(dims.width)}px`;
-      } else if (dims.width === null) {
-        delete nextStyle.width;
-        if (liveEl) liveEl.style.width = "";
-      }
-      if (typeof dims.height === "number") {
-        nextStyle.height = `${Math.round(dims.height)}px`;
-      } else if (dims.height === null) {
-        delete nextStyle.height;
-        if (liveEl) liveEl.style.height = "";
-      }
-      if (dims.translate) {
-        const rx = Math.round(dims.translate.x);
-        const ry = Math.round(dims.translate.y);
-        // 0,0 → drop the escape entirely (mirrors commitSelectedNodeTranslate).
-        if (rx === 0 && ry === 0) {
-          delete nextStyle.translate;
-        } else {
-          nextStyle.translate = `${rx}px ${ry}px`;
-        }
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
-  const commitSelectedNodePadding = useCallback(
-    (side: PaddingSide, px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const key =
-        side === "top"
-          ? "paddingTop"
-          : side === "right"
-            ? "paddingRight"
-            : side === "bottom"
-              ? "paddingBottom"
-              : "paddingLeft";
-      void patchBuilderNodeProps(selectedBuilderNodeId, {
-        style: { ...currentStyle, [key]: `${Math.round(px)}px` },
-      });
-    },
-    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
-  );
-  // #25 — box-model MARGIN drag. Writes the free margin escape (the same
-  // collision-safe `margin*Free` key the Style panel uses), so the canvas drag
-  // and the panel field stay one value. 0 clears the escape back to the token.
-  const commitSelectedNodeMargin = useCallback(
-    (side: MarginSide, px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const key =
-        side === "top"
-          ? "marginTopFree"
-          : side === "right"
-            ? "marginRightFree"
-            : side === "bottom"
-              ? "marginBottomFree"
-              : "marginLeftFree";
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      const liveEl = getSelectedBuilderNodeEl();
-      if (Math.round(px) <= 0) {
-        delete nextStyle[key];
-        if (liveEl) {
-          liveEl.style[
-            side === "top"
-              ? "marginTop"
-              : side === "right"
-                ? "marginRight"
-                : side === "bottom"
-                  ? "marginBottom"
-                  : "marginLeft"
-          ] = "";
-        }
-      } else {
-        nextStyle[key] = `${Math.round(px)}px`;
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
-  // #21 — visual auto-layout GAP drag (flex/grid containers). Writes the single
-  // `gap` free escape (→ `--bn-gap`), identical to the Style panel's Gap field.
-  // 0 clears the escape back to the gap token; the inline preview is cleared so
-  // the reset is visible immediately.
-  const commitSelectedNodeGap = useCallback(
-    (px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      const liveEl = getSelectedBuilderNodeEl();
-      if (Math.round(px) <= 0) {
-        delete nextStyle.gap;
-        if (liveEl) {
-          liveEl.style.gap = "";
-          liveEl.style.columnGap = "";
-          liveEl.style.rowGap = "";
-        }
-      } else {
-        nextStyle.gap = `${Math.round(px)}px`;
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
+  // Resize / padding / margin / gap all commit through one hook so the
+  // base-vs-breakpoint routing cannot drift between them
+  // (use-canvas-box-model-commits.ts).
+  const {
+    commitSize: commitSelectedNodeSize,
+    commitPadding: commitSelectedNodePadding,
+    commitMargin: commitSelectedNodeMargin,
+    commitGap: commitSelectedNodeGap,
+  } = useCanvasBoxModelCommits({
+    findNodeById: useCallback(
+      (nodeId: string) => findBuilderNodeById(builderTree, nodeId),
+      [builderTree],
+    ),
+    selectedBuilderNodeId,
+    bucket: canvasStyleBucket,
+    patchBuilderNodeProps,
+    getSelectedBuilderNodeEl,
+  });
   /**
    * "Reset size & position" — clear every style key a canvas drag handle can
    * write (translate, rotate, width/height + min·max, padding, free margins,
@@ -4426,14 +4310,12 @@ export function SelectionLayer() {
   const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
     contextMenu?.builderNodeId ?? null,
   );
-  // #30 — the freeform-block node this context menu targets + its capabilities.
-  // Lock/Unlock, Wrap-in-container, Convert-to-component, and block Move up/down
-  // are block-only actions; we resolve them here so the menu component stays
-  // presentational. A role-bound (curated-slot) node owns its structure, so it's
-  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts
-  // (not useMemo) — cheap tree walks that only matter while the menu is open;
-  // the React Compiler memoizes them and there's no optional-chained dep for the
-  // manual-memoization rule to trip on (matches contextMenuSectionNode below).
+  // #30 — the freeform-block node this context menu targets + its capabilities
+  // (block-only actions), resolved here so the menu stays presentational. A
+  // role-bound (curated-slot) node owns its structure, so it is
+  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts,
+  // not useMemo: cheap tree walks that only matter while the menu is open, and
+  // no optional-chained dep for the manual-memoization rule to trip on.
   const contextMenuBuilderNodeId = contextMenu?.builderNodeId ?? null;
   const contextMenuNode =
     contextMenuIsChildNode && contextMenuBuilderNodeId
@@ -4443,27 +4325,15 @@ export function SelectionLayer() {
     ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
     : [];
   const contextMenuNodeLocked = contextMenuNode?.locked === true;
-  // ROTATION — "Reset rotation" only renders when the block actually carries
-  // a rotate escape (a reset on an unrotated block would be a no-op row).
-  const contextMenuNodeHasRotation = !!(
-    contextMenuNode &&
-    contextMenuNode.kind !== "section" &&
-    (contextMenuNode.props as { style?: { rotate?: unknown } } | undefined)
-      ?.style?.rotate
-  );
+  const contextMenuNodeHasRotation = nodeHasRotationEscape(contextMenuNode);
   // Z-ORDER — availability computed once per menu open (DOM rect snapshot),
   // so the menu never shows a stacking row that would be a silent no-op.
   const contextMenuZOrder = useMemo(() => {
     if (!contextMenuIsChildNode || !contextMenuBuilderNodeId) return null;
     if (contextMenuNodeLocked) return null;
-    const snapshot = collectZOrderSiblings(contextMenuBuilderNodeId);
-    if (!snapshot) return null;
-    const canForward =
-      computeZOrderTarget({ ...snapshot, command: "forward" }) !== null;
-    const canBackward =
-      computeZOrderTarget({ ...snapshot, command: "backward" }) !== null;
-    if (!canForward && !canBackward) return null;
-    return { canForward, canBackward };
+    return resolveZOrderAvailability(
+      collectZOrderSiblings(contextMenuBuilderNodeId),
+    );
   }, [
     contextMenuIsChildNode,
     contextMenuBuilderNodeId,
@@ -4478,29 +4348,12 @@ export function SelectionLayer() {
     contextMenuNode.kind !== "section" &&
     !contextMenuNodeIsRoleBound &&
     !contextMenuNodeLocked;
-  const contextMenuMoveContext = ((): {
-    canMoveUp: boolean;
-    canMoveDown: boolean;
-  } => {
-    if (!contextMenuNode || contextMenuNodePath.length < 2) {
-      return { canMoveUp: false, canMoveDown: false };
-    }
-    const parentNode = contextMenuNodePath[contextMenuNodePath.length - 2];
-    if (!parentNode || !("children" in parentNode) || !Array.isArray(parentNode.children)) {
-      return { canMoveUp: false, canMoveDown: false };
-    }
-    const index = parentNode.children.findIndex(
-      (child) => child.id === contextMenuNode.id,
-    );
-    if (index < 0) return { canMoveUp: false, canMoveDown: false };
-    return {
-      canMoveUp: index > 0,
-      canMoveDown: index < parentNode.children.length - 1,
-    };
-  })();
-  // "2018 bye-bye" — the section node for this context menu (when on a section),
-  // for the eject/restore affordance. Eject-able = a curated section (not the
-  // already-freeform blank_section), not already ejected.
+  const contextMenuMoveContext = resolveNodeMoveContext(
+    contextMenuNode,
+    contextMenuNodePath,
+  );
+  // "2018 bye-bye" — the section node this context menu targets, for the
+  // unlock/relock affordance (`section-unlock-gate.ts` owns the rules).
   const contextMenuSectionNode =
     !contextMenuIsChildNode && contextMenu?.builderNodeId
       ? builderTree.find(
@@ -4510,14 +4363,12 @@ export function SelectionLayer() {
   const contextMenuSectionEjected =
     contextMenuSectionNode?.kind === "section" &&
     contextMenuSectionNode.props.ejected === true;
-  const contextMenuSectionEjectable =
-    contextMenuSectionNode?.kind === "section" &&
-    // Not the already-freeform blank_section, and NOT the site-shell sections
-    // (header/footer) — those render via PublishedShell, which has no eject
-    // gate, so ejecting them would double-render (curated shell + roleless).
-    !NON_EJECTABLE_SECTION_TYPE_KEYS.has(
-      contextMenuSectionNode.props.sectionTypeKey,
-    );
+  // "no-layers" = nothing would be derived, so the row shows DISABLED with an
+  // honest reason rather than pretending the unlock is available.
+  const contextMenuSectionUnlockGate =
+    contextMenuSectionNode?.kind === "section"
+      ? resolveSectionUnlockGate(contextMenuSectionNode.props.sectionTypeKey)
+      : "not-offered";
 
   if (!portalEl) return null;
 
@@ -4536,6 +4387,18 @@ export function SelectionLayer() {
     }
   }
   const isHidden = selectedVisibility === "hidden";
+  // "Unlock design" on the chip — same gate the context menu uses, resolved
+  // for the SELECTED section instead of the right-clicked one.
+  const pickedSection = selectedSectionNodeId
+    ? builderTree.find((n) => n.kind === "section" && n.id === selectedSectionNodeId)
+    : undefined;
+  const pickedSectionUnlockGate =
+    pickedSection?.kind === "section"
+      ? resolveSectionUnlockGate(pickedSection.props.sectionTypeKey)
+      : "not-offered";
+  const unlockableSectionId =
+    pickedSectionUnlockGate === "not-offered" ? null : pickedSection?.id ?? null;
+  const sectionUnlocked = pickedSection?.kind === "section" && pickedSection.props.ejected;
 
   // Sprint 3.x — when device != desktop the parent body's storefront
   // content is hidden (DeviceFrameSurface CSS) and the canvas is the
@@ -5124,7 +4987,7 @@ export function SelectionLayer() {
 
           {/* Direct manipulation — drag just outside a corner to ROTATE
               (Figma corner-zone pattern; writes the style.rotate escape). */}
-	          {canResizeSelectedNode && !dragChromeSuppressed ? (
+	          {canRotateSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasRotateHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
@@ -5138,7 +5001,9 @@ export function SelectionLayer() {
 	            <CanvasMoveHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
-	              onCommitTranslate={commitSelectedNodeTranslate}
+	              onCommitTranslate={(x, y) =>
+	                commitSelectedNodeTranslate(x, y, canvasStyleBucket)
+	              }
 	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}
@@ -5433,7 +5298,8 @@ export function SelectionLayer() {
               );
               closeContextMenu();
             }}
-            canEject={contextMenuSectionEjectable}
+            canEject={contextMenuSectionUnlockGate !== "not-offered"}
+            ejectBlocked={contextMenuSectionUnlockGate === "no-layers"}
             isEjected={contextMenuSectionEjected}
             onEject={() => {
               const id = contextMenu?.builderNodeId;
@@ -5998,6 +5864,33 @@ export function SelectionLayer() {
                 </span>
               ) : null}
 
+              {/* Per-device override badge. Renders only on the tablet/phone
+                  canvas, beside the block name: it says where the next drag
+                  lands, counts what has already parted from desktop, and
+                  resets those back to inheriting. Without it, per-device
+                  values are invisible state. */}
+              {selectedNodeIsEditableBlock && selectedBuilderNode ? (
+                <ResponsiveOverrideBadge
+                  style={
+                    selectedBuilderNode.props.style as
+                      | Record<string, unknown>
+                      | undefined
+                  }
+                  bucket={canvasStyleBucket}
+                  onReset={() => {
+                    if (!selectedBuilderNodeId) return;
+                    void patchBuilderNodeProps(selectedBuilderNodeId, {
+                      style: clearResponsiveOverrides({
+                        style: selectedBuilderNode.props.style as
+                          | Record<string, unknown>
+                          | undefined,
+                        bucket: canvasStyleBucket,
+                      }),
+                    });
+                  }}
+                />
+              ) : null}
+
               {/* Divider + type label — only when the type adds information.
                *  For most sections the auto-derived name equals the humanized
                *  type (e.g. "Featured Talent"), which made the chip read the
@@ -6176,6 +6069,32 @@ export function SelectionLayer() {
                     }
                   });
                 }}
+                unlockScopeKey={selectedSectionNodeId ?? undefined}
+                unlockBlockedReason={
+                  pickedSectionUnlockGate === "no-layers" && !sectionUnlocked
+                    ? SECTION_UNLOCK_EMPTY_HINT
+                    : null
+                }
+                onUnlockDesign={
+                  unlockableSectionId && !sectionUnlocked
+                    ? () => void ejectSection(unlockableSectionId)
+                    : null
+                }
+                onRelockDesign={
+                  unlockableSectionId && sectionUnlocked
+                    ? () => void unejectSection(unlockableSectionId)
+                    : null
+                }
+                restoreStyling={
+                  unlockableSectionId &&
+                  sectionUnlocked &&
+                  pickedSection?.kind === "section"
+                    ? {
+                        sectionTypeKey: pickedSection.props.sectionTypeKey,
+                        run: () => repairSectionStyling(unlockableSectionId),
+                      }
+                    : null
+                }
                 onRemoveTrigger={() => setConfirmRemove(true)}
                 onRemoveConfirm={() => {
                   const ids = getAllSelectedIds();
@@ -6735,6 +6654,7 @@ function SelectionContextMenu({
   canEject = false,
   isEjected = false,
   onEject,
+  ejectBlocked,
   onUneject,
   pastePreview,
   onCopyNode,
@@ -6772,6 +6692,7 @@ function SelectionContextMenu({
   canEject?: boolean;
   isEjected?: boolean;
   onEject?: () => void;
+  ejectBlocked?: boolean;
   onUneject?: () => void;
   pastePreview: BuilderNodePastePreview | null;
   onCopyNode: () => void;
@@ -7020,12 +6941,14 @@ function SelectionContextMenu({
           </ContextMenuButton>
           {canEject ? (
             <ContextMenuButton
-              disabled={saving}
+              disabled={saving || (ejectBlocked && !isEjected)}
               onClick={() => (isEjected ? onUneject?.() : onEject?.())}
             >
               {isEjected
-                ? t("Restore curated section")
-                : t("Make editable (eject to blocks)")}
+                ? t("Relock design")
+                : ejectBlocked
+                  ? t(SECTION_UNLOCK_EMPTY_LABEL)
+                  : t("Unlock design")}
             </ContextMenuButton>
           ) : null}
           <ContextMenuSeparator />
@@ -7165,95 +7088,6 @@ function CanvasNodeInsertMenu({
  * ChipToolBar — the icon-button cluster on the right side of the selection chip.
  * 34×34px per button, matching `.chip-tool` from the mockup.
  */
-function ChipTextAction({
-  label,
-  disabled,
-  onClick,
-  active = false,
-  light = false,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  active?: boolean;
-  light?: boolean;
-}) {
-  // `label` stays the English key (icon selection below compares against it);
-  // only the rendered text goes through t().
-  const { t } = useEditorLocale();
-  const lightActive = light && active;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex h-full cursor-pointer items-center gap-[5px] border-none px-[10px] text-[11px] font-semibold tracking-[-0.01em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      style={{
-        background: lightActive
-          ? "rgba(124, 58, 237, 0.10)"
-          : "transparent",
-        color: lightActive
-          ? CHROME.accent
-          : light
-            ? CHROME.ink
-            : "rgba(255,255,255,0.88)",
-        borderLeft: light
-          ? `1px solid ${CHROME.line}`
-          : "1px solid rgba(255,255,255,0.10)",
-        boxShadow: lightActive
-          ? `inset 0 0 0 1px ${CHROME.accent}`
-          : undefined,
-        borderRadius: lightActive ? 6 : undefined,
-        margin: lightActive ? "4px 2px" : undefined,
-      }}
-      onMouseEnter={(e) => {
-        if (disabled || lightActive) return;
-        e.currentTarget.style.background = light
-          ? CHROME.paper2
-          : "rgba(255,255,255,0.08)";
-      }}
-      onMouseLeave={(e) => {
-        if (lightActive) return;
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {light && label === "Edit Content" ? (
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-      ) : null}
-      {light && label === "Design" ? (
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m12 19 7-7-7-7-7 7 7 7Z" />
-          <path d="M18.5 5.5 12 12" />
-        </svg>
-      ) : null}
-      {t(label)}
-    </button>
-  );
-}
-
 function ChipToolBar({
   confirmRemove,
   isHidden,
@@ -7267,6 +7101,11 @@ function ChipToolBar({
   onMoveDown,
   onToggleHide,
   onDuplicate,
+  unlockScopeKey,
+  onUnlockDesign,
+  onRelockDesign,
+  restoreStyling,
+  unlockBlockedReason,
   onRemoveTrigger,
   onRemoveConfirm,
   onRemoveCancel,
@@ -7292,6 +7131,15 @@ function ChipToolBar({
   onMoveDown: () => void;
   onToggleHide: () => void;
   onDuplicate: () => void;
+  /** Selection identity — resets a half-open relock confirm on a new pick. */
+  unlockScopeKey?: string;
+  /** Curated <-> blocks. Each is null unless the section is in that state. */
+  onUnlockDesign?: (() => void) | null;
+  onRelockDesign?: (() => void) | null;
+  /** Non-destructive repair for an already-unlocked section (chip-buttons.tsx). */
+  restoreStyling?: SectionRestoreStylingTarget | null;
+  /** Non-null when unlocking is offered but impossible. */
+  unlockBlockedReason?: string | null;
   onRemoveTrigger: () => void;
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
@@ -7300,52 +7148,14 @@ function ChipToolBar({
   // Perf spine — SECTION chip actions = awaited dispatch lane; gate stays.
   const disabled = useSaving();
   if (confirmRemove) {
-    const totalToRemove = multiCount + 1;
-    const removeLabel =
-      totalToRemove > 1
-        ? t("Remove {count}?").replace("{count}", String(totalToRemove))
-        : t("Remove?");
     return (
-      <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onRemoveConfirm}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            background: "rgba(196,61,61,0.90)",
-            color: "white",
-            border: "none",
-            borderLeft: `1px solid ${CHROME.line}`,
-            cursor: "pointer",
-          }}
-        >
-          {removeLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onRemoveCancel}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 12px",
-            fontSize: 11,
-            fontWeight: 500,
-            background: "transparent",
-            color: CHROME.muted,
-            border: "none",
-            borderLeft: `1px solid ${CHROME.line}`,
-            cursor: "pointer",
-          }}
-        >
-          {t("Cancel")}
-        </button>
-      </div>
+      <ChipRemoveConfirm
+        count={multiCount + 1}
+        disabled={disabled}
+        light={light}
+        onConfirm={onRemoveConfirm}
+        onCancel={onRemoveCancel}
+      />
     );
   }
 
@@ -7386,7 +7196,8 @@ function ChipToolBar({
           one selection level without it. */}
       {onReviseWithAi ? (
         <ChipBtn
-          style={{ ...btnStyle, color: CHROME.accent }}
+          light={light}
+          style={{ ...btnStyle, color: light ? CHROME.accent : "#c4b5fd" }}
           disabled={disabled}
           onClick={onReviseWithAi}
           aria-label={t("Revise this section with AI")}
@@ -7396,7 +7207,23 @@ function ChipToolBar({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
         </ChipBtn>
       ) : null}
+      {/* The ONE visible door between a curated section and blocks: it used to
+          hide in the right-click menu. Relock takes an inline confirm. */}
+      {onUnlockDesign || onRelockDesign || unlockBlockedReason ? (
+        <SectionUnlockChipButton
+          key={unlockScopeKey}
+          light={light}
+          disabled={disabled}
+          blockedReason={unlockBlockedReason ?? null}
+          btnStyle={btnStyle}
+          isUnlocked={Boolean(onRelockDesign)}
+          restoreStyling={restoreStyling ?? null}
+          onUnlock={() => onUnlockDesign?.()}
+          onRelock={() => onRelockDesign?.()}
+        />
+      ) : null}
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveUp}
@@ -7406,6 +7233,7 @@ function ChipToolBar({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveDown}
@@ -7415,6 +7243,7 @@ function ChipToolBar({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
@@ -7424,6 +7253,7 @@ function ChipToolBar({
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onToggleHide}
@@ -7443,6 +7273,7 @@ function ChipToolBar({
         )}
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
@@ -7896,48 +7727,5 @@ function BlockChipOverflowMenu({
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Thin wrapper so we can add hover-state CSS for the chip tool buttons. */
-function ChipBtn({
-  children,
-  style,
-  disabled,
-  onClick,
-  danger,
-  light = false,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  danger?: boolean;
-  /** Light floating toolbar — inverts the idle/hover ink for a white surface. */
-  light?: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  // NOTE: these win over anything in `style` (spread first), so a light chip
-  // MUST pass `light` — a colour on `style` alone gets overwritten and the
-  // icon renders white-on-white.
-  const idleColor = light ? CHROME.muted : "rgba(255,255,255,0.72)";
-  const hoverColor = light ? CHROME.ink : "white";
-  const dangerColor = light ? "#b91c1c" : "#ff8b8b";
-  const hoverBg = light ? "rgba(24,24,27,0.05)" : "rgba(255,255,255,0.10)";
-  const dangerBg = light ? "rgba(196,61,61,0.10)" : "rgba(196,61,61,0.20)";
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      style={{
-        ...style,
-        background: hovered ? (danger ? dangerBg : hoverBg) : "transparent",
-        color: hovered ? (danger ? dangerColor : hoverColor) : idleColor,
-        opacity: disabled ? 0.4 : 1,
-      }}
-      {...rest}
-    >
-      {children}
-    </button>
   );
 }

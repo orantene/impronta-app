@@ -30,6 +30,7 @@ import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-cont
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 
@@ -223,4 +224,76 @@ export async function ensureDirectoryPage(args: {
     sectionId: secRes.data.id,
     action: "created",
   };
+}
+
+// ─── DEFAULT PAGES CONTRACT — the directory is CAPABILITY-keyed ─────────────
+//
+// This page used to be gated on `plan_tier !== "free"`, which asked the wrong
+// question. Whether a workspace needs a directory is not about what it PAYS,
+// it is about what it IS and what it HAS: a talent-type workspace with people
+// on its roster needs a page that lists them, and a business-type workspace
+// (the Website tier — a restaurant, a clinic) never does, at any price. Keying
+// on the plan produced both errors at once: a Free agency with a roster got no
+// directory, and a paying business workspace got a talent directory it will
+// never use.
+//
+// The capability key is therefore `workspace_type` + roster activity. Because
+// the directory page is quota-exempt (`builder-capabilities.ts`), granting it
+// to a Free agency costs that workspace nothing.
+
+/**
+ * Does this workspace's shape call for a directory page?
+ *
+ * Pure so the rule can be asserted without a database. `rosterEnabled` fails
+ * open toward "talent" for an unknown `workspace_type` (see
+ * `lib/saas/workspace-type.ts`), which is the right direction here too: an
+ * unrecognised type keeps the roster surfaces it already had.
+ */
+export function directoryPageCapabilityEnabled(args: {
+  workspaceType: unknown;
+  activeRosterCount: number;
+}): boolean {
+  if (!rosterEnabled(normalizeWorkspaceType(args.workspaceType))) return false;
+  return args.activeRosterCount > 0;
+}
+
+/**
+ * Ensure the directory page exists IF the roster is active for this workspace.
+ *
+ * Idempotent and non-fatal by design, so it can be called from every point
+ * where the roster "becomes active" — the signup seed, and the admin
+ * create-talent path — without any caller having to know whether it already
+ * ran. A workspace that never adds talent never gets the page; the one that
+ * adds its first talent gets it on that write.
+ */
+export async function ensureDirectoryPageIfRosterActive(args: {
+  admin: Admin;
+  tenantId: string;
+  actorProfileId: string;
+}): Promise<EnsureDirectoryResult | { ok: true; skipped: true }> {
+  const { admin, tenantId } = args;
+
+  const [{ data: agency }, rosterRes] = await Promise.all([
+    admin
+      .from("agencies")
+      .select("workspace_type")
+      .eq("id", tenantId)
+      .maybeSingle<{ workspace_type: string | null }>(),
+    admin
+      .from("agency_talent_roster")
+      .select("id", { head: true, count: "exact" })
+      .eq("tenant_id", tenantId)
+      .eq("status", "active"),
+  ]);
+
+  if (
+    !directoryPageCapabilityEnabled({
+      workspaceType: agency?.workspace_type ?? null,
+      activeRosterCount: rosterRes.count ?? 0,
+    })
+  ) {
+    return { ok: true, skipped: true };
+  }
+
+  return ensureDirectoryPage(args);
 }

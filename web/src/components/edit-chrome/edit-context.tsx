@@ -84,10 +84,7 @@ import {
   wrapNodeAsInstanceRoot,
   canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
-import {
-  ejectSectionInTree,
-  unejectSectionInTree,
-} from "@/lib/site-admin/builder-node/section-eject";
+import { useSectionLockActions } from "./use-section-lock-actions";
 import {
   applyBuilderNodeOperation,
   convertBuilderTextNodeRole as convertBuilderTextNodeRoleInTree,
@@ -253,6 +250,7 @@ import {
 } from "./edit-context-internal";
 import { useEditorChrome } from "./use-editor-chrome";
 import { useEditorToasts } from "./use-editor-toasts";
+import { useLayoutFlattenWarning } from "./use-layout-flatten-warning";
 import { useStarterSyncBridge } from "./use-starter-sync";
 import { useUndoPersistence } from "./use-undo-persistence";
 import { useWorkspacePanels } from "./use-workspace-panels";
@@ -1226,6 +1224,8 @@ export function EditProvider({
   } = useEditorToasts({
     onDismissMutationError: dropConflictRecoveryOnErrorDismiss,
   });
+  const { layoutFlattenToast, clearLayoutFlattenToast, warnIfSaveWillFlatten } =
+    useLayoutFlattenWarning(); // DEPTH-CAP HONESTY (see the module)
   // Perf spine (save-cycle bridge) — `lastDraftSavedAt` is transient toast
   // state (set on save, auto-cleared 4s later), so it flipped the value memo
   // TWICE per save. It is no longer on the context value; readers (topbar
@@ -2971,6 +2971,8 @@ export function EditProvider({
           error: "This page is still loading. Try again in a moment.",
         };
       }
+      // DEPTH-CAP HONESTY — warn BEFORE the write, on the tree we send.
+      warnIfSaveWillFlatten(nextTree);
       const prevTree = rollbackTarget ?? builderTreeRef.current;
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
@@ -3166,6 +3168,7 @@ export function EditProvider({
       nextEditSession,
       // W1-T5(a)/Wave 3 (3.4) — idle-scheduled undo-stack re-stamp on save success.
       scheduleIdleUndoPersistFlush,
+      warnIfSaveWillFlatten,
     ],
   );
 
@@ -4067,43 +4070,14 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
-  // "2018 bye-bye" — eject a curated section to freeform: re-mint its children
-  // roleless + flag it ejected (renderer skips the curated component). Reversible
-  // via unejectSection. Pure transform + shared commit path.
-  const ejectSection = useCallback<EditContextValue["ejectSection"]>(
-    async (sectionNodeId) => {
-      let didEject = false;
-      const result = await executeBuilderNodeOperation({
-        operation: "patch",
-        nodeId: sectionNodeId,
-        run: (tree) => {
-          const out = ejectSectionInTree(tree, sectionNodeId);
-          didEject = out.ejected;
-          return { ok: true, tree: out.tree };
-        },
-      });
-      if (!result.ok) return { ok: false, error: result.error };
-      return { ok: true, ejected: didEject };
-    },
-    [executeBuilderNodeOperation],
-  );
-  const unejectSection = useCallback<EditContextValue["unejectSection"]>(
-    async (sectionNodeId) => {
-      let didUneject = false;
-      const result = await executeBuilderNodeOperation({
-        operation: "patch",
-        nodeId: sectionNodeId,
-        run: (tree) => {
-          const out = unejectSectionInTree(tree, sectionNodeId);
-          didUneject = out.ejected;
-          return { ok: true, tree: out.tree };
-        },
-      });
-      if (!result.ok) return { ok: false, error: result.error };
-      return { ok: true, ejected: didUneject };
-    },
-    [executeBuilderNodeOperation],
-  );
+  // Unlock / Relock / Restore-styling — the three doors between a curated
+  // section and freeform blocks (use-section-lock-actions.ts).
+  const { ejectSection, unejectSection, repairSectionStyling } =
+    useSectionLockActions({
+      builderTreeRef,
+      executeBuilderNodeOperation,
+      queueRouterRefresh,
+    });
   // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
   // instance, keyed by the MASTER child id. Pure transform + shared commit path.
   const setInstanceOverride = useCallback<
@@ -5647,6 +5621,8 @@ export function EditProvider({
       return { ok: false, error: "This page is still loading. Try again in a moment." };
     }
     const snap = currentSnapshot();
+    // DEPTH-CAP HONESTY — the explicit press hits the same server normalizer.
+    warnIfSaveWillFlatten(reconcileBuilderTreeFromSlots(builderTreeRef.current, snap.slots));
     setSaving(true);
     const res = await safeAction(
       () =>
@@ -5709,6 +5685,7 @@ export function EditProvider({
     surfaceAdapter,
     reportMutationError,
     nextEditSession,
+    warnIfSaveWillFlatten,
   ]);
 
   /**
@@ -5882,6 +5859,7 @@ export function EditProvider({
       detachComponentInstance,
       ejectSection,
       unejectSection,
+      repairSectionStyling,
       setInstanceOverride,
       applyInstanceVariant,
       clearInstanceVariant,
@@ -6028,6 +6006,8 @@ export function EditProvider({
       notifyTemplateApplied,
       clipboardActionToast,
       clearClipboardActionToast,
+      layoutFlattenToast,
+      clearLayoutFlattenToast,
 
       mutationError,
       clearMutationError,
@@ -6139,6 +6119,7 @@ export function EditProvider({
       detachComponentInstance,
       ejectSection,
       unejectSection,
+      repairSectionStyling,
       setInstanceOverride,
       applyInstanceVariant,
       clearInstanceVariant,
@@ -6280,6 +6261,8 @@ export function EditProvider({
       notifyTemplateApplied,
       clipboardActionToast,
       clearClipboardActionToast,
+      layoutFlattenToast,
+      clearLayoutFlattenToast,
       mutationError,
       clearMutationError,
       reportMutationError,

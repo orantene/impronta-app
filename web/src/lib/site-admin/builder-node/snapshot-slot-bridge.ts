@@ -1674,183 +1674,102 @@ export function isCompositionOwnedSectionType(sectionTypeKey: string): boolean {
   return COMPOSITION_OWNED_SECTION_TYPE_KEYS.has(sectionTypeKey);
 }
 
+/**
+ * Every section type that derives child layers, mapped to the deriver that
+ * produces them. This table is the SINGLE source of truth: both
+ * `deriveLegacySectionChildNodes` (what actually runs) and
+ * `sectionTypeHasDerivableChildren` (what the UI offers) read it, so the
+ * affordance and the behaviour cannot drift apart. It replaced a ~170-line
+ * `if (slot.sectionTypeKey === ...)` chain whose fall-through `return []`
+ * silently swallowed every unhandled type.
+ *
+ * Section types deliberately ABSENT from this table derive nothing:
+ * `blank_section` (composition-owned, see below), `anchor_nav`, `marquee`,
+ * `join_register`, and the five header-widget embeds (`header_search`,
+ * `header_account`, `header_inquiry`, `header_favorites`, `header_language`)
+ * which wrap a live widget rather than static layers. Unlocking one of those
+ * would report success and leave a BLANK section, so the UI must not offer it.
+ */
+type SectionChildDeriver = (
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+) => BuilderNode[];
+
+const SECTION_CHILD_DERIVERS: Record<string, SectionChildDeriver> = {
+  hero: heroChildNodes,
+  cta_banner: ctaBannerChildNodes,
+  featured_talent: featuredTalentChildNodes,
+  talent_type_grid: talentTypeGridChildNodes,
+  directory: directoryChildNodes,
+  editorial_split_hero: editorialSplitHeroChildNodes,
+  hero_search: heroSearchChildNodes,
+  location_discovery: locationDiscoveryChildNodes,
+  category_grid: categoryGridChildNodes,
+  contact_form: contactFormChildNodes,
+  faq_accordion: faqAccordionChildNodes,
+  pricing_grid: pricingGridChildNodes,
+  logo_cloud: logoCloudChildNodes,
+  team_grid: teamGridChildNodes,
+  event_listing: eventListingChildNodes,
+  content_tabs: contentTabsChildNodes,
+  process_steps: processStepsChildNodes,
+  destinations_mosaic: destinationsMosaicChildNodes,
+  stats: statsChildNodes,
+  timeline: timelineChildNodes,
+  values_trio: valuesTrioChildNodes,
+  comparison_table: comparisonTableChildNodes,
+  hero_split: heroSplitChildNodes,
+  image_copy_alternating: imageCopyAlternatingChildNodes,
+  split_screen: splitScreenChildNodes,
+  before_after: beforeAfterChildNodes,
+  booking_widget: bookingWidgetChildNodes,
+  lookbook: lookbookChildNodes,
+  magazine_layout: magazineLayoutChildNodes,
+  map_overlay: mapOverlayChildNodes,
+  press_strip: pressStripChildNodes,
+  masonry: masonryChildNodes,
+  sticky_scroll: stickyScrollChildNodes,
+  scroll_carousel: scrollCarouselChildNodes,
+  lottie: lottieChildNodes,
+  video_reel: videoReelChildNodes,
+  image_orbit: imageOrbitChildNodes,
+  testimonials_trio: testimonialsTrioChildNodes,
+  gallery_strip: galleryStripChildNodes,
+  trust_strip: trustStripChildNodes,
+  code_embed: codeEmbedChildNodes,
+  blog_index: blogIndexChildNodes,
+  donation_form: donationFormChildNodes,
+  code_snippet: codeSnippetChildNodes,
+  blog_detail: blogDetailChildNodes,
+  site_header: siteHeaderChildNodes,
+  site_footer: siteFooterChildNodes,
+};
+
+/**
+ * Can this section type produce child layers at all?
+ *
+ * "Unlock design" ejects a curated section into freeform blocks by deriving
+ * its child layers. For a type with no deriver that yields an EMPTY section:
+ * the operator's content appears to vanish. Callers use this to disable the
+ * unlock affordance with an honest reason instead of failing silently.
+ *
+ * Derived from `SECTION_CHILD_DERIVERS`, never from a hand-kept parallel list.
+ */
+export function sectionTypeHasDerivableChildren(sectionTypeKey: string): boolean {
+  if (isCompositionOwnedSectionType(sectionTypeKey)) return false;
+  return Object.prototype.hasOwnProperty.call(
+    SECTION_CHILD_DERIVERS,
+    sectionTypeKey,
+  );
+}
+
 export function deriveLegacySectionChildNodes(
   sectionNodeId: string,
   slot: LegacySnapshotSlot,
 ): BuilderNode[] {
-  if (slot.sectionTypeKey === "blank_section") {
-    return [];
-  }
-  if (isCompositionOwnedSectionType(slot.sectionTypeKey)) {
-    return [];
-  }
-  if (slot.sectionTypeKey === "hero") {
-    return heroChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "cta_banner") {
-    return ctaBannerChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "featured_talent") {
-    return featuredTalentChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "talent_type_grid") {
-    return talentTypeGridChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "directory") {
-    return directoryChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "editorial_split_hero") {
-    return editorialSplitHeroChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "hero_search") {
-    return heroSearchChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "location_discovery") {
-    return locationDiscoveryChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "category_grid") {
-    return categoryGridChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "contact_form") {
-    return contactFormChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "faq_accordion") {
-    return faqAccordionChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "pricing_grid") {
-    return pricingGridChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "logo_cloud") {
-    return logoCloudChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "team_grid") {
-    return teamGridChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "event_listing") {
-    return eventListingChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "content_tabs") {
-    return contentTabsChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "process_steps") {
-    return processStepsChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "destinations_mosaic") {
-    return destinationsMosaicChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "stats") {
-    return statsChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "timeline") {
-    return timelineChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "values_trio") {
-    return valuesTrioChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "comparison_table") {
-    return comparisonTableChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "hero_split") {
-    return heroSplitChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "image_copy_alternating") {
-    return imageCopyAlternatingChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "split_screen") {
-    return splitScreenChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "before_after") {
-    return beforeAfterChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "booking_widget") {
-    return bookingWidgetChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "lookbook") {
-    return lookbookChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "magazine_layout") {
-    return magazineLayoutChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "map_overlay") {
-    return mapOverlayChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "press_strip") {
-    return pressStripChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "masonry") {
-    return masonryChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "sticky_scroll") {
-    return stickyScrollChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "scroll_carousel") {
-    return scrollCarouselChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "lottie") {
-    return lottieChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "video_reel") {
-    return videoReelChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "image_orbit") {
-    return imageOrbitChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "testimonials_trio") {
-    return testimonialsTrioChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "gallery_strip") {
-    return galleryStripChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "trust_strip") {
-    return trustStripChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "code_embed") {
-    return codeEmbedChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "blog_index") {
-    return blogIndexChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "donation_form") {
-    return donationFormChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "code_snippet") {
-    return codeSnippetChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "blog_detail") {
-    return blogDetailChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "site_header") {
-    return siteHeaderChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "site_footer") {
-    return siteFooterChildNodes(sectionNodeId, slot.props);
-  }
-  if (slot.sectionTypeKey === "anchor_nav") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "marquee") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "join_register") {
-    return [];
-  }
-  // WS-A A5 — header-widget embeds wrap a live widget and derive no child layers.
-  if (slot.sectionTypeKey === "header_search") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "header_account") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "header_inquiry") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "header_favorites") {
-    return [];
-  }
-  if (slot.sectionTypeKey === "header_language") {
-    return [];
-  }
-  return [];
+  if (!sectionTypeHasDerivableChildren(slot.sectionTypeKey)) return [];
+  const derive = SECTION_CHILD_DERIVERS[slot.sectionTypeKey];
+  return derive ? derive(sectionNodeId, slot.props) : [];
 }
 
 /**

@@ -12,6 +12,7 @@ import {
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
+import { cleanPublicUrlRedirectResponse, resolveCleanUrlRewrite } from "@/lib/cms/clean-url-middleware";
 import {
   rateLimitHtmlResponse,
   rateLimitJsonResponse,
@@ -444,23 +445,13 @@ export async function proxy(request: NextRequest) {
       ? pathBasedTenant.pathnameWithoutTenant
       : canonicalPath;
 
-  // CMS clean-URL rewrite (agency storefronts only): a single-segment path not
-  // in the allow-list is rewritten to /p/{slug}, rendered by the catch-all at
-  // (public)/p/[[...slug]]/page.tsx with the standard storefront shell. Gives
-  // editor-created CMS pages clean root URLs (/contact, /about) with no
-  // per-slug prefix entry. Unpublished slugs 404 from the catch-all, not here.
-  let cmsSlugRewrite: string | null = null;
-  if (
-    effectiveHostContext.kind === "agency" &&
-    !isPathAllowedForHostKind("agency", effectiveCanonicalPath)
-  ) {
-    const slugMatch = effectiveCanonicalPath.match(
-      /^\/([a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)$/,
-    );
-    if (slugMatch) {
-      cmsSlugRewrite = `/p/${slugMatch[1]}`;
-    }
-  }
+  // Clean public URLs: a tenant path the platform does not own is a page slug,
+  // rewritten INTERNALLY to /p/<slug> for the (public)/p/[[...slug]] catch-all.
+  // Serves `/about` on custom domains and tenant subdomains, and
+  // `/w/<tenantSlug>/about` on path hosts (a path tenant resolves to an
+  // `agency` context and effectiveCanonicalPath is already tenant-relative).
+  // Grammar in cms/clean-urls.ts; unpublished slugs 404 from the page.
+  const cmsSlugRewrite = resolveCleanUrlRewrite(effectiveHostContext.kind, effectiveCanonicalPath);
 
   if (
     !cmsSlugRewrite &&
@@ -604,11 +595,20 @@ export async function proxy(request: NextRequest) {
       ? pathBasedTenant.pathnameWithoutTenant
       : originalPathname,
     effectiveHostContext.kind === "agency" ? effectiveHostContext.tenantId : null,
+    effectiveLangSettings.publicLocales,
   );
   if (cmsRedirect) {
     syncLocaleCookieForPath(cmsRedirect, originalPathname, effectiveLangSettings, request);
     return cmsRedirect;
   }
+
+  // Legacy `/p/<slug>` → clean `/<slug>`, permanent. AFTER the tenant redirect
+  // table so an operator keeps precedence. Locale and `/w/<tenantSlug>`
+  // prefixes survive the hop; grammar in cms/clean-urls.ts.
+  const cleanUrlRedirect = cleanPublicUrlRedirectResponse({
+    request, hostKind: effectiveHostContext.kind, pathname: originalPathname, languageSettings: effectiveLangSettings,
+  });
+  if (cleanUrlRedirect) return cleanUrlRedirect;
 
   // QA 2026-05-13 — locale resolution must use the ORIGINAL pathname, not
   // the canonicalized one. `effectiveCanonicalPath` has had the locale prefix
@@ -695,10 +695,8 @@ export async function proxy(request: NextRequest) {
     marketingDirectoryRewrite = true;
   }
 
-  // Apply CMS clean-URL rewrite — map the slug portion to /p/{slug}
-  // so Next.js routes to the CMS page catch-all. ORIGINAL_PATHNAME_HEADER
-  // (set above) still contains the browser-facing URL, so EditChromeMount
-  // extracts the correct page slug from the clean URL.
+  // Apply the clean-URL rewrite resolved above. ORIGINAL_PATHNAME_HEADER still
+  // carries the browser-facing URL, so EditChromeMount reads the right slug.
   if (cmsSlugRewrite) {
     nextUrl.pathname = cmsSlugRewrite;
     pathnameForAuth = cmsSlugRewrite;

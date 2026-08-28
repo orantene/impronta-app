@@ -11,9 +11,11 @@
 
 import type { SectionVisibility } from "@/lib/site-admin/edit-mode/section-actions";
 import type { RevisionsLoadResult } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type { RepairSectionStylingResult } from "@/lib/site-admin/builder-node/section-eject-repair";
 import type { PanelOffset } from "./workspace-layout";
 import type {
   BuilderClipboardActionToast,
+  BuilderLayoutFlattenToast,
   EditMutationError,
   LibraryTarget,
   NavigatorRecentAddition,
@@ -493,6 +495,17 @@ export interface EditContextChromeAndSessionValue {
   clipboardActionToast: BuilderClipboardActionToast | null;
   clearClipboardActionToast: () => void;
 
+  // ── DEPTH-CAP HONESTY — the save restructured the operator's blocks ──
+  /**
+   * Truthy while the "we had to flatten these blocks" toast is on screen.
+   * Raised BEFORE the write, from the same depth pass the server normalizer
+   * runs, naming the affected blocks. Sticky: it never auto-dismisses, because
+   * the operator's structure changed and a five-second blink is how that
+   * becomes indistinguishable from the editor corrupting the page.
+   */
+  layoutFlattenToast: BuilderLayoutFlattenToast | null;
+  clearLayoutFlattenToast: () => void;
+
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
   mutationError: EditMutationError | null;
@@ -539,4 +552,17 @@ export interface EditContextChromeAndSessionValue {
    * the server can stamp the row (beacon LWW + same-session adoption).
    */
   nextEditSession: () => { id: string; seq: number };
+  /**
+   * Restore the curated styling on a section that is ALREADY unlocked, keeping
+   * its freeform children — the non-destructive twin of `unejectSection`,
+   * which clears them. For every section unlocked before the eject-time
+   * baseline bake existed and therefore still rendering stripped. `outcome`
+   * reports what actually happened so the UI can be honest about a no-op
+   * instead of claiming success; see `section-eject-repair.ts`.
+   *
+   * (Lives in this half purely for max-lines room — see the note at the top.)
+   */
+  repairSectionStyling: (
+    sectionNodeId: string,
+  ) => Promise<RepairSectionStylingResult>;
 }

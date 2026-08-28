@@ -403,6 +403,21 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: "/platform/admin/billing",
+        destination: "/platform/admin/commerce?tab=revenue",
+        permanent: false,
+      },
+      {
+        source: "/platform/admin/billing/commission",
+        destination: "/platform/admin/commerce?tab=commission",
+        permanent: false,
+      },
+      {
+        source: "/platform/admin/billing/discount-codes",
+        destination: "/platform/admin/commerce?tab=discounts",
+        permanent: false,
+      },
+      {
         source: "/talent/inqueries",
         destination: "/talent/inbox",
         permanent: false,

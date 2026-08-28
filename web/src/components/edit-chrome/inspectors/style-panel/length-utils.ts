@@ -12,6 +12,13 @@ import type { LengthValue, LengthUnit } from "../../kit/number-unit";
 
 export function parseCssLength(input?: string): LengthValue | null {
   if (!input) return null;
+  // Unitless zero is a valid CSS length, and it is exactly what the renderer's
+  // NODE_SPACING "none" step stores (`"0"`). Refusing it made every control
+  // that read a stored "0" report the field as UNSET — which is how the
+  // per-side padding/margin steppers shipped dead: the first press wrote "0",
+  // the read-back saw "unset", and every following press recomputed the same
+  // first step forever. See spacing-side-fields.test.ts for the pinned loop.
+  if (/^-?0+(\.0+)?$/.test(input.trim())) return { value: 0, unit: "px" };
   const match = /^(-?\d*\.?\d+)(px|rem|em|%|vw|vh)$/.exec(input.trim());
   if (!match) return null;
   const parsed = Number.parseFloat(match[1]);

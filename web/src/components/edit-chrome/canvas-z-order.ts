@@ -102,3 +102,20 @@ export function computeZOrderTarget(input: ZOrderInput): number | null {
   }
   return target === current ? null : target;
 }
+
+/**
+ * Which stacking commands would actually change something, or `null` when the
+ * block has no overlapping sibling in either direction (so the menu shows no
+ * z-order rows at all rather than two dead ones).
+ */
+export function resolveZOrderAvailability(
+  snapshot: Omit<ZOrderInput, "command"> | null,
+): { canForward: boolean; canBackward: boolean } | null {
+  if (!snapshot) return null;
+  const canForward =
+    computeZOrderTarget({ ...snapshot, command: "forward" }) !== null;
+  const canBackward =
+    computeZOrderTarget({ ...snapshot, command: "backward" }) !== null;
+  if (!canForward && !canBackward) return null;
+  return { canForward, canBackward };
+}

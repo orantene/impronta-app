@@ -69,6 +69,7 @@ import type {
 export const MOBILE_HEALTH_KIND_ORDER = [
   "overflow",
   "trapped_drawer",
+  "trapped_fixed",
   "tap_target",
   "tiny_text",
 ] as const;
@@ -77,7 +78,8 @@ export type MobileHealthCheckKind =
   | "tiny_text"
   | "tap_target"
   | "overflow"
-  | "trapped_drawer";
+  | "trapped_drawer"
+  | "trapped_fixed";
 
 export interface MobileHealthIssue {
   /** Discriminates the check category for grouping in the UI. */
@@ -485,6 +487,13 @@ const FIXED_CONTAINING_BLOCK_PROPS = [
   "backdropFilter",
   "filter",
   "perspective",
+  // The standalone transform escapes count too, and they are the ones an
+  // operator reaches for without thinking ("nudge this card down 8px"). Any of
+  // them on an ancestor re-anchors a `position: fixed` descendant to that
+  // ancestor's box — same trap as the frosted-glass header, different property.
+  "rotate",
+  "scale",
+  "translate",
 ] as const;
 
 /** Does this node trap `position: fixed` descendants on the mobile breakpoint? */
@@ -506,6 +515,29 @@ function trapsFixedDescendants(node: BuilderNode): boolean {
     const effective = override !== undefined ? override : base;
     if (typeof effective === "string" && effective.trim() && effective.trim() !== "none") {
       return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Does the operator ask this node to be `position: fixed` on ANY layer (base,
+ * tablet, mobile, or a container query)? Fixed is the one position value whose
+ * promise — "pinned to the browser window" — an ancestor can silently break, so
+ * the check has to see every layer the operator could have set it on.
+ */
+function requestsFixedPosition(node: BuilderNode): boolean {
+  const style = (node.props as { style?: BuilderNodeStyleValue } | undefined)?.style;
+  if (!style) return false;
+  if (style.position === "fixed") return true;
+  const layers = style as {
+    responsive?: Record<string, BuilderNodeStyleValue | undefined>;
+    containerQueries?: Record<string, BuilderNodeStyleValue | undefined>;
+  };
+  for (const map of [layers.responsive, layers.containerQueries]) {
+    if (!map) continue;
+    for (const layer of Object.values(map)) {
+      if (layer && layer.position === "fixed") return true;
     }
   }
   return false;
@@ -569,6 +601,23 @@ export function runMobileHealthCheck(tree: BuilderNodeTree): ReadonlyArray<Mobil
           kind: "trapped_drawer",
           message:
             "This menu opens off-canvas, but an ancestor block uses a backdrop blur or filter, which pins the panel to that block instead of the screen. Clear the blur on the mobile breakpoint so the menu can cover the full screen.",
+          nodeId: node.id,
+          nodeKind: node.kind,
+          ownerSectionId: nextOwnerSectionId,
+          severity: "warn",
+        });
+      }
+
+      // Check 4b: an operator-authored `position: fixed` block trapped by the
+      // same class of ancestor. Without this the block LOOKS pinned in the
+      // inspector and is silently pinned to the wrong box on the live page —
+      // the exact failure the nav drawer hit (see the CAVEAT in nav-css.ts),
+      // now reachable from the Position control, so it gets the same warning.
+      if (trappingAncestor && requestsFixedPosition(node)) {
+        issues.push({
+          kind: "trapped_fixed",
+          message:
+            "This block is set to Fixed, but an ancestor block uses a blur, filter or transform, which pins it to that block instead of the browser window. Clear that effect on the ancestor, or move this block higher up the page.",
           nodeId: node.id,
           nodeKind: node.kind,
           ownerSectionId: nextOwnerSectionId,

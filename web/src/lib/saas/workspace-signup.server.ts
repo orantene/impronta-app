@@ -44,6 +44,12 @@ type MarketingLeadRow = {
   claimed_by_profile_id: string | null;
   provisioned_tenant_id: string | null;
   notes: string | null;
+  /**
+   * The `?promo=` code the visitor arrived on, validated once at render and
+   * carried here so it survives the register → provision → checkout hop. The
+   * checkout resolver validates it AGAIN — it started life as a URL param.
+   */
+  promo_code: string | null;
 };
 
 // Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
@@ -205,7 +211,7 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const { data, error } = await admin
     .from("saas_marketing_signups")
     .select(
-      "id, email, name, business_name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes",
+      "id, email, name, business_name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes, promo_code",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -378,6 +384,9 @@ async function finalizeProvisionResult(params: {
       displayName: params.agency.display_name,
       tenantSlug: params.agency.slug,
       appBaseUrl: getAppUrl(),
+      // Re-validated inside `resolveCheckoutDiscount`; an account-level
+      // discount still outranks it.
+      promoCode: params.lead.promo_code,
       // Signup runs inside the /onboarding/workspace render, so the request
       // locale is available; without it the first thing a new Spanish-speaking
       // owner sees is an English payment form.

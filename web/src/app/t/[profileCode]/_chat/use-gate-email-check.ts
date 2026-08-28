@@ -10,16 +10,20 @@
 import { useEffect, useState } from "react";
 
 import type { CheckGuestClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { claimEmailNotice } from "./claim-email-notice";
 import { EMAIL_RE } from "./mini-chat-styles";
 
 export function useGateEmailCheck({
   stage,
   email,
   onCheckClaimEmail,
+  t,
 }: {
   stage: "intro" | "gate" | "thread";
   email: string;
   onCheckClaimEmail: CheckGuestClaimEmailCallback | null;
+  t: Translator;
 }): { gateEmailNotice: string | null; gateEmailBlocksSubmit: boolean } {
   const [gateEmailNotice, setGateEmailNotice] = useState<string | null>(null);
   const [gateEmailBlocksSubmit, setGateEmailBlocksSubmit] = useState(false);
@@ -48,7 +52,11 @@ export function useGateEmailCheck({
           setGateEmailBlocksSubmit(false);
           return;
         }
-        setGateEmailNotice(res.message ?? null);
+        // Map the STATUS through the catalogs; res.message is hardcoded
+        // English on the server and stays only as the unknown-status fallback.
+        setGateEmailNotice(
+          claimEmailNotice(t, res.status, { replacePrimary: false }, res.message),
+        );
         setGateEmailBlocksSubmit(Boolean(res.blocksSubmit));
       })();
     }, 350);
@@ -57,7 +65,7 @@ export function useGateEmailCheck({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [email, onCheckClaimEmail, stage]);
+  }, [email, onCheckClaimEmail, stage, t]);
 
   return { gateEmailNotice, gateEmailBlocksSubmit };
 }

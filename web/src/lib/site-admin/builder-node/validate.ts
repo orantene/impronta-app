@@ -3,6 +3,8 @@ import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { normalizeBuilderVisibilityCondition } from "./visibility";
 import { normalizeNodeI18nOverlay } from "./i18n-overlay";
 import { normalizeNodeExperimentConfig } from "./experiment";
+import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
+import { isBuilderNodeRole } from "./role-bindings";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -56,6 +58,15 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   {
     key: "experiment",
     normalize: (value) => normalizeNodeExperimentConfig(value) ?? undefined,
+  },
+  // EJECT PROVENANCE — the curated role an ejected child was minted from.
+  // Written by `ejectSectionInTree`; read by `section-eject-repair.ts` so
+  // "Restore original styling" knows which child is the headline without
+  // guessing. Not a per-kind prop (it is meaningless to the renderer), so it
+  // must be carried here or the very next validate pass would strip it.
+  {
+    key: "originRole",
+    normalize: (value) => (isBuilderNodeRole(value) ? value : undefined),
   },
 ];
 
@@ -138,6 +149,8 @@ export type BuilderNodeValidationResult =
     };
 
 interface ValidateOptions {
+  /** Defaults to `BUILDER_MAX_TREE_DEPTH` — the ONE cap the normalizer, this
+   *  validator and the performance budget share (see tree-depth.ts). */
   maxDepth?: number;
 }
 
@@ -164,7 +177,7 @@ export function validateBuilderNodeTree(
   options: ValidateOptions = {},
 ): BuilderNodeValidationResult {
   const issues: BuilderNodeValidationIssue[] = [];
-  const maxDepth = options.maxDepth ?? 8;
+  const maxDepth = options.maxDepth ?? BUILDER_MAX_TREE_DEPTH;
   const seenIds = new Set<string>();
 
   if (!Array.isArray(input)) {

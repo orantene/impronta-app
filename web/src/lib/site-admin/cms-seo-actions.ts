@@ -30,6 +30,7 @@ import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { pageSlugSchema } from "@/lib/site-admin/forms/pages";
+import { reservedSlugMessage } from "@/lib/site-admin/reserved-routes";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
 import {
@@ -106,7 +107,14 @@ export async function savePageSlugAction(input: {
     // Surface the two DB triggers (reserved-slug + system-ownership) + uniqueness.
     const msg = updErr.message ?? "";
     if (/RESERVED_SLUG|reserved/i.test(msg)) {
-      return { ok: false, error: "That slug is reserved by the platform." };
+      // Name the offending word and hand over one that works. The Zod layer
+      // normally catches this first with the same message; this is the DB
+      // trigger's turn to speak, and a bare "reserved" left operators
+      // retrying variants blind.
+      return {
+        ok: false,
+        error: reservedSlugMessage(slug.replace(/^\/+/, "").split("/")[0] ?? slug),
+      };
     }
     if (/duplicate key|unique/i.test(msg)) {
       return { ok: false, error: "Another page already uses that slug." };

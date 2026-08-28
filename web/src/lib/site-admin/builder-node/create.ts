@@ -133,7 +133,10 @@ export function createNav(style?: BuilderNodeStyle): BuilderNode {
         { id: randomUuid(), label: "Work", href: "/work" },
         { id: randomUuid(), label: "About", href: "/about" },
         { id: randomUuid(), label: "Services", href: "/services" },
-        { id: randomUuid(), label: "Contact", href: "/contact" },
+        // No "Contact" entry. On an agency host `/contact` is a CMS clean-URL
+        // (proxy.ts rewrites unmatched single-segment paths to /p/<slug>), so
+        // it 404s until the operator actually creates a contact page. A default
+        // that ships a dead link is worse than a shorter nav.
       ],
       style,
     },
@@ -201,6 +204,50 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           loadMore: "button",
           autoplayVideos: true,
           items: [],
+        },
+      };
+    // WS7 Phase 0 — NATIVE data blocks. Both seed with real, editable copy and
+    // their LIVE source already selected: a search hero whose bar actually
+    // queries the tenant directory, and a discipline grid in dynamic mode. That
+    // is the whole point of these blocks — an operator who has to configure a
+    // data source before seeing anything has been handed a placeholder.
+    case "hero_search":
+      return {
+        id: makeId("hero_search"),
+        kind: "hero_search",
+        props: {
+          eyebrow: "",
+          headline: "Find the right talent",
+          highlight: "",
+          subheadline: "Search the roster by role, location or fit.",
+          searchEnabled: true,
+          searchPlaceholder: "Search talent by role, location or fit",
+          searchSubmitLabel: "Search",
+          chips: [],
+          statSource: "tenant_talent_count",
+          statCountLabel: "represented talent",
+          layout: "centered",
+        },
+      };
+    case "talent_type_grid":
+      return {
+        id: makeId("talent_type_grid"),
+        kind: "talent_type_grid",
+        props: {
+          eyebrow: "",
+          headline: "Talent, by discipline",
+          subheadline: "",
+          mode: "dynamic",
+          items: [],
+          maxItems: 7,
+          columns: 4,
+          showCount: true,
+          showImages: false,
+          showDescriptions: false,
+          cardRatio: "3/4",
+          textPosition: "below",
+          seeAllLabel: "See all",
+          seeAllHref: "/directory",
         },
       };
     case "social_post":

@@ -198,6 +198,7 @@ export function GuestConversationBody({
 
       {limitNudge && limitNudge.tier !== "account" && (
         <TrustGateNudge
+          t={t}
           tier={limitNudge.tier}
           activeCount={limitNudge.activeCount}
           limit={limitNudge.limit}
@@ -220,6 +221,7 @@ export function GuestConversationBody({
 
       {emailedTo && (
         <ClaimEmailRecap
+          t={t}
           emailedTo={emailedTo}
           inquiryId={inquiryId}
           accent={accent}
@@ -231,6 +233,7 @@ export function GuestConversationBody({
 
       {inquiryId && !sendBarActive && (
         <GuestAccountToolkit
+          t={t}
           inquiryId={inquiryId}
           guestEmail={guestContactEmail}
           identity={

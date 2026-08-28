@@ -17,6 +17,7 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 
 import type {
   TalentPageAdapterActions,
@@ -179,9 +180,13 @@ export async function saveTalentPageAction(
     // C1 — server-trusted lock enforcement on the full-tree save. The inspector
     // strips locked-prop edits, but a crafted client could still POST a tree
     // with a locked prop changed; re-assert every lock against the current row.
-    const enforcedBlocks = enforceLockedPropsOnTree(
-      patch.blocks,
-      (existing as { blocks: unknown } | null)?.blocks,
+    // Draft-save normalization gate (content-preserving; strict validate stays
+    // at publish). Runs at the same C1 chokepoint as the lock re-assert.
+    const enforcedBlocks = normalizeUnknownBuilderTreeLayout(
+      enforceLockedPropsOnTree(
+        patch.blocks,
+        (existing as { blocks: unknown } | null)?.blocks,
+      ),
     );
 
     const updatePayload: Record<string, unknown> = {
@@ -294,9 +299,11 @@ export async function restoreTalentPageRevisionAction(
 
     // C1 — re-assert current locks onto the restored content so restoring an
     // old (pre-lock or tampered) revision can't drop an admin lock.
-    const restoredBlocks = enforceLockedPropsOnTree(
-      rev.blocks,
-      (live as { blocks: unknown } | null)?.blocks,
+    const restoredBlocks = normalizeUnknownBuilderTreeLayout(
+      enforceLockedPropsOnTree(
+        rev.blocks,
+        (live as { blocks: unknown } | null)?.blocks,
+      ),
     );
 
     const now = new Date().toISOString();

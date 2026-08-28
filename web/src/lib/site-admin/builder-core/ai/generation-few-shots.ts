@@ -1,8 +1,9 @@
 /**
  * Few-shot exemplars for the AI page-builder system prompt. Extracted from
  * generate-nodes.ts to keep that file under the 800-line lint cap; these are
- * pure prompt DATA (hero/services/split-hero/testimonial/split/CTA/FAQ/pricing,
- * plus a Spanish exemplar gated on locale). Each entry is a prompt line: an
+ * pure prompt DATA (hero/services/roster-search+disciplines/split-hero/
+ * testimonial/split/CTA/FAQ/pricing, plus a Spanish exemplar gated on locale).
+ * Each entry is a prompt line: an
  * "EXAMPLE (...)" label followed by a JSON.stringify of a sample tree.
  *
  * Every exemplar must obey the prompt RULES (no em/en dashes, talent-agency
@@ -76,6 +77,62 @@ export function buildFewShotExamples(locale?: string): string[] {
                   ],
                 },
               ],
+            },
+          ],
+        },
+      ],
+    }),
+    // WS7 Phase 0 — the roster-backed opening. This is the exemplar that stops
+    // the model describing a roster in prose when it could show the real one:
+    // hero_search supplies the H1 + the live talent count, talent_type_grid
+    // supplies the disciplines, and the only authored text is the copy around
+    // them. Note there is NO heading level:1 anywhere (hero_search renders it)
+    // and NO eyebrow/heading wrapper around either block.
+    "EXAMPLE (an agency homepage opening: a search hero over the real roster, then the agency's own disciplines):",
+    JSON.stringify({
+      sections: [
+        {
+          kind: "section",
+          label: "Search hero",
+          children: [
+            {
+              kind: "hero_search",
+              props: {
+                eyebrow: "Talent representation since 2009",
+                headline: "Find the right face for",
+                highlight: "the brief on your desk",
+                subheadline: "Search the full roster, or tell us the brief and we will shortlist for you.",
+                searchPlaceholder: "Search by discipline, city, or name",
+                searchSubmitLabel: "Search",
+                primaryCtaLabel: "Browse the roster",
+                secondaryCtaLabel: "Start an inquiry",
+                chips: [{ label: "Models" }, { label: "Actors" }, { label: "Dancers" }],
+                statSource: "tenant_talent_count",
+                statCountLabel: "represented talent",
+                layout: "centered",
+                style: { paddingY: "xl", minHeight: "76svh" },
+              },
+            },
+          ],
+        },
+        {
+          kind: "section",
+          label: "Disciplines",
+          children: [
+            {
+              kind: "talent_type_grid",
+              props: {
+                eyebrow: "Who we represent",
+                headline: "Talent, by discipline",
+                subheadline: "Every card opens the roster filtered to that discipline.",
+                mode: "dynamic",
+                maxItems: 8,
+                columns: 4,
+                showCount: true,
+                seeAllLabel: "View the full roster",
+                emptyStateText: "Disciplines appear here as soon as talent on the roster is tagged.",
+                style: { paddingY: "xl" },
+              },
             },
           ],
         },

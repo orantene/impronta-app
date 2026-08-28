@@ -574,6 +574,123 @@ describe("renderBuilderNodes", () => {
     );
   });
 
+  it("re-frames a background per breakpoint without touching desktop", () => {
+    // The sharpest gap against the owner's wording: `backgroundImage` was
+    // breakpoint-plumbed but the paint AXES were not, so a hero could be
+    // swapped for the phone and never re-cropped for it.
+    const html = render([
+      {
+        id: "free:bg-frame",
+        kind: "heading",
+        props: {
+          text: "Hero",
+          level: 2,
+          style: {
+            backgroundImage: "url(/wide.jpg)",
+            backgroundSize: "contain",
+            backgroundPosition: "top left",
+            responsive: {
+              mobile: {
+                backgroundSize: "cover",
+                backgroundPosition: "center bottom",
+                backgroundRepeat: "no-repeat",
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop keeps its own paint, inline, untouched by the phone override.
+    assert.match(html, /background-size:contain/);
+    assert.match(html, /background-position:top left/);
+    // The phone override rides its own gate attrs + vars.
+    assert.match(html, /data-builder-style-mobile-bg-size=""/);
+    assert.match(html, /data-builder-style-mobile-bg-position=""/);
+    assert.match(html, /data-builder-style-mobile-bg-repeat=""/);
+    assert.match(html, /--bn-mobile-bg-size:cover/);
+    assert.match(html, /--bn-mobile-bg-position:center bottom/);
+    // No tablet override was authored, so no tablet gate attr appears.
+    assert.doesNotMatch(html, /data-builder-style-tablet-bg-size=""/);
+    // ...and the rules that consume the vars are in the sheet, one property
+    // each, so a phone size override can never reset the desktop position.
+    assert.match(
+      html,
+      /data-builder-style-mobile-bg-size\]\{background-size:var\(--bn-mobile-bg-size\)!important\}/,
+    );
+    assert.match(
+      html,
+      /data-builder-style-tablet-bg-position\]\{background-position:var\(--bn-tablet-bg-position\)!important\}/,
+    );
+  });
+
+  it("an image with no per-device source emits a bare img, no picture wrapper", () => {
+    // The degrade-safely invariant: every page authored before art direction
+    // existed must render exactly as it did.
+    const html = render([
+      {
+        id: "free:plain-image",
+        kind: "image",
+        props: { src: "/desktop.jpg", alt: "A model on a grey backdrop." },
+      },
+    ]);
+    assert.doesNotMatch(html, /<picture/);
+    assert.match(html, /<img[^>]+src="\/desktop\.jpg"/);
+  });
+
+  it("art-directs an image per device without changing the desktop source", () => {
+    const html = render([
+      {
+        id: "free:art-directed",
+        kind: "image",
+        props: {
+          src: "/desktop.jpg",
+          alt: "A model on a grey backdrop.",
+          sources: {
+            tablet: { src: "/tablet.jpg" },
+            mobile: { src: "/phone.jpg" },
+          },
+        },
+      },
+    ]);
+
+    // A <picture> wraps, but the <img> is still the desktop source and still
+    // carries the node id the editor selects by.
+    assert.match(html, /<picture style="display:contents"/);
+    assert.match(html, /<img[^>]+src="\/desktop\.jpg"/);
+    assert.match(html, /data-builder-node-id="free:art-directed"/);
+    // Phone is listed FIRST so it wins at <=640px, and the boundaries are the
+    // same ones the responsive stylesheet uses for these tiers.
+    const mobileAt = html.indexOf('media="(max-width:640px)"');
+    const tabletAt = html.indexOf('media="(max-width:900px)"');
+    assert.ok(mobileAt > 0 && tabletAt > mobileAt, "phone source must come first");
+    // Each source rides the SAME optimizer srcset the base img uses.
+    assert.match(html, /srcSet|srcset/);
+    assert.match(html, /_next\/image\?url=%2Fphone\.jpg/);
+    // ONE alt, on the img, shared by every rendition.
+    assert.equal(html.match(/alt="A model on a grey backdrop\."/g)?.length, 1);
+  });
+
+  it("drops an unsafe or empty per-device source instead of emitting it", () => {
+    const html = render([
+      {
+        id: "free:bad-source",
+        kind: "image",
+        props: {
+          src: "/desktop.jpg",
+          alt: "Desk",
+          sources: {
+            mobile: { src: "javascript:alert(1)" },
+            tablet: { src: "   " },
+          },
+        },
+      },
+    ]);
+    // Nothing valid survived, so there is no wrapper at all.
+    assert.doesNotMatch(html, /<picture/);
+    assert.doesNotMatch(html, /javascript:alert/);
+  });
+
   it("renders the free border-radius escape over the radius token", () => {
     const html = render([
       {

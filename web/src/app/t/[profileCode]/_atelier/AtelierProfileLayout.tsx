@@ -720,6 +720,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
                   talentProfileId={st.id}
                   profileCode={st.profileCode}
                   displayName={st.displayName}
+                  portraitUrl={st.thumbnailUrl ?? null}
                   sourcePage={profileSourcePage}
                   variant="compact"
                   locale={locale}

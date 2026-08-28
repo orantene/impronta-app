@@ -394,10 +394,20 @@ test("free starter copy is a business homepage, not template documentation", () 
     allText.includes("Vera Atelier"),
     "hero copy must use the workspace display name",
   );
-  // Free tier has no /directory page; every seeded link must resolve.
+  // Every seeded link must resolve on a BRAND-NEW workspace. This assertion
+  // used to be inverted: it banned "/directory" and required "/contact",
+  // reasoning that Free tenants have no directory page. Both halves were
+  // wrong. `/directory` is a real Next route — `(public)/directory/page.tsx`,
+  // allow-listed for agency hosts in `surface-allow-list.ts` — served by the
+  // built-in adapter on every plan whether or not a directory CMS page exists;
+  // the CMS page only overrides it. `/contact` is the opposite: it is NOT in
+  // the agency allow-list, so proxy.ts rewrites it to `/p/contact`, which 404s
+  // until the operator creates a contact page. No contact page is seeded
+  // (owner call), so a seeded /contact CTA was a dead link on every new
+  // storefront.
   assert.ok(
-    !allText.includes("/directory"),
-    "seeded CTA links to a page Free tenants do not have",
+    !allText.includes("/contact"),
+    "seeded CTA links to /contact, which 404s until the operator creates that page",
   );
 });
 
@@ -541,10 +551,10 @@ test("starter copy keeps the house rules for every audience", () => {
       const blob = JSON.stringify(entry.propsOverride ?? {});
       // No em dashes in user-facing copy (owner rule).
       assert.ok(!blob.includes("—"), `em dash in ${audience}/${entry.sectionTypeKey}`);
-      // No dead CTAs: every seeded link points at /contact, which every
-      // tenant has (the Free tier has no /directory page).
+      // No dead CTAs. See the note above: `/directory` always resolves on an
+      // agency host, `/contact` does not until the operator makes that page.
       for (const href of blob.match(/"href":"([^"]*)"/g) ?? []) {
-        assert.ok(href.includes("/contact"), `${audience}/${entry.sectionTypeKey} links off-contract: ${href}`);
+        assert.ok(href.includes("/directory"), `${audience}/${entry.sectionTypeKey} links off-contract: ${href}`);
       }
     }
   }

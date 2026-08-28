@@ -30,6 +30,7 @@ import {
 } from "@/components/integrations/tenant-code-snippets";
 import { TenantTrackingHead } from "@/components/integrations/tenant-tracking";
 import { GoogleFontsLink } from "./google-fonts-link";
+import { TenantFontFaces } from "./tenant-font-faces";
 import {
   bodySans,
   cinzel,
@@ -198,6 +199,11 @@ export default async function RootLayout({
         {!publicScope && <PlatformJsonLd />}
         {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
         <GoogleFontsLink tokens={designTokens} />
+        {/* Custom fonts — tenant-uploaded brand faces (@font-face + preload).
+            Rendering here reaches the storefront, the editor canvas AND the
+            device-preview iframe (it clones this head), so all three surfaces
+            resolve an uploaded family identically. */}
+        <TenantFontFaces themeJson={publicBranding?.theme_json} tokens={designTokens} />
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
         <ScrollReveal />
         {/* W5-T6 — built-in extra breakpoint tiers (wide ≤1280 / compact ≤480).

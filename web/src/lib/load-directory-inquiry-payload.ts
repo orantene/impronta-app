@@ -1,10 +1,12 @@
 import { getGuestSessionKey } from "@/lib/guest-session";
+import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { getPublicSettings } from "@/lib/public-settings";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -41,7 +43,118 @@ export type DirectoryInquiryPayload =
        */
       tenantSlug: string;
       agencyName: string;
+      /**
+       * The event fields this visitor already gave the guest chat, so opening
+       * the drawer does not show them an empty form. See `loadCarriedDraft`.
+       * Undefined when there is no live draft to carry.
+       */
+      carriedIntent?: CarriedDraftIntent;
+      /**
+       * The id of the draft `carriedIntent` came from. The sheet threads it
+       * into `source_context.carried_draft_id`, and a successful submit then
+       * RETIRES that draft (status -> cancelled) so the chat does not resume a
+       * ghost "Not sent yet" duplicate of an inquiry the visitor already sent.
+       */
+      carriedDraftId?: string;
     };
+
+/**
+ * The subset of a draft's intent the drawer may safely pre-fill.
+ *
+ * DELIBERATELY NOT the whole intent: `talent` is already owned by the shared
+ * lineup (bindToInquiryCart), `requester`/`client` are already prefilled from
+ * the account, and `source_context` must describe THIS entry point, not the
+ * one that created the draft. Copying those would fight surfaces that are
+ * already correct.
+ */
+export type CarriedDraftIntent = Pick<
+  InquiryIntent,
+  "location" | "date" | "budget" | "brief"
+>;
+
+/**
+ * Carry the event fields a guest already gave the CHAT into the drawer.
+ *
+ * The two surfaces are one inquiry to the visitor but had two persistence
+ * models: the chat writes field-by-field through `captureGuestChip` into the
+ * draft's `interpreted_query`, while the drawer holds everything in local
+ * React state until submit (guest autosave is deliberately off). So a guest
+ * who told the chat their date, then opened the drawer, was met with an empty
+ * form and had to type it again.
+ *
+ * DECISION (2026-08-27): read-only prefill IS the sync model — write-back is
+ * rejected, not deferred. Live two-way sync would need guest draft autosave
+ * (deliberately off: orphan drafts, abuse surface) plus a conflict rule, and
+ * every rule silently overwrites something the guest typed on the other
+ * surface. Instead the flow is: chat persists as you talk -> drawer opens
+ * pre-filled -> drawer SUBMIT creates the real inquiry and retires the carried
+ * draft (see carriedDraftId), so the two surfaces converge at the only moment
+ * that matters and no ghost "Not sent yet" duplicate survives the send.
+ *
+ * Anon RLS cannot see `inquiries`, so this mirrors the chat's own resolver and
+ * goes through the service-role client after proving the session key. Silent
+ * on every failure: a missing draft must never break the composer opening.
+ */
+async function loadCarriedDraftIntent(
+  guestKey: string | null,
+  tenantSlug: string,
+): Promise<{ intent: CarriedDraftIntent; draftId: string } | undefined> {
+  if (!guestKey || !tenantSlug) return undefined;
+  const admin = createServiceRoleClient();
+  if (!admin) return undefined;
+
+  try {
+    const { data: guestRow } = await admin
+      .from("guest_sessions")
+      .select("id")
+      .eq("session_key", guestKey)
+      .maybeSingle();
+    const guestSessionId = (guestRow as { id?: string } | null)?.id;
+    if (!guestSessionId) return undefined;
+
+    const { data: agency } = await admin
+      .from("agencies")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    const tenantId = (agency as { id?: string } | null)?.id;
+    if (!tenantId) return undefined;
+
+    // Newest un-sent draft for this guest on this tenant. `draft` is the only
+    // status the chat leaves an in-progress inquiry in; anything submitted is
+    // finished and must not bleed into a NEW inquiry the visitor is starting.
+    const { data: row } = await admin
+      .from("inquiries")
+      .select("id, interpreted_query")
+      .eq("guest_session_id", guestSessionId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "draft")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const draftId = (row as { id?: string } | null)?.id;
+    const intent = (row as { interpreted_query?: unknown } | null)
+      ?.interpreted_query as Partial<InquiryIntent> | null | undefined;
+    if (!draftId || !intent || typeof intent !== "object") return undefined;
+
+    // Only the four event sections. `talent` stays with the shared lineup,
+    // `requester`/`client` with the account prefill, and `source_context` must
+    // describe THIS entry point.
+    const carried: CarriedDraftIntent = {};
+    if (intent.location) carried.location = intent.location;
+    if (intent.date) carried.date = intent.date;
+    if (intent.budget) carried.budget = intent.budget;
+    if (intent.brief) carried.brief = intent.brief;
+
+    return Object.keys(carried).length > 0
+      ? { intent: carried, draftId }
+      : undefined;
+  } catch {
+    // Best-effort prefill. Never block the composer.
+    return undefined;
+  }
+}
 
 /**
  * Shared loader for the public inquiry sheet (header panel).
@@ -192,8 +305,16 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     (user?.user_metadata?.name as string | undefined) ??
     undefined;
 
+  // Guests only: a signed-in client's drawer already autosaves its own draft,
+  // so carrying the chat's would fight a surface that is already correct.
+  const carried = user
+    ? undefined
+    : await loadCarriedDraftIntent(guestKey, tenantSlug);
+
   return {
     kind: "ready",
+    carriedIntent: carried?.intent,
+    carriedDraftId: carried?.draftId,
     inquiriesOpen: publicSettings.inquiriesOpen,
     aiInquiryDraftEnabled,
     agencyWhatsAppNumber: publicSettings.agencyWhatsAppNumber ?? undefined,

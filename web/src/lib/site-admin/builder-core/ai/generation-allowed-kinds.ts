@@ -19,6 +19,13 @@
  *  - owner-only `code`, and the data-bound shells (nav/social_links/form/
  *    section_embed/pricing_table) whose nested id-referential schemas are
  *    error-prone. These arrive in later phases.
+ *
+ * `section_embed` STAYS EXCLUDED, permanently. It is id-referential (it names a
+ * curated section by key and carries that section's own config blob), and it
+ * re-renders the legacy curated section tree that
+ * `docs/ws7-legacy-section-removal-plan.md` deletes in Phase 3. Teaching the
+ * model to emit it would invest generation quality in a dying format. The two
+ * NATIVE data kinds below are the supported replacement.
  */
 
 import { BUILDER_ICON_NAMES } from "@/lib/site-admin/builder-node/icon-registry";
@@ -42,6 +49,21 @@ export const GENERATION_ALLOWED_KINDS = [
   "accordion_item",
   "form",
   "pricing_table",
+  // WS7 Phase 0 — the two NATIVE, server-data-bound kinds. They meet this
+  // file's own inclusion criteria exactly: self-contained (structural leaves,
+  // no children to mis-nest), no id cross-referencing the model must invent, no
+  // URL surface the model can point anywhere (coerce drops EVERY href — the
+  // renderer supplies the tenant-correct `/directory` default), and their live
+  // data is resolved SERVER-SIDE off `dataSources` by
+  // lib/site-admin/server/native-data-block-sources.ts. Without them an
+  // AI-generated agency homepage could not contain the agency's own roster,
+  // which was the single biggest quality ceiling on generated pages.
+  //
+  // The model contributes COPY ONLY on these two. Coerce strips every prop that
+  // could steer a query or a link: `searchActionHref`, `selectedTermIds`,
+  // `taxonomyTermId`, `imageUrl`, and all chip / CTA / card / see-all hrefs.
+  "hero_search",
+  "talent_type_grid",
   "heading",
   "paragraph",
   "button",
@@ -88,6 +110,70 @@ export function photoForImageRole(role: unknown): string {
   }
   return IMAGE_ROLE_TO_PHOTO[DEFAULT_IMAGE_ROLE];
 }
+
+// ── WS7 native data blocks: the model's COPY-ONLY contract ──────────────────
+
+/**
+ * The `hero_search` layouts the model may pick. Mirrors the registry enum.
+ */
+export const HERO_SEARCH_LAYOUTS = ["centered", "split", "minimal", "editorial"] as const;
+
+/** `hero_search.statSource`. `tenant_talent_count` is the roster-derived line. */
+export const HERO_SEARCH_STAT_SOURCES = ["manual", "tenant_talent_count"] as const;
+
+/** `talent_type_grid.mode`. `dynamic` = derived from THIS tenant's roster. */
+export const TALENT_TYPE_GRID_MODES = ["manual", "dynamic"] as const;
+
+/** `talent_type_grid.cardRatio`. Mirrors the registry enum. */
+export const TALENT_TYPE_GRID_CARD_RATIOS = ["1/1", "3/4", "4/3", "16/9"] as const;
+
+/** `talent_type_grid.textPosition`. Mirrors the registry enum. */
+export const TALENT_TYPE_GRID_TEXT_POSITIONS = ["overlay-bottom", "below"] as const;
+
+/**
+ * Props the model is NEVER allowed to contribute on a native data block, even
+ * though the registry schema accepts them from a human operator in the
+ * inspector. Coerce deletes every one of these unconditionally.
+ *
+ * Two distinct risks, both closed here:
+ *
+ *  1. DATA STEERING. `selectedTermIds` and `items[].taxonomyTermId` are real
+ *     `taxonomy_terms` ids. `selectedTermIds` is threaded straight into
+ *     `fetchTenantTalentDisciplines` (see components/home/homepage-cms-data-sources.ts)
+ *     and narrows the resolved set again in the renderer. A model cannot know a
+ *     real id, so anything it emits is either a hallucination that silently
+ *     empties the grid, or a guessed id from some other tenant's taxonomy. The
+ *     tenant gate in native-data-block-sources.ts would still refuse to serve
+ *     another tenant's rows, but the model has no business addressing the query
+ *     at all — so its ids never reach the resolver.
+ *
+ *  2. URL / MEDIA SURFACE. Every href on these kinds (`searchActionHref`,
+ *     `primaryCtaHref`, `secondaryCtaHref`, `chips[].href`, `seeAllHref`,
+ *     `items[].href`) and `items[].imageUrl` (rendered as a raw `<img src>`)
+ *     are model-pointable outbound URLs. The renderer already defaults every
+ *     one of them to the tenant-prefixed `/directory`, so dropping them costs
+ *     nothing and removes the surface entirely — the same reason
+ *     `IMAGE_ROLE_TO_PHOTO` discards a model-supplied image `src`.
+ *
+ * A tenant id or a `dataSources` blob is not listed: neither is part of either
+ * node's schema, so the registry would drop the node outright. Coerce is
+ * allow-list shaped regardless (it rebuilds props key by key), which is the
+ * primary defence; this manifest is the named, test-asserted statement of it.
+ */
+export const NATIVE_DATA_BLOCK_FORBIDDEN_PROPS = [
+  "searchActionHref",
+  "primaryCtaHref",
+  "secondaryCtaHref",
+  "seeAllHref",
+  "href",
+  "selectedTermIds",
+  "taxonomyTermId",
+  "imageUrl",
+  "imageAlt",
+  "imagePosition",
+  "tenantId",
+  "dataSources",
+] as const;
 
 /**
  * Icon names the MODEL may use — a curated subset, not the whole registry.

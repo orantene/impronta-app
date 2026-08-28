@@ -102,6 +102,34 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   "nav-sub-toggle": "nav",
   "nav-caret": "nav",
   "nav-submenu": "nav",
+  // WS7 Phase 0 — the two NATIVE data blocks + every sub-element token they
+  // emit. Unmapped tokens are treated as base (always kept), so a miss here is
+  // only a size regression, never a broken block.
+  "hero-search": "hero_search",
+  "hero-search-inner": "hero_search",
+  "hero-search-eyebrow": "hero_search",
+  "hero-search-title": "hero_search",
+  "hero-search-highlight": "hero_search",
+  "hero-search-intro": "hero_search",
+  "hero-search-form": "hero_search",
+  "hero-search-input": "hero_search",
+  "hero-search-ctas": "hero_search",
+  "hero-search-chips": "hero_search",
+  "hero-search-chip": "hero_search",
+  "hero-search-stat": "hero_search",
+  "hero-search-stat-item": "hero_search",
+  "talent-type-grid": "talent_type_grid",
+  "talent-type-grid-head": "talent_type_grid",
+  "talent-type-grid-eyebrow": "talent_type_grid",
+  "talent-type-grid-title": "talent_type_grid",
+  "talent-type-grid-intro": "talent_type_grid",
+  "talent-type-grid-items": "talent_type_grid",
+  "talent-type-grid-empty": "talent_type_grid",
+  "talent-type-card": "talent_type_grid",
+  "talent-type-card-media": "talent_type_grid",
+  "talent-type-card-title": "talent_type_grid",
+  "talent-type-card-desc": "talent_type_grid",
+  "talent-type-card-count": "talent_type_grid",
   // Social links + every sub-element token.
   social: "social_links",
   "social-link": "social_links",
@@ -165,6 +193,13 @@ export function collectPresentNodeKinds(
     // A container with a directory-search binding emits a `--button` submit.
     const sourceKey = nodeDataBindingSourceKey(node);
     if (sourceKey && LIVE_BUTTON_SOURCE_KEYS.has(sourceKey)) {
+      present.add("button");
+    }
+
+    // WS7 Phase 0 — the native data blocks emit `--button` too (the search
+    // submit, the CTAs, the "See all" link), with no authored button node
+    // anywhere on the page. Same reason as the directory-search container above.
+    if (kind === "hero_search" || kind === "talent_type_grid") {
       present.add("button");
     }
 
@@ -295,15 +330,61 @@ function keepBlockForKinds(
  * proven safe: an empty/undefined kind set, an unparseable sheet, or any
  * structural anomaly. The retained rules are byte-for-byte the originals.
  */
+/**
+ * Strip CSS comments from the sheet that actually ships.
+ *
+ * The renderer stylesheet is authored with substantial inline commentary — the
+ * reason a rule exists, the incident it prevents, the trap it avoids — and that
+ * commentary is worth keeping in source. It is not worth shipping: it was ~5.4
+ * KB of the emitted sheet, which is the whole of the perf-budget breach it
+ * caused. Stripping here keeps every word for the next developer and sends none
+ * of it to a visitor, so no rule is lost and no budget is raised.
+ *
+ * Quote-aware on purpose: a `/*` inside a `content: "..."` value is DATA, not a
+ * comment, and blindly regexing comments out would corrupt it. Escapes inside a
+ * string are honoured so a trailing backslash cannot swallow the closing quote.
+ */
+export function stripCssComments(sheet: string): string {
+  let out = "";
+  let quote: string | null = null;
+  for (let i = 0; i < sheet.length; i++) {
+    const ch = sheet[i];
+    if (quote) {
+      out += ch;
+      if (ch === "\\" && i + 1 < sheet.length) {
+        out += sheet[++i];
+        continue;
+      }
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      out += ch;
+      continue;
+    }
+    if (ch === "/" && sheet[i + 1] === "*") {
+      const end = sheet.indexOf("*/", i + 2);
+      if (end === -1) break; // unterminated comment: drop the remainder
+      // Collapse to a single space so `a/*x*/b` cannot fuse into `ab`.
+      out += " ";
+      i = end + 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+}
+
 export function buildScopedRendererCss(
   fullSheet: string,
   presentKinds: ReadonlySet<BuilderNodeKind> | null | undefined,
 ): string {
   // No kinds known (undefined / empty) → conservative full sheet.
-  if (!presentKinds || presentKinds.size === 0) return fullSheet;
+  if (!presentKinds || presentKinds.size === 0) return stripCssComments(fullSheet);
 
   const blocks = splitTopLevelCssBlocks(fullSheet);
-  if (!blocks) return fullSheet; // parse anomaly → full sheet
+  if (!blocks) return stripCssComments(fullSheet); // parse anomaly → full sheet
 
   let kept = "";
   for (const block of blocks) {
@@ -316,6 +397,6 @@ export function buildScopedRendererCss(
   }
   // Defensive: an empty result would mean the page has styling but we emitted
   // nothing — never ship that, fall back to the full sheet.
-  if (kept.trim() === "") return fullSheet;
-  return kept;
+  if (kept.trim() === "") return stripCssComments(fullSheet);
+  return stripCssComments(kept);
 }

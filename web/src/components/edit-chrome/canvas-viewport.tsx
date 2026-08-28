@@ -357,6 +357,23 @@ export function CanvasZoomStyle({ zoom }: { zoom: number }) {
   // so a sticky/fixed element inside the canvas keeps behaving as it does on
   // the published page). Canvas z-indices now order canvas content against
   // canvas content, and nothing else.
+  //
+  // ── HONESTY NOTE for `position: fixed` (the operator-facing consequence) ───
+  // At zoom === 1 the rule below emits `isolation` ONLY, so the canvas has NO
+  // transform in the ancestry and a `position: fixed` block pins to the real
+  // viewport — the canvas tells the truth, which is the default state.
+  //
+  // At zoom !== 1 the `transform: scale()` we add here IS a containing block for
+  // fixed descendants, so a fixed block re-anchors to the canvas root while
+  // zoomed. We keep it that way on purpose: the alternative — dropping zoom for
+  // any page that contains one fixed block — takes a core canvas tool away from
+  // the whole page because of a single element, which is a worse trade than a
+  // known, stated deviation. So it is STATED, not hidden: the Position control
+  // prints the caveat whenever Fixed is selected (PositionLayoutSection), and
+  // `mobile-health.ts` raises a "Trapped fixed block" issue for the PUBLISHED
+  // page version of the same trap (an ancestor with a blur / filter / transform)
+  // and names the ancestor. Do not add a transform here at zoom === 1 without
+  // reading that note first — it would make the canvas silently wrong.
   const zoomRules =
     zoom === 1
       ? ""

@@ -49,228 +49,12 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Shadow ──────────────────────────────────────────────────────────────────
-
-interface ShadowParts {
-  inset: boolean;
-  x: number;
-  y: number;
-  blur: number;
-  spread: number;
-  color: string;
-}
-
-const SHADOW_DEFAULTS: ShadowParts = {
-  inset: false,
-  x: 0,
-  y: 8,
-  blur: 24,
-  spread: 0,
-  color: "rgba(0,0,0,0.18)",
-};
-
-function parseShadow(value: string | undefined): ShadowParts {
-  if (!value) return SHADOW_DEFAULTS;
-  const trimmed = value.trim();
-  const inset = /^inset\b/.test(trimmed);
-  const body = trimmed.replace(/^inset\s+/, "");
-  // Pull the four leading lengths; whatever remains is the color.
-  const lengthMatch = body.match(
-    /^(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px(?:\s+(-?\d+(?:\.\d+)?)px)?\s*(.*)$/,
-  );
-  if (!lengthMatch) return { ...SHADOW_DEFAULTS, inset };
-  const [, x, y, blur, spread, color] = lengthMatch;
-  return {
-    inset,
-    x: Number(x),
-    y: Number(y),
-    blur: Number(blur),
-    spread: spread !== undefined ? Number(spread) : 0,
-    color: color.trim() || SHADOW_DEFAULTS.color,
-  };
-}
-
-function composeShadow(p: ShadowParts): string {
-  return `${p.inset ? "inset " : ""}${p.x}px ${p.y}px ${p.blur}px ${p.spread}px ${p.color}`;
-}
-
-export function ShadowBuilder({
-  value,
-  onChange,
-}: {
-  value: string | undefined;
-  onChange: (next: string | undefined) => void;
-}) {
-  const parts = parseShadow(value);
-  const patch = (next: Partial<ShadowParts>) =>
-    onChange(composeShadow({ ...parts, ...next }));
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-lg p-2"
-      data-builder-shadow-builder=""
-      style={{ background: CHROME.surface, border: `1px solid ${CHROME.line}` }}
-    >
-      <div className="grid grid-cols-4 gap-1.5">
-        {(["x", "y", "blur", "spread"] as const).map((k) => (
-          <div key={k} className="flex flex-col items-center gap-1">
-            <Label>{k === "x" ? "X" : k === "y" ? "Y" : k === "blur" ? "Blur" : "Spread"}</Label>
-            <input
-              type="number"
-              data-builder-shadow-field={k}
-              style={numInputStyle}
-              value={parts[k]}
-              onChange={(e) => patch({ [k]: Math.round(Number(e.target.value) || 0) })}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          data-builder-shadow-field="color"
-          style={textInputStyle}
-          placeholder="rgba(0,0,0,0.18)"
-          value={parts.color}
-          onChange={(e) => patch({ color: e.target.value || SHADOW_DEFAULTS.color })}
-        />
-        <label
-          className="flex shrink-0 cursor-pointer items-center gap-1 text-[10px]"
-          style={{ color: CHROME.muted }}
-        >
-          <input
-            type="checkbox"
-            data-builder-shadow-field="inset"
-            checked={parts.inset}
-            onChange={(e) => patch({ inset: e.target.checked })}
-          />
-          Inset
-        </label>
-      </div>
-    </div>
-  );
-}
-
-// ── Gradient ──────────────────────────────────────────────────────────────────
-
-interface GradientParts {
-  kind: "linear" | "radial";
-  angle: number;
-  c1: string;
-  c2: string;
-}
-
-const GRADIENT_DEFAULTS: GradientParts = {
-  kind: "linear",
-  angle: 180,
-  c1: "#6366f1",
-  c2: "#ec4899",
-};
-
-const GRADIENT_KIND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "linear", label: "Linear" },
-  { value: "radial", label: "Radial" },
-];
-
-function parseGradient(value: string | undefined): GradientParts | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  const linear = trimmed.match(/^linear-gradient\(\s*(-?\d+(?:\.\d+)?)deg\s*,\s*(.+?)\s*,\s*(.+?)\s*\)$/);
-  if (linear) {
-    return { kind: "linear", angle: Number(linear[1]), c1: linear[2], c2: linear[3] };
-  }
-  const radial = trimmed.match(/^radial-gradient\(\s*circle\s*,\s*(.+?)\s*,\s*(.+?)\s*\)$/);
-  if (radial) {
-    return { kind: "radial", angle: 180, c1: radial[1], c2: radial[2] };
-  }
-  return null;
-}
-
-function composeGradient(p: GradientParts): string {
-  return p.kind === "linear"
-    ? `linear-gradient(${p.angle}deg, ${p.c1}, ${p.c2})`
-    : `radial-gradient(circle, ${p.c1}, ${p.c2})`;
-}
-
-
-export function GradientBuilder({
-  value,
-  onChange,
-}: {
-  value: string | undefined;
-  onChange: (next: string | undefined) => void;
-}) {
-  const parsed = parseGradient(value);
-  // If the field holds a non-gradient (url(), unparseable), keep the builder
-  // dormant on defaults — don't clobber until the user applies one.
-  const parts = parsed ?? GRADIENT_DEFAULTS;
-  const patch = (next: Partial<GradientParts>) =>
-    onChange(composeGradient({ ...parts, ...next }));
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-lg p-2"
-      data-builder-gradient-builder=""
-      style={{ background: CHROME.surface, border: `1px solid ${CHROME.line}` }}
-    >
-      <div
-        className="h-8 w-full rounded-md"
-        style={{ background: composeGradient(parts), border: `1px solid ${CHROME.line}` }}
-      />
-      <Segmented
-        fullWidth
-        compact
-        value={parts.kind}
-        onChange={(next) => patch({ kind: (next || "linear") as GradientParts["kind"] })}
-        options={GRADIENT_KIND_OPTIONS}
-      />
-      {parts.kind === "linear" ? (
-        <div className="flex items-center gap-2">
-          <Label>Angle</Label>
-          <input
-            type="number"
-            data-builder-gradient-field="angle"
-            style={numInputStyle}
-            value={parts.angle}
-            onChange={(e) => patch({ angle: Math.round(Number(e.target.value) || 0) })}
-          />
-        </div>
-      ) : null}
-      <div className="grid grid-cols-2 gap-2">
-        {(["c1", "c2"] as const).map((k) => (
-          <div key={k} className="flex items-center gap-1.5">
-            <ColorSwatchButton
-              color={parts[k]}
-              dataAttr={["data-builder-gradient-field", `${k}-pick`]}
-              ariaLabel={`Pick gradient color ${k === "c1" ? "1" : "2"}`}
-              onChange={(next) => patch({ [k]: next })}
-            />
-            <input
-              type="text"
-              data-builder-gradient-field={k}
-              style={textInputStyle}
-              value={parts[k]}
-              onChange={(e) => patch({ [k]: e.target.value || GRADIENT_DEFAULTS[k] })}
-            />
-          </div>
-        ))}
-      </div>
-      {parsed === null ? (
-        <button
-          type="button"
-          data-builder-gradient-apply=""
-          className="cursor-pointer rounded-md py-1 text-[11px] font-semibold"
-          style={{ background: CHROME.surface2, color: CHROME.ink, border: `1px solid ${CHROME.controlBorder}` }}
-          onClick={() => onChange(composeGradient(GRADIENT_DEFAULTS))}
-        >
-          Apply gradient
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-// ── Multi-stop gradient builder (Wave 3 · 3C) ────────────────────────────────
+// ── Multi-stop gradient builder (Wave 3 · 3C; conic + reorder 2026-08-28) ────
+//
+// The old two-stop `GradientBuilder` and single-layer `ShadowBuilder` that
+// lived here are gone: `GradientStopsBuilder` below parses every value the
+// two-stop builder ever wrote, and the shadow surface moved to
+// `shadow-stack-builder.tsx` (multi-layer, comma-aware, verbatim-preserving).
 
 export interface GradientStop {
   color: string;
@@ -278,10 +62,13 @@ export interface GradientStop {
 }
 
 export interface GradientStopsParts {
-  kind: "linear" | "radial";
+  kind: "linear" | "radial" | "conic";
   angle: number;
   stops: GradientStop[];
 }
+
+/** Keep composed gradients comfortably inside the 500-char backgroundImage cap. */
+const MAX_GRADIENT_STOPS = 8;
 
 const GRADIENT_STOPS_DEFAULTS: GradientStopsParts = {
   kind: "linear",
@@ -295,6 +82,7 @@ const GRADIENT_STOPS_DEFAULTS: GradientStopsParts = {
 const GRADIENT_STOPS_KIND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "linear", label: "Linear" },
   { value: "radial", label: "Radial" },
+  { value: "conic", label: "Conic" },
 ];
 
 function stopCss(stop: GradientStop): string {
@@ -305,9 +93,9 @@ function stopCss(stop: GradientStop): string {
 
 export function composeGradientStops(p: GradientStopsParts): string {
   const stopList = p.stops.map(stopCss).join(", ");
-  return p.kind === "linear"
-    ? `linear-gradient(${p.angle}deg, ${stopList})`
-    : `radial-gradient(circle, ${stopList})`;
+  if (p.kind === "linear") return `linear-gradient(${p.angle}deg, ${stopList})`;
+  if (p.kind === "conic") return `conic-gradient(from ${p.angle}deg, ${stopList})`;
+  return `radial-gradient(circle, ${stopList})`;
 }
 
 function parseGradientStops(value: string | undefined): GradientStopsParts | null {
@@ -326,6 +114,13 @@ function parseGradientStops(value: string | undefined): GradientStopsParts | nul
     const stops = parseStopList(radMatch[1] ?? "");
     if (!stops) return null;
     return { kind: "radial", angle: 135, stops };
+  }
+  // conic-gradient(from Ndeg, ...)
+  const conMatch = trimmed.match(/^conic-gradient\(\s*from\s+(-?\d+(?:\.\d+)?)deg\s*,\s*(.+)\s*\)$/);
+  if (conMatch) {
+    const stops = parseStopList(conMatch[2] ?? "");
+    if (!stops) return null;
+    return { kind: "conic", angle: Number(conMatch[1]), stops };
   }
   return null;
 }
@@ -380,6 +175,7 @@ export function GradientStopsBuilder({
   }
 
   function addStop() {
+    if (parts.stops.length >= MAX_GRADIENT_STOPS) return;
     const stops = [
       ...parts.stops,
       { color: "#ffffff", position: 100 },
@@ -390,6 +186,14 @@ export function GradientStopsBuilder({
   function removeStop(index: number) {
     if (parts.stops.length <= 2) return;
     const stops = parts.stops.filter((_, i) => i !== index);
+    patch({ stops });
+  }
+
+  function moveStop(from: number, to: number) {
+    if (to < 0 || to >= parts.stops.length) return;
+    const stops = [...parts.stops];
+    const [item] = stops.splice(from, 1);
+    if (item) stops.splice(to, 0, item);
     patch({ stops });
   }
 
@@ -412,10 +216,12 @@ export function GradientStopsBuilder({
         fullWidth
         compact
         value={parts.kind}
-        onChange={(next) => patch({ kind: (next || "linear") as "linear" | "radial" })}
+        onChange={(next) =>
+          patch({ kind: (next || "linear") as GradientStopsParts["kind"] })
+        }
         options={GRADIENT_STOPS_KIND_OPTIONS}
       />
-      {parts.kind === "linear" ? (
+      {parts.kind !== "radial" ? (
         <div className="flex items-center gap-2">
           <Label>Angle</Label>
           <input
@@ -463,6 +269,40 @@ export function GradientStopsBuilder({
             />
             <button
               type="button"
+              data-builder-gradient-stops-move-up={i}
+              disabled={i === 0}
+              className="shrink-0 cursor-pointer rounded text-[11px] leading-none"
+              style={{
+                color: CHROME.muted,
+                background: "transparent",
+                border: "none",
+                padding: "0 2px",
+                opacity: i > 0 ? 1 : 0.3,
+              }}
+              onClick={() => moveStop(i, i - 1)}
+              aria-label={`Move stop ${i + 1} up`}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              data-builder-gradient-stops-move-down={i}
+              disabled={i === parts.stops.length - 1}
+              className="shrink-0 cursor-pointer rounded text-[11px] leading-none"
+              style={{
+                color: CHROME.muted,
+                background: "transparent",
+                border: "none",
+                padding: "0 2px",
+                opacity: i < parts.stops.length - 1 ? 1 : 0.3,
+              }}
+              onClick={() => moveStop(i, i + 1)}
+              aria-label={`Move stop ${i + 1} down`}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
               data-builder-gradient-stops-remove={i}
               disabled={parts.stops.length <= 2}
               className="shrink-0 cursor-pointer rounded text-[11px] leading-none"
@@ -484,8 +324,14 @@ export function GradientStopsBuilder({
       <button
         type="button"
         data-builder-gradient-stops-add=""
+        disabled={parts.stops.length >= MAX_GRADIENT_STOPS}
         className="cursor-pointer rounded-md py-1 text-[11px] font-semibold"
-        style={{ background: CHROME.surface2, color: CHROME.ink, border: `1px solid ${CHROME.controlBorder}` }}
+        style={{
+          background: CHROME.surface2,
+          color: CHROME.ink,
+          border: `1px solid ${CHROME.controlBorder}`,
+          opacity: parts.stops.length >= MAX_GRADIENT_STOPS ? 0.4 : 1,
+        }}
         onClick={addStop}
       >
         + Add stop

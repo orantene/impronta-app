@@ -142,6 +142,11 @@ const BUILDER_NODE_KINDS: ReadonlySet<string> = new Set<BuilderNodeKind>([
   "cta_group",
   "nav",
   "form",
+  // WS7 Phase 0 — native data blocks; a theme may set their base style like
+  // any other kind. (`social_links`, `social_post` and `social_feed` are
+  // deliberately absent here, unchanged by this pass.)
+  "hero_search",
+  "talent_type_grid",
   "section_embed",
 ]);
 

@@ -28,15 +28,13 @@ export const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "display", label: "Display" },
 ];
 
-export const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
-  { value: "xl", label: "XL" },
-  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
-  { value: "display", label: "Display" },
-];
+/*
+ * The text-size tiers used to live here as a label-only option list. They now
+ * render from `field-kit/preset-values.ts` (`TEXT_SIZE_PRESETS`), which derives
+ * the same ids from the renderer's own `TEXT_SIZE_CLAMP` AND carries the px
+ * range each tier resolves to. A second table with the ids but none of the
+ * numbers could only drift, so it is gone rather than kept as a fallback.
+ */
 
 export const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
@@ -103,13 +101,21 @@ export const BUILDER_BUTTON_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>>
   { value: "secondary", label: "Secondary" },
 ];
 
+// The full CSS weight ladder. 100–300 and 800–900 became loadable when the
+// font pipeline went usage-aware (fonts-catalog.ts) — an explicit weight here
+// is collected per family and requested from Google (or matched against an
+// uploaded face), so every step actually renders instead of faux-bolding.
 export const BUILDER_NODE_FONT_WEIGHT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Auto" },
-  { value: "300", label: "Light" },
-  { value: "400", label: "Reg" },
-  { value: "500", label: "Med" },
-  { value: "600", label: "Semi" },
-  { value: "700", label: "Bold" },
+  { value: "100", label: "100" },
+  { value: "200", label: "200" },
+  { value: "300", label: "300" },
+  { value: "400", label: "400" },
+  { value: "500", label: "500" },
+  { value: "600", label: "600" },
+  { value: "700", label: "700" },
+  { value: "800", label: "800" },
+  { value: "900", label: "900" },
 ];
 
 export const BUILDER_NODE_TEXT_TRANSFORM_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -151,6 +157,9 @@ export const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string
   { value: "", label: "Default" },
   { value: "relative", label: "Relative" },
   { value: "absolute", label: "Absolute" },
+  // Pins to the browser viewport (floating CTA / side rail / overlay). The
+  // panel prints the containing-block + canvas-zoom caveats when it is picked.
+  { value: "fixed", label: "Fixed" },
   { value: "sticky", label: "Sticky" },
 ];
 

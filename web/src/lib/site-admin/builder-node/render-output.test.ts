@@ -585,16 +585,30 @@ test("font loading: node font families emit Google stylesheet links", () => {
   );
 
   assert.ok(html.includes("data-builder-node-fonts"), "font link marker");
+  // Assert the INTENT (this family is requested, covering these weights), not
+  // one URL spelling. A variable family is requested as a single ranged file
+  // (`wght@400..700`) rather than N discrete instances — one download instead
+  // of four, and every weight in between becomes available. Pinning the
+  // discrete spelling made a genuine improvement look like a regression.
+  const requestsFamily = (family: string, weights: readonly number[]) => {
+    const match = new RegExp(`family=${family}:wght@([0-9;.]+)`).exec(html);
+    if (!match) return false;
+    const spec = match[1];
+    const range = /^(\d+)\.\.(\d+)$/.exec(spec);
+    if (range) {
+      const [lo, hi] = [Number(range[1]), Number(range[2])];
+      return weights.every((w) => w >= lo && w <= hi);
+    }
+    const listed = new Set(spec.split(";").map(Number));
+    return weights.every((w) => listed.has(w));
+  };
+  assert.ok(requestsFamily("Manrope", [400, 700]), "desktop family loaded");
   assert.ok(
-    html.includes("family=Manrope:wght@400;500;600;700"),
-    "desktop family loaded",
-  );
-  assert.ok(
-    html.includes("family=IBM+Plex+Mono:wght@400;500;700"),
+    requestsFamily("IBM\\+Plex\\+Mono", [400, 700]),
     "responsive family loaded",
   );
   assert.ok(
-    html.includes("family=DM+Sans:wght@400;500;700"),
+    requestsFamily("DM\\+Sans", [400, 700]),
     "container-query family loaded",
   );
   assert.equal(countRendererStyles(html), 0);

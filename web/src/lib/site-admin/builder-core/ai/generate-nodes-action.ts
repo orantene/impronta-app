@@ -28,6 +28,7 @@ import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import type { AiUsage } from "@/lib/ai/provider";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
+import { resolveTenantThemeGenerationContext } from "@/lib/site-admin/server/tenant-theme-polarity";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   generateBuilderNodes,
@@ -178,7 +179,12 @@ export async function generateBuilderNodesAction(input: {
   /**
    * The active theme's `data-token-background-mode` (AIQ-12), read by the client
    * from the builder DOM. Mapped to light/dark polarity so the model gets concrete
-   * color guidance instead of the "polarity unknown" gamble. Optional/best-effort.
+   * color guidance instead of the "polarity unknown" gamble.
+   *
+   * OPTIONAL, and no longer the only source: when it is absent (any entry point
+   * without a mounted builder canvas) the action resolves polarity server-side
+   * from the tenant's own theme tokens. Supply it when a canvas IS mounted — it
+   * is the sharper answer, because it sees theme edits not yet persisted.
    */
   backgroundMode?: string;
 }): Promise<GenerateNodesActionState> {
@@ -219,10 +225,16 @@ export async function generateBuilderNodesAction(input: {
       return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
     }
     const model = await resolveGenerationModel();
-    // AIQ-12 — map the active theme's background mode (from the builder DOM) to
-    // light/dark polarity so the prompt gives the model concrete, theme-correct
-    // band guidance. Unknown/absent → undefined (preserves the neutral wording).
-    const themePolarity = backgroundModeToPolarity(input.backgroundMode);
+    // AIQ-12 — theme polarity for the prompt's band guidance, resolved
+    // SERVER-SIDE from the tenant's own `agency_branding` tokens so it works at
+    // every entry point, including any that has no mounted builder canvas to
+    // read `data-token-background-mode` from. The client-reported
+    // `backgroundMode` stays an OVERRIDE: when a canvas is mounted it is the
+    // better answer (it reflects unsaved theme edits the DB has not seen).
+    // Neither resolvable → undefined, which preserves the neutral wording.
+    const themeContext = await resolveTenantThemeGenerationContext(tenantId);
+    const themePolarity =
+      backgroundModeToPolarity(input.backgroundMode) ?? themeContext.polarity;
     // Accumulate usage across the (1 + optional retry) model calls, recorded once
     // below so a corrective retry doesn't double-count the user's monthly request.
     const usageSink: UsageEntry[] = [];
@@ -232,6 +244,9 @@ export async function generateBuilderNodesAction(input: {
       // Copy is written in the surface's locale (AIQ-3).
       locale: input.locale,
       themePolarity,
+      // Resolved theme swatches anchor a deliberate colored band in the
+      // tenant's OWN palette instead of the generic invert pair (AIQ-12).
+      ...(themeContext.palette ? { palette: themeContext.palette } : {}),
       // actor_profile_id FKs to profiles.id, which equals the auth user id in
       // this schema (every other actor_profile_id writer passes session.user.id).
       generateWithModel: buildModelGenerator(model, usageSink),

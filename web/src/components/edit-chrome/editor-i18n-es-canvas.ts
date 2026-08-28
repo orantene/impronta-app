@@ -254,8 +254,34 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Duplicate section": "Duplicar sección",
   "Show section": "Mostrar sección",
   "Hide section": "Ocultar sección",
-  "Restore curated section": "Restaurar sección curada",
-  "Make editable (eject to blocks)": "Hacer editable (convertir en bloques)",
+  "Unlock design": "Desbloquear diseño",
+  "Relock design": "Volver a bloquear el diseño",
+  "Nothing to unlock yet": "Nada que desbloquear todavía",
+  "This section has no separate layers to unlock, so unlocking it would leave it blank.":
+    "Esta sección no tiene capas separadas que desbloquear, así que desbloquearla la dejaría en blanco.",
+  "Edit every element in this section individually":
+    "Edita cada elemento de esta sección por separado",
+  "Restore the original design": "Restaurar el diseño original",
+  "Relock and discard added blocks?":
+    "¿Volver a bloquear y descartar los bloques agregados?",
+  "Relocking restores the original design and discards the blocks you added or edited here.":
+    "Volver a bloquear restaura el diseño original y descarta los bloques que agregaste o editaste aquí.",
+  // "Restore original styling" — the non-destructive twin of Relock. The two
+  // sit next to each other, so the Spanish has to draw the same line the
+  // English does: this one keeps your blocks, Relock discards them.
+  "Restore original styling": "Restaurar el estilo original",
+  "Bring back this section's original fonts, colors and alignment. Your blocks and edits stay exactly as they are.":
+    "Recupera las tipografías, los colores y la alineación originales de esta sección. Tus bloques y tus ediciones se quedan tal cual están.",
+  "No original styling on file": "No hay estilo original registrado",
+  "We have no record of this section type's original styling, so there is nothing to restore.":
+    "No tenemos registro del estilo original de este tipo de sección, así que no hay nada que restaurar.",
+  "This section changed too much to match its original elements, so nothing was restyled.":
+    "Esta sección cambió demasiado para reconocer sus elementos originales, así que no se aplicó ningún estilo.",
+  "This section already carries its original styling. Nothing changed.":
+    "Esta sección ya tiene su estilo original. No cambió nada.",
+  "Some elements could not be matched to the original design and were left as they are.":
+    "Algunos elementos no se pudieron reconocer en el diseño original y se dejaron tal cual están.",
+  "Original styling restored.": "Estilo original restaurado.",
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",
@@ -481,4 +507,24 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Stay here": "Quedarme aquí",
   "Open the shell editor": "Abrir el editor del armazón",
   "Checking…": "Comprobando…",
+  // Per-device canvas editing: the selection chip's responsive override badge
+  // (responsive-override-badge.tsx). "Tablet" and "Background image" already
+  // live in editor-i18n-es.ts, and Phone / Width / Height / the min-max pair /
+  // Text size / Line height in editor-i18n-es-inspectors.ts. The duplicate-key
+  // guard forbids repeating any of them, so only the new strings are here.
+  "{device} only": "Solo {device}",
+  "Reset?": "¿Restablecer?",
+  "{count} set for {device} only: {props}. Click twice to reset them back to the desktop values.":
+    "{count} con valor solo para {device}: {props}. Haz clic dos veces para volver a los valores de escritorio.",
+  "Edits you make here apply to {device} only. Desktop keeps its own values.":
+    "Los cambios que hagas aquí se aplican solo a {device}. El escritorio conserva sus propios valores.",
+  Shape: "Forma",
+  "Outer spacing": "Espacio exterior",
+  "Inner spacing": "Espacio interior",
+  "Spacing between": "Espacio entre elementos",
+  "Image fill": "Ajuste de la imagen",
+  "Image framing": "Encuadre de la imagen",
+  "Position mode": "Modo de posición",
+  Rotation: "Rotación",
+  Position: "Posición",
 };

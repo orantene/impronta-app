@@ -69,6 +69,42 @@ function nodeCopyStrings(node: BuilderNode): string[] {
       }
       break;
     }
+    // WS7 Phase 0 — the native data blocks carry real user-visible copy in
+    // their own props (no child heading/paragraph nodes), so the dash / brand-
+    // vocab / CTA rules have to reach in here or a generated search hero would
+    // be graded as if it said nothing.
+    case "hero_search": {
+      push(props.eyebrow);
+      push(props.headline);
+      push(props.highlight);
+      push(props.subheadline);
+      push(props.searchPlaceholder);
+      push(props.searchSubmitLabel);
+      push(props.primaryCtaLabel);
+      push(props.secondaryCtaLabel);
+      push(props.statCountLabel);
+      const chips = Array.isArray(props.chips) ? props.chips : [];
+      for (const c of chips) push(asRecord(c).label);
+      const stats = Array.isArray(props.statItems) ? props.statItems : [];
+      for (const s of stats) {
+        push(asRecord(s).value);
+        push(asRecord(s).label);
+      }
+      break;
+    }
+    case "talent_type_grid": {
+      push(props.eyebrow);
+      push(props.headline);
+      push(props.subheadline);
+      push(props.seeAllLabel);
+      push(props.emptyStateText);
+      const items = Array.isArray(props.items) ? props.items : [];
+      for (const i of items) {
+        push(asRecord(i).label);
+        push(asRecord(i).description);
+      }
+      break;
+    }
     case "pricing_table": {
       const tiers = Array.isArray(props.tiers) ? props.tiers : [];
       for (const t of tiers) {

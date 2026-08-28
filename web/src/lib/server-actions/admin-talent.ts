@@ -18,6 +18,8 @@ import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-loc
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { ensureDirectoryPageIfRosterActive } from "@/lib/site-admin/server/onboard-directory-page";
+import { createTalentSchema } from "./admin-talent-create-schema";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
   readCanonicalLocationSelection,
@@ -649,28 +651,6 @@ export type CreateTalentFormState =
   | { error?: string; success?: boolean }
   | undefined;
 
-const trimmedField = z
-  .string()
-  .optional()
-  .transform((v) => (typeof v === "string" ? v.trim() : ""));
-
-const createTalentSchema = z.object({
-  display_name: z
-    .string()
-    .transform((v) => v.trim())
-    .pipe(z.string().min(1, "Display name is required.")),
-  first_name: trimmedField,
-  last_name: trimmedField,
-  short_bio: trimmedField,
-  phone: trimmedField,
-  talent_type_term_id: pgUuidSchema()
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  agency_visibility: z
-    .enum(["roster_only", "site_visible", "featured"])
-    .default("roster_only"),
-});
-
 export async function createTalentProfile(
   _prev: CreateTalentFormState,
   formData: FormData,
@@ -790,6 +770,13 @@ export async function createTalentProfile(
       logServerError("admin/createTalentProfile/taxonomy", taxErr);
     }
   }
+
+  // DEFAULT PAGES CONTRACT — the roster just became active, which is the moment
+  // a talent-type workspace earns its directory page. Capability-keyed,
+  // idempotent, non-fatal: a business-type workspace is skipped, an existing
+  // page is a no-op, and a failure must never undo the talent just created.
+  const dirPage = await ensureDirectoryPageIfRosterActive({ admin, tenantId: scope.tenantId, actorProfileId: user.id });
+  if (!dirPage.ok) logServerError("admin/createTalentProfile/ensureDirectoryPage", new Error(dirPage.error));
 
   auditEvent(scope.tenantId, "roster", "roster.talent.created", `Created talent profile ${displayName}`, { targetType: "talent_profile", targetId: talentProfileId, targetLabel: displayName });
   await scheduleRebuildAiSearchDocument(supabase, talentProfileId);

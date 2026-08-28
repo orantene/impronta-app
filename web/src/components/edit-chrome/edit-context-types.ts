@@ -107,20 +107,13 @@ export interface BuilderNodePastePreview {
   message: string;
 }
 
-// CANVAS-7 — the four clipboard gestures that earn a transient success toast.
-// Stored on the EditContext so the SHARED clipboard chokepoints (copy/cut/
-// paste/duplicate) raise the same feedback for every entry point — keyboard,
-// the selection-chip "More" menu, and the right-click context menu — with no
-// surface branch. The toast component lives in edit-shell.tsx.
-export type BuilderClipboardAction = "copy" | "cut" | "paste" | "duplicate";
+// Transient-toast payload shapes live in their own leaf module (max-lines).
+export type {
+  BuilderClipboardAction,
+  BuilderClipboardActionToast,
+  BuilderLayoutFlattenToast,
+} from "./edit-context-toast-types";
 
-export interface BuilderClipboardActionToast {
-  action: BuilderClipboardAction;
-  /** How many blocks the gesture touched (≥1). Drives "Copied 3 blocks". */
-  count: number;
-  /** Monotonic nonce so a copy→paste burst re-fires the auto-hide timer. */
-  nonce: number;
-}
 export interface NavigatorRecentAddition {
   sectionId: string;
   builderNodeId: string | null;

@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeTree } from "./types";
 import {
@@ -455,4 +458,148 @@ test("buildEjectRolePresentation: maps child ids + curated config to a role→pr
 
 test("buildEjectRolePresentation: null config → empty map", () => {
   assert.deepEqual(buildEjectRolePresentation(["legacy:x:heading:headline"], null), {});
+});
+
+// ── Production wiring — edit-context.tsx `ejectSection` (W4-T3 wiring) ────────
+// The lossless util above was unreachable in production: `ejectSection` in
+// edit-context.tsx called the bare 2-arg `ejectSectionInTree(tree, sectionNodeId)`,
+// so every eject silently dropped per-role Design-panel overrides (type size,
+// color, alignment, spacing, incl. tablet/mobile). Fixed by resolving the
+// section's saved `nodePresentation` (via `loadSectionForEditAction`) and its
+// current child ids, building the role map with `buildEjectRolePresentation`,
+// and passing it as `ejectSectionInTree`'s 3rd arg. `edit-context.tsx` is a
+// "use client" React context and can't be imported/rendered from a `node:test`
+// file without a DOM, so — mirroring the harness convention used elsewhere in
+// this directory (see `undo-coalesced-persist.test.ts`) — this pins the fix two
+// ways: (1) a functional test that reproduces the exact composition
+// `ejectSection` now performs against a production-shaped section (saved
+// `nodePresentation` + `sectionId`, legacy role-suffixed child ids, a
+// responsive/mobile override), and (2) a static assertion that the source
+// actually wires the 3-arg call so a future edit can't quietly regress to the
+// 2-arg lossy path.
+
+test("eject(production wiring): resolving a saved section's nodePresentation + child ids reproduces a lossless eject", () => {
+  // Mirrors what `loadSectionForEditAction(sectionId)` returns: the curated
+  // section's SAVED props, including `nodePresentation` keyed by role — this
+  // does NOT live on the tree node, only on the section's server-side props.
+  const savedSectionProps = {
+    sectionTypeKey: "cta_banner",
+    nodePresentation: {
+      headline: {
+        align: "center" as const,
+        fontSizePx: 40,
+        textColor: "#222222",
+        breakpoints: {
+          mobile: { align: "left" as const, fontSizePx: 24 },
+        },
+      },
+    },
+  };
+  const sectionId = "legacy:body:0:cta";
+  const tree: BuilderNodeTree = [
+    {
+      id: sectionId,
+      kind: "section",
+      props: { sectionId: "sec-cta-1", sectionTypeKey: "cta_banner" },
+      children: [
+        roleChild(sectionId, ":heading:headline", "heading", {
+          text: "Book now",
+          level: 2,
+        }),
+      ],
+    } as BuilderNode,
+  ];
+
+  // The exact composition `ejectSection` performs: child ids from the CURRENT
+  // tree node + the saved section's nodePresentation → the role map → the
+  // 3-arg eject call.
+  const sectionNode = tree[0] as BuilderNode & { children: BuilderNode[] };
+  const childIds = sectionNode.children.map((c) => c.id);
+  const rolePresentation = buildEjectRolePresentation(
+    childIds,
+    savedSectionProps.nodePresentation,
+  );
+  const result = ejectSectionInTree(tree, sectionId, rolePresentation);
+
+  assert.equal(result.ejected, true);
+  const [head] = ejectedChildren(result);
+  const headStyle = styleOf(head);
+  assert.equal(headStyle.align, "center", "desktop style carried onto the ejected child");
+  assert.equal(headStyle.fontSize, "40px");
+  assert.equal(headStyle.textColor, "#222222");
+  assert.equal(
+    headStyle.responsive?.mobile?.align,
+    "left",
+    "mobile override carried onto style.responsive.mobile",
+  );
+  assert.equal(headStyle.responsive?.mobile?.fontSize, "24px");
+});
+
+test("eject(production wiring, static): the production eject path is the 4-arg lossless call", () => {
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  const chromeDir = join(thisDir, "..", "..", "..", "components", "edit-chrome");
+  // edit-context delegates the three section-lock doors to one hook…
+  const editContext = readFileSync(join(chromeDir, "edit-context.tsx"), "utf8");
+  assert.match(
+    editContext,
+    /useSectionLockActions\(/,
+    "edit-context.tsx must delegate ejectSection to useSectionLockActions (use-section-lock-actions.ts)",
+  );
+  assert.match(
+    editContext,
+    /ejectSection,\s*unejectSection,\s*repairSectionStyling/,
+    "all three doors must come off that hook and reach the context value",
+  );
+  // …and that hook is what calls the eject-lossless runners. Following the hop
+  // rather than dropping it: the chain edit-context -> hook -> runner -> 4-arg
+  // transform must stay provable, or a dead control can hide in the seam.
+  const lockActions = readFileSync(
+    join(chromeDir, "use-section-lock-actions.ts"),
+    "utf8",
+  );
+  assert.match(
+    lockActions,
+    /runEjectSection\(/,
+    "useSectionLockActions must delegate to runEjectSection (eject-lossless.ts)",
+  );
+  assert.match(
+    lockActions,
+    /runRepairSectionStyling\(/,
+    "useSectionLockActions must delegate the RETROACTIVE repair to runRepairSectionStyling",
+  );
+  // …which resolves saved styling + the curated CSS baseline and commits the
+  // 4-arg lossless transform (rolePresentation AND roleBaseline).
+  const losslessRunner = readFileSync(join(chromeDir, "eject-lossless.ts"), "utf8");
+  assert.match(
+    losslessRunner,
+    /ejectSectionInTree\(\s*current,\s*sectionNodeId,\s*rolePresentation,\s*roleBaseline,?\s*\)/,
+    "runEjectSection must call the 4-arg (lossless + baseline) ejectSectionInTree, not a lossy form",
+  );
+  assert.match(
+    losslessRunner,
+    /resolveSectionEjectBaseline\(/,
+    "the lossless runner must resolve the curated CSS baseline (section-eject-baseline.ts)",
+  );
+  assert.match(
+    losslessRunner,
+    /await loadSectionForEditAction\(sectionId\)/,
+    "the lossless runner must resolve the section's saved nodePresentation via loadSectionForEditAction",
+  );
+  // The last seam: the chip is rendered by selection-layer, and its restore
+  // action must carry a LIVE run. A control wired to nothing renders exactly
+  // like a working one.
+  const selectionLayer = readFileSync(
+    join(chromeDir, "selection-layer.tsx"),
+    "utf8",
+  );
+  assert.match(
+    selectionLayer,
+    /restoreStyling=\{/,
+    "the section chip must be handed a restoreStyling target",
+  );
+  assert.match(
+    selectionLayer,
+    /run: \(\) => repairSectionStyling\(/,
+    "the restore target's run must call the context action, not a stub",
+  );
 });

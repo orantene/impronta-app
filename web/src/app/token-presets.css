@@ -2698,6 +2698,44 @@ html[data-token-shell-header-brand-layout="stacked"] .public-header > div {
 /* Logo-only / text-only are pure DOM concerns — the renderer omits the
  * other half. No CSS rule needed beyond the declared default. */
 
+/* ---------------------------------------------------------------------------
+ * HEADER BRAND OVERLAP INVARIANT (owner report 2026-08-27: on a 390px phone
+ * the centred wordmark painted ON TOP of the icon buttons on both sides).
+ *
+ * The bar is `grid-cols-[auto_minmax(0,1fr)_auto]`, so the grid ALREADY
+ * reserves the two icon clusters and hands the brand only what is left. The
+ * leak was one level down: the brand sat inside a plain wrapper `<span>` whose
+ * flex `min-width` was still `auto`, i.e. the wordmark's full min-content
+ * width. The wrapper therefore refused to shrink below ~150px inside a ~74px
+ * centre column, and `justify-content:center` spilled the overflow SYMMETRICALLY
+ * over the left and right clusters. Nothing scrolled (the row never widened the
+ * document) — it simply overlapped, which reads as broken.
+ *
+ * These rules are the structural floor, independent of the utility classes on
+ * the elements: the brand slot and the brand link may always shrink to zero,
+ * and the wordmark truncates with an ellipsis instead of painting outside its
+ * box. The icon clusters keep `min-width:auto` on purpose — they are the
+ * non-shrinking floor the `auto` grid tracks are sized from, so they can never
+ * be squeezed into each other. No tenant-supplied brand string can defeat this,
+ * which is the point: the previous fix for this class of bug lived in ONE
+ * tenant's shell data and protected nobody else.
+ *
+ * `overflow` is deliberately NOT set on the slot or the link — the focus ring
+ * carries a 2px offset and would be clipped. Clipping happens on the label,
+ * where `text-overflow` needs it anyway.
+ * ------------------------------------------------------------------------- */
+.public-header [data-brand-slot-wrap],
+.public-header [data-brand-slot] {
+  min-width: 0;
+  max-width: 100%;
+}
+.public-header [data-brand-label] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Footer variants — reserved for future renderer component. Currently the
  * existing footer renders unchanged. */
 
@@ -5849,6 +5887,28 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header[data-variant="split"] .site-header__brand { min-width: 0; overflow: hidden; }
   .site-header[data-variant="standard"] .site-header__brand-label,
   .site-header[data-variant="split"] .site-header__brand-label {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
+
+/* Same invariant for the two ROW variants whose brand sits BETWEEN two
+ * clusters, and which the classic reflow above does not cover: `freeform`
+ * (centre region) and `editorial-split` (the `1fr auto 1fr` grid, whose `auto`
+ * brand track is sized from the brand's minimum contribution — `min-width:0`
+ * is what lets that track give way). The side clusters keep their automatic
+ * minimum size, so they stay the floor and can never be squeezed into each
+ * other or overlapped. Phone-only (<=560px) so desktop-width fidelity captures
+ * are byte-identical; `minimal` and `editorial` stack the brand on its own row
+ * and cannot overlap by construction, so they are left alone. */
+@media (max-width: 560px) {
+  .site-header[data-variant="freeform"] .site-header__region[data-region="center"] .site-header__brand,
+  .site-header[data-variant="editorial-split"] .site-header__brand {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="center"] .site-header__brand-label,
+  .site-header[data-variant="editorial-split"] .site-header__brand-label {
+    min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 }

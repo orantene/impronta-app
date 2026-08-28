@@ -36,6 +36,7 @@ import {
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
+import { normalizeBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { commitPageRevisionThenVersion } from "@/lib/site-admin/server/page-revision-commit";
 import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -849,6 +850,14 @@ export async function saveHomepageCompositionAction(
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
 
+  // Draft-save normalization gate — content-preserving (clamps absurd style
+  // escapes, folds the deterministic mobile fixes, flattens over-deep wrapper
+  // chains; NEVER drops a node). Strict `validateBuilderNodeTree` stays at
+  // publish/AI/clipboard, exactly where it is.
+  const normalizedBuilderTree = input.builderTree
+    ? normalizeBuilderTreeLayout(input.builderTree)
+    : input.builderTree;
+
   // ── non-homepage page save ─────────────────────────────────────────────
   if (input.pageId) {
     try {
@@ -998,7 +1007,7 @@ export async function saveHomepageCompositionAction(
           }),
           nextTree: resolveBuilderTreeForSnapshot({
             slots: compositionSnapshot,
-            preferredBuilderTree: input.builderTree,
+            preferredBuilderTree: normalizedBuilderTree,
           }),
         });
         if (!draftGuard.ok) {
@@ -1013,7 +1022,7 @@ export async function saveHomepageCompositionAction(
       const nextVersion = pageRow.version + 1;
       const draftBuilderTree = resolveBuilderTreeForSnapshot({
         slots: compositionSnapshot,
-        preferredBuilderTree: input.builderTree,
+        preferredBuilderTree: normalizedBuilderTree,
       });
 
       // WAVE1-1.5 — revision FIRST, then the CAS version bump. The old order
@@ -1191,7 +1200,7 @@ export async function saveHomepageCompositionAction(
     expectedVersion: input.expectedVersion,
     metadata: metadataParsed.data satisfies HomepageMetadataValues,
     slots: slotsParsed.data satisfies HomepageSlotsValues,
-    builderTree: input.builderTree,
+    builderTree: normalizedBuilderTree,
   });
   if (!envelope.success) {
     return { ok: false, error: "Composition envelope failed validation." };
@@ -1840,6 +1849,11 @@ export async function applyHomepageDraftBeaconAction(input: {
       error: slotsParsed.error.issues[0]?.message ?? "Invalid slot layout.",
     };
   }
+  // Draft-save normalization gate — same content-preserving canonicalizer the
+  // normal save runs; the beacon lane must not be a bypass around it.
+  const normalizedBuilderTree = input.builderTree
+    ? normalizeBuilderTreeLayout(input.builderTree)
+    : input.builderTree;
   const envelope = homepageSaveDraftSchema.safeParse({
     tenantId: scope.tenantId,
     locale,
@@ -1848,7 +1862,7 @@ export async function applyHomepageDraftBeaconAction(input: {
     expectedVersion: input.expectedVersion,
     metadata: metadataParsed.data satisfies HomepageMetadataValues,
     slots: slotsParsed.data satisfies HomepageSlotsValues,
-    builderTree: input.builderTree,
+    builderTree: normalizedBuilderTree,
   });
   if (!envelope.success) {
     return { ok: false, error: "Composition envelope failed validation." };

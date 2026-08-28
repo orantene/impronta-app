@@ -199,7 +199,28 @@ const BUDGETS: Record<string, number> = {
   // +7 (2026-08-21): the move rail is no longer desktop-only — the phone canvas
   // had NO grab handle and no one-click reorder at all (owner report). The
   // comment explaining why carries most of those lines.
-  "selection-layer.tsx": 7943,
+  // -76 (2026-08-27, "Unlock design"): ChipBtn and ChipTextAction moved to
+  // chip-buttons.tsx alongside the new SectionUnlockChipButton, so the chip
+  // primitives have one home and the section/block chips cannot drift apart.
+  // Net of the unlock wiring the file is SMALLER; budget lowered to match.
+  // -115 (2026-08-27, per-device canvas editing): the direct-manipulation
+  // handles stopped being desktop-only and every box-model commit now has to
+  // choose between the base style and `style.responsive[tier]`. Four commits
+  // that had already drifted into four near-identical 40-line blocks became
+  // one hook (use-canvas-box-model-commits.ts), the base/bucket routing became
+  // a pure module (responsive-canvas-style.ts), and the chip's override badge
+  // became its own component (responsive-override-badge.tsx). The feature came
+  // out NET SMALLER than the code it replaced; budget lowered to match.
+  // -25 (2026-08-27, "Restore original styling"): a section unlocked before
+  // the eject-time baseline bake existed still renders stripped, and Relock
+  // was the only exit — it restores the design by DELETING the blocks. The
+  // non-destructive repair needed a second door on the section chip. Rather
+  // than grow this file for it, the chip's Remove confirm (53 lines of inline
+  // JSX) moved to chip-buttons.tsx as ChipRemoveConfirm, which more than paid
+  // for the ~11 lines of wiring the new action needs here. The repair itself
+  // is a pure module (section-eject-repair.ts) and its button lives in
+  // chip-buttons.tsx; this file only picks the target. Budget lowered to match.
+  "selection-layer.tsx": 7731,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
@@ -212,7 +233,12 @@ const BUDGETS: Record<string, number> = {
   //   two <PortaledOverlay> wrappers, two closing tags, the import, and the
   //   comment explaining the trap so the next person does not move it back.
   //   The z itself now comes from Z_INDEX.canvasPanels; no logic changed.
-  "canvas-node-children-panel.tsx": 789,
+  // +7 (WS7 Phase 0): `canvasChildSecondaryLabel` switches EXHAUSTIVELY over
+  //   BuilderNodeKind, so the two new native data kinds (`hero_search`,
+  //   `talent_type_grid`) each need an arm or the file does not type-check.
+  //   Kept to the shortest form that still names the data SOURCE, which is the
+  //   one thing this label exists to say.
+  "canvas-node-children-panel.tsx": 796,
 };
 
 function lineCount(relativePath: string): number {

@@ -5,7 +5,9 @@ import {
   builderPlanAllows,
   clampFeaturedRosterLimitForPlan,
   cmsAdditionalPageDeniedReason,
+  countQuotaCountedPages,
   getBuilderPlanPolicy,
+  isQuotaCountedPage,
   normalizeBuilderWorkspacePlan,
   resolveStarterTemplateSlugs,
   workspaceTemplateLibraryDeniedReason,
@@ -66,9 +68,75 @@ test("resolveStarterTemplateSlugs keeps free plan on free starter only", () => {
   ]);
 });
 
-test("cmsAdditionalPageDeniedReason blocks free, allows paid plans", () => {
-  assert.match(cmsAdditionalPageDeniedReason("free") ?? "", /one landing page/i);
+test("cmsAdditionalPageDeniedReason blocks free without a count, allows paid plans", () => {
+  // No count supplied means "unmetered" — fail closed, as before.
+  assert.match(cmsAdditionalPageDeniedReason("free") ?? "", /one page of your own/i);
   assert.equal(cmsAdditionalPageDeniedReason("studio"), null);
+});
+
+// ── DEFAULT PAGES CONTRACT — system/role pages do not consume the quota ─────
+//
+// Free caps at ONE page. The seed alone provisions a homepage and a 404, and a
+// roster workspace also gets a directory page. If those counted, a brand-new
+// Free workspace would be over quota before its owner clicked anything, and the
+// non-negotiable set would be impossible to ship. So the quota counts only what
+// the operator chose to build.
+
+test("the seeded default pages do not count against the quota", () => {
+  const roleSlugs = new Set(["404"]);
+  const seeded = [
+    { slug: "", system_template_key: "homepage", status: "published" },
+    { slug: "__site_shell__", system_template_key: "site_shell", status: "published" },
+    { slug: "__directory__", system_template_key: "directory", status: "published" },
+    // The 404 carries no system_template_key — it is an ordinary editable page
+    // that HOLDS the notFound role. The role pointer is what exempts it.
+    { slug: "404", system_template_key: null, status: "published" },
+  ];
+  assert.equal(countQuotaCountedPages(seeded, roleSlugs), 0);
+  // …so a fresh Free workspace still has its one page of its own to spend.
+  assert.equal(cmsAdditionalPageDeniedReason("free", 0), null);
+});
+
+test("a Free workspace gets exactly one operator page on top of the defaults", () => {
+  const roleSlugs = new Set(["404"]);
+  const rows = [
+    { slug: "", system_template_key: "homepage", status: "published" },
+    { slug: "404", system_template_key: null, status: "published" },
+    { slug: "about", system_template_key: null, status: "draft" },
+  ];
+  assert.equal(countQuotaCountedPages(rows, roleSlugs), 1);
+  assert.match(
+    cmsAdditionalPageDeniedReason("free", 1) ?? "",
+    /one page of your own/i,
+  );
+});
+
+test("promoting a page to a role stops it billing against the quota", () => {
+  const rows = [{ slug: "welcome", system_template_key: null, status: "published" }];
+  assert.equal(countQuotaCountedPages(rows, new Set()), 1);
+  assert.equal(countQuotaCountedPages(rows, new Set(["welcome"])), 0);
+});
+
+test("archived and system-owned rows never count", () => {
+  assert.equal(
+    isQuotaCountedPage({ slug: "old", status: "archived" }),
+    false,
+  );
+  assert.equal(
+    isQuotaCountedPage({ slug: "locked", status: "published", is_system_owned: true }),
+    false,
+  );
+  assert.equal(isQuotaCountedPage({ slug: "about", status: "published" }), true);
+});
+
+test("a paid plan is never metered", () => {
+  assert.equal(cmsAdditionalPageDeniedReason("studio", 500), null);
+  assert.equal(cmsAdditionalPageDeniedReason("agency", null), null);
+});
+
+test("a failed count fails CLOSED, never into unlimited pages", () => {
+  // loadQuotaCountedPageCount returns null when the read errors.
+  assert.ok(cmsAdditionalPageDeniedReason("free", null));
 });
 
 test("workspaceTemplateLibraryDeniedReason blocks free, allows paid plans", () => {

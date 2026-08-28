@@ -31,6 +31,11 @@ import type {
   PricingInterval,
   PricingDiscountRow,
 } from "./pricing-types";
+import {
+  PRODUCT_DISCOUNT_SELECT,
+  normalizeProductDiscount,
+  type RawProductDiscountRow,
+} from "./discount-row";
 
 // ─── Row shapes from Supabase (snake_case) ────────────────────────────────────
 
@@ -82,24 +87,6 @@ type FeatureRow = {
   display_order: number;
   category: string | null;
   value_text: string | null;
-};
-
-type DiscountRow = {
-  id: string;
-  code: string;
-  name: string;
-  kind: string;
-  value: number;
-  currency: string | null;
-  applies_to: unknown;
-  max_redemptions: number | null;
-  redemption_count: number;
-  per_customer_limit: number;
-  starts_at: string | null;
-  ends_at: string | null;
-  stripe_coupon_id: string | null;
-  stripe_promotion_code_id: string | null;
-  is_active: boolean;
 };
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
@@ -266,9 +253,7 @@ export const loadProductDiscounts = cache(
     }
     const { data, error } = await admin
       .from("product_discounts")
-      .select(
-        "id, code, name, kind, value, currency, applies_to, max_redemptions, redemption_count, per_customer_limit, starts_at, ends_at, stripe_coupon_id, stripe_promotion_code_id, is_active",
-      )
+      .select(PRODUCT_DISCOUNT_SELECT)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -276,35 +261,8 @@ export const loadProductDiscounts = cache(
       return [];
     }
 
-    return (data ?? []).map((row) => {
-      const r = row as DiscountRow;
-      const kind: PricingDiscountRow["kind"] =
-        r.kind === "percent" || r.kind === "fixed" || r.kind === "free_months"
-          ? r.kind
-          : "percent";
-      const appliesTo: "all" | string[] =
-        r.applies_to === "all" || r.applies_to === null
-          ? "all"
-          : Array.isArray(r.applies_to)
-          ? (r.applies_to as string[])
-          : "all";
-      return {
-        id: r.id,
-        code: r.code,
-        name: r.name,
-        kind,
-        value: Number(r.value),
-        currency: r.currency,
-        appliesTo,
-        maxRedemptions: r.max_redemptions,
-        redemptionCount: r.redemption_count,
-        perCustomerLimit: r.per_customer_limit,
-        startsAt: r.starts_at,
-        endsAt: r.ends_at,
-        stripeCouponId: r.stripe_coupon_id,
-        stripePromotionCodeId: r.stripe_promotion_code_id,
-        isActive: r.is_active,
-      };
-    });
+    return (data ?? []).map((row) =>
+      normalizeProductDiscount(row as unknown as RawProductDiscountRow),
+    );
   },
 );

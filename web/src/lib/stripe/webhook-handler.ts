@@ -66,7 +66,12 @@ import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/b
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  extractSubscriptionDiscount,
+  isUnexpandedDiscount,
+} from "@/lib/billing/subscription-discounts";
 import { logServerError } from "@/lib/server/safe-error";
+import { applyCampaignGrantForDiscount } from "@/lib/billing/apply-campaign-grant";
 import { improntaLog } from "@/lib/server/structured-log";
 import type Stripe from "stripe";
 
@@ -100,6 +105,69 @@ function ensureSyncOk(
 // ─── Side-effect dispatch ─────────────────────────────────────────────────────
 
 /** Sync a workspace OR talent subscription object (used for checkout-init + invoice-failed). */
+/**
+ * Count one code redemption, if the subscription that just started carries one
+ * of our catalog coupons.
+ *
+ * WHY: `product_discounts.redemption_count` was written by nothing. It sat at
+ * zero forever, which meant `max_redemptions` was a number the admin could type
+ * and the product would never honour — a "first 50 customers" campaign had no
+ * fiftieth customer. `per_customer_limit` was the same promise, unkept for the
+ * same reason. The `discount_redemptions` ledger is what makes both answerable.
+ *
+ * BEST EFFORT, ALWAYS. A ledger write must never 5xx a webhook: Stripe would
+ * retry the whole event, and the money-side work above this line already
+ * succeeded. Two layers of idempotency stand behind it — this branch is already
+ * claimed by the event-level ledger, and the RPC's UNIQUE(stripe_event_id)
+ * makes a replay a no-op even if the claim is bypassed.
+ */
+async function recordDiscountRedemption(
+  subscription: Stripe.Subscription,
+  eventId: string,
+): Promise<void> {
+  try {
+    const mirror = extractSubscriptionDiscount(subscription);
+    if (!mirror || isUnexpandedDiscount(mirror) || !mirror.couponId) return;
+
+    const tenantId = subscription.metadata?.tenant_id ?? null;
+    const talentProfileId = subscription.metadata?.talent_profile_id ?? null;
+    if (!tenantId && !talentProfileId) return;
+
+    const sb = createServiceRoleClient();
+    if (!sb) return;
+
+    const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
+      p_stripe_coupon_id: mirror.couponId,
+      p_stripe_event_id: eventId,
+      p_subject_type: talentProfileId ? "talent" : "workspace",
+      p_tenant_id: tenantId as string,
+      p_talent_profile_id: talentProfileId as string,
+      p_stripe_subscription_id: subscription.id,
+    });
+    if (error) logServerError("stripe-webhook.discount-redemption", error);
+
+    // The entitlement half of a campaign, applied exactly once. `recorded` is
+    // the RPC's own idempotency answer: true ONLY on the insert that actually
+    // happened, so a replayed webhook cannot hand out a second free upgrade.
+    // Workspace subjects only, and best-effort -- a courtesy grant that fails
+    // must never fail the webhook that delivered the payment.
+    if (recorded === true && tenantId) {
+      const outcome = await applyCampaignGrantForDiscount({
+        stripeCouponId: mirror.couponId,
+        tenantId,
+      });
+      if (outcome.applied) {
+        logServerError(
+          "stripe-webhook.campaign-grant.applied",
+          `tenant ${tenantId} granted ${outcome.planTier} until ${outcome.expiresAt}`,
+        );
+      }
+    }
+  } catch (err) {
+    logServerError("stripe-webhook.discount-redemption", err);
+  }
+}
+
 async function syncSubscriptionByType(
   subscription: Stripe.Subscription,
   eventId: string,
@@ -359,12 +427,16 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       let subscription: Stripe.Subscription;
       try {
         subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
-          expand: ["items.data.price", "customer"],
+          // `discounts` is what lets the sync mirror an account discount (and,
+          // just as importantly, NULL the mirror when one is removed) without a
+          // second round-trip per webhook.
+          expand: ["items.data.price", "customer", "discounts"],
         });
       } catch (err) {
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
       }
       await syncSubscriptionByType(subscription, event.id);
+      await recordDiscountRedemption(subscription, event.id);
       return;
     }
 
@@ -391,7 +463,9 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
     case "invoice_payment_failed": {
       let subscription: Stripe.Subscription;
       try {
-        subscription = await stripe.subscriptions.retrieve(action.subscriptionId);
+        subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
+          expand: ["discounts"],
+        });
       } catch (err) {
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
       }
@@ -541,7 +615,9 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       if (action.subscriptionId) {
         let subscription: Stripe.Subscription;
         try {
-          subscription = await stripe.subscriptions.retrieve(action.subscriptionId);
+          subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
+            expand: ["discounts"],
+          });
         } catch (err) {
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }

@@ -27,6 +27,11 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   // A Tulala component (directory/featured-talent/booking/cta) is a top-level
   // page block, so it may be dropped directly at the page root.
   "section_embed",
+  // WS7 Phase 0 — the NATIVE data blocks are whole page bands (a hero, a
+  // discipline grid), so like `section_embed` they belong at the page root as
+  // well as inside a layout shell.
+  "hero_search",
+  "talent_type_grid",
 ]);
 
 export function builderNodeKindAllowedAtRoot(kind: BuilderNodeKind): boolean {

@@ -780,6 +780,13 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return BUILDER_NODE_REGISTRY[node.kind].description;
     case "section_embed":
       return `Tulala component · ${node.props.sectionTypeKey}`;
+    // WS7 Phase 0 — native data blocks; name the SOURCE, not the kind.
+    case "hero_search":
+      return "Search hero";
+    case "talent_type_grid":
+      return node.props.mode === "dynamic"
+        ? "Disciplines · from your roster"
+        : "Disciplines · hand-authored";
   }
 }
 

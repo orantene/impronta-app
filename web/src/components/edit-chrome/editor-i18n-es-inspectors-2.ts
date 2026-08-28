@@ -637,4 +637,129 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // "Predeterminado"), and a second definition would silently win or lose
   // depending on spread order. The parity test caught exactly that.
   Round: "Redondeadas",
+
+  // ── WS7 Phase 0 — native data blocks (Search hero / Talent by discipline) ─
+  // The two Content panels that replace the `section_embed` round-trip to the
+  // curated `hero_search` / `talent_type_grid` sections. Landing here rather
+  // than in `-inspectors.ts` because that file is at the 800-line cap.
+  // "Copy", "Cards", "Columns", "Layout", "Headline", "Intro" and "Eyebrow"
+  // are NOT redefined here - they already live in the catalog, and a second
+  // definition would win or lose depending on spread order.
+  "Search bar": "Barra de búsqueda",
+  "Show the search bar": "Mostrar la barra de búsqueda",
+  "Search talent by role, location or fit":
+    "Busca talento por rol, ciudad o perfil",
+  "Search the roster by role, location or fit.":
+    "Busca en el roster por rol, ciudad o perfil.",
+  "Find the right talent": "Encuentra el talento adecuado",
+  "Talent count": "Número de talentos",
+  "represented talent": "talentos representados",
+  "Show how many talent are in each discipline":
+    "Mostrar cuántos talentos hay en cada disciplina",
+  "Show card images": "Mostrar imágenes en las tarjetas",
+  "Group child types under their parent category":
+    "Agrupar los tipos hijos bajo su categoría principal",
+  "Disciplines appear here as soon as talent on your roster is tagged.":
+    "Las disciplinas aparecen aquí en cuanto etiquetas al talento de tu elenco.",
+  "See all": "Ver todo",
+  "e.g. The roster": "p. ej. El elenco",
+  "e.g. for your next campaign": "p. ej. para tu próxima campaña",
+
+  // ── Token-scale style controls (Style panel, 2026-08-27) ─────────────────
+  // The per-side padding/margin boxes lead with the renderer's spacing scale
+  // and keep the exact numbers behind one expander per box. "Top" / "Right" /
+  // "Bottom" / "Left", "Auto", "Theme" and "Custom value" already live in the
+  // shared flat map, so only what these controls invent is added here.
+  "Padding sides": "Lados del relleno",
+  "Margin sides": "Lados del margen",
+  "Exact values": "Valores exactos",
+  "Hide exact values": "Ocultar valores exactos",
+  Smaller: "Más pequeño",
+  Larger: "Más grande",
+  "Any CSS length works here. Values off the scale stay exactly as you type them.":
+    "Aquí sirve cualquier medida CSS. Los valores fuera de la escala se quedan tal como los escribes.",
+  "The steps are your type scale. An exact size is still yours to set.":
+    "Los pasos son tu escala tipográfica. El tamaño exacto sigue estando en tus manos.",
+
+  // ── Stack-first Layout tab (2026-08-27) ──────────────────────────────────
+  // The Layout tab now leads with the stack model: direction, gap, wrapping,
+  // flow and alignment at the top, under one sentence saying what the block is
+  // doing. "Gap", "Columns", "Display mode", "Items per view" and "Advanced"
+  // already live in the shared flat map, so only the new copy is added here.
+  // "Direction" already resolves through editor-i18n-es-section-panels.ts.
+  Wrapping: "Ajuste de línea",
+  "Along the flow": "A lo largo del flujo",
+  "Line children up": "Alinear los hijos",
+  "Min column width": "Ancho mínimo de columna",
+  "Set a minimum column width and the grid reflows to fewer columns on small screens instead of squashing them.":
+    "Fija un ancho mínimo de columna y la cuadrícula pasa a menos columnas en pantallas pequeñas en vez de apretarlas.",
+  "The grid fits as many columns as clear this width and drops to fewer when it cannot, so the column count above stops applying.":
+    "La cuadrícula coloca todas las columnas que superen este ancho y baja a menos cuando no puede, así que el número de columnas de arriba deja de aplicarse.",
+  "This grid uses a hand-written column template:":
+    "Esta cuadrícula usa una plantilla de columnas escrita a mano:",
+  "Setting a minimum width above replaces it.":
+    "Fijar un ancho mínimo arriba la reemplaza.",
+  "Wrapping, flow and the minimum column width are set on Desktop, Tablet or Mobile.":
+    "El ajuste de línea, el flujo y el ancho mínimo de columna se definen en Escritorio, Tableta o Móvil.",
+  "A visual offset painted after the layout runs. It moves what the box looks like, never where it sits in the stack, so use the controls above to change how this block is arranged.":
+    "Un desplazamiento visual que se pinta después de calcular la maquetación. Cambia el aspecto de la caja, nunca su lugar en la pila, así que usa los controles de arriba para cambiar cómo se ordena este bloque.",
+
+  // The layout summary. Each clause is a catalog key; the two with a number in
+  // them carry a `{token}` the caller substitutes, so one entry covers every
+  // column count instead of one entry per number.
+  "Stacked top to bottom": "Apilado de arriba abajo",
+  "In a row, left to right": "En fila, de izquierda a derecha",
+  "In a grid": "En cuadrícula",
+  "Side to side, one scrolling row": "De lado a lado, una fila que se desplaza",
+  "{count} columns": "{count} columnas",
+  "1 column": "1 columna",
+  "reflowing at {size} per column": "se reacomoda a {size} por columna",
+  "wrapping onto new lines": "con salto a nuevas líneas",
+  "on one line, no wrapping": "en una sola línea, sin saltos",
+  "packed to the start": "agrupado al inicio",
+  "centered along the flow": "centrado a lo largo del flujo",
+  "packed to the end": "agrupado al final",
+  "spread edge to edge": "repartido de borde a borde",
+  "spaced around": "con espacio alrededor",
+  "spaced evenly": "con espacio uniforme",
+  "aligned to the start": "alineado al inicio",
+  "aligned to the center": "alineado al centro",
+  "aligned to the end": "alineado al final",
+  "stretched to fill": "estirado para llenar",
+
+  // ── Per-device image source (art direction, Image panel) ─────────────────
+  "Image for this device": "Imagen para este dispositivo",
+  "Different image on smaller screens":
+    "Imagen distinta en pantallas pequeñas",
+  "This device shows its own photo. Reset to use the desktop image.":
+    "Este dispositivo muestra su propia foto. Restablece para usar la imagen de escritorio.",
+  "Leave this empty and {device} keeps the desktop image. Set it to swap in a photo framed for this screen; the alt text is shared.":
+    "Déjalo vacío y {device} conserva la imagen de escritorio. Elige una foto para cambiarla por otra encuadrada para esta pantalla; el texto alternativo es el mismo.",
+
+  // ── Visual effect builders (glass, gradients, corners, sides, shadows) ────
+  Conic: "Cónico",
+  Backdrop: "Filtro de fondo",
+  Glass: "Cristal",
+  "Frosted blur, a translucent fill and a hairline border in one click. Every part stays adjustable.":
+    "Desenfoque esmerilado, relleno translúcido y borde fino en un clic. Cada parte sigue siendo ajustable.",
+  // "Blur" and "Linked" already live in editor-i18n-es-inspectors.ts.
+  "Saturation %": "Saturación %",
+  "Custom backdrop filter, kept exactly as written.":
+    "Filtro de fondo personalizado, se conserva tal como está escrito.",
+  Inset: "Interior",
+  "Custom shadow, kept exactly as written.":
+    "Sombra personalizada, se conserva tal como está escrita.",
+  "+ Add shadow layer": "+ Añadir capa de sombra",
+  "That is too long to save. Remove a layer or shorten a color.":
+    "Es demasiado largo para guardar. Quita una capa o acorta un color.",
+  "Each corner": "Cada esquina",
+  "Per corner": "Por esquina",
+  "Custom radius, kept exactly as written:":
+    "Radio personalizado, se conserva tal como está escrito:",
+  "Each side": "Cada lado",
+  "Per side": "Por lado",
+  "Custom border width, kept exactly as written:":
+    "Ancho de borde personalizado, se conserva tal como está escrito:",
+  "That combination is too long to save. Use smaller widths.":
+    "Esa combinación es demasiado larga para guardar. Usa anchos más pequeños.",
 };

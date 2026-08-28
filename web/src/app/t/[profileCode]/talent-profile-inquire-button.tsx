@@ -100,6 +100,10 @@ export function TalentProfileInquireButton({
   }, [chooserOpen]);
 
   const othersInLineup = cart.cartIds.filter((id) => id !== talentId).length;
+  // Already in the inquiry: the CTA stops saying "Inquire about {name}" (which
+  // reads as if nothing happened when they tap it again) and becomes an active
+  // way back into the conversation they already started.
+  const alreadyInLineup = cart.isInCart(talentId);
 
   const addToCurrent = (path: "direct" | "add_to_current" = "direct") => {
     setChooserOpen(false);
@@ -172,11 +176,34 @@ export function TalentProfileInquireButton({
     textAlign: "left" as const,
   };
 
+  // Both lines are nowrap + ellipsis, so no popover width can make them wrap.
+  const optionTextStyle = {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 1,
+  };
+  const optionTitleStyle = {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  };
+  const optionSubStyle = {
+    fontSize: 11.5,
+    fontWeight: 500,
+    color: "#5b6170",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  };
+
   return (
     <div ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>
       <Button type="button" onClick={handleClick} className={className} style={ctaTypeStyle}>
         <Mail className="size-4" />
-        {interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
+        {alreadyInLineup
+          ? t("public.profileCta.viewInquiry")
+          : interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
       </Button>
       {chooserOpen && (
         <div
@@ -195,19 +222,37 @@ export function TalentProfileInquireButton({
             boxShadow: "0 16px 40px -14px rgba(16,18,29,0.45)",
           }}
         >
+          {/* Title + subtext, each a single line. The old copy was one long
+              sentence per row ("Add chiara to your current inquiry (2 talent)")
+              that wrapped to two lines and said the name the trigger had just
+              said. The name now appears once, in the subtext. */}
           <button type="button" role="menuitem" onClick={() => addToCurrent("add_to_current")} style={optionStyle}>
             <UserPlus size={15} strokeWidth={2.1} aria-hidden style={{ flexShrink: 0, opacity: 0.65 }} />
-            <span style={{ minWidth: 0 }}>
-              {interpolate(t("public.profileCta.addToCurrent"), {
-                name: firstName,
-                count: othersInLineup,
-              })}
+            <span style={optionTextStyle}>
+              <span style={optionTitleStyle}>
+                {alreadyInLineup
+                  ? t("public.profileCta.alreadyInTitle")
+                  : t("public.profileCta.addToCurrentTitle")}
+              </span>
+              <span style={optionSubStyle}>
+                {alreadyInLineup
+                  ? interpolate(t("public.profileCta.alreadyInSub"), { name: firstName })
+                  : interpolate(
+                      othersInLineup === 1
+                        ? t("public.profileCta.addToCurrentSubOne")
+                        : t("public.profileCta.addToCurrentSubOther"),
+                      { count: othersInLineup },
+                    )}
+              </span>
             </span>
           </button>
           <button type="button" role="menuitem" onClick={startSeparate} style={optionStyle}>
             <MessageCirclePlus size={15} strokeWidth={2.1} aria-hidden style={{ flexShrink: 0, opacity: 0.65 }} />
-            <span style={{ minWidth: 0 }}>
-              {interpolate(t("public.profileCta.separateInquiry"), { name: firstName })}
+            <span style={optionTextStyle}>
+              <span style={optionTitleStyle}>{t("public.profileCta.separateTitle")}</span>
+              <span style={optionSubStyle}>
+                {interpolate(t("public.profileCta.separateSub"), { name: firstName })}
+              </span>
             </span>
           </button>
         </div>

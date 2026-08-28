@@ -119,6 +119,11 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     // Surfaced via the picker's dedicated "Tulala" group, not this generic
     // category map; "layout" is a sensible fallback for any non-grouped path.
     section_embed: "layout",
+    // WS7 Phase 0 — surfaced via the Add Gallery's CONNECTED tab (they are
+    // roster-driven, not generic elements). "layout" is the non-grouped
+    // fallback, same as section_embed above.
+    hero_search: "layout",
+    talent_type_grid: "layout",
   };
 
 export function elementLibraryCategoryForKind(
@@ -214,6 +219,12 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // it in the shipped catalog lets it survive the allow-list filter so those
     // curated entries reach the picker's `allowedKinds` gate.
     "section_embed",
+    // WS7 Phase 0 — the two NATIVE data blocks. Shipped + droppable, but like
+    // `section_embed` they are reached through the Add Gallery's CONNECTED tab
+    // rather than as bare pills in the generic element list, so they stay OUT of
+    // MVP_ELEMENT_LIBRARY_KINDS and only need to survive the shipped filter.
+    "hero_search",
+    "talent_type_grid",
   ]),
 ];
 

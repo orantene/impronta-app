@@ -21,6 +21,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { CatalogBrowser } from "./font-picker/catalog-browser";
+import { CustomFontsPanel } from "./font-picker/custom-fonts-panel";
 import {
   BUILDER_FONT_REGISTRY,
   buildGoogleFontsHrefForFamilies,
@@ -37,8 +39,11 @@ const CATEGORY_LABEL: Record<BuilderFontCategory, string> = {
   sans: "Sans",
   serif: "Serif",
   display: "Display",
+  script: "Script",
   mono: "Mono",
 };
+
+type FontSource = "curated" | "all" | "custom";
 
 interface GoogleFontPickerProps {
   slot: Slot;
@@ -50,6 +55,7 @@ interface GoogleFontPickerProps {
 export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProps) {
   const [filter, setFilter] = useState<BuilderFontCategory | "all">("all");
   const [search, setSearch] = useState("");
+  const [source, setSource] = useState<FontSource>("curated");
 
   const grouped = useMemo(() => {
     const filtered = BUILDER_FONT_REGISTRY.filter((f) => {
@@ -92,8 +98,38 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
           </button>
         ) : null}
       </div>
+      <div className="flex items-center gap-1">
+        {(
+          [
+            ["curated", "Library"],
+            ["all", "All Google Fonts"],
+            ["custom", "Your fonts"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSource(key)}
+            className={`rounded-lg px-2 py-0.5 text-[10px] ${
+              source === key
+                ? "border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                : "border border-[#e5e0d5] bg-[#faf9f6] text-stone-500 hover:bg-white hover:text-stone-700 hover:border-stone-300"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {source === "all" ? (
+        <CatalogBrowser current={current} onPick={onChange} />
+      ) : null}
+      {source === "custom" ? (
+        <CustomFontsPanel current={current} onPick={onChange} />
+      ) : null}
+      {source !== "curated" ? null : (
+      <>
       <div className="flex flex-wrap items-center gap-1">
-        {(["all", "sans", "serif", "display", "mono"] as const).map((c) => (
+        {(["all", "sans", "serif", "display", "script", "mono"] as const).map((c) => (
           <button
             key={c}
             type="button"
@@ -143,6 +179,8 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
           </div>
         ) : null}
       </div>
+      </>
+      )}
     </div>
   );
 }
