@@ -122,6 +122,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
         .in("id", rosterTalentIds)
         .eq("is_publicly_hidden", false)
         .eq("is_featured", true)
+        .neq("profile_kind", "resource")
         .is("deleted_at", null)
         .order("featured_level", { ascending: false })
         .order("featured_position", { ascending: true })

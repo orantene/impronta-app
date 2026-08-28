@@ -518,6 +518,7 @@ export async function fetchDirectoryPage(
           .is("deleted_at", null)
           .eq("is_publicly_hidden", false)
           .eq("is_publicly_listed", true)
+          .neq("profile_kind", "resource")
           .or(orResidenceOrLegacyLocationMatches(locIds)),
     );
     if (locTalentErr) {
@@ -701,7 +702,8 @@ export async function fetchDirectoryPage(
       .eq("is_publicly_hidden", false)
       // Must mirror the listing query below, or the header count disagrees with
       // the number of cards actually rendered.
-      .eq("is_publicly_listed", true);
+      .eq("is_publicly_listed", true)
+      .neq("profile_kind", "resource");
 
     if (profileCodes.length > 0) {
       countQuery = countQuery.in("profile_code", profileCodes);
@@ -799,7 +801,8 @@ export async function fetchDirectoryPage(
     // stricter rule — so unpublished profiles rendered as cards whose photos
     // the RLS policy then refused to return (the "faceless card" bug). All
     // three now read talent_profiles.is_publicly_listed.
-    .eq("is_publicly_listed", true);
+    .eq("is_publicly_listed", true)
+    .neq("profile_kind", "resource");
 
   if (profileCodes.length > 0) {
     query = query.in("profile_code", profileCodes);

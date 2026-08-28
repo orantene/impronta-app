@@ -177,6 +177,7 @@ export async function GET(
     .is("deleted_at", null)
     .eq("workflow_status", "approved")
     .eq("visibility", "public")
+    .neq("profile_kind", "resource")
     .maybeSingle();
 
   if (error || !profile) {

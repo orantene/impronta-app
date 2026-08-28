@@ -36,6 +36,7 @@ const ALL_REASONS: ClaimReason[] = [
   "profile_unavailable",
   "profile_already_claimed",
   "claimer_has_profile",
+  "resource_profile",
 ];
 
 /* ─────────────────────── catalog lookup helpers ─────────────────────── */
@@ -117,11 +118,14 @@ test("duplicate-profile refusal still shows the dashboard CTA (they still have a
   assert.equal(p.showDashboard, true);
 });
 
-test("shared reasons map invite_not_found/profile_unavailable to the same copy", () => {
+test("shared reasons map invite_not_found/profile_unavailable/resource_profile to the same copy", () => {
   const a = presentClaimOutcome({ ok: false, reason: "invite_not_found" });
   const b = presentClaimOutcome({ ok: false, reason: "profile_unavailable" });
+  const c = presentClaimOutcome({ ok: false, reason: "resource_profile" });
   assert.equal(a.titleKey, b.titleKey);
   assert.equal(a.bodyKey, b.bodyKey);
+  assert.equal(a.titleKey, c.titleKey);
+  assert.equal(a.bodyKey, c.bodyKey);
 });
 
 test("shared reasons map invite_already_redeemed/profile_already_claimed to the same copy", () => {

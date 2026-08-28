@@ -587,6 +587,7 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
       `,
     )
     .eq("is_discoverable", true)
+    .neq("profile_kind", "resource")
     .in("workflow_status", ["approved", "published"]);
 
   if (error) {

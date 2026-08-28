@@ -220,6 +220,35 @@ test("held-skip: a talent with no enabled account is skipped (funds held), the r
   assert.equal(ledger.filter((w) => w.row.status === "held").length, 1, "1 leg held");
 });
 
+test("resource-profile payout: no Connect account → skipped_no_account, zero Stripe calls for that leg", async () => {
+  // Resource profiles (staff/chairs) have user_id NULL, so they never onboard
+  // Connect. The existing held-skip path already covers this: resolveTalentAccount
+  // returns null → skipped_no_account, funds stay on the platform. Named here so
+  // a future resource-aware transfer change cannot silently start calling Stripe.
+  const snapshots: Snap[] = [
+    snap({ participant_id: "p-resource", talent_net_cents: 40000, workspace_fee_cents: 10000 }),
+  ];
+  const participants = { "p-resource": "tp_resource_chair" };
+  const { calls, stripe } = makeStripe();
+  const ledger: LedgerWrite[] = [];
+
+  const outcomes = await executeBookingTransfers(TXN_ID, {
+    sb: makeSupabase({ snapshots, participants, ledger }),
+    stripe,
+    resolveTalentAccount: async () => null,
+    resolveWorkspaceAccount: async (t) => `acct_${t}`,
+  });
+
+  const talentLeg = outcomes.find((o) => o.party === "talent");
+  assert.equal(talentLeg?.status, "skipped_no_account");
+  assert.match(talentLeg?.detail ?? "", /held on platform/i);
+  assert.ok(!calls.some((c) => String(c.idempotencyKey ?? "").includes("talent")));
+  const held = ledger.find((w) => w.row.party === "talent");
+  assert.equal(held?.row.status, "held");
+  assert.equal(held?.row.stripe_transfer_id, null);
+  assert.equal(held?.row.talent_profile_id, "tp_resource_chair");
+});
+
 test("zero amounts are skipped (no Stripe call)", async () => {
   const snapshots: Snap[] = [
     snap({ participant_id: "p1", talent_net_cents: 0, workspace_fee_cents: 0 }),

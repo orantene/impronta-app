@@ -97,7 +97,8 @@ async function loadCategoryTreeUncached(
       .in("id", ids)
       .is("deleted_at", null)
       .eq("is_publicly_hidden", false)
-      .eq("is_publicly_listed", true);
+      .eq("is_publicly_listed", true)
+      .neq("profile_kind", "resource");
     if (error) return [];
     for (const row of (data ?? []) as { id: string }[]) rosterIds.push(row.id);
   }

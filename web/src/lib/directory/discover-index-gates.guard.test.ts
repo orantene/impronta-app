@@ -25,6 +25,8 @@
  *   is_discoverable            the talent's own opt-in to the Discover catalog
  *   is_publicly_listed         the agency's roster eye (trigger-maintained)
  *   discover_exposure_enabled  the workspace's platform-level veto
+ *   is_starter_seed            onboarding template clones must never enter Discover
+ *   profile_kind               resource profiles (staff/chairs) are not people
  *
  * Adding a genuinely new gate? Add it to REQUIRED_GATES in the same commit.
  */
@@ -44,6 +46,8 @@ const REQUIRED_GATES: Array<{ column: string; why: string }> = [
   { column: "is_discoverable", why: "the talent's own Discover opt-in" },
   { column: "is_publicly_listed", why: "the agency's roster eye (trigger-maintained)" },
   { column: "discover_exposure_enabled", why: "the workspace's platform-level veto" },
+  { column: "is_starter_seed", why: "onboarding template clones must never enter Discover" },
+  { column: "profile_kind", why: "resource profiles (staff/chairs) are not people in the catalog" },
 ];
 
 const CREATE_RE = /CREATE\s+MATERIALIZED\s+VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?public\.talent_discover_index\b/i;
@@ -119,7 +123,12 @@ test("a dropped gate is NOT masked by comments mentioning it", () => {
 
   assert.deepEqual(
     missing.sort(),
-    ["discover_exposure_enabled", "is_publicly_listed"],
+    [
+      "discover_exposure_enabled",
+      "is_publicly_listed",
+      "is_starter_seed",
+      "profile_kind",
+    ],
     "comments must not satisfy a gate the WHERE clause dropped",
   );
 });

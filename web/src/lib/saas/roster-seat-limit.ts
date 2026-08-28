@@ -112,9 +112,10 @@ export async function checkRosterSeatAvailability(
       .maybeSingle<AgencySeatRow>(),
     supabase
       .from("agency_talent_roster")
-      .select("id", { count: "exact", head: true })
+      .select("id, talent_profiles!inner(profile_kind)", { count: "exact", head: true })
       .eq("tenant_id", tenantId)
-      .neq("status", "removed"),
+      .neq("status", "removed")
+      .eq("talent_profiles.profile_kind", "person"),
   ]);
 
   const current = Math.max(0, Math.trunc(rosterRes.count ?? 0));

@@ -76,7 +76,8 @@ export async function POST(req: Request) {
       is_discoverable, workflow_status
       `,
     )
-    .in("id", ids);
+    .in("id", ids)
+    .neq("profile_kind", "resource");
 
   if (error) {
     logServerError("api.directory.talents-by-ids.list", error);
