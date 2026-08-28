@@ -311,6 +311,7 @@ export function GuestDockHomeView({
       {!isAccount && (
         <div style={{ padding: "8px 14px 16px" }}>
           <GuestAccountToolkit
+            t={t}
             inquiryId={inquiryId}
             guestEmail={guestEmail}
             identity={identity}

@@ -23,6 +23,8 @@
  */
 
 import { paletteFor, type Palette, type SurfaceMode } from "./mini-chat-styles";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 
 /** The tiers that can ever see this nudge (an "account" guest is never gated below their cap here). */
 export type TrustGateNudgeTier = "guest" | "identified" | "email_verified";
@@ -58,6 +60,8 @@ export type TrustGateNudgeProps = {
   showRefundableHoldNote?: boolean;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /** Required: this component shipped fully hardcoded in English. */
+  t: Translator;
 };
 
 export function TrustGateNudge({
@@ -70,6 +74,7 @@ export function TrustGateNudge({
   canVerify = true,
   showRefundableHoldNote = false,
   surfaceMode = "light",
+  t,
 }: TrustGateNudgeProps) {
   const C = paletteFor(surfaceMode);
   // email_verified guests unlock MORE by creating a full account; guest /
@@ -77,14 +82,20 @@ export function TrustGateNudge({
   const isAccountStep = tier === "email_verified";
 
   const headline = isAccountStep
-    ? "Create a free account to keep more conversations going"
-    : "Verify your email to start more conversations";
+    ? t("public.guestChat.gateAccountHeadline")
+    : t("public.guestChat.gateVerifyHeadline");
 
-  const body = isAccountStep
-    ? `You have ${describeCount(activeCount, limit)} going. A free Tulala account lets you keep more open at once — and keeps them all in one place.`
-    : `You have ${describeCount(activeCount, limit)} going. Verify your email and you can start more — it only takes a tap on the link we send you.`;
+  const count = describeCount(activeCount, limit, t);
+  const body = interpolate(
+    isAccountStep
+      ? t("public.guestChat.gateAccountBody")
+      : t("public.guestChat.gateVerifyBody"),
+    { count },
+  );
 
-  const ctaLabel = isAccountStep ? "Email me a sign-in link" : "Send my verification link";
+  const ctaLabel = isAccountStep
+    ? t("public.guestChat.gateAccountCta")
+    : t("public.guestChat.gateVerifyCta");
 
   return (
     <div style={wrapStyle(C)} role="status">
@@ -93,9 +104,7 @@ export function TrustGateNudge({
 
       {showRefundableHoldNote && (
         <div style={{ fontSize: 11, lineHeight: 1.4, color: C.inkMuted }}>
-          Prefer to skip the wait? Some teams let you place a small refundable
-          hold — you get it back, or it becomes credit toward your booking. It is
-          never a charge to chat.
+          {t("public.guestChat.gateRefundableHold")}
         </div>
       )}
 
@@ -124,9 +133,15 @@ export function TrustGateNudge({
 }
 
 /** "1 conversation" / "3 conversations" — honest, never alarmist. */
-function describeCount(activeCount: number, limit: number): string {
+function describeCount(
+  activeCount: number,
+  limit: number,
+  t: Translator,
+): string {
   const n = Math.max(activeCount, limit, 1);
-  return n === 1 ? "1 conversation" : `${n} conversations`;
+  return n === 1
+    ? t("public.guestChat.gateCountOne")
+    : interpolate(t("public.guestChat.gateCountMany"), { count: String(n) });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

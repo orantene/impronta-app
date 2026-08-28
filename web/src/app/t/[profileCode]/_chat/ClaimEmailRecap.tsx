@@ -15,6 +15,7 @@
  */
 
 import { useState } from "react";
+import type { Translator } from "@/i18n/interpolate";
 
 import type { AddClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
 
@@ -33,6 +34,7 @@ export function ClaimEmailRecap({
   accentInk,
   onAddClaimEmail,
   surfaceMode = "light",
+  t,
 }: {
   /** The email the first link was sent to. */
   emailedTo: string;
@@ -44,6 +46,8 @@ export function ClaimEmailRecap({
   onAddClaimEmail: AddClaimEmailCallback | null;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /** Required: this component shipped fully hardcoded in English. */
+  t: Translator;
 }) {
   const C = paletteFor(surfaceMode);
   const [showAltEmail, setShowAltEmail] = useState(false);
@@ -66,7 +70,8 @@ export function ClaimEmailRecap({
     setAltSending(false);
 
     if (!res.ok) {
-      setAltError(res.message || "Couldn't send to that email. Try another.");
+      // The server message is hardcoded English; prefer catalog copy.
+      setAltError(t("public.guestChat.recapSendFailed"));
       return;
     }
 
@@ -93,8 +98,20 @@ export function ClaimEmailRecap({
       }}
     >
       <div>
-        Link sent to <strong style={{ color: C.inkMuted }}>{emailedTo}</strong> — check your inbox
-        to continue.
+        {(() => {
+          // Split on the placeholder so a translation may put the address
+          // anywhere in the sentence and still render it bold.
+          const [before, after] = t(
+            "public.guestChat.recapLinkSent",
+          ).split("{email}");
+          return (
+            <>
+              {before}
+              <strong style={{ color: C.inkMuted }}>{emailedTo}</strong>
+              {after}
+            </>
+          );
+        })()}
       </div>
 
       {/* Confirmations for any extra emails the guest added. */}
@@ -122,7 +139,7 @@ export function ClaimEmailRecap({
               padding: "1px 2px",
             }}
           >
-            Use a different email
+            {t("public.guestChat.recapUseDifferentEmail")}
           </button>
         ) : (
           <div
@@ -164,7 +181,7 @@ export function ClaimEmailRecap({
                   cursor: altReady ? "pointer" : "not-allowed",
                 }}
               >
-                {altSending ? "…" : "Send link"}
+                {altSending ? "…" : t("public.guestChat.recapSendLink")}
               </button>
             </div>
             {altError && (
