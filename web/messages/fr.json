@@ -755,7 +755,11 @@
       "catTrust": "Confiance et securite",
       "drawerTitle": "Ticket de support",
       "drawerEmpty": "Impossible de charger ce ticket.",
-      "attachReplay": "Joindre un replay de vos dernieres minutes pour nous aider a corriger cela plus vite"
+      "attachReplay": "Joindre un replay de vos dernieres minutes pour nous aider a corriger cela plus vite",
+      "sharingScreen": "Partage d'ecran avec le support",
+      "stopSharing": "Arreter",
+      "acceptLiveView": "Autoriser",
+      "declineLiveView": "Refuser"
     },
     "platform": {
       "nav": {
@@ -819,6 +823,11 @@
         "noReplay": "Aucun replay attache a ce ticket.",
         "playReplay": "Lire",
         "replayEmpty": "Ce replay n'a pas d'evenements.",
+        "requestLive": "Demander une vue live",
+        "watchLive": "Voir en live",
+        "livePointer": "Pointeur",
+        "liveHighlight": "Surbrillance",
+        "liveDraw": "Dessiner",
         "statusOpen": "Ouvert",
         "statusResolved": "Resolu",
         "statusClosed": "Ferme",

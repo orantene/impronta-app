@@ -8307,6 +8307,11 @@
         "noReplay": "No replay attached to this ticket.",
         "playReplay": "Play",
         "replayEmpty": "This replay has no events.",
+        "requestLive": "Request live view",
+        "watchLive": "Watch live",
+        "livePointer": "Pointer",
+        "liveHighlight": "Highlight",
+        "liveDraw": "Draw",
         "statusOpen": "Open",
         "statusResolved": "Resolved",
         "statusClosed": "Closed",
@@ -11839,7 +11844,11 @@
       "catTrust": "Trust and Safety",
       "drawerTitle": "Support ticket",
       "drawerEmpty": "This ticket could not be loaded.",
-      "attachReplay": "Attach a replay of your last few minutes to help us fix this faster"
+      "attachReplay": "Attach a replay of your last few minutes to help us fix this faster",
+      "sharingScreen": "Sharing screen with support",
+      "stopSharing": "Stop",
+      "acceptLiveView": "Allow",
+      "declineLiveView": "Decline"
     }
   },
   "admin": {

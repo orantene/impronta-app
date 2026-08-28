@@ -34,6 +34,10 @@ function asPacked(event: unknown): string {
   }
 }
 
+export function isReplayBufferRunning(): boolean {
+  return stop !== null;
+}
+
 export function startReplayBuffer(): void {
   if (stop || typeof window === "undefined") return;
   buffer.clear();

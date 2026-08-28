@@ -131,6 +131,49 @@ export async function mintReplayUploadAction(raw: {
   return { ok: true, sessionId, uploads };
 }
 
+/** Sign chunk uploads for an existing live session so the stream persists as a replay. */
+export async function mintLiveSessionUploadAction(raw: {
+  sessionId: string;
+  chunkCount: number;
+}): Promise<
+  | { ok: true; sessionId: string; uploads: Array<{ index: number; path: string; signedUrl: string }> }
+  | { ok: false; error: string }
+> {
+  const parsed = z
+    .object({ sessionId: uuid, chunkCount: z.number().int().min(1).max(80) })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const session = await requireSession();
+  if (!session.ok) return session;
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Not configured." };
+  const { data: row } = await supportFrom(admin, "support_replay_sessions")
+    .select("id, user_id, ticket_id, tenant_id, kind, status")
+    .eq("id", parsed.data.sessionId)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Session not found." };
+  if (session.user.id !== String(row.user_id)) return { ok: false, error: "Not authorized." };
+  if (row.kind !== "live" || row.status !== "recording") {
+    return { ok: false, error: "Live session is not recording." };
+  }
+  const tenantKey = typeof row.tenant_id === "string" ? row.tenant_id : "none";
+  const prefix = `${tenantKey}/${parsed.data.sessionId}`;
+  const uploads: Array<{ index: number; path: string; signedUrl: string }> = [];
+  for (let i = 0; i < parsed.data.chunkCount; i += 1) {
+    const path = `${prefix}/${i}.bin`;
+    const signed = await admin.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (signed.error || !signed.data) {
+      logServerError("support.replay.signLive", signed.error);
+      return { ok: false, error: "Replay storage is not ready." };
+    }
+    uploads.push({ index: i, path, signedUrl: signed.data.signedUrl });
+  }
+  await supportFrom(admin, "support_replay_sessions")
+    .update({ storage_prefix: prefix })
+    .eq("id", parsed.data.sessionId);
+  return { ok: true, sessionId: parsed.data.sessionId, uploads };
+}
+
 export async function completeReplayUploadAction(raw: {
   sessionId: string;
   chunks: Array<{ index: number; path: string; bytes: number }>;

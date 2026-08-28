@@ -1,6 +1,6 @@
 "use client";
 
-import { completeReplayUploadAction, mintReplayUploadAction } from "./replay-actions";
+import { completeReplayUploadAction, mintLiveSessionUploadAction, mintReplayUploadAction } from "./replay-actions";
 import { snapshotReplayBuffer } from "./recorder";
 
 /** Best-effort: ticket create already succeeded if this fails. */
@@ -31,4 +31,35 @@ export async function uploadReplayForTicket(ticketId: string): Promise<void> {
     durationMs: Math.max(0, ended - started),
     eventCount: chunks.length,
   });
+}
+
+/** Best-effort: persist a live session's buffer as a playable replay. */
+export async function persistLiveReplay(sessionId: string): Promise<boolean> {
+  const chunks = snapshotReplayBuffer();
+  if (chunks.length === 0) return false;
+  const mint = await mintLiveSessionUploadAction({ sessionId, chunkCount: chunks.length });
+  if (!mint.ok) return false;
+  const manifest: Array<{ index: number; path: string; bytes: number }> = [];
+  const started = chunks[0]?.fromTs ?? Date.now();
+  const ended = chunks[chunks.length - 1]?.toTs ?? Date.now();
+  for (const u of mint.uploads) {
+    const body = chunks[u.index]?.packed ?? "";
+    try {
+      await fetch(u.signedUrl, {
+        method: "PUT",
+        body,
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+    } catch {
+      return false;
+    }
+    manifest.push({ index: u.index, path: u.path, bytes: body.length });
+  }
+  const done = await completeReplayUploadAction({
+    sessionId: mint.sessionId,
+    chunks: manifest,
+    durationMs: Math.max(0, ended - started),
+    eventCount: chunks.length,
+  });
+  return done.ok;
 }

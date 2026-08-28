@@ -6,6 +6,8 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import type { SupportContract } from "./support-contract";
+import { acceptLiveShareFromCard } from "@/lib/support/replay/LiveShareHost";
+import { declineLiveViewAction } from "@/lib/support/replay/live-actions";
 
 export type SupportThreadTone = "light" | "hq";
 
@@ -42,11 +44,14 @@ export function SupportCardRenderer({
   tone: SupportThreadTone;
 }) {
   const t = useT();
+  const [liveDone, setLiveDone] = useState(false);
   const kind = typeof payload.kind === "string" ? payload.kind : "generic";
   const ink = tone === "hq" ? "#F5F2EB" : COLORS.ink;
   const muted = tone === "hq" ? "rgba(245,242,235,0.62)" : COLORS.inkMuted;
   const cardBg = tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.card;
   const border = tone === "hq" ? "rgba(255,255,255,0.10)" : COLORS.border;
+  const ticketId = typeof payload.ticketId === "string" ? payload.ticketId : null;
+  const showLiveActions = kind === "live-view" && tone !== "hq" && !liveDone && ticketId;
 
   return (
     <div
@@ -75,15 +80,20 @@ export function SupportCardRenderer({
           {t("dashboard.adminSupport.offerHumanBody")}
         </div>
       ) : null}
-      {kind === "callback" || kind === "auto-close" || kind === "offer-human" ? (
+      {kind === "callback" || kind === "auto-close" || kind === "offer-human" || showLiveActions ? (
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (showLiveActions && ticketId) {
+                void acceptLiveShareFromCard(ticketId);
+                setLiveDone(true);
+                return;
+              }
               onAction?.(
                 kind === "callback" ? "add-phone" : kind === "auto-close" ? "keep-open" : "talk-human",
-              )
-            }
+              );
+            }}
             style={{
               border: "none",
               background: COLORS.fill,
@@ -99,8 +109,31 @@ export function SupportCardRenderer({
               ? t("dashboard.adminSupport.addNumber")
               : kind === "auto-close"
                 ? t("dashboard.adminSupport.keepOpen")
-                : t("dashboard.adminSupport.talkToHuman")}
+                : kind === "live-view"
+                  ? t("dashboard.adminSupport.acceptLiveView")
+                  : t("dashboard.adminSupport.talkToHuman")}
           </button>
+          {showLiveActions && ticketId ? (
+            <button
+              type="button"
+              onClick={() => {
+                void declineLiveViewAction({ ticketId });
+                setLiveDone(true);
+              }}
+              style={{
+                border: `1px solid ${border}`,
+                background: "transparent",
+                color: ink,
+                borderRadius: 8,
+                padding: "7px 12px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {t("dashboard.adminSupport.declineLiveView")}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
