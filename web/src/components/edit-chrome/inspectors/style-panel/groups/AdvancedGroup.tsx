@@ -83,6 +83,7 @@ export function AdvancedGroup(props: AdvancedGroupProps) {
         selectedStandaloneFullStyle={selectedStandaloneFullStyle}
         selectedStandaloneStyleNode={selectedStandaloneStyleNode}
         selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+        selectedViewport={selectedViewport}
         setOrToggleStandaloneStyle={props.setOrToggleStandaloneStyle}
         setSelectedInteractionState={props.setSelectedInteractionState}
       />

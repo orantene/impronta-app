@@ -762,4 +762,7 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Ancho de borde personalizado, se conserva tal como está escrito:",
   "That combination is too long to save. Use smaller widths.":
     "Esa combinación es demasiado larga para guardar. Usa anchos más pequeños.",
+  "Hover filter": "Filtro al pasar el cursor",
+  "Hover backdrop": "Fondo al pasar el cursor",
+  "When parent is hovered": "Al pasar el cursor por el padre",
 };

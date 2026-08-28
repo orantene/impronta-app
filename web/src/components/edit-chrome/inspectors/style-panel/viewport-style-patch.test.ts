@@ -21,6 +21,7 @@ import { isResponsivePlumbedStyleKey } from "@/lib/site-admin/builder-node/respo
 import { PADDING_SIDES, MARGIN_SIDES } from "./spacing-side-fields";
 import {
   splitPatchByResponsiveLane,
+  styleWithHoverPatch,
   styleWithViewportPatch,
   styleWriteTarget,
 } from "./viewport-style-patch";
@@ -119,4 +120,33 @@ test("every key the token-scale controls write has a breakpoint lane", () => {
   }
   assert.equal(isResponsivePlumbedStyleKey("size"), true);
   assert.equal(isResponsivePlumbedStyleKey("fontSize"), true);
+});
+
+test("desktop hover writes the base hover lane", () => {
+  const next = styleWithHoverPatch(
+    { backgroundColor: "#fff" },
+    "desktop",
+    { filter: "blur(8px)" },
+    CLEANERS,
+  );
+  assert.equal(
+    (next?.hover as { filter?: string } | undefined)?.filter,
+    "blur(8px)",
+  );
+  assert.equal(next?.backgroundColor, "#fff");
+});
+
+test("tablet hover writes responsive.tablet.hover and leaves desktop hover alone", () => {
+  const next = styleWithHoverPatch(
+    { hover: { backgroundColor: "#111" } },
+    "tablet",
+    { filter: "grayscale(1)" },
+    CLEANERS,
+  );
+  assert.equal(next?.hover?.backgroundColor, "#111");
+  assert.equal(
+    (next?.responsive?.tablet as { hover?: { filter?: string } } | undefined)?.hover
+      ?.filter,
+    "grayscale(1)",
+  );
 });

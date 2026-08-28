@@ -10,6 +10,11 @@ import type { EditorThemeClasses } from "lexical";
 
 export const richEditorTheme: EditorThemeClasses = {
   paragraph: "site-rich-paragraph",
+  list: {
+    ul: "site-rich-ul",
+    ol: "site-rich-ol",
+    listitem: "site-rich-li",
+  },
   text: {
     bold: "site-rich-bold",
     italic: "site-rich-italic",
