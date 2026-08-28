@@ -11,6 +11,7 @@ import {
   approveProposedActionAction,
   declineProposedActionAction,
 } from "@/lib/support/proposed-actions/actions";
+import { resolveSupportTicketAction } from "@/lib/support/actions";
 
 export type SupportThreadTone = "light" | "hq";
 
@@ -63,6 +64,71 @@ export function SupportCardRenderer({
   const showLiveActions =
     kind === "live-view" && tone !== "hq" && !liveDone && ticketId && liveShareAvailable;
   const showFixActions = kind === "proposed-action" && tone !== "hq" && !fixDone && actionId;
+
+  if (kind === "handoff" && tone === "hq") {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          fontSize: 11,
+          color: muted,
+          margin: "8px 0",
+        }}
+      >
+        {t("dashboard.adminSupport.handoffHq")}
+      </div>
+    );
+  }
+
+  if (kind === "handoff") {
+    const hasPhone = payload.hasPhone === true;
+    return (
+      <div
+        style={{
+          background: COLORS.card,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: "14px 16px",
+          maxWidth: "86%",
+          margin: "8px auto",
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600, color: ink, marginBottom: 6 }}>
+          {t("dashboard.adminSupport.handoffTitle")}
+        </div>
+        <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: hasPhone ? 0 : 10 }}>
+          {t("dashboard.adminSupport.handoffBody")}
+        </div>
+        {!hasPhone && tone !== "hq" ? (
+          <button
+            type="button"
+            onClick={() => onAction?.("add-phone")}
+            style={{
+              border: "none",
+              background: COLORS.fill,
+              color: "#fff",
+              borderRadius: 8,
+              padding: "7px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M6.6 10.8c1.4 2.7 3.9 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1L6.6 10.8z"
+                fill="currentColor"
+              />
+            </svg>
+            {t("dashboard.adminSupport.addNumber")}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -241,6 +307,8 @@ export function SupportThreadView({
 }) {
   const t = useT();
   const [acked, setAcked] = useState<Record<string, boolean>>({});
+  const [confirmHelpful, setConfirmHelpful] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -343,12 +411,52 @@ export function SupportThreadView({
                   </div>
                   {!isHq ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, alignItems: "center" }}>
-                      {acked[m.id] ? null : (
+                      {acked[m.id] ? null : confirmHelpful === m.id ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: COLORS.royal }}>
+                            {t("dashboard.adminSupport.helpedConfirm")}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={resolving || !ticket}
+                            onClick={() => {
+                              if (!ticket) return;
+                              setResolving(true);
+                              void resolveSupportTicketAction({ ticketId: ticket.id }).then((r) => {
+                                setResolving(false);
+                                if (r.ok) setAcked((prev) => ({ ...prev, [m.id]: true }));
+                              });
+                            }}
+                            style={{
+                              border: "none",
+                              background: COLORS.fill,
+                              color: "#fff",
+                              borderRadius: 8,
+                              padding: "7px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t("dashboard.adminSupport.markResolved")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAcked((prev) => ({ ...prev, [m.id]: true }));
+                              setConfirmHelpful(null);
+                            }}
+                            style={ghostBtn}
+                          >
+                            {t("dashboard.adminSupport.keepItOpen")}
+                          </button>
+                        </div>
+                      ) : (
                         <>
                           <span style={{ fontSize: 11, color: COLORS.royal }}>{t("dashboard.adminSupport.didThisHelp")}</span>
                           <button
                             type="button"
-                            onClick={() => setAcked((prev) => ({ ...prev, [m.id]: true }))}
+                            onClick={() => setConfirmHelpful(m.id)}
                             style={ghostBtn}
                           >
                             {t("dashboard.adminSupport.yesHelped")}

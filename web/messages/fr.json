@@ -763,7 +763,16 @@
       "declineLiveView": "Refuser",
       "approveAndApply": "Approuver et appliquer",
       "declineFix": "Refuser",
-      "appliedChangeLogged": "Chaque changement applique est journalise"
+      "appliedChangeLogged": "Chaque changement applique est journalise",
+      "helpedConfirm": "Parfait. Fermer ce ticket ?",
+      "markResolved": "Marquer comme resolu",
+      "keepItOpen": "Le laisser ouvert",
+      "handoffTitle": "Votre ticket est avec Oran",
+      "handoffBody": "Vous recevrez une notification et un e-mail quand il repondra. Vous pouvez continuer a ecrire ici en attendant.",
+      "handoffHq": "Escalade vers vous",
+      "humanReplyEta": "Oran repondra, en general en quelques heures",
+      "aiHandling": "L'IA aide, un humain est a un geste",
+      "statusClosed": "Ferme"
     },
     "platform": {
       "nav": {
@@ -783,6 +792,7 @@
         "pushCardEnabled": "Actif",
         "pushCardDenied": "Bloque dans le navigateur",
         "pushCardUnsupported": "Non pris en charge ici",
+        "notifyEnabled": "Vous recevrez une alerte quand un ticket a besoin de vous.",
         "filterNeedsYou": "A traiter",
         "filterWaitingThem": "En attente d'eux",
         "filterNew": "Nouveaux",

@@ -138,8 +138,7 @@ export async function sendEmailNotification(
   // Surface a real provider failure so the dispatcher records THIS dispatch_log
   // row as `failed` (its try/catch calls markDispatchLogFailed) instead of
   // masking the lost email as `sent`. A skipped send (no RESEND_API_KEY — dev/
-  // test only; prod always has the key) returns null and is logged as sent,
-  // which is acceptable for a deliberate no-op.
+  // test only) returns null; the dispatcher marks that row `skipped`.
   if (result.status === "failed") {
     throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
   }

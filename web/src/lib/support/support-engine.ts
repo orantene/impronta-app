@@ -363,6 +363,13 @@ export async function changeStatus(input: {
     if (input.status === "resolved") patch.resolved_at = now;
     if (input.status === "closed") patch.closed_at = now;
   }
+  const aiSelfServe =
+    input.status === "resolved" &&
+    input.actorKind === "requester" &&
+    ticket.handledBy === "ai";
+  if (aiSelfServe) {
+    patch.metadata = { ...ticket.metadata, ai_self_serve: true };
+  }
 
   let query = supportFrom(admin, "support_tickets").update(patch).eq("id", ticket.id);
   if (input.expectedStatus) query = query.eq("status", input.expectedStatus);
@@ -383,6 +390,16 @@ export async function changeStatus(input: {
     oldValue: { status: ticket.status },
     newValue: { status: input.status },
   });
+  if (aiSelfServe) {
+    await insertEvent(admin, {
+      ticketId: ticket.id,
+      tenantId: ticket.tenantId,
+      actorKind: input.actorKind,
+      actorUserId: input.actorUserId,
+      eventType: "ai_marked_helpful",
+      newValue: { status: input.status },
+    });
+  }
 
   if (input.status === "resolved") {
     notify({
@@ -475,7 +492,21 @@ export async function escalateTicket(input: {
     input.actorUserId,
     ticket.id,
   );
-  return { ok: true, data: updated };
+
+  const handoff = await appendMessage({
+    ticketId: ticket.id,
+    authorKind: "system",
+    authorUserId: null,
+    messageKind: "card",
+    skipNotify: true,
+    body: "Your ticket is with Oran.",
+    cardPayload: {
+      kind: "handoff",
+      ticketId: ticket.id,
+      hasPhone: Boolean(updated.contactPhone),
+    },
+  });
+  return { ok: true, data: handoff.ok ? handoff.data.ticket : updated };
 }
 
 export async function assignTicket(input: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F } from "../tenants/hq-kit";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
@@ -17,6 +17,7 @@ import {
   hqLoadTicketDetailAction,
   hqReplySupportTicketAction,
 } from "@/lib/support/hq-actions";
+import { useSupportRealtime } from "@/components/support/support-hooks";
 
 const CANNED = [
   { id: "greeting", text: (tr: (k: string) => string) => tr("dashboard.platform.support.cannedGreeting") },
@@ -56,6 +57,12 @@ export function SupportTicketHqDrawer({
   useEffect(() => {
     void reload(ticketId);
   }, [ticketId]);
+
+  const onMessage = useCallback((row: SupportMessageRow) => {
+    setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+  }, []);
+  const onTicket = useCallback((row: SupportTicketRow) => setTicket(row), []);
+  useSupportRealtime({ ticketId, onMessage, onTicket });
 
   const reply = async (andResolve: boolean) => {
     if (!ticket || (!body.trim() && !andResolve) || busy) return;

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
 import type { HqQueueRow } from "@/lib/support/load-hq";
+import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { SupportTicketHqDrawer } from "./SupportTicketHqDrawer";
 import { hqChangeStatusAction, hqClaimSelfAction } from "@/lib/support/hq-actions";
+import { useHqSupportRealtime } from "@/components/support/support-hooks";
 
 type FilterId = "needsYou" | "waitingThem" | "new" | "allOpen" | "resolved7d";
 type AudienceId = "all" | "workspace" | "talent" | "client";
@@ -44,19 +46,101 @@ export function SupportQueueClient({
   const [filter, setFilter] = useState<FilterId>("needsYou");
   const [audience, setAudience] = useState<AudienceId>("all");
   const [q, setQ] = useState("");
+  const [queue, setQueue] = useState(rows);
   const [selected, setSelected] = useState<string | null>(initialTicketId);
   const [cursor, setCursor] = useState(0);
+  const selectedRef = useRef(selected);
+  const queueRef = useRef(queue);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+
+  useEffect(() => {
+    setQueue(rows);
+  }, [rows]);
+
+  const ping = useCallback((ticketId: string, n: number, preview: string) => {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    const drawerOpen = selectedRef.current === ticketId;
+    if (!document.hidden && drawerOpen) return;
+    try {
+      const note = new Notification(`Ticket #${n}`, { body: preview, tag: ticketId });
+      note.onclick = () => {
+        window.focus();
+        setSelected(ticketId);
+        note.close();
+      };
+    } catch {
+      /* permission can flip after the check */
+    }
+  }, []);
+
+  const onTicketInsert = useCallback(
+    (ticket: SupportTicketRow) => {
+      setQueue((prev) => {
+        if (prev.some((r) => r.ticket.id === ticket.id)) {
+          return prev.map((r) => (r.ticket.id === ticket.id ? { ...r, ticket } : r));
+        }
+        return [
+          {
+            ticket,
+            tenantName: null,
+            tenantSlug: null,
+            planTier: null,
+            requesterName: null,
+            requesterEmail: null,
+          },
+          ...prev,
+        ];
+      });
+      ping(ticket.id, ticket.ticketNumber, ticket.subject || ticket.lastMessagePreview || "");
+    },
+    [ping],
+  );
+  const onTicketUpdate = useCallback((ticket: SupportTicketRow) => {
+    setQueue((prev) =>
+      prev.map((r) => (r.ticket.id === ticket.id ? { ...r, ticket } : r)),
+    );
+  }, []);
+  const onRequesterMessage = useCallback(
+    (message: SupportMessageRow) => {
+      if (message.authorKind !== "requester") return;
+      setQueue((prev) =>
+        prev.map((r) =>
+          r.ticket.id === message.ticketId
+            ? {
+                ...r,
+                ticket: {
+                  ...r.ticket,
+                  lastMessageAt: message.createdAt,
+                  lastMessagePreview: message.body.slice(0, 140),
+                },
+              }
+            : r,
+        ),
+      );
+      const n =
+        queueRef.current.find((r) => r.ticket.id === message.ticketId)?.ticket.ticketNumber ?? 0;
+      ping(message.ticketId, n, message.body.slice(0, 140));
+    },
+    [ping],
+  );
+  useHqSupportRealtime({ onTicketInsert, onTicketUpdate, onRequesterMessage });
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    return rows.filter((row) => {
+    return queue.filter((row) => {
       if (!matchesFilter(row, filter)) return false;
       if (audience !== "all" && row.ticket.surface !== audience) return false;
       if (!query) return true;
       const hay = `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""}`.toLowerCase();
       return hay.includes(query);
     });
-  }, [rows, filter, audience, q]);
+  }, [queue, filter, audience, q]);
 
   useEffect(() => {
     if (cursor >= filtered.length) setCursor(0);

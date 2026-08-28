@@ -93,7 +93,7 @@ export async function GET(request: Request) {
   const { data: existing } = await supportFrom(admin, "support_ticket_insights").select("ticket_id");
   const have = new Set((existing ?? []).map((r: { ticket_id?: string }) => String(r.ticket_id)));
   const { data: closed } = await supportFrom(admin, "support_tickets")
-    .select("id, tenant_id, subject, category, handled_by")
+    .select("id, tenant_id, subject, category, handled_by, metadata")
     .eq("status", "closed")
     .order("closed_at", { ascending: false })
     .limit(80);
@@ -107,6 +107,7 @@ export async function GET(request: Request) {
     subject: string;
     category: string | null;
     handled_by: string;
+    metadata?: Record<string, unknown> | null;
   }>) {
     const gate = await assertAiInvocationAllowed(ticket.tenant_id ?? DEFAULT_AI_TENANT_ID);
     if (!gate.ok) continue;
@@ -143,6 +144,18 @@ export async function GET(request: Request) {
       continue;
     }
     if (!parsed?.summary) continue;
+    const meta =
+      ticket.metadata && typeof ticket.metadata === "object" ? ticket.metadata : {};
+    const resolutionKind: string =
+      meta.ai_self_serve === true
+        ? "ai_self_serve"
+        : ["ai_self_serve", "human_resolved", "no_response", "unresolved"].includes(
+              parsed.resolution_kind ?? "",
+            )
+          ? (parsed.resolution_kind as string)
+          : ticket.handled_by === "ai"
+            ? "ai_self_serve"
+            : "human_resolved";
     const { error } = await supportFrom(admin, "support_ticket_insights").insert({
       ticket_id: ticket.id,
       tenant_id: ticket.tenant_id,
@@ -150,13 +163,7 @@ export async function GET(request: Request) {
       root_cause: parsed.root_cause?.slice(0, 800) ?? null,
       product_area: parsed.product_area?.slice(0, 80) ?? ticket.category,
       sentiment: ["positive", "neutral", "negative"].includes(parsed.sentiment ?? "") ? parsed.sentiment : "neutral",
-      resolution_kind: ["ai_self_serve", "human_resolved", "no_response", "unresolved"].includes(
-        parsed.resolution_kind ?? "",
-      )
-        ? parsed.resolution_kind
-        : ticket.handled_by === "ai"
-          ? "ai_self_serve"
-          : "human_resolved",
+      resolution_kind: resolutionKind,
       is_feature_request: parsed.is_feature_request === true,
       is_bug_report: parsed.is_bug_report === true,
       tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 8) : [],

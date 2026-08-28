@@ -14,6 +14,7 @@ import {
   useSupportUnread,
 } from "./support-hooks";
 import { SupportThreadView } from "./SupportThreadView";
+import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
@@ -245,6 +246,10 @@ export function SupportPanel({
           <Icon name="x" size={16} />
         </button>
       </header>
+
+      {view === "thread" ? (
+        <SupportThreadHeader ticket={ticket} onBack={() => setView("tickets")} />
+      ) : null}
 
       <div ref={scrollRef} style={{ flex: 1, overflow: "auto" }}>
         {view === "home" && (

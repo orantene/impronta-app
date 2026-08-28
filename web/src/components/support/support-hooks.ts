@@ -95,3 +95,45 @@ export function useSupportRealtime(opts: {
     };
   }, [ticketId, onMessage, onTicket]);
 }
+
+export function useHqSupportRealtime(opts: {
+  onTicketInsert: (ticket: SupportTicketRow) => void;
+  onTicketUpdate: (ticket: SupportTicketRow) => void;
+  onRequesterMessage: (message: SupportMessageRow) => void;
+}): void {
+  const { onTicketInsert, onTicketUpdate, onRequesterMessage } = opts;
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    const channel = supabase
+      .channel("support_hq")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_tickets" },
+        (payload) => {
+          const row = mapTicketRow(payload.new);
+          if (row) onTicketInsert(row);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "support_tickets" },
+        (payload) => {
+          const row = mapTicketRow(payload.new);
+          if (row) onTicketUpdate(row);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_messages" },
+        (payload) => {
+          const row = mapMessageRow(payload.new);
+          if (row) onRequesterMessage(row);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [onTicketInsert, onTicketUpdate, onRequesterMessage]);
+}

@@ -226,6 +226,26 @@ export async function rateSupportTicketAction(raw: {
   return { ok: true };
 }
 
+export async function resolveSupportTicketAction(raw: {
+  ticketId: string;
+}): Promise<SupportActionOk | SupportActionFail> {
+  const parsed = z.object({ ticketId: uuid }).safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const session = await resolveUserId();
+  if (!session.ok) return session;
+  const access = await assertTicketAccess(parsed.data.ticketId, session.userId);
+  if (!access.ok) return access;
+  const result = await supportEngine.changeStatus({
+    ticketId: parsed.data.ticketId,
+    status: "resolved",
+    actorUserId: session.userId,
+    actorKind: "requester",
+    expectedStatus: "open",
+  });
+  if (!result.ok) return result;
+  return { ok: true };
+}
+
 export async function closeSupportTicketAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {

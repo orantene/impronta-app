@@ -173,4 +173,16 @@ export type DispatchResult = {
   failed: number;
   /** Rows written `queued` for the digest sweep instead of sent now (§7). */
   queued: number;
+  /**
+   * Handler returned null: channel not configured or no endpoint.
+   * Distinct from `failed` (the send was attempted and threw).
+   */
+  skipped?: number;
 };
+
+/**
+ * Channel send-effect. A provider message id means the send landed.
+ * `null` means nothing was sent (unconfigured channel, no endpoint) and
+ * the dispatcher records the dispatch_log row as `skipped`.
+ */
+export type ChannelSendResult = string | null;

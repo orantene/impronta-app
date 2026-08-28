@@ -39,7 +39,9 @@ export type SupportTicketEventType =
   | "auto_closed"
   | "diagnostic_attached"
   | "insight_generated"
-  | "proposed_action_expired";
+  | "proposed_action_expired"
+  | "ai_marked_helpful"
+  | "kept_open";
 
 export type SupportTicketRow = {
   id: string;

@@ -13,6 +13,7 @@ import {
   type SupportTicketRow,
 } from "@/lib/support/support-types";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
+import { SupportThreadStatusLine } from "@/components/support/SupportThreadHeader";
 import { markSupportTicketReadAction } from "@/lib/support/actions";
 import { useSupportRealtime } from "@/components/support/support-hooks";
 
@@ -59,6 +60,7 @@ export function SupportTicketDrawer() {
       onClose={closeDrawer}
       title={ticket?.subject || t("dashboard.adminSupport.drawerTitle")}
       description={ticket ? `#${ticket.ticketNumber}` : undefined}
+      toolbar={ticket ? <SupportThreadStatusLine ticket={ticket} /> : undefined}
       defaultSize="compact"
     >
       {ticketId ? (

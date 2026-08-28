@@ -8280,6 +8280,7 @@
         "pushCardEnabled": "On",
         "pushCardDenied": "Blocked in the browser",
         "pushCardUnsupported": "Not supported here",
+        "notifyEnabled": "You will get a ping when a ticket needs you.",
         "filterNeedsYou": "Needs you",
         "filterWaitingThem": "Waiting on them",
         "filterNew": "New",
@@ -11906,7 +11907,16 @@
       "declineLiveView": "Decline",
       "approveAndApply": "Approve and apply",
       "declineFix": "Decline",
-      "appliedChangeLogged": "Every applied change is logged"
+      "appliedChangeLogged": "Every applied change is logged",
+      "helpedConfirm": "Great. Close this ticket?",
+      "markResolved": "Mark resolved",
+      "keepItOpen": "Keep it open",
+      "handoffTitle": "Your ticket is with Oran",
+      "handoffBody": "You will get a notification and an email when he replies. You can keep writing here in the meantime.",
+      "handoffHq": "Escalated to you",
+      "humanReplyEta": "Oran will reply, typically within a few hours",
+      "aiHandling": "AI is helping, a human is one tap away",
+      "statusClosed": "Closed"
     }
   },
   "admin": {

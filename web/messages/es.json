@@ -8280,6 +8280,7 @@
         "pushCardEnabled": "Activo",
         "pushCardDenied": "Bloqueado en el navegador",
         "pushCardUnsupported": "No disponible aqui",
+        "notifyEnabled": "Recibirás un aviso cuando un ticket te necesite.",
         "filterNeedsYou": "Te necesitan",
         "filterWaitingThem": "Esperando de ellos",
         "filterNew": "Nuevos",
@@ -11906,7 +11907,16 @@
       "declineLiveView": "Rechazar",
       "approveAndApply": "Aprobar y aplicar",
       "declineFix": "Rechazar",
-      "appliedChangeLogged": "Cada cambio aplicado queda registrado"
+      "appliedChangeLogged": "Cada cambio aplicado queda registrado",
+      "helpedConfirm": "Perfecto. ¿Cerrar este ticket?",
+      "markResolved": "Marcar resuelto",
+      "keepItOpen": "Dejarlo abierto",
+      "handoffTitle": "Tu ticket está con Oran",
+      "handoffBody": "Recibirás una notificación y un correo cuando responda. Puedes seguir escribiendo aquí mientras tanto.",
+      "handoffHq": "Escalado a ti",
+      "humanReplyEta": "Oran responderá, normalmente en unas horas",
+      "aiHandling": "La IA está ayudando, un humano está a un toque",
+      "statusClosed": "Cerrado"
     }
   },
   "admin": {
