@@ -254,8 +254,15 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Duplicate section": "Duplicar sección",
   "Show section": "Mostrar sección",
   "Hide section": "Ocultar sección",
-  "Restore curated section": "Restaurar sección curada",
-  "Make editable (eject to blocks)": "Hacer editable (convertir en bloques)",
+  "Unlock design": "Desbloquear diseño",
+  "Relock design": "Volver a bloquear el diseño",
+  "Edit every element in this section individually":
+    "Edita cada elemento de esta sección por separado",
+  "Restore the original design": "Restaurar el diseño original",
+  "Relock and discard added blocks?":
+    "¿Volver a bloquear y descartar los bloques agregados?",
+  "Relocking restores the original design and discards the blocks you added or edited here.":
+    "Volver a bloquear restaura el diseño original y descarta los bloques que agregaste o editaste aquí.",
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",

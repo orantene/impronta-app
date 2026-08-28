@@ -199,7 +199,11 @@ const BUDGETS: Record<string, number> = {
   // +7 (2026-08-21): the move rail is no longer desktop-only — the phone canvas
   // had NO grab handle and no one-click reorder at all (owner report). The
   // comment explaining why carries most of those lines.
-  "selection-layer.tsx": 7943,
+  // -76 (2026-08-27, "Unlock design"): ChipBtn and ChipTextAction moved to
+  // chip-buttons.tsx alongside the new SectionUnlockChipButton, so the chip
+  // primitives have one home and the section/block chips cannot drift apart.
+  // Net of the unlock wiring the file is SMALLER; budget lowered to match.
+  "selection-layer.tsx": 7867,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
