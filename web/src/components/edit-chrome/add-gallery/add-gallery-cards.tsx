@@ -425,13 +425,12 @@ export function GalleryCard(props: {
   pending: boolean;
   armed?: boolean;
 }) {
-  // WS-A A7 — shell templates use the richer template-card look like sections.
-  if (props.tab === "sections" || props.tab === "page_templates" || props.tab === "shell") {
+  // Designs / Data / Shell use the richer template-card look; Blocks uses icon cards.
+  if (props.tab === "designs" || props.tab === "shell") {
     return <SectionCard {...props} />;
   }
-  if (props.tab === "connected") {
+  if (props.tab === "data") {
     return <ConnectedCard {...props} />;
   }
-  // layout and elements both use the icon-card grid
   return <ElementCard {...props} />;
 }

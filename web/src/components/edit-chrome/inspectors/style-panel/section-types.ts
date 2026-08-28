@@ -15,6 +15,7 @@ import type {
   BuilderNodeHoverStyle,
 } from "@/lib/site-admin/builder-node";
 import type { EditDevice } from "../../edit-context";
+import type { HoverLaneStyle } from "./hover-lane";
 
 export type StandaloneStyleNode = Exclude<BuilderNode, { kind: "section" }>;
 
@@ -63,7 +64,7 @@ export interface StandaloneSectionCtx {
   ) => void;
   patchSelectedStandaloneStyle: (patch: Partial<BuilderNodeStyleValue>) => void;
   patchSelectedBaseStyle: (patch: Partial<BuilderNodeStyle>) => void;
-  patchSelectedHoverStyle: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  patchSelectedHoverStyle: (patch: Partial<HoverLaneStyle>) => void;
   patchSelectedStateStyle: (
     stateKey: "focus" | "active",
     patch: Partial<BuilderNodeHoverStyle>,

@@ -42,7 +42,7 @@ function row(
     overlay: opts.overlay ?? null,
     usageCount: opts.usageCount,
     // Unused-by-derivation fields, stubbed to satisfy the type.
-    tab: "elements",
+    tab: "blocks",
     status: "published",
     itemKind: "static",
     availability: "available",

@@ -44,7 +44,7 @@ function item(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "el-button",
     label: "Button",
     description: "",
-    tab: "elements",
+    tab: "blocks",
     category: "buttons",
     icon: "buttons",
     previewType: "icon-card",
@@ -74,7 +74,7 @@ function overlay(over: Partial<CatalogOverlayRow> = {}): CatalogOverlayRow {
 }
 
 const POLICY: BuilderGalleryPolicy = {
-  allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+    allowedTabs: ["blocks", "designs", "data", "page_templates"],
   allowDbTemplates: true,
 };
 

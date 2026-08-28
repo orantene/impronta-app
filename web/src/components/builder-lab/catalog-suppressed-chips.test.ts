@@ -37,7 +37,7 @@ function makeRow(
 ): CatalogAdminItem {
   return {
     id,
-    tab: "layout",
+    tab: "blocks",
     source: "code",
     status: "published",
     itemKind: "static",

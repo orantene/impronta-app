@@ -78,7 +78,7 @@ function makeRow(over: Partial<BuilderTemplateRow> = {}): BuilderTemplateRow {
 }
 
 const ALL_TABS_POLICY: BuilderGalleryPolicy = {
-  allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+  allowedTabs: ["blocks", "designs", "data", "page_templates"],
   allowDbTemplates: true,
 };
 
@@ -98,7 +98,7 @@ test("builderTemplateRowToGalleryItem maps row fields + dbTemplate carriers", ()
   assert.equal(item.id, dbTemplateGalleryItemId("row-1"));
   assert.equal(item.label, "Studio One-Pager");
   assert.equal(item.description, "A clean one-page template.");
-  assert.equal(item.tab, "page_templates");
+  assert.equal(item.tab, "designs");
   assert.equal(item.category, "hero");
   assert.equal(item.insertMethod, "dbTemplate");
   assert.equal(item.availability, "available");
@@ -169,6 +169,30 @@ test("gateDbGalleryItems returns [] when policy.allowDbTemplates is false", () =
   assert.deepEqual(kept, []);
 });
 
+test("gateDbGalleryItems: shell allow-list without page_templates drops full-page DB templates", () => {
+  const pageTpl = builderTemplateRowToGalleryItem(
+    makeRow({ id: "page-tpl", gallery_tab: "page_templates" }),
+  );
+  const sectionTpl = builderTemplateRowToGalleryItem(
+    makeRow({ id: "sec-tpl", gallery_tab: "sections", kind: "section" }),
+  );
+  const shellTpl = builderTemplateRowToGalleryItem(
+    makeRow({ id: "shell-tpl", gallery_tab: "shell", kind: "shell_header" }),
+  );
+  const kept = gateDbGalleryItems([pageTpl, sectionTpl, shellTpl], {
+    galleryPolicy: {
+      allowedTabs: ["blocks", "designs", "data", "shell"],
+      allowDbTemplates: true,
+    },
+    surfaceTarget: "both",
+    plan: "network",
+  });
+  const ids = kept.map((i) => i.dbTemplateId);
+  assert.equal(ids.includes("page-tpl"), false);
+  assert.ok(ids.includes("sec-tpl"));
+  assert.ok(ids.includes("shell-tpl"));
+});
+
 // ── 3. merge ────────────────────────────────────────────────────────────────────
 
 test("codeGalleryItemsForPolicy returns only items on allowed tabs", () => {
@@ -177,7 +201,16 @@ test("codeGalleryItemsForPolicy returns only items on allowed tabs", () => {
     allowDbTemplates: false,
   });
   assert.ok(elementsOnly.length > 0);
-  assert.ok(elementsOnly.every((i) => i.tab === "elements"));
+  assert.ok(elementsOnly.every((i) => i.tab === "blocks"));
+});
+
+test("codeGalleryItemsForPolicy: a page-builder allow-list without shell hides Shell cards", () => {
+  const items = codeGalleryItemsForPolicy({
+    allowedTabs: ["blocks", "designs", "data", "page_templates"],
+    allowDbTemplates: false,
+  });
+  assert.ok(items.length > 0);
+  assert.ok(items.every((i) => i.tab !== "shell"));
 });
 
 test("mergeGalleryItems = code catalog (allowed tabs) followed by gated DB items", () => {
@@ -189,10 +222,17 @@ test("mergeGalleryItems = code catalog (allowed tabs) followed by gated DB items
   const dbItem = builderTemplateRowToGalleryItem(makeRow({ id: "dbx" }));
   const merged = mergeGalleryItems([dbItem], ctx);
 
-  // No code items live on page_templates today → merged is the single DB item.
-  assert.equal(merged.length, 1);
-  assert.equal(merged[0]!.dbTemplateId, "dbx");
-  assert.equal(merged[0]!.insertMethod, "dbTemplate");
+  // page_templates maps onto Designs, so code design cards come first and the
+  // gated DB item is appended. The page_templates token is what lets the DB
+  // card through (shell surfaces omit it).
+  assert.ok(merged.some((i) => i.dbTemplateId === "dbx"));
+  assert.equal(
+    merged.filter((i) => i.insertMethod !== "dbTemplate").every((i) => i.tab === "designs"),
+    true,
+  );
+  const db = merged.find((i) => i.dbTemplateId === "dbx");
+  assert.equal(db?.tab, "designs");
+  assert.equal(db?.insertMethod, "dbTemplate");
 });
 
 // ── 4. listGalleryItems (async, injected) ────────────────────────────────────────

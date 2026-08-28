@@ -7,9 +7,8 @@
  * `builder-core/config.ts`, the hand-pinned `PARITY_SURFACES` descriptors, and
  * half a dozen governance tests. A new tab would be a large blast radius for
  * what is, in the operator's head, one more shelf on an existing rail. These
- * ship as a CATEGORY on the existing `layout` tab, which is the tab that
- * already holds Container / Section / Grid / Stack / Row — the blocks these
- * cards are pre-dressed versions of.
+ * ship as a CATEGORY on Blocks, which already holds Container / Section /
+ * Grid / Stack / Row — the blocks these cards are pre-dressed versions of.
  *
  * WHY EVERY CARD CARRIES A `nativeVariant`. `resolveKindGovernance`
  * (`kind-governance.ts`) picks the CANONICAL card for a node kind, preferring a
@@ -51,7 +50,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     description: "Full-bleed band with a looping video behind your content.",
     infoTooltip:
       "Drops a tall container ready for a background clip. Open Content and pick a video from your library. It plays muted and looped, and visitors who prefer reduced motion see the poster image instead.",
-    tab: "layout",
+    tab: "blocks",
     category: "backgrounds",
     icon: "video",
     previewType: "image-card",
@@ -67,7 +66,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     description: "Full-bleed band with a YouTube video playing behind content.",
     infoTooltip:
       "Paste any YouTube link in the Content tab. It embeds through youtube-nocookie, plays muted and looped with no controls or branding, and falls back to the video thumbnail under reduced motion.",
-    tab: "layout",
+    tab: "blocks",
     category: "backgrounds",
     icon: "youtube",
     previewType: "image-card",
@@ -83,7 +82,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     description: "Full-bleed band that cycles through a set of photos.",
     infoTooltip:
       "Drops a tall container ready for a rotating backdrop. Open Content, add two or more images, and set how long each one stays. They cross-fade in order; visitors who prefer reduced motion see the first image only.",
-    tab: "layout",
+    tab: "blocks",
     category: "backgrounds",
     icon: "carousel",
     previewType: "image-card",
@@ -107,7 +106,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     description: "Full-bleed band with a photo behind your content.",
     infoTooltip:
       "A tall container with a cover-cropped photo and a dark scrim so headings stay readable. Swap the image in the Style tab under Background.",
-    tab: "layout",
+    tab: "blocks",
     category: "backgrounds",
     icon: "cover",
     previewType: "image-card",
@@ -123,7 +122,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     description: "Full-bleed band with a soft brand-coloured gradient.",
     infoTooltip:
       "A tall container carrying a two-stop gradient built from your theme's primary colour, so it restyles itself when the theme changes. Edit the stops in the Style tab.",
-    tab: "layout",
+    tab: "blocks",
     category: "backgrounds",
     icon: "layout",
     previewType: "image-card",

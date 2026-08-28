@@ -143,7 +143,16 @@ export const BUDGETS: readonly Budget[] = [
   //     :not([type=submit])` chain repeated across five selectors (~1 KB back)
   //   - every rule carries the `form` kind-token so `buildScopedRendererCss`
   //     DROPS the block on pages with no form - a form-less page pays nothing
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 111 * KB, unit: "bytes" },
+  //
+  // RE-TUNED 2026-08-28: 111 → 112 KB. Spend is hover v2 (filter / backdrop /
+  // parent-hover + per-breakpoint hover) plus B8 extra responsive lanes
+  // (line-clamp, stacked backgrounds, sticky pin) interpolated into the
+  // static tablet/mobile sheet. Squeezed first (:is() hover, one parent-hover
+  // rule, viewport hover folded into the existing @media blocks, minified
+  // sticky selectors, tablet-block indent stripped) and landed on 111.0 with
+  // zero headroom. One kilobyte of named pad so the next rule is an argument,
+  // not an accidental red.
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 112 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for

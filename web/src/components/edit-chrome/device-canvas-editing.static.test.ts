@@ -94,6 +94,21 @@ test("the move grip commits into the active device's bucket", () => {
   );
 });
 
+test("absolute children drag-to-place through the viewport patch helper", () => {
+  assert.ok(
+    SRC.includes("styleWithAbsolutePlacePatch"),
+    "absolute inset commits must call styleWithAbsolutePlacePatch",
+  );
+  assert.ok(
+    SRC.includes("resolveMovePlacement"),
+    "the grip must switch to inset writes only when position is absolute/fixed",
+  );
+  assert.ok(
+    SRC.includes("onCommitPlace={commitSelectedNodePlace}"),
+    "CanvasMoveHandle must receive the inset commit, not only translate",
+  );
+});
+
 test("the selection chip carries the per-device override badge", () => {
   assert.ok(
     SRC.includes("<ResponsiveOverrideBadge"),

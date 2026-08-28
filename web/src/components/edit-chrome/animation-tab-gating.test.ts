@@ -11,10 +11,9 @@
  *     covered without anyone remembering to add it here.
  *  2. The tab landing behind Advanced. It used to, back when it was a row of
  *     CSS-time text inputs. See `advanced-mode-visibility.test.ts`.
- *  3. The two tab tables drifting. `inspector-tab-config.ts` feeds the command
- *     rail; `inspector-dock.tsx` keeps its OWN copy for the panel body. They
- *     are separate modules and nothing but this test makes them agree on the
- *     label or the order.
+ *  3. The dock growing a second tab table. `inspector-tab-config.ts` is the
+ *     only map; the rail and the dock body both resolve through it. This file
+ *     fails if inspector-dock.tsx brings back a private TABS list.
  *
  * Run: node_modules/.bin/tsx --test \
  *   src/components/edit-chrome/animation-tab-gating.test.ts
@@ -86,25 +85,20 @@ test("the Animation tab is NOT gated behind Advanced mode", () => {
   );
 });
 
-test("inspector-dock's private tab table agrees on label and order", () => {
-  // The dock predates inspector-tab-config.ts and still carries its own TABS
-  // list. Two lists, one rail: if they disagree the operator sees one label on
-  // the rail and a different tab body, or the tab moves when a node is
-  // selected. Read as text -- importing the dock pulls the whole editor.
+test("inspector-dock has no private tab table; it uses inspector-tab-config", () => {
+  // Importing the dock pulls the whole editor, so read as text.
   const source = readFileSync(join(HERE, "inspector-dock.tsx"), "utf8");
-  const table = /const TABS: ReadonlyArray<\{ key: TabKey; label: string \}> = \[([\s\S]*?)\n\];/.exec(
-    source,
-  );
-  assert.ok(table, "Could not find the TABS table in inspector-dock.tsx.");
-  const keys = [...table[1]!.matchAll(/key:\s*"([a-z]+)"/g)].map((m) => m[1]!);
   assert.ok(
-    keys.indexOf("motion") === keys.indexOf("style") + 1,
-    `inspector-dock TABS puts Animation somewhere other than right after ` +
-      `Style: ${keys.join(" ")}`,
+    !/const TABS: ReadonlyArray/.test(source),
+    "inspector-dock grew a private TABS table. Visible tabs must come from inspector-tab-config.",
   );
   assert.ok(
-    /key:\s*"motion",\s*label:\s*"Animation"/.test(table[1]!),
-    'inspector-dock TABS still labels the motion tab something other than "Animation".',
+    !/TABS_BY_SECTION_TYPE/.test(source),
+    "inspector-dock grew a private TABS_BY_SECTION_TYPE map. One allow-list lives in inspector-tab-config.",
+  );
+  assert.ok(
+    source.includes("useInspectorVisibleTabs"),
+    "inspector-dock no longer reads visible tabs from the shared hook.",
   );
 });
 

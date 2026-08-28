@@ -17,7 +17,7 @@
  * default so the seam exists and the homepage stays unchanged.
  */
 
-import type { AddGalleryTab } from "@/lib/site-admin/add-gallery/types";
+import type { AddGalleryAllowTab } from "@/lib/site-admin/add-gallery/types";
 import type { BuilderDataSourceKey } from "@/lib/site-admin/builder-node/data-bindings";
 
 import type { BuilderSurfaceAdapter } from "./surface-adapter";
@@ -51,7 +51,7 @@ export interface BuilderSurfacePermissions {
  */
 export interface BuilderGalleryPolicy {
   /** Gallery tabs offered on this surface. Empty → gallery suppressed. */
-  allowedTabs: readonly AddGalleryTab[];
+  allowedTabs: readonly AddGalleryAllowTab[];
   /** When true the (WS2/WS4) DB-backed "Page Templates" tab is offered. */
   allowDbTemplates: boolean;
   /**
@@ -218,9 +218,9 @@ export function buildHomepageBuilderConfig(
       canInsertRawHtmlElements: overrides?.canInsertRawHtmlElements ?? false,
     },
     galleryPolicy: {
-      allowedTabs: ["layout", "elements", "sections", "connected"],
-      // DB "Page Templates" tab lands with WS2/WS4; off on the frozen homepage
-      // surface until then so behaviour is unchanged.
+      allowedTabs: ["blocks", "designs", "data"],
+      // DB page templates stay off on the frozen homepage (allowDbTemplates
+      // false). Designs still carries the code section catalog.
       allowDbTemplates: false,
       // X4 — the agency homepage IS a workspace page, so the Lab's Workspace
       // Page column must govern it exactly like the freeform `cms_page` surface
@@ -314,7 +314,7 @@ export function buildCmsPageBuilderConfig(
       canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
     },
     galleryPolicy: {
-      allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+      allowedTabs: ["blocks", "designs", "data", "page_templates"],
       allowDbTemplates: true,
       // Workspace freeform pages preview against the tenant default
       // (previewSubjectKind: null) but their gallery audience is `workspace` —
@@ -347,8 +347,8 @@ export function buildCmsPageBuilderConfig(
  * Differences from homepage:
  *   - `previewSubjectKind: "talent"` — connected nodes hydrate against the
  *     talent's own data in-canvas (WS4 render plumbing).
- *   - `allowDbTemplates: true` + `"page_templates"` tab — talent Max can
- *     apply DB-backed page templates.
+ *   - `allowDbTemplates: true` + the Designs tab (page_templates gate) — talent
+ *     Max can apply DB-backed page templates.
  *   - `canEditShell: false` — talent pages don't own the shared site shell.
  *   - `canInsertRawHtmlElements: false` — raw HTML off for talent tier.
  *   - Capability gating by `talentTier` (e.g. custom CSS only on Max):
@@ -385,7 +385,7 @@ export function buildTalentPageBuilderConfig(
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
-      allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+      allowedTabs: ["blocks", "designs", "data", "page_templates"],
       allowDbTemplates: true,
       // X4 — the talent PROFILE page surface (distinct toggle from the talent
       // Max-site shell, which is the site_shell surface).
@@ -473,10 +473,10 @@ export function buildSiteShellBuilderConfig(
       canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
     },
     galleryPolicy: {
-      // WS-A A7 — the shell surface gains the shell-only "shell" tab so a
-      // super-admin's published `shell_header` / `shell_footer` templates are
-      // insertable here (and ONLY here — no page-builder surface lists "shell").
-      allowedTabs: ["layout", "elements", "sections", "connected", "shell"],
+      // WS-A A7 — the shell surface gains the Shell tab so a super-admin's
+      // published `shell_header` / `shell_footer` templates are insertable
+      // here (and ONLY here among tenant surfaces; page builders omit Shell).
+      allowedTabs: ["blocks", "designs", "data", "shell"],
       // WS-A A7 — DB templates are now merged in so the shell tab can carry the
       // published shell templates. The merge still filters by `allowedTabs`, so
       // only `shell`-tab templates surface on this surface.
@@ -573,14 +573,10 @@ export function buildPlatformLabBuilderConfig(
     },
     galleryPolicy: {
       allowedTabs: [
-        "layout",
-        "elements",
-        "sections",
-        "connected",
+        "blocks",
+        "designs",
+        "data",
         "page_templates",
-        // WS-A A7 — the Lab is where shell templates are authored, so it both
-        // produces and consumes them; the "shell" tab surfaces published
-        // `shell_header` / `shell_footer` templates here for preview/insert.
         "shell",
       ],
       // The Lab both authors and consumes DB templates.

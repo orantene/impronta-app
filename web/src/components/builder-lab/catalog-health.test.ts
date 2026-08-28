@@ -34,7 +34,7 @@ import {
 function codeItem(over: Partial<CatalogAdminItem> = {}): CatalogAdminItem {
   return {
     id: "el-button",
-    tab: "elements",
+    tab: "blocks",
     source: "code",
     status: "published",
     itemKind: "static",
@@ -65,7 +65,7 @@ function templateItem(over: Partial<CatalogAdminItem> = {}): CatalogAdminItem {
     id: "db-template:tmpl-1",
     source: "template",
     dbTemplateId: "tmpl-1",
-    tab: "sections",
+    tab: "designs",
     targetContext: "talent",
     baseLabel: "Hero",
     baseCategory: "hero",

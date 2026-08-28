@@ -13,6 +13,8 @@ import { useState, type CSSProperties } from "react";
 
 import { ColorPickerPopover } from "../kit/color-picker";
 import type { BuilderNodeHoverStyle } from "@/lib/site-admin/builder-node";
+import { useInspectorT } from "./kit/use-inspector-t";
+import type { HoverLaneStyle } from "./style-panel/hover-lane";
 
 const COLOR_SWATCH_CHECKERBOARD =
   "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px";
@@ -48,10 +50,10 @@ export function inspectorColorSwatchStyle(
  */
 interface StateStyleFieldsProps {
   state: "default" | "focus" | "active";
-  hoverStyle: BuilderNodeHoverStyle | undefined;
+  hoverStyle: HoverLaneStyle | undefined;
   focusStyle: BuilderNodeHoverStyle | undefined;
   activeStyle: BuilderNodeHoverStyle | undefined;
-  onPatchHover: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  onPatchHover: (patch: Partial<HoverLaneStyle>) => void;
   onPatchFocus: (patch: Partial<BuilderNodeHoverStyle>) => void;
   onPatchActive: (patch: Partial<BuilderNodeHoverStyle>) => void;
   chromeMuted: string;
@@ -80,6 +82,7 @@ export function StateStyleFields({
   chromeControlBorder,
   chromeInk,
 }: StateStyleFieldsProps) {
+  const { t } = useInspectorT();
   const stateStyle =
     state === "default" ? hoverStyle : state === "focus" ? focusStyle : activeStyle;
   const onPatch =
@@ -125,7 +128,7 @@ export function StateStyleFields({
         {hint}
       </span>
       {/* Background */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5" data-builder-hover-field="backgroundColor">
         <div className="flex items-center justify-between">
           <span className="text-[11px]" style={{ color: chromeMuted }}>Background</span>
           {stateStyle?.backgroundColor ? (
@@ -286,6 +289,60 @@ export function StateStyleFields({
           />
         </div>
       </div>
+      {state === "default" ? (
+        <>
+          <div className="flex flex-col gap-1.5" data-builder-hover-field="filter">
+            <span className="text-[11px]" style={{ color: chromeMuted }}>
+              {t("Hover filter")}
+            </span>
+            <input
+              type="text"
+              className="px-2"
+              style={inputStyle}
+              placeholder="blur(8px)"
+              value={hoverStyle?.filter ?? ""}
+              onChange={(e) =>
+                onPatchHover({ filter: e.target.value.trim() || undefined })
+              }
+            />
+          </div>
+          <div
+            className="flex flex-col gap-1.5"
+            data-builder-hover-field="backdropFilter"
+          >
+            <span className="text-[11px]" style={{ color: chromeMuted }}>
+              {t("Hover backdrop")}
+            </span>
+            <input
+              type="text"
+              className="px-2"
+              style={inputStyle}
+              placeholder="blur(12px) saturate(1.2)"
+              value={hoverStyle?.backdropFilter ?? ""}
+              onChange={(e) =>
+                onPatchHover({
+                  backdropFilter: e.target.value.trim() || undefined,
+                })
+              }
+            />
+          </div>
+          <label
+            className="flex items-center gap-2"
+            data-builder-hover-field="parentHover"
+          >
+            <input
+              type="checkbox"
+              checked={Boolean(hoverStyle?.parentHover)}
+              onChange={(e) =>
+                onPatchHover({ parentHover: e.target.checked || undefined })
+              }
+            />
+            <span className="text-[11px]" style={{ color: chromeMuted }}>
+              {t("When parent is hovered")}
+            </span>
+          </label>
+        </>
+      ) : null}
       {/* Shared color popover — single instance keyed by field */}
       <ColorPickerPopover
         open={stateColorField !== null}

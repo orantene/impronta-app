@@ -27,7 +27,10 @@ import {
   composeShadowLayer,
   composeShadowStack,
   DEFAULT_SHADOW_LAYER,
+  DEFAULT_TEXT_SHADOW_LAYER,
   parseShadowStack,
+  TEXT_SHADOW_MAX_CHARS,
+  BOX_SHADOW_MAX_CHARS,
   type ShadowLayer,
   type ShadowLayerParts,
 } from "./visual-effect-models";
@@ -65,20 +68,24 @@ const ghostButtonStyle = {
 export function ShadowStackBuilder({
   value,
   onChange,
+  kind = "box",
 }: {
   value: string | undefined;
   onChange: (next: string | undefined) => void;
+  kind?: "box" | "text";
 }) {
   const { t } = useInspectorT();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [overCap, setOverCap] = useState(false);
+  const cap = kind === "text" ? TEXT_SHADOW_MAX_CHARS : BOX_SHADOW_MAX_CHARS;
+  const defaultLayer =
+    kind === "text" ? DEFAULT_TEXT_SHADOW_LAYER : DEFAULT_SHADOW_LAYER;
 
-  const layers = parseShadowStack(value);
+  const layers = parseShadowStack(value, kind);
 
   function emit(next: ShadowLayer[]) {
-    const composed = composeShadowStack(next);
+    const composed = composeShadowStack(next, cap);
     if (composed === null) {
-      // Over the save cap — refuse loudly instead of letting the save drop it.
       setOverCap(true);
       return;
     }
@@ -90,8 +97,8 @@ export function ShadowStackBuilder({
     emit(
       layers.map((layer, i) => {
         if (i !== index) return layer;
-        const parsed = { ...(layer.parsed ?? DEFAULT_SHADOW_LAYER), ...next };
-        return { css: composeShadowLayer(parsed), parsed };
+        const parsed = { ...(layer.parsed ?? defaultLayer), ...next };
+        return { css: composeShadowLayer(parsed, kind), parsed };
       }),
     );
   }
@@ -106,8 +113,8 @@ export function ShadowStackBuilder({
   }
 
   function addLayer() {
-    const parsed = { ...DEFAULT_SHADOW_LAYER };
-    emit([...layers, { css: composeShadowLayer(parsed), parsed }]);
+    const parsed = { ...defaultLayer };
+    emit([...layers, { css: composeShadowLayer(parsed, kind), parsed }]);
     setExpandedIndex(layers.length);
   }
 
@@ -125,7 +132,7 @@ export function ShadowStackBuilder({
   }
 
   return (
-    <div className="flex flex-col gap-1.5" data-builder-shadow-stack="">
+    <div className="flex flex-col gap-1.5" data-builder-shadow-stack="" data-builder-shadow-kind={kind}>
       {layers.map((layer, i) => {
         const isOpen = expandedIndex === i;
         return (
@@ -207,7 +214,10 @@ export function ShadowStackBuilder({
                   style={{ borderColor: CHROME.line }}
                 >
                   <div className="grid grid-cols-4 gap-1.5">
-                    {(["x", "y", "blur", "spread"] as const).map((k) => (
+                    {(kind === "text"
+                      ? (["x", "y", "blur"] as const)
+                      : (["x", "y", "blur", "spread"] as const)
+                    ).map((k) => (
                       <div key={k} className="flex flex-col items-center gap-1">
                         <span className="text-[10px]" style={{ color: CHROME.muted }}>
                           {/* "Spread" stays untranslated: the one EN-keyed ES
@@ -236,9 +246,10 @@ export function ShadowStackBuilder({
                       placeholder="rgba(0,0,0,0.18)"
                       value={parsed.color}
                       onChange={(e) =>
-                        patchLayer(i, { color: e.target.value || DEFAULT_SHADOW_LAYER.color })
+                        patchLayer(i, { color: e.target.value || defaultLayer.color })
                       }
                     />
+                    {kind === "box" ? (
                     <label
                       className="flex shrink-0 cursor-pointer items-center gap-1 text-[10px]"
                       style={{ color: CHROME.muted }}
@@ -251,6 +262,7 @@ export function ShadowStackBuilder({
                       />
                       {t("Inset")}
                     </label>
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -285,7 +297,7 @@ export function ShadowStackBuilder({
         }}
         onClick={addLayer}
       >
-        {t("+ Add shadow layer")}
+        {kind === "text" ? t("+ Add text shadow") : t("+ Add shadow layer")}
       </button>
       {overCap ? (
         <span

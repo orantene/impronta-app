@@ -11,7 +11,8 @@ import {
 import {
   humanizeSectionTypeKey,
   inspectorTabItemsForKeys,
-  resolveInspectorVisibleTabs,
+  resolveInspectorChrome,
+  type InspectorStyleMount,
   type InspectorTabKey,
 } from "./inspector-tab-config";
 import {
@@ -34,6 +35,8 @@ export function useInspectorVisibleTabs() {
   // W2 (selection-bridge) — selection VALUES from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  const currentLoadedSection =
+    loadedSection?.id === selectedSectionId ? loadedSection : null;
 
   const selectedStandaloneBuilderNode = resolveStandaloneBuilderNodeForContent(
     builderTree,
@@ -58,23 +61,28 @@ export function useInspectorVisibleTabs() {
 
   const { advanced } = useAdvancedMode();
 
-  const resolvedTabKeys = resolveInspectorVisibleTabs({
+  const chrome = resolveInspectorChrome({
     sectionTypeKey:
-      loadedSection?.sectionTypeKey ?? skeletonHint?.typeKey ?? null,
+      currentLoadedSection?.sectionTypeKey ?? skeletonHint?.typeKey ?? null,
     selectedStandaloneBuilderNode,
   });
 
-  // Advanced OFF hides Data (bindings) + Motion — the node keeps any overrides
-  // it already has (styles still render); only the editing tab is hidden.
-  const visibleTabKeys = filterInspectorTabsByAdvanced(resolvedTabKeys, advanced);
+  // Advanced OFF hides Data (bindings) — the node keeps any overrides it
+  // already has (styles still render); only the editing tab is hidden.
+  const visibleTabKeys = filterInspectorTabsByAdvanced(chrome.tabKeys, advanced);
   const hasHiddenAdvancedTabs = hasHiddenAdvancedInspectorTabs(
-    resolvedTabKeys,
+    chrome.tabKeys,
     advanced,
   );
 
   const tabItems = inspectorTabItemsForKeys(visibleTabKeys);
 
-  return { tabItems, visibleTabKeys, hasHiddenAdvancedTabs };
+  return {
+    tabItems,
+    visibleTabKeys,
+    hasHiddenAdvancedTabs,
+    styleMount: chrome.styleMount,
+  };
 }
 
-export type { InspectorTabKey };
+export type { InspectorStyleMount, InspectorTabKey };

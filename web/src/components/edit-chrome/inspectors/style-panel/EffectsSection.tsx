@@ -18,7 +18,7 @@ import { EffectsStatesSection } from "./EffectsStatesSection";
 
 export type EffectsSectionProps = Pick<
   StandaloneSectionCtx,
-  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "setOrToggleStandaloneStyle" | "setSelectedInteractionState"
+  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "setOrToggleStandaloneStyle" | "setSelectedInteractionState" | "selectedViewport"
 >;
 
 /**
@@ -43,6 +43,7 @@ export function EffectsMotionBody({
   selectedStandaloneFullStyle,
   selectedStandaloneStyleNode,
   selectedStandaloneViewportStyle,
+  selectedViewport,
   setOrToggleStandaloneStyle,
   setSelectedInteractionState,
 }: EffectsSectionProps) {
@@ -533,6 +534,7 @@ export function EffectsMotionBody({
               selectedInteractionState={selectedInteractionState}
               selectedStandaloneFullStyle={selectedStandaloneFullStyle}
               selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+              selectedViewport={selectedViewport}
               setSelectedInteractionState={setSelectedInteractionState}
             />
             </>

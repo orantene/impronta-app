@@ -7,6 +7,7 @@
  */
 
 import {
+  $createParagraphNode,
   $createTextNode,
   type LexicalNode,
 } from "lexical";
@@ -14,7 +15,12 @@ import { $createLinkNode } from "@lexical/link";
 
 import { $createAccentNode } from "../nodes/AccentNode";
 import { $createColorNode } from "../nodes/ColorNode";
+import {
+  $createBuilderListItemNode,
+  $createBuilderListNode,
+} from "../nodes/ListNode";
 import { tokenize } from "./tokens";
+import { splitRichBlocks } from "@/lib/site-admin/sections/shared/rich-text-lists";
 
 /** Marker string → flat list of Lexical leaf nodes. */
 export function markerStringToNodes(input: string): LexicalNode[] {
@@ -54,6 +60,49 @@ export function markerStringToNodes(input: string): LexicalNode[] {
       }
     }
   }
+  return out;
+}
+
+/** Marker string → root children (paragraphs mixed with real lists). */
+export function $appendBlocksFromMarkerString(
+  value: string,
+  variant: "single" | "multi",
+): LexicalNode[] {
+  const blocks = splitRichBlocks(value || "");
+  const out: LexicalNode[] = [];
+  if (blocks.length === 0) {
+    out.push($createParagraphNode());
+    return out;
+  }
+  for (const block of blocks) {
+    if (block.kind === "ul" || block.kind === "ol") {
+      const list = $createBuilderListNode(
+        block.kind === "ol" ? "number" : "bullet",
+      );
+      const items = block.items.length > 0 ? block.items : [""];
+      for (const item of items) {
+        const li = $createBuilderListItemNode();
+        const leaves = markerStringToNodes(item);
+        if (leaves.length === 0) li.append($createTextNode(""));
+        else for (const leaf of leaves) li.append(leaf);
+        list.append(li);
+      }
+      out.push(list);
+      continue;
+    }
+    const text = block.kind === "text" ? block.text : "";
+    const lines =
+      variant === "multi"
+        ? text.split("\n")
+        : [text.replace(/\n/g, " ")];
+    for (const line of lines) {
+      const paragraph = $createParagraphNode();
+      const leaves = markerStringToNodes(line);
+      for (const leaf of leaves) paragraph.append(leaf);
+      out.push(paragraph);
+    }
+  }
+  if (out.length === 0) out.push($createParagraphNode());
   return out;
 }
 

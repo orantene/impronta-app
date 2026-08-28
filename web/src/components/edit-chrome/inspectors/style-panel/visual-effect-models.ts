@@ -94,24 +94,20 @@ export interface CornerRadiusParts {
   bottomLeft: string;
 }
 
+/** Circular when `y` is null; elliptical when both axes are present. */
+export interface ParsedCornerRadius {
+  x: CornerRadiusParts;
+  y: CornerRadiusParts | null;
+}
+
 const SIMPLE_LENGTH = /^(?:-?\d*\.?\d+(?:px|rem|em|%)|0)$/;
 
-/**
- * Parse a border-radius shorthand of 1-4 simple lengths into four corners.
- * Elliptical radii ("16px / 8px"), calc(), var(), and token bindings are not
- * representable → null (control stands down, string stays verbatim).
- */
-export function parseCornerRadius(value: string | undefined): CornerRadiusParts | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.includes("/") || trimmed.includes("(") || trimmed.includes(":")) {
-    return null;
-  }
+function parseLengthShorthand(trimmed: string): CornerRadiusParts | null {
+  if (!trimmed || trimmed.includes("(") || trimmed.includes(":")) return null;
   const parts = trimmed.split(/\s+/);
   if (parts.length < 1 || parts.length > 4) return null;
   if (!parts.every((p) => SIMPLE_LENGTH.test(p))) return null;
   const [a, b, c, d] = parts;
-  // CSS shorthand expansion: 1 → all; 2 → tl/br=a tr/bl=b; 3 → tl=a tr/bl=b br=c; 4 → tl tr br bl.
   switch (parts.length) {
     case 1:
       return { topLeft: a!, topRight: a!, bottomRight: a!, bottomLeft: a! };
@@ -124,8 +120,29 @@ export function parseCornerRadius(value: string | undefined): CornerRadiusParts 
   }
 }
 
-/** Compose the minimal CSS shorthand for four corner values. */
-export function composeCornerRadius(p: CornerRadiusParts): string {
+/**
+ * Parse a border-radius shorthand. Circular 1-4 lengths, or elliptical
+ * `x / y` with a simple length shorthand on each side. calc(), var(), and
+ * token bindings are not representable → null (control stands down).
+ */
+export function parseCornerRadius(
+  value: string | undefined,
+): ParsedCornerRadius | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.includes("(") || trimmed.includes(":")) return null;
+  const slash = trimmed.indexOf("/");
+  if (slash === -1) {
+    const x = parseLengthShorthand(trimmed);
+    return x ? { x, y: null } : null;
+  }
+  const x = parseLengthShorthand(trimmed.slice(0, slash).trim());
+  const y = parseLengthShorthand(trimmed.slice(slash + 1).trim());
+  if (!x || !y) return null;
+  return { x, y };
+}
+
+export function composeCornerParts(p: CornerRadiusParts): string {
   const { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl } = p;
   if (tl === tr && tr === br && br === bl) return tl;
   if (tl === br && tr === bl) return `${tl} ${tr}`;
@@ -133,10 +150,19 @@ export function composeCornerRadius(p: CornerRadiusParts): string {
   return `${tl} ${tr} ${br} ${bl}`;
 }
 
+/** Compose the minimal CSS shorthand. Elliptical emits `x / y`. */
+export function composeCornerRadius(p: ParsedCornerRadius): string {
+  const xCss = composeCornerParts(p.x);
+  if (!p.y) return xCss;
+  const yCss = composeCornerParts(p.y);
+  if (xCss === yCss) return xCss;
+  return `${xCss} / ${yCss}`;
+}
+
 // ── Per-side border widths ──────────────────────────────────────────────────
 
 /** Save-side zod cap on `borderWidth` (registry.ts). Never emit past it. */
-export const BORDER_WIDTH_MAX_CHARS = 16;
+export const BORDER_WIDTH_MAX_CHARS = 64;
 
 export interface BorderSideWidths {
   top: number;
@@ -180,7 +206,7 @@ function widthTerm(n: number): string {
 
 /**
  * Compose the minimal border-width shorthand. Zero sides compose as bare `0`
- * (valid CSS, and it keeps realistic per-side values inside the 16-char save
+ * (valid CSS, and it keeps realistic per-side values inside the 64-char save
  * cap). Returns null when even the minimal form would blow the cap — the
  * control must warn and NOT emit rather than let the save silently drop it.
  */
@@ -244,10 +270,14 @@ const COLOR_TAIL =
   /^(?:#[0-9a-fA-F]{3,8}|[a-zA-Z]+|(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|hwb|color|color-mix|var)\(.*\))$/;
 
 /** Parse one shadow layer; null when the grammar cannot own it. */
-export function parseShadowLayer(css: string): ShadowLayerParts | null {
+export function parseShadowLayer(
+  css: string,
+  kind: "box" | "text" = "box",
+): ShadowLayerParts | null {
   const trimmed = css.trim();
   if (!trimmed) return null;
   const inset = /^inset\b/.test(trimmed);
+  if (kind === "text" && inset) return null;
   const body = trimmed.replace(/^inset\s+/, "");
   const m = SHADOW_LAYER_RE.exec(body);
   if (!m) return null;
@@ -264,7 +294,11 @@ export function parseShadowLayer(css: string): ShadowLayerParts | null {
   };
 }
 
-export function composeShadowLayer(p: ShadowLayerParts): string {
+export function composeShadowLayer(
+  p: ShadowLayerParts,
+  kind: "box" | "text" = "box",
+): string {
+  if (kind === "text") return `${p.x}px ${p.y}px ${p.blur}px ${p.color}`;
   return `${p.inset ? "inset " : ""}${p.x}px ${p.y}px ${p.blur}px ${p.spread}px ${p.color}`;
 }
 
@@ -273,23 +307,118 @@ export function composeShadowLayer(p: ShadowLayerParts): string {
  * empty string yield an empty stack. Unparseable layers come back with
  * `parsed: null` and their exact source text.
  */
-export function parseShadowStack(value: string | undefined): ShadowLayer[] {
+export function parseShadowStack(
+  value: string | undefined,
+  kind: "box" | "text" = "box",
+): ShadowLayer[] {
   if (!value) return [];
   const trimmed = value.trim();
   if (!trimmed || trimmed === "none") return [];
   return splitTopLevelCommas(trimmed).map((css) => ({
     css,
-    parsed: parseShadowLayer(css),
+    parsed: parseShadowLayer(css, kind),
   }));
 }
+
+/** Save-side zod cap on `textShadow` (registry.ts). */
+export const TEXT_SHADOW_MAX_CHARS = 200;
+
+export const DEFAULT_TEXT_SHADOW_LAYER: ShadowLayerParts = {
+  inset: false,
+  x: 0,
+  y: 2,
+  blur: 8,
+  spread: 0,
+  color: "rgba(0,0,0,0.4)",
+};
 
 /**
  * Compose the stack back to CSS. Empty stack → undefined (unset the key).
  * Returns null when the composed value would blow the save cap — the control
  * warns and keeps the previous value instead of emitting a doomed patch.
  */
-export function composeShadowStack(layers: ShadowLayer[]): string | undefined | null {
+export function composeShadowStack(
+  layers: ShadowLayer[],
+  cap: number = BOX_SHADOW_MAX_CHARS,
+): string | undefined | null {
   if (layers.length === 0) return undefined;
   const out = layers.map((l) => l.css).join(", ");
-  return out.length <= BOX_SHADOW_MAX_CHARS ? out : null;
+  return out.length <= cap ? out : null;
+}
+
+// ── Real CSS `filter` (self, not backdrop) ───────────────────────────────────
+
+export interface FilterParts {
+  blur: number | null;
+  brightness: number | null;
+  contrast: number | null;
+  grayscale: number | null;
+  saturate: number | null;
+  sepia: number | null;
+  hueRotate: number | null;
+}
+
+const EMPTY_FILTER: FilterParts = {
+  blur: null,
+  brightness: null,
+  contrast: null,
+  grayscale: null,
+  saturate: null,
+  sepia: null,
+  hueRotate: null,
+};
+
+/**
+ * Parse a CSS filter the inspector can own: any combination of blur(Npx),
+ * brightness/contrast/grayscale/saturate/sepia(factor), hue-rotate(Ndeg),
+ * each at most once. drop-shadow(), url(), invert(), or a second blur → null.
+ */
+export function parseCssFilter(value: string | undefined): FilterParts | null {
+  if (!value || !value.trim()) return null;
+  const terms = value.trim().split(/\s+/);
+  const out: FilterParts = { ...EMPTY_FILTER };
+  const seen = new Set<string>();
+  for (const term of terms) {
+    const m =
+      /^(blur|brightness|contrast|grayscale|saturate|sepia|hue-rotate)\((.+)\)$/.exec(
+        term,
+      );
+    if (!m || seen.has(m[1]!)) return null;
+    seen.add(m[1]!);
+    const arg = m[2]!;
+    if (m[1] === "blur") {
+      const n = /^(\d+(?:\.\d+)?)px$/.exec(arg);
+      if (!n) return null;
+      out.blur = Number(n[1]);
+      continue;
+    }
+    if (m[1] === "hue-rotate") {
+      const n = /^(-?\d+(?:\.\d+)?)deg$/.exec(arg);
+      if (!n) return null;
+      out.hueRotate = Number(n[1]);
+      continue;
+    }
+    const n = /^(\d+(?:\.\d+)?)$/.exec(arg);
+    if (!n) return null;
+    const key = m[1] as
+      | "brightness"
+      | "contrast"
+      | "grayscale"
+      | "saturate"
+      | "sepia";
+    out[key] = Number(n[1]);
+  }
+  return seen.size === 0 ? null : out;
+}
+
+export function composeCssFilter(p: FilterParts): string {
+  const terms: string[] = [];
+  if (p.blur !== null) terms.push(`blur(${p.blur}px)`);
+  if (p.brightness !== null) terms.push(`brightness(${p.brightness})`);
+  if (p.contrast !== null) terms.push(`contrast(${p.contrast})`);
+  if (p.grayscale !== null) terms.push(`grayscale(${p.grayscale})`);
+  if (p.saturate !== null) terms.push(`saturate(${p.saturate})`);
+  if (p.sepia !== null) terms.push(`sepia(${p.sepia})`);
+  if (p.hueRotate !== null) terms.push(`hue-rotate(${p.hueRotate}deg)`);
+  return terms.join(" ");
 }

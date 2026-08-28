@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { bumpCatalogVersion } from "@/lib/site-admin/builder-core/templates/catalog-version";
 import {
-  CODE_TAB_DEFS,
+  canonicalGalleryTab,
   type CatalogStructureMap,
   type CatalogStructureRow,
 } from "./catalog-structure";
@@ -67,11 +67,13 @@ function revalidateCatalog() {
   revalidatePath("/(public)/p", "layout");
 }
 
-const KNOWN_TAB_IDS = new Set<string>(CODE_TAB_DEFS.map((t) => t.id));
-
-/** A built-in tab id (created tabs are a deferred follow-up — see the plan). */
+/** A built-in tab id (legacy six-tab ids map onto the four UI tabs). */
 function isKnownTab(tabId: string): boolean {
-  return KNOWN_TAB_IDS.has(tabId);
+  return canonicalGalleryTab(tabId) != null;
+}
+
+function toCanonicalTab(tabId: string): string {
+  return canonicalGalleryTab(tabId) ?? tabId;
 }
 
 // ── read ─────────────────────────────────────────────────────────────────────
@@ -165,9 +167,10 @@ export async function setTabOverride(input: {
 }): Promise<StructureActionResult> {
   if (!input.tabId) return fail("Missing tab id.");
   if (!isKnownTab(input.tabId)) return fail(`Unknown tab "${input.tabId}".`);
+  const tabId = toCanonicalTab(input.tabId);
   return commitRows([
     {
-      ref: `tab:${input.tabId}`,
+      ref: `tab:${tabId}`,
       kind: "tab",
       label_override: input.label_override,
       icon_override: input.icon_override,
@@ -198,7 +201,9 @@ export async function setCategoryOverride(input: {
     {
       ref: `cat:${input.categoryId}`,
       kind: "category",
-      parent_tab: input.parent_tab,
+      parent_tab: input.parent_tab
+        ? toCanonicalTab(input.parent_tab)
+        : input.parent_tab,
       label_override: input.label_override,
       icon_override: input.icon_override,
       sort_order: input.sort_order,
@@ -216,7 +221,7 @@ export async function reorderTabs(
   if (unknown) return fail(`Unknown tab "${unknown}".`);
   return commitRows(
     orderedTabIds.map((tabId, i) => ({
-      ref: `tab:${tabId}`,
+      ref: `tab:${toCanonicalTab(tabId)}`,
       kind: "tab" as const,
       sort_order: i,
     })),
@@ -233,7 +238,7 @@ export async function reorderCategories(
     orderedCategoryIds.map((catId, i) => ({
       ref: `cat:${catId}`,
       kind: "category" as const,
-      parent_tab: parentTab,
+      parent_tab: toCanonicalTab(parentTab),
       sort_order: i,
     })),
   );
@@ -252,7 +257,7 @@ export async function moveItem(input: {
     {
       ref: `item:${input.itemId}`,
       kind: "item",
-      parent_tab: input.parent_tab,
+      parent_tab: toCanonicalTab(input.parent_tab),
       category_override: input.category_override.trim(),
     },
   ]);

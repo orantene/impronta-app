@@ -220,7 +220,13 @@ const BUDGETS: Record<string, number> = {
   // for the ~11 lines of wiring the new action needs here. The repair itself
   // is a pure module (section-eject-repair.ts) and its button lives in
   // chip-buttons.tsx; this file only picks the target. Budget lowered to match.
-  "selection-layer.tsx": 7731,
+  // +24 (W5-B7 absolute drag-to-place): the grip writes top/left for
+  //   position:absolute/fixed children. Snap + viewport patch live in
+  //   canvas-move-place.ts (unit-tested). What landed here is the thin wiring:
+  //   resolveMovePlacement, commitSelectedNodePlace, onCommitPlace, and
+  //   clearing inset previews on layout reset. Translate commit clamp moved
+  //   into the helper so this file does not grow by the full feature.
+  "selection-layer.tsx": 7755,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

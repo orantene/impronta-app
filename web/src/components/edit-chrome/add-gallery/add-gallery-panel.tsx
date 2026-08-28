@@ -29,6 +29,7 @@ import { emitPalettePointerDrag } from "../element-library-insert-picker";
 import {
   resolveTabs,
   resolveCategoriesForTab,
+  normalizeAllowedTabs,
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 
@@ -67,8 +68,10 @@ const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
 
 /** English source strings for the panel's DrawerHead title, keyed per tab. */
 const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
-  layout: "Add Layout", elements: "Add Elements", sections: "Add Sections",
-  connected: "Add Connected", shell: "Add Shell Templates", page_templates: "Add Page Templates",
+  blocks: "Add Blocks",
+  designs: "Add Designs",
+  data: "Add Data",
+  shell: "Add Shell",
 };
 
 interface AddGalleryPanelProps {
@@ -150,8 +153,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   // CANVAS-1 — read selection from micro-store for insert-at-selection hint.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
-  // ONB-4 — open on Sections by default; every surface inherits (shared chrome).
-  const [tab, setTab] = useState<AddGalleryTab>("sections");
+  // ONB-4 — open on Designs by default (the former Sections landing).
+  const [tab, setTab] = useState<AddGalleryTab>("designs");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
@@ -159,6 +162,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [previewItem, setPreviewItem] = useState<AddGalleryItem | null>(null);
 
   // P1 — merged catalog seeded synchronously from code; refreshed on open.
+  const allowedTabIds = useMemo(
+    () => normalizeAllowedTabs(gallerySurface.allowedTabs),
+    [gallerySurface],
+  );
+
   const codeSeed = useMemo(
     () =>
       codeGalleryItemsForPolicy({
@@ -213,18 +221,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   );
 
   // Visible tabs = resolved order ∩ this surface's allowed tabs ∩ tabs that
-  // actually have items. The structural tabs (layout/elements/sections/
-  // connected) always carry code items so they always show; "Templates"
-  // (page_templates) is DB-only, so it appears only once a template is
-  // published — never an empty tab on a tenant/talent builder.
+  // actually have items. The four UI tabs (Blocks / Designs / Data / Shell)
+  // always paint when the surface allows them and items exist; Shell stays
+  // hidden on page-builder surfaces whose allow-list omits it.
   const tabs = useMemo(
     () =>
       tabDefs.filter(
         (t) =>
-          gallerySurface.allowedTabs.includes(t.id) &&
+          allowedTabIds.includes(t.id) &&
           mergedItems.some((item) => item.tab === t.id),
       ),
-    [gallerySurface, mergedItems, tabDefs],
+    [allowedTabIds, mergedItems, tabDefs],
   );
 
   // Keep the active tab valid if the surface's allowed tabs change.
@@ -363,7 +370,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         // executeBuilderNodeOperation, so we only raise the SHARED Undo toast
         // here — the same affordance applyTemplateWithUndo raises on the
         // homepage. Block/section/element inserts keep their quieter feedback.
-        if (result.ok && item.tab === "page_templates") {
+        if (result.ok && item.dbGalleryTab === "page_templates") {
           notifyTemplateApplied(item.label);
         }
         if (result.nodeId) {
@@ -393,10 +400,10 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     ],
   );
 
-  const tabTitle = t(TAB_TITLE_BY_KEY[tab] ?? "Add Page Templates");
+  const tabTitle = t(TAB_TITLE_BY_KEY[tab] ?? "Add Designs");
 
   const gridColumns =
-    tab === "sections" || tab === "connected" || tab === "page_templates" || tab === "shell"
+    tab === "designs" || tab === "data" || tab === "shell"
       ? "repeat(2, minmax(0, 1fr))"
       : "repeat(4, minmax(0, 1fr))";
 

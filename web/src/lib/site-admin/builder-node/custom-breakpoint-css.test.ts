@@ -23,6 +23,25 @@ test("a valid tier emits the @media block + mirrors the tablet scale", () => {
   assert.match(css, /width: 720px !important/);
 });
 
+test("freeform BuilderNodeStyle lanes emit var() refs, not snapped token values", () => {
+  const css = generateCustomBreakpointCss([
+    { id: "wide", label: "Wide", maxWidthPx: 1200 },
+  ]);
+  assert.match(
+    css,
+    /\.site-builder-node\[data-builder-style-wide-padding-top\]\{padding-top:var\(--bn-wide-padding-top\)!important\}/,
+  );
+  assert.match(
+    css,
+    /\.site-builder-node\[data-builder-style-wide-bg-color\]\{background-color:var\(--bn-wide-bg-color\)!important\}/,
+  );
+  assert.match(
+    css,
+    /\.site-builder-node\[data-builder-style-wide-line-clamp\]/,
+  );
+  assert.doesNotMatch(css, /data-builder-style-wide-padding-top\]\{padding-top: 32px/);
+});
+
 test("drops invalid tiers: bad slug, reserved ids, out-of-range px, dupes", () => {
   const css = generateCustomBreakpointCss([
     { id: "Bad Id", label: "x", maxWidthPx: 900 }, // bad slug → dropped

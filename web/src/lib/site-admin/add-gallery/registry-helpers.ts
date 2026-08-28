@@ -10,7 +10,7 @@ export function el(
   partial: GalleryItemInput & { insertMethod: AddGalleryItem["insertMethod"] },
 ): AddGalleryItem {
   return {
-    tab: "elements",
+    tab: "blocks",
     previewType: "icon-card",
     itemKind: "static",
     dragSupported: true,
@@ -23,7 +23,7 @@ export function el(
 export function section(partial: GalleryItemInput): AddGalleryItem {
   return el({
     ...partial,
-    tab: "sections",
+    tab: "designs",
     previewType: "image-card",
     insertMethod: partial.insertMethod ?? "sectionTemplate",
   });
@@ -32,7 +32,7 @@ export function section(partial: GalleryItemInput): AddGalleryItem {
 export function connected(partial: GalleryItemInput): AddGalleryItem {
   return el({
     ...partial,
-    tab: "connected",
+    tab: "data",
     previewType: "icon-card",
     itemKind: "connected",
     insertMethod: partial.insertMethod ?? "connectedNode",

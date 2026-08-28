@@ -16,7 +16,7 @@
  * shell as a distinct, workspace-targeted surface.
  */
 
-import type { AddGalleryTab, GallerySurfaceDescriptor } from "./types";
+import type { AddGalleryAllowTab, GallerySurfaceDescriptor } from "./types";
 
 /** The probe's surface keys — the four real builder surfaces. */
 export type ParitySurfaceKey =
@@ -50,7 +50,7 @@ interface ParitySurfaceShape {
   key: ParitySurfaceKey;
   label: string;
   blurb: string;
-  allowedTabs: ReadonlyArray<AddGalleryTab>;
+  allowedTabs: ReadonlyArray<AddGalleryAllowTab>;
   allowDbTemplates: boolean;
   surfaceTarget: GallerySurfaceDescriptor["surfaceTarget"];
   usesTalentTier: boolean;
@@ -61,7 +61,7 @@ export const PARITY_SURFACES: ReadonlyArray<ParitySurfaceShape> = [
     key: "talent_profile",
     label: "Talent profile",
     blurb: "The talent's freeform profile page (buildTalentPageBuilderConfig).",
-    allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+    allowedTabs: ["blocks", "designs", "data", "page_templates"],
     allowDbTemplates: true,
     surfaceTarget: "talent",
     usesTalentTier: true,
@@ -71,7 +71,7 @@ export const PARITY_SURFACES: ReadonlyArray<ParitySurfaceShape> = [
     label: "Talent shell",
     blurb:
       "The talent Max-SITE header/footer shell — governed by the WORKSPACE target (surfaceTarget:'workspace').",
-    allowedTabs: ["layout", "elements", "sections", "connected", "shell"],
+    allowedTabs: ["blocks", "designs", "data", "shell"],
     allowDbTemplates: true,
     surfaceTarget: "workspace",
     usesTalentTier: false,
@@ -80,7 +80,7 @@ export const PARITY_SURFACES: ReadonlyArray<ParitySurfaceShape> = [
     key: "workspace_page",
     label: "Workspace page",
     blurb: "The agency storefront freeform page (buildCmsPageBuilderConfig).",
-    allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+    allowedTabs: ["blocks", "designs", "data", "page_templates"],
     allowDbTemplates: true,
     surfaceTarget: "workspace",
     usesTalentTier: false,
@@ -89,7 +89,7 @@ export const PARITY_SURFACES: ReadonlyArray<ParitySurfaceShape> = [
     key: "workspace_shell",
     label: "Workspace shell",
     blurb: "The agency site header/footer shell (buildSiteShellBuilderConfig).",
-    allowedTabs: ["layout", "elements", "sections", "connected", "shell"],
+    allowedTabs: ["blocks", "designs", "data", "shell"],
     allowDbTemplates: true,
     surfaceTarget: "workspace",
     usesTalentTier: false,

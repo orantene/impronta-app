@@ -200,14 +200,14 @@ test("real registry: applyStructureToItems with empty structure is identity", ()
 });
 
 test("real registry: moving a real item via structure rewrites its tab + category", () => {
-  const item = ADD_GALLERY_ITEMS.find((i) => i.tab !== "layout") ?? ADD_GALLERY_ITEMS[0];
+  const item = ADD_GALLERY_ITEMS.find((i) => i.tab !== "blocks") ?? ADD_GALLERY_ITEMS[0];
   const structure: CatalogStructureMap = {
     [`item:${item.id}`]: {
       ref: `item:${item.id}`,
       kind: "item",
       label_override: null,
       icon_override: null,
-      parent_tab: "layout",
+      parent_tab: "blocks",
       sort_order: null,
       created: false,
       hidden: false,
@@ -216,6 +216,6 @@ test("real registry: moving a real item via structure rewrites its tab + categor
   };
   const out = applyStructureToItems(ADD_GALLERY_ITEMS, structure);
   const moved = out.find((i) => i.id === item.id)!;
-  assert.equal(moved.tab, "layout");
+  assert.equal(moved.tab, "blocks");
   assert.equal(moved.category, "containers");
 });
