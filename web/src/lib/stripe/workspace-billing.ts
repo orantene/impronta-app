@@ -24,6 +24,12 @@ import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspa
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
+import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
+import {
+  reconcileAppliedDiscount,
+  resolveSubscriptionDiscountMirror,
+} from "@/lib/billing/subscription-discounts";
+import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
   stripeBillingPortalLocale,
   stripeCheckoutLocale,
@@ -153,6 +159,12 @@ export async function createWorkspaceCheckoutSession(opts: {
    * Stripe keeps its own default.
    */
   locale?: string | null;
+  /**
+   * A `?promo=` code carried from the marketing funnel. RE-VALIDATED server-side
+   * by `resolveCheckoutDiscount` — it arrives from the browser, so it is a
+   * request, never a fact.
+   */
+  promoCode?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -182,6 +194,23 @@ export async function createWorkspaceCheckoutSession(opts: {
   );
   if (!customerResult.ok) return customerResult;
 
+  // What this session charges, before the buyer types anything: an account
+  // discount we granted, else a validated promo code, else Stripe's own box.
+  // Exactly one of `discounts` / `allow_promotion_codes` comes out — Stripe
+  // rejects both, and the resolver's return type is what guarantees it.
+  const discount = await resolveCheckoutDiscount({
+    subjectType: "workspace",
+    tenantId: opts.tenantId,
+    promoCode: opts.promoCode ?? null,
+  });
+
+  // The trial the admin configured in `plan_trial_offers`. Until now that
+  // number was displayed in marketing copy and never sent to Stripe, so a
+  // "14-day free trial" charged on day zero.
+  const trialOffer = await loadTrialOffer("workspace", opts.planKey);
+  const trialDays =
+    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
+
   try {
     const session = await stripe.checkout.sessions.create({
       customer: customerResult.data,
@@ -202,9 +231,9 @@ export async function createWorkspaceCheckoutSession(opts: {
           plan_key: opts.planKey,
           checkout_type: "workspace_subscription",
         },
+        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
-      // Allow promotion codes for early-access discounts
-      allow_promotion_codes: true,
+      ...discount.params,
       // Adaptive Pricing: Stripe auto-converts the USD price to the customer's
       // local currency at checkout (e.g. MXN for Mexico, EUR for Europe).
       // Note: subscription-mode sessions require the explicit `currency` to match
@@ -340,6 +369,11 @@ export async function syncStripeSubscriptionToDb(
   const workspaceName = (priorAgency as { display_name?: string | null } | null)?.display_name ?? null;
   const priorStatus = (priorSub as { status?: string | null } | null)?.status ?? null;
 
+  // What Stripe says this subscription is actually discounted by. Written
+  // through unconditionally — including as NULLS — because that is how a
+  // discount removed in the Stripe dashboard stops showing in HQ.
+  const discountMirror = await resolveSubscriptionDiscountMirror(subscription);
+
   try {
     // Upsert subscription record
     const { error: subError } = await sb
@@ -357,6 +391,10 @@ export async function syncStripeSubscriptionToDb(
           cancelled_at:           cancelledAt,
           trial_end:              trialEnd,
           stripe_price_id:        priceId,
+          stripe_coupon_id:          discountMirror.couponId,
+          discount_percent_off:      discountMirror.percentOff,
+          discount_amount_off_cents: discountMirror.amountOffCents,
+          discount_ends_at:          discountMirror.endsAt,
           updated_at:             new Date().toISOString(),
         },
         { onConflict: "tenant_id" },
@@ -390,6 +428,16 @@ export async function syncStripeSubscriptionToDb(
     if (agencyError) {
       logServerError("workspace-billing.syncSubscription.planTier", agencyError);
       // Non-fatal — subscription record is updated; plan_tier may be stale
+    }
+
+    // Close the loop on a grant made BEFORE the account subscribed: the row sat
+    // unattached until they checked out with the coupon, and this is the first
+    // event that proves it took.
+    if (discountMirror.couponId) {
+      await reconcileAppliedDiscount({
+        couponId: discountMirror.couponId,
+        subscriptionId: subscription.id,
+      });
     }
 
     // Ensure stripe_customers row exists (idempotent)

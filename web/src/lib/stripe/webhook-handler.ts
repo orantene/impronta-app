@@ -359,7 +359,10 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       let subscription: Stripe.Subscription;
       try {
         subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
-          expand: ["items.data.price", "customer"],
+          // `discounts` is what lets the sync mirror an account discount (and,
+          // just as importantly, NULL the mirror when one is removed) without a
+          // second round-trip per webhook.
+          expand: ["items.data.price", "customer", "discounts"],
         });
       } catch (err) {
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
@@ -391,7 +394,9 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
     case "invoice_payment_failed": {
       let subscription: Stripe.Subscription;
       try {
-        subscription = await stripe.subscriptions.retrieve(action.subscriptionId);
+        subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
+          expand: ["discounts"],
+        });
       } catch (err) {
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
       }
@@ -541,7 +546,9 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       if (action.subscriptionId) {
         let subscription: Stripe.Subscription;
         try {
-          subscription = await stripe.subscriptions.retrieve(action.subscriptionId);
+          subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
+            expand: ["discounts"],
+          });
         } catch (err) {
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }
