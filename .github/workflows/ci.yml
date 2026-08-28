@@ -116,6 +116,31 @@ jobs:
             exit 1
           fi
 
+      # ── Gate 1b: field catalog frozen ────────────────────────────────
+      # New profile fields must be hand-authored as SQL migrations against
+      # profile_field_definitions, never appended to the static arrays. The
+      # guard hashes the HARDCODED_FIELDS / TAXONOMY_FIELDS literals.
+      #
+      # It lived only in the `npm run ci` script, which this workflow does NOT
+      # invoke (the lanes below are a curated list), so nothing ran it — it sat
+      # red on main for months while CI stayed green. Keep it as its own step:
+      # a guard that only exists inside an unused script is not a guard.
+      - name: field catalog frozen (no new fields without a migration)
+        if: ${{ !cancelled() }}
+        run: npm run check:field-catalog-frozen
+
+      # The same "in the ci script but nothing runs it" gap applied to these
+      # four. All are green today; gating them keeps it that way.
+      # `check:migrations-applied` is deliberately NOT here: it needs live
+      # Supabase credentials, which this workflow does not carry.
+      - name: structural guards (field engine, fresh types, imports, seatbelt)
+        if: ${{ !cancelled() }}
+        run: |
+          npm run check:field-engine-integrity
+          npm run check:types-fresh
+          npm run check:untracked-imports
+          npm run verify:seatbelt-executes
+
       # ── Gate 2: ESLint baseline (--suppressions-location ratchet) ────
       # `npm run lint` already passes `--suppressions-location
       # eslint-suppressions.json`, which silently absorbs grandfathered

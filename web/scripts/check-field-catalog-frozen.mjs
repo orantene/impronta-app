@@ -4,12 +4,20 @@
  * gain new fields without a paired new Supabase migration.
  *
  * ─── How it works ───────────────────────────────────────────────────
- * This script computes a content hash (SHA-256) of the two static arrays
- * in `field-catalog.ts` that define the catalog:
- *   - `HARDCODED_FIELDS` (the array literal between the sentinel comments)
- *   - The re-export of `TAXONOMY_FIELDS` (via `state.tsx` import)
+ * This script computes a content hash (SHA-256) of the two static field
+ * arrays that define the catalog:
+ *   - `HARDCODED_FIELDS`  (array literal in `field-catalog.ts`)
+ *   - `TAXONOMY_FIELDS`   (object literal in `state/fixtures.ts`)
  *
- * Because `state.tsx` owns TAXONOMY_FIELDS we hash both files together.
+ * BOTH are extracted as LITERALS, never as whole files. It used to hash the
+ * entire normalised `state.tsx` "because state.tsx owns TAXONOMY_FIELDS" —
+ * true when it was written, false since the Phase-1b decomposition moved the
+ * data into `state/*` and left `state.tsx` a 31-line re-export barrel. The
+ * guard was therefore hashing a barrel (protecting nothing on the taxonomy
+ * side) while firing on any unrelated re-export added to it. Exactly that
+ * happened: #920 added one `applyWorkspaceFieldOverride,` re-export line and
+ * the guard went red on main with no field added and no migration owed, which
+ * is how it ended up quietly dropped from the CI workflow.
  *
  * The hash is stored in `web/.field-catalog-hash` (committed to git).
  * The guard compares the running hash to the stored hash and exits 1 if
@@ -18,7 +26,7 @@
  *
  * To LEGITIMATELY update the static arrays (extremely rare; new fields
  * should go to SQL):
- *   1. Edit `field-catalog.ts` and/or `state.tsx`.
+ *   1. Edit `field-catalog.ts` and/or `state/fixtures.ts`.
  *   2. Write the paired SQL migration in `supabase/migrations/`.
  *   3. Run:  node scripts/check-field-catalog-frozen.mjs --update
  *      This regenerates `.field-catalog-hash`.
@@ -27,8 +35,10 @@
  * ─── Wire-up ────────────────────────────────────────────────────────
  * This script is called from:
  *   - `npm run check:field-catalog-frozen` (manual)
- *   - `npm run ci` (prepended; see package.json)
- *   - The CI workflow `.github/workflows/ci.yml` via the `ci` script
+ *   - `npm run ci` (see package.json)
+ *   - `.github/workflows/ci.yml`, as its own step. The workflow runs a CURATED
+ *     lane list rather than `npm run ci`, so a guard that lives only in the
+ *     `ci` script is a guard nothing runs.
  *
  * ─── Why not a checksum on the whole file? ──────────────────────────
  * The file also contains type definitions, JSDoc, helper functions, and
@@ -51,9 +61,9 @@ const CATALOG_PATH = join(
   REPO_ROOT,
   "web/src/components/admin/shell/internal/field-catalog.ts",
 );
-const STATE_PATH = join(
+const TAXONOMY_PATH = join(
   REPO_ROOT,
-  "web/src/components/admin/shell/internal/state.tsx",
+  "web/src/components/admin/shell/internal/state/fixtures.ts",
 );
 const HASH_FILE = join(WEB_ROOT, ".field-catalog-hash");
 
@@ -81,38 +91,44 @@ function extractHardcodedFields(src) {
   throw new Error("Mismatched brackets in HARDCODED_FIELDS");
 }
 
-// ─── Extract TAXONOMY_FIELDS from state.tsx ──────────────────────────
-// Looks for the exported const or the object it contains.
-// We extract the entire source of state.tsx (it's the import target and
-// the schema for all TAXONOMY_FIELDS, which power derived type fields).
-// Simpler than parsing nested structures: just hash the full file
-// content minus comment lines and blank lines (so whitespace refactors
-// don't trip the guard).
-function normaliseSource(src) {
-  return src
-    .split("\n")
-    .filter((line) => {
-      const t = line.trim();
-      return t.length > 0 && !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
-    })
-    .join("\n");
+// ─── Extract a balanced literal that follows a declaration marker ─────
+// Shared by both inputs: walk from the opening bracket counting depth, so
+// nested arrays/objects inside the literal are included and everything after
+// it (types, helpers, JSDoc, unrelated exports) is excluded. Hashing a whole
+// FILE is what made this guard dishonest before; do not go back to it.
+function extractLiteral(src, startMarker, open, close, label) {
+  const start = src.indexOf(startMarker);
+  if (start === -1) {
+    throw new Error(
+      `Cannot find ${label}. If it was renamed or moved, update this guard ` +
+        `to point at the new declaration rather than deleting the check.`,
+    );
+  }
+  let depth = 0;
+  for (let i = start + startMarker.length - 1; i < src.length; i++) {
+    if (src[i] === open) depth++;
+    else if (src[i] === close) {
+      depth--;
+      if (depth === 0) return src.slice(start, i + 1).trim();
+    }
+  }
+  throw new Error(`Mismatched ${open}${close} in ${label}`);
 }
 
 function computeHash() {
-  const catalogSrc = readFileSync(CATALOG_PATH, "utf8");
-  const stateSrc = readFileSync(STATE_PATH, "utf8");
-
-  // Hash the HARDCODED_FIELDS block + the normalised state.tsx content
-  // (which owns TAXONOMY_FIELDS). If either changes meaningfully, the
-  // hash diverges.
-  const hardcoded = extractHardcodedFields(catalogSrc);
-  const stateNorm = normaliseSource(stateSrc);
-
+  const hardcoded = extractHardcodedFields(readFileSync(CATALOG_PATH, "utf8"));
+  const taxonomy = extractLiteral(
+    readFileSync(TAXONOMY_PATH, "utf8"),
+    "export const TAXONOMY_FIELDS: Record<TaxonomyParentId, RegField[]> = {",
+    "{",
+    "}",
+    "TAXONOMY_FIELDS in state/fixtures.ts",
+  );
   const h = createHash("sha256");
   h.update("HARDCODED_FIELDS:");
   h.update(hardcoded);
-  h.update("\nSTATE_TAXONOMY:");
-  h.update(stateNorm);
+  h.update("\nTAXONOMY_FIELDS:");
+  h.update(taxonomy);
   return h.digest("hex");
 }
 
@@ -138,8 +154,8 @@ const stored = readFileSync(HASH_FILE, "utf8").trim();
 
 if (current !== stored) {
   console.error(
-    "[check-field-catalog-frozen] FAIL: HARDCODED_FIELDS / TAXONOMY_FIELDS in field-catalog.ts\n" +
-    "  (or state.tsx) changed without a paired migration.\n\n" +
+    "[check-field-catalog-frozen] FAIL: HARDCODED_FIELDS (field-catalog.ts) or\n" +
+    "  TAXONOMY_FIELDS (state/fixtures.ts) changed without a paired migration.\n\n" +
     `  stored hash : ${stored}\n` +
     `  current hash: ${current}\n\n` +
     "  New fields MUST be hand-authored as SQL migrations against\n" +

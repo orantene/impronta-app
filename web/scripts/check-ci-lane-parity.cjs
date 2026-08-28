@@ -22,9 +22,29 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-/** Extract the de-duped, sorted set of `test:*` lanes referenced in a script string. */
+// Needs live Supabase credentials the workflow does not carry, so it stays a
+// local/pre-push check by design rather than a CI step.
+const PARITY_EXEMPT = new Set(["check:migrations-applied"]);
+
+/**
+ * Extract the de-duped, sorted set of gated lanes referenced in a script string.
+ *
+ * Covers `test:*` AND the `check:*` / `verify:*` / `eval:*` guards. It used to
+ * match `test:*` only, which is exactly how `check:field-catalog-frozen` sat
+ * RED on main for months: it was in the `ci` script, the workflow never ran it,
+ * and this parity guard could not see it. A guard nothing runs is not a guard.
+ *
+ * `check:migrations-applied` is exempt: it needs live Supabase credentials that
+ * the workflow does not carry, so it is a local/pre-push check by design.
+ */
 function lanesInCiScript(ciScript) {
-  return [...new Set(ciScript.match(/test:[a-z0-9:-]+/g) ?? [])].sort();
+  return [
+    ...new Set(
+      ciScript.match(/(?:test|check|verify|eval):[a-z0-9:-]+/g) ?? [],
+    ),
+  ]
+    .filter((lane) => !PARITY_EXEMPT.has(lane))
+    .sort();
 }
 
 /** Lanes in `lanes` that ci.yml does NOT invoke as a `npm run <lane>` step. */
@@ -65,7 +85,7 @@ function main() {
 
   if (missing.length > 0) {
     console.error(
-      `[check:ci-lane-parity] FAIL — .github/workflows/ci.yml omits ${missing.length} test lane(s) that 'npm run ci' runs:`,
+      `[check:ci-lane-parity] FAIL — .github/workflows/ci.yml omits ${missing.length} lane(s)/guard(s) that 'npm run ci' runs:`,
     );
     for (const m of missing) console.error(`  - ${m}`);
     console.error(
@@ -75,7 +95,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`[check:ci-lane-parity] OK — all ${lanes.length} 'ci' test lane(s) are gated in ci.yml.`);
+  console.log(`[check:ci-lane-parity] OK — all ${lanes.length} 'ci' lane(s) + guard(s) are gated in ci.yml.`);
 }
 
 main();
