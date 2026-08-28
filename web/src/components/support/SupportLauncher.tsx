@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { startDiagnosticsCollector } from "@/lib/support/diagnostics/collector";
 import { useT } from "@/i18n/use-t";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS } from "./support-tokens";
@@ -19,6 +20,9 @@ export function SupportLauncher({
   const t = useT();
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    startDiagnosticsCollector();
+  }, []);
   const unread = useSupportUnread(contract.initialTickets);
   const toggle = useCallback(() => setOpen((v) => !v), []);
   const hide = drawerOpen || open;

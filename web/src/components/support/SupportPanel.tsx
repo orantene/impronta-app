@@ -17,8 +17,9 @@ import {
 import { SupportThreadView } from "./SupportThreadView";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
-import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
 import { supportFrom } from "@/lib/support/support-from";
+import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
+import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 
 type View = "home" | "tickets" | "thread" | "new";
 
@@ -112,6 +113,7 @@ export function SupportPanel({
       surface: contract.surface,
       body,
       originSlug: contract.originSlug ?? undefined,
+      diagnostics: getDiagnosticsSnapshot(),
     });
     setSending(false);
     if (r.ok) {
@@ -177,6 +179,7 @@ export function SupportPanel({
                   surface: contract.surface,
                   body: t("dashboard.adminSupport.messageOranBody"),
                   messageOranDirectly: true,
+                  diagnostics: getDiagnosticsSnapshot(),
                 });
                 if (r.ok) setView("thread", r.ticketId);
               })();
@@ -578,6 +581,7 @@ function NewTicketForm({
             contactPhone: phone.trim() || undefined,
             callbackRequested: Boolean(phone.trim()),
             callbackPref: phone.trim() ? pref : undefined,
+            diagnostics: getDiagnosticsSnapshot(),
           })
           .then((r) => {
             setBusy(false);

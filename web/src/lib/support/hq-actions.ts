@@ -176,3 +176,29 @@ export async function hqLoadTicketDetailAction(raw: { ticketId: string }): Promi
   if (!data) return { ok: false, error: "Ticket not found." };
   return { ok: true, data };
 }
+
+export async function hqSaveInvestigationFindingsAction(raw: {
+  ticketId: string;
+  markdown: string;
+}): Promise<Ok | Fail> {
+  const parsed = z
+    .object({ ticketId: uuid, markdown: z.string().max(80_000) })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const { parseInvestigationFindings } = await import("./investigation/bundle");
+  const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+  const { supportFrom } = await import("./support-from");
+  const parsedMd = parseInvestigationFindings(parsed.data.markdown);
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Not configured." };
+  const { error } = await supportFrom(admin, "support_tickets")
+    .update({
+      root_cause: parsedMd.rootCause,
+      long_term_fix: parsedMd.longTermFix,
+    })
+    .eq("id", parsed.data.ticketId);
+  if (error) return { ok: false, error: "Could not save findings." };
+  return { ok: true };
+}

@@ -111,6 +111,7 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     "/api/location-country-details",
     "/api/analytics/events",
     "/api/cron/inquiry-engine",
+    "/api/platform/support/tickets/00000000-0000-4000-8000-000000000001/investigation-bundle",
     "/sitemap.xml",
     "/robots.txt",
     // Phase 5/6 M2 — canonical talent surface lives on the app host.
@@ -484,6 +485,16 @@ test("api segment boundaries: /api/directoryz ≠ /api/directory, /api/admins �
   assert.equal(isPathAllowedForHostKind("app", "/api/location-citiesz"), false);
   // And `/api/location` prefix alone must not leak to the hyphenated routes.
   assert.equal(isPathAllowedForHostKind("app", "/api/location"), false);
+});
+
+test("HQ support investigation bundle is allowed on workspace hosts", () => {
+  const p =
+    "/api/platform/support/tickets/00000000-0000-4000-8000-000000000001/investigation-bundle";
+  assert.equal(isPathAllowedForHostKind("app", p), true);
+  assert.equal(isPathAllowedForHostKind("agency", p), true);
+  assert.equal(isPathAllowedForHostKind("hub", p), false);
+  assert.equal(isPathAllowedForHostKind("marketing", p), false);
+  assert.equal(isPathAllowedForHostKind("app", "/api/platformz"), false);
 });
 
 test("post-checkout landing is reachable on every host kind (Stripe redirects to request origin)", () => {

@@ -29,6 +29,7 @@ export type HqTicketContext = {
   requesterCreatedAt: string | null;
   pastTickets: SupportTicketSummary[];
   auditEvents: { action: string; summary: string | null; createdAt: string }[];
+  diagnostics: Record<string, unknown> | null;
 };
 
 type AgencyLite = { id: string; slug: string | null; display_name: string | null; plan_tier: string | null };
@@ -188,6 +189,15 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
       }));
     }
 
+    let diagnostics: Record<string, unknown> | null = null;
+    {
+      const { data: diag } = await supportFrom(admin, "support_ticket_diagnostics")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .maybeSingle();
+      if (diag && typeof diag === "object") diagnostics = diag as Record<string, unknown>;
+    }
+
     return {
       ticket,
       messages,
@@ -200,6 +210,7 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         requesterCreatedAt: profile?.created_at ?? null,
         pastTickets,
         auditEvents,
+        diagnostics,
       },
     };
   } catch (err) {

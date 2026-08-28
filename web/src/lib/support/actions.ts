@@ -24,6 +24,7 @@ const createSchema = z.object({
   callbackRequested: z.boolean().optional(),
   callbackPref: z.enum(["anytime", "morning", "afternoon", "evening"]).optional(),
   messageOranDirectly: z.boolean().optional(),
+  diagnostics: z.unknown().optional(),
 });
 
 export type SupportActionOk<T extends object = object> = { ok: true } & T;
@@ -73,6 +74,16 @@ export async function createSupportTicketAction(
     messageOranDirectly: parsed.data.messageOranDirectly,
   });
   if (!result.ok) return result;
+  if (parsed.data.diagnostics && typeof parsed.data.diagnostics === "object") {
+    try {
+      const { enrichDiagnosticsSnapshot, persistDiagnostics } = await import("./diagnostics/enrich");
+      const snap = parsed.data.diagnostics as import("./diagnostics/collector").DiagnosticsSnapshot;
+      const enriched = await enrichDiagnosticsSnapshot(snap, result.data.ticket);
+      await persistDiagnostics(result.data.ticket, enriched);
+    } catch {
+      /* diagnostics are best-effort; never fail ticket create */
+    }
+  }
   return {
     ok: true,
     ticketId: result.data.ticket.id,

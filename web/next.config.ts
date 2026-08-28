@@ -280,6 +280,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+  },
   /**
    * The talent media-kit PDF embeds a Noto Sans subset so Cyrillic/Greek names
    * render instead of degrading to `?`. `src/lib/talent/media-kit-font.ts`

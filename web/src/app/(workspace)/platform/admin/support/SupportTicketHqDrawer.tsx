@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F } from "../tenants/hq-kit";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
 import { TicketContextCard } from "./TicketContextCard";
+import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -38,6 +39,7 @@ export function SupportTicketHqDrawer({
   const [note, setNote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slash, setSlash] = useState(false);
+  const [tab, setTab] = useState<"thread" | "diagnostics" | "replay" | "insights">("thread");
 
   const reload = async (id: string) => {
     const r = await hqLoadTicketDetailAction({ ticketId: id });
@@ -171,27 +173,28 @@ export function SupportTicketHqDrawer({
           {(
             [
               { id: "thread", label: t("dashboard.platform.support.tabThread"), enabled: true },
-              { id: "diagnostics", label: t("dashboard.platform.support.tabDiagnostics"), enabled: false },
+              { id: "diagnostics", label: t("dashboard.platform.support.tabDiagnostics"), enabled: true },
               { id: "replay", label: t("dashboard.platform.support.tabReplay"), enabled: false },
               { id: "insights", label: t("dashboard.platform.support.tabInsights"), enabled: false },
             ] as const
-          ).map((tab) => (
+          ).map((item) => (
             <button
-              key={tab.id}
+              key={item.id}
               type="button"
-              disabled={!tab.enabled}
-              title={!tab.enabled ? t("dashboard.platform.support.tabDisabledHint") : undefined}
+              disabled={!item.enabled}
+              title={!item.enabled ? t("dashboard.platform.support.tabDisabledHint") : undefined}
+              onClick={() => item.enabled && setTab(item.id)}
               style={{
                 background: "transparent",
                 border: "none",
-                borderBottom: tab.id === "thread" ? `2px solid ${HQ.green}` : "2px solid transparent",
-                color: tab.enabled ? HQ.ink : HQ.inkDim,
+                borderBottom: tab === item.id ? `2px solid ${HQ.green}` : "2px solid transparent",
+                color: item.enabled ? HQ.ink : HQ.inkDim,
                 padding: "10px 12px",
                 fontSize: 12,
-                cursor: tab.enabled ? "pointer" : "not-allowed",
+                cursor: item.enabled ? "pointer" : "not-allowed",
               }}
             >
-              {tab.label}
+              {item.label}
             </button>
           ))}
         </div>
@@ -199,7 +202,11 @@ export function SupportTicketHqDrawer({
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
           <div style={{ flex: "1 1 60%", display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div style={{ flex: 1, overflow: "auto" }}>
-              <SupportThreadView ticket={ticket} messages={messages} tone="hq" />
+              {tab === "diagnostics" ? (
+                <TicketDiagnosticsPanel ticketId={ticketId} diagnostics={context?.diagnostics ?? null} />
+              ) : (
+                <SupportThreadView ticket={ticket} messages={messages} tone="hq" />
+              )}
             </div>
             <div style={{ borderTop: `1px solid ${HQ.border}`, padding: 12 }}>
               {slash ? (

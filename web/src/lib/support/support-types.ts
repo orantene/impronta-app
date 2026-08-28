@@ -74,6 +74,8 @@ export type SupportTicketRow = {
   satisfactionRating: number | null;
   satisfactionComment: string | null;
   ratedAt: string | null;
+  rootCause: string | null;
+  longTermFix: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -191,6 +193,8 @@ export function mapTicketRow(raw: unknown): SupportTicketRow | null {
       typeof row.satisfaction_rating === "number" ? row.satisfaction_rating : null,
     satisfactionComment: str(row, "satisfaction_comment"),
     ratedAt: str(row, "rated_at"),
+    rootCause: str(row, "root_cause"),
+    longTermFix: str(row, "long_term_fix"),
     metadata: asRecord(row.metadata) ?? {},
     createdAt: str(row, "created_at") ?? new Date().toISOString(),
     updatedAt: str(row, "updated_at") ?? new Date().toISOString(),

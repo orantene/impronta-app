@@ -27,6 +27,7 @@ export type SupportContract = {
     callbackRequested?: boolean;
     callbackPref?: SupportCallbackPref;
     messageOranDirectly?: boolean;
+    diagnostics?: unknown;
   }) => Promise<SupportActionResult<{ ticketId: string; ticketNumber: number }>>;
   sendMessage: (input: {
     ticketId: string;
