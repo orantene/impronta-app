@@ -185,9 +185,7 @@ test("desktop hover filter click writes style.hover.filter and renderer emits :h
     createElement(
       "div",
       null,
-      createElement(BuilderNodeRendererStyles, {
-        kinds: new Set(["container", "heading"]),
-      }),
+      createElement(BuilderNodeRendererStyles),
       renderBuilderNodes(tree, { includeRendererStyles: false }),
     ),
   );
@@ -235,9 +233,7 @@ test("tablet hover writes style.responsive.tablet.hover and leaves desktop hover
     createElement(
       "div",
       null,
-      createElement(BuilderNodeRendererStyles, {
-        kinds: new Set(["heading"]),
-      }),
+      createElement(BuilderNodeRendererStyles),
       renderBuilderNodes(tree, { includeRendererStyles: false }),
     ),
   );

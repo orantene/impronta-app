@@ -33,7 +33,6 @@ g.CustomEvent = dom.window.CustomEvent;
 g.Event = dom.window.Event;
 g.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 g.getSelection = () => dom.window.getSelection();
-g.document.createRange = () => dom.window.document.createRange();
 g.requestAnimationFrame = (cb: FrameRequestCallback) =>
   setTimeout(() => cb(Date.now()), 0) as unknown as number;
 g.cancelAnimationFrame = (id: number) => clearTimeout(id);

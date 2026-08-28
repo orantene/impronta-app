@@ -119,8 +119,9 @@ export function $selectionListType(): BuilderListType | null {
   const block = $getRootBlock(node);
   if ($isBuilderListNode(block)) return block.getListType();
   const parent = node.getParent();
-  if ($isBuilderListItemNode(parent) && $isBuilderListNode(parent.getParent())) {
-    return parent.getParent()!.getListType();
+  const list = parent?.getParent();
+  if ($isBuilderListItemNode(parent) && $isBuilderListNode(list)) {
+    return list.getListType();
   }
   return null;
 }

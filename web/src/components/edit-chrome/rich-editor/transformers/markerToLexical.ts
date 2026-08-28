@@ -90,10 +90,11 @@ export function $appendBlocksFromMarkerString(
       out.push(list);
       continue;
     }
+    const text = block.kind === "text" ? block.text : "";
     const lines =
       variant === "multi"
-        ? block.text.split("\n")
-        : [block.text.replace(/\n/g, " ")];
+        ? text.split("\n")
+        : [text.replace(/\n/g, " ")];
     for (const line of lines) {
       const paragraph = $createParagraphNode();
       const leaves = markerStringToNodes(line);
