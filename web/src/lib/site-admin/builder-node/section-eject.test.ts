@@ -535,7 +535,7 @@ test("eject(production wiring): resolving a saved section's nodePresentation + c
   assert.equal(headStyle.responsive?.mobile?.fontSize, "24px");
 });
 
-test("eject(production wiring, static): the production eject path is the 3-arg lossless call", () => {
+test("eject(production wiring, static): the production eject path is the 4-arg lossless call", () => {
   const thisDir = dirname(fileURLToPath(import.meta.url));
   const chromeDir = join(thisDir, "..", "..", "..", "components", "edit-chrome");
   // edit-context delegates ejectSection to the eject-lossless runner…
@@ -545,12 +545,18 @@ test("eject(production wiring, static): the production eject path is the 3-arg l
     /runEjectSection\(/,
     "edit-context.tsx ejectSection must delegate to runEjectSection (eject-lossless.ts)",
   );
-  // …which resolves saved styling and commits the 3-arg lossless transform.
+  // …which resolves saved styling + the curated CSS baseline and commits the
+  // 4-arg lossless transform (rolePresentation AND roleBaseline).
   const losslessRunner = readFileSync(join(chromeDir, "eject-lossless.ts"), "utf8");
   assert.match(
     losslessRunner,
-    /ejectSectionInTree\(\s*current,\s*sectionNodeId,\s*rolePresentation\s*\)/,
-    "runEjectSection must call the 3-arg (lossless) ejectSectionInTree, not the 2-arg lossy form",
+    /ejectSectionInTree\(\s*current,\s*sectionNodeId,\s*rolePresentation,\s*roleBaseline,?\s*\)/,
+    "runEjectSection must call the 4-arg (lossless + baseline) ejectSectionInTree, not a lossy form",
+  );
+  assert.match(
+    losslessRunner,
+    /resolveSectionEjectBaseline\(/,
+    "the lossless runner must resolve the curated CSS baseline (section-eject-baseline.ts)",
   );
   assert.match(
     losslessRunner,

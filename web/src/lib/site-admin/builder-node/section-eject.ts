@@ -7,6 +7,7 @@ import {
 } from "./role-bindings";
 import { nodePresentationToBuilderStyle } from "./node-presentation-bridge";
 import type { NodePresentation } from "../sections/shared/node-presentation";
+import type { EjectRoleBaseline } from "./section-eject-baseline";
 
 /**
  * "2018 bye-bye" — eject a curated section to freeform.
@@ -41,50 +42,76 @@ export type EjectRolePresentation = Readonly<
 >;
 
 /**
- * Merge a role's translated `nodePresentation` UNDER a child's existing style.
- * Engine-B base layers first; an explicit Engine-A style prop set on the child
- * wins (CSS author intent — a directly-edited value beats the curated default).
+ * Layer `over` on top of `base`, deep-merging the per-breakpoint responsive
+ * buckets so an upper layer's tablet/mobile values refine rather than clobber
+ * the lower layer's.
+ */
+function layerStyles(
+  base: BuilderNodeStyle | undefined,
+  over: BuilderNodeStyle | undefined,
+): BuilderNodeStyle | undefined {
+  if (!base) return over;
+  if (!over) return base;
+  const merged: BuilderNodeStyle = { ...base, ...over };
+  if (base.responsive || over.responsive) {
+    const buckets: NonNullable<BuilderNodeStyle["responsive"]> = {
+      ...base.responsive,
+      ...over.responsive,
+    };
+    if (base.responsive?.tablet && over.responsive?.tablet) {
+      buckets.tablet = { ...base.responsive.tablet, ...over.responsive.tablet };
+    }
+    if (base.responsive?.mobile && over.responsive?.mobile) {
+      buckets.mobile = { ...base.responsive.mobile, ...over.responsive.mobile };
+    }
+    merged.responsive = buckets;
+  }
+  return merged;
+}
+
+/**
+ * Merge the curated layers UNDER a child's existing style. Bottom-up:
+ *   1. the section's CSS baseline for the role (the curated component's OWN
+ *      look — `section-eject-baseline.ts`), then
+ *   2. the role's translated `nodePresentation` (the operator's curated
+ *      "Type & color overrides"), then
+ *   3. an explicit Engine-A style prop already set on the child.
+ * CSS author intent throughout: a directly-edited value beats the curated
+ * override, which beats the curated default.
  */
 function applyRolePresentationToChild(
   child: BuilderNode,
   rolePresentation: EjectRolePresentation,
+  roleBaseline?: EjectRoleBaseline,
 ): BuilderNode {
   const role = resolveBuilderNodeRole(child.id);
   if (!role) return child;
   const np = rolePresentation[role];
-  if (!np) return child;
+  const baseline = roleBaseline?.[role];
   // `nodePresentation` is the full schema (with a `breakpoints` wrapper); the
   // desktop layer is the top-level value. Translate it to a BuilderNodeStyle.
-  const baseLayer = nodePresentationToBuilderStyle(np);
-  if (Object.keys(baseLayer).length === 0) return child;
-  // Carry the per-breakpoint overrides onto BuilderNodeStyle.responsive so the
-  // ejected freeform node keeps its tablet/mobile tuning too.
-  const responsive: BuilderNodeStyle["responsive"] = {};
-  if (np.breakpoints?.tablet) {
-    responsive.tablet = nodePresentationToBuilderStyle(np.breakpoints.tablet);
+  let translated: BuilderNodeStyle | undefined;
+  if (np) {
+    const baseLayer = nodePresentationToBuilderStyle(np);
+    // Carry the per-breakpoint overrides onto BuilderNodeStyle.responsive so
+    // the ejected freeform node keeps its tablet/mobile tuning too.
+    const responsive: BuilderNodeStyle["responsive"] = {};
+    if (np.breakpoints?.tablet) {
+      responsive.tablet = nodePresentationToBuilderStyle(np.breakpoints.tablet);
+    }
+    if (np.breakpoints?.mobile) {
+      responsive.mobile = nodePresentationToBuilderStyle(np.breakpoints.mobile);
+    }
+    translated =
+      Object.keys(responsive).length > 0
+        ? { ...baseLayer, responsive }
+        : baseLayer;
+    if (Object.keys(translated).length === 0) translated = undefined;
   }
-  if (np.breakpoints?.mobile) {
-    responsive.mobile = nodePresentationToBuilderStyle(np.breakpoints.mobile);
-  }
-  const translated: BuilderNodeStyle =
-    Object.keys(responsive).length > 0 ? { ...baseLayer, responsive } : baseLayer;
+  const curated = layerStyles(baseline, translated);
+  if (!curated || Object.keys(curated).length === 0) return child;
   const existing = (child.props as { style?: BuilderNodeStyle }).style;
-  const mergedStyle: BuilderNodeStyle = existing
-    ? {
-        ...translated,
-        ...existing,
-        // Deep-merge the responsive layer so a child's explicit per-breakpoint
-        // style does not wholesale-clobber the curated one.
-        ...(translated.responsive || existing.responsive
-          ? {
-              responsive: {
-                ...translated.responsive,
-                ...existing.responsive,
-              },
-            }
-          : {}),
-      }
-    : translated;
+  const mergedStyle = layerStyles(curated, existing) as BuilderNodeStyle;
   return {
     ...child,
     props: { ...(child.props as Record<string, unknown>), style: mergedStyle },
@@ -95,6 +122,7 @@ export function ejectSectionInTree(
   tree: BuilderNodeTree,
   sectionNodeId: string,
   rolePresentation?: EjectRolePresentation,
+  roleBaseline?: EjectRoleBaseline,
 ): EjectSectionResult {
   let ejected = false;
   const next = tree.map((node) => {
@@ -109,9 +137,14 @@ export function ejectSectionInTree(
         // child's BuilderNodeStyle (via the W4-T1 bridge) BEFORE re-minting, so
         // the role is still resolvable from its `legacy:…:role` id. Without
         // this, eject silently drops all per-role align/size/font/color tuning.
-        const styled = rolePresentation
-          ? applyRolePresentationToChild(child, rolePresentation)
-          : child;
+        const styled =
+          rolePresentation || roleBaseline
+            ? applyRolePresentationToChild(
+                child,
+                rolePresentation ?? {},
+                roleBaseline,
+              )
+            : child;
         return cloneNodeWithFreshIds(styled);
       });
       return {

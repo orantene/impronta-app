@@ -11,8 +11,22 @@ import {
   resolveEjectRolePresentation,
   type EjectRolePresentation,
 } from "@/lib/site-admin/builder-node/section-eject";
+import {
+  resolveSectionEjectBaseline,
+  type EjectRoleBaseline,
+} from "@/lib/site-admin/builder-node/section-eject-baseline";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type {
+  BuilderNode,
+  BuilderNodeTree,
+} from "@/lib/site-admin/builder-node/types";
+
+async function loadSavedSectionProps(
+  sectionId: string,
+): Promise<Record<string, unknown> | null> {
+  const loaded = await loadSectionForEditAction(sectionId);
+  return loaded.ok ? (loaded.section.props as Record<string, unknown>) : null;
+}
 
 export async function resolveEjectRolePresentationForNode(
   tree: BuilderNodeTree,
@@ -20,13 +34,52 @@ export async function resolveEjectRolePresentationForNode(
 ): Promise<EjectRolePresentation | undefined> {
   return resolveEjectRolePresentation(
     findBuilderNodeById(tree, sectionNodeId),
-    async (sectionId) => {
-      const loaded = await loadSectionForEditAction(sectionId);
-      return loaded.ok
-        ? (loaded.section.props as Record<string, unknown>)
-        : null;
-    },
+    loadSavedSectionProps,
   );
+}
+
+/**
+ * Visual-fidelity eject payload: the operator's saved per-role styling
+ * (`rolePresentation`) AND the curated component's own CSS baseline
+ * (`roleBaseline`, from `section-eject-baseline.ts`) which layers UNDER it, so
+ * an untouched section keeps its curated typography/colour/alignment after
+ * unlock. Best-effort by contract: any miss resolves to `undefined` and the
+ * eject degrades to the previous behaviour rather than failing.
+ */
+export async function resolveEjectStylingForNode(
+  tree: BuilderNodeTree,
+  sectionNodeId: string,
+): Promise<{
+  rolePresentation: EjectRolePresentation | undefined;
+  roleBaseline: EjectRoleBaseline | undefined;
+}> {
+  const node: BuilderNode | null = findBuilderNodeById(tree, sectionNodeId);
+  if (!node || node.kind !== "section") {
+    return { rolePresentation: undefined, roleBaseline: undefined };
+  }
+  const sectionId =
+    typeof node.props.sectionId === "string" ? node.props.sectionId : null;
+  const sectionTypeKey =
+    typeof node.props.sectionTypeKey === "string"
+      ? node.props.sectionTypeKey
+      : null;
+  let savedProps: Record<string, unknown> | null = null;
+  if (sectionId) {
+    try {
+      savedProps = await loadSavedSectionProps(sectionId);
+    } catch {
+      savedProps = null;
+    }
+  }
+  const rolePresentation = await resolveEjectRolePresentation(node, async () =>
+    Promise.resolve(savedProps),
+  );
+  // Missing saved props still yields the schema-default baseline, so the
+  // common untouched-section unlock stays identity-preserving.
+  const roleBaseline = sectionTypeKey
+    ? resolveSectionEjectBaseline(sectionTypeKey, savedProps)
+    : undefined;
+  return { rolePresentation, roleBaseline };
 }
 
 // The shared commit spine, structurally typed so this module needs no import
@@ -37,14 +90,15 @@ type ExecuteBuilderNodeOperation = (input: {
   run: (tree: BuilderNodeTree) => { ok: true; tree: BuilderNodeTree };
 }) => Promise<{ ok: boolean; error?: string }>;
 
-/** Full lossless-eject flow: resolve saved styling, then commit the 3-arg
- * `ejectSectionInTree(tree, sectionNodeId, rolePresentation)` patch. */
+/** Full lossless-eject flow: resolve saved styling + the curated CSS baseline,
+ * then commit the `ejectSectionInTree(tree, id, rolePresentation, roleBaseline)`
+ * patch. */
 export async function runEjectSection(
   tree: BuilderNodeTree,
   sectionNodeId: string,
   execute: ExecuteBuilderNodeOperation,
 ): Promise<{ ok: boolean; error?: string; ejected?: boolean }> {
-  const rolePresentation = await resolveEjectRolePresentationForNode(
+  const { rolePresentation, roleBaseline } = await resolveEjectStylingForNode(
     tree,
     sectionNodeId,
   );
@@ -53,7 +107,12 @@ export async function runEjectSection(
     operation: "patch",
     nodeId: sectionNodeId,
     run: (current) => {
-      const out = ejectSectionInTree(current, sectionNodeId, rolePresentation);
+      const out = ejectSectionInTree(
+        current,
+        sectionNodeId,
+        rolePresentation,
+        roleBaseline,
+      );
       didEject = out.ejected;
       return { ok: true, tree: out.tree };
     },
