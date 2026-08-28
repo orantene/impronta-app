@@ -19,6 +19,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
+import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
+import {
+  reconcileAppliedDiscount,
+  resolveSubscriptionDiscountMirror,
+} from "@/lib/billing/subscription-discounts";
+import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
   stripeBillingPortalLocale,
   stripeCheckoutLocale,
@@ -146,6 +152,12 @@ export async function createTalentCheckoutSession(opts: {
    * keeps its own default.
    */
   locale?: string | null;
+  /**
+   * A `?promo=` code carried from the funnel. RE-VALIDATED server-side by
+   * `resolveCheckoutDiscount` — it arrives from the browser, so it is a
+   * request, never a fact.
+   */
+  promoCode?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -163,6 +175,20 @@ export async function createTalentCheckoutSession(opts: {
     opts.displayName,
   );
   if (!customerResult.ok) return customerResult;
+
+  // Account discount > validated promo code > Stripe's own code box. Exactly
+  // one of `discounts` / `allow_promotion_codes` comes out; Stripe rejects both.
+  const discount = await resolveCheckoutDiscount({
+    subjectType: "talent",
+    talentProfileId: opts.talentProfileId,
+    promoCode: opts.promoCode ?? null,
+  });
+
+  // The admin-configured trial, finally sent to Stripe rather than only shown
+  // in marketing copy.
+  const trialOffer = await loadTrialOffer("talent", opts.planKey);
+  const trialDays =
+    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -186,8 +212,9 @@ export async function createTalentCheckoutSession(opts: {
           plan_key:          opts.planKey,
           checkout_type:     "talent_subscription",
         },
+        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
-      allow_promotion_codes: true,
+      ...discount.params,
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
     });
@@ -290,6 +317,9 @@ export async function syncTalentSubscriptionToDb(
     : null;
 
   const status = mapStripeStatus(subscription.status);
+  // Written through unconditionally — nulls included — so a discount removed in
+  // the Stripe dashboard propagates back instead of lingering in our table.
+  const discountMirror = await resolveSubscriptionDiscountMirror(subscription);
   const isTerminallyCancelled = status === "cancelled" || status === "incomplete_expired";
   const newPlanKey = isTerminallyCancelled ? "talent_basic" : planKey;
 
@@ -341,6 +371,10 @@ export async function syncTalentSubscriptionToDb(
           cancelled_at:           cancelledAt,
           trial_end:              trialEnd,
           stripe_price_id:        priceId,
+          stripe_coupon_id:          discountMirror.couponId,
+          discount_percent_off:      discountMirror.percentOff,
+          discount_amount_off_cents: discountMirror.amountOffCents,
+          discount_ends_at:          discountMirror.endsAt,
           updated_at:             new Date().toISOString(),
         },
         { onConflict: "talent_profile_id" },
@@ -361,6 +395,15 @@ export async function syncTalentSubscriptionToDb(
         subscriptionId: subscription.id,
         planKey: newPlanKey,
         trialEndIso: trialEnd,
+      });
+    }
+
+    // Close the loop on a grant made BEFORE the talent subscribed: the row sat
+    // unattached until they checked out with the coupon.
+    if (discountMirror.couponId) {
+      await reconcileAppliedDiscount({
+        couponId: discountMirror.couponId,
+        subscriptionId: subscription.id,
       });
     }
 
