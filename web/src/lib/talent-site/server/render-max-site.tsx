@@ -27,6 +27,7 @@ import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -375,19 +376,21 @@ async function renderMaxSiteDocument(args: {
   const designTokens = designSlice.tokens;
   const talentComponentStyleDefaults = designSlice.componentStyles;
 
-  const renderSectionEmbed = tenantId
-    ? makeSectionEmbedRenderer({
-        tenantId,
-        locale,
-        publicPathPrefix,
-        previewSubject: { kind: "talent", id: talentProfileId, locale },
-      })
-    : null;
+  // Captcha for native `form` nodes. /api/cms/forms/submit enforces captcha
+  // per TENANT — a talent Max site that rendered no widget silently rejected
+  // every submission once a provider was configured (improntamodels 2026-08-16).
+  // Gated on the tree actually containing a form so pages without one pay no query.
+  const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasForm);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "form" || hasForm(n.children);
+  })([shellTree, blocks]);
 
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
-  const [dataSources, components, platformDefault, experimentContext] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale)
@@ -399,7 +402,24 @@ async function renderMaxSiteDocument(args: {
       // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
       // talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
+      tenantId && pageHasFormNode
+        ? resolveTenantCaptcha(tenantId)
+        : Promise.resolve(null),
     ]);
+
+  const captchaConfig = pageCaptcha
+    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+    : null;
+
+  const renderSectionEmbed = tenantId
+    ? makeSectionEmbedRenderer({
+        tenantId,
+        locale,
+        publicPathPrefix,
+        previewSubject: { kind: "talent", id: talentProfileId, locale },
+        captcha: captchaConfig,
+      })
+    : null;
 
   // Unthemed talent → the PLATFORM DEFAULT (Modern light), so the page renders
   // at parity with the editor and never inherits a host tenant's dark bg.
@@ -454,6 +474,8 @@ async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
+                captcha: captchaConfig,
+                visitorLocale: locale,
                 renderSectionEmbed,
               })
             : null}
@@ -467,6 +489,8 @@ async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
+          captcha: captchaConfig,
+          visitorLocale: locale,
           renderSectionEmbed,
         })}
       </div>
@@ -563,6 +587,8 @@ async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
+              captcha: captchaConfig,
+              visitorLocale: locale,
               renderSectionEmbed,
             })}
           </header>
@@ -579,6 +605,8 @@ async function renderMaxSiteDocument(args: {
           dataSources,
           components,
           componentStyleDefaults,
+          captcha: captchaConfig,
+          visitorLocale: locale,
           ...experimentContext,
           renderSectionEmbed,
         })}
@@ -591,6 +619,8 @@ async function renderMaxSiteDocument(args: {
             mode: "freeform",
             includeRendererStyles: false,
             includeFontLinks: false,
+            captcha: captchaConfig,
+            visitorLocale: locale,
             renderSectionEmbed,
           })}
         </footer>

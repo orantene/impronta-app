@@ -46,6 +46,7 @@ import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   designTokensToCssVars,
@@ -129,6 +130,43 @@ export default async function PublicTalentFreeformPage({
     notFound();
   }
 
+  // Captcha for native `form` nodes on this page. /api/cms/forms/submit
+  // enforces captcha per TENANT, so a form that renders no widget sends no
+  // token and EVERY submission is rejected once a provider is configured —
+  // the improntamodels.com outage on 2026-08-16. Talent freeform pages used
+  // to skip this (storefront `/p/` threaded it; this route did not). Gated
+  // on the tree actually containing a form node so pages without one pay
+  // no query.
+  const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasForm);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "form" || hasForm(n.children);
+  })(blocks);
+
+  // Data sources (bound media, collections, directory) + live component
+  // instances — only load when the tree actually binds them AND a managing
+  // tenant exists (the loaders are tenant-scoped service-role reads).
+  const [dataSources, components, tenantComponentStyleDefaults, pageCaptcha] =
+    await Promise.all([
+      tenantId
+        ? loadBuilderNodeDataSources(blocks, tenantId, locale)
+        : Promise.resolve({}),
+      tenantId && treeHasInstances(blocks)
+        ? loadBuilderComponentsForTenant(tenantId)
+        : Promise.resolve({}),
+      tenantId
+        ? loadPublicComponentStyleDefaults(tenantId)
+        : Promise.resolve({}),
+      tenantId && pageHasFormNode
+        ? resolveTenantCaptcha(tenantId)
+        : Promise.resolve(null),
+    ]);
+
+  const captchaConfig = pageCaptcha
+    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+    : null;
+
   // Curated section_embed nodes need a tenant render context. The managing
   // agency tenant scopes credentials/host; previewSubject points the curated
   // sections at THIS talent so connected data hydrates from the talent, not the
@@ -140,23 +178,9 @@ export default async function PublicTalentFreeformPage({
         locale,
         publicPathPrefix,
         previewSubject: { kind: "talent", id: talentProfileId, locale },
+        captcha: captchaConfig,
       })
     : null;
-
-  // Data sources (bound media, collections, directory) + live component
-  // instances — only load when the tree actually binds them AND a managing
-  // tenant exists (the loaders are tenant-scoped service-role reads).
-  const [dataSources, components, tenantComponentStyleDefaults] = await Promise.all([
-    tenantId
-      ? loadBuilderNodeDataSources(blocks, tenantId, locale)
-      : Promise.resolve({}),
-    tenantId && treeHasInstances(blocks)
-      ? loadBuilderComponentsForTenant(tenantId)
-      : Promise.resolve({}),
-    tenantId
-      ? loadPublicComponentStyleDefaults(tenantId)
-      : Promise.resolve({}),
-  ]);
 
   // Talent-scoped theme cascade: the talent's OWN published per-component-type
   // defaults take precedence; otherwise inherit the PLATFORM DEFAULT (Modern
@@ -254,6 +278,8 @@ export default async function PublicTalentFreeformPage({
           dataSources,
           components,
           componentStyleDefaults,
+          captcha: captchaConfig,
+          visitorLocale: locale,
           renderSectionEmbed,
         })}
       </main>

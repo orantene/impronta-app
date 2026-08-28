@@ -59,6 +59,7 @@ import {
   collectPresentNodeKinds,
 } from "@/lib/site-admin/builder-node/render";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 
 export const dynamic = "force-dynamic";
 
@@ -228,6 +229,22 @@ async function FreeformShareBody({
 }) {
   const publicPathPrefix = await getPublicPathPrefix();
   const componentStyleDefaults = await loadPublicComponentStyleDefaults(tenantId);
+  // Captcha for native `form` nodes in the shared snapshot. Same tenant-level
+  // enforcement as `/p/` — without the widget, every submit is rejected once
+  // a provider is configured. Slot-composed shares go through HomepageCmsSections
+  // which already resolves captcha; this freeform body was the gap.
+  const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasForm);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "form" || hasForm(n.children);
+  })(tree);
+  const pageCaptcha = pageHasFormNode
+    ? await resolveTenantCaptcha(tenantId)
+    : null;
+  const captchaConfig = pageCaptcha
+    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+    : null;
   return (
     <>
       <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(tree)} nodes={tree} />
@@ -238,11 +255,14 @@ async function FreeformShareBody({
           mode: "freeform",
           includeRendererStyles: false,
           componentStyleDefaults,
+          captcha: captchaConfig,
+          visitorLocale: locale,
           renderSectionEmbed: makeSectionEmbedRenderer({
             tenantId,
             locale,
             publicPathPrefix,
             previewSubject: { kind: "workspace", id: tenantId },
+            captcha: captchaConfig,
           }),
         })}
       </div>
