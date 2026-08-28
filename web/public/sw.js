@@ -248,3 +248,33 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 });
+
+// ─── PUSH NOTIFICATIONS - do not entangle with caching above ─────────────────
+self.addEventListener("push", (event) => {
+  let data = { title: "Tulala", body: "", url: "/" };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      if (parsed && typeof parsed === "object") {
+        data = { ...data, ...parsed };
+      }
+    }
+  } catch {
+    /* ignore malformed payloads */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Tulala", {
+      body: data.body || "",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url =
+    event.notification.data && event.notification.data.url
+      ? event.notification.data.url
+      : "/";
+  event.waitUntil(self.clients.openWindow(url));
+});

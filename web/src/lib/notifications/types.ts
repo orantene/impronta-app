@@ -33,8 +33,13 @@ export type NotificationCategory =
 
 export type NotificationChannel = "email" | "in_app" | "push" | "sms" | "whatsapp";
 
-/** Channels with live handlers today. push/sms/whatsapp are reserved. */
-export const LIVE_CHANNELS: readonly NotificationChannel[] = ["email", "in_app"] as const;
+/** Channels with live handlers today. sms remains reserved. */
+export const LIVE_CHANNELS: readonly NotificationChannel[] = [
+  "email",
+  "in_app",
+  "push",
+  "whatsapp",
+] as const;
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 
@@ -154,6 +159,10 @@ export type CatalogEntry = {
   resolveAudience: (event: NotificationEvent, ctx: AudienceContext) => Promise<AudienceMember[]>;
   email?: EmailConfig;
   in_app?: InAppConfig;
+  /** Optional owner WhatsApp body. Ignored when Twilio env is unset. */
+  whatsapp?: {
+    render: (event: NotificationEvent, recipient: ResolvedRecipient) => string;
+  };
 };
 
 // ─── Dispatch result ─────────────────────────────────────────────────────────

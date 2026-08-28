@@ -9,6 +9,8 @@ import { buildAudienceContext, hydrateAudience } from "./audience";
 import { findCatalogEntries } from "./catalog";
 import { sendEmailNotification } from "./channels/email";
 import { sendInAppNotification } from "./channels/in_app";
+import { sendPushNotification } from "./channels/push";
+import { sendWhatsAppNotification } from "./channels/whatsapp";
 import { channelsForRecipient } from "./prefs";
 import { loadNotificationOverlay, isChannelEnabled } from "./overlay";
 import type {
@@ -65,6 +67,8 @@ export async function dispatchEventNotifications(
   const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = {
     email: sendEmailNotification,
     in_app: sendInAppNotification,
+    push: sendPushNotification,
+    whatsapp: sendWhatsAppNotification,
   };
 
   // Per-entry outcome breakdown for the `notif.dispatch` observability line (§9).

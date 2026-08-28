@@ -60,7 +60,7 @@ const assigneeOrPlatformAdmins = async (
 const TICKET_CREATED: CatalogEntry = {
   id: "support.ticket.created.platform",
   category: "platform_alerts",
-  defaultChannels: ["email", "in_app"],
+  defaultChannels: ["email", "in_app", "push"],
   required: false,
   triggers: ["support.ticket.created"],
   hydrate: hydrateSupportLinks,
@@ -92,7 +92,7 @@ const TICKET_CREATED: CatalogEntry = {
 const TICKET_ESCALATED: CatalogEntry = {
   id: "support.ticket.escalated.platform",
   category: "platform_alerts",
-  defaultChannels: ["email", "in_app"],
+  defaultChannels: ["email", "in_app", "push", "whatsapp"],
   required: false,
   triggers: ["support.ticket.escalated"],
   hydrate: hydrateSupportLinks,
@@ -120,12 +120,16 @@ const TICKET_ESCALATED: CatalogEntry = {
         categoryLabel: "platform alerts",
       }),
   },
+  whatsapp: {
+    render: (event) =>
+      `Tulala #${num(event, "ticketNumber")} needs you: ${str(event.payload.subject) ?? "support ticket"}. ${str(event.payload.contactPhone) ? `Phone ${str(event.payload.contactPhone)}. ` : ""}Open /platform/admin/support?ticket=${str(event.payload.ticketId) ?? ""}`,
+  },
 };
 
 const AGENT_REPLY: CatalogEntry = {
   id: "support.message.agent.requester",
   category: "messages",
-  defaultChannels: ["email", "in_app"],
+  defaultChannels: ["email", "in_app", "push"],
   required: false,
   triggers: ["support.message.agent"],
   hydrate: hydrateSupportLinks,

@@ -2,6 +2,7 @@
 
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F } from "../tenants/hq-kit";
+import { PushSubscribeControl } from "@/components/support/PushSubscribeControl";
 
 export function NotificationPermissionCard() {
   const t = useT();
@@ -27,22 +28,7 @@ export function NotificationPermissionCard() {
           {t("dashboard.platform.support.pushCardBody")}
         </div>
       </div>
-      <button
-        type="button"
-        disabled
-        style={{
-          border: `1px solid ${HQ.border}`,
-          background: "transparent",
-          color: HQ.inkDim,
-          borderRadius: 8,
-          padding: "8px 12px",
-          fontSize: 12,
-          cursor: "not-allowed",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {t("dashboard.platform.support.pushCardSoon")}
-      </button>
+      <PushSubscribeControl tone="hq" />
     </div>
   );
 }
