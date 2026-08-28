@@ -9,7 +9,8 @@
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
-import { BackgroundLayersEditor, GradientBuilder, ShadowBuilder } from "../css-value-builders";
+import { BackgroundLayersEditor, GradientStopsBuilder } from "../css-value-builders";
+import { ShadowStackBuilder } from "./shadow-stack-builder";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { InspectorLabelWithInfo } from "../kit";
 import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_BG_CLIP_OPTIONS, BUILDER_NODE_BG_REPEAT_OPTIONS, BUILDER_NODE_PARALLAX_OPTIONS, BUILDER_NODE_REVEAL_OPTIONS } from "./style-options";
@@ -277,7 +278,7 @@ export function SurfaceDepthBody({
                       value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
                       onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
                     />
-                    <ShadowBuilder
+                    <ShadowStackBuilder
                       value={selectedStandaloneViewportStyle?.boxShadow}
                       onChange={(next) => patchSelectedStandaloneStyle({ boxShadow: next })}
                     />
@@ -349,7 +350,7 @@ export function SurfaceDepthBody({
                     })
                   }
                 />
-                <GradientBuilder
+                <GradientStopsBuilder
                   value={selectedStandaloneViewportStyle?.backgroundImage}
                   onChange={(next) => patchSelectedStandaloneStyle({ backgroundImage: next })}
                 />

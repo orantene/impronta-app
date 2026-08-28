@@ -38,6 +38,7 @@ import {
   radiusTileOptions,
 } from "../field-kit";
 import { inspectorColorSwatchStyle } from "../style-panel-state-style-fields";
+import { BorderSidesField, CornerRadiusField } from "./corner-border-sides-fields";
 import { parseCssLength } from "./length-utils";
 import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
 import { BUILDER_NODE_BACKGROUND_OPTIONS } from "./style-options";
@@ -129,6 +130,21 @@ export function AppearanceBody({
                     });
                   }}
                 />
+              }
+            />
+          )}
+          {/* Per-corner radius — writes the same borderRadius shorthand the
+              free field stores ("16px 16px 0 0"), clearing the radius token so
+              the exact value wins. Stands down on a theme-bound radius (the
+              bind row is that value's control). */}
+          {radiusIsBound ? null : (
+            <CornerRadiusField
+              value={style?.borderRadius}
+              onChange={(next) =>
+                patchSelectedStandaloneStyle({
+                  borderRadius: next,
+                  radius: next !== undefined ? undefined : style?.radius,
+                })
               }
             />
           )}
@@ -247,6 +263,16 @@ export function AppearanceBody({
                       })
                     }
                   />
+                }
+              />
+
+              {/* Per-side border widths — writes the border-width shorthand
+                  the renderer already emits ("1px 0 0"), so a card can carry
+                  a top rule only without customCss. */}
+              <BorderSidesField
+                value={style?.borderWidth}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({ borderWidth: next })
                 }
               />
             </>
