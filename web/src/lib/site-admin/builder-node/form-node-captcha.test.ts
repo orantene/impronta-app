@@ -14,6 +14,8 @@
  * widget carrying the resolved site key, and no provider must emit nothing.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -107,4 +109,38 @@ test("active provider WITHOUT a site key renders no widget", () => {
   // would fail to initialise and the visitor would face an unsolvable form.
   const html = render({ provider: "hcaptcha", siteKey: null });
   assert.ok(!html.includes("h-captcha"));
+});
+
+/**
+ * Talent + share freeform render paths must resolve and thread tenant captcha
+ * the same way `/p/[[...slug]]` does. A path that renders a `form` node without
+ * `captcha:` reopens the 2026-08-16 silent-reject incident on talent surfaces.
+ */
+test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
+  const webRoot = join(__dirname, "../../../..");
+  const files = [
+    "src/app/(public)/p/[[...slug]]/page.tsx",
+    "src/app/t/[profileCode]/[pageSlug]/page.tsx",
+    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/app/share/[token]/page.tsx",
+    "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
+  ];
+  for (const rel of files) {
+    const src = readFileSync(join(webRoot, rel), "utf8");
+    assert.match(
+      src,
+      /resolveTenantCaptcha/,
+      `${rel} must call resolveTenantCaptcha`,
+    );
+    assert.match(
+      src,
+      /captcha:\s*(pageCaptcha|captchaConfig)/,
+      `${rel} must pass captcha into the renderer`,
+    );
+    assert.match(
+      src,
+      /visitorLocale:\s*locale/,
+      `${rel} must pass visitorLocale so the widget matches the page language`,
+    );
+  }
 });
