@@ -97,6 +97,7 @@ export async function TabBody({
         discounts={discounts}
         accountDiscounts={accounts.discounts}
         tiers={tiers}
+        initialDrawerId={initialDrawerId}
       />
     );
   }
