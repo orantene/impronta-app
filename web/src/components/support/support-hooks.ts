@@ -80,27 +80,38 @@ export function useSupportRealtime(opts: {
   useEffect(() => {
     const supabase = createClient();
     if (!supabase || !ticketId) return;
-    const channel = supabase
-      .channel(`support_msg:${ticketId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_messages", filter: `ticket_id=eq.${ticketId}` },
-        (payload) => {
-          const row = mapMessageRow(payload.new);
-          if (row) onMessage(row);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "support_tickets", filter: `id=eq.${ticketId}` },
-        (payload) => {
-          const row = mapTicketRow(payload.new);
-          if (row) onTicket(row);
-        },
-      )
-      .subscribe();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    // Subscribe only after the session token has reached the realtime socket.
+    // Without this the subscription can register as `anon`, and RLS then
+    // delivers ZERO rows — silently (verified live: claims_role was anon).
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      if (cancelled) return;
+      channel = supabase
+        .channel(`support_msg:${ticketId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "support_messages", filter: `ticket_id=eq.${ticketId}` },
+          (payload) => {
+            const row = mapMessageRow(payload.new);
+            if (row) onMessage(row);
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "support_tickets", filter: `id=eq.${ticketId}` },
+          (payload) => {
+            const row = mapTicketRow(payload.new);
+            if (row) onTicket(row);
+          },
+        )
+        .subscribe();
+    })();
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [ticketId, onMessage, onTicket]);
 }
@@ -114,7 +125,16 @@ export function useHqSupportRealtime(opts: {
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
-    const channel = supabase
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    void (async () => {
+      // Same anon-socket trap as useSupportRealtime: without pushing the
+      // session token first, this subscription registers as `anon` and RLS
+      // silently delivers nothing to HQ.
+      const { data } = await supabase.auth.getSession();
+      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      if (cancelled) return;
+      channel = supabase
       .channel("support_hq")
       .on(
         "postgres_changes",
@@ -141,8 +161,10 @@ export function useHqSupportRealtime(opts: {
         },
       )
       .subscribe();
+    })();
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [onTicketInsert, onTicketUpdate, onRequesterMessage]);
 }
