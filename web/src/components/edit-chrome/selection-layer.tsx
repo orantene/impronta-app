@@ -143,6 +143,7 @@ import {
 import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
   computeZOrderTarget,
+  resolveZOrderAvailability,
   effectiveZIndex,
   type ZOrderCommand,
   type ZOrderSibling,
@@ -216,6 +217,17 @@ import {
   nudgeStepForRepeatCount,
   resolveNudgeBucket,
 } from "./kit/nudge";
+import {
+  nodeHasRotationEscape,
+  resolveNodeMoveContext,
+} from "./context-menu-node-capabilities";
+import {
+  SECTION_UNLOCK_EMPTY_HINT,
+  SECTION_UNLOCK_EMPTY_LABEL,
+  resolveSectionUnlockGate,
+  sectionRejectsNestedInsert,
+  unlockSectionBeforeInsert,
+} from "./section-unlock-gate";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import {
@@ -705,15 +717,6 @@ function findCanvasNodeParentContext(
   };
   return visit(tree, null);
 }
-
-// Section types that may NOT be ejected to freeform: the already-freeform
-// blank_section, and the site-shell sections (header/footer), which render via
-// PublishedShell with no eject gate.
-const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
-  "blank_section",
-  "site_header",
-  "site_footer",
-]);
 
 export function SelectionLayer() {
   const { t } = useEditorLocale();
@@ -1257,12 +1260,17 @@ export function SelectionLayer() {
       if (!nodeInsertTarget) return;
       const target = nodeInsertTarget;
       setNodeInsertTarget(null);
+      const unlocked = await unlockSectionBeforeInsert({
+        node: findBuilderNodeById(builderTree, target.nodeId),
+        ejectSection,
+      });
+      if (!unlocked.ok) return reportMutationError(unlocked.error ?? "");
       const inserted = await insertBuilderNode(target.nodeId, kind, target.index);
       if (!inserted.ok && inserted.error) {
         reportMutationError(inserted.error);
       }
     },
-    [insertBuilderNode, nodeInsertTarget, reportMutationError],
+    [builderTree, ejectSection, insertBuilderNode, nodeInsertTarget, reportMutationError],
   );
 
   const commitNodeInsertSectionEmbed = useCallback(
@@ -1270,6 +1278,11 @@ export function SelectionLayer() {
       if (!nodeInsertTarget) return;
       const target = nodeInsertTarget;
       setNodeInsertTarget(null);
+      const unlocked = await unlockSectionBeforeInsert({
+        node: findBuilderNodeById(builderTree, target.nodeId),
+        ejectSection,
+      });
+      if (!unlocked.ok) return reportMutationError(unlocked.error ?? "");
       const inserted = await insertBuilderSectionEmbed(
         target.nodeId,
         sectionTypeKey,
@@ -1279,7 +1292,7 @@ export function SelectionLayer() {
         reportMutationError(inserted.error);
       }
     },
-    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+    [builderTree, ejectSection, insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
   );
 
   // #20 — between-blocks insert callbacks (root-level, index-targeted).
@@ -2959,6 +2972,9 @@ export function SelectionLayer() {
   const canvasTopRailOffset = canvasClassBadgeLabel ? 32 : 0;
   const selectedNodeAllowedKinds = useMemo(() => {
     if (!selectedBuilderNode) return [];
+    // A locked section that can never be unlocked would swallow the block on
+    // the next field edit — offer nothing rather than a silent no-op.
+    if (sectionRejectsNestedInsert(selectedBuilderNode)) return [];
     const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
     const raw = policy.type === "allow_list" ? [...policy.kinds] : [];
     return gateNestedInsertKinds(raw, advancedElementLibraryEnabled, canInsertRawHtmlElements);
@@ -4431,14 +4447,12 @@ export function SelectionLayer() {
   const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
     contextMenu?.builderNodeId ?? null,
   );
-  // #30 — the freeform-block node this context menu targets + its capabilities.
-  // Lock/Unlock, Wrap-in-container, Convert-to-component, and block Move up/down
-  // are block-only actions; we resolve them here so the menu component stays
-  // presentational. A role-bound (curated-slot) node owns its structure, so it's
-  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts
-  // (not useMemo) — cheap tree walks that only matter while the menu is open;
-  // the React Compiler memoizes them and there's no optional-chained dep for the
-  // manual-memoization rule to trip on (matches contextMenuSectionNode below).
+  // #30 — the freeform-block node this context menu targets + its capabilities
+  // (block-only actions), resolved here so the menu stays presentational. A
+  // role-bound (curated-slot) node owns its structure, so it is
+  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts,
+  // not useMemo: cheap tree walks that only matter while the menu is open, and
+  // no optional-chained dep for the manual-memoization rule to trip on.
   const contextMenuBuilderNodeId = contextMenu?.builderNodeId ?? null;
   const contextMenuNode =
     contextMenuIsChildNode && contextMenuBuilderNodeId
@@ -4448,27 +4462,15 @@ export function SelectionLayer() {
     ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
     : [];
   const contextMenuNodeLocked = contextMenuNode?.locked === true;
-  // ROTATION — "Reset rotation" only renders when the block actually carries
-  // a rotate escape (a reset on an unrotated block would be a no-op row).
-  const contextMenuNodeHasRotation = !!(
-    contextMenuNode &&
-    contextMenuNode.kind !== "section" &&
-    (contextMenuNode.props as { style?: { rotate?: unknown } } | undefined)
-      ?.style?.rotate
-  );
+  const contextMenuNodeHasRotation = nodeHasRotationEscape(contextMenuNode);
   // Z-ORDER — availability computed once per menu open (DOM rect snapshot),
   // so the menu never shows a stacking row that would be a silent no-op.
   const contextMenuZOrder = useMemo(() => {
     if (!contextMenuIsChildNode || !contextMenuBuilderNodeId) return null;
     if (contextMenuNodeLocked) return null;
-    const snapshot = collectZOrderSiblings(contextMenuBuilderNodeId);
-    if (!snapshot) return null;
-    const canForward =
-      computeZOrderTarget({ ...snapshot, command: "forward" }) !== null;
-    const canBackward =
-      computeZOrderTarget({ ...snapshot, command: "backward" }) !== null;
-    if (!canForward && !canBackward) return null;
-    return { canForward, canBackward };
+    return resolveZOrderAvailability(
+      collectZOrderSiblings(contextMenuBuilderNodeId),
+    );
   }, [
     contextMenuIsChildNode,
     contextMenuBuilderNodeId,
@@ -4483,29 +4485,12 @@ export function SelectionLayer() {
     contextMenuNode.kind !== "section" &&
     !contextMenuNodeIsRoleBound &&
     !contextMenuNodeLocked;
-  const contextMenuMoveContext = ((): {
-    canMoveUp: boolean;
-    canMoveDown: boolean;
-  } => {
-    if (!contextMenuNode || contextMenuNodePath.length < 2) {
-      return { canMoveUp: false, canMoveDown: false };
-    }
-    const parentNode = contextMenuNodePath[contextMenuNodePath.length - 2];
-    if (!parentNode || !("children" in parentNode) || !Array.isArray(parentNode.children)) {
-      return { canMoveUp: false, canMoveDown: false };
-    }
-    const index = parentNode.children.findIndex(
-      (child) => child.id === contextMenuNode.id,
-    );
-    if (index < 0) return { canMoveUp: false, canMoveDown: false };
-    return {
-      canMoveUp: index > 0,
-      canMoveDown: index < parentNode.children.length - 1,
-    };
-  })();
-  // "2018 bye-bye" — the section node for this context menu (when on a section),
-  // for the eject/restore affordance. Eject-able = a curated section (not the
-  // already-freeform blank_section), not already ejected.
+  const contextMenuMoveContext = resolveNodeMoveContext(
+    contextMenuNode,
+    contextMenuNodePath,
+  );
+  // "2018 bye-bye" — the section node this context menu targets, for the
+  // unlock/relock affordance (`section-unlock-gate.ts` owns the rules).
   const contextMenuSectionNode =
     !contextMenuIsChildNode && contextMenu?.builderNodeId
       ? builderTree.find(
@@ -4515,14 +4500,12 @@ export function SelectionLayer() {
   const contextMenuSectionEjected =
     contextMenuSectionNode?.kind === "section" &&
     contextMenuSectionNode.props.ejected === true;
-  const contextMenuSectionEjectable =
-    contextMenuSectionNode?.kind === "section" &&
-    // Not the already-freeform blank_section, and NOT the site-shell sections
-    // (header/footer) — those render via PublishedShell, which has no eject
-    // gate, so ejecting them would double-render (curated shell + roleless).
-    !NON_EJECTABLE_SECTION_TYPE_KEYS.has(
-      contextMenuSectionNode.props.sectionTypeKey,
-    );
+  // "no-layers" = nothing would be derived, so the row shows DISABLED with an
+  // honest reason rather than pretending the unlock is available.
+  const contextMenuSectionUnlockGate =
+    contextMenuSectionNode?.kind === "section"
+      ? resolveSectionUnlockGate(contextMenuSectionNode.props.sectionTypeKey)
+      : "not-offered";
 
   if (!portalEl) return null;
 
@@ -4546,11 +4529,12 @@ export function SelectionLayer() {
   const pickedSection = selectedSectionNodeId
     ? builderTree.find((n) => n.kind === "section" && n.id === selectedSectionNodeId)
     : undefined;
+  const pickedSectionUnlockGate =
+    pickedSection?.kind === "section"
+      ? resolveSectionUnlockGate(pickedSection.props.sectionTypeKey)
+      : "not-offered";
   const unlockableSectionId =
-    pickedSection?.kind === "section" &&
-    !NON_EJECTABLE_SECTION_TYPE_KEYS.has(pickedSection.props.sectionTypeKey)
-      ? pickedSection.id
-      : null;
+    pickedSectionUnlockGate === "not-offered" ? null : pickedSection?.id ?? null;
   const sectionUnlocked = pickedSection?.kind === "section" && pickedSection.props.ejected;
 
   // Sprint 3.x — when device != desktop the parent body's storefront
@@ -5449,7 +5433,8 @@ export function SelectionLayer() {
               );
               closeContextMenu();
             }}
-            canEject={contextMenuSectionEjectable}
+            canEject={contextMenuSectionUnlockGate !== "not-offered"}
+            ejectBlocked={contextMenuSectionUnlockGate === "no-layers"}
             isEjected={contextMenuSectionEjected}
             onEject={() => {
               const id = contextMenu?.builderNodeId;
@@ -6193,6 +6178,11 @@ export function SelectionLayer() {
                   });
                 }}
                 unlockScopeKey={selectedSectionNodeId ?? undefined}
+                unlockBlockedReason={
+                  pickedSectionUnlockGate === "no-layers" && !sectionUnlocked
+                    ? SECTION_UNLOCK_EMPTY_HINT
+                    : null
+                }
                 onUnlockDesign={
                   unlockableSectionId && !sectionUnlocked
                     ? () => void ejectSection(unlockableSectionId)
@@ -6762,6 +6752,7 @@ function SelectionContextMenu({
   canEject = false,
   isEjected = false,
   onEject,
+  ejectBlocked,
   onUneject,
   pastePreview,
   onCopyNode,
@@ -6799,6 +6790,7 @@ function SelectionContextMenu({
   canEject?: boolean;
   isEjected?: boolean;
   onEject?: () => void;
+  ejectBlocked?: boolean;
   onUneject?: () => void;
   pastePreview: BuilderNodePastePreview | null;
   onCopyNode: () => void;
@@ -7047,10 +7039,14 @@ function SelectionContextMenu({
           </ContextMenuButton>
           {canEject ? (
             <ContextMenuButton
-              disabled={saving}
+              disabled={saving || (ejectBlocked && !isEjected)}
               onClick={() => (isEjected ? onUneject?.() : onEject?.())}
             >
-              {isEjected ? t("Relock design") : t("Unlock design")}
+              {isEjected
+                ? t("Relock design")
+                : ejectBlocked
+                  ? t(SECTION_UNLOCK_EMPTY_LABEL)
+                  : t("Unlock design")}
             </ContextMenuButton>
           ) : null}
           <ContextMenuSeparator />
@@ -7206,6 +7202,7 @@ function ChipToolBar({
   unlockScopeKey,
   onUnlockDesign,
   onRelockDesign,
+  unlockBlockedReason,
   onRemoveTrigger,
   onRemoveConfirm,
   onRemoveCancel,
@@ -7236,6 +7233,8 @@ function ChipToolBar({
   /** Curated <-> blocks. Each is null unless the section is in that state. */
   onUnlockDesign?: (() => void) | null;
   onRelockDesign?: (() => void) | null;
+  /** Non-null when unlocking is offered but impossible. */
+  unlockBlockedReason?: string | null;
   onRemoveTrigger: () => void;
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
@@ -7347,11 +7346,12 @@ function ChipToolBar({
       ) : null}
       {/* The ONE visible door between a curated section and blocks: it used to
           hide in the right-click menu. Relock takes an inline confirm. */}
-      {onUnlockDesign || onRelockDesign ? (
+      {onUnlockDesign || onRelockDesign || unlockBlockedReason ? (
         <SectionUnlockChipButton
           key={unlockScopeKey}
           light={light}
           disabled={disabled}
+          blockedReason={unlockBlockedReason ?? null}
           btnStyle={btnStyle}
           isUnlocked={Boolean(onRelockDesign)}
           onUnlock={() => onUnlockDesign?.()}

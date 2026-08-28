@@ -76,6 +76,7 @@ export function SectionUnlockChipButton({
   disabled,
   btnStyle,
   isUnlocked,
+  blockedReason = null,
   onUnlock,
   onRelock,
 }: {
@@ -83,11 +84,33 @@ export function SectionUnlockChipButton({
   disabled: boolean;
   btnStyle: React.CSSProperties;
   isUnlocked: boolean;
+  /**
+   * Set when this section type derives no layers, so unlocking it would report
+   * success and leave the operator with a BLANK section. The door still shows
+   * (hiding it would read as "this build has no unlock") but it is disabled and
+   * says why, instead of being a silent no-op.
+   */
+  blockedReason?: string | null;
   onUnlock: () => void;
   onRelock: () => void;
 }) {
   const { t } = useEditorLocale();
   const [confirming, setConfirming] = useState(false);
+
+  if (blockedReason && !isUnlocked) {
+    return (
+      <ChipBtn
+        light={light}
+        style={btnStyle}
+        disabled
+        aria-label={t("Nothing to unlock yet")}
+        data-selection-section-action="unlock-unavailable"
+        title={`${t("Nothing to unlock yet")}: ${t(blockedReason)}`}
+      >
+        <LockOpen size={13} strokeWidth={2} aria-hidden />
+      </ChipBtn>
+    );
+  }
 
   if (isUnlocked && confirming) {
     return (
