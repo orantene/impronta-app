@@ -9314,16 +9314,20 @@ export type Database = {
         Row: {
           applies_family: string | null
           applies_to: Json
+          campaign: string | null
           code: string
           created_at: string
           currency: string | null
           duration: string
           duration_months: number | null
           ends_at: string | null
+          first_time_only: boolean
           id: string
           is_active: boolean
           kind: string
           max_redemptions: number | null
+          minimum_amount_cents: number | null
+          minimum_amount_currency: string | null
           name: string
           per_customer_limit: number
           redemption_count: number
@@ -9337,16 +9341,20 @@ export type Database = {
         Insert: {
           applies_family?: string | null
           applies_to?: Json
+          campaign?: string | null
           code: string
           created_at?: string
           currency?: string | null
           duration?: string
           duration_months?: number | null
           ends_at?: string | null
+          first_time_only?: boolean
           id?: string
           is_active?: boolean
           kind: string
           max_redemptions?: number | null
+          minimum_amount_cents?: number | null
+          minimum_amount_currency?: string | null
           name: string
           per_customer_limit?: number
           redemption_count?: number
@@ -9360,16 +9368,20 @@ export type Database = {
         Update: {
           applies_family?: string | null
           applies_to?: Json
+          campaign?: string | null
           code?: string
           created_at?: string
           currency?: string | null
           duration?: string
           duration_months?: number | null
           ends_at?: string | null
+          first_time_only?: boolean
           id?: string
           is_active?: boolean
           kind?: string
           max_redemptions?: number | null
+          minimum_amount_cents?: number | null
+          minimum_amount_currency?: string | null
           name?: string
           per_customer_limit?: number
           redemption_count?: number
