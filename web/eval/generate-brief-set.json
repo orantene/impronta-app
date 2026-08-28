@@ -123,6 +123,27 @@
       "expect": { "minSections": 5, "kindsPresent": ["section", "heading", "paragraph"], "maxNodes": 180, "singleH1": true, "noEmDash": true }
     },
     {
+      "id": "roster-homepage-native-data",
+      "brief": "Homepage for a talent agency representing models, actors, and dancers, where visitors can search the roster and browse by discipline.",
+      "scope": "page",
+      "note": "WS7 vocabulary: the page must SHOW the roster, not describe it. Expect a hero_search opening (its headline is the H1) plus one dynamic talent_type_grid.",
+      "expect": { "minSections": 4, "kindsPresent": ["hero_search", "talent_type_grid", "section"], "maxNodes": 120, "singleH1": true, "noEmDash": true }
+    },
+    {
+      "id": "solo-photographer-no-native-data",
+      "brief": "A landing page for an independent wedding photographer, with a portfolio, packages, and a contact form.",
+      "scope": "page",
+      "note": "Negative case for the WS7 vocabulary: no roster, so the roster-backed blocks must NOT appear.",
+      "expect": { "minSections": 3, "kindsPresent": ["section", "heading"], "kindsAbsent": ["hero_search", "talent_type_grid"], "maxNodes": 120, "singleH1": true, "noEmDash": true }
+    },
+    {
+      "id": "disciplines-section",
+      "brief": "A section showing the disciplines our roster covers, as a grid of cards linking into the directory.",
+      "scope": "section",
+      "note": "Section scope reach for talent_type_grid rather than a hand-authored card grid.",
+      "expect": { "minSections": 1, "kindsPresent": ["talent_type_grid"], "maxNodes": 20, "singleH1": true, "noEmDash": true }
+    },
+    {
       "id": "es-services-grid",
       "brief": "Una seccion de servicios que presenta nuestras tres especialidades en una cuadricula de tarjetas.",
       "scope": "section",
