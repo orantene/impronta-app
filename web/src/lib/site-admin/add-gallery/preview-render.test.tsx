@@ -8,11 +8,9 @@ import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { AddGalleryTab } from "./types";
 
 const ALL_TABS: AddGalleryTab[] = [
-  "layout",
-  "elements",
-  "sections",
-  "connected",
-  "page_templates",
+  "blocks",
+  "designs",
+  "data",
   "shell",
 ];
 

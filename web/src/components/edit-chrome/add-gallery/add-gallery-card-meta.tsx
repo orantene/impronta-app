@@ -114,7 +114,7 @@ export function useGalleryCardState(item: AddGalleryItem) {
   const comingSoon = !isAddGalleryItemAvailable(item);
   const advanced = item.availability === "advanced-hidden";
   const connected =
-    item.tab === "connected" ||
+    item.tab === "data" ||
     item.itemKind === "connected" ||
     Boolean(item.connectedSource);
   const draggable = galleryItemSupportsDrag(item);

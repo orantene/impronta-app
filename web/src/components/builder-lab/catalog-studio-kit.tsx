@@ -16,6 +16,9 @@ import { ADD_GALLERY_CATEGORIES } from "@/lib/site-admin/add-gallery/registry";
 import type { AddGalleryTab } from "@/lib/site-admin/add-gallery/types";
 import {
   CODE_TAB_DEFS,
+  canonicalGalleryTab,
+  resolveTabLabel,
+  resolveTabs,
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 
@@ -27,12 +30,11 @@ export type HiddenEntry = { id: string; label: string };
 
 /** Tabs the admin has hidden (filtered out of resolveTabs), with display label. */
 export function hiddenTabs(structure: CatalogStructureMap): HiddenEntry[] {
-  return CODE_TAB_DEFS.filter((t) => structure[`tab:${t.id}`]?.hidden).map(
-    (t) => ({
-      id: t.id,
-      label: structure[`tab:${t.id}`]?.label_override ?? t.label,
-    }),
-  );
+  const visible = new Set(resolveTabs(structure).map((t) => t.id));
+  return CODE_TAB_DEFS.filter((t) => !visible.has(t.id)).map((t) => ({
+    id: t.id,
+    label: resolveTabLabel(t.id, structure),
+  }));
 }
 
 /**
@@ -49,7 +51,7 @@ export function hiddenCategoriesByTab(
     if (row.kind !== "category" || !row.hidden) continue;
     const id = row.ref.slice("cat:".length);
     const code = codeById.get(id);
-    const tab = row.parent_tab ?? code?.tab;
+    const tab = canonicalGalleryTab(row.parent_tab ?? code?.tab) ?? row.parent_tab ?? code?.tab;
     if (!tab) continue;
     const label = row.label_override ?? code?.label ?? id;
     (out[tab] ??= []).push({ id, label });

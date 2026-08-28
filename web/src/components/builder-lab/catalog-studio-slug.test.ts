@@ -66,29 +66,29 @@ test("hiddenTabs: empty structure ⇒ none", () => {
 
 test("hiddenTabs: returns hidden tabs with override label", () => {
   const s = mapOf(
-    row({ ref: "tab:elements", kind: "tab", hidden: true }),
+    row({ ref: "tab:blocks", kind: "tab", hidden: true }),
     row({
-      ref: "tab:sections",
+      ref: "tab:designs",
       kind: "tab",
       hidden: true,
-      label_override: "Blocks",
+      label_override: "Patterns",
     }),
-    row({ ref: "tab:layout", kind: "tab", hidden: false }),
+    row({ ref: "tab:data", kind: "tab", hidden: false }),
   );
   const hidden = hiddenTabs(s);
   assert.deepEqual(
     hidden.map((h) => h.id).sort(),
-    ["elements", "sections"],
+    ["blocks", "designs"],
   );
-  assert.equal(hidden.find((h) => h.id === "sections")?.label, "Blocks");
-  assert.equal(hidden.find((h) => h.id === "elements")?.label, "Elements");
+  assert.equal(hidden.find((h) => h.id === "designs")?.label, "Patterns");
+  assert.equal(hidden.find((h) => h.id === "blocks")?.label, "Blocks");
 });
 
 test("hiddenCategoriesByTab: groups hidden cats under their tab", () => {
   const s = mapOf(
-    // built-in category 'hero' lives in tab 'sections'
+    // built-in category 'hero' lives in tab 'designs'
     row({ ref: "cat:hero", kind: "category", hidden: true }),
-    // a created+hidden category carries its own parent_tab
+    // a created+hidden category carries its own parent_tab (legacy id maps)
     row({
       ref: "cat:promos",
       kind: "category",
@@ -102,15 +102,15 @@ test("hiddenCategoriesByTab: groups hidden cats under their tab", () => {
   );
   const byTab = hiddenCategoriesByTab(s);
   assert.deepEqual(
-    (byTab.sections ?? []).map((c) => c.id).sort(),
+    (byTab.designs ?? []).map((c) => c.id).sort(),
     ["hero", "promos"],
   );
   assert.equal(
-    byTab.sections.find((c) => c.id === "hero")?.label,
+    byTab.designs.find((c) => c.id === "hero")?.label,
     "Hero",
   );
   assert.equal(
-    byTab.sections.find((c) => c.id === "promos")?.label,
+    byTab.designs.find((c) => c.id === "promos")?.label,
     "Promos",
   );
 });

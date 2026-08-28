@@ -30,7 +30,7 @@ function item(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "el-button",
     label: "Button",
     description: "",
-    tab: "elements",
+    tab: "blocks",
     category: "buttons",
     icon: "buttons",
     previewType: "icon-card",
