@@ -102,3 +102,21 @@ test("a side bound to a theme token is reported as bound, not as an empty field"
   // label for it.
   assert.equal(spacingSideBoundLabel("token:not.a.real.token"), null);
 });
+
+// ── REGRESSION: the bottom step's bare "0" must survive the round trip ──────
+//
+// The shipped defect: the "none" step stores the renderer's own CSS — the bare
+// string "0" — and `parseCssLength` refused unitless zero, so the value read
+// back as UNSET. Every plus press then recomputed "first step from unset" and
+// rewrote "0" forever: label stuck on Auto, page stuck at 0, control dead on
+// every tier. The wiring is pinned end to end in spacing-stepper-wiring.test.tsx;
+// this pins the pure seam that broke.
+
+test("the none step's bare '0' reads back as the none step, not as unset", () => {
+  assert.deepEqual(spacingSidePatch("paddingTop", { kind: "preset", id: "none" }), {
+    paddingTop: NODE_SPACING.none,
+  });
+  assert.equal(NODE_SPACING.none, "0", "the renderer's bottom step is unitless zero");
+  assert.deepEqual(spacingSideValue("0"), { kind: "preset", id: "none" });
+  assert.deepEqual(spacingSideValue("0px"), { kind: "preset", id: "none" });
+});
