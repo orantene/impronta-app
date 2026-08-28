@@ -334,8 +334,6 @@
       }
     },
     "profileCta": {
-      "addToCurrent": "Añadir a {name} a tu solicitud actual ({count} talentos)",
-      "separateInquiry": "Iniciar una solicitud aparte sobre {name}",
       "inquireAbout": "Consultar sobre {name}",
       "bookNowPrice": "Reservar ahora · {price}",
       "bookInstantly": "Reservar a {name} al instante",
@@ -346,7 +344,15 @@
       "instantConfirmNote": "Confirma la reserva con {name} a su tarifa fija. Completarás el pago en la siguiente pantalla.",
       "eventDateOptional": "Fecha del evento (opcional)",
       "booking": "Reservando…",
-      "confirmAndBook": "Confirmar y reservar · {price}"
+      "confirmAndBook": "Confirmar y reservar · {price}",
+      "viewInquiry": "Ver tu solicitud",
+      "addToCurrentTitle": "Añadir a esta solicitud",
+      "addToCurrentSubOne": "1 talento hasta ahora",
+      "addToCurrentSubOther": "{count} talentos hasta ahora",
+      "alreadyInTitle": "Ver esta solicitud",
+      "alreadyInSub": "{name} ya está incluida",
+      "separateTitle": "Crear una aparte",
+      "separateSub": "Solo {name}"
     },
     "common": {
       "brand": "Roster"

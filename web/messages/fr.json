@@ -472,8 +472,6 @@
       "pickerStartNewSub": "{name} seulement, à part"
     },
     "profileCta": {
-      "addToCurrent": "Ajouter {name} à votre demande en cours ({count} talents)",
-      "separateInquiry": "Lancer une demande distincte pour {name}",
       "inquireAbout": "Demander pour {name}",
       "bookNowPrice": "Réserver · {price}",
       "bookInstantly": "Réserver {name} immédiatement",
@@ -484,7 +482,15 @@
       "instantConfirmNote": "Confirme la réservation avec {name} à son tarif fixe. Vous finaliserez le paiement à l'écran suivant.",
       "eventDateOptional": "Date de l'événement (facultatif)",
       "booking": "Réservation…",
-      "confirmAndBook": "Confirmer et réserver · {price}"
+      "confirmAndBook": "Confirmer et réserver · {price}",
+      "viewInquiry": "Voir votre demande",
+      "addToCurrentTitle": "Ajouter à cette demande",
+      "addToCurrentSubOne": "1 talent pour l'instant",
+      "addToCurrentSubOther": "{count} talents pour l'instant",
+      "alreadyInTitle": "Voir cette demande",
+      "alreadyInSub": "{name} y est déjà",
+      "separateTitle": "En créer une à part",
+      "separateSub": "{name} uniquement"
     },
     "siteShellSurface": {
       "title": "En-tête et pied de page du site",

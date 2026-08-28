@@ -46,25 +46,56 @@ const server = http.createServer((clientReq, clientRes) => {
     }
   }
   const headers = hdrs;
-  const proxy = http.request(
-    {
-      host: UPSTREAM_HOST,
-      port: UPSTREAM_PORT,
-      method: clientReq.method,
-      path: clientReq.url,
-      headers,
-      agent,
-    },
-    (upRes) => {
-      clientRes.writeHead(upRes.statusCode ?? 502, upRes.headers);
-      upRes.pipe(clientRes);
-    },
-  );
-  proxy.on("error", (err) => {
-    clientRes.writeHead(502, { "content-type": "text/plain" });
-    clientRes.end(`proxy error: ${err.message}`);
-  });
-  clientReq.pipe(proxy);
+
+  // A cold dev server can take minutes on a first compile, and a socket that
+  // dies mid-flight surfaces to the browser as a 502 on whatever it was
+  // fetching. When that happens to a JS chunk, the client subtree it belongs
+  // to silently never hydrates — the page renders, looks finished, and (for
+  // example) the floating chat launcher is simply absent with no error. So a
+  // bodyless request gets a few retries rather than one shot.
+  //
+  // Only GET/HEAD are retried: by the time an error fires on a request with a
+  // body, that body has already been streamed and cannot be replayed.
+  const bodyless = clientReq.method === "GET" || clientReq.method === "HEAD";
+  const MAX_ATTEMPTS = bodyless ? 3 : 1;
+  let attempt = 0;
+
+  const send = () => {
+    attempt += 1;
+    const proxy = http.request(
+      {
+        host: UPSTREAM_HOST,
+        port: UPSTREAM_PORT,
+        method: clientReq.method,
+        path: clientReq.url,
+        headers,
+        agent,
+      },
+      (upRes) => {
+        clientRes.writeHead(upRes.statusCode ?? 502, upRes.headers);
+        upRes.pipe(clientRes);
+      },
+    );
+    // No socket timeout: a first-compile response legitimately takes minutes,
+    // and Node's default would abort it as a failure.
+    proxy.setTimeout(0);
+    proxy.on("error", (err) => {
+      if (attempt < MAX_ATTEMPTS && !clientRes.headersSent) {
+        console.error(`[host-proxy] retry ${attempt}/${MAX_ATTEMPTS} ${clientReq.url}: ${err.message}`);
+        setTimeout(send, 100 * attempt);
+        return;
+      }
+      console.error(`[host-proxy] 502 ${clientReq.url}: ${err.message}`);
+      if (!clientRes.headersSent) {
+        clientRes.writeHead(502, { "content-type": "text/plain" });
+      }
+      clientRes.end(`proxy error: ${err.message}`);
+    });
+    if (bodyless) proxy.end();
+    else clientReq.pipe(proxy);
+  };
+
+  send();
 });
 
 // Forward WebSocket upgrades (Next.js / Turbopack dev HMR runs over a WS).

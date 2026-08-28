@@ -334,8 +334,6 @@
       }
     },
     "profileCta": {
-      "addToCurrent": "Add {name} to your current inquiry ({count} talent)",
-      "separateInquiry": "Start a separate inquiry about {name}",
       "inquireAbout": "Inquire about {name}",
       "bookNowPrice": "Book now · {price}",
       "bookInstantly": "Book {name} instantly",
@@ -346,7 +344,15 @@
       "instantConfirmNote": "Confirms the booking with {name} at their fixed rate. You will complete payment on the next screen.",
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
-      "confirmAndBook": "Confirm & book · {price}"
+      "confirmAndBook": "Confirm & book · {price}",
+      "viewInquiry": "View your inquiry",
+      "addToCurrentTitle": "Add to this inquiry",
+      "addToCurrentSubOne": "1 talent so far",
+      "addToCurrentSubOther": "{count} talent so far",
+      "alreadyInTitle": "View this inquiry",
+      "alreadyInSub": "{name} is already in it",
+      "separateTitle": "Start a separate one",
+      "separateSub": "Just {name}"
     },
     "common": {
       "brand": "Roster"
