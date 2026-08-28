@@ -84,6 +84,7 @@ import { VariantIntentCards } from "./variant-intent-cards";
 import { CarouselSettingsPanel } from "./carousel";
 import { FormNodeContentInspector } from "./form-node-content";
 import { BuilderNodeNestedTextFields } from "./nested-text-fields";
+import { ResponsiveImageSourceField } from "./responsive-image-source-field";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -389,6 +390,9 @@ function BuilderNodeContentInspectorBody({
     navLinkFocusRequest,
     pinnedNavSubmenu,
     setPinnedNavSubmenu,
+    // The canvas viewport being edited. Per-device image sources write to the
+    // SAME device the style controls do, so the image panel reads it too.
+    device,
   } = useEditContext();
 
   /**
@@ -788,6 +792,12 @@ function BuilderNodeContentInspectorBody({
             emptyLabel="Choose image"
             aspect="4/5"
             layout="row"
+          />
+          <ResponsiveImageSourceField
+            node={node}
+            tenantId={tenantId}
+            device={device}
+            commitPatch={(patch) => void commitPatch(patch)}
           />
           <div className={KIT.field}>
             <label className={KIT.label}>Generate with AI</label>
