@@ -4274,7 +4274,11 @@
       "wsGeneralTitle": "General",
       "wsGeneralDesc": "Timezone · Locale · Workspace defaults",
       "wsGuestChatTitle": "Guest chat",
-      "wsGuestChatDesc": "Show a Message button on your public pages: on/off plus where it appears",
+        "wsGuestChatDesc": "Show a Message button on your public pages: on/off plus where it appears",
+        "replayBufferTitle": "Support replay buffer",
+        "replayBufferDesc": "Keep a private rolling recording of the last few minutes in this workspace so staff can attach it to a ticket. Off by default. Inputs stay masked.",
+        "replayBufferToggle": "Enable buffer",
+        "replayBufferSaving": "Saving",
       "wsProfileFieldsTitle": "Profile fields",
       "wsProfileFieldsDesc": "Enable, require, rename Talent profile fields",
       "wsFieldSettingsTitle": "Field settings",
@@ -8300,6 +8304,9 @@
         "diagRoutes": "Route history",
         "pasteFindings": "Paste investigation findings",
         "saveFindings": "Save findings",
+        "noReplay": "No replay attached to this ticket.",
+        "playReplay": "Play",
+        "replayEmpty": "This replay has no events.",
         "statusOpen": "Open",
         "statusResolved": "Resolved",
         "statusClosed": "Closed",
@@ -11831,7 +11838,8 @@
       "catDeveloper": "Developer and API",
       "catTrust": "Trust and Safety",
       "drawerTitle": "Support ticket",
-      "drawerEmpty": "This ticket could not be loaded."
+      "drawerEmpty": "This ticket could not be loaded.",
+      "attachReplay": "Attach a replay of your last few minutes to help us fix this faster"
     }
   },
   "admin": {

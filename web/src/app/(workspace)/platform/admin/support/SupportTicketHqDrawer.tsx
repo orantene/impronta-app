@@ -6,6 +6,7 @@ import { HQ, HQ_F } from "../tenants/hq-kit";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
 import { TicketContextCard } from "./TicketContextCard";
 import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
+import { TicketReplayPanel } from "./TicketReplayPanel";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -174,7 +175,7 @@ export function SupportTicketHqDrawer({
             [
               { id: "thread", label: t("dashboard.platform.support.tabThread"), enabled: true },
               { id: "diagnostics", label: t("dashboard.platform.support.tabDiagnostics"), enabled: true },
-              { id: "replay", label: t("dashboard.platform.support.tabReplay"), enabled: false },
+              { id: "replay", label: t("dashboard.platform.support.tabReplay"), enabled: true },
               { id: "insights", label: t("dashboard.platform.support.tabInsights"), enabled: false },
             ] as const
           ).map((item) => (
@@ -204,6 +205,8 @@ export function SupportTicketHqDrawer({
             <div style={{ flex: 1, overflow: "auto" }}>
               {tab === "diagnostics" ? (
                 <TicketDiagnosticsPanel ticketId={ticketId} diagnostics={context?.diagnostics ?? null} />
+              ) : tab === "replay" ? (
+                <TicketReplayPanel ticketId={ticketId} />
               ) : (
                 <SupportThreadView ticket={ticket} messages={messages} tone="hq" />
               )}

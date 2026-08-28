@@ -20,6 +20,9 @@ import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
 import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
+import { ReplayConsent } from "./ReplayConsent";
+import { useReplayBuffer } from "@/lib/support/replay/SupportRecorderProvider";
+import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
 
 type View = "home" | "tickets" | "thread" | "new";
 
@@ -42,7 +45,18 @@ export function SupportPanel({
   const [ask, setAsk] = useState("");
   const [sending, setSending] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const [attachReplay, setAttachReplay] = useState(false);
+  const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
+
+  const maybeAttachReplay = async (id: string) => {
+    if (!attachReplay || !replay.enabled) return;
+    try {
+      await uploadReplayForTicket(id);
+    } catch {
+      /* fail-open */
+    }
+  };
 
   const requestAi = useCallback(async (id: string) => {
     setThinking(true);
@@ -119,6 +133,7 @@ export function SupportPanel({
     if (r.ok) {
       setAsk("");
       setView("thread", r.ticketId);
+      void maybeAttachReplay(r.ticketId);
       void requestAi(r.ticketId);
     }
   };
@@ -172,6 +187,9 @@ export function SupportPanel({
             recent={tickets.slice(0, 2)}
             onOpenTicket={(id) => setView("thread", id)}
             onStartTicket={() => setView("new")}
+            replayEnabled={replay.enabled}
+            attachReplay={attachReplay}
+            setAttachReplay={setAttachReplay}
             onMessageOran={() => {
               void (async () => {
                 const r = await contract.createTicket({
@@ -181,7 +199,10 @@ export function SupportPanel({
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
                 });
-                if (r.ok) setView("thread", r.ticketId);
+                if (r.ok) {
+                  void maybeAttachReplay(r.ticketId);
+                  setView("thread", r.ticketId);
+                }
               })();
             }}
           />
@@ -223,7 +244,11 @@ export function SupportPanel({
         {view === "new" && (
           <NewTicketForm
             contract={contract}
+            replayEnabled={replay.enabled}
+            attachReplay={attachReplay}
+            setAttachReplay={setAttachReplay}
             onCreated={(id) => {
+              void maybeAttachReplay(id);
               setView("thread", id);
               void requestAi(id);
             }}
@@ -312,6 +337,9 @@ function HomeView({
   onOpenTicket,
   onStartTicket,
   onMessageOran,
+  replayEnabled,
+  attachReplay,
+  setAttachReplay,
 }: {
   firstName: string;
   ask: string;
@@ -322,6 +350,9 @@ function HomeView({
   onOpenTicket: (id: string) => void;
   onStartTicket: () => void;
   onMessageOran: () => void;
+  replayEnabled: boolean;
+  attachReplay: boolean;
+  setAttachReplay: (v: boolean) => void;
 }) {
   const t = useT();
   return (
@@ -387,6 +418,9 @@ function HomeView({
           <Icon name="send" size={13} color={ask.trim() ? "#fff" : COLORS.inkDim} />
         </button>
       </div>
+      {replayEnabled ? (
+        <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
+      ) : null}
       {recent.length > 0 ? (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkDim, marginBottom: 8 }}>
@@ -552,9 +586,15 @@ function TicketListView({
 function NewTicketForm({
   contract,
   onCreated,
+  replayEnabled,
+  attachReplay,
+  setAttachReplay,
 }: {
   contract: SupportContract;
   onCreated: (id: string) => void;
+  replayEnabled: boolean;
+  attachReplay: boolean;
+  setAttachReplay: (v: boolean) => void;
 }) {
   const t = useT();
   const [subject, setSubject] = useState("");
@@ -641,6 +681,9 @@ function NewTicketForm({
             </button>
           ))}
         </div>
+      ) : null}
+      {replayEnabled ? (
+        <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
       ) : null}
       <button
         type="submit"

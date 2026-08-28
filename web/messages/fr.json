@@ -754,7 +754,8 @@
       "catDeveloper": "Developpeur et API",
       "catTrust": "Confiance et securite",
       "drawerTitle": "Ticket de support",
-      "drawerEmpty": "Impossible de charger ce ticket."
+      "drawerEmpty": "Impossible de charger ce ticket.",
+      "attachReplay": "Joindre un replay de vos dernieres minutes pour nous aider a corriger cela plus vite"
     },
     "platform": {
       "nav": {
@@ -815,6 +816,9 @@
         "diagRoutes": "Historique des routes",
         "pasteFindings": "Coller les conclusions d'investigation",
         "saveFindings": "Enregistrer les conclusions",
+        "noReplay": "Aucun replay attache a ce ticket.",
+        "playReplay": "Lire",
+        "replayEmpty": "Ce replay n'a pas d'evenements.",
         "statusOpen": "Ouvert",
         "statusResolved": "Resolu",
         "statusClosed": "Ferme",

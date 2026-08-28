@@ -10,6 +10,7 @@ import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection
 import { COLORS, FONTS, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
 import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
+import { SupportReplaySettingsRow } from "@/components/admin/account/SupportReplaySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PricingDefaultsSettingsCard } from "@/components/admin/account/PricingDefaultsSettingsCard";
 import { PageHeader } from "./pages-shared";
@@ -390,6 +391,7 @@ export function WorkspacePageView() {
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
             <DefaultCurrencySettingsRow />
+            <SupportReplaySettingsRow />
           </>
         ),
         extraSearch: [
@@ -404,6 +406,10 @@ export function WorkspacePageView() {
             // rendered the raw dotted key in settings search results.
             title: t("admin.account.currency.label"),
             desc: t("dashboard.adminWorkspace.defaultCurrency.desc"),
+          },
+          {
+            title: t("dashboard.adminWorkspace.replayBufferTitle"),
+            desc: t("dashboard.adminWorkspace.replayBufferDesc"),
           },
         ],
       },

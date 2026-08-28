@@ -1,5 +1,6 @@
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSupportTicketSummaries } from "@/lib/support/load-summaries";
 import {
   closeSupportTicketAction,
@@ -37,6 +38,19 @@ export async function loadSupportContract(input: {
     workspaceAll: input.canSeeWorkspaceTickets,
   });
 
+  let replayBufferEnabled = false;
+  if (input.tenantId && input.surface !== "client") {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const { data } = await admin.from("agencies").select("settings").eq("id", input.tenantId).maybeSingle();
+      const settings =
+        data?.settings && typeof data.settings === "object"
+          ? (data.settings as Record<string, unknown>)
+          : {};
+      replayBufferEnabled = settings.support_replay_buffer === true;
+    }
+  }
+
   return {
     surface: input.surface,
     tenantSlug: input.tenantSlug,
@@ -46,6 +60,7 @@ export async function loadSupportContract(input: {
     observeShellDrawers: input.observeShellDrawers ?? false,
     initialTickets,
     originSlug: input.originSlug ?? null,
+    replayBufferEnabled,
     createTicket: createSupportTicketAction,
     sendMessage: sendSupportMessageAction,
     markRead: markSupportTicketReadAction,

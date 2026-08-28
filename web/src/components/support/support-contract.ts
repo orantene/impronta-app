@@ -15,8 +15,9 @@ export type SupportContract = {
   canSeeWorkspaceTickets: boolean;
   observeShellDrawers: boolean;
   initialTickets: SupportTicketSummary[];
-  originSlug?: string | null;
-  createTicket: (input: {
+    originSlug?: string | null;
+    replayBufferEnabled: boolean;
+    createTicket: (input: {
     tenantSlug: string | null;
     surface: "workspace" | "talent" | "client";
     body: string;

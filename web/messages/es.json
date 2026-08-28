@@ -4274,7 +4274,11 @@
       "wsGeneralTitle": "General",
       "wsGeneralDesc": "Zona horaria · Idioma · Valores del espacio",
       "wsGuestChatTitle": "Chat de invitados",
-      "wsGuestChatDesc": "Muestra un botón de Mensaje en tus páginas públicas: activar/desactivar y dónde aparece",
+        "wsGuestChatDesc": "Muestra un botón de Mensaje en tus páginas públicas: activar/desactivar y dónde aparece",
+        "replayBufferTitle": "Buffer de replay de soporte",
+        "replayBufferDesc": "Guarda una grabacion privada de los ultimos minutos en este espacio para adjuntarla a un ticket. Apagado por defecto. Los campos siguen ocultos.",
+        "replayBufferToggle": "Activar buffer",
+        "replayBufferSaving": "Guardando",
       "wsProfileFieldsTitle": "Campos del perfil",
       "wsProfileFieldsDesc": "Activar, exigir y renombrar campos del Profile del Talent",
       "wsFieldSettingsTitle": "Ajustes de campos",
@@ -8300,6 +8304,9 @@
         "diagRoutes": "Historial de rutas",
         "pasteFindings": "Pegar hallazgos de investigacion",
         "saveFindings": "Guardar hallazgos",
+        "noReplay": "Este ticket no tiene replay.",
+        "playReplay": "Reproducir",
+        "replayEmpty": "Este replay no tiene eventos.",
         "statusOpen": "Abierto",
         "statusResolved": "Resuelto",
         "statusClosed": "Cerrado",
@@ -11831,7 +11838,8 @@
       "catDeveloper": "Desarrollador y API",
       "catTrust": "Confianza y seguridad",
       "drawerTitle": "Ticket de soporte",
-      "drawerEmpty": "No se pudo cargar este ticket."
+      "drawerEmpty": "No se pudo cargar este ticket.",
+      "attachReplay": "Adjunta un replay de tus ultimos minutos para ayudarnos a resolver esto mas rapido"
     }
   },
   "admin": {
