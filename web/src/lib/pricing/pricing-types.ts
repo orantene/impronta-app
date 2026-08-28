@@ -138,12 +138,25 @@ export type PricingDiscountRow = {
   kind: "percent" | "fixed" | "free_months";
   value: number;
   currency: string | null;
+  /** "all", or the `product_tiers.id` list the operator checked. */
   appliesTo: "all" | string[];
+  /** Coarse side filter, enforced app-side in the checkout resolver. */
+  appliesFamily: "workspace" | "talent" | null;
+  duration: "once" | "repeating" | "forever";
+  durationMonths: number | null;
   maxRedemptions: number | null;
   redemptionCount: number;
   perCustomerLimit: number;
   startsAt: string | null;
   endsAt: string | null;
+  /** Stripe promotion-code restrictions. */
+  firstTimeOnly: boolean;
+  minimumAmountCents: number | null;
+  minimumAmountCurrency: string | null;
+  /** Free-text campaign tag; how redemptions roll up in reporting. */
+  campaign: string | null;
+  /** 'admin' = minted here · 'stripe_import' = pulled in from Stripe. */
+  source: "admin" | "stripe_import";
   stripeCouponId: string | null;
   stripePromotionCodeId: string | null;
   isActive: boolean;

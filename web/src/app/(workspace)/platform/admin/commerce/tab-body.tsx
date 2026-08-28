@@ -30,9 +30,10 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { HQ, F } from "./_tokens";
 import type { CommerceTab } from "./_registry";
+import { loadAccountDiscounts } from "@/lib/server-actions/admin-subscription-discounts";
 import { CatalogView } from "./catalog/CatalogView";
-import { DiscountsTab } from "./discounts/DiscountsTab";
-import { LegacyCodesSection } from "./discounts/legacy-codes/LegacyCodesSection";
+import { DiscountsView } from "./discounts/DiscountsView";
+import type { DiscountTierOption } from "./discounts/discount-format";
 import { HealthView } from "./health/HealthView";
 import { RevenueView } from "./revenue/RevenueView";
 import { CommissionView } from "./commission/CommissionView";
@@ -63,12 +64,32 @@ export async function TabBody({ tab }: { tab: CommerceTab }) {
   }
 
   if (tab === "discounts") {
-    const discounts = await loadProductDiscounts();
+    // The tier list is what makes per-product scoping possible: the create
+    // drawer needs every active tier AND whether each has a Stripe product,
+    // because a tier without one cannot be scoped at Stripe.
+    const [discounts, accounts, catalog] = await Promise.all([
+      loadProductDiscounts(),
+      loadAccountDiscounts(),
+      loadProductCatalog(),
+    ]);
+    const tiers: DiscountTierOption[] = (catalog?.packages ?? [])
+      .filter((pkg) => pkg.isActive)
+      .flatMap((pkg) =>
+        pkg.tiers
+          .filter((tier) => tier.isActive)
+          .map((tier) => ({
+            id: tier.id,
+            name: tier.name,
+            packageLabel: pkg.label,
+            hasStripeProduct: Boolean(tier.stripeProductId),
+          })),
+      );
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-        <DiscountsTab discounts={discounts} />
-        <LegacyCodesSection />
-      </div>
+      <DiscountsView
+        discounts={discounts}
+        accountDiscounts={accounts.discounts}
+        tiers={tiers}
+      />
     );
   }
 

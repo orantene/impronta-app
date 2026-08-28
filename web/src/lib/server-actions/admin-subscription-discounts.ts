@@ -64,6 +64,14 @@ export type LoadAccountDiscountsResult = {
   discounts: Array<AccountDiscountRow & { subjectLabel: string | null }>;
 };
 
+/** One row of the account picker in the grant drawer. */
+export type AssignableAccount = {
+  id: string;
+  label: string;
+  plan: string | null;
+  type: "workspace" | "talent";
+};
+
 // ─── Auth gate (same shape as admin-product-discounts.ts) ────────────────────
 
 type GateOk = { ok: true; userId: string };
@@ -629,4 +637,84 @@ export async function loadAccountDiscounts(): Promise<LoadAccountDiscountsResult
       subjectLabel: labels.get(row.tenantId ?? row.talentProfileId ?? "") ?? null,
     })),
   };
+}
+
+// ─── searchAssignableAccounts ────────────────────────────────────────────────
+
+/**
+ * Type-ahead for the account-grant drawer: workspaces and talent profiles that
+ * a discount can be attached to, matched on display name.
+ *
+ * A uuid field would have been cheaper to build and unusable in practice — the
+ * operator knows the account by NAME. Both sides come back in one list because
+ * `subscription_discounts` treats them as one concept (a subject), and asking
+ * the operator to pick "workspace or talent" before they can type is a step
+ * that exists only to make our query simpler.
+ */
+export async function searchAssignableAccounts(
+  rawQuery: string,
+): Promise<{ accounts: AssignableAccount[] }> {
+  const gate = await requirePlatformAdmin();
+  if (!gate.ok) return { accounts: [] };
+
+  const q = rawQuery.trim().slice(0, 60);
+  if (q.length < 2) return { accounts: [] };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { accounts: [] };
+
+  // `%` and `_` are wildcards in ILIKE; a name containing one would otherwise
+  // widen the search instead of narrowing it.
+  const pattern = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+
+  const [agencies, talents] = await Promise.all([
+    admin
+      .from("agencies")
+      .select("id, display_name, plan_tier")
+      .ilike("display_name", pattern)
+      .order("display_name", { ascending: true })
+      .limit(10),
+    admin
+      .from("talent_profiles")
+      .select("id, display_name, talent_plan_key")
+      .ilike("display_name", pattern)
+      .is("deleted_at", null)
+      .order("display_name", { ascending: true })
+      .limit(10),
+  ]);
+
+  if (agencies.error) {
+    logServerError("admin-subscription-discounts.search.agencies", agencies.error);
+  }
+  if (talents.error) {
+    logServerError("admin-subscription-discounts.search.talents", talents.error);
+  }
+
+  const accounts: AssignableAccount[] = [];
+  for (const row of (agencies.data ?? []) as Array<{
+    id: string;
+    display_name: string | null;
+    plan_tier: string | null;
+  }>) {
+    accounts.push({
+      id: row.id,
+      label: row.display_name ?? row.id,
+      plan: row.plan_tier,
+      type: "workspace",
+    });
+  }
+  for (const row of (talents.data ?? []) as Array<{
+    id: string;
+    display_name: string | null;
+    talent_plan_key: string | null;
+  }>) {
+    accounts.push({
+      id: row.id,
+      label: row.display_name ?? row.id,
+      plan: row.talent_plan_key,
+      type: "talent",
+    });
+  }
+
+  return { accounts };
 }

@@ -1545,7 +1545,7 @@
   },
   "src/lib/server-actions/admin-product-discounts.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 11
     }
   },
   "src/lib/server-actions/admin-product-features.ts": {
@@ -1560,7 +1560,7 @@
   },
   "src/lib/server-actions/admin-subscription-discounts.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 17
+      "count": 19
     }
   },
   "src/lib/server-actions/admin-roster-card-badges.ts": {
