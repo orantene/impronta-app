@@ -27,7 +27,7 @@ import type {
   NodePresentation,
   NodePresentationValue,
 } from "@/lib/site-admin/sections/shared/node-presentation";
-import { isResponsivePlumbedStyleKey } from "@/lib/site-admin/builder-node/responsive-style-keys";
+
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -65,6 +65,7 @@ import { CssEditorWithHints } from "./kit/css-editor-with-hints";
 import { pxLength, pctLength } from "./style-panel/length-utils";
 import { BUILDER_NODE_THEME_COLOR_TOKENS, colorSwatchDisplay } from "./style-panel/section-shared";
 import { QuickStyleCards } from "./style-panel/QuickStyleCards";
+import { splitPatchByResponsiveLane, styleWithViewportPatch } from "./style-panel/viewport-style-patch";
 import { StyleFooterRow } from "./style-panel/StyleFooterRow";
 import { StyleGroupStack } from "./style-panel/groups/StyleGroupStack";
 
@@ -3003,56 +3004,27 @@ export function StylePanel({
         ? standaloneStyleDraftRef.current.style
         : selectedStandaloneStyleNode.props.style;
 
-    // Thirty style keys have no breakpoint lane in the renderer. Written into
-    // `responsive[viewport]` they validate, save, and read back into the field
-    // on reload — and emit nothing. The control reports success and the page
-    // never changes, which is the one kind of feedback an operator cannot
-    // argue with and cannot debug.
-    //
-    // So route those keys to the BASE style instead: the setting takes effect
-    // (for every screen size, the honest scope for a key with no per-screen
-    // lane) rather than disappearing. Hover and the transition escape already
-    // work exactly this way — see patchSelectedBaseStyle below.
+    // Keys with no breakpoint lane route to the BASE style rather than into a
+    // `responsive[viewport]` bucket that saves, reads back, and emits nothing.
+    // The split and the bucket choice are `viewport-style-patch.ts`, where they
+    // are unit-tested; what stays here is the base-style hand-off, which needs
+    // this component's own patcher.
     if (selectedViewport !== "desktop") {
-      const desktopOnly: Record<string, unknown> = {};
-      const scoped: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(patch)) {
-        (isResponsivePlumbedStyleKey(key) ? scoped : desktopOnly)[key] = value;
-      }
+      const { scoped, desktopOnly } = splitPatchByResponsiveLane(patch);
       if (Object.keys(desktopOnly).length > 0) {
-        patchSelectedBaseStyle(desktopOnly as Partial<BuilderNodeStyle>);
+        patchSelectedBaseStyle(desktopOnly);
         if (Object.keys(scoped).length === 0) return;
-        patch = scoped as Partial<BuilderNodeStyleValue>;
+        patch = scoped;
       }
     }
 
-    const nextStyle =
-      selectedViewport === "desktop"
-        ? cleanBuilderNodeStyle({
-            ...currentStyle,
-            ...patch,
-          })
-        : effectiveStandaloneStyleScope === "container"
-          ? cleanBuilderNodeStyle({
-              ...currentStyle,
-              containerQueries: {
-                ...(currentStyle?.containerQueries ?? {}),
-                [selectedViewport]: cleanBuilderNodeStyleValue({
-                  ...(currentStyle?.containerQueries?.[selectedViewport] ?? {}),
-                  ...patch,
-                }),
-              },
-            })
-        : cleanBuilderNodeStyle({
-            ...currentStyle,
-            responsive: {
-              ...(currentStyle?.responsive ?? {}),
-              [selectedViewport]: cleanBuilderNodeStyleValue({
-                ...(currentStyle?.responsive?.[selectedViewport] ?? {}),
-                ...patch,
-              }),
-            },
-          });
+    const nextStyle = styleWithViewportPatch(
+      currentStyle,
+      selectedViewport,
+      effectiveStandaloneStyleScope,
+      patch,
+      { cleanStyle: cleanBuilderNodeStyle, cleanValue: cleanBuilderNodeStyleValue },
+    );
     standaloneStyleDraftRef.current = {
       nodeId: selectedStandaloneStyleNode.id,
       style: nextStyle ? { ...nextStyle } : undefined,

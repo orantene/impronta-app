@@ -7,7 +7,6 @@
  */
 
 import { BoxModel } from "../../kit/box-model";
-import { NumberUnit, formatLength } from "../../kit/number-unit";
 import { CHROME } from "../../kit/tokens";
 import {
   GAP_PRESETS,
@@ -18,6 +17,7 @@ import {
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, InspectorOverrideBadge } from "../kit/inspector-ui";
 import { getStyleOverrideDevice } from "../responsive-field-state";
 import { parseCssLength } from "./length-utils";
+import { MarginSidesGroup, PaddingSidesGroup } from "./exact-spacing-sides";
 import {
   oneSlotFieldValue,
   oneSlotPatch,
@@ -218,178 +218,22 @@ export function SpacingBody({
             {!["divider", "spacer"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div
-                className="flex flex-col gap-2"
-                data-builder-node-style-control="exactPadding"
-              >
-                <span className={FIELD_LABEL}>Exact padding</span>
-                {/* Bind all four padding sides to the theme spacing rhythm in one
-                    move (or detach back to raw). Reads/writes paddingTop as the
-                    representative side; applies the same value to all sides. */}
-                <ThemeBindRow
-                  prop="paddingTop"
-                  value={selectedStandaloneViewportStyle?.paddingTop}
-                  onSet={(sentinel) =>
-                    patchSelectedStandaloneStyle({
-                      paddingTop: sentinel,
-                      paddingRight: sentinel,
-                      paddingBottom: sentinel,
-                      paddingLeft: sentinel,
-                    })
-                  }
-                  onDetach={() =>
-                    patchSelectedStandaloneStyle({
-                      paddingTop: undefined,
-                      paddingRight: undefined,
-                      paddingBottom: undefined,
-                      paddingLeft: undefined,
-                    })
-                  }
+              <>
+                {/* The eight per-side fields. They lead with the renderer's own
+                    spacing scale (`ScaleStepper`) and keep every exact number
+                    one level down behind "Exact values" — which opens itself
+                    when a side already holds a length the scale does not own,
+                    so an existing hand-authored design shows its real numbers
+                    instead of a step name nobody chose. */}
+                <PaddingSidesGroup
+                  patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
+                  selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
                 />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Top
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingTop)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          paddingTop: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Right
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingRight)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          paddingRight: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Bottom
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingBottom)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          paddingBottom: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Left
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingLeft)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          paddingLeft: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {!["divider", "spacer"].includes(
-              selectedStandaloneStyleNode.kind,
-            ) ? (
-              <div
-                className="flex flex-col gap-2"
-                data-builder-node-style-control="exactMargin"
-              >
-                <span className={FIELD_LABEL}>Exact margin</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Top
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.marginTopFree)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          marginTopFree: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Right
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.marginRightFree)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          marginRightFree: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Bottom
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.marginBottomFree)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          marginBottomFree: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Left
-                    </span>
-                    <NumberUnit
-                      units={["px", "%", "rem"]}
-                      defaultUnit="px"
-                      placeholder="Auto"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.marginLeftFree)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          marginLeftFree: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
+                <MarginSidesGroup
+                  patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
+                  selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+                />
+              </>
             ) : null}
 
             {["container", "split", "card", "cta_group", "carousel", "masonry"].includes(

@@ -51,6 +51,14 @@ export {
 // ── Primitives ─────────────────────────────────────────────────────────────
 export { FieldRow, resolveSearchTerms, type FieldRowProps } from "./field-row";
 export { PresetNumberRow, type PresetNumberRowProps } from "./preset-number-row";
+export { ScaleStepper, type ScaleStepperProps } from "./scale-stepper";
+export {
+  scaleStepperView,
+  scaleSteps,
+  stepScale,
+  type ScaleStepperMode,
+  type ScaleStepperView,
+} from "./scale-stepper-state";
 export {
   BorderWeightGlyph,
   CornerRadiusGlyph,

@@ -14,7 +14,8 @@ import { SegmentedField } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, InspectorOverrideBadge } from "../kit/inspector-ui";
 import { getStyleOverrideDevice } from "../responsive-field-state";
 import { parseCssLength } from "./length-utils";
-import { ALIGN_OPTIONS, BUILDER_NODE_FONT_STYLE_OPTIONS, BUILDER_NODE_FONT_WEIGHT_OPTIONS, BUILDER_NODE_STYLE_SIZE_OPTIONS, BUILDER_NODE_TEXT_DECORATION_OPTIONS, BUILDER_NODE_TEXT_TRANSFORM_OPTIONS, BUILDER_NODE_TEXT_WRAP_OPTIONS, BUILDER_NODE_TONE_OPTIONS, BUILDER_NODE_WHITE_SPACE_OPTIONS } from "./style-options";
+import { TypeScaleField } from "./type-scale-field";
+import { ALIGN_OPTIONS, BUILDER_NODE_FONT_STYLE_OPTIONS, BUILDER_NODE_FONT_WEIGHT_OPTIONS, BUILDER_NODE_TEXT_DECORATION_OPTIONS, BUILDER_NODE_TEXT_TRANSFORM_OPTIONS, BUILDER_NODE_TEXT_WRAP_OPTIONS, BUILDER_NODE_TONE_OPTIONS, BUILDER_NODE_WHITE_SPACE_OPTIONS } from "./style-options";
 import { StyleGroupOverrideDot } from "./section-shared";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import type { StandaloneSectionCtx } from "./section-types";
@@ -100,22 +101,14 @@ export function TypographyBody({
             {["heading", "paragraph", "button"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <SegmentedField
-                dataControl="size"
-                label="Size"
-                accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "size") ? (
-                  <InspectorOverrideBadge
-                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "size")!}
-                    onReset={
-                      selectedViewport !== "desktop"
-                        ? () => patchSelectedStandaloneStyle({ size: undefined })
-                        : undefined
-                    }
-                  />
-                ) : null}
-                value={selectedStandaloneViewportStyle?.size ?? ""}
-                onChange={(next) => setOrToggleStandaloneStyle("size", next)}
-                options={BUILDER_NODE_STYLE_SIZE_OPTIONS}
+              /* Tier tokens + the exact length, one field. See
+                 `type-scale-field.tsx` for why they used to be two. */
+              <TypeScaleField
+                patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
+                selectedStandaloneFullStyle={selectedStandaloneFullStyle}
+                selectedStandaloneStyleNode={selectedStandaloneStyleNode}
+                selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+                selectedViewport={selectedViewport}
               />
             ) : null}
 
@@ -196,94 +189,61 @@ export function TypographyBody({
                   />
                 ) : null}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div
-                    className="flex flex-col gap-1.5"
-                    data-builder-node-style-control="fontSize"
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className={FIELD_LABEL}>Size</span>
-                      {getStyleOverrideDevice(selectedStandaloneFullStyle, "fontSize") ? (
-                        <InspectorOverrideBadge
-                          device={getStyleOverrideDevice(selectedStandaloneFullStyle, "fontSize")!}
-                          onReset={
-                            selectedViewport !== "desktop"
-                              ? () => patchSelectedStandaloneStyle({ fontSize: undefined })
-                              : undefined
-                          }
-                        />
-                      ) : null}
-                    </div>
-                    <NumberUnit
-                      units={["px", "rem", "em"]}
-                      defaultUnit="px"
-                      placeholder="Theme"
-                      value={parseCssLength(
-                        selectedStandaloneViewportStyle?.fontSize,
-                      )}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          fontSize: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="lineHeight"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={FIELD_LABEL}>Line height</span>
+                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight") ? (
+                      <InspectorOverrideBadge
+                        device={getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight")!}
+                        onReset={
+                          selectedViewport !== "desktop"
+                            ? () => patchSelectedStandaloneStyle({ lineHeight: undefined })
+                            : undefined
+                        }
+                      />
+                    ) : null}
                   </div>
-                  <div
-                    className="flex flex-col gap-1.5"
-                    data-builder-node-style-control="lineHeight"
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className={FIELD_LABEL}>Line height</span>
-                      {getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight") ? (
-                        <InspectorOverrideBadge
-                          device={getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight")!}
-                          onReset={
-                            selectedViewport !== "desktop"
-                              ? () => patchSelectedStandaloneStyle({ lineHeight: undefined })
-                              : undefined
-                          }
-                        />
-                      ) : null}
-                    </div>
-                    <input
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      inputMode="decimal"
-                      placeholder="Theme"
-                      value={selectedStandaloneViewportStyle?.lineHeight ?? ""}
-                      onChange={(e) =>
-                        patchSelectedStandaloneStyle({
-                          lineHeight: e.target.value.trim() || undefined,
-                        })
-                      }
-                      className="px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12,
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.controlBorder}`,
-                        borderRadius: 7,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
-                    />
-                    {/* Tactile slider — only drives a unitless multiplier; leaves
-                        the field empty (theme default) until dragged. */}
-                    <input
-                      type="range"
-                      aria-label="Line height slider"
-                      data-builder-node-style-slider="lineHeight"
-                      min={0.8}
-                      max={2.6}
-                      step={0.05}
-                      value={Number(selectedStandaloneViewportStyle?.lineHeight) || 1.5}
-                      onChange={(e) =>
-                        patchSelectedStandaloneStyle({ lineHeight: e.target.value })
-                      }
-                      style={{ width: "100%", accentColor: CHROME.ink, cursor: "pointer" }}
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    inputMode="decimal"
+                    placeholder="Theme"
+                    value={selectedStandaloneViewportStyle?.lineHeight ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        lineHeight: e.target.value.trim() || undefined,
+                      })
+                    }
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                  />
+                  {/* Tactile slider — only drives a unitless multiplier; leaves
+                      the field empty (theme default) until dragged. */}
+                  <input
+                    type="range"
+                    aria-label="Line height slider"
+                    data-builder-node-style-slider="lineHeight"
+                    min={0.8}
+                    max={2.6}
+                    step={0.05}
+                    value={Number(selectedStandaloneViewportStyle?.lineHeight) || 1.5}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({ lineHeight: e.target.value })
+                    }
+                    style={{ width: "100%", accentColor: CHROME.ink, cursor: "pointer" }}
+                  />
                 </div>
 
                 <div
