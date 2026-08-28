@@ -94,7 +94,7 @@ export function CtaBannerEditor({
                   ? {
                       label: e.target.value,
                       href:
-                        value.primaryCta?.href ?? coerceLegacyHref("/contact"),
+                        value.primaryCta?.href ?? coerceLegacyHref("/directory"),
                     }
                   : undefined,
               })

@@ -11,8 +11,8 @@ export function EventListingEditor({ initial, onChange, tenantId }: SectionEdito
     headline: initial.headline ?? "Upcoming events.",
     events: initial.events ?? [
       { date: "Apr 28", time: "7pm", title: "Spring open studio", description: "Drinks and demos.", location: "Studio" },
-      { date: "May 12", time: "2pm", title: "Bridal trial day", description: "By appointment.", location: "Studio", rsvpUrl: "/contact" },
-      { date: "Jun 02", time: "All day", title: "Editorial workshop", description: "Half-day intensive for working artists.", location: "Studio", category: "Workshop", rsvpUrl: "/contact", rsvpLabel: "Register" },
+      { date: "May 12", time: "2pm", title: "Bridal trial day", description: "By appointment.", location: "Studio", rsvpUrl: "/directory" },
+      { date: "Jun 02", time: "All day", title: "Editorial workshop", description: "Half-day intensive for working artists.", location: "Studio", category: "Workshop", rsvpUrl: "/directory", rsvpLabel: "Register" },
     ],
     variant: initial.variant ?? "list",
     presentation: initial.presentation,
