@@ -42,13 +42,9 @@ export type GetStartedSignedIn = {
   } | null;
 };
 
-/**
- * Pre-formatted monthly prices per tier slug, in the visitor's resolved
- * currency. Plumbed from the server page (which calls
- * `loadMarketingTiers`) so the hint copy stays in sync with whatever
- * `/platform/admin/pricing` currently has set. Pass `undefined` to fall
- * back to USD defaults.
- */
+/** Pre-formatted monthly prices per tier slug, in the visitor's resolved
+ *  currency, from `loadMarketingTiers` so hint copy tracks what Commerce has
+ *  set. `undefined` falls back to USD defaults. */
 export type {
   GetStartedTierPrices,
   GetStartedTierNames,
@@ -83,8 +79,10 @@ type Props = {
    * renames without a redeploy.
    */
   tierNames?: GetStartedTierNames;
-  /** Pre-formatted promo label (Phase 3, appended to fine-print). */
+  /** Pre-formatted promo label (appended to fine-print). */
   appliedDiscountLabel?: string;
+  /** Server-validated promo code; rides the lead row to checkout. */
+  promoCode?: string;
 };
 
 // getAudienceOptions + getFormCopy live in ./get-started-form-copy.ts
@@ -123,6 +121,7 @@ export function GetStartedForm({
   tierPrices,
   tierNames,
   appliedDiscountLabel,
+  promoCode,
 }: Props) {
   const audienceOptions = getAudienceOptions(locale);
   const t = getFormCopy(locale);
@@ -497,6 +496,7 @@ export function GetStartedForm({
       <input type="hidden" name="utm_content" value={attributionRef.current.utm_content ?? ""} />
       <input type="hidden" name="referrer" value={attributionRef.current.referrer ?? ""} />
       <input type="hidden" name="sourcePage" value={sourcePage} />
+      <input type="hidden" name="promoCode" value={promoCode ?? ""} />
       <input type="hidden" name="tierInterest" value={tier ?? ""} />
       <input type="hidden" name="audience" value={audience} />
       <input type="hidden" name="rosterSize" value={rosterSize} />

@@ -68,6 +68,14 @@ const SignupSchema = z.object({
   utm_content: z.string().max(120).optional(),
   referrer: z.string().max(500).optional(),
   sourcePage: z.string().max(200).optional(),
+  /** Validated on the page before it got here; re-validated at checkout. */
+  promoCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(32)
+    .regex(/^[A-Z0-9_-]*$/, "Invalid promo code.")
+    .optional(),
 });
 
 export type GetStartedFieldErrors = Partial<
@@ -212,6 +220,7 @@ export async function submitGetStartedSignup(
     utm_content: (formData.get("utm_content") as string | null) || undefined,
     referrer: (formData.get("referrer") as string | null) || undefined,
     sourcePage: (formData.get("sourcePage") as string | null) || undefined,
+    promoCode: (formData.get("promoCode") as string | null) || undefined,
   };
   const parsed = SignupSchema.safeParse(raw);
   if (!parsed.success) {
@@ -343,6 +352,9 @@ export async function submitGetStartedSignup(
       utm_content: input.utm_content ?? null,
       referrer: input.referrer?.slice(0, 500) ?? null,
       source_page: input.sourcePage ?? "/get-started",
+      // Carried, not trusted: the checkout resolver validates it again before
+      // it can discount a single cent.
+      promo_code: input.promoCode || null,
       ip_hash: ipHash,
       user_agent: userAgent,
       ...(actorUserId ? { claimed_by_profile_id: actorUserId } : {}),

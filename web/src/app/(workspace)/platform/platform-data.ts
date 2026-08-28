@@ -704,3 +704,69 @@ export async function loadPlatformAuditLog(opts?: {
   });
 }
 
+
+// ─── Subscription attention counts (Commerce → Revenue) ──────────────────────
+
+/**
+ * The two subscription states that need a human but are NOT money problems, so
+ * they do not belong in `loadPlatformMrr` (which answers "what are we billing
+ * this month"). Both are leading indicators the Revenue tab can act on:
+ *
+ *   • `cancelingAtPeriodEnd` — still paying, already decided to leave. This is
+ *     the only window in which a save attempt is possible; once it lapses it is
+ *     a cancellation statistic.
+ *   • `trialEndingSoon` — trials converting inside a week. They contribute
+ *     nothing to MRR today (see platform-mrr.ts) and everything to it shortly.
+ *
+ * Counted across both subscription tables. Head-only counts, so this stays
+ * cheap enough to sit in the Revenue tab's Promise.all.
+ */
+export type SubscriptionAttentionCounts = {
+  cancelingAtPeriodEnd: number;
+  trialEndingSoon: number;
+};
+
+const TRIAL_ENDING_SOON_DAYS = 7;
+
+export async function loadSubscriptionAttentionCounts(): Promise<SubscriptionAttentionCounts> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { cancelingAtPeriodEnd: 0, trialEndingSoon: 0 };
+
+  const now = new Date();
+  const soon = new Date(now.getTime() + TRIAL_ENDING_SOON_DAYS * 86400000).toISOString();
+  const nowIso = now.toISOString();
+
+  const [wsCancel, talentCancel, wsTrial, talentTrial] = await Promise.all([
+    sb
+      .from("workspace_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("cancel_at_period_end", true)
+      .eq("status", "active"),
+    sb
+      .from("talent_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("cancel_at_period_end", true)
+      .eq("status", "active"),
+    sb
+      .from("workspace_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "trialing")
+      .gte("trial_end", nowIso)
+      .lte("trial_end", soon),
+    sb
+      .from("talent_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "trialing")
+      .gte("trial_end", nowIso)
+      .lte("trial_end", soon),
+  ]);
+
+  for (const res of [wsCancel, talentCancel, wsTrial, talentTrial]) {
+    if (res.error) logServerError("platform.subscription-attention", res.error);
+  }
+
+  return {
+    cancelingAtPeriodEnd: (wsCancel.count ?? 0) + (talentCancel.count ?? 0),
+    trialEndingSoon: (wsTrial.count ?? 0) + (talentTrial.count ?? 0),
+  };
+}

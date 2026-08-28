@@ -17,7 +17,7 @@
  * (no `tenant_id`). Registered in `eslint-suppressions.json`.
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -25,7 +25,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 
-const PRICING_PATH = "/platform/admin/pricing";
 
 // ─── Auth gate (small duplication — kept local for symmetry with the
 //     other admin-product-* files) ────────────────────────────────────
@@ -113,8 +112,7 @@ export async function addFeature(raw: AddFeatureInput): Promise<AddFeatureResult
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
-  revalidatePath("/pricing");
+  revalidateCommerceSurfaces();
   return { ok: true, featureId: (insert.data as { id: string }).id };
 }
 
@@ -179,8 +177,7 @@ export async function updateFeature(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
-  revalidatePath("/pricing");
+  revalidateCommerceSurfaces();
   return { ok: true };
 }
 
@@ -224,8 +221,7 @@ export async function archiveFeature(raw: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
-  revalidatePath("/pricing");
+  revalidateCommerceSurfaces();
   return { ok: true };
 }
 
@@ -322,7 +318,6 @@ export async function reorderFeature(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
-  revalidatePath("/pricing");
+  revalidateCommerceSurfaces();
   return { ok: true, moved: true };
 }

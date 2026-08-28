@@ -78,6 +78,20 @@ export const BILLING_EN = {
     fieldTrialEnds: "Trial ends",
     button: "Manage subscription →",
   },
+  "billing.discount_ending.workspace": {
+    subject: "Your discount ends soon",
+    preview: "Your discount ends soon",
+    heading: "Your discount ends soon",
+    introWithDate:
+      "Hi {name}, the discount on your {plan} plan ends on {discountEnds}. From your next invoice you will be billed the standard rate.",
+    introNoDate:
+      "Hi {name}, the discount on your {plan} plan is ending. From your next invoice you will be billed the standard rate.",
+    fieldPlan: "Plan",
+    fieldDiscountEnds: "Discount ends",
+    fieldNextAmount: "Next invoice",
+    note: "Nothing changes today, and you do not need to do anything. We are telling you early so the amount is never a surprise.",
+    button: "Manage billing",
+  },
   "billing.trial_will_end.workspace": {
     subject: "Your trial is ending soon",
     preview: "Your trial is ending soon",
@@ -146,6 +160,20 @@ export const BILLING_ES: typeof BILLING_EN = {
     fieldPlan: "Plan",
     fieldTrialEnds: "La prueba termina",
     button: "Administrar suscripción →",
+  },
+  "billing.discount_ending.workspace": {
+    subject: "Tu descuento termina pronto",
+    preview: "Tu descuento termina pronto",
+    heading: "Tu descuento termina pronto",
+    introWithDate:
+      "Hola {name}, el descuento de tu plan {plan} termina el {discountEnds}. Desde tu próxima factura se te cobrará la tarifa habitual.",
+    introNoDate:
+      "Hola {name}, el descuento de tu plan {plan} está por terminar. Desde tu próxima factura se te cobrará la tarifa habitual.",
+    fieldPlan: "Plan",
+    fieldDiscountEnds: "El descuento termina",
+    fieldNextAmount: "Próxima factura",
+    note: "Hoy no cambia nada y no tienes que hacer nada. Te avisamos con tiempo para que el monto nunca sea una sorpresa.",
+    button: "Gestionar facturación",
   },
   "billing.trial_will_end.workspace": {
     subject: "Tu prueba está por terminar",

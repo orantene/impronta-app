@@ -170,15 +170,21 @@ export default async function GetStartedPage({
   // no-discount rendering (we don't surface "Code expired" to the
   // visitor; that would confuse anyone who landed on a stale link).
   //
-  // For Phase 3 we render the LABEL (e.g. "50% off · LATAM50") on the
-  // form chip + fine-print. Phase 8 (Stripe Checkout) will re-validate
-  // the code server-side at submit and pass `promotion_code` to the
-  // Checkout Session so Stripe applies the math.
+  // The LABEL (e.g. "50% off · LATAM50") renders on the form chip and the
+  // fine-print; the CODE rides a hidden field onto the lead row, and
+  // `resolveCheckoutDiscount` re-validates it server-side before it reaches
+  // the Checkout Session. Until that thread existed, the visitor saw a promo
+  // chip and then paid full price unless they retyped the code at Stripe.
   let appliedDiscountLabel: string | null = null;
+  let appliedPromoCode: string | null = null;
   if (resolved.promo) {
     const v = await validateDiscount(resolved.promo);
     if (v.ok) {
       appliedDiscountLabel = v.label;
+      // The NORMALIZED code off the row, never the raw URL param. It rides the
+      // lead row through to checkout, where the server validates it a second
+      // time before it can discount anything.
+      appliedPromoCode = v.discount.code;
     }
   }
 
@@ -236,6 +242,7 @@ export default async function GetStartedPage({
           network: workspaceTiers.find((t) => t.key === "hub")?.name,
         }}
         appliedDiscountLabel={appliedDiscountLabel}
+        appliedPromoCode={appliedPromoCode}
       />
       <WhoItsForSection locale={locale} />
       <HowItWorksSection locale={locale} />
@@ -276,6 +283,7 @@ function HeroSection({
   tierPrices,
   tierNames,
   appliedDiscountLabel,
+  appliedPromoCode,
 }: {
   locale: string;
   appLoginUrl: string;
@@ -291,8 +299,11 @@ function HeroSection({
   /** Live display names from product_tiers.name, same shape as tierPrices. */
   tierNames?: Partial<Record<TierKey, string | undefined>>;
   /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
-   *  when no ?promo=CODE is applied. Phase 3. */
+   *  when no ?promo=CODE is applied. */
   appliedDiscountLabel?: string | null;
+  /** The normalized code behind that label, carried onto the lead row so it
+   *  survives the hop to checkout. Re-validated server-side there. */
+  appliedPromoCode?: string | null;
 }) {
   const c = pickLocale(locale, {
     en: {
@@ -439,6 +450,7 @@ function HeroSection({
               tierPrices={tierPrices}
               tierNames={tierNames}
               appliedDiscountLabel={appliedDiscountLabel ?? undefined}
+              promoCode={appliedPromoCode ?? undefined}
             />
             {initialSignedIn ? null : (
               <p

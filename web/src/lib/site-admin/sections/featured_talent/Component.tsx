@@ -695,6 +695,12 @@ export async function FeaturedTalentComponent({
                   talentProfileId={card.id}
                   profileCode={card.profileCode}
                   displayName={card.displayName}
+                  // Without this the lineup shows a grey placeholder for a
+                  // beat: registerCartTalent is the OPTIMISTIC layer, so a null
+                  // portrait falls through to useResolveCartPortraits, which
+                  // debounces 250ms and then does a round-trip. The card is
+                  // already rendering this exact image, so hand it over.
+                  portraitUrl={card.thumbnailUrl}
                   sourcePage="/featured-talent"
                   variant="compact"
                   className="absolute right-2.5 top-2.5 z-[2]"

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -354,6 +354,132 @@ export type Database = {
         }
         Relationships: []
       }
+      _impronta_pages_backup_20260817: {
+        Row: {
+          blocks: Json | null
+          body: string | null
+          canonical_url: string | null
+          created_at: string | null
+          created_by: string | null
+          draft_seq: number | null
+          edit_session_id: string | null
+          hero: Json | null
+          id: string | null
+          include_in_sitemap: boolean | null
+          is_freeform: boolean | null
+          is_system_owned: boolean | null
+          json_ld: Json | null
+          locale: string | null
+          meta_description: string | null
+          meta_title: string | null
+          noindex: boolean | null
+          og_description: string | null
+          og_image_media_asset_id: string | null
+          og_image_url: string | null
+          og_title: string | null
+          published_at: string | null
+          published_homepage_snapshot: Json | null
+          published_page_snapshot: Json | null
+          scheduled_by: string | null
+          scheduled_publish_at: string | null
+          scheduled_revision_id: string | null
+          slug: string | null
+          status: Database["public"]["Enums"]["cms_page_status"] | null
+          style_classes: Json | null
+          style_presets: Json | null
+          system_template_key: string | null
+          template_key: string | null
+          template_schema_version: number | null
+          tenant_id: string | null
+          title: string | null
+          updated_at: string | null
+          updated_by: string | null
+          version: number | null
+        }
+        Insert: {
+          blocks?: Json | null
+          body?: string | null
+          canonical_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          draft_seq?: number | null
+          edit_session_id?: string | null
+          hero?: Json | null
+          id?: string | null
+          include_in_sitemap?: boolean | null
+          is_freeform?: boolean | null
+          is_system_owned?: boolean | null
+          json_ld?: Json | null
+          locale?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          noindex?: boolean | null
+          og_description?: string | null
+          og_image_media_asset_id?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          published_at?: string | null
+          published_homepage_snapshot?: Json | null
+          published_page_snapshot?: Json | null
+          scheduled_by?: string | null
+          scheduled_publish_at?: string | null
+          scheduled_revision_id?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["cms_page_status"] | null
+          style_classes?: Json | null
+          style_presets?: Json | null
+          system_template_key?: string | null
+          template_key?: string | null
+          template_schema_version?: number | null
+          tenant_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: number | null
+        }
+        Update: {
+          blocks?: Json | null
+          body?: string | null
+          canonical_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          draft_seq?: number | null
+          edit_session_id?: string | null
+          hero?: Json | null
+          id?: string | null
+          include_in_sitemap?: boolean | null
+          is_freeform?: boolean | null
+          is_system_owned?: boolean | null
+          json_ld?: Json | null
+          locale?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          noindex?: boolean | null
+          og_description?: string | null
+          og_image_media_asset_id?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          published_at?: string | null
+          published_homepage_snapshot?: Json | null
+          published_page_snapshot?: Json | null
+          scheduled_by?: string | null
+          scheduled_publish_at?: string | null
+          scheduled_revision_id?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["cms_page_status"] | null
+          style_classes?: Json | null
+          style_presets?: Json | null
+          system_template_key?: string | null
+          template_key?: string | null
+          template_schema_version?: number | null
+          tenant_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -410,7 +536,9 @@ export type Database = {
           created_at: string
           default_coordinator_user_id: string | null
           default_currency: string
+          discover_exposure_enabled: boolean
           display_name: string
+          hub_exposure_tenant_ids: string[] | null
           id: string
           kind: Database["public"]["Enums"]["organization_kind"]
           onboarding_completed_at: string | null
@@ -431,6 +559,7 @@ export type Database = {
           talent_seat_limit: number | null
           template_key: string
           updated_at: string
+          workspace_type: string
         }
         Insert: {
           accepts_open_applications?: boolean
@@ -439,7 +568,9 @@ export type Database = {
           created_at?: string
           default_coordinator_user_id?: string | null
           default_currency?: string
+          discover_exposure_enabled?: boolean
           display_name: string
+          hub_exposure_tenant_ids?: string[] | null
           id?: string
           kind?: Database["public"]["Enums"]["organization_kind"]
           onboarding_completed_at?: string | null
@@ -460,6 +591,7 @@ export type Database = {
           talent_seat_limit?: number | null
           template_key?: string
           updated_at?: string
+          workspace_type?: string
         }
         Update: {
           accepts_open_applications?: boolean
@@ -468,7 +600,9 @@ export type Database = {
           created_at?: string
           default_coordinator_user_id?: string | null
           default_currency?: string
+          discover_exposure_enabled?: boolean
           display_name?: string
+          hub_exposure_tenant_ids?: string[] | null
           id?: string
           kind?: Database["public"]["Enums"]["organization_kind"]
           onboarding_completed_at?: string | null
@@ -489,6 +623,7 @@ export type Database = {
           talent_seat_limit?: number | null
           template_key?: string
           updated_at?: string
+          workspace_type?: string
         }
         Relationships: []
       }
@@ -3160,6 +3295,7 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["builder_template_kind"]
           locked_props: string[]
+          preview_image_url: string | null
           published_at: string | null
           required_plan: string
           required_talent_tier: string | null
@@ -3201,6 +3337,7 @@ export type Database = {
           id?: string
           kind: Database["public"]["Enums"]["builder_template_kind"]
           locked_props?: string[]
+          preview_image_url?: string | null
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
@@ -3242,6 +3379,7 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["builder_template_kind"]
           locked_props?: string[]
+          preview_image_url?: string | null
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
@@ -4123,6 +4261,79 @@ export type Database = {
           },
         ]
       }
+      cms_code_snippets: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean
+          kind: string
+          name: string
+          placement: string
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          src_url: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          kind: string
+          name: string
+          placement?: string
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          src_url?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          kind?: string
+          name?: string
+          placement?: string
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          src_url?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_code_snippets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cms_code_snippets_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cms_code_snippets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_collection_items: {
         Row: {
           collection_id: string
@@ -4225,6 +4436,60 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cms_form_submission_attachments: {
+        Row: {
+          bucket_id: string
+          byte_size: number
+          created_at: string
+          field_name: string
+          id: string
+          mime_type: string
+          original_filename: string
+          storage_path: string
+          submission_id: string
+          tenant_id: string
+        }
+        Insert: {
+          bucket_id?: string
+          byte_size: number
+          created_at?: string
+          field_name: string
+          id?: string
+          mime_type: string
+          original_filename: string
+          storage_path: string
+          submission_id: string
+          tenant_id: string
+        }
+        Update: {
+          bucket_id?: string
+          byte_size?: number
+          created_at?: string
+          field_name?: string
+          id?: string
+          mime_type?: string
+          original_filename?: string
+          storage_path?: string
+          submission_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_form_submission_attachments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "cms_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cms_form_submission_attachments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -4469,6 +4734,7 @@ export type Database = {
           created_by: string | null
           id: string
           kind: Database["public"]["Enums"]["cms_revision_kind"]
+          label: string | null
           page_id: string
           snapshot: Json
           template_schema_version: number
@@ -4480,6 +4746,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind: Database["public"]["Enums"]["cms_revision_kind"]
+          label?: string | null
           page_id: string
           snapshot: Json
           template_schema_version?: number
@@ -4491,6 +4758,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["cms_revision_kind"]
+          label?: string | null
           page_id?: string
           snapshot?: Json
           template_schema_version?: number
@@ -5417,6 +5685,78 @@ export type Database = {
           },
         ]
       }
+      discount_redemptions: {
+        Row: {
+          discount_id: string
+          id: string
+          redeemed_at: string
+          stripe_event_id: string
+          stripe_subscription_id: string | null
+          subject_type: string
+          talent_profile_id: string | null
+          tenant_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          discount_id: string
+          id?: string
+          redeemed_at?: string
+          stripe_event_id: string
+          stripe_subscription_id?: string | null
+          subject_type: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          discount_id?: string
+          id?: string
+          redeemed_at?: string
+          stripe_event_id?: string
+          stripe_subscription_id?: string | null
+          subject_type?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_redemptions_discount_id_fkey"
+            columns: ["discount_id"]
+            isOneToOne: false
+            referencedRelation: "product_discounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_redemptions_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_redemptions_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_redemptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_suppressions: {
         Row: {
           created_at: string
@@ -5661,6 +6001,7 @@ export type Database = {
           current_offer_id: string | null
           deadline_at: string | null
           duplicate_of_inquiry_id: string | null
+          email_mirror_muted_at: string | null
           equipment_notes: string | null
           event_date: string | null
           event_location: string | null
@@ -5729,6 +6070,7 @@ export type Database = {
           current_offer_id?: string | null
           deadline_at?: string | null
           duplicate_of_inquiry_id?: string | null
+          email_mirror_muted_at?: string | null
           equipment_notes?: string | null
           event_date?: string | null
           event_location?: string | null
@@ -5797,6 +6139,7 @@ export type Database = {
           current_offer_id?: string | null
           deadline_at?: string | null
           duplicate_of_inquiry_id?: string | null
+          email_mirror_muted_at?: string | null
           equipment_notes?: string | null
           event_date?: string | null
           event_location?: string | null
@@ -7545,11 +7888,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_collection: boolean
           is_private: boolean
           name: string
           share_expires_at: string | null
           share_token: string | null
           share_view_count: number
+          shoot_date: string | null
+          system_key: string | null
           tenant_id: string
           updated_at: string
         }
@@ -7558,11 +7904,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_collection?: boolean
           is_private?: boolean
           name: string
           share_expires_at?: string | null
           share_token?: string | null
           share_view_count?: number
+          shoot_date?: string | null
+          system_key?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -7571,17 +7920,173 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_collection?: boolean
           is_private?: boolean
           name?: string
           share_expires_at?: string | null
           share_token?: string | null
           share_view_count?: number
+          shoot_date?: string | null
+          system_key?: string | null
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "media_folders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_grants: {
+        Row: {
+          asset_id: string
+          created_at: string
+          grant_kind: string
+          granted_by: string
+          id: string
+          revoked_at: string | null
+          scope: string
+          source_request_id: string | null
+          tenant_id: string | null
+          watermark_required: boolean
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          grant_kind: string
+          granted_by: string
+          id?: string
+          revoked_at?: string | null
+          scope: string
+          source_request_id?: string | null
+          tenant_id?: string | null
+          watermark_required?: boolean
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          grant_kind?: string
+          granted_by?: string
+          id?: string
+          revoked_at?: string | null
+          scope?: string
+          source_request_id?: string | null
+          tenant_id?: string | null
+          watermark_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_grants_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_grants_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_grants_source_request_id_fkey"
+            columns: ["source_request_id"]
+            isOneToOne: false
+            referencedRelation: "talent_agency_permission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_grants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_release_bake_failures: {
+        Row: {
+          asset_id: string
+          attempts: number
+          first_failed_at: string
+          id: string
+          last_failed_at: string
+          request_id: string
+          resolution: string | null
+          resolved_at: string | null
+          talent_profile_id: string
+          target_tenant_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          asset_id: string
+          attempts?: number
+          first_failed_at?: string
+          id?: string
+          last_failed_at?: string
+          request_id: string
+          resolution?: string | null
+          resolved_at?: string | null
+          talent_profile_id: string
+          target_tenant_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          asset_id?: string
+          attempts?: number
+          first_failed_at?: string
+          id?: string
+          last_failed_at?: string
+          request_id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          talent_profile_id?: string
+          target_tenant_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_release_bake_failures_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_release_bake_failures_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "talent_agency_permission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_release_bake_failures_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_release_bake_failures_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_release_bake_failures_target_tenant_id_fkey"
+            columns: ["target_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_release_bake_failures_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
@@ -8807,18 +9312,26 @@ export type Database = {
       }
       product_discounts: {
         Row: {
+          applies_family: string | null
           applies_to: Json
+          campaign: string | null
           code: string
           created_at: string
           currency: string | null
+          duration: string
+          duration_months: number | null
           ends_at: string | null
+          first_time_only: boolean
           id: string
           is_active: boolean
           kind: string
           max_redemptions: number | null
+          minimum_amount_cents: number | null
+          minimum_amount_currency: string | null
           name: string
           per_customer_limit: number
           redemption_count: number
+          source: string
           starts_at: string | null
           stripe_coupon_id: string | null
           stripe_promotion_code_id: string | null
@@ -8826,18 +9339,26 @@ export type Database = {
           value: number
         }
         Insert: {
+          applies_family?: string | null
           applies_to?: Json
+          campaign?: string | null
           code: string
           created_at?: string
           currency?: string | null
+          duration?: string
+          duration_months?: number | null
           ends_at?: string | null
+          first_time_only?: boolean
           id?: string
           is_active?: boolean
           kind: string
           max_redemptions?: number | null
+          minimum_amount_cents?: number | null
+          minimum_amount_currency?: string | null
           name: string
           per_customer_limit?: number
           redemption_count?: number
+          source?: string
           starts_at?: string | null
           stripe_coupon_id?: string | null
           stripe_promotion_code_id?: string | null
@@ -8845,18 +9366,26 @@ export type Database = {
           value: number
         }
         Update: {
+          applies_family?: string | null
           applies_to?: Json
+          campaign?: string | null
           code?: string
           created_at?: string
           currency?: string | null
+          duration?: string
+          duration_months?: number | null
           ends_at?: string | null
+          first_time_only?: boolean
           id?: string
           is_active?: boolean
           kind?: string
           max_redemptions?: number | null
+          minimum_amount_cents?: number | null
+          minimum_amount_currency?: string | null
           name?: string
           per_customer_limit?: number
           redemption_count?: number
+          source?: string
           starts_at?: string | null
           stripe_coupon_id?: string | null
           stripe_promotion_code_id?: string | null
@@ -9741,6 +10270,7 @@ export type Database = {
           ip_hash: string | null
           name: string
           notes: string | null
+          promo_code: string | null
           provisioned_tenant_id: string | null
           referrer: string | null
           roster_size: string
@@ -9768,6 +10298,7 @@ export type Database = {
           ip_hash?: string | null
           name: string
           notes?: string | null
+          promo_code?: string | null
           provisioned_tenant_id?: string | null
           referrer?: string | null
           roster_size: string
@@ -9795,6 +10326,7 @@ export type Database = {
           ip_hash?: string | null
           name?: string
           notes?: string | null
+          promo_code?: string | null
           provisioned_tenant_id?: string | null
           referrer?: string | null
           roster_size?: string
@@ -10197,6 +10729,111 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "subscription_cancellations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_discounts: {
+        Row: {
+          applied_at: string | null
+          applied_subscription_id: string | null
+          created_at: string
+          currency: string | null
+          duration: string
+          duration_months: number | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: string
+          note: string | null
+          set_by: string | null
+          status: string
+          stripe_coupon_id: string | null
+          subject_type: string
+          sync_error: string | null
+          talent_profile_id: string | null
+          tenant_id: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_subscription_id?: string | null
+          created_at?: string
+          currency?: string | null
+          duration?: string
+          duration_months?: number | null
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          set_by?: string | null
+          status?: string
+          stripe_coupon_id?: string | null
+          subject_type: string
+          sync_error?: string | null
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          applied_at?: string | null
+          applied_subscription_id?: string | null
+          created_at?: string
+          currency?: string | null
+          duration?: string
+          duration_months?: number | null
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          set_by?: string | null
+          status?: string
+          stripe_coupon_id?: string | null
+          subject_type?: string
+          sync_error?: string | null
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_discounts_ended_by_fkey"
+            columns: ["ended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_discounts_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_discounts_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_discounts_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_discounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
@@ -11503,6 +12140,7 @@ export type Database = {
           is_home: boolean
           json_ld: Json | null
           meta_description: string | null
+          meta_title: string | null
           nav_label: string | null
           noindex: boolean | null
           og_description: string | null
@@ -11530,6 +12168,7 @@ export type Database = {
           is_home?: boolean
           json_ld?: Json | null
           meta_description?: string | null
+          meta_title?: string | null
           nav_label?: string | null
           noindex?: boolean | null
           og_description?: string | null
@@ -11557,6 +12196,7 @@ export type Database = {
           is_home?: boolean
           json_ld?: Json | null
           meta_description?: string | null
+          meta_title?: string | null
           nav_label?: string | null
           noindex?: boolean | null
           og_description?: string | null
@@ -11682,6 +12322,60 @@ export type Database = {
           },
         ]
       }
+      talent_press_items: {
+        Row: {
+          created_at: string
+          id: string
+          outlet: string
+          published_on: string | null
+          quote: string | null
+          sort_order: number
+          talent_profile_id: string
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          outlet: string
+          published_on?: string | null
+          quote?: string | null
+          sort_order?: number
+          talent_profile_id: string
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          outlet?: string
+          published_on?: string | null
+          quote?: string | null
+          sort_order?: number
+          talent_profile_id?: string
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_press_items_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_press_items_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_profile_change_requests: {
         Row: {
           changes: Json
@@ -11742,6 +12436,57 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_profile_embeds: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          provider: string
+          sort_order: number
+          talent_profile_id: string
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          provider: string
+          sort_order?: number
+          talent_profile_id: string
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          provider?: string
+          sort_order?: number
+          talent_profile_id?: string
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_profile_embeds_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_profile_embeds_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -13379,9 +14124,13 @@ export type Database = {
           cancelled_at: string | null
           created_at: string
           current_period_end: string | null
+          discount_amount_off_cents: number | null
+          discount_ends_at: string | null
+          discount_percent_off: number | null
           id: string
           plan_key: string
           status: string
+          stripe_coupon_id: string | null
           stripe_customer_id: string
           stripe_price_id: string | null
           stripe_subscription_id: string
@@ -13395,9 +14144,13 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string
           current_period_end?: string | null
+          discount_amount_off_cents?: number | null
+          discount_ends_at?: string | null
+          discount_percent_off?: number | null
           id?: string
           plan_key: string
           status?: string
+          stripe_coupon_id?: string | null
           stripe_customer_id: string
           stripe_price_id?: string | null
           stripe_subscription_id: string
@@ -13411,9 +14164,13 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string
           current_period_end?: string | null
+          discount_amount_off_cents?: number | null
+          discount_ends_at?: string | null
+          discount_percent_off?: number | null
           id?: string
           plan_key?: string
           status?: string
+          stripe_coupon_id?: string | null
           stripe_customer_id?: string
           stripe_price_id?: string | null
           stripe_subscription_id?: string
@@ -14850,9 +15607,13 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          discount_amount_off_cents: number | null
+          discount_ends_at: string | null
+          discount_percent_off: number | null
           id: string
           plan_key: string
           status: string
+          stripe_coupon_id: string | null
           stripe_customer_id: string
           stripe_price_id: string | null
           stripe_subscription_id: string
@@ -14866,9 +15627,13 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          discount_amount_off_cents?: number | null
+          discount_ends_at?: string | null
+          discount_percent_off?: number | null
           id?: string
           plan_key: string
           status?: string
+          stripe_coupon_id?: string | null
           stripe_customer_id: string
           stripe_price_id?: string | null
           stripe_subscription_id: string
@@ -14882,9 +15647,13 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          discount_amount_off_cents?: number | null
+          discount_ends_at?: string | null
+          discount_percent_off?: number | null
           id?: string
           plan_key?: string
           status?: string
+          stripe_coupon_id?: string | null
           stripe_customer_id?: string
           stripe_price_id?: string | null
           stripe_subscription_id?: string
@@ -15080,6 +15849,10 @@ export type Database = {
         Args: { p_limit: number; p_tenant_id: string }
         Returns: number
       }
+      _form_attachments_tenant_from_path: {
+        Args: { name: string }
+        Returns: string
+      }
       _inquiry_files_tenant_from_path: {
         Args: { name: string }
         Returns: string
@@ -15124,6 +15897,31 @@ export type Database = {
       cms_page_revisions_trim: {
         Args: { p_keep?: number; p_page_id: string; p_tenant_id: string }
         Returns: number
+      }
+      cms_public_code_snippets_for_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean
+          kind: string
+          name: string
+          placement: string
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          src_url: string | null
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "cms_code_snippets"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       cms_public_navigation_for_tenant: {
         Args: { p_tenant_id: string }
@@ -15340,38 +16138,74 @@ export type Database = {
         Args: { p_legacy_id: string }
         Returns: string
       }
-      directory_facet_boolean_field_value_counts: {
-        Args: {
-          p_boolean_filters: Json
-          p_field_definition_id: string
-          p_gender_filter: string[]
-          p_height_max: number
-          p_height_min: number
-          p_location_city_slug: string
-          p_search: string
-          p_selected_taxonomy_ids: string[]
-          p_text_filters: Json
-        }
-        Returns: {
-          profile_count: number
-          value_bool: boolean
-        }[]
-      }
-      directory_facet_gender_value_counts: {
-        Args: {
-          p_boolean_filters: Json
-          p_height_max: number
-          p_height_min: number
-          p_location_city_slug: string
-          p_search: string
-          p_selected_taxonomy_ids: string[]
-          p_text_filters: Json
-        }
-        Returns: {
-          gender_value: string
-          profile_count: number
-        }[]
-      }
+      directory_facet_boolean_field_value_counts:
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_field_definition_id: string
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_text_filters: Json
+            }
+            Returns: {
+              profile_count: number
+              value_bool: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_field_definition_id: string
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_tenant_id: string
+              p_text_filters: Json
+            }
+            Returns: {
+              profile_count: number
+              value_bool: boolean
+            }[]
+          }
+      directory_facet_gender_value_counts:
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_text_filters: Json
+            }
+            Returns: {
+              gender_value: string
+              profile_count: number
+            }[]
+          }
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_tenant_id: string
+              p_text_filters: Json
+            }
+            Returns: {
+              gender_value: string
+              profile_count: number
+            }[]
+          }
       directory_facet_location_counts:
         | {
             Args: {
@@ -15402,51 +16236,101 @@ export type Database = {
         Args: { p_raw: string }
         Returns: string
       }
-      directory_facet_scalar_base_ids: {
-        Args: {
-          p_boolean_filters: Json
-          p_gender_filter: string[]
-          p_height_max: number
-          p_height_min: number
-          p_location_city_slug: string
-          p_search: string
-          p_selected_taxonomy_ids: string[]
-          p_text_filters: Json
-        }
-        Returns: string[]
-      }
+      directory_facet_scalar_base_ids:
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_text_filters: Json
+            }
+            Returns: string[]
+          }
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_tenant_id: string
+              p_text_filters: Json
+            }
+            Returns: string[]
+          }
       directory_facet_slugify: { Args: { p_raw: string }; Returns: string }
-      directory_facet_taxonomy_counts_for_kind: {
-        Args: {
-          p_height_max: number
-          p_height_min: number
-          p_kind: string
-          p_location_city_slug: string
-          p_search: string
-          p_selected_taxonomy_ids: string[]
-        }
-        Returns: {
-          profile_count: number
-          taxonomy_term_id: string
-        }[]
-      }
-      directory_facet_text_field_value_counts: {
-        Args: {
-          p_boolean_filters: Json
-          p_field_definition_id: string
-          p_gender_filter: string[]
-          p_height_max: number
-          p_height_min: number
-          p_location_city_slug: string
-          p_search: string
-          p_selected_taxonomy_ids: string[]
-          p_text_filters: Json
-        }
-        Returns: {
-          profile_count: number
-          value_text: string
-        }[]
-      }
+      directory_facet_taxonomy_counts_for_kind:
+        | {
+            Args: {
+              p_height_max: number
+              p_height_min: number
+              p_kind: string
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+            }
+            Returns: {
+              profile_count: number
+              taxonomy_term_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_height_max: number
+              p_height_min: number
+              p_kind: string
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_tenant_id: string
+            }
+            Returns: {
+              profile_count: number
+              taxonomy_term_id: string
+            }[]
+          }
+      directory_facet_text_field_value_counts:
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_field_definition_id: string
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_text_filters: Json
+            }
+            Returns: {
+              profile_count: number
+              value_text: string
+            }[]
+          }
+        | {
+            Args: {
+              p_boolean_filters: Json
+              p_field_definition_id: string
+              p_gender_filter: string[]
+              p_height_max: number
+              p_height_min: number
+              p_location_city_slug: string
+              p_search: string
+              p_selected_taxonomy_ids: string[]
+              p_tenant_id: string
+              p_text_filters: Json
+            }
+            Returns: {
+              profile_count: number
+              value_text: string
+            }[]
+          }
       directory_search_public_talent_ids: {
         Args: { p_query: string }
         Returns: string[]
@@ -15715,6 +16599,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_active_staff_of_tenant: {
+        Args: { target_tenant_id: string }
+        Returns: boolean
+      }
       is_agency_staff: { Args: never; Returns: boolean }
       is_booking_coordinator: {
         Args: { p_booking_id: string }
@@ -15786,6 +16674,26 @@ export type Database = {
           talent_profile_id: string
         }[]
       }
+      media_asset_presentable_on_tenant: {
+        Args: { p_asset_id: string; p_tenant_id: string }
+        Returns: boolean
+      }
+      media_assets_presentable_on_tenant: {
+        Args: { p_asset_ids: string[]; p_tenant_id: string }
+        Returns: {
+          asset_id: string
+        }[]
+      }
+      media_assets_watermark_required_on_tenant: {
+        Args: { p_asset_ids: string[]; p_tenant_id: string }
+        Returns: {
+          asset_id: string
+        }[]
+      }
+      media_grant_active: {
+        Args: { p_asset_id: string; p_kind: string; p_tenant_id: string }
+        Returns: boolean
+      }
       merge_guest_session_to_client:
         | {
             Args: { p_client_profile_id: string; p_session_key: string }
@@ -15829,6 +16737,27 @@ export type Database = {
       }
       reconcile_expired_talent_plan_overrides: {
         Args: { p_talent_profile_id?: string }
+        Returns: number
+      }
+      record_discount_redemption: {
+        Args: {
+          p_stripe_coupon_id: string
+          p_stripe_event_id: string
+          p_stripe_subscription_id: string
+          p_subject_type: string
+          p_talent_profile_id: string
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
+      record_media_release_bake_failures: {
+        Args: {
+          p_asset_ids: string[]
+          p_request_id: string
+          p_talent_profile_id: string
+          p_target_tenant_id: string
+          p_tenant_id: string
+        }
         Returns: number
       }
       record_phase5_audit: {
@@ -15932,6 +16861,10 @@ export type Database = {
       }
       talent_onboarding_existing_profile: { Args: never; Returns: string }
       talent_profile_has_max: { Args: { profile_id: string }; Returns: boolean }
+      talent_profile_has_pro_or_max: {
+        Args: { profile_id: string }
+        Returns: boolean
+      }
       talent_public_site_for_profile_code: {
         Args: { p_profile_code: string }
         Returns: {

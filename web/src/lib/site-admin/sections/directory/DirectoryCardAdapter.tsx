@@ -239,6 +239,9 @@ export function DirectoryCardAdapter({
               talentProfileId={card.id}
               profileCode={card.profileCode ?? ""}
               displayName={card.displayName}
+              // Same optimistic-portrait handoff as the featured section: this
+              // arm shows the inquiry button, so an add lands in the lineup.
+              portraitUrl={card.thumbnail?.url ?? null}
               sourcePage={pathname}
               variant="compact"
               hideFavorite

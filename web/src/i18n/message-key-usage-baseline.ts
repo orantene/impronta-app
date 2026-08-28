@@ -211,7 +211,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "dashboard.loadingNav",
   "dashboard.menuButton",
   "dashboard.noEmail",
-  "dashboard.platform.pricing.discountsTab.codePlaceholder",
   "dashboard.platform.tenants.required",
   "dashboard.returnToAdmin",
   "dashboard.roleAdmin",

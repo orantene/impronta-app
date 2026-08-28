@@ -29,7 +29,7 @@
  * 6 call sites tracked in `eslint-suppressions.json`.
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -47,7 +47,6 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 // Phase 3 discount actions live in `admin-product-discounts.ts` (kept
 // out of this file to stay under the 800-line max-lines cap).
 
-const PRICING_PATH = "/platform/admin/pricing";
 
 // ─── Auth gate ────────────────────────────────────────────────────────────────
 
@@ -203,7 +202,7 @@ export async function updateTierPrice(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
 
   return {
     ok: true,
@@ -317,7 +316,7 @@ export async function updateTierDisplay(
     }
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
 
   return {
     ok: true,
@@ -344,7 +343,7 @@ export type VerifyStripeAccountResult =
 export async function verifyStripeAccount(): Promise<VerifyStripeAccountResult> {
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
   return { ok: true };
 }
 
@@ -481,7 +480,7 @@ export async function addTierPrice(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
 
   return {
     ok: true,
@@ -586,6 +585,6 @@ export async function archiveTierPrice(
     }
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
   return { ok: true };
 }
