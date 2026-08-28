@@ -7,7 +7,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertHqAccess } from "../support-access";
-import { loadTicketById } from "../support-engine";
+import { loadTicketById, supportEngine } from "../support-engine";
 import { supportFrom } from "../support-from";
 import { loadTicketFixLinks, loadTicketInsight } from "./load";
 import type { FixLinkKind, SupportFixLinkRow, SupportInsightRow } from "./types";
@@ -99,10 +99,19 @@ export async function hqAddFixLinkAction(raw: {
   if (parsed.data.notifyRequester) {
     const ticket = await loadTicketById(parsed.data.ticketId, admin);
     if (ticket) {
+      const card = await supportEngine.appendMessage({
+        ticketId: ticket.id,
+        authorKind: "system",
+        authorUserId: hq.userId,
+        messageKind: "card",
+        skipNotify: true,
+        body: parsed.data.note?.trim() || "The issue you reported is fixed",
+        cardPayload: { kind: "issue-fixed", note: parsed.data.note ?? "" },
+      });
       await dispatchEventNotifications({
         type: "support.ticket.fixed",
         tenantId: ticket.tenantId,
-        eventId: crypto.randomUUID(),
+        eventId: card.ok ? card.data.message.id : crypto.randomUUID(),
         userId: ticket.requesterUserId,
         payload: {
           ticketId: ticket.id,

@@ -202,3 +202,37 @@ export async function hqSaveInvestigationFindingsAction(raw: {
   if (error) return { ok: false, error: "Could not save findings." };
   return { ok: true };
 }
+
+export async function hqSaveCannedRepliesAction(raw: {
+  entries: Array<{ id: string; title: string; body: string }>;
+}): Promise<Ok | Fail> {
+  const parsed = z
+    .object({
+      entries: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(80),
+            title: z.string().trim().min(1).max(60),
+            body: z.string().trim().min(1).max(2000),
+          }),
+        )
+        .max(30),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const { writeSupportCannedReplies } = await import("@/lib/platform/support-canned");
+  const { logPlatformAdminAction } = await import("@/lib/platform/audit");
+  const written = await writeSupportCannedReplies(hq.userId, parsed.data.entries);
+  if (!written.ok) return written;
+  await logPlatformAdminAction({
+    actorUserId: hq.userId,
+    targetKind: "workspace",
+    targetId: "platform_settings",
+    action: "support.canned_replies.save",
+    after: { count: parsed.data.entries.length },
+    supportMode: "read_only",
+  });
+  return { ok: true };
+}

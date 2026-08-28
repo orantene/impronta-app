@@ -24,6 +24,9 @@ import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import { ReplayConsent } from "./ReplayConsent";
 import { useReplayBuffer } from "@/lib/support/replay/SupportRecorderProvider";
 import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
+import { keepTicketOpenAction } from "@/lib/support/actions";
+import { useThreadPresence } from "@/lib/realtime/presence";
+import { relTime } from "./support-rel-time";
 
 type View = "home" | "tickets" | "thread" | "new";
 
@@ -47,7 +50,8 @@ export function SupportPanel({
   const t = useT();
   const compact = useCompactViewport();
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
-  const { view, ticketId, setView } = useSupportSessionRestore();
+  const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
+  const parkedRestore = useRef(false);
   const [messages, setMessages] = useState<SupportMessageRow[]>([]);
   const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
   const [ask, setAsk] = useState("");
@@ -62,6 +66,17 @@ export function SupportPanel({
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
   }, [deepLinkTicketId, setView]);
+
+  useEffect(() => {
+    if (deepLinkTicketId) return;
+    if (!restoredRef.current || parkedRestore.current) return;
+    if (view !== "thread" || !ticket) return;
+    if (ticket.status !== "open") {
+      parkedRestore.current = true;
+      restoredRef.current = false;
+      setView("home");
+    }
+  }, [deepLinkTicketId, restoredRef, setView, ticket, view]);
 
   // Keep the summaries in sync with what the user just did — the server
   // snapshot alone leaves badges stuck and new tickets invisible until reload.
@@ -138,6 +153,15 @@ export function SupportPanel({
     [patchSummary],
   );
   useSupportRealtime({ ticketId, onMessage, onTicket });
+
+  const { typingUsers, peers } = useThreadPresence({
+    channelKey: view === "thread" && ticketId ? `support.${ticketId}` : null,
+    userId: contract.userId,
+    displayName: contract.firstName,
+    role: "requester",
+  });
+  const hqOnline = peers.some((p) => p.role === "hq");
+  const oranTyping = typingUsers.length > 0;
 
   useEffect(() => {
     if (!open || !ticketId) return;
@@ -248,7 +272,11 @@ export function SupportPanel({
       </header>
 
       {view === "thread" ? (
-        <SupportThreadHeader ticket={ticket} onBack={() => setView("tickets")} />
+        <SupportThreadHeader
+          ticket={ticket}
+          onBack={() => setView("tickets")}
+          hqOnline={hqOnline}
+        />
       ) : null}
 
       <div ref={scrollRef} style={{ flex: 1, overflow: "auto" }}>
@@ -302,8 +330,8 @@ export function SupportPanel({
             ticket={ticket}
             messages={messages}
             liveShareAvailable={contract.liveShareAvailable !== false}
-            onRate={(rating) => {
-              if (ticketId) void contract.rateTicket({ ticketId, rating });
+            onRate={(rating, comment) => {
+              if (ticketId) void contract.rateTicket({ ticketId, rating, comment });
             }}
             onRequestHuman={() => {
               if (ticketId) void contract.requestHuman({ ticketId });
@@ -311,6 +339,7 @@ export function SupportPanel({
             onCardAction={(action) => {
               if (action === "add-phone") setView("new");
               if (action === "talk-human" && ticketId) void contract.requestHuman({ ticketId });
+              if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
             thinking={thinking}
           />
@@ -332,7 +361,19 @@ export function SupportPanel({
       </div>
 
       {view === "thread" ? (
-        <Composer
+        <>
+          {oranTyping ? (
+            <div
+              style={{
+                padding: "0 16px 6px",
+                fontSize: 11,
+                color: COLORS.inkMuted,
+              }}
+            >
+              {t("dashboard.adminSupport.oranTyping")}
+            </div>
+          ) : null}
+          <Composer
           disabled={!ticketId || ticket?.status === "closed"}
           onSend={async (body) => {
             if (!ticketId) return false;
@@ -363,6 +404,7 @@ export function SupportPanel({
             return false;
           }}
         />
+        </>
       ) : null}
 
       <nav
@@ -613,6 +655,9 @@ function TicketRow({ row, onOpen }: { row: SupportTicketSummary; onOpen: () => v
         <span style={{ display: "block", fontSize: 12, color: COLORS.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {row.lastMessagePreview}
         </span>
+      </span>
+      <span style={{ fontSize: 10.5, color: COLORS.inkDim, flexShrink: 0, whiteSpace: "nowrap" }}>
+        {relTime(row.lastMessageAt)}
       </span>
       <span
         style={{

@@ -23,11 +23,13 @@ import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type TypingUser = { id: string; name: string };
+export type PresencePeer = { id: string; name: string; role: string };
 
 type PresenceArgs = {
   channelKey: string | null;
   userId: string;
   displayName: string;
+  role?: string;
 };
 
 const TYPING_EVENT = "typing";
@@ -39,12 +41,14 @@ type Payload = { id: string; name: string; typing: boolean };
 export function useThreadPresence(args: PresenceArgs): {
   typingUsers: TypingUser[];
   setTyping: (isTyping: boolean) => void;
+  peers: PresencePeer[];
 } {
-  const { channelKey, userId, displayName } = args;
+  const { channelKey, userId, displayName, role = "peer" } = args;
 
   const [typingMap, setTypingMap] = useState<Map<string, TypingUser>>(
     () => new Map(),
   );
+  const [peers, setPeers] = useState<PresencePeer[]>([]);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const lastBroadcastRef = useRef<number>(0);
@@ -75,7 +79,7 @@ export function useThreadPresence(args: PresenceArgs): {
     if (!supabase) return;
 
     const channel = supabase.channel(`tulala.presence.${channelKey}`, {
-      config: { broadcast: { self: false } },
+      config: { broadcast: { self: false }, presence: { key: userId } },
     });
 
     channel.on("broadcast", { event: TYPING_EVENT }, (msg) => {
@@ -114,11 +118,36 @@ export function useThreadPresence(args: PresenceArgs): {
       peerTimersRef.current.set(id, timer);
     });
 
-    channel.subscribe();
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState() as Record<
+        string,
+        Array<{ userId?: string; displayName?: string; role?: string }>
+      >;
+      const next: PresencePeer[] = [];
+      for (const metas of Object.values(state)) {
+        for (const meta of metas) {
+          const id = typeof meta.userId === "string" ? meta.userId : "";
+          if (!id || id === userId) continue;
+          next.push({
+            id,
+            name: typeof meta.displayName === "string" ? meta.displayName : "Someone",
+            role: typeof meta.role === "string" ? meta.role : "peer",
+          });
+        }
+      }
+      setPeers(next);
+    });
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        void channel.track({ userId, displayName: displayName || "Someone", role });
+      }
+    });
     channelRef.current = channel;
 
     return () => {
       channelRef.current = null;
+      setPeers([]);
       for (const t of timers.values()) clearTimeout(t);
       timers.clear();
       if (selfIdleTimerRef.current) {
@@ -127,7 +156,7 @@ export function useThreadPresence(args: PresenceArgs): {
       }
       void supabase.removeChannel(channel);
     };
-  }, [channelKey, userId, clearPeerTimer]);
+  }, [channelKey, userId, displayName, role, clearPeerTimer]);
 
   const broadcast = useCallback(
     (typing: boolean) => {
@@ -174,5 +203,5 @@ export function useThreadPresence(args: PresenceArgs): {
 
   const typingUsers = useMemo(() => Array.from(typingMap.values()), [typingMap]);
 
-  return { typingUsers, setTyping };
+  return { typingUsers, setTyping, peers };
 }

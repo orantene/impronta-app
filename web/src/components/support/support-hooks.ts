@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
 
@@ -10,9 +10,11 @@ export function useSupportSessionRestore(): {
   view: "home" | "tickets" | "thread" | "new";
   ticketId: string | null;
   setView: (v: "home" | "tickets" | "thread" | "new", ticketId?: string | null) => void;
+  restoredRef: { current: boolean };
 } {
   const [view, setViewState] = useState<"home" | "tickets" | "thread" | "new">("home");
   const [ticketId, setTicketId] = useState<string | null>(null);
+  const restoredRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -20,6 +22,7 @@ export function useSupportSessionRestore(): {
       if (!raw) return;
       const parsed = JSON.parse(raw) as { view?: string; ticketId?: string | null };
       if (parsed.view === "home" || parsed.view === "tickets" || parsed.view === "thread" || parsed.view === "new") {
+        if (parsed.view === "thread") restoredRef.current = true;
         setViewState(parsed.view);
         setTicketId(parsed.ticketId ?? null);
       }
@@ -39,7 +42,7 @@ export function useSupportSessionRestore(): {
     }
   }, []);
 
-  return { view, ticketId, setView };
+  return { view, ticketId, setView, restoredRef };
 }
 
 export function useSupportDeepLink(

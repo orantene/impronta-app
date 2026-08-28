@@ -98,6 +98,15 @@ export async function GET(request: Request) {
             platformFrom: true,
           },
         }).catch(() => undefined);
+        await supportEngine.appendMessage({
+          ticketId: ticket.id,
+          authorKind: "system",
+          authorUserId: null,
+          messageKind: "card",
+          skipNotify: true,
+          body: "Still need help here?",
+          cardPayload: { kind: "auto-close", ticketId: ticket.id },
+        });
         stats.warned += 1;
       } else if (idleHours >= 7 * 24) {
         await supportFrom(admin, "support_tickets")

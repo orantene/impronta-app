@@ -9,9 +9,11 @@ import type { SupportTicketRow } from "@/lib/support/support-types";
 export function SupportThreadStatusLine({
   ticket,
   inkMuted,
+  hqOnline = false,
 }: {
   ticket: SupportTicketRow | null;
   inkMuted?: string;
+  hqOnline?: boolean;
 }) {
   const t = useT();
   const muted = inkMuted ?? COLORS.inkMuted;
@@ -25,6 +27,17 @@ export function SupportThreadStatusLine({
     color: muted,
     minWidth: 0,
   };
+
+  if (ticket.status === "open" && hqOnline) {
+    return (
+      <div style={row}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {t("dashboard.adminSupport.oranOnline")}
+        </span>
+      </div>
+    );
+  }
 
   if (ticket.status === "resolved") {
     return (
@@ -85,9 +98,11 @@ export function SupportThreadStatusLine({
 export function SupportThreadHeader({
   ticket,
   onBack,
+  hqOnline = false,
 }: {
   ticket: SupportTicketRow | null;
   onBack: () => void;
+  hqOnline?: boolean;
 }) {
   const t = useT();
   return (
@@ -135,7 +150,7 @@ export function SupportThreadHeader({
         >
           {ticket?.subject || t("dashboard.adminSupport.untitled")}
         </div>
-        <SupportThreadStatusLine ticket={ticket} />
+        <SupportThreadStatusLine ticket={ticket} hqOnline={hqOnline} />
       </div>
     </div>
   );

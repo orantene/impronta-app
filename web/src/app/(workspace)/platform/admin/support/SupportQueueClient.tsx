@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
+import type { SupportCannedReply } from "@/lib/platform/support-canned";
 import { SupportTicketHqDrawer } from "./SupportTicketHqDrawer";
 import { hqChangeStatusAction, hqClaimSelfAction } from "@/lib/support/hq-actions";
 import { useHqSupportRealtime } from "@/components/support/support-hooks";
@@ -38,9 +39,11 @@ function surfaceIcon(surface: string): { glyph: string; color: string } {
 export function SupportQueueClient({
   rows,
   initialTicketId,
+  cannedReplies,
 }: {
   rows: HqQueueRow[];
   initialTicketId: string | null;
+  cannedReplies: SupportCannedReply[];
 }) {
   const t = useT();
   const [filter, setFilter] = useState<FilterId>("needsYou");
@@ -312,6 +315,7 @@ export function SupportQueueClient({
       {selected ? (
         <SupportTicketHqDrawer
           ticketId={selected}
+          cannedReplies={cannedReplies}
           onClose={() => setSelected(null)}
           onOpenPast={(id) => setSelected(id)}
         />

@@ -1,5 +1,6 @@
 import { loadHqSupportQueue } from "@/lib/support/load-hq";
 import { loadHqInsightsDashboard } from "@/lib/support/insights/load";
+import { loadSupportCannedReplies } from "@/lib/platform/support-canned";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -14,10 +15,11 @@ export default async function PlatformSupportPage({
 }: {
   searchParams: Promise<{ ticket?: string; view?: string }>;
 }) {
-  const [{ ticket: openTicketId, view }, rows, insights] = await Promise.all([
+  const [{ ticket: openTicketId, view }, rows, insights, cannedReplies] = await Promise.all([
     searchParams,
     loadHqSupportQueue(),
     loadHqInsightsDashboard(),
+    loadSupportCannedReplies(),
   ]);
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
@@ -54,6 +56,7 @@ export default async function PlatformSupportPage({
       <SupportHqShell
         rows={rows}
         insights={insights}
+        cannedReplies={cannedReplies}
         initialTicketId={openTicketId ?? null}
         initialView={view === "insights" ? "insights" : "queue"}
       />
