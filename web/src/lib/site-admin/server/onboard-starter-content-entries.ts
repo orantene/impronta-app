@@ -102,7 +102,17 @@ export function buildFreeStarterEntries(
       propsOverride: {
         headline: hero.headline,
         subheadline: hero.subheadline,
-        primaryCta: { label: "Start an inquiry", href: "/contact" },
+        // `/directory`, NOT `/contact`. On an agency host `/contact` is a CMS
+        // clean-URL: proxy.ts rewrites any unmatched single-segment path to
+        // `/p/<slug>`, and the catch-all 404s when no published page owns that
+        // slug — which is every brand-new workspace, because a contact page is
+        // deliberately not seeded (owner call: a placeholder published from
+        // minute one is worse than a shorter nav). `/directory` is allow-listed
+        // for agency hosts and served by the built-in directory adapter whether
+        // or not the workspace has a directory CMS page, so this CTA is live
+        // from the workspace's first second. It is also the real head of the
+        // inquiry funnel.
+        primaryCta: { label: "Start an inquiry", href: "/directory" },
         slides: [
           {
             backgroundImageUrl: STARTER_IMG.hero,
@@ -188,7 +198,8 @@ export function buildFreeStarterEntries(
           solo
             ? "Share your date, location, and creative direction. I reply within one business day with availability and a quote."
             : "Share your date, location, and creative direction. We reply within one business day with availability and a suggested team.",
-        primaryCta: { label: "Start an inquiry", href: "/contact" },
+        // See the hero CTA above: `/contact` 404s on a fresh workspace.
+        primaryCta: { label: "Start an inquiry", href: "/directory" },
         backgroundImageUrl: STARTER_IMG.ctaBanner,
         // See the hero note: "" reads as missing to the publish blocker.
         backgroundImageAlt:

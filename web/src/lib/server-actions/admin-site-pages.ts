@@ -47,10 +47,7 @@ import {
 } from "@/lib/site-admin/server/pages";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
-import {
-  cmsAdditionalPageDeniedReason,
-  loadBuilderWorkspacePlan,
-} from "@/lib/site-admin/builder-capabilities";
+import { resolveAdditionalPageDenial } from "@/lib/site-admin/server/page-quota";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 // ---- shared state shape --------------------------------------------------
@@ -546,14 +543,11 @@ export async function listPagesForPickerAction(): Promise<
   // Drop the site shell + map to picker items (see admin-site-pages-picker).
   const pages = toPickerItems((data ?? []) as PickerPageRow[]);
 
-  const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
-    onError: (message) =>
-      logServerError(
-        "site-admin/pages/list-for-picker.plan",
-        new Error(message),
-      ),
-  });
-  const denyReason = cmsAdditionalPageDeniedReason(workspacePlan);
+  const denyReason = await resolveAdditionalPageDenial(
+    auth.supabase,
+    scope.tenantId,
+    "site-admin/pages/list-for-picker.plan",
+  );
   const availability: PagePickerAvailability = {
     canCreatePages: denyReason === null,
     createPageHint: denyReason,
@@ -586,14 +580,11 @@ export async function createDraftPageAction(): Promise<
   const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
   const locale = localeSettings.defaultLocale;
 
-  const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
-    onError: (message) =>
-      logServerError(
-        "site-admin/pages/create-draft.plan",
-        new Error(message),
-      ),
-  });
-  const denyReason = cmsAdditionalPageDeniedReason(workspacePlan);
+  const denyReason = await resolveAdditionalPageDenial(
+    auth.supabase,
+    scope.tenantId,
+    "site-admin/pages/create-draft.plan",
+  );
   if (denyReason) {
     return { ok: false, error: denyReason };
   }
@@ -696,14 +687,11 @@ export async function duplicatePageAction(
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
 
-  const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
-    onError: (message) =>
-      logServerError(
-        "site-admin/pages/duplicate.plan",
-        new Error(message),
-      ),
-  });
-  const denyReason = cmsAdditionalPageDeniedReason(workspacePlan);
+  const denyReason = await resolveAdditionalPageDenial(
+    auth.supabase,
+    scope.tenantId,
+    "site-admin/pages/duplicate.plan",
+  );
   if (denyReason) {
     return { ok: false, error: denyReason };
   }

@@ -133,7 +133,10 @@ export function createNav(style?: BuilderNodeStyle): BuilderNode {
         { id: randomUuid(), label: "Work", href: "/work" },
         { id: randomUuid(), label: "About", href: "/about" },
         { id: randomUuid(), label: "Services", href: "/services" },
-        { id: randomUuid(), label: "Contact", href: "/contact" },
+        // No "Contact" entry. On an agency host `/contact` is a CMS clean-URL
+        // (proxy.ts rewrites unmatched single-segment paths to /p/<slug>), so
+        // it 404s until the operator actually creates a contact page. A default
+        // that ships a dead link is worse than a shorter nav.
       ],
       style,
     },
