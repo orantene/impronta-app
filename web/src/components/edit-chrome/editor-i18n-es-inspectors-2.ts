@@ -735,4 +735,31 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Este dispositivo muestra su propia foto. Restablece para usar la imagen de escritorio.",
   "Leave this empty and {device} keeps the desktop image. Set it to swap in a photo framed for this screen; the alt text is shared.":
     "Déjalo vacío y {device} conserva la imagen de escritorio. Elige una foto para cambiarla por otra encuadrada para esta pantalla; el texto alternativo es el mismo.",
+
+  // ── Visual effect builders (glass, gradients, corners, sides, shadows) ────
+  Conic: "Cónico",
+  Backdrop: "Filtro de fondo",
+  Glass: "Cristal",
+  "Frosted blur, a translucent fill and a hairline border in one click. Every part stays adjustable.":
+    "Desenfoque esmerilado, relleno translúcido y borde fino en un clic. Cada parte sigue siendo ajustable.",
+  // "Blur" and "Linked" already live in editor-i18n-es-inspectors.ts.
+  "Saturation %": "Saturación %",
+  "Custom backdrop filter, kept exactly as written.":
+    "Filtro de fondo personalizado, se conserva tal como está escrito.",
+  Inset: "Interior",
+  "Custom shadow, kept exactly as written.":
+    "Sombra personalizada, se conserva tal como está escrita.",
+  "+ Add shadow layer": "+ Añadir capa de sombra",
+  "That is too long to save. Remove a layer or shorten a color.":
+    "Es demasiado largo para guardar. Quita una capa o acorta un color.",
+  "Each corner": "Cada esquina",
+  "Per corner": "Por esquina",
+  "Custom radius, kept exactly as written:":
+    "Radio personalizado, se conserva tal como está escrito:",
+  "Each side": "Cada lado",
+  "Per side": "Por lado",
+  "Custom border width, kept exactly as written:":
+    "Ancho de borde personalizado, se conserva tal como está escrito:",
+  "That combination is too long to save. Use smaller widths.":
+    "Esa combinación es demasiado larga para guardar. Usa anchos más pequeños.",
 };
