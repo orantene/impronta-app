@@ -1,0 +1,414 @@
+/**
+ * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `talent_type_grid`).
+ *
+ * These two kinds exist so the homepage's data-driven sections stop depending on
+ * `section_embed` (which re-embeds the frozen curated section and is therefore
+ * NOT parity for the legacy-registry deletion). What matters here:
+ *
+ *   1. they render from `dataSources` and ONLY from `dataSources`;
+ *   2. the empty-roster and single-item cases both produce sane markup;
+ *   3. the tenant gate holds — a node handed one tenant's data cannot surface
+ *      another tenant's talent, in either direction.
+ *
+ * Run: node_modules/.bin/tsx --test src/lib/site-admin/builder-node/native-data-blocks.test.ts
+ */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { createBuilderNode } from "./create";
+import {
+  renderBuilderNodes,
+  type BuilderNodeRenderDataSources,
+} from "./render";
+import { BUILDER_NODE_REGISTRY } from "./registry";
+import { validateBuilderNodeTree } from "./validate";
+import { SHIPPED_ELEMENT_INSERT_KINDS } from "./mvp-allow-list";
+import {
+  deriveTalentDisciplines,
+  type TalentTaxonomyJoinRow,
+} from "@/lib/site-admin/server/native-data-block-sources";
+import type { BuilderNode } from "./types";
+
+function render(
+  nodes: BuilderNode[],
+  dataSources: BuilderNodeRenderDataSources = {},
+): string {
+  return renderToStaticMarkup(
+    renderBuilderNodes(nodes, {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      dataSources,
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+}
+
+function heroNode(props: Record<string, unknown> = {}): BuilderNode {
+  return {
+    id: "hero-1",
+    kind: "hero_search",
+    props: {
+      headline: "Find the right talent",
+      statSource: "tenant_talent_count",
+      statCountLabel: "represented talent",
+      ...props,
+    },
+  } as BuilderNode;
+}
+
+function gridNode(props: Record<string, unknown> = {}): BuilderNode {
+  return {
+    id: "grid-1",
+    kind: "talent_type_grid",
+    props: {
+      headline: "Talent, by discipline",
+      mode: "dynamic",
+      ...props,
+    },
+  } as BuilderNode;
+}
+
+// ── registry + insertability ────────────────────────────────────────────────
+
+test("both kinds are registered as structural leaves", () => {
+  for (const kind of ["hero_search", "talent_type_grid"] as const) {
+    const entry = BUILDER_NODE_REGISTRY[kind];
+    assert.ok(entry, `missing registry entry for ${kind}`);
+    assert.equal(
+      entry.children.type,
+      "none",
+      `${kind} renders from live data, so it must be a leaf like the other data-bound kinds`,
+    );
+  }
+});
+
+test("both kinds are in the shipped insert catalog (so the gallery can insert them)", () => {
+  const shipped = new Set(SHIPPED_ELEMENT_INSERT_KINDS);
+  assert.ok(shipped.has("hero_search"));
+  assert.ok(shipped.has("talent_type_grid"));
+});
+
+test("createBuilderNode seeds a VALID tree for both kinds", () => {
+  for (const kind of ["hero_search", "talent_type_grid"] as const) {
+    const node = createBuilderNode(kind);
+    assert.equal(node.kind, kind);
+    const result = validateBuilderNodeTree([node]);
+    assert.equal(result.ok, true, `${kind} seed failed validation`);
+  }
+});
+
+test("seeded nodes pick their LIVE source, not a placeholder", () => {
+  const hero = createBuilderNode("hero_search");
+  assert.equal(
+    hero.kind === "hero_search" ? hero.props.statSource : null,
+    "tenant_talent_count",
+  );
+  const grid = createBuilderNode("talent_type_grid");
+  assert.equal(grid.kind === "talent_type_grid" ? grid.props.mode : null, "dynamic");
+});
+
+// ── hero_search render ──────────────────────────────────────────────────────
+
+test("hero_search renders the headline and a real GET search form", () => {
+  const html = render([heroNode()], { tenantTalentCount: 12 });
+  assert.ok(html.includes('data-builder-node-kind="hero_search"'));
+  assert.ok(html.includes("Find the right talent"));
+  assert.ok(html.includes('method="get"'), "search must work without client JS");
+  assert.ok(html.includes('action="/directory"'));
+  assert.ok(html.includes('name="q"'));
+});
+
+test("hero_search: EMPTY roster renders no stat line (never '0+ talent')", () => {
+  const html = render([heroNode()], { tenantTalentCount: 0 });
+  assert.ok(!html.includes("hero-search-stat"), "stat line must be absent");
+  assert.ok(!html.includes("0+"));
+  // The rest of the hero still renders — an empty roster is not a blank page.
+  assert.ok(html.includes("Find the right talent"));
+});
+
+test("hero_search: absent data source renders no stat line either", () => {
+  const html = render([heroNode()], {});
+  assert.ok(!html.includes("hero-search-stat"));
+  assert.ok(html.includes("Find the right talent"));
+});
+
+test("hero_search: a SINGLE talent renders the derived count with its label", () => {
+  const html = render([heroNode()], { tenantTalentCount: 1 });
+  assert.ok(html.includes("1+"));
+  assert.ok(html.includes("represented talent"));
+});
+
+test("hero_search: manual stat source ignores the derived count entirely", () => {
+  const html = render(
+    [
+      heroNode({
+        statSource: "manual",
+        statItems: [{ value: "40", label: "campaigns" }],
+      }),
+    ],
+    { tenantTalentCount: 999 },
+  );
+  assert.ok(html.includes("40"));
+  assert.ok(html.includes("campaigns"));
+  assert.ok(!html.includes("999"), "derived count must not leak into manual mode");
+});
+
+test("hero_search: hrefs are prefixed for a tenant-scoped public path", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes([heroNode()], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      publicPathPrefix: "/t/impronta",
+      dataSources: { tenantTalentCount: 3 },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.ok(html.includes('action="/t/impronta/directory"'));
+});
+
+// ── talent_type_grid render ─────────────────────────────────────────────────
+
+test("talent_type_grid: EMPTY roster renders the empty state, not a blank block", () => {
+  const html = render([gridNode()], { talentDisciplines: [] });
+  assert.ok(html.includes('data-builder-node-kind="talent_type_grid"'));
+  assert.ok(html.includes("talent-type-grid-empty"));
+  assert.ok(html.includes("Talent, by discipline"), "the head still renders");
+});
+
+test("talent_type_grid: a SINGLE discipline renders one card with its count", () => {
+  const html = render([gridNode({ showCount: true })], {
+    talentDisciplines: [{ termId: "t-models", label: "Models", count: 1 }],
+  });
+  assert.ok(html.includes("Models"));
+  assert.ok(html.includes("/directory?tax=t-models"));
+  assert.ok(html.includes("talent-type-card-count"));
+  assert.ok(!html.includes("talent-type-grid-empty"));
+});
+
+test("talent_type_grid: dynamic mode with NO data falls back to authored cards", () => {
+  const html = render(
+    [
+      gridNode({
+        mode: "dynamic",
+        items: [{ label: "Actors", taxonomyTermId: "t-actors" }],
+      }),
+    ],
+    {},
+  );
+  assert.ok(html.includes("Actors"), "must never blank out when the source is absent");
+});
+
+test("talent_type_grid: selectedTermIds narrows the derived set", () => {
+  const html = render([gridNode({ selectedTermIds: ["t-models"] })], {
+    talentDisciplines: [
+      { termId: "t-models", label: "Models", count: 4 },
+      { termId: "t-actors", label: "Actors", count: 9 },
+    ],
+  });
+  assert.ok(html.includes("Models"));
+  assert.ok(!html.includes("Actors"));
+});
+
+test("talent_type_grid: maxItems caps the rendered cards", () => {
+  const html = render([gridNode({ maxItems: 1 })], {
+    talentDisciplines: [
+      { termId: "t-models", label: "Models", count: 4 },
+      { termId: "t-actors", label: "Actors", count: 9 },
+    ],
+  });
+  assert.ok(html.includes("Models"));
+  assert.ok(!html.includes("Actors"));
+});
+
+// ── TENANT SCOPING ──────────────────────────────────────────────────────────
+// The highest-risk property of this change: one agency's roster must never
+// appear on another agency's site.
+
+test("TENANT SCOPING: a node renders EXACTLY the tenant data it was handed", () => {
+  const tenantA: BuilderNodeRenderDataSources = {
+    tenantTalentCount: 7,
+    talentDisciplines: [{ termId: "a-models", label: "A Models", count: 7 }],
+  };
+  const tenantB: BuilderNodeRenderDataSources = {
+    tenantTalentCount: 2,
+    talentDisciplines: [{ termId: "b-dancers", label: "B Dancers", count: 2 }],
+  };
+  const nodes = [heroNode(), gridNode()];
+
+  const htmlA = render(nodes, tenantA);
+  assert.ok(htmlA.includes("A Models"));
+  assert.ok(htmlA.includes("7+"));
+  assert.ok(!htmlA.includes("B Dancers"), "tenant B's roster leaked into tenant A");
+  assert.ok(!htmlA.includes("b-dancers"));
+
+  const htmlB = render(nodes, tenantB);
+  assert.ok(htmlB.includes("B Dancers"));
+  assert.ok(htmlB.includes("2+"));
+  assert.ok(!htmlB.includes("A Models"), "tenant A's roster leaked into tenant B");
+  assert.ok(!htmlB.includes("a-models"));
+});
+
+test("TENANT SCOPING: the renderer has NO ambient data path — no dataSources, no talent", () => {
+  // If either node could reach a roster by itself (a module-level client, a
+  // cached fetch, a tenant id smuggled through props) this render would show
+  // talent. It shows the empty state instead, which is the structural proof
+  // that a cross-tenant read is not reachable from the render path.
+  const html = render([heroNode(), gridNode()], {});
+  assert.ok(!html.includes("hero-search-stat"));
+  assert.ok(html.includes("talent-type-grid-empty"));
+});
+
+test("TENANT SCOPING: deriveTalentDisciplines drops rows outside the tenant roster", () => {
+  const rows: TalentTaxonomyJoinRow[] = [
+    {
+      talent_profile_id: "own-talent",
+      taxonomy_term_id: "t-models",
+      taxonomy_terms: {
+        id: "t-models",
+        name_i18n: { en: "Models" },
+        term_type: "talent_type",
+        parent_id: null,
+      },
+    },
+    {
+      // Another agency's talent. Even if a query were ever widened by mistake,
+      // this row must not contribute a card, a label, or a count.
+      talent_profile_id: "other-tenant-talent",
+      taxonomy_term_id: "t-dancers",
+      taxonomy_terms: {
+        id: "t-dancers",
+        name_i18n: { en: "Dancers" },
+        term_type: "talent_type",
+        parent_id: null,
+      },
+    },
+  ];
+  const derived = deriveTalentDisciplines({
+    rows,
+    rosterTalentIds: ["own-talent"],
+    parentCategoryMode: false,
+    maxItems: 10,
+    locale: "en",
+  });
+  assert.deepEqual(
+    derived,
+    [{ termId: "t-models", label: "Models", count: 1 }],
+    "only the tenant's own visible-roster talent may contribute",
+  );
+});
+
+test("TENANT SCOPING: an EMPTY roster derives nothing, whatever the rows say", () => {
+  const derived = deriveTalentDisciplines({
+    rows: [
+      {
+        talent_profile_id: "other-tenant-talent",
+        taxonomy_term_id: "t-dancers",
+        taxonomy_terms: {
+          id: "t-dancers",
+          name_i18n: { en: "Dancers" },
+          term_type: "talent_type",
+          parent_id: null,
+        },
+      },
+    ],
+    rosterTalentIds: [],
+    parentCategoryMode: false,
+    maxItems: 10,
+    locale: "en",
+  });
+  assert.deepEqual(derived, []);
+});
+
+// ── derivation parity with the frozen curated section ───────────────────────
+
+test("deriveTalentDisciplines counts DISTINCT talent per term and sorts by count", () => {
+  const term = (id: string, name: string) => ({
+    id,
+    name_i18n: { en: name } as Record<string, string | null>,
+    term_type: "talent_type" as string | null,
+    parent_id: null as string | null,
+  });
+  const rows: TalentTaxonomyJoinRow[] = [
+    { talent_profile_id: "a", taxonomy_term_id: "m", taxonomy_terms: term("m", "Models") },
+    // Same talent, same term, twice — one talent, not two.
+    { talent_profile_id: "a", taxonomy_term_id: "m", taxonomy_terms: term("m", "Models") },
+    { talent_profile_id: "b", taxonomy_term_id: "m", taxonomy_terms: term("m", "Models") },
+    { talent_profile_id: "c", taxonomy_term_id: "d", taxonomy_terms: term("d", "Dancers") },
+    // Not a discipline term — must not surface.
+    {
+      talent_profile_id: "c",
+      taxonomy_term_id: "x",
+      taxonomy_terms: { ...term("x", "Hair colour"), term_type: "attribute" },
+    },
+  ];
+  const derived = deriveTalentDisciplines({
+    rows,
+    rosterTalentIds: ["a", "b", "c"],
+    parentCategoryMode: false,
+    maxItems: 10,
+    locale: "en",
+  });
+  assert.deepEqual(derived, [
+    { termId: "m", label: "Models", count: 2 },
+    { termId: "d", label: "Dancers", count: 1 },
+  ]);
+});
+
+test("deriveTalentDisciplines rolls children up to the parent category", () => {
+  const rows: TalentTaxonomyJoinRow[] = [
+    {
+      talent_profile_id: "a",
+      taxonomy_term_id: "child-1",
+      taxonomy_terms: {
+        id: "child-1",
+        name_i18n: { en: "Runway" },
+        term_type: "talent_type",
+        parent_id: "parent-models",
+      },
+    },
+    {
+      talent_profile_id: "b",
+      taxonomy_term_id: "child-2",
+      taxonomy_terms: {
+        id: "child-2",
+        name_i18n: { en: "Commercial" },
+        term_type: "talent_type",
+        parent_id: "parent-models",
+      },
+    },
+  ];
+  const derived = deriveTalentDisciplines({
+    rows,
+    rosterTalentIds: ["a", "b"],
+    parentCategoryMode: true,
+    maxItems: 10,
+    locale: "en",
+    parentTerms: [{ id: "parent-models", name_i18n: { en: "Models" } }],
+  });
+  assert.deepEqual(derived, [
+    { termId: "parent-models", label: "Models", count: 2 },
+  ]);
+});
+
+test("deriveTalentDisciplines picks the locale label", () => {
+  const derived = deriveTalentDisciplines({
+    rows: [
+      {
+        talent_profile_id: "a",
+        taxonomy_term_id: "m",
+        taxonomy_terms: {
+          id: "m",
+          name_i18n: { en: "Models", es: "Modelos" },
+          term_type: "talent_type",
+          parent_id: null,
+        },
+      },
+    ],
+    rosterTalentIds: ["a"],
+    parentCategoryMode: false,
+    maxItems: 10,
+    locale: "es",
+  });
+  assert.equal(derived[0]?.label, "Modelos");
+});

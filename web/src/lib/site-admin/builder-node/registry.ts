@@ -52,6 +52,10 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "spacer",
   // Lead/contact form — droppable inside layout shells as well as at the root.
   "form",
+  // WS7 Phase 0 — the NATIVE data blocks are ordinary leaves for drop purposes,
+  // exactly like `section_embed`: droppable inside a layout shell or at the root.
+  "hero_search",
+  "talent_type_grid",
   // Tulala components (curated dynamic sections) are droppable inside generic
   // layout shells as well as at the page root.
   "section_embed",
@@ -874,6 +878,94 @@ const socialFeedPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/**
+ * WS7 Phase 0 — NATIVE `hero_search`. Field-for-field the authoring surface of
+ * the frozen `hero_search` curated section (schema.ts there), flattened into
+ * builder-node prop shape: no `presentation` / `nodePresentation` blocks (the
+ * builder's own style system owns those) and no LinkRef objects (builder nodes
+ * carry plain hrefs, prefixed at render).
+ */
+const heroSearchPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  highlight: z.string().max(120).optional(),
+  subheadline: z.string().max(320).optional(),
+  searchEnabled: z.boolean().optional(),
+  searchPlaceholder: z.string().max(120).optional(),
+  searchActionHref: z.string().max(500).optional(),
+  searchSubmitLabel: z.string().max(40).optional(),
+  primaryCtaLabel: z.string().max(60).optional(),
+  primaryCtaHref: z.string().max(500).optional(),
+  secondaryCtaLabel: z.string().max(60).optional(),
+  secondaryCtaHref: z.string().max(500).optional(),
+  chips: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(60),
+        href: z.string().max(500).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+  statSource: z.enum(["manual", "tenant_talent_count"]).optional(),
+  statItems: z
+    .array(
+      z.object({
+        value: z.string().min(1).max(24),
+        label: z.string().min(1).max(60),
+      }),
+    )
+    .max(4)
+    .optional(),
+  statCountLabel: z.string().max(80).optional(),
+  layout: z.enum(["centered", "split", "minimal", "editorial"]).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+/**
+ * WS7 Phase 0 — NATIVE `talent_type_grid`. Same relationship to the frozen
+ * curated `talent_type_grid` schema: the authoring fields survive, the section
+ * presentation envelope does not. `items` is OPTIONAL and may be empty — a
+ * dynamic-mode block carries no authored cards at all, and requiring content at
+ * insert time silently breaks insertion (see the socialFeed note above).
+ */
+const talentTypeGridPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  subheadline: z.string().max(320).optional(),
+  mode: z.enum(["manual", "dynamic"]).optional(),
+  items: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(80),
+        description: z.string().max(200).optional(),
+        imageUrl: z.string().max(2048).optional(),
+        imageAlt: z.string().max(200).optional(),
+        imagePosition: z.string().max(40).optional(),
+        taxonomyTermId: z.string().max(64).optional(),
+        href: z.string().max(500).optional(),
+        featured: z.boolean().optional(),
+      }),
+    )
+    .max(18)
+    .optional(),
+  selectedTermIds: z.array(z.string().min(1).max(64)).max(40).optional(),
+  parentCategoryMode: z.boolean().optional(),
+  maxItems: z.number().int().min(1).max(18).optional(),
+  columns: z.number().int().min(1).max(6).optional(),
+  showCount: z.boolean().optional(),
+  showImages: z.boolean().optional(),
+  showDescriptions: z.boolean().optional(),
+  cardRatio: z.enum(["1/1", "3/4", "4/3", "16/9"]).optional(),
+  textPosition: z.enum(["overlay-bottom", "below"]).optional(),
+  seeAllLabel: z.string().max(40).optional(),
+  seeAllHref: z.string().max(500).optional(),
+  emptyStateText: z.string().max(240).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
 const iconPropsSchema = z.object({
   icon: z.enum(BUILDER_ICON_NAMES),
   label: z.string().max(160).optional(),
@@ -1362,6 +1454,25 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "A gallery of posts and reels: grid, masonry, slider or stories, with lazy loading and a lightbox. Paid plans.",
       children: { type: "none" },
       propsSchema: socialFeedPropsSchema,
+    },
+    // WS7 Phase 0 — the two NATIVE data blocks. Structural leaves like every
+    // other data-bound kind: their inner rows come from live roster data, not
+    // from child nodes, so there is nothing for the tree to nest.
+    hero_search: {
+      kind: "hero_search",
+      label: "Search hero",
+      description:
+        "Search-first hero: headline, a live directory search bar, quick filters and a roster-derived talent count.",
+      children: { type: "none" },
+      propsSchema: heroSearchPropsSchema,
+    },
+    talent_type_grid: {
+      kind: "talent_type_grid",
+      label: "Talent by discipline",
+      description:
+        "Discipline cards derived from your own roster's taxonomy, or authored by hand. Each card links into the directory.",
+      children: { type: "none" },
+      propsSchema: talentTypeGridPropsSchema,
     },
     icon: {
       kind: "icon",

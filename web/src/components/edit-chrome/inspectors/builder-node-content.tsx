@@ -1300,6 +1300,419 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  // ── hero_search (WS7 Phase 0 native data block) ───────────────────────────
+  // Copy fields, the search bar, and the stat line. "Live talent count" is the
+  // whole reason this block is not a plain hero: it reads the tenant's own
+  // visible roster, resolved server-side, so the operator sets a label and the
+  // number takes care of itself.
+  if (node.kind === "hero_search") {
+    const hero = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Eyebrow</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="eyebrow"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={hero.eyebrow ?? ""}
+              ariaLabel="Hero eyebrow"
+              className={KIT.input}
+              placeholder="e.g. The roster"
+              onCommitBase={(next) =>
+                commitTextInput("eyebrow", hero.eyebrow ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Headline</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="headline"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={hero.headline ?? ""}
+              ariaLabel="Hero headline"
+              className={KIT.input}
+              placeholder="Find the right talent"
+              onCommitBase={(next) =>
+                commitTextInput("headline", hero.headline ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Highlighted phrase</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="highlight"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={hero.highlight ?? ""}
+              ariaLabel="Hero highlighted phrase"
+              className={KIT.input}
+              placeholder="e.g. for your next campaign"
+              onCommitBase={(next) =>
+                commitTextInput("highlight", hero.highlight ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Intro</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="subheadline"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={hero.subheadline ?? ""}
+              ariaLabel="Hero intro"
+              className={KIT.textarea}
+              placeholder="Search the roster by role, location or fit."
+              onCommitBase={(next) =>
+                commitTextInput("subheadline", hero.subheadline ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Layout</label>
+            <select
+              className={KIT.select}
+              value={hero.layout ?? "centered"}
+              onChange={(event) => {
+                void commitPatch({
+                  layout: event.currentTarget.value as
+                    | "centered"
+                    | "split"
+                    | "minimal"
+                    | "editorial",
+                });
+              }}
+            >
+              <option value="centered">Centered</option>
+              <option value="split">Split</option>
+              <option value="minimal">Minimal</option>
+              <option value="editorial">Editorial</option>
+            </select>
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Search bar">
+          <Toggle
+            on={hero.searchEnabled !== false}
+            onChange={(next) => {
+              void commitPatch({ searchEnabled: next });
+            }}
+            label="Show the search bar"
+          />
+          <div className={KIT.field}>
+            <label className={KIT.label}>Placeholder</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="searchPlaceholder"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={hero.searchPlaceholder ?? ""}
+              ariaLabel="Search placeholder"
+              className={KIT.input}
+              placeholder="Search talent by role, location or fit"
+              onCommitBase={(next) =>
+                commitTextInput(
+                  "searchPlaceholder",
+                  hero.searchPlaceholder ?? "",
+                  true,
+                )(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Button label</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="searchSubmitLabel"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={hero.searchSubmitLabel ?? ""}
+              ariaLabel="Search button label"
+              className={KIT.input}
+              placeholder="Search"
+              onCommitBase={(next) =>
+                commitTextInput(
+                  "searchSubmitLabel",
+                  hero.searchSubmitLabel ?? "",
+                  true,
+                )(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Where the search goes</label>
+            <input
+              key={`${node.id}:searchActionHref:${hero.searchActionHref ?? ""}`}
+              defaultValue={hero.searchActionHref ?? ""}
+              className={KIT.input}
+              placeholder="/directory"
+              onBlur={(event) => {
+                void commitTextInput(
+                  "searchActionHref",
+                  hero.searchActionHref ?? "",
+                )(event.currentTarget.value);
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput(
+                  "searchActionHref",
+                  hero.searchActionHref ?? "",
+                )(value);
+              })}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Talent count">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Source</label>
+            <select
+              className={KIT.select}
+              value={hero.statSource ?? "manual"}
+              onChange={(event) => {
+                void commitPatch({
+                  statSource: event.currentTarget.value as
+                    | "manual"
+                    | "tenant_talent_count",
+                });
+              }}
+            >
+              <option value="tenant_talent_count">
+                Live count from your roster
+              </option>
+              <option value="manual">Numbers I type myself</option>
+            </select>
+          </div>
+          {hero.statSource === "tenant_talent_count" ? (
+            <div className={KIT.field}>
+              <label className={KIT.label}>Label beside the number</label>
+              <BuilderNodeLocalizableTextField
+                node={node}
+                prop="statCountLabel"
+                tenantId={tenantId}
+                fieldKind="input"
+                baseValue={hero.statCountLabel ?? ""}
+                ariaLabel="Talent count label"
+                className={KIT.input}
+                placeholder="represented talent"
+                onCommitBase={(next) =>
+                  commitTextInput(
+                    "statCountLabel",
+                    hero.statCountLabel ?? "",
+                    true,
+                  )(next)
+                }
+                patch={commitPatch}
+              />
+            </div>
+          ) : null}
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
+  // ── talent_type_grid (WS7 Phase 0 native data block) ──────────────────────
+  // Dynamic mode is the default and the point: the cards come from the tenant's
+  // own roster taxonomy. Manual mode keeps the authored-card path available.
+  if (node.kind === "talent_type_grid") {
+    const grid = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Eyebrow</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="eyebrow"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={grid.eyebrow ?? ""}
+              ariaLabel="Section eyebrow"
+              className={KIT.input}
+              placeholder="e.g. The roster"
+              onCommitBase={(next) =>
+                commitTextInput("eyebrow", grid.eyebrow ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Headline</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="headline"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={grid.headline ?? ""}
+              ariaLabel="Section headline"
+              className={KIT.input}
+              placeholder="Talent, by discipline"
+              onCommitBase={(next) =>
+                commitTextInput("headline", grid.headline ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Intro</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="subheadline"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={grid.subheadline ?? ""}
+              ariaLabel="Section intro"
+              className={KIT.textarea}
+              placeholder=""
+              onCommitBase={(next) =>
+                commitTextInput("subheadline", grid.subheadline ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>See-all link label</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="seeAllLabel"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={grid.seeAllLabel ?? ""}
+              ariaLabel="See all label"
+              className={KIT.input}
+              placeholder="See all"
+              onCommitBase={(next) =>
+                commitTextInput("seeAllLabel", grid.seeAllLabel ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>See-all link goes to</label>
+            <input
+              key={`${node.id}:seeAllHref:${grid.seeAllHref ?? ""}`}
+              defaultValue={grid.seeAllHref ?? ""}
+              className={KIT.input}
+              placeholder="/directory"
+              onBlur={(event) => {
+                void commitTextInput("seeAllHref", grid.seeAllHref ?? "")(
+                  event.currentTarget.value,
+                );
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("seeAllHref", grid.seeAllHref ?? "")(value);
+              })}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Cards">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Where the cards come from</label>
+            <select
+              className={KIT.select}
+              value={grid.mode ?? "manual"}
+              onChange={(event) => {
+                void commitPatch({
+                  mode: event.currentTarget.value as "manual" | "dynamic",
+                });
+              }}
+            >
+              <option value="dynamic">My roster&rsquo;s disciplines</option>
+              <option value="manual">Cards I write myself</option>
+            </select>
+          </div>
+          {grid.mode === "dynamic" ? (
+            <Toggle
+              on={grid.parentCategoryMode === true}
+              onChange={(next) => {
+                void commitPatch({ parentCategoryMode: next });
+              }}
+              label="Group child types under their parent category"
+            />
+          ) : null}
+          <div className={KIT.field}>
+            <label className={KIT.label}>Most cards to show</label>
+            <input
+              type="number"
+              min={1}
+              max={18}
+              className={KIT.input}
+              value={grid.maxItems ?? 7}
+              onChange={(event) => {
+                const next = Number(event.currentTarget.value);
+                if (!Number.isFinite(next)) return;
+                void commitPatch({
+                  maxItems: Math.min(18, Math.max(1, Math.round(next))),
+                });
+              }}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Columns</label>
+            <input
+              type="number"
+              min={1}
+              max={6}
+              className={KIT.input}
+              value={grid.columns ?? 4}
+              onChange={(event) => {
+                const next = Number(event.currentTarget.value);
+                if (!Number.isFinite(next)) return;
+                void commitPatch({
+                  columns: Math.min(6, Math.max(1, Math.round(next))),
+                });
+              }}
+            />
+          </div>
+          <Toggle
+            on={grid.showCount !== false}
+            onChange={(next) => {
+              void commitPatch({ showCount: next });
+            }}
+            label="Show how many talent are in each discipline"
+          />
+          <Toggle
+            on={grid.showImages !== false}
+            onChange={(next) => {
+              void commitPatch({ showImages: next });
+            }}
+            label="Show card images"
+          />
+          <div className={KIT.field}>
+            <label className={KIT.label}>Message when there is nothing yet</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="emptyStateText"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={grid.emptyStateText ?? ""}
+              ariaLabel="Empty state text"
+              className={KIT.textarea}
+              placeholder="Disciplines appear here as soon as talent on your roster is tagged."
+              onCommitBase={(next) =>
+                commitTextInput(
+                  "emptyStateText",
+                  grid.emptyStateText ?? "",
+                  true,
+                )(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── social_feed ───────────────────────────────────────────────────────────
   // Items editor + the presentation controls that make the feed feel like a
   // paid plugin: layout preset, columns, spacing, aspect, hover, load-more.
@@ -4247,6 +4660,18 @@ function childSecondaryLabel(node: BuilderNode): string {
       return BUILDER_NODE_REGISTRY[node.kind].description;
     case "section_embed":
       return `Tulala component · ${node.props.sectionTypeKey}`;
+    // WS7 Phase 0 — native data blocks. Name the SOURCE, not the kind (see the
+    // matching branch in canvas-node-children-panel.tsx).
+    case "hero_search":
+      return node.props.statSource === "tenant_talent_count"
+        ? "Search hero · live talent count"
+        : "Search hero";
+    case "talent_type_grid":
+      return node.props.mode === "dynamic"
+        ? "Disciplines · from your roster"
+        : `Disciplines · ${node.props.items?.length ?? 0} card${
+            (node.props.items?.length ?? 0) === 1 ? "" : "s"
+          }`;
   }
 }
 

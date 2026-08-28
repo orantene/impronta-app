@@ -212,7 +212,12 @@ const BUDGETS: Record<string, number> = {
   //   two <PortaledOverlay> wrappers, two closing tags, the import, and the
   //   comment explaining the trap so the next person does not move it back.
   //   The z itself now comes from Z_INDEX.canvasPanels; no logic changed.
-  "canvas-node-children-panel.tsx": 789,
+  // +7 (WS7 Phase 0): `canvasChildSecondaryLabel` switches EXHAUSTIVELY over
+  //   BuilderNodeKind, so the two new native data kinds (`hero_search`,
+  //   `talent_type_grid`) each need an arm or the file does not type-check.
+  //   Kept to the shortest form that still names the data SOURCE, which is the
+  //   one thing this label exists to say.
+  "canvas-node-children-panel.tsx": 796,
 };
 
 function lineCount(relativePath: string): number {

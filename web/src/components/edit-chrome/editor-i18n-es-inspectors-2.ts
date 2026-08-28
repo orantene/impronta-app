@@ -637,4 +637,31 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // "Predeterminado"), and a second definition would silently win or lose
   // depending on spread order. The parity test caught exactly that.
   Round: "Redondeadas",
+
+  // ── WS7 Phase 0 — native data blocks (Search hero / Talent by discipline) ─
+  // The two Content panels that replace the `section_embed` round-trip to the
+  // curated `hero_search` / `talent_type_grid` sections. Landing here rather
+  // than in `-inspectors.ts` because that file is at the 800-line cap.
+  // "Copy", "Cards", "Columns", "Layout", "Headline", "Intro" and "Eyebrow"
+  // are NOT redefined here - they already live in the catalog, and a second
+  // definition would win or lose depending on spread order.
+  "Search bar": "Barra de búsqueda",
+  "Show the search bar": "Mostrar la barra de búsqueda",
+  "Search talent by role, location or fit":
+    "Busca talento por rol, ciudad o perfil",
+  "Search the roster by role, location or fit.":
+    "Busca en el roster por rol, ciudad o perfil.",
+  "Find the right talent": "Encuentra el talento adecuado",
+  "Talent count": "Número de talentos",
+  "represented talent": "talentos representados",
+  "Show how many talent are in each discipline":
+    "Mostrar cuántos talentos hay en cada disciplina",
+  "Show card images": "Mostrar imágenes en las tarjetas",
+  "Group child types under their parent category":
+    "Agrupar los tipos hijos bajo su categoría principal",
+  "Disciplines appear here as soon as talent on your roster is tagged.":
+    "Las disciplinas aparecen aquí en cuanto etiquetas al talento de tu elenco.",
+  "See all": "Ver todo",
+  "e.g. The roster": "p. ej. El elenco",
+  "e.g. for your next campaign": "p. ej. para tu próxima campaña",
 };

@@ -19,6 +19,10 @@ import { resolveCollectionDataSources } from "@/lib/site-admin/collections/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getHomepageData } from "@/lib/home-data";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
+import {
+  fetchTenantTalentCount,
+  fetchTenantTalentDisciplines,
+} from "@/lib/site-admin/server/native-data-block-sources";
 
 function collectBuilderDataBindingMax(
   nodes: ReadonlyArray<BuilderNode>,
@@ -68,6 +72,72 @@ function hasBoundSocialLinksNode(nodes: ReadonlyArray<BuilderNode>): boolean {
   return nodes.some(visit);
 }
 
+/**
+ * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `talent_type_grid`) are
+ * their own data source: they carry no `dataBinding`, they ARE the binding. This
+ * walk answers two questions in one pass — does the tree contain a hero whose
+ * stat line is roster-derived, and does it contain a discipline grid in dynamic
+ * mode (and with what settings)?
+ *
+ * Returning `null` for either means "nothing to fetch", which keeps the loader's
+ * existing zero-round-trip fast path intact for every page that uses neither.
+ */
+function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
+  needsTalentCount: boolean;
+  disciplines: {
+    maxItems: number;
+    parentCategoryMode: boolean;
+    selectedTermIds?: string[];
+  } | null;
+} {
+  let needsTalentCount = false;
+  let disciplines: {
+    maxItems: number;
+    parentCategoryMode: boolean;
+    selectedTermIds?: string[];
+  } | null = null;
+
+  const visit = (node: BuilderNode) => {
+    if (
+      node.kind === "hero_search" &&
+      node.props.statSource === "tenant_talent_count"
+    ) {
+      needsTalentCount = true;
+    }
+    if (node.kind === "talent_type_grid" && node.props.mode === "dynamic") {
+      // Several grids on one page: fetch ONE superset (the largest cap, the
+      // union of selected terms) and let each node slice it down at render.
+      const maxItems = node.props.maxItems ?? 7;
+      const selected = node.props.selectedTermIds ?? [];
+      if (!disciplines) {
+        disciplines = {
+          maxItems,
+          parentCategoryMode: node.props.parentCategoryMode === true,
+          ...(selected.length > 0 ? { selectedTermIds: [...selected] } : {}),
+        };
+      } else {
+        disciplines.maxItems = Math.max(disciplines.maxItems, maxItems);
+        disciplines.parentCategoryMode =
+          disciplines.parentCategoryMode || node.props.parentCategoryMode === true;
+        // A node with NO selection wants everything, so any such node clears the
+        // narrowing rather than intersecting it away.
+        if (selected.length === 0) {
+          delete disciplines.selectedTermIds;
+        } else if (disciplines.selectedTermIds) {
+          disciplines.selectedTermIds = [
+            ...new Set([...disciplines.selectedTermIds, ...selected]),
+          ];
+        }
+      }
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return { needsTalentCount, disciplines };
+}
+
 export async function loadBuilderNodeDataSources(
   nodes: ReadonlyArray<BuilderNode>,
   tenantId: string,
@@ -97,11 +167,15 @@ export async function loadBuilderNodeDataSources(
   const mediaIds = collectBuilderImageMediaIds(nodes);
   const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
   const needsSocialLinks = hasBoundSocialLinksNode(nodes);
+  // WS7 Phase 0 — native data blocks.
+  const nativeNeeds = collectNativeDataBlockNeeds(nodes);
   if (
     featuredLimit == null &&
     !needsLocations &&
     !needsDirectoryShortcuts &&
     !needsSocialLinks &&
+    !nativeNeeds.needsTalentCount &&
+    nativeNeeds.disciplines == null &&
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
   ) {
@@ -120,6 +194,8 @@ export async function loadBuilderNodeDataSources(
     mediaAssets,
     collections,
     socialContact,
+    tenantTalentCount,
+    talentDisciplines,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -149,6 +225,22 @@ export async function loadBuilderNodeDataSources(
     needsSocialLinks
       ? resolveShellSocialContact({ tenantId: dataTenantId })
       : Promise.resolve(null),
+    // WS7 Phase 0 — both reads are scoped to `dataTenantId` (the preview subject
+    // when previewing, else the active tenant) and gated inside the fetchers by
+    // `listTalentIdsOnTenantRoster`, so they can only ever see this tenant's
+    // visible roster. See lib/site-admin/server/native-data-block-sources.ts.
+    nativeNeeds.needsTalentCount
+      ? fetchTenantTalentCount(dataTenantId)
+      : Promise.resolve(undefined),
+    nativeNeeds.disciplines
+      ? fetchTenantTalentDisciplines({
+          tenantId: dataTenantId,
+          parentCategoryMode: nativeNeeds.disciplines.parentCategoryMode,
+          selectedTermIds: nativeNeeds.disciplines.selectedTermIds,
+          maxItems: nativeNeeds.disciplines.maxItems,
+          locale,
+        })
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -173,5 +265,7 @@ export async function loadBuilderNodeDataSources(
     mediaAssets,
     collections,
     ...(socialLinks ? { socialLinks } : {}),
+    ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
+    ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
   };
 }

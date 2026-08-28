@@ -37,6 +37,13 @@ export type BuilderNodeKind =
   | "nav"
   | "social_links"
   | "form"
+  // WS7 Phase 0 — NATIVE data blocks. These replace the `section_embed`
+  // round-trip to the frozen curated sections of the same name: they render
+  // from `dataSources` the SERVER caller resolved (tenant-scoped), so the
+  // legacy section registry can be deleted without losing the homepage's two
+  // data-driven blocks. Structural leaves (`children: { type: "none" }`).
+  | "hero_search"
+  | "talent_type_grid"
   | "section_embed";
 
 export interface BuilderNodeBase {
@@ -931,6 +938,98 @@ export interface BuilderSocialFeedNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * WS7 Phase 0 — NATIVE search-first hero.
+ *
+ * Behavioural spec = the frozen `hero_search` curated section: eyebrow /
+ * headline (+ highlight) / subheadline, an optional real GET search form
+ * pointed at the tenant's directory route, manual quick-filter chips, and a
+ * stat line that is either manual items or ONE tenant-derived talent count.
+ *
+ * The derived count is NOT fetched here. The renderer reads
+ * `dataSources.tenantTalentCount`, which the server caller resolves via
+ * `listTalentIdsOnTenantRoster(tenantId)` — the same visible-roster gate the
+ * curated section honoured. No dataSources ⇒ no stat line, and never another
+ * tenant's numbers.
+ */
+export interface BuilderHeroSearchNode extends BuilderNodeBase {
+  kind: "hero_search";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    /** Emphasised phrase appended to the headline. */
+    highlight?: string;
+    subheadline?: string;
+    /** Show the search form. */
+    searchEnabled?: boolean;
+    searchPlaceholder?: string;
+    /** Form action; defaults to the tenant-prefixed `/directory`. */
+    searchActionHref?: string;
+    searchSubmitLabel?: string;
+    primaryCtaLabel?: string;
+    primaryCtaHref?: string;
+    secondaryCtaLabel?: string;
+    secondaryCtaHref?: string;
+    /** Manual quick-filter chips. */
+    chips?: Array<{ label: string; href?: string }>;
+    /** `manual` renders `statItems`; `tenant_talent_count` renders the derived count. */
+    statSource?: "manual" | "tenant_talent_count";
+    statItems?: Array<{ value: string; label: string }>;
+    /** Label paired with the derived count. */
+    statCountLabel?: string;
+    layout?: "centered" | "split" | "minimal" | "editorial";
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * WS7 Phase 0 — NATIVE "Talent, by discipline" taxonomy grid.
+ *
+ * Behavioural spec = the frozen `talent_type_grid` curated section. Two modes:
+ *   - `manual`  : operator-authored cards.
+ *   - `dynamic` : categories derived from THIS tenant's visible roster ∩
+ *                 `talent_profile_taxonomy` ∩ `taxonomy_terms`, resolved by the
+ *                 SERVER caller and handed over on
+ *                 `dataSources.talentDisciplines`. The renderer itself never
+ *                 queries, so it cannot reach another tenant's roster.
+ */
+export interface BuilderTalentTypeGridNode extends BuilderNodeBase {
+  kind: "talent_type_grid";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    subheadline?: string;
+    mode?: "manual" | "dynamic";
+    items?: Array<{
+      label: string;
+      description?: string;
+      imageUrl?: string;
+      imageAlt?: string;
+      imagePosition?: string;
+      taxonomyTermId?: string;
+      href?: string;
+      featured?: boolean;
+    }>;
+    /** dynamic mode — restrict to these taxonomy_term ids (empty = whole roster). */
+    selectedTermIds?: string[];
+    /** dynamic mode — roll child talent types up to their parent_category. */
+    parentCategoryMode?: boolean;
+    maxItems?: number;
+    columns?: number;
+    showCount?: boolean;
+    showImages?: boolean;
+    showDescriptions?: boolean;
+    cardRatio?: "1/1" | "3/4" | "4/3" | "16/9";
+    textPosition?: "overlay-bottom" | "below";
+    seeAllLabel?: string;
+    seeAllHref?: string;
+    emptyStateText?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderIconNode extends BuilderNodeBase {
   kind: "icon";
   props: {
@@ -1391,6 +1490,8 @@ export type BuilderNode =
   | BuilderEmbedNode
   | BuilderSocialPostNode
   | BuilderSocialFeedNode
+  | BuilderHeroSearchNode
+  | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode
   | BuilderRichTextNode
