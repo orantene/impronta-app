@@ -4,6 +4,7 @@ import { normalizeBuilderVisibilityCondition } from "./visibility";
 import { normalizeNodeI18nOverlay } from "./i18n-overlay";
 import { normalizeNodeExperimentConfig } from "./experiment";
 import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
+import { isBuilderNodeRole } from "./role-bindings";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -57,6 +58,15 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   {
     key: "experiment",
     normalize: (value) => normalizeNodeExperimentConfig(value) ?? undefined,
+  },
+  // EJECT PROVENANCE — the curated role an ejected child was minted from.
+  // Written by `ejectSectionInTree`; read by `section-eject-repair.ts` so
+  // "Restore original styling" knows which child is the headline without
+  // guessing. Not a per-kind prop (it is meaningless to the renderer), so it
+  // must be carried here or the very next validate pass would strip it.
+  {
+    key: "originRole",
+    normalize: (value) => (isBuilderNodeRole(value) ? value : undefined),
   },
 ];
 

@@ -211,7 +211,16 @@ const BUDGETS: Record<string, number> = {
   // a pure module (responsive-canvas-style.ts), and the chip's override badge
   // became its own component (responsive-override-badge.tsx). The feature came
   // out NET SMALLER than the code it replaced; budget lowered to match.
-  "selection-layer.tsx": 7756,
+  // -25 (2026-08-27, "Restore original styling"): a section unlocked before
+  // the eject-time baseline bake existed still renders stripped, and Relock
+  // was the only exit — it restores the design by DELETING the blocks. The
+  // non-destructive repair needed a second door on the section chip. Rather
+  // than grow this file for it, the chip's Remove confirm (53 lines of inline
+  // JSX) moved to chip-buttons.tsx as ChipRemoveConfirm, which more than paid
+  // for the ~11 lines of wiring the new action needs here. The repair itself
+  // is a pure module (section-eject-repair.ts) and its button lives in
+  // chip-buttons.tsx; this file only picks the target. Budget lowered to match.
+  "selection-layer.tsx": 7731,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

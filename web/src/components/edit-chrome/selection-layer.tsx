@@ -102,8 +102,10 @@ import {
 } from "./edit-context";
 import {
   ChipBtn,
+  ChipRemoveConfirm,
   ChipTextAction,
   SectionUnlockChipButton,
+  type SectionRestoreStylingTarget,
 } from "./chip-buttons";
 import { useEditorLocale } from "./use-editor-locale";
 import { useNestedBlocksPanelPreference } from "./use-nested-blocks-preference";
@@ -780,6 +782,7 @@ export function SelectionLayer() {
     convertBuilderTextNodeRole,
     ejectSection,
     unejectSection,
+    repairSectionStyling,
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
@@ -6082,6 +6085,16 @@ export function SelectionLayer() {
                     ? () => void unejectSection(unlockableSectionId)
                     : null
                 }
+                restoreStyling={
+                  unlockableSectionId &&
+                  sectionUnlocked &&
+                  pickedSection?.kind === "section"
+                    ? {
+                        sectionTypeKey: pickedSection.props.sectionTypeKey,
+                        run: () => repairSectionStyling(unlockableSectionId),
+                      }
+                    : null
+                }
                 onRemoveTrigger={() => setConfirmRemove(true)}
                 onRemoveConfirm={() => {
                   const ids = getAllSelectedIds();
@@ -7091,6 +7104,7 @@ function ChipToolBar({
   unlockScopeKey,
   onUnlockDesign,
   onRelockDesign,
+  restoreStyling,
   unlockBlockedReason,
   onRemoveTrigger,
   onRemoveConfirm,
@@ -7122,6 +7136,8 @@ function ChipToolBar({
   /** Curated <-> blocks. Each is null unless the section is in that state. */
   onUnlockDesign?: (() => void) | null;
   onRelockDesign?: (() => void) | null;
+  /** Non-destructive repair for an already-unlocked section (chip-buttons.tsx). */
+  restoreStyling?: SectionRestoreStylingTarget | null;
   /** Non-null when unlocking is offered but impossible. */
   unlockBlockedReason?: string | null;
   onRemoveTrigger: () => void;
@@ -7132,56 +7148,14 @@ function ChipToolBar({
   // Perf spine — SECTION chip actions = awaited dispatch lane; gate stays.
   const disabled = useSaving();
   if (confirmRemove) {
-    const totalToRemove = multiCount + 1;
-    const removeLabel =
-      totalToRemove > 1
-        ? t("Remove {count}?").replace("{count}", String(totalToRemove))
-        : t("Remove?");
     return (
-      <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onRemoveConfirm}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            background: "rgba(196,61,61,0.90)",
-            color: "white",
-            border: "none",
-            borderLeft: light
-              ? `1px solid ${CHROME.line}`
-              : "1px solid rgba(255,255,255,0.10)",
-            cursor: "pointer",
-          }}
-        >
-          {removeLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onRemoveCancel}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 12px",
-            fontSize: 11,
-            fontWeight: 500,
-            background: "transparent",
-            color: light ? CHROME.muted : "rgba(255,255,255,0.72)",
-            border: "none",
-            borderLeft: light
-              ? `1px solid ${CHROME.line}`
-              : "1px solid rgba(255,255,255,0.10)",
-            cursor: "pointer",
-          }}
-        >
-          {t("Cancel")}
-        </button>
-      </div>
+      <ChipRemoveConfirm
+        count={multiCount + 1}
+        disabled={disabled}
+        light={light}
+        onConfirm={onRemoveConfirm}
+        onCancel={onRemoveCancel}
+      />
     );
   }
 
@@ -7243,6 +7217,7 @@ function ChipToolBar({
           blockedReason={unlockBlockedReason ?? null}
           btnStyle={btnStyle}
           isUnlocked={Boolean(onRelockDesign)}
+          restoreStyling={restoreStyling ?? null}
           onUnlock={() => onUnlockDesign?.()}
           onRelock={() => onRelockDesign?.()}
         />

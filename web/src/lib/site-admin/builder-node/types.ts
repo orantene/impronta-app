@@ -73,6 +73,20 @@ export interface BuilderNodeBase {
    * the renderer reads `node.experiment` directly. See experiment.ts.
    */
   experiment?: import("./experiment").NodeExperimentConfig;
+  /**
+   * EJECT PROVENANCE — the curated role this node was minted from when its
+   * section was unlocked ("Unlock design"). Ejecting re-mints the derived
+   * children with fresh ROLELESS ids, which is the whole point (they become
+   * ordinary freeform blocks), but it also destroys the only link back to the
+   * curated `headline` / `primaryCta` / … the child used to be. Without that
+   * link, "Restore original styling" on an already-unlocked section has to
+   * GUESS which child is the headline. This stamp removes the guess for every
+   * eject from #1178 onward; historical ejects fall back to the inference
+   * ladder in `section-eject-repair.ts`. Absent → pre-stamp node, or a block
+   * the operator added themselves. SOURCE OF TRUTH = `props.originRole`;
+   * mirrored here by validate's base-field allow-list.
+   */
+  originRole?: import("./role-bindings").BuilderNodeRole;
 }
 
 export interface BuilderNodeStyleValue {

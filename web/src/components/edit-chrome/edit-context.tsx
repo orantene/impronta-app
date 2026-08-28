@@ -84,7 +84,7 @@ import {
   wrapNodeAsInstanceRoot,
   canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
-import { runEjectSection, runUnejectSection } from "./eject-lossless";
+import { useSectionLockActions } from "./use-section-lock-actions";
 import {
   applyBuilderNodeOperation,
   convertBuilderTextNodeRole as convertBuilderTextNodeRoleInTree,
@@ -4070,33 +4070,14 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
-  // "2018 bye-bye" — eject a curated section to freeform (LOSSLESS: saved
-  // per-role styling is fetched + carried; see eject-lossless.ts). Reversible
-  // via unejectSection, which DESTROYS freeform children — callers confirm.
-  const ejectSection = useCallback<EditContextValue["ejectSection"]>(
-    (sectionNodeId) =>
-      runEjectSection(
-        builderTreeRef.current,
-        sectionNodeId,
-        executeBuilderNodeOperation,
-      ),
-    [executeBuilderNodeOperation],
-  );
-  const unejectSection = useCallback<EditContextValue["unejectSection"]>(
-    async (sectionNodeId) => {
-      const result = await runUnejectSection(
-        sectionNodeId,
-        executeBuilderNodeOperation,
-      );
-      // Relock repaints only server-side: the curated component is a server
-      // render the client canvas cannot restore, so without a refresh the
-      // unlocked look persists until a manual reload and relock appears to
-      // have failed (same rationale as serverRenderedEditTarget above).
-      if (result.ok && result.ejected) void queueRouterRefresh();
-      return result;
-    },
-    [executeBuilderNodeOperation, queueRouterRefresh],
-  );
+  // Unlock / Relock / Restore-styling — the three doors between a curated
+  // section and freeform blocks (use-section-lock-actions.ts).
+  const { ejectSection, unejectSection, repairSectionStyling } =
+    useSectionLockActions({
+      builderTreeRef,
+      executeBuilderNodeOperation,
+      queueRouterRefresh,
+    });
   // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
   // instance, keyed by the MASTER child id. Pure transform + shared commit path.
   const setInstanceOverride = useCallback<
@@ -5878,6 +5859,7 @@ export function EditProvider({
       detachComponentInstance,
       ejectSection,
       unejectSection,
+      repairSectionStyling,
       setInstanceOverride,
       applyInstanceVariant,
       clearInstanceVariant,
@@ -6137,6 +6119,7 @@ export function EditProvider({
       detachComponentInstance,
       ejectSection,
       unejectSection,
+      repairSectionStyling,
       setInstanceOverride,
       applyInstanceVariant,
       clearInstanceVariant,

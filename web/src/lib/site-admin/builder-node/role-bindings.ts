@@ -15,6 +15,24 @@ const ROLE_SUFFIXES: ReadonlyArray<readonly [suffix: string, role: BuilderNodeRo
   [":button:footerCta", "footerCta"],
 ];
 
+/** Every role the curated-section binding knows about, in a stable order. */
+export const BUILDER_NODE_ROLES: ReadonlyArray<BuilderNodeRole> = Object.freeze(
+  ROLE_SUFFIXES.map(([, role]) => role),
+);
+
+/**
+ * Type guard for a role that was PERSISTED as a plain string rather than
+ * derived from a node id — `node.originRole`, the eject-time provenance stamp
+ * (see `section-eject.ts`). Ids go roleless at eject; the stamp is what
+ * survives.
+ */
+export function isBuilderNodeRole(value: unknown): value is BuilderNodeRole {
+  return (
+    typeof value === "string" &&
+    (BUILDER_NODE_ROLES as ReadonlyArray<string>).includes(value)
+  );
+}
+
 export interface BuilderNodeRoleBindingResult {
   nodeIdsByRole: Readonly<Partial<Record<BuilderNodeRole, string>>>;
   unknownNodeIds: ReadonlyArray<string>;

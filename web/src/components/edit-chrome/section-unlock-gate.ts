@@ -20,6 +20,7 @@ import {
   isCompositionOwnedSectionType,
   sectionTypeHasDerivableChildren,
 } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
+import { SECTION_EJECT_BASELINE_TYPE_KEYS } from "@/lib/site-admin/builder-node/section-eject-baseline";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 /**
@@ -56,6 +57,45 @@ export function resolveSectionUnlockGate(
 export const SECTION_UNLOCK_EMPTY_LABEL = "Nothing to unlock yet";
 export const SECTION_UNLOCK_EMPTY_HINT =
   "This section has no separate layers to unlock, so unlocking it would leave it blank.";
+
+/**
+ * TRAP 3 — a section unlocked BEFORE the eject-time baseline bake existed lost
+ * its curated design outright (the rivieramayawork hero went from a full-bleed
+ * centered serif banner to black left-aligned text on white). The only exit was
+ * Relock, which restores the design by DELETING every block added since. This
+ * is the other exit, and the copy exists to make the difference impossible to
+ * miss: Restore keeps your blocks, Relock throws them away.
+ */
+export const SECTION_RESTORE_STYLING_LABEL = "Restore original styling";
+export const SECTION_RESTORE_STYLING_HINT =
+  "Bring back this section's original fonts, colors and alignment. Your blocks and edits stay exactly as they are.";
+export const SECTION_RESTORE_STYLING_UNAVAILABLE_LABEL =
+  "No original styling on file";
+export const SECTION_RESTORE_STYLING_UNAVAILABLE_HINT =
+  "We have no record of this section type's original styling, so there is nothing to restore.";
+export const SECTION_RESTORE_STYLING_UNRESOLVED =
+  "This section changed too much to match its original elements, so nothing was restyled.";
+export const SECTION_RESTORE_STYLING_ALREADY =
+  "This section already carries its original styling. Nothing changed.";
+export const SECTION_RESTORE_STYLING_PARTIAL =
+  "Some elements could not be matched to the original design and were left as they are.";
+export const SECTION_RESTORE_STYLING_DONE = "Original styling restored.";
+
+export type SectionRestoreStylingGate = "available" | "no-baseline";
+
+/**
+ * Can "Restore original styling" do anything for this section type? Answered
+ * from `SECTION_EJECT_BASELINE_TYPE_KEYS` — the same table the eject-time bake
+ * dispatches through — so a type is either covered by both or by neither, and
+ * there is no parallel hand-kept list to forget.
+ */
+export function resolveSectionRestoreStylingGate(
+  sectionTypeKey: string,
+): SectionRestoreStylingGate {
+  return SECTION_EJECT_BASELINE_TYPE_KEYS.includes(sectionTypeKey)
+    ? "available"
+    : "no-baseline";
+}
 
 /**
  * Would a block dropped inside this node be silently re-derived away?

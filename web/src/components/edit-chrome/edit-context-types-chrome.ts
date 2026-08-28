@@ -11,6 +11,7 @@
 
 import type { SectionVisibility } from "@/lib/site-admin/edit-mode/section-actions";
 import type { RevisionsLoadResult } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type { RepairSectionStylingResult } from "@/lib/site-admin/builder-node/section-eject-repair";
 import type { PanelOffset } from "./workspace-layout";
 import type {
   BuilderClipboardActionToast,
@@ -551,4 +552,17 @@ export interface EditContextChromeAndSessionValue {
    * the server can stamp the row (beacon LWW + same-session adoption).
    */
   nextEditSession: () => { id: string; seq: number };
+  /**
+   * Restore the curated styling on a section that is ALREADY unlocked, keeping
+   * its freeform children — the non-destructive twin of `unejectSection`,
+   * which clears them. For every section unlocked before the eject-time
+   * baseline bake existed and therefore still rendering stripped. `outcome`
+   * reports what actually happened so the UI can be honest about a no-op
+   * instead of claiming success; see `section-eject-repair.ts`.
+   *
+   * (Lives in this half purely for max-lines room — see the note at the top.)
+   */
+  repairSectionStyling: (
+    sectionNodeId: string,
+  ) => Promise<RepairSectionStylingResult>;
 }

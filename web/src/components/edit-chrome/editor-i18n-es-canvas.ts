@@ -266,6 +266,22 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "¿Volver a bloquear y descartar los bloques agregados?",
   "Relocking restores the original design and discards the blocks you added or edited here.":
     "Volver a bloquear restaura el diseño original y descarta los bloques que agregaste o editaste aquí.",
+  // "Restore original styling" — the non-destructive twin of Relock. The two
+  // sit next to each other, so the Spanish has to draw the same line the
+  // English does: this one keeps your blocks, Relock discards them.
+  "Restore original styling": "Restaurar el estilo original",
+  "Bring back this section's original fonts, colors and alignment. Your blocks and edits stay exactly as they are.":
+    "Recupera las tipografías, los colores y la alineación originales de esta sección. Tus bloques y tus ediciones se quedan tal cual están.",
+  "No original styling on file": "No hay estilo original registrado",
+  "We have no record of this section type's original styling, so there is nothing to restore.":
+    "No tenemos registro del estilo original de este tipo de sección, así que no hay nada que restaurar.",
+  "This section changed too much to match its original elements, so nothing was restyled.":
+    "Esta sección cambió demasiado para reconocer sus elementos originales, así que no se aplicó ningún estilo.",
+  "This section already carries its original styling. Nothing changed.":
+    "Esta sección ya tiene su estilo original. No cambió nada.",
+  "Some elements could not be matched to the original design and were left as they are.":
+    "Algunos elementos no se pudieron reconocer en el diseño original y se dejaron tal cual están.",
+  "Original styling restored.": "Estilo original restaurado.",
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",

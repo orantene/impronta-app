@@ -538,12 +538,34 @@ test("eject(production wiring): resolving a saved section's nodePresentation + c
 test("eject(production wiring, static): the production eject path is the 4-arg lossless call", () => {
   const thisDir = dirname(fileURLToPath(import.meta.url));
   const chromeDir = join(thisDir, "..", "..", "..", "components", "edit-chrome");
-  // edit-context delegates ejectSection to the eject-lossless runner…
+  // edit-context delegates the three section-lock doors to one hook…
   const editContext = readFileSync(join(chromeDir, "edit-context.tsx"), "utf8");
   assert.match(
     editContext,
+    /useSectionLockActions\(/,
+    "edit-context.tsx must delegate ejectSection to useSectionLockActions (use-section-lock-actions.ts)",
+  );
+  assert.match(
+    editContext,
+    /ejectSection,\s*unejectSection,\s*repairSectionStyling/,
+    "all three doors must come off that hook and reach the context value",
+  );
+  // …and that hook is what calls the eject-lossless runners. Following the hop
+  // rather than dropping it: the chain edit-context -> hook -> runner -> 4-arg
+  // transform must stay provable, or a dead control can hide in the seam.
+  const lockActions = readFileSync(
+    join(chromeDir, "use-section-lock-actions.ts"),
+    "utf8",
+  );
+  assert.match(
+    lockActions,
     /runEjectSection\(/,
-    "edit-context.tsx ejectSection must delegate to runEjectSection (eject-lossless.ts)",
+    "useSectionLockActions must delegate to runEjectSection (eject-lossless.ts)",
+  );
+  assert.match(
+    lockActions,
+    /runRepairSectionStyling\(/,
+    "useSectionLockActions must delegate the RETROACTIVE repair to runRepairSectionStyling",
   );
   // …which resolves saved styling + the curated CSS baseline and commits the
   // 4-arg lossless transform (rolePresentation AND roleBaseline).
@@ -562,5 +584,22 @@ test("eject(production wiring, static): the production eject path is the 4-arg l
     losslessRunner,
     /await loadSectionForEditAction\(sectionId\)/,
     "the lossless runner must resolve the section's saved nodePresentation via loadSectionForEditAction",
+  );
+  // The last seam: the chip is rendered by selection-layer, and its restore
+  // action must carry a LIVE run. A control wired to nothing renders exactly
+  // like a working one.
+  const selectionLayer = readFileSync(
+    join(chromeDir, "selection-layer.tsx"),
+    "utf8",
+  );
+  assert.match(
+    selectionLayer,
+    /restoreStyling=\{/,
+    "the section chip must be handed a restoreStyling target",
+  );
+  assert.match(
+    selectionLayer,
+    /run: \(\) => repairSectionStyling\(/,
+    "the restore target's run must call the context action, not a stub",
   );
 });

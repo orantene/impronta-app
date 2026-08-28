@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeTree } from "./types";
 import { ejectSectionInTree } from "./section-eject";
+import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   MIRRORED_CSS_DECLS,
   SECTION_EJECT_BASELINE_TYPE_KEYS,
@@ -387,9 +388,23 @@ test("a section type with no baseline degrades to today's behaviour and does not
   );
   assert.equal(ejected, true);
   const sec = next[0] as BuilderNode & { children: BuilderNode[] };
-  // No styling appears out of nowhere — byte-equal props except fresh ids.
+  // No STYLING appears out of nowhere — byte-equal props except fresh ids and
+  // the `originRole` provenance stamp, which every eject writes regardless of
+  // baseline coverage (it is what lets "Restore original styling" find the
+  // right child later; see section-eject-repair.ts). It carries no design.
   for (let i = 0; i < children.length; i += 1) {
-    assert.deepEqual(sec.children[i].props, children[i].props);
+    const { originRole, ...rest } = sec.children[i].props as Record<
+      string,
+      unknown
+    >;
+    assert.deepEqual(rest, children[i].props);
+    assert.equal(originRole, resolveBuilderNodeRole(children[i].id));
+    assert.equal(
+      (sec.children[i] as { style?: unknown }).style ??
+        (rest as { style?: unknown }).style,
+      undefined,
+      "a baseline-free eject must not invent styling",
+    );
   }
 });
 

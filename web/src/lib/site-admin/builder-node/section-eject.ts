@@ -46,7 +46,7 @@ export type EjectRolePresentation = Readonly<
  * buckets so an upper layer's tablet/mobile values refine rather than clobber
  * the lower layer's.
  */
-function layerStyles(
+export function layerBuilderNodeStyles(
   base: BuilderNodeStyle | undefined,
   over: BuilderNodeStyle | undefined,
 ): BuilderNodeStyle | undefined {
@@ -86,6 +86,32 @@ function applyRolePresentationToChild(
 ): BuilderNode {
   const role = resolveBuilderNodeRole(child.id);
   if (!role) return child;
+  const curated = resolveCuratedRoleStyle(role, rolePresentation, roleBaseline);
+  if (!curated) return child;
+  const existing = (child.props as { style?: BuilderNodeStyle }).style;
+  const mergedStyle = layerBuilderNodeStyles(
+    curated,
+    existing,
+  ) as BuilderNodeStyle;
+  return {
+    ...child,
+    props: { ...(child.props as Record<string, unknown>), style: mergedStyle },
+  } as BuilderNode;
+}
+
+/**
+ * The curated style for ONE role: the section's CSS baseline with the
+ * operator's saved per-role `nodePresentation` layered over it. This is the
+ * value that goes UNDER a child's explicit style — shared verbatim with the
+ * REPAIR path (`section-eject-repair.ts`) so an already-unlocked section can
+ * regain exactly the styling a fresh unlock would have baked in, with the same
+ * precedence. Returns `undefined` when the role carries neither layer.
+ */
+export function resolveCuratedRoleStyle(
+  role: BuilderNodeRole,
+  rolePresentation: EjectRolePresentation,
+  roleBaseline?: EjectRoleBaseline,
+): BuilderNodeStyle | undefined {
   const np = rolePresentation[role];
   const baseline = roleBaseline?.[role];
   // `nodePresentation` is the full schema (with a `breakpoints` wrapper); the
@@ -108,13 +134,21 @@ function applyRolePresentationToChild(
         : baseLayer;
     if (Object.keys(translated).length === 0) translated = undefined;
   }
-  const curated = layerStyles(baseline, translated);
-  if (!curated || Object.keys(curated).length === 0) return child;
-  const existing = (child.props as { style?: BuilderNodeStyle }).style;
-  const mergedStyle = layerStyles(curated, existing) as BuilderNodeStyle;
+  const curated = layerBuilderNodeStyles(baseline, translated);
+  if (!curated || Object.keys(curated).length === 0) return undefined;
+  return curated;
+}
+
+/**
+ * Stamp the curated role a child was minted from onto the node itself
+ * (`props.originRole` + the validate-carried base mirror), so the link
+ * survives the re-mint that strips it from the id. See `BuilderNodeBase.originRole`.
+ */
+function stampOriginRole(child: BuilderNode, role: BuilderNodeRole): BuilderNode {
   return {
     ...child,
-    props: { ...(child.props as Record<string, unknown>), style: mergedStyle },
+    originRole: role,
+    props: { ...(child.props as Record<string, unknown>), originRole: role },
   } as BuilderNode;
 }
 
@@ -145,7 +179,13 @@ export function ejectSectionInTree(
                 roleBaseline,
               )
             : child;
-        return cloneNodeWithFreshIds(styled);
+        // #1178 — stamp the provenance BEFORE the re-mint drops the role from
+        // the id, unconditionally (it costs nothing and is the only thing that
+        // makes "Restore original styling" exact for this section later).
+        const role = resolveBuilderNodeRole(child.id);
+        return cloneNodeWithFreshIds(
+          role ? stampOriginRole(styled, role) : styled,
+        );
       });
       return {
         ...node,

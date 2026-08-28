@@ -119,7 +119,14 @@ const BUDGETS: Record<string, number> = {
   // (rAF+timeout fire) and the serverRenderedEditTarget post-save refresh gate.
 // +24 (2026-08-21): the reveal-hidden canvas marker effect (data-bn-reveal-hidden)
   // that makes breakpoint-hidden blocks selectable again in the editor.
-  "src/components/edit-chrome/edit-context.tsx": 6307,
+  // -17 (2026-08-27, "Restore original styling"): the third door between a
+  // curated section and blocks (restore the curated look WITHOUT discarding the
+  // operator's blocks, for sections unlocked before the eject-time baseline
+  // bake existed). Rather than add a fourth callback here, the eject / uneject /
+  // repair trio moved out together as use-section-lock-actions.ts — they share
+  // the commit spine and only read correctly against each other. The feature
+  // lands NET SMALLER than the code it joined; budget lowered to match.
+  "src/components/edit-chrome/edit-context.tsx": 6290,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
