@@ -49,6 +49,13 @@ export type DirectoryInquiryPayload =
        * Undefined when there is no live draft to carry.
        */
       carriedIntent?: CarriedDraftIntent;
+      /**
+       * The id of the draft `carriedIntent` came from. The sheet threads it
+       * into `source_context.carried_draft_id`, and a successful submit then
+       * RETIRES that draft (status -> cancelled) so the chat does not resume a
+       * ghost "Not sent yet" duplicate of an inquiry the visitor already sent.
+       */
+      carriedDraftId?: string;
     };
 
 /**
@@ -75,10 +82,14 @@ export type CarriedDraftIntent = Pick<
  * who told the chat their date, then opened the drawer, was met with an empty
  * form and had to type it again.
  *
- * This is the READ half only, on purpose. Write-back would need guest draft
- * autosave — currently disabled, and it looks deliberate (orphan drafts, abuse
- * surface) — plus a conflict rule for which surface wins. Prefilling loses
- * nothing and needs neither.
+ * DECISION (2026-08-27): read-only prefill IS the sync model — write-back is
+ * rejected, not deferred. Live two-way sync would need guest draft autosave
+ * (deliberately off: orphan drafts, abuse surface) plus a conflict rule, and
+ * every rule silently overwrites something the guest typed on the other
+ * surface. Instead the flow is: chat persists as you talk -> drawer opens
+ * pre-filled -> drawer SUBMIT creates the real inquiry and retires the carried
+ * draft (see carriedDraftId), so the two surfaces converge at the only moment
+ * that matters and no ghost "Not sent yet" duplicate survives the send.
  *
  * Anon RLS cannot see `inquiries`, so this mirrors the chat's own resolver and
  * goes through the service-role client after proving the session key. Silent
@@ -87,7 +98,7 @@ export type CarriedDraftIntent = Pick<
 async function loadCarriedDraftIntent(
   guestKey: string | null,
   tenantSlug: string,
-): Promise<CarriedDraftIntent | undefined> {
+): Promise<{ intent: CarriedDraftIntent; draftId: string } | undefined> {
   if (!guestKey || !tenantSlug) return undefined;
   const admin = createServiceRoleClient();
   if (!admin) return undefined;
@@ -114,7 +125,7 @@ async function loadCarriedDraftIntent(
     // finished and must not bleed into a NEW inquiry the visitor is starting.
     const { data: row } = await admin
       .from("inquiries")
-      .select("interpreted_query")
+      .select("id, interpreted_query")
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .eq("status", "draft")
@@ -122,9 +133,10 @@ async function loadCarriedDraftIntent(
       .limit(1)
       .maybeSingle();
 
+    const draftId = (row as { id?: string } | null)?.id;
     const intent = (row as { interpreted_query?: unknown } | null)
       ?.interpreted_query as Partial<InquiryIntent> | null | undefined;
-    if (!intent || typeof intent !== "object") return undefined;
+    if (!draftId || !intent || typeof intent !== "object") return undefined;
 
     // Only the four event sections. `talent` stays with the shared lineup,
     // `requester`/`client` with the account prefill, and `source_context` must
@@ -135,7 +147,9 @@ async function loadCarriedDraftIntent(
     if (intent.budget) carried.budget = intent.budget;
     if (intent.brief) carried.brief = intent.brief;
 
-    return Object.keys(carried).length > 0 ? carried : undefined;
+    return Object.keys(carried).length > 0
+      ? { intent: carried, draftId }
+      : undefined;
   } catch {
     // Best-effort prefill. Never block the composer.
     return undefined;
@@ -293,13 +307,14 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
 
   // Guests only: a signed-in client's drawer already autosaves its own draft,
   // so carrying the chat's would fight a surface that is already correct.
-  const carriedIntent = user
+  const carried = user
     ? undefined
     : await loadCarriedDraftIntent(guestKey, tenantSlug);
 
   return {
     kind: "ready",
-    carriedIntent,
+    carriedIntent: carried?.intent,
+    carriedDraftId: carried?.draftId,
     inquiriesOpen: publicSettings.inquiriesOpen,
     aiInquiryDraftEnabled,
     agencyWhatsAppNumber: publicSettings.agencyWhatsAppNumber ?? undefined,

@@ -34,6 +34,7 @@ import { useEffect, useState } from "react";
 
 import type { AddClaimEmailCallback, CheckGuestClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
+import { claimEmailNotice } from "./claim-email-notice";
 import { interpolate } from "@/i18n/interpolate";
 
 import {
@@ -154,7 +155,10 @@ export function GuestAccountToolkit({
           setEditEmailBlocksSubmit(false);
           return;
         }
-        setEditEmailNotice(res.message ?? null);
+        // Status -> catalog copy; the server message is hardcoded English.
+        setEditEmailNotice(
+          claimEmailNotice(t, res.status, { replacePrimary: true }, res.message),
+        );
         setEditEmailBlocksSubmit(Boolean(res.blocksSubmit));
       })();
     }, 350);
@@ -163,7 +167,7 @@ export function GuestAccountToolkit({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [editEmail, inquiryId, onCheckClaimEmail, showChangeEmail]);
+  }, [editEmail, inquiryId, onCheckClaimEmail, showChangeEmail, t]);
 
   // A registered client has nothing to claim — hide entirely.
   if (identity === "account") return null;

@@ -1178,7 +1178,11 @@
       "recapUseDifferentEmail": "Usar otro correo",
       "recapSendLink": "Enviar enlace",
       "recapLinkSent": "Enlace enviado a {email}. Revisa tu bandeja de entrada para continuar.",
-      "pickerStartNewSub": "Solo {name}, por separado"
+      "pickerStartNewSub": "Solo {name}, por separado",
+      "emailTeamAccount": "Ese correo ya pertenece a una cuenta de equipo. Prueba con un correo personal.",
+      "emailRegisteredReplace": "Este correo ya está registrado. Inicia sesión con esa cuenta o usa otro correo.",
+      "emailRegisteredGate": "Este correo ya tiene una cuenta de Tulala. Te enviaremos un enlace de acceso después de que envíes tu mensaje.",
+      "emailSameAccount": "Este es el correo de tu conversación. Te enviaremos un enlace de acceso aquí."
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",

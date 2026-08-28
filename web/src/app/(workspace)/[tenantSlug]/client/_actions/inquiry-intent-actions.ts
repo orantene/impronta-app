@@ -283,6 +283,41 @@ export async function submitInquiryNowAction(
   // then uploads each file through the signed pipeline below, reporting
   // per-file success/failure. See `createInquiryAttachmentUploadUrlAction`.
 
+  // Retire the chat draft this submit superseded. The drawer prefilled from
+  // the guest's newest chat draft (source_context.carried_draft_id, threaded
+  // from loadDirectoryInquiryPayload). createInquiryFromIntent always INSERTS,
+  // so without this the old draft lingers and the chat resumes a ghost
+  // "Not sent yet" duplicate of an inquiry the visitor just sent.
+  //
+  // Precision matters: a guest can hold several deliberate drafts (the chat's
+  // "Start a separate inquiry"), so ONLY the carried draft is retired — never
+  // a blanket cancel. `cancelled` is what getActiveGuestInquiry's resume
+  // filter already drops. Ownership is enforced in the WHERE, not trusted from
+  // the client: the id must belong to THIS guest session, THIS tenant, and
+  // still be an un-sent draft. Best-effort — a failure here must never fail a
+  // submit that already succeeded.
+  if (result.ok) {
+    const carriedDraftId = (intent.source_context as Record<string, unknown> | undefined)
+      ?.carried_draft_id;
+    if (
+      typeof carriedDraftId === "string" &&
+      /^[0-9a-f-]{36}$/i.test(carriedDraftId) &&
+      ctx.guestSessionId &&
+      carriedDraftId !== result.inquiryId
+    ) {
+      const { error: retireErr } = await ctx.writeClient
+        .from("inquiries")
+        .update({ status: "cancelled" })
+        .eq("id", carriedDraftId)
+        .eq("guest_session_id", ctx.guestSessionId)
+        .eq("tenant_id", ctx.tenantId)
+        .eq("status", "draft");
+      if (retireErr) {
+        logServerError("inquiry-intent-actions.retireCarriedDraft", retireErr);
+      }
+    }
+  }
+
   return finalizeSubmit(result, tenantSlug, {
     isGuest: !ctx.actorUserId,
     guestActivation,

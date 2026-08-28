@@ -120,6 +120,9 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
               savedIds.length > 0 ? "i_know_who" : "agency_recommends",
           },
           source_context: {
+            // On successful submit, this draft is retired so the chat does not
+            // resume a ghost duplicate of an inquiry already sent.
+            ...(ready.carriedDraftId ? { carried_draft_id: ready.carriedDraftId } : {}),
             referrer_page: searchContext?.sourcePage ?? "/directory",
             directory_search: {
               q: searchContext?.q ?? null,
