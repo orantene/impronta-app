@@ -40,10 +40,20 @@ test("the resize/spacing gate is no longer desktop-only", () => {
 });
 
 test("rotate is the ONE handle left desktop-only, and deliberately", () => {
+  // Asserted on the DECLARATION, not on one exact expression. This used to pin
+  // the literal `canResizeSelectedNode && device === "desktop"`, which broke the
+  // moment the gates moved to resolveNodeCapabilities (`selectedCaps?.rotate`)
+  // even though the invariant was untouched. The invariant is what matters:
+  // rotate carries its own `device === "desktop"`, which is precisely what lets
+  // resize/spacing/move be device-agnostic (asserted in the test above).
+  const start = SRC.indexOf("const canRotateSelectedNode =");
+  const decl = start < 0 ? "" : SRC.slice(start, SRC.indexOf(";", start) + 1);
+  assert.ok(decl.length > 0, "canRotateSelectedNode moved — repoint this test");
   assert.match(
-    SRC,
-    /const canRotateSelectedNode = canResizeSelectedNode && device === "desktop";/,
-    "rotate's separate gate is what lets the others be device-agnostic",
+    decl,
+    /device === "desktop"/,
+    "rotate's separate desktop gate is what lets the others be device-agnostic. " +
+      "Found instead:\n  " + decl,
   );
   assert.ok(
     SRC.includes("{canRotateSelectedNode && !dragChromeSuppressed ? (\n\t            <CanvasRotateHandle"),
