@@ -27,12 +27,18 @@ export default async function CommercePage({
 }) {
   const params = await searchParams;
   const tab = parseCommerceTab(params.tab);
+  // The open drawer's id, threaded from the SERVER rather than left to the
+  // client hook alone. `useUrlDrawer` reads `?d=` via useSearchParams, which is
+  // populated after hydration -- fine when you click a card, but on a COLD load
+  // of a shared link the drawer never opened, so `?d=` was a one-way street.
+  // Passing it down makes the first render already know.
+  const initialDrawerId = typeof params.d === "string" ? params.d : null;
 
   return (
     <>
       <CommerceHeader activeTab={tab} />
       <Suspense key={tab} fallback={<TabLoading />}>
-        <TabBody tab={tab} />
+        <TabBody tab={tab} initialDrawerId={initialDrawerId} />
       </Suspense>
     </>
   );

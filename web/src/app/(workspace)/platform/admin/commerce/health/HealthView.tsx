@@ -154,9 +154,9 @@ export async function HealthView({ health }: { health: StripeHealth }) {
               </p>
               {check.items && check.items.length > 0 && (
                 <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0" }}>
-                  {check.items.map((item) => (
+                  {check.items.map((item, index) => (
                     <li
-                      key={`${check.id}-${item.name}`}
+                      key={`${check.id}-${index}-${item.name}`}
                       style={{
                         display: "flex",
                         gap: 8,

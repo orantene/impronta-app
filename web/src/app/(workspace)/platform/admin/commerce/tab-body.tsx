@@ -39,7 +39,14 @@ import { RevenueView } from "./revenue/RevenueView";
 import { CommissionView } from "./commission/CommissionView";
 import { loadPlatformCommissionConfig } from "./commission/actions";
 
-export async function TabBody({ tab }: { tab: CommerceTab }) {
+export async function TabBody({
+  tab,
+  initialDrawerId = null,
+}: {
+  tab: CommerceTab;
+  /** `?d=` from the server, so a cold deep link opens its drawer on first render. */
+  initialDrawerId?: string | null;
+}) {
   if (tab === "health") {
     const health = await loadStripeHealth();
     return <HealthView health={health} />;
@@ -59,6 +66,7 @@ export async function TabBody({ tab }: { tab: CommerceTab }) {
         stripeAccount={stripeAccount}
         fx={fx}
         trialOffers={trialOffers}
+        initialDrawerId={initialDrawerId}
       />
     );
   }
