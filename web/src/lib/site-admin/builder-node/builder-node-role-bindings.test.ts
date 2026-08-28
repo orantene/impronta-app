@@ -3,7 +3,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { buildLegacySectionBuilderTree } from "./snapshot-slot-bridge";
+import {
+  buildLegacySectionBuilderTree,
+  sectionTypeHasDerivableChildren,
+} from "./snapshot-slot-bridge";
 import {
   buildBuilderNodeRoleBindings,
   resolveBuilderNodeRole,
@@ -776,20 +779,28 @@ test("style-panel role map covers every registered section type key", () => {
   );
 });
 
-test("legacy child-node derivation handles every registered section type key", () => {
-  const legacyPath = path.resolve(
-    process.cwd(),
-    "src/lib/site-admin/builder-node/snapshot-slot-bridge.ts",
-  );
-  const source = readFileSync(legacyPath, "utf8");
-  const handledKeys = [...source.matchAll(/slot\.sectionTypeKey === "([a-z0-9_]+)"/g)].map(
-    (match) => match[1] as string,
-  );
-  const registered = registeredSectionTypeKeys();
-  const missing = registered.filter((key) => !handledKeys.includes(key));
-  assert.deepEqual(
-    missing,
-    [],
-    `Legacy section child-node derivation missing keys: ${missing.join(", ")}`,
-  );
+test("legacy child-node derivation accounts for every registered section type key", () => {
+  // This used to scan the `slot.sectionTypeKey === "..."` if-chain's SOURCE
+  // TEXT. That chain is now the `SECTION_CHILD_DERIVERS` table (single source
+  // of truth shared with `sectionTypeHasDerivableChildren`, so the UI's unlock
+  // affordance cannot drift from what unlocking actually does), so "handled"
+  // is a lookup rather than a regex. A registered type with NO deriver is
+  // legitimate — it derives nothing and must not offer "Unlock design" — but
+  // it has to be a deliberate choice, so the set is pinned here.
+  // `section-derivable-children.test.ts` proves the predicate matches the real
+  // derivation for every type.
+  const noDerivableChildren = registeredSectionTypeKeys()
+    .filter((key) => !sectionTypeHasDerivableChildren(key))
+    .sort();
+  assert.deepEqual(noDerivableChildren, [
+    "anchor_nav",
+    "blank_section",
+    "header_account",
+    "header_favorites",
+    "header_inquiry",
+    "header_language",
+    "header_search",
+    "join_register",
+    "marquee",
+  ]);
 });

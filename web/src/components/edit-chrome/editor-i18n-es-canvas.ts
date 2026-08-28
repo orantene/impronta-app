@@ -256,6 +256,9 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Hide section": "Ocultar sección",
   "Unlock design": "Desbloquear diseño",
   "Relock design": "Volver a bloquear el diseño",
+  "Nothing to unlock yet": "Nada que desbloquear todavía",
+  "This section has no separate layers to unlock, so unlocking it would leave it blank.":
+    "Esta sección no tiene capas separadas que desbloquear, así que desbloquearla la dejaría en blanco.",
   "Edit every element in this section individually":
     "Edita cada elemento de esta sección por separado",
   "Restore the original design": "Restaurar el diseño original",
