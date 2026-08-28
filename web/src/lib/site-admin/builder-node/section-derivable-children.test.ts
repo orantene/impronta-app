@@ -35,7 +35,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -218,4 +218,44 @@ test("an unknown section type is reported as non-derivable, not silently unlocka
     }),
     [],
   );
+});
+
+// Enumerate every registered section type from the sections directory's meta
+// files (same source the role-bindings suite uses).
+function registeredSectionTypeKeys(): string[] {
+  const sectionsDir = join(process.cwd(), "src/lib/site-admin/sections");
+  return readdirSync(sectionsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== "shared")
+    .map((entry) => entry.name)
+    .map((name) => {
+      try {
+        const source = readFileSync(join(sectionsDir, name, "meta.ts"), "utf8");
+        return source.match(/key:\s*"([^"]+)"/)?.[1] ?? null;
+      } catch {
+        return null;
+      }
+    })
+    .filter((key): key is string => Boolean(key));
+}
+
+test("legacy child-node derivation accounts for every registered section type key", () => {
+  // Handled = a lookup in `SECTION_CHILD_DERIVERS` (one source of truth with
+  // `sectionTypeHasDerivableChildren`, so the unlock affordance cannot drift
+  // from what unlocking does). A type with NO deriver is legitimate but must be
+  // deliberate, so the set is pinned. Predicate/derivation parity is proven in
+  // `section-derivable-children.test.ts`.
+  const noDerivableChildren = registeredSectionTypeKeys()
+    .filter((key) => !sectionTypeHasDerivableChildren(key))
+    .sort();
+  assert.deepEqual(noDerivableChildren, [
+    "anchor_nav",
+    "blank_section",
+    "header_account",
+    "header_favorites",
+    "header_inquiry",
+    "header_language",
+    "header_search",
+    "join_register",
+    "marquee",
+  ]);
 });

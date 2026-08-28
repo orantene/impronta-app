@@ -228,6 +228,7 @@ import {
   sectionRejectsNestedInsert,
   unlockSectionBeforeInsert,
 } from "./section-unlock-gate";
+import { commitCanvasPaletteDrop } from "./canvas-palette-drop";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import {
@@ -1802,6 +1803,7 @@ export function SelectionLayer() {
   // every render. Same shape as `callbacksRef` above.
   const canvasDropDepsRef = useRef({
     builderTree,
+    ejectSection,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -1812,6 +1814,7 @@ export function SelectionLayer() {
   useEffect(() => {
     canvasDropDepsRef.current = {
       builderTree,
+      ejectSection,
       insertBuilderNode,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
@@ -1821,6 +1824,7 @@ export function SelectionLayer() {
     };
   }, [
     builderTree,
+    ejectSection,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -2108,36 +2112,12 @@ export function SelectionLayer() {
       event.preventDefault();
 
       if (state.phase === "palette") {
-        if (state.payload.kind === "gallery_item") {
-          void performAddGalleryInsertById(
-            state.payload.itemId,
-            { parentId: drop.parentNodeId, index: drop.index },
-            deps,
-          ).then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-            else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
-          });
-        } else if (state.payload.kind === "section_embed") {
-          void deps
-            .insertBuilderSectionEmbed(
-              drop.parentNodeId,
-              state.payload.sectionTypeKey,
-              drop.index,
-            )
-            .then((result) => {
-              if (!result.ok && result.error) deps.reportMutationError(result.error);
-            });
-        } else {
-          void deps
-            .insertBuilderNode(
-              drop.parentNodeId,
-              state.payload.elementKind,
-              drop.index,
-            )
-            .then((result) => {
-              if (!result.ok && result.error) deps.reportMutationError(result.error);
-            });
-        }
+        void commitCanvasPaletteDrop({
+          payload: state.payload,
+          parentNodeId: drop.parentNodeId,
+          index: drop.index,
+          deps,
+        });
         return;
       }
 
@@ -2261,32 +2241,12 @@ export function SelectionLayer() {
       clearAddGalleryDrag();
       if (!drop || !drop.allowed) return;
       const deps = canvasDropDepsRef.current;
-      if (payload.kind === "gallery_item") {
-        void performAddGalleryInsertById(
-          payload.itemId,
-          { parentId: drop.parentNodeId, index: drop.index },
-          deps,
-        ).then((result) => {
-          if (!result.ok && result.error) deps.reportMutationError(result.error);
-          else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
-        });
-      } else if (payload.kind === "section_embed") {
-        void deps
-          .insertBuilderSectionEmbed(
-            drop.parentNodeId,
-            payload.sectionTypeKey,
-            drop.index,
-          )
-          .then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-          });
-      } else {
-        void deps
-          .insertBuilderNode(drop.parentNodeId, payload.elementKind, drop.index)
-          .then((result) => {
-            if (!result.ok && result.error) deps.reportMutationError(result.error);
-          });
-      }
+      void commitCanvasPaletteDrop({
+        payload,
+        parentNodeId: drop.parentNodeId,
+        index: drop.index,
+        deps,
+      });
     });
   }, [computeCanvasNodeDrop]);
 
