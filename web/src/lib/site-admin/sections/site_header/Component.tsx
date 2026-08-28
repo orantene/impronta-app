@@ -509,7 +509,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "cta": {
           const label = item.label ?? primaryCtaResolved?.label ?? "Inquire";
-          const href = item.href ?? primaryCtaResolved?.href ?? "/contact";
+          const href = item.href ?? primaryCtaResolved?.href ?? "/directory";
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__cta site-btn site-btn--primary" href={href}>{label}</a>
           );
@@ -544,7 +544,7 @@ export async function SiteHeaderComponent({
           ) : null;
         }
         case "inquiry": {
-          const href = item.href ?? "/contact";
+          const href = item.href ?? "/directory";
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label="Your inquiry">
               <ClusterIcon name="inquiry" />

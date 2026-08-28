@@ -539,7 +539,7 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
         actionHref: "/directory",
         submitLabel: "Search",
       },
-      primaryCta: { label: "Start an Inquiry", href: "/contact" },
+      primaryCta: { label: "Start an Inquiry", href: "/directory" },
       secondaryCta: { label: "Apply as talent", href: "/register" },
       chipsSource: "manual",
       chips: [
@@ -667,7 +667,7 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       headline: "Tell us what you need and we will build the shortlist.",
       copy: "A single agency-managed request for talent, locations, timing, and production needs.",
       reassurance: "No direct contact. Every booking stays managed by the agency.",
-      primaryCta: { label: "Start a request", href: "/contact" },
+      primaryCta: { label: "Start a request", href: "/directory" },
       secondaryCta: { label: "Browse talent", href: "/directory" },
       variant: "centered-overlay",
       imageSide: "right",
@@ -757,7 +757,7 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       headline: "A sharper way to shape the talent shortlist.",
       subheadline:
         "Blend editorial presentation with agency-managed discovery, so visitors understand the offer before they search.",
-      primaryCta: { label: "Start a brief", href: "/contact" },
+      primaryCta: { label: "Start a brief", href: "/directory" },
       secondaryCta: { label: "Browse talent", href: "/directory" },
       imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f",
       imageAlt: "Editorial model campaign",
