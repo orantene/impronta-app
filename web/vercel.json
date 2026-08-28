@@ -158,6 +158,10 @@
     {
       "path": "/api/cron/inquiry-engine",
       "schedule": "50 * * * *"
+    },
+    {
+      "path": "/api/cron/discount-ending-warnings",
+      "schedule": "0 9 * * *"
     }
   ]
 }
