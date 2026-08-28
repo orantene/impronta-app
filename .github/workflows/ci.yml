@@ -116,6 +116,21 @@ jobs:
             exit 1
           fi
 
+      # ── Gate 1b: Builder published-page weight budget ────────────────
+      # `builder-fidelity.yml` already runs this on push to main, but
+      # `promote-production.yml` only waits on THIS workflow. A renderer-CSS
+      # overrun could therefore ship to production while the next unrelated
+      # PR ate the failure (2026-08-28 Field Report C13). Putting the budget
+      # on the structural gate makes a red budget stop the production pointer.
+      # The fidelity workflow still runs it (belt-and-suspenders + goldens).
+      - name: Builder perf budget
+        if: ${{ !cancelled() }}
+        run: npm run perf:builder-budget
+
+      - name: Builder perf budget self-test
+        if: ${{ !cancelled() }}
+        run: npm run perf:builder-budget:selftest
+
       # ── Gate 2: ESLint baseline (--suppressions-location ratchet) ────
       # `npm run lint` already passes `--suppressions-location
       # eslint-suppressions.json`, which silently absorbs grandfathered
