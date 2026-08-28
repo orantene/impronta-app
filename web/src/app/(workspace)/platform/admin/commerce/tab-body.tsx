@@ -5,10 +5,9 @@
  * owns its own `Promise.all`, so a tab never waits on data it does not show —
  * the reason Health's live Stripe pings do not slow down a price edit.
  *
- * Revenue and Commission are placeholders here on purpose: the Billing page
- * still owns those surfaces until the next release moves them across. Shipping
- * the tab strip whole (with two honest "not yet" cards) beats shipping a strip
- * that grows two new chips later and moves everything else sideways.
+ * As of PR-U2 every tab is real: Revenue and Commission moved across from the
+ * Billing page, which is deleted. The Billing nav item is gone and its three
+ * old URLs redirect here.
  */
 
 import {
@@ -19,13 +18,25 @@ import { loadStripeAccountInfo } from "@/lib/pricing/stripe-account-info";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { loadStripeHealth } from "@/lib/pricing/stripe-health";
 import { loadAllTrialOffers } from "@/lib/plan-trials/offers";
+import { loadPlatformBookingRevenue } from "@/lib/billing/platform-revenue";
+import { loadPlatformMrr } from "@/lib/billing/platform-mrr";
+import { listHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import {
+  loadPlatformPlanDistribution,
+  loadPlatformStats,
+  loadSubscriptionAttentionCounts,
+} from "../../platform-data";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { HQ, F, FD } from "./_tokens";
+import { HQ, F } from "./_tokens";
 import type { CommerceTab } from "./_registry";
 import { CatalogView } from "./catalog/CatalogView";
 import { DiscountsTab } from "./discounts/DiscountsTab";
+import { LegacyCodesSection } from "./discounts/legacy-codes/LegacyCodesSection";
 import { HealthView } from "./health/HealthView";
+import { RevenueView } from "./revenue/RevenueView";
+import { CommissionView } from "./commission/CommissionView";
+import { loadPlatformCommissionConfig } from "./commission/actions";
 
 export async function TabBody({ tab }: { tab: CommerceTab }) {
   if (tab === "health") {
@@ -53,10 +64,41 @@ export async function TabBody({ tab }: { tab: CommerceTab }) {
 
   if (tab === "discounts") {
     const discounts = await loadProductDiscounts();
-    return <DiscountsTab discounts={discounts} />;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        <DiscountsTab discounts={discounts} />
+        <LegacyCodesSection />
+      </div>
+    );
   }
 
-  return <ComingSoon />;
+  if (tab === "revenue") {
+    // Five reads, all cheap and all independent — the expensive one on this
+    // page is the booking-revenue rollup, and it is the reason the tab loads
+    // on its own rather than inside a page-wide Promise.all.
+    const [planDist, stats, mrr, attention, revenue, heldPayouts] =
+      await Promise.all([
+        loadPlatformPlanDistribution(),
+        loadPlatformStats(),
+        loadPlatformMrr(),
+        loadSubscriptionAttentionCounts(),
+        loadPlatformBookingRevenue(),
+        listHeldPayouts(),
+      ]);
+    return (
+      <RevenueView
+        planDist={planDist}
+        stats={stats}
+        mrr={mrr}
+        attention={attention}
+        revenue={revenue}
+        heldPayouts={heldPayouts}
+      />
+    );
+  }
+
+  const commission = await loadPlatformCommissionConfig();
+  return <CommissionView result={commission} />;
 }
 
 async function LoadError() {
@@ -75,43 +117,6 @@ async function LoadError() {
       }}
     >
       {t("dashboard.platform.pricing.loadError")}
-    </div>
-  );
-}
-
-async function ComingSoon() {
-  const t = createTranslator(await getRequestLocale());
-  return (
-    <div
-      style={{
-        background: HQ.card,
-        border: `1px solid ${HQ.border}`,
-        borderRadius: 12,
-        padding: "20px 22px",
-      }}
-    >
-      <h2
-        style={{
-          fontFamily: FD,
-          fontSize: 15,
-          fontWeight: 600,
-          color: HQ.ink,
-          margin: 0,
-        }}
-      >
-        {t("dashboard.platform.commerce.comingSoon.title")}
-      </h2>
-      <p
-        style={{
-          fontFamily: F,
-          fontSize: 12.5,
-          lineHeight: 1.6,
-          color: HQ.inkMuted,
-          margin: "8px 0 0",
-        }}
-      >
-        {t("dashboard.platform.commerce.comingSoon.body")}
-      </p>
     </div>
   );
 }

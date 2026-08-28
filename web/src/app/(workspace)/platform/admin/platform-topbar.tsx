@@ -30,7 +30,6 @@ const TABS = [
   { id: "tenants",    labelKey: "dashboard.platform.nav.tenants",      segment: "tenants"    },
   { id: "users",      labelKey: "dashboard.platform.nav.users",        segment: "users"      },
   { id: "network",    labelKey: "dashboard.platform.nav.network",      segment: "network"    },
-  { id: "billing",    labelKey: "dashboard.platform.nav.billing",      segment: "billing"    },
   { id: "commerce",   labelKey: "dashboard.platform.nav.commerce",     segment: "commerce"   },
   { id: "operations", labelKey: "dashboard.platform.nav.operations",   segment: "operations" },
   { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
