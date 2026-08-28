@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 /**
  * CatalogView — the Catalog tab of /platform/admin/commerce.
  *
@@ -35,16 +37,31 @@ export function CatalogView({
   stripeAccount,
   fx,
   trialOffers,
+  initialDrawerId = null,
 }: {
   catalog: PricingCatalog;
   stripeAccount: StripeAccountInfo;
   fx: FxPreview;
   trialOffers: TrialOffer[];
+  /** `?d=` as the SERVER saw it. See the drawer-state comment below. */
+  initialDrawerId?: string | null;
 }) {
   // Drawer state lives in the URL (`?d=<tierId>`): deep links restore the open
   // tier, browser back closes it, and switching Commerce tabs drops `?d=`
   // for free because the tab chips are plain links that omit it.
-  const [openTierId, setOpenTierId] = useUrlDrawer<string>();
+  const [urlTierId, setOpenTierId] = useUrlDrawer<string>();
+
+  // `useUrlDrawer` reads `?d=` through useSearchParams, which is only populated
+  // once the client has hydrated. That is invisible when you CLICK a card, but
+  // on a cold load of a shared link the drawer stayed shut while the id sat
+  // right there in the address bar -- deep links were a one-way street.
+  //
+  // So the server's reading of `?d=` seeds the first render, and the hook takes
+  // over from the moment the user interacts. `closed` is what makes closing
+  // stick: without it the seed would immediately reopen the drawer the user
+  // just dismissed, since the prop cannot change without a fresh navigation.
+  const [closed, setClosed] = React.useState(false);
+  const openTierId = urlTierId ?? (closed ? null : initialDrawerId);
 
   // Re-derive the open tier from the *fresh* catalog on every render.
   // After a server-action save, `revalidatePath` brings down updated
@@ -74,7 +91,10 @@ export function CatalogView({
 
       <PackagesView
         catalog={catalog}
-        onCardClick={(tier) => setOpenTierId(tier.id)}
+        onCardClick={(tier) => {
+          setClosed(false);
+          setOpenTierId(tier.id);
+        }}
       />
 
       <TrialsSection offers={trialOffers} />
@@ -85,7 +105,10 @@ export function CatalogView({
           pkg={openTier.pkg}
           stripeConfigured={stripeConfigured}
           testMode={testMode}
-          onClose={() => setOpenTierId(null)}
+          onClose={() => {
+            setClosed(true);
+            setOpenTierId(null);
+          }}
         />
       )}
     </>
