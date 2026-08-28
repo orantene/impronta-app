@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { checkSupportMessageSend } from "@/lib/rate-limit-kv";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "./support-access";
@@ -94,6 +95,10 @@ export async function finalizeSupportAttachmentMessageAction(raw: {
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();
   if (!session.ok) return session;
+  // Same budget as text messages — finalize appends a message, so it must not
+  // be a way around the send rate limit.
+  const limited = await checkSupportMessageSend(session.user.id);
+  if (!limited.ok) return { ok: false, error: "Too many requests. Try again shortly." };
   const access = await assertTicketAccess(parsed.data.ticketId, session.user.id);
   if (!access.ok) return access;
 

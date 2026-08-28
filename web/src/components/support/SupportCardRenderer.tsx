@@ -19,14 +19,18 @@ export function SupportCardRenderer({
   onAction,
   tone,
   liveShareAvailable = true,
+  allowAddPhone = true,
 }: {
   payload: Record<string, unknown>;
   onAction?: (action: string) => void;
   tone: SupportThreadTone;
   liveShareAvailable?: boolean;
+  /** False where no phone form exists (the bell drawer) — the chip would be dead there. */
+  allowAddPhone?: boolean;
 }) {
   const t = useT();
   const [liveDone, setLiveDone] = useState(false);
+  const [keptOpen, setKeptOpen] = useState(false);
   const kind = typeof payload.kind === "string" ? payload.kind : "generic";
   const ink = tone === "hq" ? "#F5F2EB" : COLORS.ink;
   const muted = tone === "hq" ? "rgba(245,242,235,0.62)" : COLORS.inkMuted;
@@ -66,7 +70,7 @@ export function SupportCardRenderer({
         <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: hasPhone ? 0 : 10 }}>
           {t("dashboard.adminSupport.handoffBody")}
         </div>
-        {!hasPhone && tone !== "hq" ? (
+        {!hasPhone && tone !== "hq" && onAction && allowAddPhone ? (
           <button
             type="button"
             onClick={() => onAction?.("add-phone")}
@@ -121,7 +125,7 @@ export function SupportCardRenderer({
   if (kind === "attachment") {
     const attachmentId = typeof payload.attachmentId === "string" ? payload.attachmentId : "";
     const name = typeof payload.name === "string" ? payload.name : "Image";
-    return <AttachmentCard attachmentId={attachmentId} name={name} />;
+    return <AttachmentCard attachmentId={attachmentId} name={name} tone={tone} />;
   }
 
   if (kind === "issue-fixed") {
@@ -180,7 +184,13 @@ export function SupportCardRenderer({
           {t("dashboard.adminSupport.offerHumanBody")}
         </div>
       ) : null}
-      {kind === "callback" || kind === "auto-close" || kind === "offer-human" || showLiveActions ? (
+      {kind === "auto-close" && keptOpen ? (
+        <div style={{ fontSize: 12, color: muted }}>
+          {t("dashboard.adminSupport.keepOpenDone")}
+        </div>
+      ) : null}
+      {(kind === "callback" || kind === "auto-close" || kind === "offer-human" || showLiveActions) &&
+      !(kind === "auto-close" && keptOpen) ? (
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
@@ -190,6 +200,7 @@ export function SupportCardRenderer({
                 setLiveDone(true);
                 return;
               }
+              if (kind === "auto-close") setKeptOpen(true);
               onAction?.(
                 kind === "callback" ? "add-phone" : kind === "auto-close" ? "keep-open" : "talk-human",
               );
@@ -309,10 +320,20 @@ export function SupportCardRenderer({
   );
 }
 
-function AttachmentCard({ attachmentId, name }: { attachmentId: string; name: string }) {
+function AttachmentCard({
+  attachmentId,
+  name,
+  tone = "light",
+}: {
+  attachmentId: string;
+  name: string;
+  tone?: SupportThreadTone;
+}) {
   const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const mutedInk = tone === "hq" ? "rgba(245,242,235,0.62)" : COLORS.inkMuted;
+  const skeletonBg = tone === "hq" ? "rgba(255,255,255,0.06)" : COLORS.surfaceAlt;
 
   useEffect(() => {
     if (!attachmentId) {
@@ -332,7 +353,7 @@ function AttachmentCard({ attachmentId, name }: { attachmentId: string; name: st
 
   if (failed) {
     return (
-      <div style={{ fontSize: 12, color: COLORS.inkMuted, margin: "8px auto", maxWidth: "86%" }}>
+      <div style={{ fontSize: 12, color: mutedInk, margin: "8px auto", maxWidth: "86%" }}>
         {t("dashboard.adminSupport.attachmentUnavailable")}
       </div>
     );
@@ -347,7 +368,7 @@ function AttachmentCard({ attachmentId, name }: { attachmentId: string; name: st
           height: 160,
           margin: "8px auto",
           borderRadius: 10,
-          background: COLORS.surfaceAlt,
+          background: skeletonBg,
         }}
       />
     );

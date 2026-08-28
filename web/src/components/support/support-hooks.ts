@@ -33,6 +33,10 @@ export function useSupportSessionRestore(): {
   }, []);
 
   const setView = useCallback((v: "home" | "tickets" | "thread" | "new", id?: string | null) => {
+    // Any user-driven navigation ends the "restored from a previous session"
+    // state — without this, the park-to-Home effect re-fires on later status
+    // changes (e.g. right as the rating row should appear).
+    restoredRef.current = false;
     setViewState(v);
     const nextId = v === "thread" ? (id ?? null) : null;
     setTicketId(nextId);

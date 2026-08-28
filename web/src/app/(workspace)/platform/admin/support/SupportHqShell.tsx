@@ -26,6 +26,8 @@ export function SupportHqShell({
   const t = useT();
   const [view, setView] = useState<"queue" | "insights">(initialView);
   const [cannedOpen, setCannedOpen] = useState(false);
+  // Local copy so a save refreshes the composer popover without a reload.
+  const [canned, setCanned] = useState(cannedReplies);
 
   return (
     <div>
@@ -82,7 +84,11 @@ export function SupportHqShell({
       </button>
       </div>
       {cannedOpen ? (
-        <SupportCannedEditor initial={cannedReplies} onClose={() => setCannedOpen(false)} />
+        <SupportCannedEditor
+          initial={canned}
+          onClose={() => setCannedOpen(false)}
+          onSaved={setCanned}
+        />
       ) : null}
       {view === "insights" ? (
         <SupportInsightsView data={insights} />
@@ -90,7 +96,7 @@ export function SupportHqShell({
         <SupportQueueClient
           rows={rows}
           initialTicketId={initialTicketId}
-          cannedReplies={cannedReplies}
+          cannedReplies={canned}
         />
       )}
     </div>

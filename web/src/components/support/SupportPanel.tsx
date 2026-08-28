@@ -71,9 +71,12 @@ export function SupportPanel({
     if (deepLinkTicketId) return;
     if (!restoredRef.current || parkedRestore.current) return;
     if (view !== "thread" || !ticket) return;
+    // One-shot: whatever the first look at the restored ticket concludes,
+    // the restore state ends here. Leaving it set would bounce the user to
+    // Home the moment the ticket later resolves (killing the rating flow).
+    restoredRef.current = false;
     if (ticket.status !== "open") {
       parkedRestore.current = true;
-      restoredRef.current = false;
       setView("home");
     }
   }, [deepLinkTicketId, restoredRef, setView, ticket, view]);
@@ -154,8 +157,10 @@ export function SupportPanel({
   );
   useSupportRealtime({ ticketId, onMessage, onTicket });
 
+  // Gate on `open` too: the panel stays mounted while closed, and tracking
+  // presence then shows HQ a false "viewing now".
   const { typingUsers, peers } = useThreadPresence({
-    channelKey: view === "thread" && ticketId ? `support.${ticketId}` : null,
+    channelKey: open && view === "thread" && ticketId ? `support.${ticketId}` : null,
     userId: contract.userId,
     displayName: contract.firstName,
     role: "requester",
@@ -330,6 +335,10 @@ export function SupportPanel({
             ticket={ticket}
             messages={messages}
             liveShareAvailable={contract.liveShareAvailable !== false}
+            onResolved={() => {
+              setTicket((prev) => (prev ? { ...prev, status: "resolved", waitingOn: null } : prev));
+              if (ticketId) patchSummary(ticketId, { status: "resolved", waitingOn: null });
+            }}
             onRate={(rating, comment) => {
               if (ticketId) void contract.rateTicket({ ticketId, rating, comment });
             }}

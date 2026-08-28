@@ -9,9 +9,12 @@ import type { SupportCannedReply } from "@/lib/platform/support-canned";
 export function SupportCannedEditor({
   initial,
   onClose,
+  onSaved,
 }: {
   initial: SupportCannedReply[];
   onClose: () => void;
+  /** Lets the shell refresh the composer popover without a full reload. */
+  onSaved?: (entries: SupportCannedReply[]) => void;
 }) {
   const t = useT();
   const [rows, setRows] = useState(initial);
@@ -56,6 +59,7 @@ export function SupportCannedEditor({
               setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, title } : r)));
             }}
             placeholder={t("dashboard.platform.support.cannedTitle")}
+            maxLength={60}
             style={field}
           />
           <textarea
@@ -65,6 +69,7 @@ export function SupportCannedEditor({
               setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, body } : r)));
             }}
             placeholder={t("dashboard.platform.support.cannedBody")}
+            maxLength={2000}
             rows={3}
             style={{ ...field, resize: "vertical" }}
           />
@@ -95,12 +100,18 @@ export function SupportCannedEditor({
           type="button"
           disabled={busy}
           onClick={() => {
+            // Empty rows are a leftover "add" click, not intent — drop them
+            // instead of failing the whole save with a generic error.
+            const cleaned = rows.filter((x) => x.title.trim() || x.body.trim());
             setBusy(true);
             setErr(null);
-            void hqSaveCannedRepliesAction({ entries: rows }).then((r) => {
+            void hqSaveCannedRepliesAction({ entries: cleaned }).then((r) => {
               setBusy(false);
               if (!r.ok) setErr(r.error);
-              else onClose();
+              else {
+                onSaved?.(cleaned);
+                onClose();
+              }
             });
           }}
           style={{

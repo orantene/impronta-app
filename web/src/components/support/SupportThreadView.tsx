@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSyncExternalStore } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
@@ -34,6 +35,7 @@ function useReducedMotion(): boolean {
 }
 
 function TypingDots({ color }: { color: string }) {
+  const reduce = useReducedMotion();
   return (
     <span aria-hidden style={{ display: "inline-flex", gap: 4, alignItems: "center", height: 16 }}>
       {[0, 1, 2].map((i) => (
@@ -44,7 +46,8 @@ function TypingDots({ color }: { color: string }) {
             height: 6,
             borderRadius: "50%",
             background: color,
-            animation: `tulala-support-dot 1s ease-in-out ${i * 0.15}s infinite`,
+            opacity: reduce ? 0.35 + i * 0.25 : 1,
+            animation: reduce ? "none" : `tulala-support-dot 1s ease-in-out ${i * 0.15}s infinite`,
           }}
         />
       ))}
@@ -62,7 +65,12 @@ function ThinkingStages() {
       return;
     }
     const id = window.setInterval(() => {
-      setStep((n) => Math.min(2, n + 1));
+      setStep((n) => {
+        const next = Math.min(2, n + 1);
+        // Stop ticking once the last stage holds.
+        if (next === 2) window.clearInterval(id);
+        return next;
+      });
     }, 2500);
     return () => window.clearInterval(id);
   }, [reduce]);
@@ -87,18 +95,23 @@ export function SupportThreadView({
   tone = "light",
   thinking = false,
   liveShareAvailable = true,
+  allowAddPhone = true,
   onRate,
   onRequestHuman,
   onCardAction,
+  onResolved,
 }: {
   ticket: SupportTicketRow | null;
   messages: SupportMessageRow[];
   tone?: SupportThreadTone;
   thinking?: boolean;
   liveShareAvailable?: boolean;
+  allowAddPhone?: boolean;
   onRate?: (rating: number, comment?: string) => void;
   onRequestHuman?: () => void;
   onCardAction?: (action: string) => void;
+  /** Local echo after a successful requester resolve (rating row must not wait on realtime). */
+  onResolved?: () => void;
 }) {
   const t = useT();
   const [acked, setAcked] = useState<Record<string, boolean>>({});
@@ -147,6 +160,7 @@ export function SupportThreadView({
                   onAction={onCardAction}
                   tone={tone}
                   liveShareAvailable={liveShareAvailable}
+                  allowAddPhone={allowAddPhone}
                 />
               );
             }
@@ -221,7 +235,13 @@ export function SupportThreadView({
                               setResolving(true);
                               void resolveSupportTicketAction({ ticketId: ticket.id }).then((r) => {
                                 setResolving(false);
-                                if (r.ok) setAcked((prev) => ({ ...prev, [m.id]: true }));
+                                if (r.ok) {
+                                  setAcked((prev) => ({ ...prev, [m.id]: true }));
+                                  // Local echo: the rating row keys off ticket
+                                  // status, which must not depend on realtime
+                                  // being up to appear.
+                                  onResolved?.();
+                                }
                               });
                             }}
                             style={{
@@ -441,7 +461,8 @@ export function SupportThreadView({
               <button
                 key={n}
                 type="button"
-                aria-label={t("dashboard.adminSupport.rateAria")}
+                aria-label={interpolate(t("dashboard.adminSupport.rateAriaN"), { n: String(n) })}
+                aria-pressed={pickedRating === n}
                 onClick={() => setPickedRating(n)}
                 style={{
                   width: 32,

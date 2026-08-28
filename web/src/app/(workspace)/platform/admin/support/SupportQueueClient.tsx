@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
@@ -71,7 +72,10 @@ export function SupportQueueClient({
     const drawerOpen = selectedRef.current === ticketId;
     if (!document.hidden && drawerOpen) return;
     try {
-      const note = new Notification(`Ticket #${n}`, { body: preview, tag: ticketId });
+      const note = new Notification(
+        interpolate(t("dashboard.platform.support.pingTitle"), { n: String(n) }),
+        { body: preview, tag: ticketId },
+      );
       note.onclick = () => {
         window.focus();
         setSelected(ticketId);
@@ -153,6 +157,12 @@ export function SupportQueueClient({
     const onKey = (e: KeyboardEvent) => {
       const target = e.target;
       if (target instanceof Element && target.matches("input, textarea, select, [contenteditable]")) return;
+      // Drawer open: list shortcuts act on the invisible cursor row, which may
+      // not be the ticket on screen — Escape closes, everything else is off.
+      if (selectedRef.current) {
+        if (e.key === "Escape") setSelected(null);
+        return;
+      }
       if (e.key === "j") {
         e.preventDefault();
         setCursor((i) => Math.min(filtered.length - 1, i + 1));

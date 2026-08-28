@@ -20,22 +20,48 @@ export function SupportAttachButton({
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const ink = tone === "hq" ? "#F5F2EB" : COLORS.ink;
   const border = tone === "hq" ? "rgba(255,255,255,0.12)" : COLORS.border;
   const bg = tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.card;
 
   const pick = async (file: File | undefined) => {
     if (!file || !ticketId || busy || disabled) return;
-    if (file.size > MAX_BYTES) return;
-    if (!ACCEPT.split(",").includes(file.type)) return;
+    // Every rejection is told to the user — silent drops read as a broken button.
+    if (file.size > MAX_BYTES || !ACCEPT.split(",").includes(file.type)) {
+      setFailed(true);
+      return;
+    }
     setBusy(true);
-    await uploadSupportAttachment(ticketId, file);
+    setFailed(false);
+    const ok = await uploadSupportAttachment(ticketId, file);
     setBusy(false);
+    if (!ok) setFailed(true);
     if (inputRef.current) inputRef.current.value = "";
   };
 
   return (
-    <>
+    <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+      {failed ? (
+        <span
+          role="alert"
+          style={{
+            position: "absolute",
+            bottom: "100%",
+            right: 0,
+            marginBottom: 4,
+            fontSize: 11,
+            color: tone === "hq" ? "#F36772" : COLORS.critical,
+            background: tone === "hq" ? "#16161A" : COLORS.card,
+            border: `1px solid ${border}`,
+            borderRadius: 8,
+            padding: "3px 8px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {t("dashboard.adminSupport.attachFailed")}
+        </span>
+      ) : null}
       <input
         ref={inputRef}
         type="file"
@@ -65,7 +91,7 @@ export function SupportAttachButton({
       >
         <PaperclipGlyph />
       </button>
-    </>
+    </span>
   );
 }
 
