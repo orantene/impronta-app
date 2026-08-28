@@ -1,6 +1,6 @@
-import type { BuilderNode, BuilderNodeStyle } from "./types";
+import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 
-export type BuilderFontCategory = "sans" | "serif" | "display" | "mono";
+export type BuilderFontCategory = "sans" | "serif" | "display" | "script" | "mono";
 export type BuilderFontSource = "bundled" | "google";
 
 export interface BuilderFontDefinition {
@@ -197,6 +197,8 @@ export function fallbackForBuilderFontCategory(category: BuilderFontCategory): s
     case "serif":
     case "display":
       return "Georgia, serif";
+    case "script":
+      return '"Brush Script MT", "Segoe Script", cursive';
     case "mono":
       return 'ui-monospace, "SF Mono", Menlo, monospace';
   }
@@ -246,33 +248,125 @@ export function collectBuilderNodeFontFamilies(
   nodes: ReadonlyArray<BuilderNode>,
   components?: Readonly<Record<string, BuilderNode>>,
 ): string[] {
-  const families: string[] = [];
-  const seen = new Set<string>();
-  const add = (value: string | undefined) => {
+  return collectBuilderNodeFontUsage(nodes, components).map((usage) => usage.value);
+}
+
+/**
+ * One family's collected usage on a page: which weights and whether genuine
+ * italics appear. Feeds `buildGoogleFontsHrefFromUsage` (fonts-catalog.ts) so
+ * the emitted stylesheet request carries only what the page can render.
+ */
+export interface BuilderNodeFontUsage {
+  /** The stored font-family value (first occurrence wins). */
+  value: string;
+  /** Weights in use, ascending. Always includes the renderer baseline. */
+  weights: number[];
+  /** True when an italic fontStyle or `<em>/<i>` markup uses this family. */
+  italic: boolean;
+}
+
+/**
+ * Weights the renderer's own CSS can apply without an explicit per-node
+ * `fontWeight` (headings, buttons, medium/semibold utility classes). Every
+ * used family loads these — the same set the curated registry always
+ * requested — and EXPLICIT node weights extend the set beyond it (100–300,
+ * 800–900). Families that appear nowhere on the page load nothing.
+ */
+const BASELINE_FONT_WEIGHTS = [400, 500, 600, 700];
+
+/**
+ * Walk the tree tracking the INHERITED font-family, so a weight or italic set
+ * on a child without its own family lands on the family that actually renders
+ * it. Responsive/container lanes are merged into the same usage (a tablet-only
+ * weight still has to load).
+ */
+export function collectBuilderNodeFontUsage(
+  nodes: ReadonlyArray<BuilderNode>,
+  components?: Readonly<Record<string, BuilderNode>>,
+): BuilderNodeFontUsage[] {
+  const usages = new Map<string, { value: string; weights: Set<number>; italic: boolean }>();
+
+  const usageFor = (value: string) => {
     const family = firstFontFamily(value);
-    if (!family) return;
+    if (!family) return null;
     const normalized = normalizeFontFamily(family);
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    families.push(value ?? family);
+    let usage = usages.get(normalized);
+    if (!usage) {
+      usage = { value, weights: new Set(BASELINE_FONT_WEIGHTS), italic: false };
+      usages.set(normalized, usage);
+    }
+    return usage;
   };
-  const addStyle = (style: BuilderNodeStyle | undefined) => {
-    add(style?.fontFamily);
-    add(style?.responsive?.tablet?.fontFamily);
-    add(style?.responsive?.mobile?.fontFamily);
-    add(style?.containerQueries?.tablet?.fontFamily);
-    add(style?.containerQueries?.mobile?.fontFamily);
+
+  const lanesOf = (style: BuilderNodeStyle | undefined): BuilderNodeStyleValue[] => {
+    if (!style) return [];
+    const lanes: (BuilderNodeStyleValue | undefined)[] = [
+      style,
+      style.responsive?.tablet,
+      style.responsive?.mobile,
+      style.containerQueries?.tablet,
+      style.containerQueries?.mobile,
+    ];
+    return lanes.filter((lane): lane is BuilderNodeStyleValue => Boolean(lane));
   };
-  const visit = (node: BuilderNode) => {
-    addStyle((node.props as { style?: BuilderNodeStyle }).style);
+
+  const visit = (node: BuilderNode, inherited: ReadonlyArray<string>) => {
+    const props = node.props as {
+      style?: BuilderNodeStyle;
+      text?: unknown;
+      html?: unknown;
+      content?: unknown;
+    };
+    const style = props.style;
+    const lanes = lanesOf(style);
+
+    const ownFamilies: string[] = [];
+    for (const lane of lanes) {
+      if (lane.fontFamily && !ownFamilies.includes(lane.fontFamily)) {
+        ownFamilies.push(lane.fontFamily);
+      }
+    }
+    // A base-lane family overrides the inherited one for the whole subtree;
+    // a breakpoint-only family adds to it (the base breakpoints still render
+    // the inherited face).
+    const active =
+      style?.fontFamily != null && style.fontFamily !== ""
+        ? ownFamilies
+        : [...inherited, ...ownFamilies];
+
+    const weights: number[] = [];
+    let italic = false;
+    for (const lane of lanes) {
+      if (typeof lane.fontWeight === "number" && Number.isFinite(lane.fontWeight)) {
+        weights.push(lane.fontWeight);
+      }
+      if (lane.fontStyle === "italic") italic = true;
+    }
+    for (const text of [props.text, props.html, props.content]) {
+      if (typeof text !== "string") continue;
+      if (/<(em|i)[\s>/]/i.test(text)) italic = true;
+    }
+
+    for (const value of active) {
+      const usage = usageFor(value);
+      if (!usage) continue;
+      for (const weight of weights) usage.weights.add(weight);
+      if (italic) usage.italic = true;
+    }
+
     if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
+      for (const child of node.children) visit(child, active);
     }
   };
 
-  for (const node of nodes) visit(node);
-  for (const component of Object.values(components ?? {})) visit(component);
-  return families;
+  for (const node of nodes) visit(node, []);
+  for (const component of Object.values(components ?? {})) visit(component, []);
+
+  return [...usages.values()].map((usage) => ({
+    value: usage.value,
+    weights: [...usage.weights].sort((a, b) => a - b),
+    italic: usage.italic,
+  }));
 }
 
 function encodeGoogleFontFamily(family: string): string {

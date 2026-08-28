@@ -101,13 +101,21 @@ export const BUILDER_BUTTON_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>>
   { value: "secondary", label: "Secondary" },
 ];
 
+// The full CSS weight ladder. 100–300 and 800–900 became loadable when the
+// font pipeline went usage-aware (fonts-catalog.ts) — an explicit weight here
+// is collected per family and requested from Google (or matched against an
+// uploaded face), so every step actually renders instead of faux-bolding.
 export const BUILDER_NODE_FONT_WEIGHT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Auto" },
-  { value: "300", label: "Light" },
-  { value: "400", label: "Reg" },
-  { value: "500", label: "Med" },
-  { value: "600", label: "Semi" },
-  { value: "700", label: "Bold" },
+  { value: "100", label: "100" },
+  { value: "200", label: "200" },
+  { value: "300", label: "300" },
+  { value: "400", label: "400" },
+  { value: "500", label: "500" },
+  { value: "600", label: "600" },
+  { value: "700", label: "700" },
+  { value: "800", label: "800" },
+  { value: "900", label: "900" },
 ];
 
 export const BUILDER_NODE_TEXT_TRANSFORM_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [

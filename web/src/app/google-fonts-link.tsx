@@ -18,7 +18,10 @@
  * SSR-only (no client deps), runs inside the root layout.
  */
 
-import { buildGoogleFontsHrefForFamilies } from "@/lib/site-admin/builder-node/fonts-registry";
+import {
+  buildGoogleFontsHrefFromUsage,
+  THEME_TOKEN_FONT_WEIGHTS,
+} from "@/lib/site-admin/builder-node/fonts-catalog";
 
 interface GoogleFontsLinkProps {
   tokens: Record<string, string>;
@@ -38,7 +41,16 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
   ] as const) {
     if (tokens[key]) wanted.push(tokens[key]);
   }
-  const href = buildGoogleFontsHrefForFamilies([...wanted, ...fontFamilies]);
+  // Usage-aware builder: weights are clamped to what each family actually
+  // ships (an unsupported weight 400s the whole css2 stylesheet), variable
+  // families load one ranged file, and families the catalogue does not know
+  // (tenant-uploaded faces, served by TenantFontFaces) are skipped.
+  const href = buildGoogleFontsHrefFromUsage(
+    [...wanted, ...fontFamilies].map((value) => ({
+      value: value ?? "",
+      weights: THEME_TOKEN_FONT_WEIGHTS,
+    })),
+  );
   if (!href) return null;
   return (
     <>
