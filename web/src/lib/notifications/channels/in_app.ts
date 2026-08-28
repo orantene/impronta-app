@@ -35,14 +35,30 @@ export async function sendInAppNotification(
   if (!cfg || !recipient.userId) return;
 
   const tenantId = event.tenantId;
+  const payloadSurface = event.payload.surface;
+  // The payload surface routes the row to the REQUESTER's bell (talent/client
+  // surfaces have their own readers). It must apply per-recipient: a platform
+  // admin receiving the same event still needs the platform surface, or the
+  // HQ feed (tenant IS NULL AND surface='platform') never shows the row.
+  const isRequesterRecipient =
+    typeof event.userId === "string" && recipient.userId === event.userId;
+  const surfaceFromPayload =
+    isRequesterRecipient &&
+    (payloadSurface === "workspace" ||
+      payloadSurface === "talent" ||
+      payloadSurface === "client")
+      ? payloadSurface
+      : null;
 
   await emitNotification({
     userId: recipient.userId,
     tenantId,
     kind: cfg.kind,
-    // Platform (null-tenant) rows always carry the `platform` surface so the HQ
-    // reader picks them up and tenant readers (which filter by surface) don't.
-    surface: tenantId ? cfg.surface : "platform",
+    surface: tenantId
+      ? (surfaceFromPayload ?? cfg.surface)
+      : surfaceFromPayload === "talent" || surfaceFromPayload === "client"
+        ? surfaceFromPayload
+        : "platform",
     title: cfg.title(event, recipient),
     body: cfg.body?.(event, recipient) ?? undefined,
     targetDrawer: cfg.targetDrawer ?? null,

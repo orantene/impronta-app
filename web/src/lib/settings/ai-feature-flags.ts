@@ -22,6 +22,8 @@ export type AiFeatureFlags = {
   ai_refine_v2: boolean;
   /** Richer explanations (Chunk 4) */
   ai_explanations_v2: boolean;
+  /** In-app support first-responder (grounded answers + escalation). Default off. */
+  ai_support_enabled: boolean;
 };
 
 const DEFAULT_FLAGS: AiFeatureFlags = {
@@ -37,6 +39,7 @@ const DEFAULT_FLAGS: AiFeatureFlags = {
   ai_search_quality_v2: false,
   ai_refine_v2: false,
   ai_explanations_v2: false,
+  ai_support_enabled: false,
 };
 
 const KEYS = [
@@ -52,6 +55,7 @@ const KEYS = [
   "ai_search_quality_v2",
   "ai_refine_v2",
   "ai_explanations_v2",
+  "ai_support_enabled",
 ] as const;
 
 function asFlag(value: unknown): boolean {
@@ -114,5 +118,6 @@ export async function getAiFeatureFlags(): Promise<AiFeatureFlags> {
     ai_search_quality_v2: asFlag(map.get("ai_search_quality_v2")),
     ai_refine_v2: asFlag(map.get("ai_refine_v2")),
     ai_explanations_v2: asFlag(map.get("ai_explanations_v2")),
+    ai_support_enabled: asFlag(map.get("ai_support_enabled")),
   };
 }

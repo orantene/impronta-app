@@ -19,7 +19,7 @@ export type EmitNotificationInput = {
   userId: string;
   /** NULL = platform-scoped (Tulala HQ) notification for a super_admin. */
   tenantId: string | null;
-  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile";
+  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile" | "ticket";
   surface: "workspace" | "talent" | "client" | "platform";
   title: string;
   body?: string;

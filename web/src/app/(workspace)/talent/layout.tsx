@@ -23,6 +23,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
+import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
@@ -32,6 +33,7 @@ import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
+import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -147,6 +149,7 @@ export default async function PlatformTalentLayout({
     localeSettings,
     userNotifications,
     talentPageAnalytics,
+    workspaceUi,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -190,6 +193,7 @@ export default async function PlatformTalentLayout({
     // upsell instead of zeros. Bridged here rather than fetched on mount: an
     // in-shell fetch on this surface has stuck on "Loading" before.
     loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
+    loadPlatformWorkspaceUi(),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -266,7 +270,18 @@ export default async function PlatformTalentLayout({
           supportedLocales: localeSettings.supportedLocales,
           defaultLocale: localeSettings.defaultLocale,
         },
+        // Bridge only the support switch: passing fabEnabled through would
+        // silently un-gate the workspace FAB on the talent surface (the shell
+        // renders it without a surface check).
+        workspaceUi: workspaceUi ? { ...workspaceUi, fabEnabled: false } : workspaceUi,
       }}
+      supportSlot={
+        <SupportLauncherShellMount
+          surface="talent"
+          tenantSlug={activeAgency?.slug ?? null}
+          tenantId={activeAgency?.tenantId ?? null}
+        />
+      }
     >
       {/* Agency-context switching lives in the identity bar's "Acting as"
           chip → Switch-agency drawer (in-place cookie switch + refresh). The

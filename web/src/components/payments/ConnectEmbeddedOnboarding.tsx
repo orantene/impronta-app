@@ -126,7 +126,7 @@ export function ConnectEmbeddedOnboarding({
   }
 
   return (
-    <div data-testid="connect-embedded-onboarding">
+    <div data-testid="connect-embedded-onboarding" data-tulala-privacy="block">
       <ConnectComponentsProvider connectInstance={connectInstance}>
         <ConnectAccountOnboarding onExit={() => onExit?.()} />
       </ConnectComponentsProvider>

@@ -327,6 +327,8 @@ const APP_API_PREFIXES = [
   // handlers enforce talent-self / managing-staff auth themselves; the proxy
   // just lets the app-host path through.
   "/api/talent",
+  // HQ support investigation bundle (session or SUPPORT_INVESTIGATION_TOKEN).
+  "/api/platform",
 ] as const;
 
 const APP_API_EXACT_PATHS = [

@@ -197,6 +197,13 @@ test("registry contains all expected capability sets", () => {
   for (const key of PHASE_0_TALENT_SELF_KEYS) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
+  const SUPPORT_KEYS: readonly CapabilityKey[] = [
+    "agency.support.tickets.view",
+    "agency.support.tickets.manage",
+  ];
+  for (const key of SUPPORT_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
   const expected =
     LEGACY_CAPABILITIES.length +
     PHASE_5_CAPABILITIES.length +
@@ -209,7 +216,8 @@ test("registry contains all expected capability sets", () => {
     PHASE_4_KEYS.length +
     PITCH_KEYS.length +
     MEDIA_WATERMARK_KEYS.length +
-    PHASE_0_TALENT_SELF_KEYS.length;
+    PHASE_0_TALENT_SELF_KEYS.length +
+    SUPPORT_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 

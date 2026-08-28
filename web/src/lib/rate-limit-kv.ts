@@ -223,6 +223,10 @@ interface KvLimiter {
   checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult>;
   /** Auth OTP: verify attempts per normalized email address. */
   checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult>;
+  /** Support tickets: 5 creates / 60 min / user. */
+  checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
+  /** Support messages: 30 / 60 min / user. */
+  checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
 }
 
 /** No-op fallback used when Upstash env vars are absent. */
@@ -246,6 +250,12 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkAuthOtpVerifyByEmail() {
+    return { ok: true };
+  },
+  async checkSupportTicketCreate() {
+    return { ok: true };
+  },
+  async checkSupportMessageSend() {
     return { ok: true };
   },
 };
@@ -388,6 +398,20 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    const supportTicketCreateLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "60 m"),
+      prefix: "rl:support_ticket_create",
+      analytics: false,
+    });
+
+    const supportMessageSendLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(30, "60 m"),
+      prefix: "rl:support_message_send",
+      analytics: false,
+    });
+
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
         try {
@@ -460,6 +484,26 @@ async function getLimiter(): Promise<KvLimiter> {
       async checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
         try {
           const r = await authOtpVerifyEmailLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkSupportTicketCreate(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await supportTicketCreateLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkSupportMessageSend(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await supportMessageSendLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
         } catch {
@@ -558,6 +602,18 @@ export async function checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResu
 export async function checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthOtpVerifyByEmail(key);
+}
+
+/** Support tickets: 5 new tickets per 60 minutes per user. */
+export async function checkSupportTicketCreate(userId: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkSupportTicketCreate(`support_ticket:${userId}`);
+}
+
+/** Support messages: 30 per 60 minutes per user. */
+export async function checkSupportMessageSend(userId: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkSupportMessageSend(`support_msg:${userId}`);
 }
 
 /**

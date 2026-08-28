@@ -33,6 +33,9 @@
     "src/app/api/cron/retry-failed-emails/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/support-lifecycle/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/booking-reminders/route.ts": {
       "maxDuration": 60
     },
@@ -64,6 +67,15 @@
       "maxDuration": 60
     },
     "src/app/api/cron/reap-orphaned-media/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/reap-support-replays/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/support-insights/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/support-weekly-digest/route.ts": {
       "maxDuration": 60
     },
     "src/app/api/cron/refresh-social-feeds/route.ts": {
@@ -104,6 +116,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/cron/support-lifecycle",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/api/cron/booking-reminders",
       "schedule": "0 8 * * *"
     },
@@ -142,6 +158,18 @@
     {
       "path": "/api/cron/reap-orphaned-media",
       "schedule": "40 3 * * 0"
+    },
+    {
+      "path": "/api/cron/reap-support-replays",
+      "schedule": "50 3 * * 0"
+    },
+    {
+      "path": "/api/cron/support-insights",
+      "schedule": "25 4 * * *"
+    },
+    {
+      "path": "/api/cron/support-weekly-digest",
+      "schedule": "0 7 * * 1"
     },
     {
       "path": "/api/cron/refresh-social-feeds",

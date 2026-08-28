@@ -81,6 +81,7 @@ const VIEWER_CAPS: readonly CapabilityKey[] = [
   "view_talent_roster",
   "view_client_list",
   "view_analytics",
+  "agency.support.tickets.view",
 ];
 
 const EDITOR_CAPS: readonly CapabilityKey[] = [
@@ -147,6 +148,7 @@ const ADMIN_CAPS: readonly CapabilityKey[] = [
   "agency.site_admin.branding.edit",
   "agency.site_admin.design.edit",
   "agency.site_admin.design.publish",
+  "agency.support.tickets.manage",
 ];
 
 const OWNER_CAPS: readonly CapabilityKey[] = [

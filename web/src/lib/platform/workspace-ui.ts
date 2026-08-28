@@ -19,6 +19,8 @@ export type PlatformWorkspaceUi = {
    * this column landed. HQ opts OUT here.
    */
   quickBarEnabled: boolean;
+  /** In-app support launcher. Default FALSE; HQ opts in after verification. */
+  supportEnabled: boolean;
 };
 
 /**
@@ -32,6 +34,7 @@ const DEFAULT_WORKSPACE_UI: PlatformWorkspaceUi = {
   fabEnabled: false,
   tourEnabled: false,
   quickBarEnabled: true,
+  supportEnabled: false,
 };
 
 /**
@@ -47,17 +50,17 @@ export const loadPlatformWorkspaceUi = cache(
       const { data } = await admin
         .from("platform_settings")
         .select(
-          "workspace_fab_enabled, workspace_tour_enabled, workspace_quick_bar_enabled",
+          "workspace_fab_enabled, workspace_tour_enabled, workspace_quick_bar_enabled, workspace_support_enabled",
         )
         .eq("id", true)
         .maybeSingle();
       if (!data) return DEFAULT_WORKSPACE_UI;
+      const row = data as typeof data & { workspace_support_enabled?: boolean };
       return {
         fabEnabled: !!data.workspace_fab_enabled,
         tourEnabled: !!data.workspace_tour_enabled,
-        // `?? true` (not `!!`) so a row written before the column existed reads
-        // as visible rather than as an explicit HQ opt-out.
         quickBarEnabled: data.workspace_quick_bar_enabled ?? true,
+        supportEnabled: !!row.workspace_support_enabled,
       };
     } catch (err) {
       logServerError("platform.loadWorkspaceUi", err);
@@ -79,15 +82,16 @@ export async function writePlatformWorkspaceUi(
   try {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false };
-    const { error } = await admin
-      .from("platform_settings")
-      .update({
-        workspace_fab_enabled: input.fabEnabled,
-        workspace_tour_enabled: input.tourEnabled,
-        workspace_quick_bar_enabled: input.quickBarEnabled,
-        updated_at: new Date().toISOString(),
-        updated_by: updatedBy,
-      })
+      const { error } = await admin
+        .from("platform_settings")
+        .update({
+          workspace_fab_enabled: input.fabEnabled,
+          workspace_tour_enabled: input.tourEnabled,
+          workspace_quick_bar_enabled: input.quickBarEnabled,
+          workspace_support_enabled: input.supportEnabled,
+          updated_at: new Date().toISOString(),
+          updated_by: updatedBy,
+        } as never)
       .eq("id", true);
     if (error) {
       logServerError("platform.writeWorkspaceUi", error);

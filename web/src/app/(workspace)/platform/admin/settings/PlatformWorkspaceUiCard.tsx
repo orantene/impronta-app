@@ -22,18 +22,25 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
   const [fabEnabled, setFabEnabled] = useState(current.fabEnabled);
   const [tourEnabled, setTourEnabled] = useState(current.tourEnabled);
   const [quickBarEnabled, setQuickBarEnabled] = useState(current.quickBarEnabled);
+  const [supportEnabled, setSupportEnabled] = useState(current.supportEnabled);
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const dirty =
     fabEnabled !== current.fabEnabled ||
     tourEnabled !== current.tourEnabled ||
-    quickBarEnabled !== current.quickBarEnabled;
+    quickBarEnabled !== current.quickBarEnabled ||
+    supportEnabled !== current.supportEnabled;
 
   const save = () => {
     setStatus(null);
     startTransition(async () => {
-      const r = await updatePlatformWorkspaceUi({ fabEnabled, tourEnabled, quickBarEnabled });
+      const r = await updatePlatformWorkspaceUi({
+        fabEnabled,
+        tourEnabled,
+        quickBarEnabled,
+        supportEnabled,
+      });
       setStatus(
         r.ok
           ? { ok: true, msg: t("dashboard.platform.settings.workspaceUiSaved") }
@@ -65,6 +72,12 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
       onChange: setQuickBarEnabled,
       labelKey: "dashboard.platform.settings.workspaceUiQuickBarLabel",
       hintKey: "dashboard.platform.settings.workspaceUiQuickBarHint",
+    },
+    {
+      checked: supportEnabled,
+      onChange: setSupportEnabled,
+      labelKey: "dashboard.platform.settings.workspaceUiSupportLabel",
+      hintKey: "dashboard.platform.settings.workspaceUiSupportHint",
     },
   ];
 

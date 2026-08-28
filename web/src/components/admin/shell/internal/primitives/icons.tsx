@@ -43,7 +43,8 @@ export type AdminShellIconName =
   | "camera"
   | "image"
   | "briefcase"
-  | "chart";
+  | "chart"
+  | "life-buoy";
 
 export function Icon({
   name,
@@ -310,6 +311,14 @@ export function Icon({
         <svg {...common}>
           <path d="M3 3v18h18" />
           <path d="M7 15l4-5 3 3 5-7" />
+        </svg>
+      );
+    case "life-buoy":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="4" />
+          <path d="M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24" />
         </svg>
       );
   }

@@ -141,6 +141,7 @@ const ICON_FOR_KIND: Record<UserNotification["kind"], TalentNotif["icon"]> = {
   payment: "check",
   approval: "check",
   profile: "user",
+  ticket: "mail",
   system: "sparkle",
 };
 

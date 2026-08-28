@@ -48,6 +48,7 @@ import { BriefBuilderDrawer, BrandAssetsDrawer, ApprovalFlowDrawer, SiteContextS
 import { CrewBookingDrawer, ProductionTimelineDrawer, UsageTrackerDrawer, RelicenseFlowDrawer, OwnershipTransferDrawer, MinorAccountDrawer, DiscoveryFeedDrawer, AvailSearchDrawer, CallSheetDrawer } from "./drawers/light-21";
 import { OnsetCheckinDrawer, IncidentReportDrawer, DisputeResolutionDrawer, LocationsDrawer, AiWorkspaceDrawer } from "./drawers/light-22";
 import { FeatureControlsDrawer, CircleManageDrawer, CircleRecommendDrawer } from "./drawers/light-23";
+import { SupportTicketDrawer } from "./drawers/light-support";
 
 // ════════════════════════════════════════════════════════════════════
 // Drawer root — reads drawer state and dispatches to the right body
@@ -417,6 +418,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <WhatsNewDrawer />;
     case "help":
       return <HelpDrawer />;
+    case "support-ticket":
+      return <SupportTicketDrawer />;
 
     // ── WS-5 Money & Trust ──────────────────────────────────────────
     case "client-trust-detail":

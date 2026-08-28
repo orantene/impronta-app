@@ -63,6 +63,7 @@ function iconForKind(kind: string): string {
     case "booking":   return "📅";
     case "payment":   return "💳";
     case "profile":   return "✎";
+    case "ticket":    return "🛟";
     case "system":    return "ⓘ";
     default:          return "🔔";
   }

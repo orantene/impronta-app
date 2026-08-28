@@ -101,7 +101,7 @@ export async function getCategoryPrefs(
  * recipient, return the live channels to dispatch on.
  *
  *  1. Start from the entry's default channels, restricted to channels with a
- *     live handler today (email, in_app).
+ *     live handler today (email, in_app, push, whatsapp).
  *  2. Guests can only be reached by email (no in-app surface / account).
  *  3. Required categories (account_security, billing) bypass prefs entirely.
  *  4. Otherwise honor per-category toggles — an absent toggle means "on"

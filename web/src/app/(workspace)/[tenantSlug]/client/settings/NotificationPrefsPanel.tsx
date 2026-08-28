@@ -26,9 +26,10 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/i18n/use-t";
 import { setCategoryNotificationPrefs } from "@/lib/server-actions/user-prefs";
+import { PushSubscribeControl } from "@/components/support/PushSubscribeControl";
 
-/** Live channels a category preference can carry. Mirrors `LIVE_CHANNELS`. */
-export type UiChannel = "email" | "in_app";
+/** Live channels a category preference can carry. Mirrors `LIVE_CHANNELS` minus owner-only WhatsApp. */
+export type UiChannel = "email" | "in_app" | "push";
 
 /** Serializable category descriptor handed down from the server page. */
 export type UiCategory = {
@@ -62,11 +63,13 @@ const C = {
 const CHANNEL_LABEL: Record<UiChannel, string> = {
   email: "Email",
   in_app: "In-app",
+  push: "Push",
 };
 
 const CHANNEL_LABEL_KEY: Record<UiChannel, string> = {
   email: "client.settings.channelEmail",
   in_app: "client.settings.channelInApp",
+  push: "client.settings.channelPush",
 };
 
 type ChannelState = Record<UiChannel, boolean>;
@@ -96,9 +99,11 @@ function seedCategory(cat: UiCategory, stored: unknown): ChannelState {
   const raw = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : null;
   const emailDefault = cat.channels.includes("email");
   const inAppDefault = cat.channels.includes("in_app");
+  const pushDefault = cat.channels.includes("push");
   return {
     email: raw ? readBool(raw, "email") ?? emailDefault : emailDefault,
     in_app: raw ? readBool(raw, "in_app", "inApp") ?? inAppDefault : inAppDefault,
+    push: raw ? readBool(raw, "push") ?? pushDefault : pushDefault,
   };
 }
 
@@ -137,6 +142,17 @@ export function NotificationPrefsPanel({
 
   return (
     <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", padding: "4px 0 14px" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>
+            {t("dashboard.platform.support.pushCardTitle")}
+          </div>
+          <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
+            {t("dashboard.platform.support.pushCardBody")}
+          </div>
+        </div>
+        <PushSubscribeControl tone="light" />
+      </div>
       {visible.map((cat, i) => {
         const state = prefs[cat.id];
         const catLabel = resolve(t, cat.labelKey, cat.label);

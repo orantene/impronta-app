@@ -11,7 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 export type UserNotification = {
   id: string;
-  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile";
+  kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile" | "ticket";
   surface: "workspace" | "talent" | "client";
   title: string;
   body: string | null;

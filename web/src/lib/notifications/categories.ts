@@ -61,7 +61,7 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationCategory, CategoryDefin
     labelKey: "client.notificationCategories.messages.label",
     descriptionKey: "client.notificationCategories.messages.description",
     required: false,
-    defaultChannels: ["in_app"],
+    defaultChannels: ["in_app", "push"],
     order: 2,
   },
   inquiry_updates: {
@@ -141,7 +141,7 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationCategory, CategoryDefin
     labelKey: "client.notificationCategories.platformAlerts.label",
     descriptionKey: "client.notificationCategories.platformAlerts.description",
     required: false,
-    defaultChannels: ["email", "in_app"],
+    defaultChannels: ["email", "in_app", "push"],
     order: 10,
   },
   marketing: {

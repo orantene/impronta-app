@@ -981,6 +981,24 @@ export const CAPABILITIES = {
     gating: "platform_role",
     deprecated: false,
   }),
+  "agency.support.tickets.view": define({
+    key: "agency.support.tickets.view",
+    displayName: "View workspace support tickets",
+    description:
+      "Open the in-app support panel and see this workspace's tickets. Every staff role has this.",
+    category: "dashboard",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.support.tickets.manage": define({
+    key: "agency.support.tickets.manage",
+    displayName: "Manage workspace support tickets",
+    description:
+      "Create and reply on workspace support tickets on behalf of the workspace. Admin tier and up.",
+    category: "dashboard",
+    scope: "tenant",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;

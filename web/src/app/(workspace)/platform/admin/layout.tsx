@@ -24,6 +24,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
 import { PlatformWorkspaceSwitcher } from "./platform-workspace-switcher";
+import { loadHqSupportOpenCount } from "@/lib/support/load-hq";
 
 // ─── HQ design tokens ────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ export default async function PlatformAdminLayout({
 
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
+  const supportOpenCount = await loadHqSupportOpenCount();
 
   const userName = userDisplayName(
     session.user.email,
@@ -287,7 +289,7 @@ export default async function PlatformAdminLayout({
             />
           }
         >
-          <PlatformTopbar />
+          <PlatformTopbar supportOpenCount={supportOpenCount} />
         </Suspense>
 
         {/* ── Content area ── */}

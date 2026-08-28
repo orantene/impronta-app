@@ -90,6 +90,11 @@ export const AI_FLAG_DOC_ROWS: Array<{ key: string; purpose: string; audience: s
     audience: "Guests",
   },
   {
+    key: "ai_support_enabled",
+    purpose: "Grounded in-app support first-responder with escalation to a human.",
+    audience: "Staff",
+  },
+  {
     key: "ai_draft_enabled",
     purpose: "Allows inquiry draft generation in admin workflows.",
     audience: "Staff",

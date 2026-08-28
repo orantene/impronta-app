@@ -50,7 +50,12 @@ export async function sendEmailNotification(
   const cfg = entry.email;
   if (!cfg || !recipient.email) return null;
 
-  const brand = await resolveTenantBrand(event.tenantId);
+  // payload.platformFrom: platform-service mail (e.g. support) must send under
+  // the PLATFORM identity even for a tenant-scoped event — a white-label
+  // tenant's branded from-address on "Oran replied [Tulala #N]" both leaks
+  // the platform through the white-label and misattributes the sender.
+  const platformSend = event.payload?.platformFrom === true;
+  const brand = await resolveTenantBrand(platformSend ? null : event.tenantId);
 
   let unsubscribeUrl: string | undefined;
   let headers: Record<string, string> | undefined;
@@ -126,8 +131,8 @@ export async function sendEmailNotification(
     headers,
     // Tenant-scoped notification: a tenant with white_label_email + a VERIFIED
     // sending domain sends from its own branded address (resolveTenantEmailFrom),
-    // otherwise the platform default.
-    tenantId: event.tenantId,
+    // otherwise the platform default. platformFrom payloads always send platform.
+    tenantId: platformSend ? null : event.tenantId,
     tenantName: brand.accountName ?? null,
   });
   // Surface a real provider failure so the dispatcher records THIS dispatch_log
