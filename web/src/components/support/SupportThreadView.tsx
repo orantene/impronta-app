@@ -8,6 +8,10 @@ import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-
 import type { SupportContract } from "./support-contract";
 import { acceptLiveShareFromCard } from "@/lib/support/replay/LiveShareHost";
 import { declineLiveViewAction } from "@/lib/support/replay/live-actions";
+import {
+  approveProposedActionAction,
+  declineProposedActionAction,
+} from "@/lib/support/proposed-actions/actions";
 
 export type SupportThreadTone = "light" | "hq";
 
@@ -51,7 +55,10 @@ export function SupportCardRenderer({
   const cardBg = tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.card;
   const border = tone === "hq" ? "rgba(255,255,255,0.10)" : COLORS.border;
   const ticketId = typeof payload.ticketId === "string" ? payload.ticketId : null;
+  const actionId = typeof payload.actionId === "string" ? payload.actionId : null;
+  const [fixDone, setFixDone] = useState(false);
   const showLiveActions = kind === "live-view" && tone !== "hq" && !liveDone && ticketId;
+  const showFixActions = kind === "proposed-action" && tone !== "hq" && !fixDone && actionId;
 
   return (
     <div
@@ -135,6 +142,75 @@ export function SupportCardRenderer({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {kind === "proposed-action" ? (
+        <>
+          {payload.preview != null ? (
+            <div
+              style={{
+                background: tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.surface,
+                border: `1px solid ${border}`,
+                borderRadius: 8,
+                padding: "8px 10px",
+                fontSize: 12,
+                color: ink,
+                marginBottom: 10,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {typeof payload.preview === "string"
+                ? payload.preview
+                : JSON.stringify(payload.preview, null, 2)}
+            </div>
+          ) : null}
+          {showFixActions && actionId ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  void approveProposedActionAction({ actionId });
+                  setFixDone(true);
+                }}
+                style={{
+                  border: "none",
+                  background: COLORS.fill,
+                  color: "#fff",
+                  borderRadius: 8,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {t("dashboard.adminSupport.approveAndApply")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void declineProposedActionAction({ actionId });
+                  setFixDone(true);
+                }}
+                style={{
+                  border: `1px solid ${border}`,
+                  background: "transparent",
+                  color: ink,
+                  borderRadius: 8,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {t("dashboard.adminSupport.declineFix")}
+              </button>
+              <span style={{ marginLeft: "auto", fontSize: 10.5, color: muted }}>
+                {t("dashboard.adminSupport.appliedChangeLogged")}
+              </span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 10.5, color: muted }}>{t("dashboard.adminSupport.appliedChangeLogged")}</div>
+          )}
+        </>
       ) : null}
     </div>
   );

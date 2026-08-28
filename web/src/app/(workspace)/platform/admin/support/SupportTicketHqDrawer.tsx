@@ -7,6 +7,7 @@ import { SupportThreadView } from "@/components/support/SupportThreadView";
 import { TicketContextCard } from "./TicketContextCard";
 import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
 import { TicketReplayPanel } from "./TicketReplayPanel";
+import { ProposeFixComposer } from "./ProposeFixComposer";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -212,6 +213,9 @@ export function SupportTicketHqDrawer({
               )}
             </div>
             <div style={{ borderTop: `1px solid ${HQ.border}`, padding: 12 }}>
+              {ticket ? (
+                <ProposeFixComposer ticketId={ticket.id} onSubmitted={() => void reload(ticket.id)} />
+              ) : null}
               {slash ? (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                   {CANNED.map((c) => (

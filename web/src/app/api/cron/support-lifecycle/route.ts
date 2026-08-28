@@ -5,6 +5,7 @@
  * (b) open + waiting_on=requester + idle 5 days + no prior warning → autoclose warning
  * (c) idle 7 days → auto-resolve with metadata.auto_resolved=true
  * (d) open human-handled tickets with no agent reply 4h after escalation → re-alert owner
+ * (e) proposed actions past expires_at → expired + notify requester
  */
 
 import { NextResponse } from "next/server";
@@ -13,7 +14,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { supportFrom } from "@/lib/support/support-from";
 import { mapTicketRow } from "@/lib/support/support-types";
-import { supportEngine } from "@/lib/support/support-engine";
+import { loadTicketById, supportEngine } from "@/lib/support/support-engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Service role unavailable" }, { status: 503 });
   }
 
-  const stats = { closed: 0, warned: 0, autoResolved: 0, reAlerted: 0 };
+  const stats = { closed: 0, warned: 0, autoResolved: 0, reAlerted: 0, expiredFixes: 0 };
 
   try {
     const { data: staleResolved } = await supportFrom(admin, "support_tickets")
@@ -154,6 +155,44 @@ export async function GET(request: Request) {
         },
       });
       stats.reAlerted += 1;
+    }
+
+    const { data: staleProposals } = await supportFrom(admin, "support_proposed_actions")
+      .select("id, ticket_id, tenant_id")
+      .eq("status", "proposed")
+      .lt("expires_at", new Date().toISOString());
+    for (const row of staleProposals ?? []) {
+      const actionId = String(row.id);
+      const { error } = await supportFrom(admin, "support_proposed_actions")
+        .update({ status: "expired" })
+        .eq("id", actionId)
+        .eq("status", "proposed");
+      if (error) continue;
+      const ticketId = String(row.ticket_id);
+      const { data: ev } = await supportFrom(admin, "support_ticket_events")
+        .insert({
+          ticket_id: ticketId,
+          tenant_id: row.tenant_id,
+          actor_kind: "system",
+          event_type: "proposed_action_expired",
+          new_value: { actionId },
+        })
+        .select("id")
+        .single();
+      const loaded = await loadTicketById(ticketId, admin);
+      void dispatchEventNotifications({
+        type: "support.proposed_action.expired",
+        tenantId: typeof row.tenant_id === "string" ? row.tenant_id : null,
+        eventId: ev?.id ?? crypto.randomUUID(),
+        userId: loaded?.requesterUserId ?? null,
+        payload: {
+          ticketId,
+          ticketNumber: loaded?.ticketNumber ?? 0,
+          subject: loaded?.subject ?? "",
+          surface: loaded?.surface ?? "workspace",
+        },
+      });
+      stats.expiredFixes += 1;
     }
 
     return NextResponse.json({ ok: true, ...stats });

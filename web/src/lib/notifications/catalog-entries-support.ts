@@ -255,6 +255,24 @@ const AUTOCLOSE: CatalogEntry = {
   },
 };
 
+const PROPOSED_EXPIRED: CatalogEntry = {
+  id: "support.proposed_action.expired.requester",
+  category: "messages",
+  defaultChannels: ["in_app"],
+  required: false,
+  triggers: ["support.proposed_action.expired"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventUser("workspace_member"),
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: (event) => `A proposed fix on #${num(event, "ticketNumber")} expired`,
+    body: () => "The change was not approved in time and was cancelled.",
+    targetDrawer: SUPPORT_TICKET_DRAWER,
+    targetPayload: (event) => ({ ticketId: str(event.payload.ticketId) }),
+  },
+};
+
 export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   TICKET_CREATED,
   TICKET_ESCALATED,
@@ -262,4 +280,5 @@ export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   TICKET_RESOLVED,
   REQUESTER_REPLY_WATCH,
   AUTOCLOSE,
+  PROPOSED_EXPIRED,
 ];
