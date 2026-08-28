@@ -10,7 +10,8 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
-import { retrieveHelpEntries } from "@/lib/support/help-corpus";
+import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-corpus";
+import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { supportFrom } from "@/lib/support/support-from";
@@ -80,6 +81,7 @@ const SYSTEM_PROMPT = [
   "Never claim you performed an action (updated settings, issued a refund, booked talent).",
   "Tone: warm, plain, no em dashes.",
   "Keep the answer under 1200 characters.",
+  "Entries labeled past confirmed resolution are owner-confirmed prior fixes.",
 ].join(" ");
 
 type ModelOut = {
@@ -206,10 +208,12 @@ export async function POST(request: Request) {
     }
 
     const lastThree = messages.slice(-3).map((m) => m.body);
+    const confirmed = await loadConfirmedInsightCorpus();
     const grounding = retrieveHelpEntries(latestRequester?.body ?? access.ticket.subject, {
       originSlug: access.ticket.originSurfaceSlug,
       category: access.ticket.category,
       extraTexts: lastThree,
+      extraCorpus: insightRowsToCorpus(confirmed),
     });
 
     const adapter = await resolveAiChatAdapter();
@@ -231,6 +235,7 @@ export async function POST(request: Request) {
         youCanHere: g.youCanHere,
         faqs: g.faqs.slice(0, 4),
         category: g.ticketCategory,
+        label: g.category,
       })),
     });
 

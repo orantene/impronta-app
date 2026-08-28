@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 
 import {
   flattenHelpCorpus,
+  insightRowsToCorpus,
   retrieveHelpEntries,
   SUPPORT_CATEGORIES,
   tokenize,
@@ -48,5 +49,22 @@ describe("help-corpus", () => {
       hits.some((h) => h.slug === "domain" || /domain/i.test(h.purpose)),
       "expected a domain-related grounding entry",
     );
+  });
+
+  test("confirmed insights join the corpus as past confirmed resolution", () => {
+    const extra = insightRowsToCorpus([
+      {
+        id: "11111111-1111-1111-1111-111111111111",
+        summary: "Custom domain DNS check stalled after switching the primary host",
+        root_cause: "The DNS probe ran before nameservers propagated",
+        product_area: "Public site & domains",
+      },
+    ]);
+    assert.equal(extra[0]?.category, "past confirmed resolution");
+    const hits = retrieveHelpEntries("dns check after changing the primary domain", {
+      extraCorpus: extra,
+      corpus: [],
+    });
+    assert.equal(hits[0]?.slug.startsWith("insight:"), true);
   });
 });

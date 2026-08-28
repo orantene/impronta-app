@@ -1,9 +1,10 @@
 import { loadHqSupportQueue } from "@/lib/support/load-hq";
+import { loadHqInsightsDashboard } from "@/lib/support/insights/load";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
-import { SupportQueueClient } from "./SupportQueueClient";
+import { SupportHqShell } from "./SupportHqShell";
 import { NotificationPermissionCard } from "./NotificationPermissionCard";
 
 export const dynamic = "force-dynamic";
@@ -11,11 +12,12 @@ export const dynamic = "force-dynamic";
 export default async function PlatformSupportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ticket?: string }>;
+  searchParams: Promise<{ ticket?: string; view?: string }>;
 }) {
-  const [{ ticket: openTicketId }, rows] = await Promise.all([
+  const [{ ticket: openTicketId, view }, rows, insights] = await Promise.all([
     searchParams,
     loadHqSupportQueue(),
+    loadHqInsightsDashboard(),
   ]);
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
@@ -49,7 +51,12 @@ export default async function PlatformSupportPage({
         </p>
       </div>
       <NotificationPermissionCard />
-      <SupportQueueClient rows={rows} initialTicketId={openTicketId ?? null} />
+      <SupportHqShell
+        rows={rows}
+        insights={insights}
+        initialTicketId={openTicketId ?? null}
+        initialView={view === "insights" ? "insights" : "queue"}
+      />
     </>
   );
 }

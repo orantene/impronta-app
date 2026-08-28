@@ -90,6 +90,24 @@ function entryText(entry: HelpCorpusEntry): string {
     .toLowerCase();
 }
 
+export function insightRowsToCorpus(
+  rows: Array<{
+    id: string;
+    summary: string;
+    root_cause?: string | null;
+    product_area?: string | null;
+  }>,
+): HelpCorpusEntry[] {
+  return rows.map((row) => ({
+    slug: `insight:${row.id}`,
+    purpose: row.summary,
+    youCanHere: row.root_cause ? [row.root_cause] : [],
+    faqs: [],
+    category: "past confirmed resolution",
+    ticketCategory: row.product_area ?? null,
+  }));
+}
+
 export function retrieveHelpEntries(
   question: string,
   opts: {
@@ -97,10 +115,11 @@ export function retrieveHelpEntries(
     category?: string | null;
     extraTexts?: string[];
     corpus?: HelpCorpusEntry[];
+    extraCorpus?: HelpCorpusEntry[];
     limit?: number;
   } = {},
 ): HelpCorpusEntry[] {
-  const corpus = opts.corpus ?? CORPUS;
+  const corpus = [...(opts.corpus ?? CORPUS), ...(opts.extraCorpus ?? [])];
   const limit = opts.limit ?? 4;
   const qTokens = tokenize([question, ...(opts.extraTexts ?? [])].join(" "));
   const qSet = new Set(qTokens);

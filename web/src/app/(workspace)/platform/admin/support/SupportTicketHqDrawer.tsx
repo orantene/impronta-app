@@ -7,6 +7,7 @@ import { SupportThreadView } from "@/components/support/SupportThreadView";
 import { TicketContextCard } from "./TicketContextCard";
 import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
 import { TicketReplayPanel } from "./TicketReplayPanel";
+import { TicketInsightsPanel } from "./TicketInsightsPanel";
 import { ProposeFixComposer } from "./ProposeFixComposer";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
@@ -177,7 +178,7 @@ export function SupportTicketHqDrawer({
               { id: "thread", label: t("dashboard.platform.support.tabThread"), enabled: true },
               { id: "diagnostics", label: t("dashboard.platform.support.tabDiagnostics"), enabled: true },
               { id: "replay", label: t("dashboard.platform.support.tabReplay"), enabled: true },
-              { id: "insights", label: t("dashboard.platform.support.tabInsights"), enabled: false },
+              { id: "insights", label: t("dashboard.platform.support.tabInsights"), enabled: true },
             ] as const
           ).map((item) => (
             <button
@@ -208,6 +209,8 @@ export function SupportTicketHqDrawer({
                 <TicketDiagnosticsPanel ticketId={ticketId} diagnostics={context?.diagnostics ?? null} />
               ) : tab === "replay" ? (
                 <TicketReplayPanel ticketId={ticketId} />
+              ) : tab === "insights" ? (
+                <TicketInsightsPanel ticketId={ticketId} />
               ) : (
                 <SupportThreadView ticket={ticket} messages={messages} tone="hq" />
               )}

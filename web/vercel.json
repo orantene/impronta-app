@@ -72,6 +72,12 @@
     "src/app/api/cron/reap-support-replays/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/support-insights/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/support-weekly-digest/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/refresh-social-feeds/route.ts": {
       "maxDuration": 60
     }
@@ -156,6 +162,14 @@
     {
       "path": "/api/cron/reap-support-replays",
       "schedule": "50 3 * * 0"
+    },
+    {
+      "path": "/api/cron/support-insights",
+      "schedule": "25 4 * * *"
+    },
+    {
+      "path": "/api/cron/support-weekly-digest",
+      "schedule": "0 7 * * 1"
     },
     {
       "path": "/api/cron/refresh-social-feeds",

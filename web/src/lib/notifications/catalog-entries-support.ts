@@ -6,6 +6,8 @@ import TicketEscalatedAlert from "../../../emails/support/TicketEscalatedAlert";
 import AgentReply from "../../../emails/support/AgentReply";
 import TicketResolved from "../../../emails/support/TicketResolved";
 import AutoCloseWarning from "../../../emails/support/AutoCloseWarning";
+import TicketFixed from "../../../emails/support/TicketFixed";
+import WeeklyDigest from "../../../emails/support/WeeklyDigest";
 import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent } from "./types";
 import { eventUser, platformAdmins, str } from "./catalog-audiences";
 import { pageUrl } from "./catalog-render";
@@ -273,6 +275,66 @@ const PROPOSED_EXPIRED: CatalogEntry = {
   },
 };
 
+const TICKET_FIXED: CatalogEntry = {
+  id: "support.ticket.fixed.requester",
+  category: "messages",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["support.ticket.fixed"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventUser("workspace_member"),
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: () => "The issue you reported is fixed",
+    body: (event) => str(event.payload.note) ?? str(event.payload.subject) ?? "A fix shipped for your ticket.",
+    targetDrawer: SUPPORT_TICKET_DRAWER,
+    targetPayload: (event) => ({ ticketId: str(event.payload.ticketId) }),
+  },
+  email: {
+    templateId: "support.ticket.fixed",
+    subject: (event) =>
+      `The issue you reported is fixed [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(TicketFixed, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        note: str(event.payload.note) ?? undefined,
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const WEEKLY_DIGEST: CatalogEntry = {
+  id: "support.weekly_digest.platform",
+  category: "platform_alerts",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["support.weekly_digest"],
+  resolveAudience: platformAdmins,
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: () => "Weekly support digest",
+    body: (event) => str(event.payload.summary) ?? "This week's support summary is ready.",
+  },
+  email: {
+    templateId: "support.weekly_digest",
+    subject: () => "Weekly support digest",
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(WeeklyDigest, {
+        summary: str(event.payload.summary) ?? "This week's support summary is ready.",
+        adminUrl: pageUrl(brand, str(event.payload.adminPath) ?? "/platform/admin/support?view=insights"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "platform alerts",
+      }),
+  },
+};
+
 export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   TICKET_CREATED,
   TICKET_ESCALATED,
@@ -281,4 +343,6 @@ export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   REQUESTER_REPLY_WATCH,
   AUTOCLOSE,
   PROPOSED_EXPIRED,
+  TICKET_FIXED,
+  WEEKLY_DIGEST,
 ];
