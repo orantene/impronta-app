@@ -144,7 +144,12 @@ export interface BuilderNodeStyleValue {
   backgroundColor?: string;
   borderColor?: string;
   borderWidth?: string;
-  borderStyle?: "solid" | "dashed" | "dotted";
+  /**
+   * CSS `border-style`: one {@link BuilderBorderStyleKeyword}, or a 1-4 value
+   * TRBL shorthand (`dashed solid`). Existing `solid` / `dashed` / `dotted`
+   * values are valid 1-value shorthands and keep working.
+   */
+  borderStyle?: string;
   // Free border-radius escape — raw CSS border-radius. Layers after the radius
   // token so an exact value wins, and the shorthand supports per-corner control
   // ("12px 12px 0 0", "50%", etc.).
@@ -470,6 +475,8 @@ export interface BuilderNodeHoverStyle {
 /**
  * CSS `mix-blend-mode` keywords the schema, renderer, and inspector share.
  * `normal` is the CSS default and is stored as unset (empty control).
+ * B9 remainder: `difference`, `color-dodge`, `luminosity`, `soft-light` are
+ * in this union (and in the inspector options); do not shrink them out.
  */
 export const BUILDER_MIX_BLEND_MODES = [
   "multiply",
@@ -489,6 +496,11 @@ export const BUILDER_MIX_BLEND_MODES = [
   "luminosity",
 ] as const;
 export type BuilderMixBlendMode = (typeof BUILDER_MIX_BLEND_MODES)[number];
+
+export {
+  BUILDER_BORDER_STYLE_KEYWORDS,
+  type BuilderBorderStyleKeyword,
+} from "./border-shorthand";
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
   /**

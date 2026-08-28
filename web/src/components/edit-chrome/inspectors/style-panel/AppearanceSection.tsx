@@ -39,6 +39,10 @@ import {
 } from "../field-kit";
 import { inspectorColorSwatchStyle } from "../style-panel-state-style-fields";
 import { BorderSidesField, CornerRadiusField } from "./corner-border-sides-fields";
+import {
+  BorderColorSidesField,
+  BorderStyleSidesField,
+} from "./border-side-style-color-fields";
 import { parseCssLength } from "./length-utils";
 import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
 import { BUILDER_NODE_BACKGROUND_OPTIONS } from "./style-options";
@@ -273,6 +277,18 @@ export function AppearanceBody({
                 value={style?.borderWidth}
                 onChange={(next) =>
                   patchSelectedStandaloneStyle({ borderWidth: next })
+                }
+              />
+              <BorderStyleSidesField
+                value={style?.borderStyle}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({ borderStyle: next })
+                }
+              />
+              <BorderColorSidesField
+                value={style?.borderColor}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({ borderColor: next })
                 }
               />
             </>

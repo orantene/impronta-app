@@ -62,6 +62,24 @@ function ctaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
   return {};
 }
 
+/**
+ * Drop undefined entries so the DOM `style` attribute is omitted when nothing
+ * is set. A bag of `undefined` values serializes as an empty style on the
+ * client and as no attribute on the server, which is a React #418 hydration
+ * mismatch on the headline (the h2 this file mounts).
+ */
+function compactStyle(style: CSSProperties): CSSProperties | undefined {
+  const out: CSSProperties = {};
+  let any = false;
+  for (const [key, value] of Object.entries(style)) {
+    if (value !== undefined && value !== null) {
+      (out as Record<string, unknown>)[key] = value;
+      any = true;
+    }
+  }
+  return any ? out : undefined;
+}
+
 function toCssDecls(style: CSSProperties): string[] {
   const decls: string[] = [];
   if (style.textAlign) decls.push(`text-align:${style.textAlign}`);
@@ -422,12 +440,12 @@ export function CtaBannerComponent({
 
         <div
           className="site-cta-banner__inner"
-          style={{ textAlign: textAlignFor(textAlign) }}
+          style={compactStyle({ textAlign: textAlignFor(textAlign) })}
         >
           {eyebrow ? (
             <span className="site-eyebrow" data-builder-node-id={nodeIdsByRole?.subheadline}>
               <span
-                style={{
+                style={compactStyle({
                   textAlign: textAlignFor(nodePresentation.subheadline?.align),
                   maxWidth: nodePresentation.subheadline?.maxWidthPx
                     ? `${nodePresentation.subheadline.maxWidthPx}px`
@@ -479,7 +497,7 @@ export function CtaBannerComponent({
                   fontSize: eyebrowSize(nodePresentation.subheadline?.size),
                   color: textToneColor(nodePresentation.subheadline?.tone),
                   display: visibilityDisplay(nodePresentation.subheadline?.visibility),
-                }}
+                })}
               >
                 {eyebrow}
               </span>
@@ -488,7 +506,7 @@ export function CtaBannerComponent({
           <h2
             className="site-cta-banner__headline"
             data-builder-node-id={nodeIdsByRole?.headline}
-            style={{
+            style={compactStyle({
               maxWidth: nodePresentation.headline?.maxWidthPx
                 ? `${nodePresentation.headline.maxWidthPx}px`
                 : undefined,
@@ -539,7 +557,7 @@ export function CtaBannerComponent({
               fontSize: headingSize(nodePresentation.headline?.size),
               color: textToneColor(nodePresentation.headline?.tone),
               display: visibilityDisplay(nodePresentation.headline?.visibility),
-            }}
+            })}
           >
             {renderInlineRich(headline)}
           </h2>
@@ -547,7 +565,7 @@ export function CtaBannerComponent({
             <p
               className="site-cta-banner__copy"
               data-builder-node-id={nodeIdsByRole?.copy}
-              style={{
+              style={compactStyle({
                 maxWidth: nodePresentation.copy?.maxWidthPx
                   ? `${nodePresentation.copy.maxWidthPx}px`
                   : undefined,
@@ -598,7 +616,7 @@ export function CtaBannerComponent({
                 fontSize: paragraphSize(nodePresentation.copy?.size),
                 color: textToneColor(nodePresentation.copy?.tone),
                 display: visibilityDisplay(nodePresentation.copy?.visibility),
-              }}
+              })}
             >
               {copy}
             </p>
