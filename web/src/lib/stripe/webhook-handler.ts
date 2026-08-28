@@ -71,6 +71,7 @@ import {
   isUnexpandedDiscount,
 } from "@/lib/billing/subscription-discounts";
 import { logServerError } from "@/lib/server/safe-error";
+import { applyCampaignGrantForDiscount } from "@/lib/billing/apply-campaign-grant";
 import { improntaLog } from "@/lib/server/structured-log";
 import type Stripe from "stripe";
 
@@ -135,7 +136,7 @@ async function recordDiscountRedemption(
     const sb = createServiceRoleClient();
     if (!sb) return;
 
-    const { error } = await sb.rpc("record_discount_redemption", {
+    const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
       p_stripe_coupon_id: mirror.couponId,
       p_stripe_event_id: eventId,
       p_subject_type: talentProfileId ? "talent" : "workspace",
@@ -144,6 +145,24 @@ async function recordDiscountRedemption(
       p_stripe_subscription_id: subscription.id,
     });
     if (error) logServerError("stripe-webhook.discount-redemption", error);
+
+    // The entitlement half of a campaign, applied exactly once. `recorded` is
+    // the RPC's own idempotency answer: true ONLY on the insert that actually
+    // happened, so a replayed webhook cannot hand out a second free upgrade.
+    // Workspace subjects only, and best-effort -- a courtesy grant that fails
+    // must never fail the webhook that delivered the payment.
+    if (recorded === true && tenantId) {
+      const outcome = await applyCampaignGrantForDiscount({
+        stripeCouponId: mirror.couponId,
+        tenantId,
+      });
+      if (outcome.applied) {
+        logServerError(
+          "stripe-webhook.campaign-grant.applied",
+          `tenant ${tenantId} granted ${outcome.planTier} until ${outcome.expiresAt}`,
+        );
+      }
+    }
   } catch (err) {
     logServerError("stripe-webhook.discount-redemption", err);
   }

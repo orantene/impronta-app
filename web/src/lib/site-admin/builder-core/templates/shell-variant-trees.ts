@@ -250,7 +250,6 @@ export function headerMinimalCentre(): BuilderNode[] {
             { label: "Roster", href: "/directory" },
             { label: "Studio", href: "/about" },
             { label: "Journal", href: "/posts" },
-            { label: "Contact", href: "/contact" },
           ],
           {
             ariaLabel: "Primary",
@@ -388,7 +387,6 @@ export function headerEditorialTagline(): BuilderNode[] {
             { label: "Roster", href: "/directory" },
             { label: "Studio", href: "/about" },
             { label: "Journal", href: "/posts" },
-            { label: "Contact", href: "/contact" },
           ],
           {
             ariaLabel: "Primary",
@@ -465,7 +463,6 @@ export function footerSlimLine(): BuilderNode[] {
           [
             textLink("Privacy", "/privacy", { fontSize: "0.78rem" }),
             textLink("Terms", "/terms", { fontSize: "0.78rem" }),
-            textLink("Contact", "/contact", { fontSize: "0.78rem" }),
           ],
           {
             layerLabel: "Footer Links",
@@ -519,7 +516,6 @@ export function footerColumnsNewsletter(): BuilderNode[] {
             ]),
             linkColumn("Work with us", [
               { label: "Start an inquiry", href: "/directory" },
-              { label: "Contact", href: "/contact" },
               { label: "Join the roster", href: "/register" },
             ]),
             container(
@@ -545,7 +541,11 @@ export function footerColumnsNewsletter(): BuilderNode[] {
                   },
                   "Newsletter Copy",
                 ),
-                ctaButton("Subscribe", "/contact"),
+                // Points at the live roster surface, not `/contact`: on an
+                // agency host `/contact` is a CMS clean-URL that 404s until
+                // the operator creates such a page, and no default template
+                // may ship a link the platform cannot honour.
+                ctaButton("Subscribe", "/directory"),
               ],
               {
                 layerLabel: "Newsletter Column",
@@ -666,7 +666,6 @@ export function footerEditorialWordmark(): BuilderNode[] {
                   "Roster",
                   [
                     { label: "All talent", href: "/directory" },
-                    { label: "Contact", href: "/contact" },
                   ],
                   { fontSize: "0.82rem" },
                 ),

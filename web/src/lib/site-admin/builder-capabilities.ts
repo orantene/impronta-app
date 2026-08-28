@@ -217,14 +217,113 @@ export function workspaceTemplateLibraryDeniedReason(
   return null;
 }
 
+// ─── PAGE QUOTA: system/role pages do NOT count ─────────────────────────────
+//
+// `maxPublicPages` is a cap on what the OPERATOR chose to build, not on what
+// the platform had to provision for them. The non-negotiable set — homepage,
+// 404, site shell, and the directory page a roster workspace gets — is
+// installed by the seed, not authored by the operator. Counting it would make
+// the contract self-defeating: Free caps at 1, the seed alone ships 2-4, and a
+// fresh Free workspace would be over quota before its owner clicked anything.
+//
+// So the quota counts only operator-created extra pages, and the exemption is
+// defined ONCE here so every enforcement site agrees.
+
+/**
+ * `cms_pages.system_template_key` values the platform provisions itself.
+ * `contact` is listed for the day a contact page is seeded — it is NOT seeded
+ * today (see `onboard-starter-content.ts`), so the entry is inert until then.
+ */
+export const QUOTA_EXEMPT_SYSTEM_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
+  "homepage",
+  "site_shell",
+  "directory",
+  "not_found",
+  "contact",
+]);
+
+/** The minimum a quota-counted page row must expose. */
+export interface QuotaPageRow {
+  slug?: string | null;
+  status?: string | null;
+  system_template_key?: string | null;
+  is_system_owned?: boolean | null;
+}
+
+/**
+ * True when this page row consumes one of the workspace's `maxPublicPages`
+ * slots. Exempt: archived pages (they serve nothing), fenced `__…__` system
+ * slugs, `is_system_owned` rows, anything carrying a provisioned
+ * `system_template_key`, and any page currently HOLDING a page role — a page
+ * the operator promoted to homepage or 404 is doing the platform's job, so it
+ * stops billing against their allowance.
+ */
+export function isQuotaCountedPage(
+  row: QuotaPageRow,
+  roleSlugs: ReadonlySet<string> = new Set(),
+): boolean {
+  if ((row.status ?? "") === "archived") return false;
+  if (row.is_system_owned === true) return false;
+  const key = (row.system_template_key ?? "").trim();
+  if (key && QUOTA_EXEMPT_SYSTEM_TEMPLATE_KEYS.has(key)) return false;
+  const slug = (row.slug ?? "").trim();
+  if (slug.startsWith("__")) return false;
+  if (slug && roleSlugs.has(slug)) return false;
+  return true;
+}
+
+/** How many of a tenant's pages count against `maxPublicPages`. */
+export function countQuotaCountedPages(
+  rows: ReadonlyArray<QuotaPageRow>,
+  roleSlugs: ReadonlySet<string> = new Set(),
+): number {
+  return rows.reduce(
+    (total, row) => total + (isQuotaCountedPage(row, roleSlugs) ? 1 : 0),
+    0,
+  );
+}
+
+/**
+ * Load the tenant's counted-page total: every non-archived page row, minus the
+ * system/role pages the platform provisioned. Deliberately reads the role
+ * pointers too, so a promoted page stops counting the moment it takes a role.
+ *
+ * Fails CLOSED (returns null) when the read errors, and
+ * {@link cmsAdditionalPageDeniedReason} treats a null count as "assume the
+ * quota is spent" — a broken read must not hand out unlimited pages.
+ */
+export async function loadQuotaCountedPageCount(
+  supabase: SupabaseClient,
+  tenantId: string,
+  roleSlugs: ReadonlySet<string> = new Set(),
+): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("cms_pages")
+    .select("slug, status, system_template_key, is_system_owned")
+    .eq("tenant_id", tenantId)
+    .neq("status", "archived");
+  if (error || !data) return null;
+  return countQuotaCountedPages(data as QuotaPageRow[], roleSlugs);
+}
+
+/**
+ * Why this workspace may not create another page, or null when it may.
+ *
+ * `countedPages` is the operator-created total from
+ * {@link loadQuotaCountedPageCount}. Omitting it (or passing null) keeps the
+ * historical fail-closed behaviour: an unmetered Free workspace is denied.
+ */
 export function cmsAdditionalPageDeniedReason(
   planTier: string | null | undefined,
+  countedPages?: number | null,
 ): string | null {
   const policy = getBuilderPlanPolicy(planTier);
-  if (policy.maxPublicPages === 1) {
-    return "Free workspaces include one landing page. Upgrade to Studio to add more pages.";
-  }
-  return null;
+  const max = policy.maxPublicPages;
+  if (max === null) return null;
+  if (typeof countedPages === "number" && countedPages < max) return null;
+  return max === 1
+    ? "Free workspaces include one page of your own, on top of your homepage and 404. Upgrade to Studio to add more."
+    : `Your plan includes ${max} pages of your own. Upgrade to Studio to add more.`;
 }
 
 export function clampFeaturedRosterLimitForPlan(

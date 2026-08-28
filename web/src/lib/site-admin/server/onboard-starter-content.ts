@@ -49,7 +49,8 @@ import {
   buildFreeStarterEntries,
 } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
-import { ensureDirectoryPage } from "./onboard-directory-page";
+import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
+import { ensureNotFoundPage } from "./onboard-notfound-page";
 import { platformOwnedStamp } from "@/lib/media/ownership";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
@@ -420,7 +421,6 @@ async function seedFreeStarterHomepage(params: {
     .select("plan_tier, display_name")
     .eq("id", params.tenantId)
     .maybeSingle<{ plan_tier: string | null; display_name: string | null }>();
-  const planTier = planRow?.plan_tier ?? null;
 
   // Publish a real design theme BEFORE the sections go live. A tenant with
   // an empty theme_json renders the storefront off raw fallback tokens
@@ -635,30 +635,6 @@ async function seedFreeStarterHomepage(params: {
     };
   }
 
-  // ── Directory system page (Amendment A3 gate) ────────────────────────
-  // Free tier deliberately gets NO dedicated directory page (the ~5 inline
-  // on the landing one-pager covers Free). Studio/Agency/Network get the
-  // canonical `__directory__` system page. Predicate mirrors
-  // resolveFreeStarterRosterSeedCount's `planTier !== "free"`. Idempotent
-  // + non-fatal: a failure here must never abort the homepage seed (the
-  // tenant's live URL is the higher-priority guarantee). Today every
-  // provisioning entry point hard-codes plan_tier:"free", so this is a
-  // no-op for current signups (correct per A3); it auto-activates the
-  // instant a non-free tenant is provisioned or upgraded.
-  if (planTier !== "free") {
-    const directoryResult = await ensureDirectoryPage({
-      admin: params.client,
-      tenantId: params.tenantId,
-      actorProfileId: params.actorProfileId,
-    });
-    if (!directoryResult.ok) {
-      logServerError(
-        "onboardStarterContent.ensureDirectoryPage (non-fatal)",
-        new Error(directoryResult.error),
-      );
-    }
-  }
-
   return { ok: true, seeded: true, rosterSeededCount };
 }
 
@@ -716,6 +692,56 @@ export async function onboardStarterContent(
         homepagePageId: ensured.data.id,
       };
     }
+
+    // ── DEFAULT PAGES CONTRACT ───────────────────────────────────────────
+    // Deliberately OUTSIDE `seedFreeStarterHomepage`, which short-circuits
+    // once a workspace has homepage content (the signup trampoline re-enters
+    // on later logins). Running the two ensures here instead means they also
+    // BACKFILL: a workspace provisioned before this contract existed picks up
+    // its 404 — and its directory page, if its roster has since become active
+    // — the next time the trampoline runs. Both are idempotent and non-fatal.
+    //
+    // 404 is unconditional: every public site needs a dead-end that belongs to
+    // its owner, on every plan and every workspace type. It costs the operator
+    // nothing — never linked, never indexed, never in the sitemap, and exempt
+    // from the page quota. If it fails, the platform-branded 404 boundary in
+    // `src/app/not-found.tsx` still catches the request, so the degradation is
+    // the page, not the workspace.
+    const notFoundResult = await ensureNotFoundPage({
+      admin: client,
+      tenantId: input.tenantId,
+      actorProfileId,
+      locale,
+    });
+    if (!notFoundResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureNotFoundPage (non-fatal)",
+        new Error(notFoundResult.error),
+      );
+    }
+
+    // The directory page is CAPABILITY-keyed, not plan-keyed: a workspace
+    // needs a page listing its roster because of what it IS and what it HAS,
+    // never because of what it pays. See `directoryPageCapabilityEnabled`.
+    const directoryResult = await ensureDirectoryPageIfRosterActive({
+      admin: client,
+      tenantId: input.tenantId,
+      actorProfileId,
+    });
+    if (!directoryResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureDirectoryPage (non-fatal)",
+        new Error(directoryResult.error),
+      );
+    }
+
+    // CONTACT is deliberately NOT seeded. Owner-ratified: a published
+    // placeholder contact page from minute one is a worse first impression
+    // than a shorter nav, and it undercuts the AI-draft magic moment. The
+    // dangling default is resolved the other way instead — the default shell
+    // nav and footer link sets no longer hard-code `/contact`, which on an
+    // agency host is a CMS clean-URL that 404s until such a page exists.
+
     return {
       ok: true,
       homepagePageId: ensured.data.id,
