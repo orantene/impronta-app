@@ -150,6 +150,40 @@ export function buildEjectRolePresentation(
 }
 
 /**
+ * W4-T3 — resolve the saved per-role `nodePresentation` for a section node so
+ * `ejectSectionInTree` can carry the user's Design-panel styling onto the
+ * ejected children. Best-effort BY CONTRACT: any miss (not a section node, no
+ * `sectionId`, loader failure, no `nodePresentation` on the saved props)
+ * resolves to `undefined` and the caller falls through to the lossy eject —
+ * eject itself must never throw or become a no-op over styling. The section
+ * loader is injected so this module stays free of server-action imports.
+ */
+export async function resolveEjectRolePresentation(
+  node: BuilderNode | null | undefined,
+  loadSectionProps: (
+    sectionId: string,
+  ) => Promise<Record<string, unknown> | null>,
+): Promise<EjectRolePresentation | undefined> {
+  if (!node || node.kind !== "section") return undefined;
+  const sectionId =
+    typeof node.props.sectionId === "string" ? node.props.sectionId : null;
+  if (!sectionId) return undefined;
+  try {
+    const props = await loadSectionProps(sectionId);
+    const byRole = props?.nodePresentation as
+      | Readonly<Partial<Record<string, NodePresentation | null | undefined>>>
+      | undefined;
+    if (!byRole) return undefined;
+    return buildEjectRolePresentation(
+      (node.children ?? []).map((child) => child.id),
+      byRole,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Reverse an eject: drop the `ejected` flag and clear the section's children so
  * the next hydration re-derives the original curated content. The curated React
  * component renders again. Pure.
