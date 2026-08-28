@@ -96,9 +96,10 @@ function visitTree(
 /**
  * Build a document-order heading outline from a freeform builder tree.
  *
- * Heading levels come from `heading` blocks (props.level) and from
- * `section_embed` blocks (mapped via the shared HEADING_MAP). Signature
- * preserved for the navigator Outline consumer.
+ * Heading levels come from `heading` blocks (props.level), from `section_embed`
+ * blocks (mapped via the shared HEADING_MAP), and from the two native data
+ * blocks, which render a real `<h1>` / `<h2>` from their own `headline` prop.
+ * Signature preserved for the navigator Outline consumer.
  */
 export function buildHeadingOutlineFromBuilderTree(
   tree: BuilderNodeTree,
@@ -115,6 +116,21 @@ export function buildHeadingOutlineFromBuilderTree(
         node.id,
       );
       if (heading) out.push(heading);
+    } else if (node.kind === "hero_search") {
+      // WS7 Phase 0 — the native search hero renders its headline as the page
+      // `<h1>` (see render.tsx). Without this the outline reported missing_h1
+      // for every page whose hero IS the search hero, and the a11y lint (and
+      // the AI eval scorecard that consumes it) graded the correct shape as
+      // broken. `talent_type_grid` renders an `<h2>` the same way.
+      const text = node.props.headline?.trim();
+      if (text) {
+        out.push({ level: 1, text, sectionId: node.id, sectionTypeKey: "hero_search" });
+      }
+    } else if (node.kind === "talent_type_grid") {
+      const text = node.props.headline?.trim();
+      if (text) {
+        out.push({ level: 2, text, sectionId: node.id, sectionTypeKey: "talent_type_grid" });
+      }
     } else if (node.kind === "heading") {
       const text = node.props.text.trim();
       if (text) {

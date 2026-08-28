@@ -26,6 +26,7 @@ import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import type { AiUsage } from "@/lib/ai/provider";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
+import { resolveTenantThemeGenerationContext } from "@/lib/site-admin/server/tenant-theme-polarity";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
   reviseBuilderNodes,
@@ -184,7 +185,12 @@ export async function reviseBuilderNodeAction(input: {
   }
 
   const model = await resolveGenerationModel();
-  const themePolarity = backgroundModeToPolarity(input.backgroundMode);
+  // Same precedence as the generate action: the client-reported canvas mode is
+  // the override (it sees unsaved theme edits), the tenant's own stored theme
+  // is the server-side floor so polarity is known at every entry point.
+  const themePolarity =
+    backgroundModeToPolarity(input.backgroundMode) ??
+    (await resolveTenantThemeGenerationContext(tenantId)).polarity;
   const usageSink: UsageEntry[] = [];
   const revised: ReviseNodesResult = await reviseBuilderNodes({
     node,

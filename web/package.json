@@ -181,6 +181,8 @@
     "eval:generate": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --env-file=.env.local scripts/eval-generate.ts",
     "eval:generate-smoke": "tsx --test scripts/eval-generate.smoke.test.ts src/lib/site-admin/builder-core/ai/eval-scorecard.test.ts scripts/ai-builder-eval/judge.test.ts",
     "eval:generate-judge": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --env-file=.env.local scripts/eval-generate.ts --judge",
+    "eval:generate-baseline": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --env-file=.env.local scripts/eval-generate.ts --judge --write-baseline=eval/generate-baseline-summary.json",
+    "eval:generate-gate": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --env-file=.env.local scripts/eval-generate.ts --judge --compare-baseline=eval/generate-baseline-summary.json",
     "eval:builder": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx scripts/ai-builder-eval.tsx",
     "eval:builder:shots": "tsx scripts/ai-builder-eval/screenshot.ts",
     "qa:interpret-search": "node scripts/qa-interpret-search.mjs",

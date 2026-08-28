@@ -35,6 +35,11 @@ import type { JsonSchemaForChat } from "@/lib/ai/provider";
 import { getLocaleMetadata } from "@/i18n/config";
 import { buildFewShotExamples } from "./generation-few-shots";
 import {
+  clampString,
+  coerceHeroSearchProps,
+  coerceTalentTypeGridProps,
+} from "./coerce-native-data-blocks";
+import {
   CURATED_STYLE_COLOR_KEYS,
   CURATED_STYLE_ENUM_VALUES,
   CURATED_STYLE_FONT_WEIGHT_KEY,
@@ -201,6 +206,8 @@ export function buildGenerationSystemPrompt(opts: BuildPromptOpts = {}): string 
     '- accordion  props:{allowMultiple:true|false}  children:[accordion_item, ...]. A stack of expandable rows — perfect for an FAQ. Do not try to set an open-by-default row.',
     '- accordion_item  props:{title:"A real question?"}  children:[paragraph, ...]. One row of an accordion; title is the always-visible header, children are the revealed answer. Only valid inside an accordion.',
     '- form       props:{method:"post", fields:[{name:"email", type:"email"|"text"|"tel"|"textarea"|"submit", label:"...", placeholder:"...", required:true}, ...]}. Use for a contact / inquiry section. 2-6 fields, ending with one type:"submit" field. No children.',
+    '- hero_search  props:{eyebrow:"...", headline:"...", highlight:"...", subheadline:"...", searchPlaceholder:"Search the roster", searchSubmitLabel:"Search", primaryCtaLabel:"...", secondaryCtaLabel:"...", chips:[{label:"Models"}, ...], statSource:"tenant_talent_count", statCountLabel:"represented talent", layout:"centered"|"split"|"minimal"|"editorial"}. A SEARCH-FIRST hero wired to the agency\'s own directory: a real search box, quick-filter chips, and a live count of the agency\'s represented talent. Its headline renders as the page H1, so a page that opens with hero_search must NOT also contain a heading with level:1. No children, no hrefs, no ids.',
+    '- talent_type_grid  props:{eyebrow:"...", headline:"...", subheadline:"...", mode:"dynamic", maxItems:1-18, columns:1-6, showCount:true, seeAllLabel:"View the roster", emptyStateText:"..."}. Discipline cards ("Models", "Voice", "Dancers") derived from the agency\'s OWN roster taxonomy, each linking into the directory. Its headline renders as an H2, so do NOT wrap it in your own eyebrow paragraph + level:2 heading. mode:"dynamic" is right nearly always; only use mode:"manual" with items:[{label:"...", description:"..."}] when the brief names disciplines the agency does not actually represent yet. No children, no hrefs, no ids.',
     '- pricing_table  props:{tiers:[{name:"...", price:"$49", period:"month", description:"...", highlighted:true, features:[{label:"...", included:true}], ctaLabel:"Choose", ctaHref:"/inquire"}, ...]}. 2-4 tiers; mark the recommended one highlighted:true. Prices are strings ("$49" or "Custom"). No children.',
     "",
     "OPTIONAL style object on any block's props (all keys optional — omit unless it earns its place). Only these keys/values survive; anything else is dropped, so do not invent CSS:",
@@ -225,8 +232,9 @@ export function buildGenerationSystemPrompt(opts: BuildPromptOpts = {}): string 
     "- Punctuation: NEVER use em dashes or en dashes (— or –) in any copy. Use a comma, period, colon, or the word 'and' instead. This is a strict brand style rule.",
     "- Brand language: this is a talent agency, not a store. NEVER use buyer, cart, checkout, add to cart, shop, purchase, or 'pay to DM'. Use client, book, inquire, roster, lineup, casting. You BOOK talent, you do not buy it.",
     "- CTA labels: verb-led and specific (Book talent, Start an inquiry, View the roster, See pricing, Apply as talent). NEVER generic labels like 'Learn more', 'Click here', 'Read more', or 'Submit'.",
-    "- Section openers: every section EXCEPT the hero opens with a SHORT uppercase eyebrow paragraph (style: size:sm, tone:muted, textTransform:uppercase) directly above its level:2 heading, so each section has a clear visual ramp instead of a bare heading.",
-    "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
+    "- Section openers: every section EXCEPT the hero opens with a SHORT uppercase eyebrow paragraph (style: size:sm, tone:muted, textTransform:uppercase) directly above its level:2 heading, so each section has a clear visual ramp instead of a bare heading. hero_search and talent_type_grid are the exception: they render their own eyebrow and title from their props, so set eyebrow/headline on the block itself and add no paragraph or heading around it.",
+    "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. If the hero is a hero_search block, ITS headline IS that level:1, so do not emit a heading with level:1 anywhere on the page. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
+    "- Live agency data: when the brief is a TALENT AGENCY or roster site, the page must show the agency's actual roster, not a description of it. Open the page with a hero_search block (a real directory search plus statSource:\"tenant_talent_count\") instead of a plain heading hero, and include ONE talent_type_grid with mode:\"dynamic\" so the disciplines the agency really represents appear as cards. Both blocks fill themselves in from the agency's own data, so write only the surrounding copy: no roster names, no invented talent counts in your own text, no discipline lists spelled out in a paragraph. Use each block AT MOST ONCE per page. Do NOT use them for a page that is not about a roster (a single photographer's landing page, a pricing page, a contact page, a policy page) or for a section-scope request that did not ask for search or disciplines.",
     "- Rhythm: prefer 2-4 blocks per section. Alternate texture — a text-led section, then a media or card section — rather than stacking identical card grids.",
     "- Layout: one idea per section. Do not nest deeper than 3 levels below a section.",
     '- Rhythm & scale: give each section REAL vertical breathing room — put paddingY:"xl" on the section\'s outer container (paddingY:"l" only for a deliberately tight band), and give the hero container a minHeight of "70svh" to "85svh" so the opening view fills the screen. For a FULL-BLEED colored band, make the section\'s single child a container with style.maxWidth:"full" carrying the backgroundColor+textColor pair, so the color runs edge to edge.',
@@ -278,13 +286,6 @@ function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
-}
-
-function clampString(value: unknown, max: number): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  return trimmed.slice(0, max);
 }
 
 function childKindAllowed(parentKind: BuilderNodeKind, childKind: BuilderNodeKind): boolean {
@@ -575,6 +576,18 @@ function coerceNode(
       if (honeypotName) props.honeypotName = honeypotName;
       // action left unset → the form falls back to the tenant's default inquiry sink.
       return emit(props);
+    }
+    // WS7 Phase 0 — the two NATIVE data blocks. Both are structural leaves, so
+    // no children are read. Coercion is allow-list shaped and COPY-ONLY: see
+    // coerce-native-data-blocks.ts for exactly which props are dropped and why
+    // no model-supplied value can reach a tenant data query.
+    case "hero_search": {
+      const props = coerceHeroSearchProps(rawProps, style);
+      return props ? emit(props) : null;
+    }
+    case "talent_type_grid": {
+      const props = coerceTalentTypeGridProps(rawProps, style);
+      return props ? emit(props) : null;
     }
     case "pricing_table": {
       const rawTiers = Array.isArray(rawProps.tiers) ? rawProps.tiers : [];

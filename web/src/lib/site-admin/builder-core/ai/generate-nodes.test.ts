@@ -137,6 +137,39 @@ test("every few-shot exemplar in the prompt coerces to a valid tree (AIQ-11/24)"
   }
 });
 
+test("prompt teaches WHEN to reach for the native data blocks (WS7)", () => {
+  const prompt = buildGenerationSystemPrompt();
+  // Grammar entries exist for both kinds.
+  assert.ok(prompt.includes("- hero_search "), "hero_search grammar line present");
+  assert.ok(prompt.includes("- talent_type_grid "), "talent_type_grid grammar line present");
+  // The WHEN rule: a roster site leads with search + disciplines.
+  assert.match(prompt, /Live agency data/);
+  assert.match(prompt, /TALENT AGENCY or roster site/);
+  // ...and the WHEN NOT rule is stated in the same bullet.
+  assert.match(prompt, /Do NOT use them for a page that is not about a roster/);
+  assert.match(prompt, /AT MOST ONCE per page/);
+  // The H1 rule survives and is extended, not weakened.
+  assert.match(prompt, /EXACTLY ONE heading with level:1 on the whole page/);
+  assert.match(prompt, /ITS headline IS that level:1/);
+  // The other hard rules are untouched.
+  assert.match(prompt, /NEVER use em dashes or en dashes/);
+  assert.match(prompt, /You BOOK talent, you do not buy it/);
+  assert.match(prompt, /CTA labels: verb-led and specific/);
+  // The few-shot exemplar exists and is roster-backed.
+  assert.match(prompt, /a search hero over the real roster/i);
+  assert.ok(prompt.includes('"kind":"hero_search"'), "hero_search exemplar present");
+  assert.ok(prompt.includes('"kind":"talent_type_grid"'), "talent_type_grid exemplar present");
+  // The exemplar must not smuggle in a level:1 heading beside the search hero.
+  const exemplar = prompt.slice(prompt.indexOf('"kind":"hero_search"'));
+  const nextExample = exemplar.indexOf("EXAMPLE (");
+  const block = nextExample > 0 ? exemplar.slice(0, nextExample) : exemplar;
+  assert.ok(!block.includes('"level":1'), "roster exemplar has no competing level:1 heading");
+  // The exemplar carries no href / id props for the model to copy.
+  for (const forbidden of ["searchActionHref", "selectedTermIds", "taxonomyTermId", "imageUrl", "seeAllHref"]) {
+    assert.ok(!block.includes(forbidden), `roster exemplar must not model ${forbidden}`);
+  }
+});
+
 test("AIQ-7: paddingY 'xl' survives schema + curated vocab; margins/paddingX stay capped", () => {
   const r = builderNodeStyleValueSchema.safeParse({ paddingY: "xl" });
   assert.ok(r.success && r.data?.paddingY === "xl", "paddingY xl valid");
