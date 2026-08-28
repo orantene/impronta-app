@@ -35,6 +35,11 @@ import {
 import type { AddGalleryItem, AddGalleryTab, GallerySurfaceDescriptor } from "./types";
 import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import {
+  allowListHasPageTemplates,
+  canonicalGalleryTab,
+  normalizeAllowedTabs,
+} from "./gallery-tab-ids";
+import {
   deterministicBucket,
   templateRolloutAllowed,
   type TemplateRolloutFields,
@@ -169,7 +174,16 @@ export function computeParityHiddenReason(
   //    - tab must be offered on this surface
   //    - DB templates must be enabled for a template row
   //    - target_context must allow this surface's audience
-  if (!descriptor.allowedTabs.includes(item.tab)) return "target";
+  const itemTab = canonicalGalleryTab(item.tab) ?? item.tab;
+  if (!normalizeAllowedTabs(descriptor.allowedTabs).includes(itemTab)) {
+    return "target";
+  }
+  if (
+    item.dbGalleryTab === "page_templates" &&
+    !allowListHasPageTemplates(descriptor.allowedTabs as readonly string[])
+  ) {
+    return "target";
+  }
   if (isTemplate && !descriptor.allowDbTemplates) return "target";
   if (!templateTargetAllowed(item.targetContext ?? "both", descriptor.surfaceTarget)) {
     return "target";

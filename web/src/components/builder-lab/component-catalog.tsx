@@ -526,8 +526,8 @@ export function ComponentCatalog({
     );
   }
 
-  // Gallery component categories (drop the empty page_templates tab — its
-  // full-page role moves to the Site Starter Kit view).
+  // Gallery component categories. The former empty page_templates tab is no
+  // longer a UI tab (those cards live on Designs; full-page role is Site Starter Kit).
   const categoryTabs = presentTabs.filter((t) => t !== "page_templates");
   // P1 — the full navigable view universe: every special view ∪ the present
   // gallery tabs. `currentView` is validated against THIS (not just the active
@@ -561,7 +561,7 @@ export function ComponentCatalog({
   // The Connected view shows ONE surface at a time (driven by the switcher);
   // every other gallery view renders as a single group. Empty groups are dropped.
   const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
-    currentView === "connected"
+    currentView === "data"
       ? CONNECTED_DATA_GROUPS.filter((g) => g.key === connectedSurface).map((g) => ({
           key: g.key,
           label: g.label,

@@ -1,19 +1,21 @@
 import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
-export type AddGalleryTab =
+export type AddGalleryTab = "blocks" | "designs" | "data" | "shell";
+
+/**
+ * Allow-list tokens for a surface's gallery. The four UI tabs plus the
+ * legacy six-tab ids so older `allowedTabs` arrays still match items.
+ * `page_templates` is not a UI tab (those cards live on Designs) but stays
+ * as a gate token: page-builder surfaces that listed it still receive DB
+ * page templates; shell surfaces that never listed it still hide them.
+ */
+export type AddGalleryAllowTab =
+  | AddGalleryTab
   | "layout"
   | "elements"
   | "sections"
   | "connected"
-  /** DB-backed published page/section templates (WS2/WS4). */
-  | "page_templates"
-  /**
-   * WS-A A7 — shell-only tab carrying `shell_header` / `shell_footer` DB
-   * templates. Offered ONLY on the site-shell surface (+ the Lab for
-   * authoring) via each surface's `allowedTabs`; every page-builder surface
-   * omits it, so the live "+" gallery never shows shell templates on a page.
-   */
-  | "shell";
+  | "page_templates";
 
 export type AddGalleryInsertMethod =
   | "nativeNode"
@@ -124,6 +126,11 @@ export interface AddGalleryItem {
   /** DB-backed template id (insertMethod === "dbTemplate"). */
   dbTemplateId?: string;
   /**
+   * DB `gallery_tab` before canonical mapping. Page-template cards live on
+   * Designs but still require the `page_templates` allow-list gate.
+   */
+  dbGalleryTab?: string;
+  /**
    * Resolved freeform subtree for a `dbTemplate` item (the published row's
    * `builder_tree`). Carried on the item so `resolveAddGalleryInsertAction`
    * can re-mint ids + build the insert node without a second DB round-trip.
@@ -202,7 +209,7 @@ export interface AddGalleryCategoryDef {
  */
 export interface GallerySurfaceDescriptor {
   /** Gallery tabs offered on this surface (`galleryPolicy.allowedTabs`). */
-  allowedTabs: ReadonlyArray<AddGalleryTab>;
+  allowedTabs: ReadonlyArray<AddGalleryAllowTab>;
   /** Whether DB-backed templates are merged in (`galleryPolicy.allowDbTemplates`). */
   allowDbTemplates: boolean;
   /** Surface subject target for `target_context` gating (talent | workspace | platform | null). */

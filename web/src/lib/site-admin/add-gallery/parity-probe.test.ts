@@ -35,7 +35,7 @@ function codeItem(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "el-button",
     label: "Button",
     description: "",
-    tab: "elements",
+    tab: "blocks",
     category: "buttons",
     icon: "buttons",
     previewType: "icon-card",
@@ -54,7 +54,8 @@ function templateItem(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "db-template:tpl-1",
     label: "Editorial hero",
     description: "",
-    tab: "page_templates",
+    tab: "designs",
+    dbGalleryTab: "page_templates",
     category: "heroes",
     icon: "layout",
     previewType: "icon-card",
@@ -156,7 +157,7 @@ test("SURPRISE: workspace_enabled=false also hides the TALENT SHELL (workspace-t
   // talent shell carries surfaceTarget 'workspace', so it rides workspace_enabled.
   // Use a section item (the shell tab doesn't allow `elements`/page_templates default).
   const e = entry({
-    item: codeItem({ tab: "sections" }),
+    item: codeItem({ tab: "designs" }),
     overlay: overlay({ workspace_enabled: false }),
   });
   assert.equal(computeParityHiddenReason(e, talentShell), "overlay-hidden");
@@ -311,7 +312,14 @@ test("computeParityProbe returns only hidden rows with reasons + correct shape",
   const universe: ParityUniverseEntry[] = [
     entry({ item: codeItem({ id: "visible-1" }) }), // visible → excluded
     entry({
-      item: codeItem({ id: "hidden-plan", tab: "page_templates", insertMethod: "dbTemplate", requiredPlan: "network", dbTemplateId: "t2" }),
+      item: codeItem({
+        id: "hidden-plan",
+        tab: "designs",
+        insertMethod: "dbTemplate",
+        requiredPlan: "network",
+        dbTemplateId: "t2",
+        dbGalleryTab: "page_templates",
+      }),
       effectiveLabel: "Network template",
     }),
     entry({

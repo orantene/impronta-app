@@ -9,7 +9,7 @@
  *
  *   • loadLastViewPerGroup / saveLastViewForGroup — remember the last view a
  *     user was on within each group, so re-entering a group restores it.
- *   • parseViewParam — read a `?view=` query value, gated by isValidView.
+ *   • parseViewParam — read a `?view=` query value, canonicalizing legacy tab ids.
  *   • resolveInitialView — the mount precedence: URL > preset > defaultView >
  *     firstStructureView.
  */
@@ -18,7 +18,7 @@ import {
   type CatalogGroup,
   type CatalogView,
   GROUP_ORDER,
-  isValidView,
+  coerceCatalogView,
 } from "./catalog-nav";
 
 const LAST_VIEW_KEY = "builder-lab/catalog-last-view-per-group";
@@ -37,7 +37,10 @@ export function loadLastViewPerGroup(): LastViewPerGroup {
     const out: LastViewPerGroup = {};
     for (const group of GROUP_ORDER) {
       const v = (parsed as Record<string, unknown>)[group];
-      if (typeof v === "string" && isValidView(v)) out[group] = v;
+      if (typeof v === "string") {
+        const coerced = coerceCatalogView(v);
+        if (coerced) out[group] = coerced;
+      }
     }
     return out;
   } catch {
@@ -59,11 +62,11 @@ export function saveLastViewForGroup(
   }
 }
 
-/** Parse a raw `?view=` value into a CatalogView, or null. Gated by isValidView
- *  (rejects page_templates + garbage). Pure — no I/O. */
+/** Parse a raw `?view=` value into a CatalogView, or null. Canonicalizes
+ *  legacy six-tab ids (layout → blocks, page_templates → designs, …). */
 export function parseViewParam(raw: string | null | undefined): CatalogView | null {
   if (!raw) return null;
-  return isValidView(raw) ? raw : null;
+  return coerceCatalogView(raw);
 }
 
 /** Resolve the view to activate on mount. PURE precedence (highest first):
@@ -84,8 +87,15 @@ export function resolveInitialView({
   defaultView: CatalogView | null | undefined;
   firstStructureView: CatalogView;
 }): CatalogView {
-  if (urlView && isValidView(urlView)) return urlView;
-  if (presetTab && isValidView(presetTab)) return presetTab;
-  if (defaultView && isValidView(defaultView)) return defaultView;
+  const url = urlView ? coerceCatalogView(urlView) : null;
+  if (url) return url;
+  if (presetTab) {
+    const preset = coerceCatalogView(presetTab);
+    if (preset) return preset;
+  }
+  if (defaultView) {
+    const fallback = coerceCatalogView(defaultView);
+    if (fallback) return fallback;
+  }
   return firstStructureView;
 }

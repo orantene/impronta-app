@@ -51,7 +51,7 @@ function item(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "el-divider",
     label: "Divider",
     description: "",
-    tab: "layout",
+    tab: "blocks",
     category: "layout",
     icon: "minus",
     previewType: "icon-card",
@@ -83,7 +83,7 @@ function overlay(over: Partial<CatalogOverlayRow> = {}): CatalogOverlayRow {
 // The homepage's real policy: structural tabs, NO DB templates — the exact
 // surface whose panel used to skip overlay application.
 const HOMEPAGE_POLICY: BuilderGalleryPolicy = {
-  allowedTabs: ["layout", "elements", "sections", "connected"],
+  allowedTabs: ["blocks", "designs", "data"],
   allowDbTemplates: false,
   surfaceKey: "workspace_page",
   surfaceTarget: "workspace",

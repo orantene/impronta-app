@@ -16,6 +16,7 @@ import type {
 } from "./registry-db-merge";
 import type { BuilderTemplateTarget } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import type { CatalogStructureMap } from "./catalog-structure";
+import { canonicalGalleryTab } from "./gallery-tab-ids";
 import {
   usageCountForItem,
   type ComponentUsageTally,
@@ -179,7 +180,7 @@ export function buildCatalogAdminView(
     // applyStructureToItems). `item.tab`/`item.category` here are the genuine
     // base (loadCatalogAdminView passes the raw universe, NOT pre-structured).
     const effectiveTab: AddGalleryTab =
-      (structRow?.parent_tab as AddGalleryTab | null | undefined) ?? item.tab;
+      canonicalGalleryTab(structRow?.parent_tab) ?? item.tab;
     const effectiveCategory =
       structRow?.category_override ?? ov?.category_override ?? item.category;
     return {

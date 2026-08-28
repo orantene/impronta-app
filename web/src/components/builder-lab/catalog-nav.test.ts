@@ -7,6 +7,7 @@ import {
   GROUP_ORDER,
   GROUP_VIEWS,
   SPECIAL_TABS,
+  coerceCatalogView,
   firstViewOfGroup,
   groupOfView,
   isValidView,
@@ -17,9 +18,7 @@ import { CODE_TAB_DEFS } from "@/lib/site-admin/add-gallery/catalog-structure";
 
 // The full live gallery-tab set (sans the empty page_templates) — used as the
 // "everything present" input for orderedViewsForGroup structure tests.
-const ALL_GALLERY_TABS = CODE_TAB_DEFS.map((t) => t.id).filter(
-  (id) => id !== "page_templates",
-);
+const ALL_GALLERY_TABS = CODE_TAB_DEFS.map((t) => t.id);
 
 // ── Group membership: 3 × N partition, disjoint, excludes page_templates ──────
 
@@ -37,11 +36,11 @@ test("groups partition the view universe: disjoint", () => {
   }
 });
 
-test("group union covers every navigable view and excludes page_templates", () => {
+test("group union covers every navigable view and excludes page_templates as a UI tab", () => {
   const union = new Set<CatalogView>();
   for (const g of GROUP_ORDER) for (const v of GROUP_VIEWS[g]) union.add(v);
 
-  // page_templates is never a member.
+  // page_templates is never a member (cards live on Designs).
   assert.ok(!union.has("page_templates" as CatalogView));
 
   // Every special tab (incl. health) is covered.
@@ -81,13 +80,13 @@ test("orderedViewsForGroup structure: all first, gallery in CODE_TAB_DEFS order,
   assert.equal(out[0], "all");
   assert.equal(out[out.length - 1], "catalog_studio");
   // Gallery tabs sit between, in CODE_TAB_DEFS order.
-  assert.deepEqual(out, ["all", "layout", "elements", "sections", "connected", "shell", "catalog_studio"]);
+  assert.deepEqual(out, ["all", "blocks", "designs", "data", "shell", "catalog_studio"]);
 });
 
 test("orderedViewsForGroup structure: filters absent gallery tabs", () => {
-  // Only "layout" + "sections" present → others dropped, all/studio retained.
-  const out = orderedViewsForGroup("structure", ["layout", "sections"]);
-  assert.deepEqual(out, ["all", "layout", "sections", "catalog_studio"]);
+  // Only "blocks" + "designs" present → others dropped, all/studio retained.
+  const out = orderedViewsForGroup("structure", ["blocks", "designs"]);
+  assert.deepEqual(out, ["all", "blocks", "designs", "catalog_studio"]);
 });
 
 test("orderedViewsForGroup structure: empty present → all + catalog_studio", () => {
@@ -119,11 +118,24 @@ test("firstViewOfGroup returns the first ordered view", () => {
 test("isValidView accepts health and rejects page_templates / garbage", () => {
   assert.equal(isValidView("health"), true);
   assert.equal(isValidView("all"), true);
-  assert.equal(isValidView("layout"), true);
+  assert.equal(isValidView("blocks"), true);
   assert.equal(isValidView("taxonomy"), true);
   assert.equal(isValidView("page_templates"), false);
+  assert.equal(isValidView("layout"), false);
   assert.equal(isValidView("not-a-view"), false);
   assert.equal(isValidView(""), false);
+});
+
+test("coerceCatalogView maps legacy six-tab ids onto the four UI tabs", () => {
+  assert.equal(coerceCatalogView("layout"), "blocks");
+  assert.equal(coerceCatalogView("elements"), "blocks");
+  assert.equal(coerceCatalogView("sections"), "designs");
+  assert.equal(coerceCatalogView("page_templates"), "designs");
+  assert.equal(coerceCatalogView("connected"), "data");
+  assert.equal(coerceCatalogView("shell"), "shell");
+  assert.equal(coerceCatalogView("blocks"), "blocks");
+  assert.equal(coerceCatalogView("health"), "health");
+  assert.equal(coerceCatalogView("not-a-view"), null);
 });
 
 // ── resolveInitialView precedence ─────────────────────────────────────────────
@@ -179,11 +191,23 @@ test("resolveInitialView: falls back to firstStructureView", () => {
 test("resolveInitialView: invalid candidates are skipped", () => {
   assert.equal(
     resolveInitialView({
-      urlView: "page_templates" as CatalogView,
-      presetTab: "garbage",
-      defaultView: "also-bad" as CatalogView,
+      urlView: "garbage" as CatalogView,
+      presetTab: "also-bad",
+      defaultView: "nope" as CatalogView,
       firstStructureView: "all",
     }),
     "all",
+  );
+});
+
+test("resolveInitialView: legacy page_templates URL lands on Designs", () => {
+  assert.equal(
+    resolveInitialView({
+      urlView: "page_templates" as CatalogView,
+      presetTab: null,
+      defaultView: null,
+      firstStructureView: "all",
+    }),
+    "designs",
   );
 });
