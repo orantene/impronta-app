@@ -156,12 +156,26 @@ test("border sides: non-px values refuse to parse", () => {
 });
 
 test("border sides: a compose past the 64-char save cap returns null, never a doomed value", () => {
-  const out = composeBorderSideWidths({
-    top: 100000, right: 100000, bottom: 100000, left: 100001,
-  });
-  assert.equal(out, null);
+  // The 16→64 raise exists so four distinct sides save. This 6-digit fixture
+  // is 35 chars — it used to blow 16 and must NOW compose, not return null.
+  assert.equal(
+    composeBorderSideWidths({
+      top: 100000, right: 100000, bottom: 100000, left: 100001,
+    }),
+    "100000px 100000px 100000px 100001px",
+  );
+  // The null path is still the contract with registry.ts z.string().max(64):
+  // four distinct 14-digit px terms are 67 chars and must not emit.
+  assert.equal(
+    composeBorderSideWidths({
+      top: 12345678901234,
+      right: 12345678901235,
+      bottom: 12345678901236,
+      left: 12345678901237,
+    }),
+    null,
+  );
   assert.equal(BORDER_WIDTH_MAX_CHARS, 64);
-  // Realistic per-side shorthand now fits (it did not under the 16-char cap).
   assert.equal(
     composeBorderSideWidths({ top: 10, right: 11, bottom: 12, left: 13 }),
     "10px 11px 12px 13px",

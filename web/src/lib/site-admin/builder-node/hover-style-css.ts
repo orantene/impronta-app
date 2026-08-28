@@ -109,38 +109,27 @@ export function hoverLaneVars(
   };
 }
 
-export const HOVER_V2_CSS = `
-.site-builder-node[data-builder-style-hover-filter]:hover,.site-builder-node[data-builder-style-hover-filter]:focus-visible{filter:var(--bn-hover-filter)!important}
-.site-builder-node[data-builder-style-hover-backdrop-filter]:hover,.site-builder-node[data-builder-style-hover-backdrop-filter]:focus-visible{backdrop-filter:var(--bn-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-hover-backdrop-filter)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-bg]{background-color:var(--bn-hover-bg)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-color]{color:var(--bn-hover-color)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-border-color]{border-color:var(--bn-hover-border-color)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-shadow]{box-shadow:var(--bn-hover-shadow)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-scale]{scale:var(--bn-hover-scale)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-translate]{translate:var(--bn-hover-translate)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-opacity]{opacity:var(--bn-hover-opacity)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-filter]{filter:var(--bn-hover-filter)!important}
-.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover][data-builder-style-hover-backdrop-filter]{backdrop-filter:var(--bn-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-hover-backdrop-filter)!important}
-@media (max-width:900px){
-.site-builder-node[data-builder-style-tablet-hover-bg]:hover,.site-builder-node[data-builder-style-tablet-hover-bg]:focus-visible{background-color:var(--bn-tablet-hover-bg)!important}
-.site-builder-node[data-builder-style-tablet-hover-color]:hover,.site-builder-node[data-builder-style-tablet-hover-color]:focus-visible{color:var(--bn-tablet-hover-color)!important}
-.site-builder-node[data-builder-style-tablet-hover-border-color]:hover,.site-builder-node[data-builder-style-tablet-hover-border-color]:focus-visible{border-color:var(--bn-tablet-hover-border-color)!important}
-.site-builder-node[data-builder-style-tablet-hover-shadow]:hover,.site-builder-node[data-builder-style-tablet-hover-shadow]:focus-visible{box-shadow:var(--bn-tablet-hover-shadow)!important}
-.site-builder-node[data-builder-style-tablet-hover-scale]:hover,.site-builder-node[data-builder-style-tablet-hover-scale]:focus-visible{scale:var(--bn-tablet-hover-scale)!important}
-.site-builder-node[data-builder-style-tablet-hover-translate]:hover,.site-builder-node[data-builder-style-tablet-hover-translate]:focus-visible{translate:var(--bn-tablet-hover-translate)!important}
-.site-builder-node[data-builder-style-tablet-hover-opacity]:hover,.site-builder-node[data-builder-style-tablet-hover-opacity]:focus-visible{opacity:var(--bn-tablet-hover-opacity)!important}
-.site-builder-node[data-builder-style-tablet-hover-filter]:hover,.site-builder-node[data-builder-style-tablet-hover-filter]:focus-visible{filter:var(--bn-tablet-hover-filter)!important}
-.site-builder-node[data-builder-style-tablet-hover-backdrop-filter]:hover,.site-builder-node[data-builder-style-tablet-hover-backdrop-filter]:focus-visible{backdrop-filter:var(--bn-tablet-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-hover-backdrop-filter)!important}
+/** Per-viewport hover v2 rules. Folded into the existing tablet/mobile
+ *  `@media` blocks in render.tsx so we do not ship a second wrapper. */
+export function hoverV2ViewportRules(id: "tablet" | "mobile"): string {
+  const n = ".site-builder-node";
+  const h = ":is(:hover,:focus-visible)";
+  const a = (k: string) => `${n}[data-builder-style-${id}-hover-${k}]${h}`;
+  const v = (k: string) => `var(--bn-${id}-hover-${k})`;
+  return (
+    `${a("bg")}{background-color:${v("bg")}!important}` +
+    `${a("color")}{color:${v("color")}!important}` +
+    `${a("border-color")}{border-color:${v("border-color")}!important}` +
+    `${a("shadow")}{box-shadow:${v("shadow")}!important}` +
+    `${a("scale")}{scale:${v("scale")}!important}` +
+    `${a("translate")}{translate:${v("translate")}!important}` +
+    `${a("opacity")}{opacity:${v("opacity")}!important}` +
+    `${a("filter")}{filter:${v("filter")}!important}` +
+    `${a("backdrop-filter")}{backdrop-filter:${v("backdrop-filter")}!important;-webkit-backdrop-filter:${v("backdrop-filter")}!important}`
+  );
 }
-@media (max-width:640px){
-.site-builder-node[data-builder-style-mobile-hover-bg]:hover,.site-builder-node[data-builder-style-mobile-hover-bg]:focus-visible{background-color:var(--bn-mobile-hover-bg)!important}
-.site-builder-node[data-builder-style-mobile-hover-color]:hover,.site-builder-node[data-builder-style-mobile-hover-color]:focus-visible{color:var(--bn-mobile-hover-color)!important}
-.site-builder-node[data-builder-style-mobile-hover-border-color]:hover,.site-builder-node[data-builder-style-mobile-hover-border-color]:focus-visible{border-color:var(--bn-mobile-hover-border-color)!important}
-.site-builder-node[data-builder-style-mobile-hover-shadow]:hover,.site-builder-node[data-builder-style-mobile-hover-shadow]:focus-visible{box-shadow:var(--bn-mobile-hover-shadow)!important}
-.site-builder-node[data-builder-style-mobile-hover-scale]:hover,.site-builder-node[data-builder-style-mobile-hover-scale]:focus-visible{scale:var(--bn-mobile-hover-scale)!important}
-.site-builder-node[data-builder-style-mobile-hover-translate]:hover,.site-builder-node[data-builder-style-mobile-hover-translate]:focus-visible{translate:var(--bn-mobile-hover-translate)!important}
-.site-builder-node[data-builder-style-mobile-hover-opacity]:hover,.site-builder-node[data-builder-style-mobile-hover-opacity]:focus-visible{opacity:var(--bn-mobile-hover-opacity)!important}
-.site-builder-node[data-builder-style-mobile-hover-filter]:hover,.site-builder-node[data-builder-style-mobile-hover-filter]:focus-visible{filter:var(--bn-mobile-hover-filter)!important}
-.site-builder-node[data-builder-style-mobile-hover-backdrop-filter]:hover,.site-builder-node[data-builder-style-mobile-hover-backdrop-filter]:focus-visible{backdrop-filter:var(--bn-mobile-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-hover-backdrop-filter)!important}
-}
-`;
+
+export const HOVER_V2_CSS =
+  `.site-builder-node[data-builder-style-hover-filter]:is(:hover,:focus-visible){filter:var(--bn-hover-filter)!important}` +
+  `.site-builder-node[data-builder-style-hover-backdrop-filter]:is(:hover,:focus-visible){backdrop-filter:var(--bn-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-hover-backdrop-filter)!important}` +
+  `.site-builder-node:hover>.site-builder-node[data-builder-style-parent-hover]{background-color:var(--bn-hover-bg)!important;color:var(--bn-hover-color)!important;border-color:var(--bn-hover-border-color)!important;box-shadow:var(--bn-hover-shadow)!important;scale:var(--bn-hover-scale)!important;translate:var(--bn-hover-translate)!important;opacity:var(--bn-hover-opacity)!important;filter:var(--bn-hover-filter)!important;backdrop-filter:var(--bn-hover-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-hover-backdrop-filter)!important}`;

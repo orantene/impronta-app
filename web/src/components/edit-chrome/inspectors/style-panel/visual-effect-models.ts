@@ -206,7 +206,7 @@ function widthTerm(n: number): string {
 
 /**
  * Compose the minimal border-width shorthand. Zero sides compose as bare `0`
- * (valid CSS, and it keeps realistic per-side values inside the 16-char save
+ * (valid CSS, and it keeps realistic per-side values inside the 64-char save
  * cap). Returns null when even the minimal form would blow the cap — the
  * control must warn and NOT emit rather than let the save silently drop it.
  */

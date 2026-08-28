@@ -528,7 +528,7 @@ export function ComponentCatalog({
 
   // Gallery component categories. The former empty page_templates tab is no
   // longer a UI tab (those cards live on Designs; full-page role is Site Starter Kit).
-  const categoryTabs = presentTabs.filter((t) => t !== "page_templates");
+  const categoryTabs = presentTabs;
   // P1 — the full navigable view universe: every special view ∪ the present
   // gallery tabs. `currentView` is validated against THIS (not just the active
   // group's tier-2 list) so a deep link / restore to any view — including an

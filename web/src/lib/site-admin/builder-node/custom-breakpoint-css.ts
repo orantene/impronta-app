@@ -117,17 +117,16 @@ export function composeBackgroundLayersCss(
  * static sheet (B8) AND into generated custom-tier CSS (B5).
  */
 export function extraResponsiveLaneRules(id: string): string {
-  const sel = (attr: string) =>
-    `.site-builder-node[data-builder-style-${id}-${attr}]`;
+  const n = `.site-builder-node`;
+  const a = `data-builder-style-${id}-`;
   const offset = `var(--bn-${id}-sticky-offset,0px)`;
-  return [
-    `  ${sel("line-clamp")}{display:-webkit-box!important;-webkit-box-orient:vertical!important;overflow:hidden!important;-webkit-line-clamp:var(--bn-${id}-line-clamp)!important}`,
-    `  ${sel("bg-layers")}{background-image:var(--bn-${id}-bg-layers)!important}`,
-    `  ${sel('sticky-anchor="top"')}:not([data-builder-style-${id}-position]){position:sticky!important}`,
-    `  ${sel('sticky-anchor="bottom"')}:not([data-builder-style-${id}-position]){position:sticky!important}`,
-    `  ${sel('sticky-anchor="top"')}:not([data-builder-style-${id}-inset-top]){top:${offset}!important}`,
-    `  ${sel('sticky-anchor="bottom"')}:not([data-builder-style-${id}-inset-bottom]){bottom:${offset}!important}`,
-  ].join("\n");
+  return (
+    `${n}[${a}line-clamp]{display:-webkit-box!important;-webkit-box-orient:vertical!important;overflow:hidden!important;-webkit-line-clamp:var(--bn-${id}-line-clamp)!important}` +
+    `${n}[${a}bg-layers]{background-image:var(--bn-${id}-bg-layers)!important}` +
+    `${n}:is([${a}sticky-anchor="top"],[${a}sticky-anchor="bottom"]):not([${a}position]){position:sticky!important}` +
+    `${n}[${a}sticky-anchor="top"]:not([${a}inset-top]){top:${offset}!important}` +
+    `${n}[${a}sticky-anchor="bottom"]:not([${a}inset-bottom]){bottom:${offset}!important}`
+  );
 }
 
 /**

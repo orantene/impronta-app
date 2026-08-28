@@ -509,6 +509,8 @@ test("sticky: anchor with no offset defaults the inset to 0px", () => {
 test("sticky: an explicit position / top always wins over the convenience", () => {
   // Explicit position:relative must not be overridden to sticky; an explicit
   // top must not be overwritten by the offset. Raw escapes are authoritative.
+  // Assert the node's inline style=, not the whole HTML: the static sheet still
+  // contains tablet/mobile sticky rules gated by :not([data-builder-style-*-position]).
   const html = render([
     container({
       stickyAnchor: "top",
@@ -517,10 +519,11 @@ test("sticky: an explicit position / top always wins over the convenience", () =
       top: "5px",
     }),
   ]);
-  assert.ok(html.includes("position:relative"), "explicit position preserved");
-  assert.ok(!html.includes("position:sticky"), "convenience did not force sticky");
-  assert.ok(html.includes("top:5px"), "explicit top preserved");
-  assert.ok(!html.includes("top:20px"), "offset did not clobber explicit top");
+  const nodeStyle = html.match(/data-builder-node-id="c1"[^>]*style="([^"]*)"/)?.[1] ?? "";
+  assert.ok(nodeStyle.includes("position:relative"), "explicit position preserved");
+  assert.ok(!nodeStyle.includes("position:sticky"), "convenience did not force sticky");
+  assert.ok(nodeStyle.includes("top:5px"), "explicit top preserved");
+  assert.ok(!nodeStyle.includes("top:20px"), "offset did not clobber explicit top");
 });
 
 test("sticky: undefined sticky fields emit nothing (back-compat)", () => {
