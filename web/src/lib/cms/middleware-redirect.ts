@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { normalizeCleanRedirectDestination } from "@/lib/cms/clean-url-middleware";
 
 /**
  * If `pathname` matches an active `cms_redirects.old_path`, return a redirect response.
@@ -8,11 +9,16 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
  *
  * `tenantId` null means the request is not on a tenant-scoped host (hub /
  * marketing / app). CMS redirects are per-tenant only — skip lookup.
+ *
+ * `publicLocales` is the serving tenant's locale grammar, used only to
+ * normalise a stored destination that still points at the retired `/p/<slug>`
+ * form. See normalizeCleanRedirectDestination for why that matters.
  */
 export async function tryCmsRedirectResponse(
   request: NextRequest,
   pathname: string,
   tenantId: string | null,
+  publicLocales: readonly string[] = [],
 ): Promise<NextResponse | null> {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return null;
@@ -50,7 +56,7 @@ export async function tryCmsRedirectResponse(
   if (error || !data?.new_path) return null;
 
   const dest = request.nextUrl.clone();
-  dest.pathname = data.new_path;
+  dest.pathname = normalizeCleanRedirectDestination(data.new_path, publicLocales);
   const status = data.status_code === 302 ? 302 : 301;
   return NextResponse.redirect(dest, status);
 }
