@@ -218,6 +218,15 @@ import {
   resolveNudgeBucket,
 } from "./kit/nudge";
 import {
+  buildResponsiveCanvasStyle,
+  clearResponsiveOverrides,
+  resolveCanvasStyleBucket,
+  type CanvasStylePatch,
+} from "./responsive-canvas-style";
+import { ResponsiveOverrideBadge } from "./responsive-override-badge";
+import { armTouchDragSurface } from "./canvas-touch-drag-surface";
+import { useCanvasBoxModelCommits } from "./use-canvas-box-model-commits";
+import {
   nodeHasRotationEscape,
   resolveNodeMoveContext,
 } from "./context-menu-node-capabilities";
@@ -3315,177 +3324,68 @@ export function SelectionLayer() {
     selectedNodeIsLocked,
     chipPrimaryLabel,
   ]);
+  // Which responsive bucket a canvas handle's commit lands in: `null` on
+  // desktop (base style), "tablet"/"mobile" on those canvases. Every commit
+  // below routes through it, so a drag taken on the phone canvas changes the
+  // phone value and leaves desktop byte-identical (responsive-canvas-style.ts).
+  const canvasStyleBucket = resolveCanvasStyleBucket(device);
+  // Direct manipulation is NO LONGER desktop-only. It was, and the phone
+  // canvas was consequently look-but-do-not-touch: the operator could see the
+  // block at 375px and had to go back to desktop, or into the Style panel, to
+  // change anything about it. The keyboard nudge already proved the per-device
+  // commit path (see `canNudgeSelectedNode` below); resize, spacing and the
+  // move grip now take the same route.
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
+  // ROTATE stays desktop-only, on ergonomics not plumbing: its hit zone is the
+  // few pixels just OUTSIDE each corner, which on a 375px canvas sits under
+  // the corner resize handles and the canvas frame, and a rotation is almost
+  // never a breakpoint-specific decision anyway. `style.rotate` remains
+  // per-device settable from the Style panel for the rare case that it is.
+  const canRotateSelectedNode = canResizeSelectedNode && device === "desktop";
   // #32 leftover — the keyboard NUDGE is the one direct-manipulation gesture
   // that doesn't need the resize/spacing/rotate/move-grip chrome to be on
-  // screen, so it doesn't need `canResizeSelectedNode`'s desktop-only gate:
-  // unlike those handles it now writes into the ACTIVE device's responsive
+  // screen, so it doesn't need `canResizeSelectedNode`'s locked/multi gate:
+  // unlike those handles it writes into the ACTIVE device's responsive
   // bucket (kit/nudge.ts's resolveNudgeBucket) instead of always the base
   // style, so nudging in tablet/mobile preview moves the block on that
   // breakpoint only. Deliberately device-agnostic — matching the multi-select
   // nudge path below, which already ignored this gate.
   const canNudgeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
+  // TOUCH — hand the selected block's pan gesture back to the canvas so the
+  // pointer-driven move drag survives a finger (canvas-touch-drag-surface.ts
+  // explains why it did not). Coarse pointers only; the mouse path is
+  // untouched. Re-runs on selection change so exactly one block carries it.
+  useEffect(
+    () => armTouchDragSurface(canNudgeSelectedNode ? getSelectedBuilderNodeEl() : null),
+    [canNudgeSelectedNode, getSelectedBuilderNodeEl, selectedBuilderNodeId],
+  );
   // #21 — gap handles apply only to the layout-container kinds that honour the
   // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
-  // the resize gate so locked / multi-select / non-desktop are all excluded.
+  // the resize gate so locked / multi-select nodes are excluded.
   const isSelectedLayoutContainer =
     canResizeSelectedNode &&
     !!selectedBuilderNode &&
     BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
-  const commitSelectedNodeSize = useCallback(
-    (dims: {
-      width?: number | null;
-      height?: number | null;
-      // West/north-handle anchor compensation (keep the opposite edge
-      // planted) rides in the SAME patch as the size — one undo step.
-      translate?: { x: number; y: number };
-    }) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      // Clear any leftover inline preview written during a drag, so a reset
-      // (null) visibly returns the element to content-driven size instead of
-      // being masked by the stale inline style until the next refresh.
-      const liveEl = getSelectedBuilderNodeEl();
-      // number → set px · null → clear back to auto · undefined → leave as-is
-      if (typeof dims.width === "number") {
-        nextStyle.width = `${Math.round(dims.width)}px`;
-      } else if (dims.width === null) {
-        delete nextStyle.width;
-        if (liveEl) liveEl.style.width = "";
-      }
-      if (typeof dims.height === "number") {
-        nextStyle.height = `${Math.round(dims.height)}px`;
-      } else if (dims.height === null) {
-        delete nextStyle.height;
-        if (liveEl) liveEl.style.height = "";
-      }
-      if (dims.translate) {
-        const rx = Math.round(dims.translate.x);
-        const ry = Math.round(dims.translate.y);
-        // 0,0 → drop the escape entirely (mirrors commitSelectedNodeTranslate).
-        if (rx === 0 && ry === 0) {
-          delete nextStyle.translate;
-        } else {
-          nextStyle.translate = `${rx}px ${ry}px`;
-        }
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
-  const commitSelectedNodePadding = useCallback(
-    (side: PaddingSide, px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const key =
-        side === "top"
-          ? "paddingTop"
-          : side === "right"
-            ? "paddingRight"
-            : side === "bottom"
-              ? "paddingBottom"
-              : "paddingLeft";
-      void patchBuilderNodeProps(selectedBuilderNodeId, {
-        style: { ...currentStyle, [key]: `${Math.round(px)}px` },
-      });
-    },
-    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
-  );
-  // #25 — box-model MARGIN drag. Writes the free margin escape (the same
-  // collision-safe `margin*Free` key the Style panel uses), so the canvas drag
-  // and the panel field stay one value. 0 clears the escape back to the token.
-  const commitSelectedNodeMargin = useCallback(
-    (side: MarginSide, px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const key =
-        side === "top"
-          ? "marginTopFree"
-          : side === "right"
-            ? "marginRightFree"
-            : side === "bottom"
-              ? "marginBottomFree"
-              : "marginLeftFree";
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      const liveEl = getSelectedBuilderNodeEl();
-      if (Math.round(px) <= 0) {
-        delete nextStyle[key];
-        if (liveEl) {
-          liveEl.style[
-            side === "top"
-              ? "marginTop"
-              : side === "right"
-                ? "marginRight"
-                : side === "bottom"
-                  ? "marginBottom"
-                  : "marginLeft"
-          ] = "";
-        }
-      } else {
-        nextStyle[key] = `${Math.round(px)}px`;
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
-  // #21 — visual auto-layout GAP drag (flex/grid containers). Writes the single
-  // `gap` free escape (→ `--bn-gap`), identical to the Style panel's Gap field.
-  // 0 clears the escape back to the gap token; the inline preview is cleared so
-  // the reset is visible immediately.
-  const commitSelectedNodeGap = useCallback(
-    (px: number) => {
-      if (!selectedBuilderNodeId) return;
-      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
-      const currentStyle =
-        ((node.props as { style?: Record<string, unknown> } | undefined)
-          ?.style ?? {}) as Record<string, unknown>;
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      const liveEl = getSelectedBuilderNodeEl();
-      if (Math.round(px) <= 0) {
-        delete nextStyle.gap;
-        if (liveEl) {
-          liveEl.style.gap = "";
-          liveEl.style.columnGap = "";
-          liveEl.style.rowGap = "";
-        }
-      } else {
-        nextStyle.gap = `${Math.round(px)}px`;
-      }
-      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
-    },
-    [
-      selectedBuilderNodeId,
-      builderTree,
-      patchBuilderNodeProps,
-      getSelectedBuilderNodeEl,
-    ],
-  );
+  // Resize / padding / margin / gap all commit through one hook so the
+  // base-vs-breakpoint routing cannot drift between them
+  // (use-canvas-box-model-commits.ts).
+  const {
+    commitSize: commitSelectedNodeSize,
+    commitPadding: commitSelectedNodePadding,
+    commitMargin: commitSelectedNodeMargin,
+    commitGap: commitSelectedNodeGap,
+  } = useCanvasBoxModelCommits({
+    findNodeById: useCallback(
+      (nodeId: string) => findBuilderNodeById(builderTree, nodeId),
+      [builderTree],
+    ),
+    selectedBuilderNodeId,
+    bucket: canvasStyleBucket,
+    patchBuilderNodeProps,
+    getSelectedBuilderNodeEl,
+  });
   /**
    * "Reset size & position" — clear every style key a canvas drag handle can
    * write (translate, rotate, width/height + min·max, padding, free margins,
@@ -5084,7 +4984,7 @@ export function SelectionLayer() {
 
           {/* Direct manipulation — drag just outside a corner to ROTATE
               (Figma corner-zone pattern; writes the style.rotate escape). */}
-	          {canResizeSelectedNode && !dragChromeSuppressed ? (
+	          {canRotateSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasRotateHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
@@ -5098,7 +4998,9 @@ export function SelectionLayer() {
 	            <CanvasMoveHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
-	              onCommitTranslate={commitSelectedNodeTranslate}
+	              onCommitTranslate={(x, y) =>
+	                commitSelectedNodeTranslate(x, y, canvasStyleBucket)
+	              }
 	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}
@@ -5957,6 +5859,33 @@ export function SelectionLayer() {
                 >
                   +{additionalSelectedIds.size}
                 </span>
+              ) : null}
+
+              {/* Per-device override badge. Renders only on the tablet/phone
+                  canvas, beside the block name: it says where the next drag
+                  lands, counts what has already parted from desktop, and
+                  resets those back to inheriting. Without it, per-device
+                  values are invisible state. */}
+              {selectedNodeIsEditableBlock && selectedBuilderNode ? (
+                <ResponsiveOverrideBadge
+                  style={
+                    selectedBuilderNode.props.style as
+                      | Record<string, unknown>
+                      | undefined
+                  }
+                  bucket={canvasStyleBucket}
+                  onReset={() => {
+                    if (!selectedBuilderNodeId) return;
+                    void patchBuilderNodeProps(selectedBuilderNodeId, {
+                      style: clearResponsiveOverrides({
+                        style: selectedBuilderNode.props.style as
+                          | Record<string, unknown>
+                          | undefined,
+                        bucket: canvasStyleBucket,
+                      }),
+                    });
+                  }}
+                />
               ) : null}
 
               {/* Divider + type label — only when the type adds information.

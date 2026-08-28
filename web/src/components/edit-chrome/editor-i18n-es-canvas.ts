@@ -491,4 +491,24 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Stay here": "Quedarme aquí",
   "Open the shell editor": "Abrir el editor del armazón",
   "Checking…": "Comprobando…",
+  // Per-device canvas editing: the selection chip's responsive override badge
+  // (responsive-override-badge.tsx). "Tablet" and "Background image" already
+  // live in editor-i18n-es.ts, and Phone / Width / Height / the min-max pair /
+  // Text size / Line height in editor-i18n-es-inspectors.ts. The duplicate-key
+  // guard forbids repeating any of them, so only the new strings are here.
+  "{device} only": "Solo {device}",
+  "Reset?": "¿Restablecer?",
+  "{count} set for {device} only: {props}. Click twice to reset them back to the desktop values.":
+    "{count} con valor solo para {device}: {props}. Haz clic dos veces para volver a los valores de escritorio.",
+  "Edits you make here apply to {device} only. Desktop keeps its own values.":
+    "Los cambios que hagas aquí se aplican solo a {device}. El escritorio conserva sus propios valores.",
+  Shape: "Forma",
+  "Outer spacing": "Espacio exterior",
+  "Inner spacing": "Espacio interior",
+  "Spacing between": "Espacio entre elementos",
+  "Image fill": "Ajuste de la imagen",
+  "Image framing": "Encuadre de la imagen",
+  "Position mode": "Modo de posición",
+  Rotation: "Rotación",
+  Position: "Posición",
 };

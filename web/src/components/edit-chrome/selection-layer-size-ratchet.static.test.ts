@@ -203,7 +203,15 @@ const BUDGETS: Record<string, number> = {
   // chip-buttons.tsx alongside the new SectionUnlockChipButton, so the chip
   // primitives have one home and the section/block chips cannot drift apart.
   // Net of the unlock wiring the file is SMALLER; budget lowered to match.
-  "selection-layer.tsx": 7867,
+  // -115 (2026-08-27, per-device canvas editing): the direct-manipulation
+  // handles stopped being desktop-only and every box-model commit now has to
+  // choose between the base style and `style.responsive[tier]`. Four commits
+  // that had already drifted into four near-identical 40-line blocks became
+  // one hook (use-canvas-box-model-commits.ts), the base/bucket routing became
+  // a pure module (responsive-canvas-style.ts), and the chip's override badge
+  // became its own component (responsive-override-badge.tsx). The feature came
+  // out NET SMALLER than the code it replaced; budget lowered to match.
+  "selection-layer.tsx": 7756,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
