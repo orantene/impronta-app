@@ -284,6 +284,56 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
 
+  // ── Connected / NATIVE data blocks (WS7 Phase 0) ────────────────────────
+  // These two are `nativeNode` inserts — a real BuilderNode kind, rendered by
+  // the shared builder renderer from server-resolved tenant data. They are the
+  // native replacements for the `section_embed` round-trip to the curated
+  // `hero_search` / `talent_type_grid` sections, which is why `sourceType` is
+  // `native-freeform` rather than the `connected()` helper's `section-embed`
+  // default. Insertion goes through `createNativeNodeForGalleryItem` →
+  // `createBuilderNode(kind)`, i.e. the builder tree only — the same path
+  // `assertAddGalleryBuilderTreeOnly` polices.
+  connected({
+    id: "conn-hero-search-native",
+    label: "Search Hero",
+    description:
+      "Search-first hero: headline, a live directory search bar, quick filters and a roster-derived talent count.",
+    category: "hero",
+    icon: "hero-search",
+    insertMethod: "nativeNode",
+    nativeKind: "hero_search",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "hero_search",
+      "hero",
+      "search",
+      "directory search",
+      "find talent",
+      "stat",
+      "count",
+    ],
+  }),
+  connected({
+    id: "conn-talent-discipline-native",
+    label: "Talent by Discipline",
+    description:
+      "Discipline cards derived from your own roster's taxonomy, each linking into the directory.",
+    category: "talent",
+    icon: "talent-grid",
+    insertMethod: "nativeNode",
+    nativeKind: "talent_type_grid",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "talent_type_grid",
+      "discipline",
+      "browse by type",
+      "categories",
+      "taxonomy",
+    ],
+  }),
+
   // ── Connected / Agency ──────────────────────────────────────────────────
   connected({
     id: "conn-agency-logo",

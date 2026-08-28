@@ -39,6 +39,29 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   // entry here or the renderer will not resolve its overlay — a translation
   // that stores fine and never appears.
   form: ["submitLabel"],
+  // WS7 Phase 0 — the native data blocks. Their visible copy is authored on
+  // TOP-LEVEL props (the renderer resolves each through `resolveNodeLocalizedText`),
+  // so every one of them needs a line here or a stored translation would never
+  // appear. Hrefs and the derived data itself are deliberately absent: a link is
+  // the same resource in every language, and a roster count is a number.
+  hero_search: [
+    "eyebrow",
+    "headline",
+    "highlight",
+    "subheadline",
+    "searchPlaceholder",
+    "searchSubmitLabel",
+    "primaryCtaLabel",
+    "secondaryCtaLabel",
+    "statCountLabel",
+  ],
+  talent_type_grid: [
+    "eyebrow",
+    "headline",
+    "subheadline",
+    "seeAllLabel",
+    "emptyStateText",
+  ],
 };
 
 /** The localizable props for a node kind (empty when the kind has none). */

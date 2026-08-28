@@ -130,6 +130,27 @@ export interface BuilderNodeRenderDataSources {
     href: string;
     label?: string;
   }>;
+  /**
+   * WS7 Phase 0 — count of talent on THIS tenant's visible roster, for the
+   * native `hero_search` stat line. Resolved by the SERVER caller through
+   * `listTalentIdsOnTenantRoster(tenantId)` (the visible-roster / public-listing
+   * gate), exactly as the curated `hero_search` section resolved it. The
+   * renderer never fetches, so it can never read another tenant's roster;
+   * absent / 0 ⇒ the stat line is simply not rendered.
+   */
+  tenantTalentCount?: number;
+  /**
+   * WS7 Phase 0 — discipline categories derived from THIS tenant's visible
+   * roster ∩ `talent_profile_taxonomy`, for the native `talent_type_grid` in
+   * dynamic mode. Same contract as `tenantTalentCount`: server-resolved,
+   * tenant-scoped in the QUERY layer (not RLS-only); absent ⇒ the node falls
+   * back to its authored `items` and never blanks out.
+   */
+  talentDisciplines?: ReadonlyArray<{
+    termId: string;
+    label: string;
+    count: number;
+  }>;
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
   /**
    * Phase 3 — cached Instagram/TikTok media for THIS tenant, keyed by provider.
@@ -872,6 +893,35 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--live-chip span{color:rgba(18,18,18,0.58);font-size:0.82rem}
 .site-builder-node--live-search-shell{display:flex;width:min(100%,680px);align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.75rem 0.75rem 0.75rem 1rem}
 .site-builder-node--live-search-shell span{color:rgba(18,18,18,0.58)}
+.site-builder-node--hero-search{display:flex;flex-direction:column;align-items:center;gap:1.5rem;width:100%;padding:clamp(3rem,7vw,6rem) 1.5rem;text-align:center;box-sizing:border-box}
+.site-builder-node--hero-search[data-bn-hero-layout="minimal"]{gap:1rem;padding:clamp(2rem,5vw,4rem) 1.5rem}
+.site-builder-node--hero-search[data-bn-hero-layout="split"],.site-builder-node--hero-search[data-bn-hero-layout="editorial"]{align-items:flex-start;text-align:left}
+.site-builder-node--hero-search-inner{display:flex;flex-direction:column;align-items:inherit;gap:1.25rem;width:100%;max-width:1120px;margin:0 auto}
+.site-builder-node--hero-search-eyebrow{margin:0;font-size:0.75rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(18,18,18,0.58)}
+.site-builder-node--hero-search-title{margin:0;font:700 clamp(2.4rem,6vw,4.6rem)/1.05 var(--site-heading-font,inherit);letter-spacing:-0.02em;color:var(--token-color-ink,#111);text-wrap:balance}
+.site-builder-node--hero-search-highlight{color:var(--token-color-primary,var(--token-color-ink,#111))}
+.site-builder-node--hero-search-intro{margin:0;max-width:52ch;font-size:1.08rem;line-height:1.5;color:rgba(18,18,18,0.68)}
+.site-builder-node--hero-search-form{display:flex;width:min(100%,680px);align-items:center;gap:0.75rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.5rem 0.5rem 0.5rem 1rem;border-radius:999px;box-sizing:border-box}
+.site-builder-node--hero-search-input{flex:1 1 auto;min-width:0;border:0;outline-offset:2px;background:transparent;font:inherit;font-size:0.98rem;color:var(--token-color-ink,#111);padding:0.6rem 0}
+.site-builder-node--hero-search-ctas{display:flex;flex-wrap:wrap;justify-content:inherit;gap:0.75rem}
+.site-builder-node--hero-search-chips{display:flex;flex-wrap:wrap;justify-content:inherit;gap:0.6rem}
+.site-builder-node--hero-search-chip{display:inline-flex;align-items:center;border:1px solid rgba(18,18,18,0.16);border-radius:999px;background:#fff;color:#111;padding:0.45rem 0.9rem;font-size:0.85rem;text-decoration:none}
+.site-builder-node--hero-search-stat{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:inherit;gap:0.5rem 1.25rem;color:rgba(18,18,18,0.58);font-size:0.9rem}
+.site-builder-node--hero-search-stat-item{display:inline-flex;align-items:baseline;gap:0.4rem}
+.site-builder-node--hero-search-stat-item strong{color:var(--token-color-ink,#111);font-weight:700}
+.site-builder-node--talent-type-grid{display:flex;flex-direction:column;gap:1.5rem;width:100%;max-width:1120px;margin:0 auto;padding:clamp(2.5rem,5vw,4rem) 1.5rem;box-sizing:border-box}
+.site-builder-node--talent-type-grid-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0.75rem 1rem;width:100%}
+.site-builder-node--talent-type-grid-eyebrow{margin:0;font-size:0.75rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(18,18,18,0.58)}
+.site-builder-node--talent-type-grid-title{margin:0;font:700 clamp(1.7rem,3.4vw,2.6rem)/1.15 var(--site-heading-font,inherit);color:var(--token-color-ink,#111)}
+.site-builder-node--talent-type-grid-intro{margin:0;max-width:60ch;color:rgba(18,18,18,0.68);line-height:1.5}
+.site-builder-node--talent-type-grid-items{display:grid;grid-template-columns:repeat(var(--bn-discipline-columns,4),minmax(0,1fr));gap:1rem;width:100%}
+.site-builder-node--talent-type-card{display:flex;flex-direction:column;gap:0.4rem;border:1px solid rgba(18,18,18,0.14);background:#fff;color:#111;padding:1rem;text-decoration:none;min-width:0}
+.site-builder-node--talent-type-card[data-bn-discipline-featured="true"]{grid-column:span 2}
+.site-builder-node--talent-type-card-media{width:100%;aspect-ratio:var(--bn-discipline-ratio,3/4);object-fit:cover;display:block}
+.site-builder-node--talent-type-card-title{font-weight:700;font-size:1rem;line-height:1.25}
+.site-builder-node--talent-type-card-desc{font-size:0.85rem;line-height:1.4;color:rgba(18,18,18,0.62)}
+.site-builder-node--talent-type-card-count{font-size:0.8rem;color:rgba(18,18,18,0.5)}
+.site-builder-node--talent-type-grid-empty{width:100%;padding:1.5rem;text-align:center;color:rgba(18,18,18,0.58);border:1px dashed rgba(18,18,18,0.22)}
 .site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.85rem 1.6rem;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .2s ease}
 .site-builder-node--button:hover{transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
@@ -1037,6 +1087,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--container[data-builder-tablet-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
   .site-builder-node--container[data-builder-tablet-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-tablet-items-per-view,var(--bn-items-per-view,3)) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-tablet-items-per-view,var(--bn-items-per-view,3)));min-width:0;scroll-snap-align:start}
   .site-builder-node--live-talent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .site-builder-node--talent-type-grid-items{grid-template-columns:repeat(2,minmax(0,1fr))}
   .site-builder-node--carousel-slide{flex-basis:calc(100% / var(--bn-tablet-slides,2))}
   .site-builder-node--masonry{column-count:var(--bn-tablet-columns,2)}
 }
@@ -1149,6 +1200,11 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--container[data-builder-mobile-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-mobile-items-per-view,var(--bn-items-per-view,1)) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-mobile-items-per-view,var(--bn-items-per-view,1)));min-width:0;scroll-snap-align:start}
   .site-builder-node--live-talent-grid{grid-template-columns:1fr}
   .site-builder-node--live-search-shell{align-items:stretch;flex-direction:column}
+  .site-builder-node--hero-search{padding-left:1rem;padding-right:1rem}
+  .site-builder-node--hero-search-form{flex-direction:column;align-items:stretch;gap:0.6rem;border-radius:14px;padding:0.75rem}
+  .site-builder-node--talent-type-grid{padding-left:1rem;padding-right:1rem}
+  .site-builder-node--talent-type-grid-items{grid-template-columns:1fr}
+  .site-builder-node--talent-type-card[data-bn-discipline-featured="true"]{grid-column:auto}
   .site-builder-node--split[data-builder-collapse-mobile="true"]{grid-template-columns:1fr}
   .site-builder-node--carousel-slide{flex-basis:var(--bn-mobile-slide-width,86%)}
   .site-builder-node--masonry{column-count:var(--bn-mobile-columns,1)}
@@ -4521,6 +4577,326 @@ function renderBuilderNodeElement(
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
           })}
         />
+      );
+    }
+    // WS7 Phase 0 — NATIVE `hero_search`. Reproduces the curated section's live
+    // behaviour without the section registry: a REAL GET form at the tenant's
+    // directory route (no client JS, so it works before hydration exactly as the
+    // curated `SearchInput` did) plus the roster-derived stat count.
+    //
+    // TENANT SCOPING: this case reads `options.dataSources.tenantTalentCount`
+    // and nothing else. It performs NO query, holds NO tenant id, and therefore
+    // has no way to reach a roster other than the one the server caller scoped.
+    case "hero_search": {
+      const p = node.props;
+      const layout = p.layout ?? "centered";
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const headline = text("headline", p.headline);
+      const highlight = text("highlight", p.highlight);
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const subheadline = text("subheadline", p.subheadline);
+      const searchEnabled = p.searchEnabled !== false;
+      const searchAction = prefixPublicHref(
+        p.searchActionHref?.trim() || "/directory",
+        options.publicPathPrefix,
+      );
+      const chips = (p.chips ?? []).filter((chip) => chip.label.trim().length > 0);
+      // Manual items, or the ONE tenant-derived count. A derived count of 0 (or
+      // an absent data source — the editor canvas, a tenant-less preview) renders
+      // NO stat line rather than "0+ talent", matching the curated section.
+      const derivedCount = options.dataSources.tenantTalentCount ?? 0;
+      const statItems =
+        p.statSource === "tenant_talent_count"
+          ? derivedCount > 0
+            ? [
+                {
+                  value: `${derivedCount}+`,
+                  label:
+                    text("statCountLabel", p.statCountLabel) ||
+                    "represented talent",
+                },
+              ]
+            : []
+          : (p.statItems ?? []);
+      const primaryLabel = text("primaryCtaLabel", p.primaryCtaLabel);
+      const secondaryLabel = text("secondaryCtaLabel", p.secondaryCtaLabel);
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-hero-layout={layout}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--hero-search"
+          style={inlineNodeStyle(p.style)}
+        >
+          <div className="site-builder-node--hero-search-inner">
+            {eyebrow ? (
+              <p className="site-builder-node--hero-search-eyebrow">{eyebrow}</p>
+            ) : null}
+            {headline ? (
+              <h1 className="site-builder-node--hero-search-title">
+                {headline}
+                {highlight ? (
+                  <>
+                    {" "}
+                    <span className="site-builder-node--hero-search-highlight">
+                      {highlight}
+                    </span>
+                  </>
+                ) : null}
+              </h1>
+            ) : null}
+            {subheadline ? (
+              <p className="site-builder-node--hero-search-intro">{subheadline}</p>
+            ) : null}
+            {searchEnabled ? (
+              <form
+                action={searchAction}
+                method="get"
+                role="search"
+                className="site-builder-node--hero-search-form"
+                data-builder-live-data-grid="tenant_directory_search"
+              >
+                <input
+                  type="search"
+                  name="q"
+                  className="site-builder-node--hero-search-input"
+                  placeholder={
+                    text("searchPlaceholder", p.searchPlaceholder) ||
+                    "Search talent by role, location or fit"
+                  }
+                  aria-label={
+                    text("searchPlaceholder", p.searchPlaceholder) ||
+                    "Search talent by role, location or fit"
+                  }
+                />
+                <button
+                  type="submit"
+                  className="site-builder-node site-builder-node--button"
+                  data-builder-button-tone="primary"
+                >
+                  {text("searchSubmitLabel", p.searchSubmitLabel) || "Search"}
+                </button>
+              </form>
+            ) : null}
+            {primaryLabel || secondaryLabel ? (
+              <div className="site-builder-node--hero-search-ctas">
+                {primaryLabel ? (
+                  <a
+                    className="site-builder-node site-builder-node--button"
+                    data-builder-button-tone="primary"
+                    href={prefixPublicHref(
+                      p.primaryCtaHref?.trim() || "/directory",
+                      options.publicPathPrefix,
+                    )}
+                  >
+                    {primaryLabel}
+                  </a>
+                ) : null}
+                {secondaryLabel ? (
+                  <a
+                    className="site-builder-node site-builder-node--button"
+                    data-builder-button-tone="secondary"
+                    href={prefixPublicHref(
+                      p.secondaryCtaHref?.trim() || "/directory",
+                      options.publicPathPrefix,
+                    )}
+                  >
+                    {secondaryLabel}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
+            {chips.length > 0 ? (
+              <div className="site-builder-node--hero-search-chips">
+                {chips.map((chip, index) => (
+                  <a
+                    key={`${node.id}-chip-${index}`}
+                    className="site-builder-node--hero-search-chip"
+                    href={prefixPublicHref(
+                      chip.href?.trim() || "/directory",
+                      options.publicPathPrefix,
+                    )}
+                  >
+                    {chip.label}
+                  </a>
+                ))}
+              </div>
+            ) : null}
+            {statItems.length > 0 ? (
+              <div className="site-builder-node--hero-search-stat">
+                {statItems.map((item, index) => (
+                  <span
+                    key={`${node.id}-stat-${index}`}
+                    className="site-builder-node--hero-search-stat-item"
+                  >
+                    <strong>{item.value}</strong>
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+      );
+    }
+    // WS7 Phase 0 — NATIVE `talent_type_grid`. Dynamic mode reads the
+    // server-resolved, roster-scoped taxonomy on
+    // `options.dataSources.talentDisciplines`; manual mode renders the authored
+    // cards. Same tenant-scoping argument as `hero_search`: no query here.
+    case "talent_type_grid": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const maxItems = p.maxItems ?? 7;
+      const dynamic = p.mode === "dynamic";
+      const derived = options.dataSources.talentDisciplines ?? [];
+      // `selectedTermIds` narrows the derived set exactly as the curated
+      // section's `selectedTermIds` did; empty/absent = the whole roster.
+      const selected = p.selectedTermIds ?? [];
+      const derivedCards = derived
+        .filter((row) => selected.length === 0 || selected.includes(row.termId))
+        .slice(0, maxItems)
+        .map((row) => ({
+          key: row.termId,
+          label: row.label,
+          description: undefined as string | undefined,
+          imageUrl: undefined as string | undefined,
+          imageAlt: undefined as string | undefined,
+          imagePosition: undefined as string | undefined,
+          count: row.count as number | undefined,
+          href: `/directory?tax=${encodeURIComponent(row.termId)}`,
+          featured: false,
+        }));
+      const manualCards = (p.items ?? []).slice(0, maxItems).map((item, index) => ({
+        key: `${node.id}-item-${index}`,
+        label: item.label,
+        description: item.description,
+        imageUrl: item.imageUrl,
+        imageAlt: item.imageAlt,
+        imagePosition: item.imagePosition,
+        count: undefined as number | undefined,
+        href:
+          item.href?.trim() ||
+          (item.taxonomyTermId
+            ? `/directory?tax=${encodeURIComponent(item.taxonomyTermId)}`
+            : "/directory"),
+        featured: item.featured === true,
+      }));
+      // Dynamic mode falls back to the authored cards when the data source is
+      // absent (editor canvas / tenant-less preview) so the block never blanks
+      // out — the same contract socialLinks and socialFeeds already follow.
+      const cards =
+        dynamic && derivedCards.length > 0 ? derivedCards : manualCards;
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const subheadline = text("subheadline", p.subheadline);
+      const seeAllLabel = text("seeAllLabel", p.seeAllLabel);
+      const showImages = p.showImages !== false;
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-discipline-mode={dynamic ? "dynamic" : "manual"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--talent-type-grid"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-discipline-columns": p.columns ?? 4,
+              "--bn-discipline-ratio": p.cardRatio ?? "3/4",
+            }),
+          )}
+        >
+          {eyebrow ? (
+            <p className="site-builder-node--talent-type-grid-eyebrow">{eyebrow}</p>
+          ) : null}
+          {headline || seeAllLabel ? (
+            <div className="site-builder-node--talent-type-grid-head">
+              {headline ? (
+                <h2 className="site-builder-node--talent-type-grid-title">
+                  {headline}
+                </h2>
+              ) : null}
+              {seeAllLabel ? (
+                <a
+                  className="site-builder-node site-builder-node--button"
+                  data-builder-button-tone="secondary"
+                  href={prefixPublicHref(
+                    p.seeAllHref?.trim() || "/directory",
+                    options.publicPathPrefix,
+                  )}
+                >
+                  {seeAllLabel}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+          {subheadline ? (
+            <p className="site-builder-node--talent-type-grid-intro">
+              {subheadline}
+            </p>
+          ) : null}
+          {cards.length === 0 ? (
+            <p className="site-builder-node--talent-type-grid-empty">
+              {text("emptyStateText", p.emptyStateText) ||
+                "Disciplines appear here as soon as talent on your roster is tagged."}
+            </p>
+          ) : (
+            <div
+              className="site-builder-node--talent-type-grid-items"
+              data-builder-live-data-grid={
+                dynamic && derivedCards.length > 0 ? "talent_disciplines" : undefined
+              }
+            >
+              {cards.map((card) => (
+                <a
+                  key={card.key}
+                  className="site-builder-node--talent-type-card"
+                  data-bn-discipline-featured={card.featured ? "true" : undefined}
+                  href={prefixPublicHref(card.href, options.publicPathPrefix)}
+                >
+                  {showImages && card.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element -- the
+                       builder renderer is shared by the server render and the
+                       client canvas; every other image-bearing node here emits a
+                       plain <img> for the same reason. */
+                    <img
+                      className="site-builder-node--talent-type-card-media"
+                      src={card.imageUrl}
+                      alt={card.imageAlt ?? ""}
+                      style={
+                        card.imagePosition
+                          ? { objectPosition: card.imagePosition }
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                  <span className="site-builder-node--talent-type-card-title">
+                    {card.label}
+                  </span>
+                  {p.showDescriptions !== false && card.description ? (
+                    <span className="site-builder-node--talent-type-card-desc">
+                      {card.description}
+                    </span>
+                  ) : null}
+                  {p.showCount !== false && typeof card.count === "number" ? (
+                    <span className="site-builder-node--talent-type-card-count">
+                      {card.count}
+                    </span>
+                  ) : null}
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
       );
     }
     case "social_feed": {

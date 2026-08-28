@@ -102,6 +102,34 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   "nav-sub-toggle": "nav",
   "nav-caret": "nav",
   "nav-submenu": "nav",
+  // WS7 Phase 0 — the two NATIVE data blocks + every sub-element token they
+  // emit. Unmapped tokens are treated as base (always kept), so a miss here is
+  // only a size regression, never a broken block.
+  "hero-search": "hero_search",
+  "hero-search-inner": "hero_search",
+  "hero-search-eyebrow": "hero_search",
+  "hero-search-title": "hero_search",
+  "hero-search-highlight": "hero_search",
+  "hero-search-intro": "hero_search",
+  "hero-search-form": "hero_search",
+  "hero-search-input": "hero_search",
+  "hero-search-ctas": "hero_search",
+  "hero-search-chips": "hero_search",
+  "hero-search-chip": "hero_search",
+  "hero-search-stat": "hero_search",
+  "hero-search-stat-item": "hero_search",
+  "talent-type-grid": "talent_type_grid",
+  "talent-type-grid-head": "talent_type_grid",
+  "talent-type-grid-eyebrow": "talent_type_grid",
+  "talent-type-grid-title": "talent_type_grid",
+  "talent-type-grid-intro": "talent_type_grid",
+  "talent-type-grid-items": "talent_type_grid",
+  "talent-type-grid-empty": "talent_type_grid",
+  "talent-type-card": "talent_type_grid",
+  "talent-type-card-media": "talent_type_grid",
+  "talent-type-card-title": "talent_type_grid",
+  "talent-type-card-desc": "talent_type_grid",
+  "talent-type-card-count": "talent_type_grid",
   // Social links + every sub-element token.
   social: "social_links",
   "social-link": "social_links",
@@ -165,6 +193,13 @@ export function collectPresentNodeKinds(
     // A container with a directory-search binding emits a `--button` submit.
     const sourceKey = nodeDataBindingSourceKey(node);
     if (sourceKey && LIVE_BUTTON_SOURCE_KEYS.has(sourceKey)) {
+      present.add("button");
+    }
+
+    // WS7 Phase 0 — the native data blocks emit `--button` too (the search
+    // submit, the CTAs, the "See all" link), with no authored button node
+    // anywhere on the page. Same reason as the directory-search container above.
+    if (kind === "hero_search" || kind === "talent_type_grid") {
       present.add("button");
     }
 
