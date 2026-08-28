@@ -23,6 +23,7 @@
 
 import { BUILDER_NODE_REGISTRY } from "@/lib/site-admin/builder-node/registry";
 import { builderNodeKindAllowedAtRoot } from "@/lib/site-admin/builder-node/drop-policy";
+import { BUILDER_MAX_TREE_DEPTH } from "@/lib/site-admin/builder-node/tree-depth";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import { cloneBuilderTreeWithFreshIds } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import { makeId } from "@/lib/site-admin/builder-node/make-id";
@@ -112,8 +113,8 @@ export type GenerateNodesResult =
 
 const MIN_BRIEF_LEN = 3;
 const MAX_BRIEF_LEN = 400;
-const MAX_TOTAL_NODES = 180; // hard DoS/cost cap (validate has depth 8 but no count cap)
-const MAX_COERCE_DEPTH = 8; // mirror validate's default maxDepth
+const MAX_TOTAL_NODES = 180; // hard DoS/cost cap (depth is BUILDER_MAX_TREE_DEPTH; this is the count cap)
+const MAX_COERCE_DEPTH = BUILDER_MAX_TREE_DEPTH;
 const HEADING_MAX = 240;
 const PARAGRAPH_MAX = 5000;
 const BUTTON_LABEL_MAX = 80;
