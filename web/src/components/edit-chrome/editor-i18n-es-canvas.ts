@@ -342,6 +342,16 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "⌘ free": "⌘ libre",
   "⌘ free · ⇧ aspect · ⌥ center": "⌘ libre · ⇧ proporción · ⌥ centro",
   "⌘ free · ⌥ center": "⌘ libre · ⌥ centro",
+  "Drag to move (double-click to reset position)":
+    "Arrastra para mover (doble clic para restablecer la posición)",
+  "Drag to move · double-click to snap back to natural position":
+    "Arrastra para mover · doble clic para volver a la posición natural",
+  "Drag to place (double-click to reset position)":
+    "Arrastra para colocar (doble clic para restablecer la posición)",
+  "Drag to place · double-click to snap back to origin":
+    "Arrastra para colocar · doble clic para volver al origen",
+  "move {x}, {y}": "mover {x}, {y}",
+  "place {x}, {y}": "colocar {x}, {y}",
   "Drag to resize width (double-click to reset)":
     "Arrastra para cambiar el ancho (doble clic para restablecer)",
   "Drag to resize height (double-click to reset)":

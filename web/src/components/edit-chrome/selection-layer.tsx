@@ -82,6 +82,7 @@ import {
   gateNestedInsertKinds,
   type BuilderNode,
   type BuilderNodeKind,
+  type BuilderNodeStyle,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -131,6 +132,13 @@ import {
   resolveHoveredSectionId,
 } from "./canvas-hover-attribution";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
+import {
+  clampCanvasMoveInsideParent,
+  resolveMovePlacement,
+  styleWithAbsolutePlacePatch,
+  viewportFromCanvasBucket,
+  type AbsolutePlaceCommit,
+} from "./canvas-move-place";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import { CanvasRotateHandle } from "./canvas-rotate-handle";
 import { useCanvasNodeAutoscroll } from "./use-canvas-node-autoscroll";
@@ -3324,6 +3332,11 @@ export function SelectionLayer() {
   // below routes through it, so a drag taken on the phone canvas changes the
   // phone value and leaves desktop byte-identical (responsive-canvas-style.ts).
   const canvasStyleBucket = resolveCanvasStyleBucket(device);
+  const selectedMovePlacement = resolveMovePlacement(
+    (selectedBuilderNode?.props as { style?: Record<string, unknown> } | undefined)
+      ?.style,
+    canvasStyleBucket,
+  );
   // Direct manipulation is NO LONGER desktop-only. It was, and the phone
   // canvas was consequently look-but-do-not-touch: the operator could see the
   // block at 375px and had to go back to desktop, or into the Style panel, to
@@ -3377,8 +3390,8 @@ export function SelectionLayer() {
   });
   /**
    * "Reset size & position" — clear every style key a canvas drag handle can
-   * write (translate, rotate, width/height + min·max, padding, free margins,
-   * gap) at the base level AND in each responsive bucket, and wipe the inline
+   * write (translate, insets, rotate, width/height + min·max, padding, free
+   * margins, gap) at the base level AND in each responsive bucket, and wipe the inline
    * previews those handles left on the live element so the reset is visible
    * immediately rather than after the next refresh.
    *
@@ -3394,6 +3407,10 @@ export function SelectionLayer() {
     if (liveEl) {
       for (const prop of [
         "translate",
+        "top",
+        "right",
+        "bottom",
+        "left",
         "rotate",
         "width",
         "height",
@@ -3431,29 +3448,9 @@ export function SelectionLayer() {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || isSectionShell(node, nodeCapCtx)) return;
-      // CLAMP — a block can never be flung fully off its parent. Previously an
-      // unbounded translate stranded an element off the (narrower) mobile canvas
-      // with no grabbable handle to recover it. Keep ≥40px of the block inside
-      // its parent on every edge, exactly like the floating-panel keep-on-screen.
-      let cx = x;
-      let cy = y;
+      // CLAMP — keep ≥40px of the block inside its parent (canvas-move-place).
       const el = getSelectedBuilderNodeEl();
-      const parent = el?.parentElement ?? null;
-      if (el && parent) {
-        const KEEP = 40;
-        const er = el.getBoundingClientRect();
-        const pr = parent.getBoundingClientRect();
-        // er currently reflects the live translate (set during the drag), so the
-        // natural (untranslated) origin is the current rect minus the offset.
-        const naturalLeft = er.left - x;
-        const naturalTop = er.top - y;
-        const minX = pr.left + KEEP - er.width - naturalLeft;
-        const maxX = pr.right - KEEP - naturalLeft;
-        const minY = pr.top + KEEP - er.height - naturalTop;
-        const maxY = pr.bottom - KEEP - naturalTop;
-        if (minX <= maxX) cx = Math.max(minX, Math.min(maxX, x));
-        if (minY <= maxY) cy = Math.max(minY, Math.min(maxY, y));
-      }
+      const { x: cx, y: cy } = clampCanvasMoveInsideParent(el, x, y);
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
@@ -3471,6 +3468,34 @@ export function SelectionLayer() {
       patchBuilderNodeProps,
       getSelectedBuilderNodeEl,
       nodeCapCtx,
+    ],
+  );
+  const commitSelectedNodePlace = useCallback(
+    (commit: AbsolutePlaceCommit) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || isSectionShell(node, nodeCapCtx)) return;
+      const el = getSelectedBuilderNodeEl();
+      const clamped = clampCanvasMoveInsideParent(el, commit.left, commit.top);
+      const currentStyle = (node.props as { style?: BuilderNodeStyle } | undefined)
+        ?.style;
+      const nextStyle = styleWithAbsolutePlacePatch({
+        currentStyle,
+        viewport: viewportFromCanvasBucket(canvasStyleBucket),
+        left: clamped.x,
+        top: clamped.y,
+        startLeft: commit.startLeft,
+        startTop: commit.startTop,
+      });
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+      nodeCapCtx,
+      canvasStyleBucket,
     ],
   );
   // ROTATION — persist the canvas rotate handle's final angle as the
@@ -4990,14 +5015,17 @@ export function SelectionLayer() {
 	            />
 	          ) : null}
 
-          {/* Direct manipulation — drag the centre grip to move (translate). */}
+          {/* Direct manipulation — drag the centre grip to move (translate)
+              or drag-to-place an absolute / fixed child (insets). */}
 	          {canResizeSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasMoveHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
+	              placement={selectedMovePlacement}
 	              onCommitTranslate={(x, y) =>
 	                commitSelectedNodeTranslate(x, y, canvasStyleBucket)
 	              }
+	              onCommitPlace={commitSelectedNodePlace}
 	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}

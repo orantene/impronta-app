@@ -21,7 +21,8 @@
  * Exactly the keys the canvas's direct-manipulation handles write, and nothing
  * else. Each entry below maps to one handle:
  *
- *   translate                     → CanvasMoveHandle / arrow-key nudge
+ *   translate                     → CanvasMoveHandle / arrow-key nudge (in-flow)
+ *   top / right / bottom / left   → CanvasMoveHandle drag-to-place (absolute / fixed)
  *   rotate                        → CanvasRotateHandle
  *   width / height + min·max      → CanvasResizeHandles
  *   padding*                      → CanvasSpacingHandles (inner bars)
@@ -42,6 +43,10 @@
 /** Style keys written by the canvas direct-manipulation handles. */
 export const LAYOUT_ESCAPE_KEYS = [
   "translate",
+  "top",
+  "right",
+  "bottom",
+  "left",
   "rotate",
   "width",
   "height",
