@@ -9,18 +9,15 @@
  * WHY
  * ───
  * The two-products feel hangs on those three checks, scattered through the
- * chrome with no central capability object. `resolveNodeCapabilities` now
- * exists as a pin; the NEXT PR adopts it and this allow-list must shrink.
- * This PR only records today's counts so a drive-by cannot add more inline
- * checks (and so adoption cannot claim progress without moving the numbers).
+ * chrome with no central capability object. `resolveNodeCapabilities` is now
+ * adopted at the capability gates (editable-block, handles, insert, lock,
+ * unlock, inline text, delete/duplicate). Remaining hits are lookups, labels,
+ * and TypeScript narrowing — not capability discriminators.
  *
  * Direction: exact match, same spirit as invariant-guard.static.test.ts.
  *   • MORE than the allow-list → fail (new inline branch).
  *   • FEWER than the allow-list → fail until the count is re-baselined in
- *     the same commit (that is the adoption PR, not this one).
- *
- * Do NOT lower these numbers in the capabilities-pin commit. Adoption is
- * the commit that is allowed to.
+ *     the same commit.
  *
  * Run: node_modules/.bin/tsx --test \
  *   src/components/edit-chrome/selection-layer-discriminator-ratchet.static.test.ts
@@ -55,19 +52,19 @@ function countMatches(source: string, re: RegExp): { total: number; lines: numbe
 }
 
 /**
- * Recorded on origin/main at the capabilities-pin (selection-layer.tsx,
- * comment-stripped). Adoption must lower these in the same commit that
- * deletes the inline checks.
+ * Recorded after resolveNodeCapabilities adoption. Remaining hits are
+ * lookups, labels, overlay-kind strings, and TypeScript narrowing — not
+ * capability gates. Do not raise these.
  */
 const ALLOW_LIST = {
   /** `kind === "section"` (not `!==` — those are a separate row). */
-  sectionEq: 21,
+  sectionEq: 11,
   /** Inverse discriminator. Recorded so it cannot grow either. */
-  sectionNeq: 7,
+  sectionNeq: 0,
   /** Identifier including the import. */
-  resolveBuilderNodeRole: 6,
+  resolveBuilderNodeRole: 0,
   /** Property reads of `.locked` (the node flag, not `nodeLocked` props). */
-  lockedProp: 8,
+  lockedProp: 0,
 } as const;
 
 const SECTION_EQ_RE = /\bkind\s*===\s*["']section["']/;

@@ -80,11 +80,14 @@ import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import {
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
-  resolveBuilderNodeRole,
   type BuilderNode,
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import {
+  resolveNodeCapabilities,
+  type NodeCapabilityContext,
+} from "@/lib/site-admin/builder-node/node-capabilities";
 import { getNodeClassRef } from "@/lib/site-admin/builder-node/style-classes";
 import {
   getStyleClassRegistryServerSnapshot,
@@ -233,10 +236,15 @@ import {
   resolveNodeMoveContext,
 } from "./context-menu-node-capabilities";
 import {
+  capabilityContext,
+  chromeInsertChildKinds,
+  chromeSectionUnlockGate,
+  isSectionShell,
+  isStructuralOrSelfLocked,
+} from "./selection-layer-node-caps";
+import {
   SECTION_UNLOCK_EMPTY_HINT,
   SECTION_UNLOCK_EMPTY_LABEL,
-  resolveSectionUnlockGate,
-  sectionRejectsNestedInsert,
   unlockSectionBeforeInsert,
 } from "./section-unlock-gate";
 import { commitCanvasPaletteDrop } from "./canvas-palette-drop";
@@ -268,18 +276,6 @@ import {
   canvasChildPrimaryLabel,
   truncateNodeLabel,
 } from "./canvas-node-children-panel";
-
-// #21 — the layout-container kinds whose gap is set through the `style.gap`
-// escape (→ `--bn-gap`). Mirrors the Style panel's Gap-field gate so the canvas
-// gap handle and the panel field act on the same nodes.
-const BUILDER_GAP_LAYOUT_KINDS = new Set<string>([
-  "container",
-  "split",
-  "card",
-  "cta_group",
-  "carousel",
-  "masonry",
-]);
 
 import {
   hasNativeTextSelection,
@@ -503,6 +499,7 @@ type CanvasNodeDragState =
  */
 function collectCanvasDropCandidates(
   tree: BuilderNodeTree,
+  ctx: NodeCapabilityContext,
 ): CanvasDropCandidate[] {
   if (typeof document === "undefined") return [];
   const elements = Array.from(
@@ -551,12 +548,7 @@ function collectCanvasDropCandidates(
       if (other.el.contains(el)) depth += 1;
     }
 
-    const locked =
-      node.locked === true ||
-      // Role-bound nodes (curated section slots) own their structure — never a
-      // freeform drop parent. A `section` node is also structural shell.
-      node.kind === "section" ||
-      resolveBuilderNodeRole(node.id) !== null;
+    const locked = isStructuralOrSelfLocked(node, ctx);
 
     const childRows =
       "children" in node && Array.isArray(node.children)
@@ -666,10 +658,12 @@ function flattenBuilderNodeIdsInOrder(tree: BuilderNodeTree): string[] {
 function isBuilderNodeLocked(
   tree: BuilderNodeTree,
   nodeId: string | null,
+  ctx: NodeCapabilityContext,
 ): boolean {
   if (!nodeId) return false;
   const node = findBuilderNodeById(tree, nodeId);
-  return node?.locked === true;
+  if (!node) return false;
+  return resolveNodeCapabilities(node, ctx).lockState === "self";
 }
 
 function findBuilderNodePath(
@@ -1134,6 +1128,14 @@ export function SelectionLayer() {
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+  const nodeCapCtxRef = useRef(
+    capabilityContext({
+      device,
+      advancedElementLibraryEnabled,
+      canInsertRawHtmlElements,
+      multiNodeSelectionActive: false,
+    }),
+  );
 
   // Recompute immediately when the selection/hover target changes (folded into
   // scheduleRectRecompute's identity) and when the device preset or page
@@ -1165,7 +1167,7 @@ export function SelectionLayer() {
     // later-computed selectedNodeLabel memo).
     const node = buildBuilderNodeMap(builderTree).get(selectedBuilderNodeId);
     const label =
-      node && node.kind !== "section"
+      node && !isSectionShell(node, nodeCapCtxRef.current)
         ? (BUILDER_NODE_REGISTRY[node.kind]?.label ?? t("Block"))
         : t("Block");
     setSelectionAnnounce(t("{label} selected").replace("{label}", t(label)));
@@ -1513,7 +1515,7 @@ export function SelectionLayer() {
       // become the primary selection, so the inspector won't show stale controls
       // for a locked element. The click is still stopped so navigation links
       // inside the locked node don't fire.
-      if (builderNodeId && isBuilderNodeLocked(builderTreeRef.current, builderNodeId)) {
+      if (builderNodeId && isBuilderNodeLocked(builderTreeRef.current, builderNodeId, nodeCapCtxRef.current)) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -1677,7 +1679,7 @@ export function SelectionLayer() {
         if (!id) return [];
         const node = nodeById.get(id);
         // P3-LOCK: skip locked nodes and section/role nodes from marquee selection.
-        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
+        if (!node || isStructuralOrSelfLocked(node, nodeCapCtxRef.current)) {
           return [];
         }
         return [{ id, el, box: rectOf(el) }];
@@ -1867,6 +1869,7 @@ export function SelectionLayer() {
   const rebuildCanvasDropIndex = useCallback(() => {
     canvasDropIndexRef.current = collectCanvasDropCandidates(
       canvasDropDepsRef.current.builderTree,
+      nodeCapCtxRef.current,
     );
   }, []);
 
@@ -1902,7 +1905,10 @@ export function SelectionLayer() {
       }
       const candidates =
         canvasDropIndexRef.current ??
-        collectCanvasDropCandidates(canvasDropDepsRef.current.builderTree);
+        collectCanvasDropCandidates(
+          canvasDropDepsRef.current.builderTree,
+          nodeCapCtxRef.current,
+        );
       return resolveCanvasNodeDrop({
         cursorX,
         cursorY,
@@ -2907,6 +2913,24 @@ export function SelectionLayer() {
     return { left, top, width: right - left, height: bottom - top };
   }, [selectedBuilderNodeRects]);
   const multiNodeSelectionActive = selectedBuilderNodeRects.length > 1;
+  const nodeCapCtx = useMemo(
+    () =>
+      capabilityContext({
+        device,
+        advancedElementLibraryEnabled,
+        canInsertRawHtmlElements,
+        multiNodeSelectionActive,
+      }),
+    [
+      device,
+      advancedElementLibraryEnabled,
+      canInsertRawHtmlElements,
+      multiNodeSelectionActive,
+    ],
+  );
+  useEffect(() => {
+    nodeCapCtxRef.current = nodeCapCtx;
+  }, [nodeCapCtx]);
   const renderSelectedRect = useMemo(() => {
     if (multiSelectedRect) return multiSelectedRect;
     if (selectedRect) return selectedRect;
@@ -2928,6 +2952,9 @@ export function SelectionLayer() {
     () => findBuilderNodeById(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+  const selectedCaps = selectedBuilderNode
+    ? resolveNodeCapabilities(selectedBuilderNode, nodeCapCtx)
+    : null;
   const selectedLinkedStyleClass = useMemo(() => {
     if (!selectedBuilderNode) return null;
     const classRef = getNodeClassRef(selectedBuilderNode);
@@ -2944,13 +2971,8 @@ export function SelectionLayer() {
   const canvasTopRailOffset = canvasClassBadgeLabel ? 32 : 0;
   const selectedNodeAllowedKinds = useMemo(() => {
     if (!selectedBuilderNode) return [];
-    // A locked section that can never be unlocked would swallow the block on
-    // the next field edit — offer nothing rather than a silent no-op.
-    if (sectionRejectsNestedInsert(selectedBuilderNode)) return [];
-    const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
-    const raw = policy.type === "allow_list" ? [...policy.kinds] : [];
-    return gateNestedInsertKinds(raw, advancedElementLibraryEnabled, canInsertRawHtmlElements);
-  }, [selectedBuilderNode, advancedElementLibraryEnabled, canInsertRawHtmlElements]);
+    return chromeInsertChildKinds(selectedBuilderNode, nodeCapCtx);
+  }, [selectedBuilderNode, nodeCapCtx]);
   const selectedNodeChildren = useMemo(
     () =>
       selectedBuilderNode && "children" in selectedBuilderNode
@@ -2969,10 +2991,9 @@ export function SelectionLayer() {
     : chipLabel;
   const selectedNodeIsEditableBlock =
     !!selectedBuilderNode &&
-    selectedBuilderNode.kind !== "section" &&
     !!selectedBuilderNodeId &&
     selectedCanvasNodeId === selectedBuilderNodeId &&
-    !resolveBuilderNodeRole(selectedBuilderNode.id);
+    selectedCaps?.propsPanel === "full";
   // Has this block been moved / resized / rotated by hand? Drives whether the
   // chip shows its reset button at all — an escape hatch that is only present
   // when there is something to escape from reads as an answer to the situation
@@ -2980,40 +3001,8 @@ export function SelectionLayer() {
   const selectedNodeHasLayoutEscapes = hasLayoutEscapes(
     (selectedBuilderNode?.props as { style?: unknown } | undefined)?.style,
   );
-  // Does the selected block actually expose an inline-editable TEXT target?
-  // The toolbar pencil fires `requestInlineEdit`, which only does something
-  // when the node renders an element the inline editor can open
-  // (h1-h6/p/a/button/summary/[data-editable-text]). That set maps to a fixed
-  // list of node kinds — mirrored from inline-editor.tsx's
-  // `resolveEditableBuilderNodeTextTarget`: heading/paragraph/rich_text always
-  // carry copy, button a label, accordion_item/tab_panel a title; icon is
-  // editable only when it has a label, nav only via its (brand) wordmark. Every
-  // other kind (image/video/embed/icon-without-label/divider/spacer/code/
-  // section_embed and the bare layout containers) has NO text target, so the
-  // pencil would be a no-op there → hide it. Derived from the node itself so it
-  // recomputes on every render rather than racing the live DOM.
-  const selectedNodeHasInlineTextTarget = (() => {
-    if (!selectedNodeIsEditableBlock || !selectedBuilderNode) return false;
-    switch (selectedBuilderNode.kind) {
-      case "heading":
-      case "paragraph":
-      case "rich_text":
-      case "button":
-      case "accordion_item":
-      case "tab_panel":
-        return true;
-      case "icon":
-        return !!selectedBuilderNode.props.label;
-      case "nav":
-        return !!selectedBuilderNode.props.brand;
-      case "section_embed":
-        // Curated copy (headline/eyebrow) lives inside the island DOM — inline
-        // edit resolves via section_embed config patch (inline-editor.tsx).
-        return true;
-      default:
-        return false;
-    }
-  })();
+  const selectedNodeHasInlineTextTarget =
+    selectedNodeIsEditableBlock && !!selectedCaps?.inlineText;
   const selectedNodeUsesCanvasTextToolbar =
     selectedNodeIsEditableBlock &&
     !!selectedBuilderNode &&
@@ -3271,12 +3260,14 @@ export function SelectionLayer() {
         : null,
     [builderTree, hoveredBuilderNodeId],
   );
+  const hoveredCaps = hoveredBuilderNode
+    ? resolveNodeCapabilities(hoveredBuilderNode, nodeCapCtx)
+    : null;
   const hoveredNodeIsMovableBlock =
     !!hoveredBuilderNode &&
     !!hoveredBuilderNodeId &&
-    hoveredBuilderNode.kind !== "section" &&
-    hoveredBuilderNode.locked !== true &&
-    !resolveBuilderNodeRole(hoveredBuilderNode.id);
+    hoveredCaps?.propsPanel === "full" &&
+    hoveredCaps.lockState !== "self";
   const hoveredBlockLabel = hoveredBuilderNode
     ? t(
         builderNodeCrumbLabel(
@@ -3303,7 +3294,7 @@ export function SelectionLayer() {
   // nodes own their width). Commits once on release through the normal
   // patch flow, so undo/redo and persistence come for free.
   // P3-LOCK: locked nodes suppress all direct-manipulation handles.
-  const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
+  const selectedNodeIsLocked = selectedCaps?.lockState === "self";
   // W1-L7 — publish the current selection facts to the pointerdown classifier so
   // the mount-time move-drag listener reads today's selection without
   // re-subscribing. A move only starts on a single, editable, unlocked block.
@@ -3311,7 +3302,7 @@ export function SelectionLayer() {
     blockMoveDepsRef.current = {
       selectedCanvasNodeId: selectedCanvasNodeId ?? null,
       selectedNodeKind:
-        selectedBuilderNode && selectedBuilderNode.kind !== "section"
+        selectedBuilderNode && !isSectionShell(selectedBuilderNode, nodeCapCtx)
           ? selectedBuilderNode.kind
           : null,
       selectedNodeIsEditableBlock:
@@ -3326,6 +3317,7 @@ export function SelectionLayer() {
     multiNodeSelectionActive,
     selectedNodeIsLocked,
     chipPrimaryLabel,
+    nodeCapCtx,
   ]);
   // Which responsive bucket a canvas handle's commit lands in: `null` on
   // desktop (base style), "tablet"/"mobile" on those canvases. Every commit
@@ -3339,13 +3331,9 @@ export function SelectionLayer() {
   // commit path (see `canNudgeSelectedNode` below); resize, spacing and the
   // move grip now take the same route.
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
-  // ROTATE stays desktop-only, on ergonomics not plumbing: its hit zone is the
-  // few pixels just OUTSIDE each corner, which on a 375px canvas sits under
-  // the corner resize handles and the canvas frame, and a rotation is almost
-  // never a breakpoint-specific decision anyway. `style.rotate` remains
-  // per-device settable from the Style panel for the rare case that it is.
-  const canRotateSelectedNode = canResizeSelectedNode && device === "desktop";
+    selectedNodeIsEditableBlock && !!selectedCaps?.resize;
+  const canRotateSelectedNode =
+    selectedNodeIsEditableBlock && !!selectedCaps?.rotate && device === "desktop";
   // #32 leftover — the keyboard NUDGE is the one direct-manipulation gesture
   // that doesn't need the resize/spacing/rotate/move-grip chrome to be on
   // screen, so it doesn't need `canResizeSelectedNode`'s locked/multi gate:
@@ -3355,7 +3343,7 @@ export function SelectionLayer() {
   // breakpoint only. Deliberately device-agnostic — matching the multi-select
   // nudge path below, which already ignored this gate.
   const canNudgeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
+    selectedNodeIsEditableBlock && !!selectedCaps?.move;
   // TOUCH — hand the selected block's pan gesture back to the canvas so the
   // pointer-driven move drag survives a finger (canvas-touch-drag-surface.ts
   // explains why it did not). Coarse pointers only; the mouse path is
@@ -3368,9 +3356,7 @@ export function SelectionLayer() {
   // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
   // the resize gate so locked / multi-select nodes are excluded.
   const isSelectedLayoutContainer =
-    canResizeSelectedNode &&
-    !!selectedBuilderNode &&
-    BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
+    selectedNodeIsEditableBlock && !!selectedCaps?.gap;
   // Resize / padding / margin / gap all commit through one hook so the
   // base-vs-breakpoint routing cannot drift between them
   // (use-canvas-box-model-commits.ts).
@@ -3403,7 +3389,7 @@ export function SelectionLayer() {
   const commitResetSelectedNodeLayout = useCallback(() => {
     if (!selectedBuilderNodeId) return;
     const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-    if (!node || node.kind === "section") return;
+    if (!node || isSectionShell(node, nodeCapCtx)) return;
     const liveEl = getSelectedBuilderNodeEl();
     if (liveEl) {
       for (const prop of [
@@ -3433,6 +3419,7 @@ export function SelectionLayer() {
     builderTree,
     patchBuilderNodeProps,
     getSelectedBuilderNodeEl,
+    nodeCapCtx,
   ]);
   const commitSelectedNodeTranslate = useCallback(
     // `bucket` — breakpoint-aware nudge (kit/nudge.ts): "tablet"/"mobile"
@@ -3443,7 +3430,7 @@ export function SelectionLayer() {
     (x: number, y: number, bucket: "tablet" | "mobile" | null = null) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
+      if (!node || isSectionShell(node, nodeCapCtx)) return;
       // CLAMP — a block can never be flung fully off its parent. Previously an
       // unbounded translate stranded an element off the (narrower) mobile canvas
       // with no grabbable handle to recover it. Keep ≥40px of the block inside
@@ -3483,6 +3470,7 @@ export function SelectionLayer() {
       builderTree,
       patchBuilderNodeProps,
       getSelectedBuilderNodeEl,
+      nodeCapCtx,
     ],
   );
   // ROTATION — persist the canvas rotate handle's final angle as the
@@ -3494,7 +3482,7 @@ export function SelectionLayer() {
     (deg: number) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return;
+      if (!node || isSectionShell(node, nodeCapCtx)) return;
       const normalized = normalizeAngleDeg(deg);
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
@@ -3516,6 +3504,7 @@ export function SelectionLayer() {
       builderTree,
       patchBuilderNodeProps,
       getSelectedBuilderNodeEl,
+      nodeCapCtx,
     ],
   );
   // Z-ORDER (⌘] / ⌘[) — snapshot the selected block's OVERLAPPING siblings
@@ -3526,7 +3515,7 @@ export function SelectionLayer() {
       nodeId: string,
     ): { current: number; siblings: ZOrderSibling[] } | null => {
       const node = findBuilderNodeById(builderTree, nodeId);
-      if (!node || node.kind === "section") return null;
+      if (!node || isSectionShell(node, nodeCapCtx)) return null;
       const path = findBuilderNodePath(builderTree, nodeId);
       const parentNode = path[path.length - 2];
       if (!parentNode) return null;
@@ -3574,7 +3563,7 @@ export function SelectionLayer() {
         siblings,
       };
     },
-    [builderTree, getBuilderNodeEl],
+    [builderTree, getBuilderNodeEl, nodeCapCtx],
   );
   // Returns true when the selection OWNS the chord (an editable unlocked
   // block), so the keyboard handler preventDefaults even on a no-op — ⌘[ is
@@ -3594,7 +3583,7 @@ export function SelectionLayer() {
       const target = computeZOrderTarget({ ...snapshot, command });
       if (target === null) return true;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-      if (!node || node.kind === "section") return true;
+      if (!node || isSectionShell(node, nodeCapCtx)) return true;
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
@@ -3614,6 +3603,7 @@ export function SelectionLayer() {
       builderTree,
       patchBuilderNodeProps,
       reportMutationError,
+      nodeCapCtx,
     ],
   );
   // Consecutive OS key-repeat count for the held nudge chord — the
@@ -3661,7 +3651,7 @@ export function SelectionLayer() {
         // P3-LOCK: skip locked nodes from multi-nudge.
         const nodeIds = selectedBuilderNodeRects
           .map((rect) => rect.id)
-          .filter((nodeId) => !isBuilderNodeLocked(builderTree, nodeId));
+          .filter((nodeId) => !isBuilderNodeLocked(builderTree, nodeId, nodeCapCtx));
         if (nodeIds.length === 0) return;
         for (const nodeId of nodeIds) {
           const el = getBuilderNodeEl(nodeId);
@@ -3708,6 +3698,7 @@ export function SelectionLayer() {
     reportMutationError,
     selectedBuilderNodeRects,
     translateSelectedBuilderNodes,
+    nodeCapCtx,
   ]);
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
@@ -3892,8 +3883,8 @@ export function SelectionLayer() {
     !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
   const canRemoveSelectedNode =
     !!selectedCanvasNodeId &&
-    !!selectedBuilderNode &&
-    selectedBuilderNode.kind !== "section" &&
+    !!    selectedBuilderNode &&
+    !isSectionShell(selectedBuilderNode, nodeCapCtx) &&
     selectedCanvasNodeId !== selectedSectionNodeId;
   const canUngroupSelectedNode =
     !!selectedBuilderNode &&
@@ -4324,7 +4315,10 @@ export function SelectionLayer() {
   const contextMenuNodePath = contextMenuBuilderNodeId
     ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
     : [];
-  const contextMenuNodeLocked = contextMenuNode?.locked === true;
+  const contextMenuCaps = contextMenuNode
+    ? resolveNodeCapabilities(contextMenuNode, nodeCapCtx)
+    : null;
+  const contextMenuNodeLocked = contextMenuCaps?.lockState === "self";
   const contextMenuNodeHasRotation = nodeHasRotationEscape(contextMenuNode);
   // Z-ORDER — availability computed once per menu open (DOM rect snapshot),
   // so the menu never shows a stacking row that would be a silent no-op.
@@ -4340,14 +4334,10 @@ export function SelectionLayer() {
     contextMenuNodeLocked,
     collectZOrderSiblings,
   ]);
-  const contextMenuNodeIsRoleBound =
-    !!contextMenuNode && resolveBuilderNodeRole(contextMenuNode.id) !== null;
-  // Wrap / Convert only make sense for a genuinely editable freeform block.
   const contextMenuCanWrapOrConvert =
-    !!contextMenuNode &&
-    contextMenuNode.kind !== "section" &&
-    !contextMenuNodeIsRoleBound &&
-    !contextMenuNodeLocked;
+    !!contextMenuCaps &&
+    contextMenuCaps.propsPanel === "full" &&
+    contextMenuCaps.lockState !== "self";
   const contextMenuMoveContext = resolveNodeMoveContext(
     contextMenuNode,
     contextMenuNodePath,
@@ -4360,15 +4350,17 @@ export function SelectionLayer() {
           (n) => n.kind === "section" && n.id === contextMenu.builderNodeId,
         )
       : undefined;
+  const contextMenuSectionCaps = contextMenuSectionNode
+    ? resolveNodeCapabilities(contextMenuSectionNode, nodeCapCtx)
+    : null;
   const contextMenuSectionEjected =
     contextMenuSectionNode?.kind === "section" &&
     contextMenuSectionNode.props.ejected === true;
   // "no-layers" = nothing would be derived, so the row shows DISABLED with an
   // honest reason rather than pretending the unlock is available.
-  const contextMenuSectionUnlockGate =
-    contextMenuSectionNode?.kind === "section"
-      ? resolveSectionUnlockGate(contextMenuSectionNode.props.sectionTypeKey)
-      : "not-offered";
+  const contextMenuSectionUnlockGate = contextMenuSectionCaps
+    ? chromeSectionUnlockGate(contextMenuSectionCaps)
+    : "not-offered";
 
   if (!portalEl) return null;
 
@@ -4392,10 +4384,12 @@ export function SelectionLayer() {
   const pickedSection = selectedSectionNodeId
     ? builderTree.find((n) => n.kind === "section" && n.id === selectedSectionNodeId)
     : undefined;
-  const pickedSectionUnlockGate =
-    pickedSection?.kind === "section"
-      ? resolveSectionUnlockGate(pickedSection.props.sectionTypeKey)
-      : "not-offered";
+  const pickedSectionCaps = pickedSection
+    ? resolveNodeCapabilities(pickedSection, nodeCapCtx)
+    : null;
+  const pickedSectionUnlockGate = pickedSectionCaps
+    ? chromeSectionUnlockGate(pickedSectionCaps)
+    : "not-offered";
   const unlockableSectionId =
     pickedSectionUnlockGate === "not-offered" ? null : pickedSection?.id ?? null;
   const sectionUnlocked = pickedSection?.kind === "section" && pickedSection.props.ejected;
@@ -5430,7 +5424,7 @@ export function SelectionLayer() {
               }
               const snapshot = collectZOrderSiblings(id);
               const node = findBuilderNodeById(builderTree, id);
-              if (snapshot && node && node.kind !== "section") {
+              if (snapshot && node && !isSectionShell(node, nodeCapCtx)) {
                 const target = computeZOrderTarget({ ...snapshot, command });
                 if (target !== null) {
                   const currentStyle =
@@ -5458,7 +5452,7 @@ export function SelectionLayer() {
                 return;
               }
               const node = findBuilderNodeById(builderTree, id);
-              if (!node || node.kind === "section") {
+              if (!node || isSectionShell(node, nodeCapCtx)) {
                 closeContextMenu();
                 return;
               }
@@ -5568,7 +5562,7 @@ export function SelectionLayer() {
 	                bottom: renderSelectedRect.top + renderSelectedRect.height,
 	              }}
 	              disabled={false /* Perf spine — text-style patches ride the optimistic lane; no saving gate */}
-	              locked={selectedBuilderNode.locked === true}
+	              locked={selectedCaps?.lockState === "self"}
 	              nestedOpen={nestedPanelOpen}
 	              onToggleNested={
 	                canManageSelectedNodeChildren
@@ -5585,7 +5579,7 @@ export function SelectionLayer() {
 	              }}
 	              onToggleLock={async () => {
 	                if (!selectedBuilderNodeId) return;
-	                const locked = selectedBuilderNode.locked === true;
+	                const locked = selectedCaps?.lockState === "self";
 	                await patchBuilderNodeProps(selectedBuilderNodeId, {
 	                  locked: locked ? undefined : true,
 	                });

@@ -8,7 +8,8 @@
  * yesterday with green tests; the matrix in `node-capabilities.test.ts` must
  * fail if anyone widens capabilities while wiring this in.
  *
- * Do not import this from selection-layer yet. Do not clean up ugly cases
+ * selection-layer.tsx now reads this resolver. Do not widen a gate here
+ * without updating chrome in the same commit. Do not clean up ugly cases
  * (role-suffix children demoted to section-grade chrome, `children: "any"`
  * yielding no inserts, plan being a no-op pre-launch). Pin them.
  *
@@ -36,9 +37,9 @@ export type NodeLockState = "unlocked" | "self" | "inherited";
 export type NodePropsPanelMode = "full" | "guided" | "none";
 
 /**
- * Layout-container kinds whose canvas gap handle is shown. Copied from
- * `selection-layer.tsx` `BUILDER_GAP_LAYOUT_KINDS` — keep in lockstep until
- * adoption deletes that set.
+ * Layout-container kinds whose canvas gap handle is shown. Was copied from
+ * `selection-layer.tsx` `BUILDER_GAP_LAYOUT_KINDS`; adoption now reads
+ * `caps.gap` so that local set is gone. Keep this set as the pin.
  */
 export const CANVAS_GAP_LAYOUT_KINDS: ReadonlySet<string> = new Set([
   "container",
