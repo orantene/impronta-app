@@ -4077,9 +4077,19 @@ export function EditProvider({
     [executeBuilderNodeOperation],
   );
   const unejectSection = useCallback<EditContextValue["unejectSection"]>(
-    (sectionNodeId) =>
-      runUnejectSection(sectionNodeId, executeBuilderNodeOperation),
-    [executeBuilderNodeOperation],
+    async (sectionNodeId) => {
+      const result = await runUnejectSection(
+        sectionNodeId,
+        executeBuilderNodeOperation,
+      );
+      // Relock repaints only server-side: the curated component is a server
+      // render the client canvas cannot restore, so without a refresh the
+      // unlocked look persists until a manual reload and relock appears to
+      // have failed (same rationale as serverRenderedEditTarget above).
+      if (result.ok && result.ejected) void queueRouterRefresh();
+      return result;
+    },
+    [executeBuilderNodeOperation, queueRouterRefresh],
   );
   // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
   // instance, keyed by the MASTER child id. Pure transform + shared commit path.
