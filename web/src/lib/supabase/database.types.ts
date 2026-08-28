@@ -7607,6 +7607,59 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          grant_duration_days: number | null
+          grant_plan_tier: string | null
+          id: string
+          name: string
+          slug: string
+          starts_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          grant_duration_days?: number | null
+          grant_plan_tier?: string | null
+          id?: string
+          name: string
+          slug: string
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          grant_duration_days?: number | null
+          grant_plan_tier?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_subscribers: {
         Row: {
           consented_at: string
