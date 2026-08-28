@@ -434,6 +434,8 @@ export interface BuilderNodeStyleValue {
     | "ease-in-out"
     | "back"
     | "smooth";
+  // Per-breakpoint hover lives on the viewport bucket (`responsive.tablet.hover`).
+  hover?: BuilderNodeHoverStyle;
   // Per-node custom CSS escape hatch (2026-06-09). Free author CSS, rendered as
   // a scope-confined `<style>` keyed to this node's `[data-builder-node-id]` via
   // the SAME hardened scoper sections use (`nodeScopedCss` → `scopeCustomCss`),
@@ -446,11 +448,11 @@ export interface BuilderNodeStyleValue {
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only
-// while the node is hovered (or keyboard-focused). A single layer (NOT
-// per-viewport: hover is a desktop/pointer interaction). Paired with the
+// while the node is hovered (or keyboard-focused). Desktop writes `style.hover`;
+// tablet/mobile write `style.responsive.{tier}.hover`. Paired with the
 // `transition` escape to ease the change. Colors accept tokens/hex/rgb; scale
 // is a unitless factor ("1.04"); translate is 1-2 lengths ("0 -4px"); opacity
-// is 0–1.
+// is 0-1. filter / backdropFilter / parentHover are the W3 hover-v2 extras.
 export interface BuilderNodeHoverStyle {
   backgroundColor?: string;
   color?: string;
@@ -459,6 +461,10 @@ export interface BuilderNodeHoverStyle {
   scale?: string;
   translate?: string;
   opacity?: number;
+  filter?: string;
+  backdropFilter?: string;
+  /** Child responds when a direct parent builder node is hovered. */
+  parentHover?: boolean;
 }
 
 /**

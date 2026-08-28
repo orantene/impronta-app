@@ -2,6 +2,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
+import { HOVER_V2_CSS, hoverLaneAttrs, hoverLaneVars } from "./hover-style-css";
 import { BUILDER_NODE_NAV_CSS } from "./nav-css";
 import { BuilderIconSvg } from "./builder-icon-svg";
 import type { BuilderIconName } from "./icon-registry";
@@ -1243,6 +1244,7 @@ ${BUILDER_NODE_SOCIAL_CSS}
 ${BUILDER_NODE_CAROUSEL_HERO_CSS}
 ${BUILDER_NODE_SOCIAL_FEED_CSS}
 ${BACKGROUND_MEDIA_CSS}
+${HOVER_V2_CSS}
 `;
 
 /**
@@ -2031,6 +2033,7 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
       style?.stateStyles?.active?.translate ? "" : undefined,
     "data-builder-style-active-opacity":
       typeof style?.stateStyles?.active?.opacity === "number" ? "" : undefined,
+    ...hoverLaneAttrs(style),
   };
 }
 
@@ -2521,6 +2524,7 @@ function responsiveStyleVars(
     "--bn-active-scale": style?.stateStyles?.active?.scale,
     "--bn-active-translate": style?.stateStyles?.active?.translate,
     "--bn-active-opacity": style?.stateStyles?.active?.opacity,
+    ...hoverLaneVars(style),
   });
 }
 

@@ -39,6 +39,7 @@ import {
   TOKEN_RE,
   isSafeRichTextHref,
 } from "@/lib/site-admin/sections/shared/rich-text";
+import { splitRichBlocks } from "@/lib/site-admin/sections/shared/rich-text-lists";
 
 /** Escape a string for safe interpolation as HTML text / attribute content. */
 function escapeHtml(value: string): string {
@@ -57,6 +58,22 @@ function escapeHtml(value: string): string {
  * paint still comes from the React renderer on the next refresh.
  */
 export function renderInlineRichHtml(input: string | null | undefined): string {
+  if (!input) return "";
+  const blocks = splitRichBlocks(input);
+  const hasList = blocks.some((block) => block.kind === "ul" || block.kind === "ol");
+  if (!hasList) return renderInlineTokenHtml(input);
+  return blocks
+    .map((block) => {
+      if (block.kind === "text") return renderInlineTokenHtml(block.text);
+      const inner = block.items
+        .map((item) => `<li>${renderInlineTokenHtml(item)}</li>`)
+        .join("");
+      return `<${block.kind} class="site-rich-list">${inner}</${block.kind}>`;
+    })
+    .join("");
+}
+
+function renderInlineTokenHtml(input: string): string {
   if (!input) return "";
   const captured = new RegExp(`(${TOKEN_RE.source})`, "g");
   const parts = input.split(captured).filter((p) => p !== "");

@@ -65,7 +65,11 @@ import { CssEditorWithHints } from "./kit/css-editor-with-hints";
 import { pxLength, pctLength } from "./style-panel/length-utils";
 import { BUILDER_NODE_THEME_COLOR_TOKENS, colorSwatchDisplay } from "./style-panel/section-shared";
 import { QuickStyleCards } from "./style-panel/QuickStyleCards";
-import { splitPatchByResponsiveLane, styleWithViewportPatch } from "./style-panel/viewport-style-patch";
+import { splitPatchByResponsiveLane, styleWithHoverPatch, styleWithViewportPatch } from "./style-panel/viewport-style-patch";
+import {
+  type HoverLaneStyle,
+  type StyleValueWithHover,
+} from "./style-panel/hover-lane";
 import { StyleFooterRow } from "./style-panel/StyleFooterRow";
 import { StyleGroupStack } from "./style-panel/groups/StyleGroupStack";
 
@@ -683,10 +687,10 @@ function standaloneNodeLabel(node: StandaloneStyleNode): string {
 }
 
 function cleanHoverStyle(
-  value: BuilderNodeHoverStyle | undefined,
-): BuilderNodeHoverStyle | undefined {
+  value: HoverLaneStyle | undefined,
+): HoverLaneStyle | undefined {
   if (!value) return undefined;
-  const out: BuilderNodeHoverStyle = {};
+  const out: HoverLaneStyle = {};
   if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
   if (value.color) out.color = value.color;
   if (value.borderColor) out.borderColor = value.borderColor;
@@ -694,6 +698,9 @@ function cleanHoverStyle(
   if (value.scale) out.scale = value.scale;
   if (value.translate) out.translate = value.translate;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
+  if (value.filter) out.filter = value.filter;
+  if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.parentHover) out.parentHover = true;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -850,7 +857,7 @@ function cleanBuilderNodeStyle(
     if (containerTablet) out.containerQueries.tablet = containerTablet;
     if (containerMobile) out.containerQueries.mobile = containerMobile;
   }
-  const hover = cleanHoverStyle(value.hover);
+  const hover = cleanHoverStyle(value.hover as HoverLaneStyle | undefined);
   if (hover) out.hover = hover;
   // Wave 3 · 3D — preserve per-state style overrides (focus/active).
   const focusStyle = cleanHoverStyle(value.stateStyles?.focus);
@@ -1005,6 +1012,8 @@ function cleanBuilderNodeStyleValue(
   if (value.revealDuration) out.revealDuration = value.revealDuration;
   if (value.revealDelay) out.revealDelay = value.revealDelay;
   if (value.revealEasing) out.revealEasing = value.revealEasing;
+  const hover = cleanHoverStyle((value as StyleValueWithHover).hover);
+  if (hover) (out as StyleValueWithHover).hover = hover;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -3065,20 +3074,23 @@ export function StylePanel({
     patchSelectedStandaloneNodeProps({ style: nextStyle });
   }
 
-  // Merge a partial hover override into the single hover layer (base, not nested
-  // under a viewport — hover is a pointer interaction, not a breakpoint).
-  function patchSelectedHoverStyle(patch: Partial<BuilderNodeHoverStyle>) {
+  function patchSelectedHoverStyle(patch: Partial<HoverLaneStyle>) {
     if (!selectedStandaloneStyleNode) return;
     const currentStyle =
       standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
         ? standaloneStyleDraftRef.current.style
         : selectedStandaloneStyleNode.props.style;
-    patchSelectedBaseStyle({
-      hover: {
-        ...(currentStyle?.hover ?? {}),
-        ...patch,
-      },
-    });
+    const nextStyle = styleWithHoverPatch(
+      currentStyle,
+      selectedViewport,
+      patch,
+      { cleanStyle: cleanBuilderNodeStyle, cleanValue: cleanBuilderNodeStyleValue },
+    );
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
   }
 
   // Wave 3 · 3D — patch a focus-visible or active state override. Merges onto

@@ -15,10 +15,11 @@ import { GlassBackdropField } from "./glass-backdrop-field";
 import { FilterField } from "./filter-field";
 import { BUILDER_NODE_BLEND_OPTIONS } from "./style-options";
 import type { StandaloneSectionCtx } from "./section-types";
+import { hoverLaneHasValue, readHoverLane } from "./hover-lane";
 
 export type EffectsStatesSectionProps = Pick<
   StandaloneSectionCtx,
-  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneViewportStyle" | "setSelectedInteractionState"
+  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneViewportStyle" | "setSelectedInteractionState" | "selectedViewport"
 >;
 
 export function EffectsStatesSection({
@@ -29,8 +30,10 @@ export function EffectsStatesSection({
   selectedInteractionState,
   selectedStandaloneFullStyle,
   selectedStandaloneViewportStyle,
+  selectedViewport,
   setSelectedInteractionState,
 }: EffectsStatesSectionProps) {
+  const hoverStyle = readHoverLane(selectedStandaloneFullStyle, selectedViewport);
   return (
     <>
             <div
@@ -128,7 +131,7 @@ export function EffectsStatesSection({
                   const label = state === "default" ? "Hover" : state === "focus" ? "Focus" : "Active";
                   const hasValue =
                     state === "default"
-                      ? Boolean(selectedStandaloneFullStyle?.hover && Object.values(selectedStandaloneFullStyle.hover).some(Boolean))
+                      ? hoverLaneHasValue(hoverStyle)
                       : state === "focus"
                         ? Boolean(selectedStandaloneFullStyle?.stateStyles?.focus && Object.values(selectedStandaloneFullStyle.stateStyles.focus).some(Boolean))
                         : Boolean(selectedStandaloneFullStyle?.stateStyles?.active && Object.values(selectedStandaloneFullStyle.stateStyles.active).some(Boolean));
@@ -163,7 +166,7 @@ export function EffectsStatesSection({
               {/* State-specific fields — same controls for all three states */}
               <StateStyleFields
                 state={selectedInteractionState}
-                hoverStyle={selectedStandaloneFullStyle?.hover}
+                hoverStyle={hoverStyle}
                 focusStyle={selectedStandaloneFullStyle?.stateStyles?.focus}
                 activeStyle={selectedStandaloneFullStyle?.stateStyles?.active}
                 onPatchHover={(patch) => patchSelectedHoverStyle(patch)}

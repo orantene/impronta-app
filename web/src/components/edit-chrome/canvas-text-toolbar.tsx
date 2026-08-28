@@ -924,6 +924,26 @@ export function CanvasTextToolbar({
       >
         <span style={{ fontStyle: "italic" }}>I</span>
       </ToolbarBtn>
+      <ToolbarBtn
+        title={t("Bullet list")}
+        active={editingActive && lexical.state.isBulletList}
+        disabled={disabled || !editingActive}
+        onClick={() => {
+          if (editingActive) lexical.toggleBulletList();
+        }}
+      >
+        •
+      </ToolbarBtn>
+      <ToolbarBtn
+        title={t("Numbered list")}
+        active={editingActive && lexical.state.isNumberedList}
+        disabled={disabled || !editingActive}
+        onClick={() => {
+          if (editingActive) lexical.toggleNumberedList();
+        }}
+      >
+        1.
+      </ToolbarBtn>
 
       <Divider />
 

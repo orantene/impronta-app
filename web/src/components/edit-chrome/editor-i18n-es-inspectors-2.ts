@@ -772,4 +772,7 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   Saturate: "Saturar",
   Sepia: "Sepia",
   "Hue rotate": "Rotar tono",
+  "Hover filter": "Filtro al pasar el cursor",
+  "Hover backdrop": "Fondo al pasar el cursor",
+  "When parent is hovered": "Al pasar el cursor por el padre",
 };

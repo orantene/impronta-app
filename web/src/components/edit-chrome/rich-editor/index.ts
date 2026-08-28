@@ -20,9 +20,15 @@
  * untouched. No new Lexical packages were added; the plugin uses only
  * `lexical` core commands, already inside the allow-list.
  *
- * Public render path is unchanged — `shared/rich-text.tsx`'s
- * `renderInlineRich()` continues to handle public visitors. This module
- * is edit-mode-only.
+ * 2026 Field Report W3 (B4) amends the Phase C cap: heading and
+ * paragraph fields accept real ul/ol mixed with inline markers. Lists
+ * are custom ElementNodes in this editor (still no `@lexical/list`
+ * package). Public paint is `renderInlineRich()` emitting real `<ul>` /
+ * `<ol>`.
+ *
+ * Public render path is unchanged for strings without list markers —
+ * `shared/rich-text.tsx`'s `renderInlineRich()` continues to handle
+ * public visitors. This module is edit-mode-only.
  */
 
 export { RichEditor } from "./RichEditor";

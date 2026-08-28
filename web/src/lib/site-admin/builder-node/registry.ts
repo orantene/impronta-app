@@ -388,8 +388,8 @@ export const builderNodeStyleValueSchema = z.object({
     .optional(),
 });
 
-// Hover-state overrides — a curated subset of animatable props re-applied while
-// hovered/focused. Single layer (hover is a pointer interaction, not a viewport).
+// Hover-state overrides — animatable props re-applied while hovered/focused.
+// Desktop: style.hover. Tablet/mobile: style.responsive.{tier}.hover.
 const builderNodeHoverStyleSchema = z.object({
   // Hover colors also accept a `token:color.*` binding (Wave 3 · 3A).
   backgroundColor: tokenAwareStyleString(80),
@@ -400,16 +400,23 @@ const builderNodeHoverStyleSchema = z.object({
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
   opacity: z.number().min(0).max(1).optional(),
+  filter: z.string().max(120).optional(),
+  backdropFilter: z.string().max(120).optional(),
+  parentHover: z.boolean().optional(),
+});
+
+const builderNodeViewportStyleSchema = builderNodeStyleValueSchema.extend({
+  hover: builderNodeHoverStyleSchema.optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
   .extend({
     // Built-in `tablet`/`mobile` plus any operator-defined custom tier id.
-    responsive: z.record(z.string(), builderNodeStyleValueSchema).optional(),
+    responsive: z.record(z.string(), builderNodeViewportStyleSchema).optional(),
     containerQueries: z
       .object({
-        tablet: builderNodeStyleValueSchema.optional(),
-        mobile: builderNodeStyleValueSchema.optional(),
+        tablet: builderNodeViewportStyleSchema.optional(),
+        mobile: builderNodeViewportStyleSchema.optional(),
       })
       .optional(),
     hover: builderNodeHoverStyleSchema.optional(),
