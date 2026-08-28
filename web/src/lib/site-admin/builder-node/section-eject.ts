@@ -144,12 +144,14 @@ export function resolveCuratedRoleStyle(
  * (`props.originRole` + the validate-carried base mirror), so the link
  * survives the re-mint that strips it from the id. See `BuilderNodeBase.originRole`.
  */
-function stampOriginRole(child: BuilderNode, role: BuilderNodeRole): BuilderNode {
+function stampOriginRole<T extends BuilderNode>(child: T, role: BuilderNodeRole): T {
+  // Generic, so the spread keeps the concrete union member. Widening to the
+  // BuilderNode union first makes the props bag unassignable to every variant.
   return {
     ...child,
     originRole: role,
     props: { ...(child.props as Record<string, unknown>), originRole: role },
-  } as BuilderNode;
+  } as T;
 }
 
 export function ejectSectionInTree(

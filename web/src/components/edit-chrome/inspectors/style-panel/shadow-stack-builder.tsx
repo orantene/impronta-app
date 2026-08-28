@@ -199,7 +199,9 @@ export function ShadowStackBuilder({
               </button>
             </div>
             {isOpen ? (
-              layer.parsed ? (
+              // Bind the narrowed value: TS drops the `layer.parsed` refinement
+              // inside the .map() closure below, so read it once here.
+              ((parsed) => parsed ? (
                 <div
                   className="flex flex-col gap-2 border-t p-2"
                   style={{ borderColor: CHROME.line }}
@@ -218,7 +220,7 @@ export function ShadowStackBuilder({
                           type="number"
                           data-builder-shadow-field={k}
                           style={numInputStyle}
-                          value={layer.parsed[k]}
+                          value={parsed[k]}
                           onChange={(e) =>
                             patchLayer(i, { [k]: Math.round(Number(e.target.value) || 0) })
                           }
@@ -232,7 +234,7 @@ export function ShadowStackBuilder({
                       data-builder-shadow-field="color"
                       style={textInputStyle}
                       placeholder="rgba(0,0,0,0.18)"
-                      value={layer.parsed.color}
+                      value={parsed.color}
                       onChange={(e) =>
                         patchLayer(i, { color: e.target.value || DEFAULT_SHADOW_LAYER.color })
                       }
@@ -244,7 +246,7 @@ export function ShadowStackBuilder({
                       <input
                         type="checkbox"
                         data-builder-shadow-field="inset"
-                        checked={layer.parsed.inset}
+                        checked={parsed.inset}
                         onChange={(e) => patchLayer(i, { inset: e.target.checked })}
                       />
                       {t("Inset")}
@@ -267,7 +269,7 @@ export function ShadowStackBuilder({
                     onChange={(e) => setLayerRaw(i, e.target.value)}
                   />
                 </div>
-              )
+              ))(layer.parsed)
             ) : null}
           </div>
         );
