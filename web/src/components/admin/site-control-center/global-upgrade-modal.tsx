@@ -10,6 +10,7 @@ import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
+import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 
 /**
  * GlobalUpgradeModal — single modal instance mounted at the admin shell.
@@ -41,7 +42,7 @@ export function GlobalUpgradeModal() {
         return;
       }
       startTransition(async () => {
-        const result = await startWorkspaceUpgrade(plan, slug);
+        const result = await startWorkspaceUpgrade(plan, slug, readPromoCodeFromUrl());
         if (result.ok) {
           window.location.href = result.redirectUrl;
         } else if (result.noStripe) {

@@ -36,6 +36,12 @@ export type TalentBillingActionResult =
 export async function startTalentUpgrade(
   planKey: TalentPlanKey,
   tenantSlug: string,
+  /**
+   * Optional `?promo=` carried from the page the button was clicked on. Same
+   * contract as the workspace action: browser-supplied, re-validated inside
+   * `resolveCheckoutDiscount` before it can discount anything.
+   */
+  promoCode?: string | null,
 ): Promise<TalentBillingActionResult> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet." };
@@ -65,6 +71,7 @@ export async function startTalentUpgrade(
     // The app already resolved this talent's language; hand it to Stripe so
     // Checkout does not fall back to guessing from the browser.
     locale: await getRequestLocale(),
+    promoCode: promoCode ?? null,
   });
 
   if (!result.ok) {
