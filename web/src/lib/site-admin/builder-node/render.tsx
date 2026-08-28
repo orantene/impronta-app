@@ -835,6 +835,17 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node{box-sizing:border-box}
 [data-site-shell-side] .site-builder-node--container{max-width:100%}
 [data-site-shell-side]{max-width:100%;overflow-x:clip}
+/* BAND OVERFLOW INVARIANT (draft-normalizer wave). Every root-level page band
+   - a freeform root block, a curated section wrapper, a shell landmark - clips
+   its own HORIZONTAL overflow so no child (a non-shrinking flex row, a fixed
+   width, a translate) can ever widen the DOCUMENT and make the whole page
+   scroll sideways on phones (the shipped header-row incident, previously fixed
+   for one surface via the shell rule above). overflow-x:clip, NOT hidden:
+   clip does not create a scroll container, so sticky-positioned headers inside
+   a band keep working and vertical overflow stays free. Base rule (no kind
+   token) so the scoped-CSS filter always keeps it, in the editor canvas and on
+   the published page alike. */
+[data-cms-section],[data-cms-block]{max-width:100%;overflow-x:clip}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}

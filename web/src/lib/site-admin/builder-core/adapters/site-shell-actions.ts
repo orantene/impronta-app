@@ -27,6 +27,7 @@ import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
 import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
 import {
@@ -227,9 +228,10 @@ export async function saveSiteShellRow(input: {
     .eq("system_template_key", "site_shell")
     .maybeSingle()
     .returns<{ blocks: unknown }>();
-  const enforcedBlocks = enforceLockedPropsOnTree(
-    input.patch.blocks ?? [],
-    current?.blocks,
+  // Draft-save normalization gate (content-preserving; strict validate stays
+  // at publish). Runs at the same C1 chokepoint as the lock re-assert.
+  const enforcedBlocks = normalizeUnknownBuilderTreeLayout(
+    enforceLockedPropsOnTree(input.patch.blocks ?? [], current?.blocks),
   );
 
   // STYLE-1 — only set the style columns when the caller touched them.
@@ -450,7 +452,9 @@ export async function restoreSiteShellRevisionAction(input: {
     .eq("system_template_key", "site_shell")
     .maybeSingle()
     .returns<{ blocks: unknown; title: string }>();
-  const enforced = enforceLockedPropsOnTree(restoredTree, current?.blocks);
+  const enforced = normalizeUnknownBuilderTreeLayout(
+    enforceLockedPropsOnTree(restoredTree, current?.blocks),
+  );
 
   // 3. Write the restored tree back to the DRAFT blocks.
   const nowIso = new Date().toISOString();

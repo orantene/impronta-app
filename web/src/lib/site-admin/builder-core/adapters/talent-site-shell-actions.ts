@@ -26,6 +26,7 @@ import {
   assertTalentCanUseCustomBuilder,
 } from "@/lib/server/talent-self-guard";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
 import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
@@ -196,9 +197,10 @@ export async function saveTalentSiteShellRow(
       .eq("talent_profile_id", gate.talentProfileId)
       .maybeSingle();
     const currentRow = current as { id: string; shell_tree: unknown } | null;
-    const enforced = enforceLockedPropsOnTree(
-      input.patch.shellTree ?? [],
-      currentRow?.shell_tree,
+    // Draft-save normalization gate (content-preserving; strict validate stays
+    // at publish). Runs at the same C1 chokepoint as the lock re-assert.
+    const enforced = normalizeUnknownBuilderTreeLayout(
+      enforceLockedPropsOnTree(input.patch.shellTree ?? [], currentRow?.shell_tree),
     );
 
     // STYLE-1 — only set the style columns when the caller touched them.
@@ -375,7 +377,9 @@ export async function restoreTalentSiteShellRevisionAction(
 
     // 3. Re-assert current locks onto the restored content (C1) against the live
     //    draft, so restoring a pre-lock/tampered revision can't drop an admin lock.
-    const enforced = enforceLockedPropsOnTree(restoredTree, siteRow.shell_tree);
+    const enforced = normalizeUnknownBuilderTreeLayout(
+      enforceLockedPropsOnTree(restoredTree, siteRow.shell_tree),
+    );
 
     // 4. Write the restored tree back to the DRAFT shell_tree.
     const now = new Date().toISOString();
