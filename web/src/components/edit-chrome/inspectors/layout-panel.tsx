@@ -34,16 +34,8 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import type {
   BuilderAccordionNode,
-  BuilderCardNode,
-  BuilderCarouselNode,
-  BuilderContainerNode,
-  BuilderCtaGroupNode,
-  BuilderDividerNode,
-  BuilderMasonryNode,
   BuilderNode,
   BuilderNodeTree,
-  BuilderSpacerNode,
-  BuilderSplitNode,
   BuilderTabsNode,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -73,7 +65,6 @@ import {
 } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
-import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
 import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
@@ -90,6 +81,23 @@ import {
 } from "./responsive-field-state";
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
 import { breakpointLabelForDevice, isBaseBreakpoint } from "../breakpoint-registry";
+import { ContainerLayoutEditor } from "./layout-panel/container-layout-editor";
+import { ContainerFieldLabel } from "./layout-panel/field-label";
+import {
+  NodeLayoutPresetGrid,
+  nodeLayoutResetPatch,
+} from "./layout-panel/node-layout-presets";
+import {
+  CAROUSEL_AUTOPLAY_OPTIONS,
+  CAROUSEL_SLIDES_OPTIONS,
+  MASONRY_COLUMNS_OPTIONS,
+  NODE_ALIGN_OPTIONS,
+  NODE_GAP_OPTIONS,
+  SPACER_SIZE_OPTIONS,
+  SPLIT_RATIO_OPTIONS,
+  nodeKindLabel,
+  type AdvancedEditableBuilderNode,
+} from "./layout-panel/node-layout-options";
 
 const INHERIT_HINT = HINT;
 
@@ -431,200 +439,6 @@ function LengthRow({
 
 const SPACING_UNITS: readonly LengthUnit[] = ["px", "rem", "em"];
 const CONTAINER_UNITS: readonly LengthUnit[] = ["px", "rem", "%", "vw"];
-const NODE_LAYOUT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "stack", label: "Stack" },
-  { value: "row", label: "Row" },
-  { value: "grid", label: "Grid" },
-];
-const NODE_GAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "s", label: "S" },
-  { value: "m", label: "M" },
-  { value: "l", label: "L" },
-];
-const NODE_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "start", label: "Start" },
-  { value: "center", label: "Center" },
-  { value: "end", label: "End" },
-  { value: "stretch", label: "Stretch" },
-];
-const GRID_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "1", label: "1" },
-  { value: "2", label: "2" },
-  { value: "3", label: "3" },
-  { value: "4", label: "4" },
-];
-const DISPLAY_MODE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "grid", label: "Grid" },
-  { value: "slider", label: "Slider" },
-];
-const ITEMS_PER_VIEW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "1", label: "1" },
-  { value: "2", label: "2" },
-  { value: "3", label: "3" },
-  { value: "4", label: "4" },
-  { value: "5", label: "5" },
-  { value: "6", label: "6" },
-];
-// REND-1 — HTML landmark tag options for container nodes. Compact short labels
-// fit the chip strip; full descriptions appear in the helper text below.
-// Values mirror BuilderContainerNode.props.htmlTag in types.ts.
-const CONTAINER_HTML_TAG_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "div", label: "div" },
-  { value: "section", label: "section" },
-  { value: "article", label: "article" },
-  { value: "aside", label: "aside" },
-  { value: "header", label: "header" },
-  { value: "footer", label: "footer" },
-  { value: "nav", label: "nav" },
-  { value: "main", label: "main" },
-];
-const SPLIT_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "50-50", label: "50 / 50" },
-  { value: "40-60", label: "40 / 60" },
-  { value: "60-40", label: "60 / 40" },
-  { value: "30-70", label: "30 / 70" },
-  { value: "70-30", label: "70 / 30" },
-];
-const CAROUSEL_AUTOPLAY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Off" },
-  { value: "3000", label: "3s" },
-  { value: "6000", label: "6s" },
-  { value: "9000", label: "9s" },
-  { value: "12000", label: "12s" },
-];
-const CAROUSEL_SLIDES_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "1", label: "1" },
-  { value: "2", label: "2" },
-  { value: "3", label: "3" },
-  { value: "4", label: "4" },
-];
-const MASONRY_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "2", label: "2" },
-  { value: "3", label: "3" },
-  { value: "4", label: "4" },
-  { value: "5", label: "5" },
-];
-const SPACER_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "s", label: "S" },
-  { value: "m", label: "M" },
-  { value: "l", label: "L" },
-];
-type NodeLayoutPreset<T extends AdvancedEditableBuilderNode["kind"]> = {
-  id: string;
-  label: string;
-  description: string;
-  kind: T;
-  patch: Extract<AdvancedEditableBuilderNode, { kind: T }>["props"];
-};
-type AnyNodeLayoutPreset =
-  | NodeLayoutPreset<"container">
-  | NodeLayoutPreset<"split">
-  | NodeLayoutPreset<"carousel">
-  | NodeLayoutPreset<"masonry">;
-const CONTAINER_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"container">> = [
-  {
-    id: "editorial-stack",
-    label: "Editorial stack",
-    description: "Vertical rhythm for copy-led sections.",
-    kind: "container",
-    patch: { layout: "stack", gap: "m", align: "stretch", columns: undefined, responsive: undefined },
-  },
-  {
-    id: "media-row",
-    label: "Media row",
-    description: "Flexible row that wraps gracefully.",
-    kind: "container",
-    patch: { layout: "row", gap: "m", align: "center", columns: undefined, responsive: undefined },
-  },
-  {
-    id: "two-column-grid",
-    label: "Two columns",
-    description: "Classic split grid with mobile stack.",
-    kind: "container",
-    patch: {
-      layout: "grid",
-      gap: "m",
-      align: "stretch",
-      columns: 2,
-      responsive: { tablet: { columns: 2 }, mobile: { layout: "stack", columns: 1 } },
-    },
-  },
-  {
-    id: "card-grid",
-    label: "Card grid",
-    description: "Three-up desktop, two-up tablet, one-up mobile.",
-    kind: "container",
-    patch: {
-      layout: "grid",
-      gap: "l",
-      align: "stretch",
-      columns: 3,
-      responsive: { tablet: { layout: "grid", columns: 2 }, mobile: { layout: "stack", columns: 1 } },
-    },
-  },
-];
-const SPLIT_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"split">> = [
-  {
-    id: "balanced-split",
-    label: "Balanced",
-    description: "Even columns with a mobile stack.",
-    kind: "split",
-    patch: { ratio: "50-50", gap: "m", collapseOnMobile: undefined },
-  },
-  {
-    id: "media-left",
-    label: "Media left",
-    description: "Stronger visual column on the left.",
-    kind: "split",
-    patch: { ratio: "60-40", gap: "l", collapseOnMobile: undefined },
-  },
-  {
-    id: "copy-led",
-    label: "Copy led",
-    description: "Text column leads with supporting media.",
-    kind: "split",
-    patch: { ratio: "40-60", gap: "l", collapseOnMobile: undefined },
-  },
-];
-const CAROUSEL_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"carousel">> = [
-  {
-    id: "editorial-reel",
-    label: "Editorial reel",
-    description: "Two visible slides with arrows and dots.",
-    kind: "carousel",
-    patch: { slidesPerView: 2, showArrows: true, showDots: true, loop: undefined, autoplayMs: undefined },
-  },
-  {
-    id: "campaign-strip",
-    label: "Campaign strip",
-    description: "Three visible slides for dense story rows.",
-    kind: "carousel",
-    patch: { slidesPerView: 3, showArrows: true, showDots: undefined, loop: true, autoplayMs: undefined },
-  },
-  {
-    id: "auto-showcase",
-    label: "Auto showcase",
-    description: "Single-slide feature carousel with slow autoplay.",
-    kind: "carousel",
-    patch: { slidesPerView: 1, showArrows: true, showDots: true, loop: true, autoplayMs: 6000 },
-  },
-];
-const MASONRY_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"masonry">> = [
-  {
-    id: "portfolio-wall",
-    label: "Portfolio wall",
-    description: "Three-column editorial masonry.",
-    kind: "masonry",
-    patch: { columns: 3, gap: "m" },
-  },
-  {
-    id: "dense-board",
-    label: "Dense board",
-    description: "Four columns for image-heavy discovery.",
-    kind: "masonry",
-    patch: { columns: 4, gap: "s" },
-  },
-];
 const SECTION_SPACING_PRESETS: ReadonlyArray<{
   id: string;
   label: string;
@@ -674,23 +488,6 @@ const RESPONSIVE_SPACING_TARGETS: ReadonlyArray<ResponsiveSpacingTarget> = [
   "mobile",
 ];
 
-type AdvancedEditableBuilderNode =
-  | BuilderContainerNode
-  | BuilderCardNode
-  | BuilderCtaGroupNode
-  | BuilderSplitNode
-  | BuilderAccordionNode
-  | BuilderTabsNode
-  | BuilderCarouselNode
-  | BuilderMasonryNode
-  | BuilderDividerNode
-  | BuilderSpacerNode;
-
-// A container-layout override tier id. `tablet`/`mobile` are the built-ins;
-// any other slug is an operator-defined custom tier. `desktop` is the base
-// (never an override bucket). First-class responsive writes into any of these.
-type ContainerResponsiveViewport = string;
-
 function findBuilderNodeById(
   tree: BuilderNodeTree,
   nodeId: string | null,
@@ -707,157 +504,6 @@ function findBuilderNodeById(
     return null;
   };
   return walk(tree);
-}
-
-function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string {
-  switch (kind) {
-    case "container":
-      return "Container";
-    case "card":
-      return "Card";
-    case "cta_group":
-      return "CTA group";
-    case "split":
-      return "Split";
-    case "accordion":
-      return "Accordion";
-    case "tabs":
-      return "Tabs";
-    case "carousel":
-      return "Carousel";
-    case "masonry":
-      return "Masonry";
-    case "divider":
-      return "Divider";
-    case "spacer":
-      return "Spacer";
-  }
-}
-
-function cleanContainerResponsive(
-  responsive: BuilderContainerNode["props"]["responsive"] | undefined,
-) {
-  if (!responsive) return undefined;
-  const next: NonNullable<BuilderContainerNode["props"]["responsive"]> = {};
-  // Iterate EVERY tier id present (built-in tablet/mobile + any custom tier),
-  // not a fixed pair — first-class responsive writes into any tier bucket.
-  for (const viewport of Object.keys(responsive)) {
-    const value = responsive[viewport];
-    if (!value) continue;
-    const cleaned = Object.fromEntries(
-      Object.entries(value).filter(([, entry]) => entry !== undefined),
-    );
-    if (Object.keys(cleaned).length > 0) {
-      next[viewport] = cleaned;
-    }
-  }
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
-function nodeLayoutPresetsFor(
-  kind: AdvancedEditableBuilderNode["kind"],
-): ReadonlyArray<AnyNodeLayoutPreset> {
-  switch (kind) {
-    case "container":
-      return CONTAINER_LAYOUT_PRESETS;
-    case "split":
-      return SPLIT_LAYOUT_PRESETS;
-    case "carousel":
-      return CAROUSEL_LAYOUT_PRESETS;
-    case "masonry":
-      return MASONRY_LAYOUT_PRESETS;
-    default:
-      return [];
-  }
-}
-
-function nodeLayoutResetPatch(
-  node: AdvancedEditableBuilderNode,
-): Record<string, unknown> {
-  switch (node.kind) {
-    case "container":
-      return {
-        layout: "stack",
-        gap: "m",
-        columns: undefined,
-        align: "stretch",
-        display: undefined,
-        itemsPerView: undefined,
-        responsive: undefined,
-      };
-    case "split":
-      return {
-        ratio: undefined,
-        gap: "m",
-        collapseOnMobile: undefined,
-      };
-    case "accordion":
-      return {
-        allowMultiple: undefined,
-        defaultOpenItemIds: undefined,
-      };
-    case "tabs":
-      return {
-        defaultTabId: undefined,
-      };
-    case "carousel":
-      return {
-        slidesPerView: 2,
-        autoplayMs: undefined,
-        loop: undefined,
-        showArrows: undefined,
-        showDots: undefined,
-      };
-    case "masonry":
-      return {
-        columns: 3,
-        gap: "m",
-      };
-    case "card":
-      return {
-        variant: undefined,
-      };
-    case "cta_group":
-      return {
-        layout: undefined,
-        gap: undefined,
-        align: undefined,
-      };
-    case "divider":
-      return {
-        tone: undefined,
-      };
-    case "spacer":
-      return {
-        size: "m",
-      };
-  }
-}
-
-function NodeLayoutPresetGrid({
-  kind,
-  onApply,
-}: {
-  kind: AdvancedEditableBuilderNode["kind"];
-  onApply: (patch: Record<string, unknown>) => void;
-}) {
-  const presets = nodeLayoutPresetsFor(kind);
-  if (presets.length === 0) return null;
-
-  return (
-    <InspectorLayoutPresetCards
-      value={undefined}
-      onChange={(id) => {
-        const preset = presets.find((p) => p.id === id);
-        if (preset) onApply(preset.patch);
-      }}
-      options={presets.map((preset) => ({
-        value: preset.id,
-        title: preset.label,
-        description: preset.description,
-      }))}
-    />
-  );
 }
 
 function ToggleRow({
@@ -1041,51 +687,6 @@ function LayoutHealthCard({
   );
 }
 
-/**
- * Per-field label for the node layout editor. Shows a "modified on this tier"
- * dot + a reset-to-inherited control when the field carries an override on the
- * active breakpoint — mirroring the section-level override badge pattern so
- * per-breakpoint node editing reads as first-class and confident.
- */
-function ContainerFieldLabel({
-  label,
-  modified,
-  onReset,
-}: {
-  label: string;
-  modified: boolean;
-  onReset: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-1.5">
-      <span className={`${FIELD_LABEL} flex items-center gap-1`}>
-        {label}
-        {modified ? (
-          <span
-            aria-hidden
-            data-builder-field-modified=""
-            title="Overridden on this breakpoint"
-            className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: CHROME.amber }}
-          />
-        ) : null}
-      </span>
-      {modified ? (
-        <button
-          type="button"
-          data-builder-field-reset=""
-          onClick={onReset}
-          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.08em]"
-          style={{ background: "transparent", border: "none", color: CHROME.muted, padding: 0 }}
-          title="Reset to desktop value"
-        >
-          Reset
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 function AdvancedNodeLayoutEditor({
   node,
   onPatch,
@@ -1109,247 +710,13 @@ function AdvancedNodeLayoutEditor({
   const resetNodeLayout = () => onPatch(nodeLayoutResetPatch(node));
 
   if (node.kind === "container") {
-    const responsive = node.props.responsive;
-    const editingOverride = device !== "desktop";
-    // Any non-desktop tier id is a valid override bucket now — not just the two
-    // built-ins. This is the core "remove the tier limitation" change.
-    const overrideBucket = editingOverride ? responsive?.[device] : undefined;
-    const activeTierLabel = tierLabel ?? device;
-
-    const patchResponsive = (
-      viewport: ContainerResponsiveViewport,
-      key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView",
-      next: string | number | undefined,
-    ) => {
-      const nextResponsive: NonNullable<BuilderContainerNode["props"]["responsive"]> = {
-        ...(responsive ?? {}),
-        [viewport]: {
-          ...(responsive?.[viewport] ?? {}),
-          [key]: next,
-        },
-      };
-      onPatch({ responsive: cleanContainerResponsive(nextResponsive) });
-    };
-
-    // Per-field reset on this tier: drop the one key from the override bucket,
-    // re-inheriting the desktop base. Reuses cleanContainerResponsive so an
-    // emptied bucket disappears entirely.
-    const resetField = (key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView") => {
-      if (!editingOverride) return;
-      patchResponsive(device, key, undefined);
-    };
-
-    // A field is "modified on this tier" when its override bucket key is set.
-    const isFieldOverridden = (key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView"): boolean =>
-      editingOverride && overrideBucket?.[key] !== undefined && overrideBucket?.[key] !== null;
-
-    const layoutValue = editingOverride
-      ? overrideBucket?.layout ?? ""
-      : node.props.layout;
-    const gapValue = editingOverride ? overrideBucket?.gap ?? "" : node.props.gap ?? "m";
-    const columnsValue = editingOverride
-      ? String(overrideBucket?.columns ?? "")
-      : String(node.props.columns ?? "");
-    const alignValue = editingOverride
-      ? overrideBucket?.align ?? ""
-      : node.props.align ?? "stretch";
-
-    const patchLayoutField = (
-      key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView",
-      next: string | number | undefined,
-    ) => {
-      if (editingOverride) {
-        patchResponsive(device, key, next);
-        return;
-      }
-      if (key === "layout") onPatch({ layout: next as string });
-      else if (key === "gap") onPatch({ gap: next as string });
-      else if (key === "columns") onPatch({ columns: next as number | undefined });
-      else if (key === "display") onPatch({ display: next as string | undefined });
-      else if (key === "itemsPerView") onPatch({ itemsPerView: next as number | undefined });
-      else onPatch({ align: next as string });
-    };
-
-    const effectiveLayout = editingOverride
-      ? overrideBucket?.layout ?? node.props.layout
-      : node.props.layout;
-
-    // Effective display/itemsPerView for the active tier (override wins, then base).
-    const effectiveDisplay = editingOverride
-      ? overrideBucket?.display ?? node.props.display ?? "grid"
-      : node.props.display ?? "grid";
-    const displayValue = editingOverride
-      ? overrideBucket?.display ?? ""
-      : node.props.display ?? "grid";
-    const itemsPerViewValue = editingOverride
-      ? String(overrideBucket?.itemsPerView ?? "")
-      : String(node.props.itemsPerView ?? "3");
-
     return (
-      <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
-        <div className="flex items-center justify-between">
-          <span className={FIELD_LABEL}>{t("Selected block")}</span>
-          <button
-            type="button"
-            data-builder-node-layout-reset=""
-            onClick={resetNodeLayout}
-            className="cursor-pointer text-[12px] font-semibold"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: CHROME.muted,
-              padding: 0,
-            }}
-          >
-            {t("Reset block")}
-          </button>
-        </div>
-        {editingOverride ? (
-          <span className={INHERIT_HINT}>
-            Editing {activeTierLabel} layout overrides, desktop values stay the base.
-          </span>
-        ) : null}
-        <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5">
-            <ContainerFieldLabel
-              label="Layout"
-              modified={isFieldOverridden("layout")}
-              onReset={() => resetField("layout")}
-            />
-            <Segmented
-              fullWidth
-              compact
-              value={layoutValue}
-              onChange={(next) => patchLayoutField("layout", next)}
-              options={NODE_LAYOUT_OPTIONS}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <ContainerFieldLabel
-              label="Gap"
-              modified={isFieldOverridden("gap")}
-              onReset={() => resetField("gap")}
-            />
-            <Segmented
-              fullWidth
-              compact
-              value={gapValue}
-              onChange={(next) => patchLayoutField("gap", next)}
-              options={NODE_GAP_OPTIONS}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5">
-            <ContainerFieldLabel
-              label="Columns"
-              modified={isFieldOverridden("columns")}
-              onReset={() => resetField("columns")}
-            />
-            <Segmented
-              fullWidth
-              compact
-              value={columnsValue}
-              onChange={(next) =>
-                patchLayoutField(
-                  "columns",
-                  effectiveLayout === "grid" && next
-                    ? Number.parseInt(next, 10)
-                    : editingOverride
-                      ? next
-                        ? Number.parseInt(next, 10)
-                        : undefined
-                      : node.props.layout === "grid" && next
-                        ? Number.parseInt(next, 10)
-                        : undefined,
-                )
-              }
-              options={
-                effectiveLayout === "grid"
-                  ? GRID_COLUMNS_OPTIONS
-                  : [{ value: "", label: "Only for grid" }]
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <ContainerFieldLabel
-              label="Align"
-              modified={isFieldOverridden("align")}
-              onReset={() => resetField("align")}
-            />
-            <Segmented
-              fullWidth
-              compact
-              value={alignValue}
-              onChange={(next) => patchLayoutField("align", next)}
-              options={NODE_ALIGN_OPTIONS}
-            />
-          </div>
-        </div>
-        {/* DISPLAY MODE — grid vs slider. Only meaningful when the effective
-            layout is a grid; for stack/row the grid track concept (and thus a
-            slider built on it) doesn't apply, so the controls stay hidden. */}
-        {effectiveLayout === "grid" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1.5">
-              <ContainerFieldLabel
-                label="Display mode"
-                modified={isFieldOverridden("display")}
-                onReset={() => resetField("display")}
-              />
-              <Segmented
-                fullWidth
-                compact
-                value={displayValue}
-                onChange={(next) => patchLayoutField("display", next === "grid" && !editingOverride ? undefined : next)}
-                options={DISPLAY_MODE_OPTIONS}
-              />
-            </div>
-            {effectiveDisplay === "slider" ? (
-              <div className="flex flex-col gap-1.5">
-                <ContainerFieldLabel
-                  label="Items per view"
-                  modified={isFieldOverridden("itemsPerView")}
-                  onReset={() => resetField("itemsPerView")}
-                />
-                <Segmented
-                  fullWidth
-                  compact
-                  value={itemsPerViewValue}
-                  onChange={(next) =>
-                    patchLayoutField("itemsPerView", next ? Number.parseInt(next, 10) : undefined)
-                  }
-                  options={ITEMS_PER_VIEW_OPTIONS}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        {/* REND-1 — Semantic HTML tag picker. Only shown when editing the base
-            desktop tier (not a breakpoint override), because htmlTag is a
-            document-structure decision not a responsive one. Default (div) is
-            the standard value that keeps existing trees byte-stable. */}
-        {!editingOverride ? (
-          <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>HTML tag</span>
-            <Segmented
-              fullWidth
-              compact
-              value={node.props.htmlTag ?? "div"}
-              onChange={(next) => {
-                onPatch({ htmlTag: next === "div" ? undefined : next });
-              }}
-              options={CONTAINER_HTML_TAG_OPTIONS}
-            />
-            <span className={INHERIT_HINT}>
-              Semantic landmark element emitted in the page HTML. Default (div) keeps the
-              standard layout box. Use section/article for content regions, header/footer
-              for page-level landmarks, nav for navigation, aside for supplementary content.
-            </span>
-          </div>
-        ) : null}
-      </div>
+      <ContainerLayoutEditor
+        node={node}
+        onPatch={onPatch}
+        device={device}
+        tierLabel={tierLabel}
+      />
     );
   }
 
