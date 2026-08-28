@@ -3,12 +3,15 @@
  *
  * WHY ITS OWN MODULE
  * ──────────────────
- * Three places need this cap and they must never drift apart:
+ * Four places need this cap and they must never drift apart:
  *   • `validate.ts` — the STRICT publish/AI/clipboard validator, which REJECTS
  *     (and therefore drops) a subtree deeper than the cap;
  *   • `normalize-tree-layout.ts` — the draft-save canonicalizer, which flattens
  *     pass-through wrappers so the strict validator never has a reason to drop;
- *   • `performance-budget.ts` — the advisory editor-performance budget.
+ *   • `performance-budget.ts` — the advisory editor-performance budget;
+ *   • `builder-core/ai/generate-nodes.ts` — AI coerce drops nodes deeper than
+ *     this before validate ever sees them. A mirrored local `8` here silently
+ *     flattened generated trees after the validator moved to 12.
  * `normalize-tree-layout` already imports `validate`, so the constant cannot
  * live in `normalize` (import cycle) and putting it in `validate` would make
  * every consumer of the number pull the whole validator. A leaf constants
@@ -45,8 +48,8 @@
 
 /**
  * Max node depth (a root section is depth 1). Shared by the strict validator's
- * default `maxDepth`, the draft normalizer's flatten cap, and the performance
- * budget's error tier — changing it here changes all three together, which is
- * the entire point of this module.
+ * default `maxDepth`, the draft normalizer's flatten cap, the performance
+ * budget's error tier, and AI coerce — changing it here changes all four
+ * together, which is the entire point of this module.
  */
 export const BUILDER_MAX_TREE_DEPTH = 12;

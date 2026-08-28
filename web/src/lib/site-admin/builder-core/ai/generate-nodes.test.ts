@@ -23,6 +23,7 @@ import { scoreGeneratedTree } from "./eval-scorecard";
 import { BUILDER_ICON_NAMES } from "@/lib/site-admin/builder-node/icon-registry";
 import { PAGE_DESIGN_PHOTOS } from "@/lib/site-admin/builder-node/page-designs/photos";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+import { BUILDER_MAX_TREE_DEPTH } from "@/lib/site-admin/builder-node/tree-depth";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 const PHOTO_VALUES = new Set<string>(Object.values(PAGE_DESIGN_PHOTOS));
@@ -726,6 +727,33 @@ test("too-short brief is rejected before any model call", async () => {
   if (result.ok) return;
   assert.equal(result.code, "BRIEF_TOO_SHORT");
   assert.equal(called, false);
+});
+
+function nestToDepth(leafDepth: number): unknown {
+  // section at depth 1; containers until leafDepth-1; paragraph at leafDepth.
+  let node: unknown = { kind: "paragraph", props: { text: "leaf" } };
+  for (let d = leafDepth - 1; d >= 2; d--) {
+    node = { kind: "container", props: { layout: "stack" }, children: [node] };
+  }
+  return {
+    sections: [{ kind: "section", label: "Deep", children: [node] }],
+  };
+}
+
+test("AI coerce depth matches BUILDER_MAX_TREE_DEPTH (was a mirrored 8)", () => {
+  const atCap = coerceToSections(nestToDepth(BUILDER_MAX_TREE_DEPTH));
+  const atCapNodes = collectNodes(atCap);
+  assert.ok(
+    atCapNodes.some((n) => n.kind === "paragraph"),
+    `a ${BUILDER_MAX_TREE_DEPTH}-deep tree must keep the leaf (AI coerce used to drop at 8)`,
+  );
+  const over = coerceToSections(nestToDepth(BUILDER_MAX_TREE_DEPTH + 1));
+  const overNodes = collectNodes(over);
+  assert.equal(
+    overNodes.some((n) => n.kind === "paragraph"),
+    false,
+    "one past the cap still drops the leaf",
+  );
 });
 
 test("parseModelJson strips code fences and stray prose", () => {
