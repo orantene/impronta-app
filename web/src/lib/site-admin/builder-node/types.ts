@@ -180,7 +180,21 @@ export interface BuilderNodeStyleValue {
   containerName?: string;
   // Positioning escapes — establish a positioning context and nudge the node
   // with inset offsets (CSS length strings; negatives allowed for overlaps).
-  position?: "relative" | "absolute" | "sticky";
+  //
+  // `fixed` pins the node to the BROWSER VIEWPORT (a floating CTA, a side rail,
+  // a chat button, a full-viewport overlay) — it leaves the flow entirely and
+  // does not scroll. Two caveats the inspector surfaces to the operator, both
+  // real CSS, neither fixable in code:
+  //   1. Any ANCESTOR with transform / filter / backdrop-filter / perspective /
+  //      contain:paint becomes the containing block for a fixed descendant, so
+  //      the node pins to THAT box instead of the viewport. `mobile-health.ts`
+  //      warns and names the trapping block at authoring time (same failure the
+  //      nav off-canvas drawer hit — see the CAVEAT in nav-css.ts).
+  //   2. The editor canvas is honest at 100% zoom, where no transform exists in
+  //      the ancestry; zooming applies `transform: scale()` to the canvas root,
+  //      which re-anchors fixed nodes to the canvas. The Position inspector says
+  //      so next to the control.
+  position?: "relative" | "absolute" | "fixed" | "sticky";
   top?: string;
   right?: string;
   bottom?: string;

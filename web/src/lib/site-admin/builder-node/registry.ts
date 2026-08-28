@@ -224,7 +224,7 @@ export const builderNodeStyleValueSchema = z.object({
   containerType: z.enum(["normal", "inline-size", "size"]).optional(),
   containerName: z.string().max(80).optional(),
   // Positioning escapes — context + inset offsets (negatives allowed).
-  position: z.enum(["relative", "absolute", "sticky"]).optional(),
+  position: z.enum(["relative", "absolute", "fixed", "sticky"]).optional(),
   top: z.string().max(16).optional(),
   right: z.string().max(16).optional(),
   bottom: z.string().max(16).optional(),

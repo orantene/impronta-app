@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  BUILDER_PERFORMANCE_BUDGET,
   collectBuilderPerformanceIssues,
   collectBuilderPerformanceMetrics,
 } from "./performance-budget";
@@ -40,7 +41,9 @@ test("collectBuilderPerformanceIssues warns only when thresholds are exceeded", 
   const issues = collectBuilderPerformanceIssues({
     sectionCount: 25,
     nodeCount: 190,
-    maxDepth: 8,
+    // Derived, not hardcoded: the depth tiers track the shared nesting cap
+    // (tree-depth.ts), so a cap change must not silently stop this measuring.
+    maxDepth: BUILDER_PERFORMANCE_BUDGET.depthWarn + 1,
   });
 
   assert.deepEqual(
@@ -54,7 +57,7 @@ test("collectBuilderPerformanceIssues escalates to errors past hard thresholds",
   const issues = collectBuilderPerformanceIssues({
     sectionCount: 40,
     nodeCount: 320,
-    maxDepth: 10,
+    maxDepth: BUILDER_PERFORMANCE_BUDGET.depthError + 1,
   });
   assert.deepEqual(
     issues.map((issue) => issue.id).sort(),

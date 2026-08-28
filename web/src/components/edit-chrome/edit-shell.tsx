@@ -58,6 +58,7 @@ import {
   EditToast,
   Z_INDEX,
 } from "./kit";
+import { LayoutFlattenToast } from "./layout-flatten-toast";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import {
   loadChecklistState,
@@ -1257,6 +1258,7 @@ function EditShellInner({
         <MutationErrorToast />
         <DraftSavedToast />
         <ClipboardActionToast />
+        <LayoutFlattenToast />
         <TemplateAppliedToast />
         <PresenceBanner />
         <RemoteCursorsLayer />

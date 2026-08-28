@@ -3,6 +3,7 @@ import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { normalizeBuilderVisibilityCondition } from "./visibility";
 import { normalizeNodeI18nOverlay } from "./i18n-overlay";
 import { normalizeNodeExperimentConfig } from "./experiment";
+import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -138,6 +139,8 @@ export type BuilderNodeValidationResult =
     };
 
 interface ValidateOptions {
+  /** Defaults to `BUILDER_MAX_TREE_DEPTH` — the ONE cap the normalizer, this
+   *  validator and the performance budget share (see tree-depth.ts). */
   maxDepth?: number;
 }
 
@@ -164,7 +167,7 @@ export function validateBuilderNodeTree(
   options: ValidateOptions = {},
 ): BuilderNodeValidationResult {
   const issues: BuilderNodeValidationIssue[] = [];
-  const maxDepth = options.maxDepth ?? 8;
+  const maxDepth = options.maxDepth ?? BUILDER_MAX_TREE_DEPTH;
   const seenIds = new Set<string>();
 
   if (!Array.isArray(input)) {

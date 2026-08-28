@@ -14,6 +14,7 @@ import type { RevisionsLoadResult } from "@/lib/site-admin/edit-mode/revisions-a
 import type { PanelOffset } from "./workspace-layout";
 import type {
   BuilderClipboardActionToast,
+  BuilderLayoutFlattenToast,
   EditMutationError,
   LibraryTarget,
   NavigatorRecentAddition,
@@ -492,6 +493,17 @@ export interface EditContextChromeAndSessionValue {
    */
   clipboardActionToast: BuilderClipboardActionToast | null;
   clearClipboardActionToast: () => void;
+
+  // ── DEPTH-CAP HONESTY — the save restructured the operator's blocks ──
+  /**
+   * Truthy while the "we had to flatten these blocks" toast is on screen.
+   * Raised BEFORE the write, from the same depth pass the server normalizer
+   * runs, naming the affected blocks. Sticky: it never auto-dismisses, because
+   * the operator's structure changed and a five-second blink is how that
+   * becomes indistinguishable from the editor corrupting the page.
+   */
+  layoutFlattenToast: BuilderLayoutFlattenToast | null;
+  clearLayoutFlattenToast: () => void;
 
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */

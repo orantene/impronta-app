@@ -104,6 +104,7 @@ const KIND_LABEL: Record<MobileHealthCheckKind, string> = {
   tap_target: "Tap target",
   overflow: "Overflow",
   trapped_drawer: "Trapped menu",
+  trapped_fixed: "Trapped fixed block",
 };
 
 // Three distinguishable, on-palette hues. No gold/rust in admin chrome, so the
@@ -114,6 +115,7 @@ const KIND_COLOR: Record<MobileHealthCheckKind, string> = {
   tap_target: "#7c3aed", // violet chrome accent (CHROME.accent)
   overflow: "#1d4ed8",   // blue-700
   trapped_drawer: "#0f766e", // teal-700 — distinct from the two blues + violet
+  trapped_fixed: "#0f766e", // same family: both are the fixed containing-block trap
 };
 
 // ── Panel component ───────────────────────────────────────────────────────────

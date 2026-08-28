@@ -685,3 +685,72 @@ test("no trap warning without a filtering ancestor", () => {
     0,
   );
 });
+
+// ── Check 4b: an operator-authored position:fixed block, trapped ─────────────
+
+function fixedBlockUnder(
+  ancestorStyle: Record<string, unknown>,
+  fixedStyle: Record<string, unknown> = { position: "fixed", bottom: "24px" },
+): BuilderNodeTree {
+  return [
+    {
+      id: "band",
+      kind: "container",
+      props: { layout: "stack", style: ancestorStyle },
+      children: [
+        {
+          id: "floating-cta",
+          kind: "container",
+          props: { layout: "row", style: fixedStyle },
+          children: [{ id: "cta-label", kind: "paragraph", props: { text: "Book" } }],
+        },
+      ],
+    },
+  ] as unknown as BuilderNodeTree;
+}
+
+test("a transformed ancestor traps a position:fixed block, and says which block", () => {
+  // The whole promise of Fixed is "pinned to the browser window". An ancestor
+  // transform silently breaks it on the LIVE page, so the operator is told.
+  const issues = runMobileHealthCheck(fixedBlockUnder({ translate: "0px -8px" }));
+  const trapped = issues.filter((i) => i.kind === "trapped_fixed");
+  assert.equal(trapped.length, 1);
+  assert.equal(trapped[0].nodeId, "floating-cta");
+  assert.equal(trapped[0].severity, "warn", "advisory — never blocks publish");
+});
+
+test("a blurred ancestor traps a fixed block too", () => {
+  assert.equal(
+    runMobileHealthCheck(fixedBlockUnder({ backdropFilter: "blur(18px)" }))
+      .filter((i) => i.kind === "trapped_fixed").length,
+    1,
+  );
+});
+
+test("a fixed set only on the mobile breakpoint is still checked", () => {
+  assert.equal(
+    runMobileHealthCheck(
+      fixedBlockUnder(
+        { filter: "saturate(1.2)" },
+        { position: "relative", responsive: { mobile: { position: "fixed" } } },
+      ),
+    ).filter((i) => i.kind === "trapped_fixed").length,
+    1,
+    "the operator can set Fixed per breakpoint, so every layer must be seen",
+  );
+});
+
+test("a fixed block with no trapping ancestor is never reported", () => {
+  assert.equal(
+    runMobileHealthCheck(fixedBlockUnder({ backgroundColor: "#000" }))
+      .filter((i) => i.kind === "trapped_fixed").length,
+    0,
+  );
+  // …and a non-fixed block under a transform is nobody's problem.
+  assert.equal(
+    runMobileHealthCheck(
+      fixedBlockUnder({ rotate: "-3deg" }, { position: "relative" }),
+    ).filter((i) => i.kind === "trapped_fixed").length,
+    0,
+  );
+});

@@ -1,3 +1,4 @@
+import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import type { BuilderNodeTree } from "./types";
 
 export interface BuilderPerformanceMetrics {
@@ -17,8 +18,13 @@ export const BUILDER_PERFORMANCE_BUDGET = Object.freeze({
   sectionCountError: 36,
   nodeCountWarn: 160,
   nodeCountError: 280,
-  depthWarn: 6,
-  depthError: 8,
+  // Depth tiers track the ONE shared cap (tree-depth.ts). `depthError` IS the
+  // cap: at that depth the draft normalizer will flatten wrapper chains on the
+  // next save, so an error here is the last honest moment to restructure by
+  // hand instead. `depthWarn` sits three levels earlier so the advice arrives
+  // while there is still room to act on it.
+  depthWarn: BUILDER_MAX_TREE_DEPTH - 3,
+  depthError: BUILDER_MAX_TREE_DEPTH,
 });
 
 export function collectBuilderPerformanceMetrics(

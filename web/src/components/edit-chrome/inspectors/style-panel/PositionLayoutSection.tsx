@@ -463,6 +463,36 @@ export function PositionLayoutBody({
                 }
                 options={BUILDER_NODE_POSITION_OPTIONS}
               />
+              {/* FIXED — the canvas must not quietly render this differently from
+                  the published page, so the two ways it can diverge are printed
+                  next to the control instead of being discovered later:
+                    1. an ancestor with a transform / filter / blur becomes the
+                       containing block, so the block pins to THAT box on the live
+                       page (mobile-health raises a "Trapped fixed block" issue
+                       naming it, and the nav drawer learned this the hard way —
+                       see the CAVEAT in nav-css.ts);
+                    2. the canvas itself is honest at 100% zoom (no transform in
+                       the ancestry) but zooming applies `transform: scale()` to
+                       the canvas root, which re-anchors fixed blocks to the
+                       canvas. Zoom back to 100% to see the truth. */}
+              {selectedStandaloneViewportStyle?.position === "fixed" ? (
+                <div
+                  className="flex flex-col gap-1 rounded-md p-2"
+                  data-builder-node-style-control="fixedNote"
+                  style={{ background: CHROME.surface2, border: `1px solid ${CHROME.line}` }}
+                >
+                  <span className="text-[11px] font-semibold" style={{ color: CHROME.text2 }}>
+                    Pinned to the browser window
+                  </span>
+                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                    On the live page this block leaves the flow and stays put while
+                    everything else scrolls. Two things to know: the canvas only
+                    matches that at 100% zoom, and any parent block with a blur,
+                    filter or transform pins this to the parent instead of the
+                    window. Mobile health flags that case and names the parent.
+                  </span>
+                </div>
+              ) : null}
               {/* Wave 6B (#23) — sticky pinning convenience. Visible when the node
                   is sticky (explicit position OR the anchor itself). Picks the
                   edge to pin to + the offset; the renderer writes position:sticky
