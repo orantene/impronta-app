@@ -15,7 +15,7 @@
  * right escape hatch.
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -29,7 +29,6 @@ import {
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 
-const PRICING_PATH = "/platform/admin/pricing";
 
 // ─── Auth gate (duplicated from admin-product-pricing.ts) ────────────────────
 
@@ -184,7 +183,7 @@ export async function createDiscount(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
 
   return {
     ok: true,
@@ -253,7 +252,7 @@ export async function archiveDiscount(
     });
   }
 
-  revalidatePath(PRICING_PATH);
+  revalidateCommerceSurfaces();
   return { ok: true };
 }
 

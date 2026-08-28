@@ -1,8 +1,11 @@
 "use client";
 
 /**
- * PageHeader — title row + (Stripe-account chip | FX preview strip)
- * grid for the /platform/admin/pricing dashboard.
+ * PageHeader — the (Stripe-account chip | FX preview strip) grid that sits at
+ * the top of the Commerce → Catalog tab.
+ *
+ * The page title/eyebrow/subtitle that used to live here moved up to
+ * `commerce/_header.tsx` when Pricing became a tab: one page, one <h1>.
  */
 
 import { useTransition } from "react";
@@ -17,8 +20,8 @@ import {
 import { verifyStripeAccount } from "@/lib/server-actions/admin-product-pricing";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, F, FD } from "./_tokens";
-import { Pill } from "./_primitives";
+import { HQ, F } from "../_tokens";
+import { Pill } from "../_primitives";
 
 export function PageHeader({
   stripeAccount,
@@ -31,56 +34,6 @@ export function PageHeader({
   const t = useT();
   return (
     <header style={{ marginBottom: 22 }}>
-      <p
-        style={{
-          fontFamily: F,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 1.4,
-          textTransform: "uppercase",
-          color: HQ.inkMuted,
-          margin: "0 0 4px",
-        }}
-      >
-        {t("dashboard.platform.pricing.eyebrow")}
-      </p>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: 16,
-          flexWrap: "wrap",
-          marginBottom: 14,
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: FD,
-            fontSize: 26,
-            fontWeight: 600,
-            letterSpacing: -0.4,
-            color: HQ.ink,
-            margin: 0,
-            lineHeight: 1.1,
-          }}
-        >
-          {t("dashboard.platform.pricing.title")}
-        </h1>
-        <p
-          style={{
-            fontFamily: F,
-            fontSize: 12.5,
-            color: HQ.inkDim,
-            margin: 0,
-            lineHeight: 1.5,
-            flex: 1,
-            minWidth: 220,
-          }}
-        >
-          {t("dashboard.platform.pricing.subtitle")}
-        </p>
-      </div>
-
       <div
         style={{
           display: "grid",

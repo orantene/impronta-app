@@ -5807,7 +5807,7 @@
         "users": "Users",
         "network": "Network",
         "billing": "Billing",
-        "pricing": "Pricing",
+        "commerce": "Commerce",
         "operations": "Operations",
         "integrations": "Integrations",
         "aiProviders": "AI",
@@ -6826,15 +6826,7 @@
         }
       },
       "pricing": {
-        "eyebrow": "Tulala HQ",
-        "title": "Product Pricing",
-        "subtitle": "Source of truth for tier prices, products, features, and discounts. Marketing reads from here in Phase 2.",
         "loadError": "Couldn't load the pricing catalog. The service-role client isn't available, or the product_* tables haven't been migrated yet. Check the migration and the server logs.",
-        "tabs": {
-          "packages": "Packages",
-          "discounts": "Discounts",
-          "trials": "Trials"
-        },
         "stripeAccount": {
           "label": "Stripe account",
           "reverify": "Re-verify",
@@ -6865,8 +6857,6 @@
           "noStripeProduct": "No Stripe product"
         },
         "drawer": {
-          "closeLabel": "Close drawer",
-          "settingsLabel": "{tier} pricing settings",
           "tabPricing": "Pricing",
           "tabFeatures": "Features",
           "tabDisplay": "Display",
@@ -7213,6 +7203,45 @@
           "expiresSuffix": "expires {date}",
           "unlimited": "∞",
           "disable": "Disable"
+        }
+      },
+      "commerce": {
+        "eyebrow": "Tulala HQ",
+        "title": "Commerce",
+        "subtitle": "One page for prices, discounts, revenue and the Stripe wiring behind them.",
+        "tabsAriaLabel": "Commerce sections",
+        "tabs": {
+          "health": "Health",
+          "catalog": "Catalog",
+          "discounts": "Discounts",
+          "revenue": "Revenue",
+          "commission": "Commission"
+        },
+        "catalog": {
+          "trialsSummary": "Free trials",
+          "trialsSummaryHint": "Trial length and the copy shown on the start-a-trial prompt"
+        },
+        "comingSoon": {
+          "title": "Moving here in the next release",
+          "body": "This section still lives on the Billing page. It moves into Commerce next, together with the revenue numbers, so every money surface finally sits behind one nav item."
+        },
+        "health": {
+          "title": "Stripe health",
+          "intro": "Everything below is read live from Stripe and the pricing catalog. It answers the question that is otherwise only answerable by hand: is the key we are using pointed at the account that holds our prices, our webhooks and our sellers?",
+          "rerun": "Run the checks again",
+          "checkedAt": "Checked {when}",
+          "status": {
+            "ok": "OK",
+            "warn": "Check",
+            "fail": "Broken",
+            "unknown": "Unknown"
+          },
+          "checks": {
+            "account": "Stripe account",
+            "prices": "Tier prices",
+            "webhooks": "Webhooks",
+            "connect": "Connect accounts"
+          }
         }
       },
       "common": {

@@ -30,8 +30,8 @@ import {
 } from "@/lib/billing/currencies";
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
-import { HQ, F, FD } from "./_tokens";
-import { Pill, SectionLabel, Field, inputStyle, EmptyHint } from "./_primitives";
+import { HQ, F, FD } from "../_tokens";
+import { Pill, SectionLabel, Field, inputStyle, EmptyHint } from "../_primitives";
 
 export function DiscountsTab({
   discounts,

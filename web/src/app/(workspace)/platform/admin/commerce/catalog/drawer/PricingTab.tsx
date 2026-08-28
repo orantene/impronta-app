@@ -33,8 +33,8 @@ import {
 } from "@/lib/billing/currencies";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, F } from "../_tokens";
-import { SectionLabel, EmptyHint, Field, inputStyle, Pill } from "../_primitives";
+import { HQ, F } from "../../_tokens";
+import { SectionLabel, EmptyHint, Field, inputStyle, Pill } from "../../_primitives";
 import { AddSaleRow } from "./AddSaleRow";
 
 export function PricingTab({

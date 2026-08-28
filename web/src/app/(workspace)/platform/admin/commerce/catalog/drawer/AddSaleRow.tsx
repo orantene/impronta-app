@@ -21,8 +21,8 @@ import { useState, useTransition } from "react";
 import { addTierPrice } from "@/lib/server-actions/admin-product-pricing";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, F } from "../_tokens";
-import { Field, inputStyle } from "../_primitives";
+import { HQ, F } from "../../_tokens";
+import { Field, inputStyle } from "../../_primitives";
 
 export function AddSaleRow({
   tierId,

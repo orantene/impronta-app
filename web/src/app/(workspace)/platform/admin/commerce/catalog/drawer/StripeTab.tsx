@@ -8,14 +8,14 @@
 
 import type { PricingTierRow } from "@/lib/pricing/pricing-types";
 import { useT } from "@/i18n/use-t";
-import { HQ } from "../_tokens";
+import { HQ } from "../../_tokens";
 import {
   SectionLabel,
   Field,
   EmptyHint,
   codeStyle,
   linkStyle,
-} from "../_primitives";
+} from "../../_primitives";
 
 export function StripeTab({
   tier,

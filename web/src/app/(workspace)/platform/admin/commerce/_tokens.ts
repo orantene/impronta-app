@@ -1,11 +1,11 @@
 /**
- * _tokens.ts — design tokens shared across the /platform/admin/pricing
+ * _tokens.ts — design tokens shared across the /platform/admin/commerce
  * subtree. Mirrors the HQ palette set up in
  * `web/src/app/(workspace)/platform/admin/layout.tsx`.
  *
  * Centralized here so each pricing module doesn't redefine its own
  * version (the today/page.tsx + topbar inline pattern works fine for a
- * single file; pricing is 5 files+, hence the extract).
+ * single file; commerce is 19 files, hence the extract).
  */
 
 export const HQ = {

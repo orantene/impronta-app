@@ -10,8 +10,8 @@ import { useState, useTransition } from "react";
 import type { PricingTierRow } from "@/lib/pricing/pricing-types";
 import { updateTierDisplay } from "@/lib/server-actions/admin-product-pricing";
 import { useT } from "@/i18n/use-t";
-import { HQ, F } from "../_tokens";
-import { SectionLabel, Field, Toggle, inputStyle } from "../_primitives";
+import { HQ, F } from "../../_tokens";
+import { SectionLabel, Field, Toggle, inputStyle } from "../../_primitives";
 
 export function DisplayTab({ tier }: { tier: PricingTierRow }) {
   const t = useT();
