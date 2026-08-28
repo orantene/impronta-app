@@ -33,6 +33,11 @@ export type StripeRenameResult =
   | { ok: true; stub: true; reason: string }
   | { ok: false; error: string };
 
+export type StripeProductCreateResult =
+  | { ok: true; stripeProductId: string; stub: false }
+  | { ok: true; stripeProductId: null; stub: true; reason: string }
+  | { ok: false; error: string };
+
 const STRIPE_INTERVAL_MAP: Record<PricingInterval, "month" | "year" | null> = {
   month: "month",
   year: "year",
@@ -57,6 +62,8 @@ export async function syncTierPriceToStripe(input: {
   interval: PricingInterval;
   unitAmount: number;
   tierName: string;
+  /** Stable `ws_<slug>_<interval>` / `talent_<slug>_<interval>` key. Optional: omitted for sale rows, which must not steal the canonical key. */
+  lookupKey?: string | null;
 }): Promise<StripeSyncResult> {
   if (!isStripeConfigured()) {
     return {
@@ -101,6 +108,13 @@ export async function syncTierPriceToStripe(input: {
         ? { recurring: { interval } }
         : {}),
       nickname: `${input.tierName} · ${input.currency.toUpperCase()} · ${input.interval}`,
+      // A stable lookup_key lets a price be resolved by MEANING rather than by
+      // an opaque id, which is what makes an account migration survivable: the
+      // same key can be re-pointed at a new account's price. Convention is the
+      // one already used by the 2026 catalog (see docs/stripe-lineup-2026-catalog.md).
+      // Stripe requires it to be unique among ACTIVE prices, so a repriced tier
+      // only works because we archive the old price in the same call below.
+      ...(input.lookupKey ? { lookup_key: input.lookupKey, transfer_lookup_key: true } : {}),
     });
 
     // 2. Archive the old Price (best-effort — if it errors we still
@@ -150,6 +164,72 @@ export async function renameStripeProduct(input: {
     return { ok: true, stub: false };
   } catch (err) {
     logServerError("stripe-sync.rename-product", err);
+    const message = err instanceof Error ? err.message : "Stripe API error";
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Create the Stripe Product a tier needs before it can carry any price.
+ *
+ * WHY THIS EXISTS: `product_tiers.stripe_product_id` was only ever written by
+ * migration seed data. Every tier born in the admin UI therefore had a null
+ * Product, and `syncTierPriceToStripe` above refuses to price such a tier — so
+ * a newly created tier could be configured, displayed and marketed while being
+ * permanently unbuyable, with only a small amber hint to say so. This closes
+ * that loop: the caller creates the Product, stores the id, and prices work.
+ *
+ * Metadata mirrors the conventions the 2026 live catalog already uses
+ * (`side` = which ladder, `tier` = the app's plan key) so a human reading the
+ * Stripe dashboard can tell what a Product is without consulting us, plus
+ * `managed_by` to mark objects this app owns.
+ */
+export async function createStripeProductForTier(input: {
+  tierId: string;
+  tierName: string;
+  tagline: string | null;
+  /** 'person' for the talent ladder, 'business' for workspaces — the catalog's own vocabulary. */
+  side: "person" | "business";
+  /** The app-side plan key / tier slug this Product represents. */
+  tierKey: string;
+}): Promise<StripeProductCreateResult> {
+  if (!isStripeConfigured()) {
+    return {
+      ok: true,
+      stripeProductId: null,
+      stub: true,
+      reason: "STRIPE_SECRET_KEY not set — tier saved in DB only.",
+    };
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    return {
+      ok: true,
+      stripeProductId: null,
+      stub: true,
+      reason: "Stripe client unavailable — tier saved in DB only.",
+    };
+  }
+
+  try {
+    const product = await stripe.products.create(
+      {
+        name: input.tierName,
+        ...(input.tagline ? { description: input.tagline } : {}),
+        metadata: {
+          side: input.side,
+          tier: input.tierKey,
+          managed_by: "tulala_catalog",
+        },
+      },
+      // Keyed on the tier row, so a retry after a network failure adopts the
+      // Product the first attempt already created instead of making a twin.
+      { idempotencyKey: `tier-product-${input.tierId}` },
+    );
+    return { ok: true, stripeProductId: product.id, stub: false };
+  } catch (err) {
+    logServerError("stripe-sync.create-product", err);
     const message = err instanceof Error ? err.message : "Stripe API error";
     return { ok: false, error: message };
   }
