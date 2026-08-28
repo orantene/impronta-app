@@ -387,6 +387,7 @@ async function finalizeProvisionResult(params: {
       // Re-validated inside `resolveCheckoutDiscount`; an account-level
       // discount still outranks it.
       promoCode: params.lead.promo_code,
+      buyerUserId: params.lead.claimed_by_profile_id,
       // Signup runs inside the /onboarding/workspace render, so the request
       // locale is available; without it the first thing a new Spanish-speaking
       // owner sees is an English payment form.

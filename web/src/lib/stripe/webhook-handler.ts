@@ -143,6 +143,10 @@ async function recordDiscountRedemption(
       p_tenant_id: tenantId as string,
       p_talent_profile_id: talentProfileId as string,
       p_stripe_subscription_id: subscription.id,
+      // WHO redeemed. Talent checkout has always stamped `user_id`; the
+      // workspace side now does too. Older subscriptions carry no such
+      // metadata, so this is null for them rather than wrong.
+      p_user_id: subscription.metadata?.user_id ?? null,
     });
     if (error) logServerError("stripe-webhook.discount-redemption", error);
 

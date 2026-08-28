@@ -165,6 +165,13 @@ export async function createWorkspaceCheckoutSession(opts: {
    * request, never a fact.
    */
   promoCode?: string | null;
+  /**
+   * The person clicking buy. Talent checkout has always stamped this; the
+   * workspace side never did, so `discount_redemptions.user_id` came back null
+   * for every workspace redemption and the usage drawer had to guess an email
+   * from the Stripe customer record.
+   */
+  buyerUserId?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -230,6 +237,9 @@ export async function createWorkspaceCheckoutSession(opts: {
           tenant_id: opts.tenantId,
           plan_key: opts.planKey,
           checkout_type: "workspace_subscription",
+          // Read back by the webhook so a redemption records WHO, not just
+          // which workspace. Omitted rather than sent empty when unknown.
+          ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
         },
         ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
