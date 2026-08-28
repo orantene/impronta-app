@@ -7306,7 +7306,24 @@
           "precedenceHint": "Un descuento por cuenta gana sobre cualquier código que escriba el comprador. Solo puede haber uno activo por cuenta.",
           "grantDiscount": "Dar el descuento",
           "granting": "Guardando…",
-          "grantedSynced": "Guardado. El cupón está en su suscripción."
+          "grantedSynced": "Guardado. El cupón está en su suscripción.",
+          "editTitle": "Editar código de descuento",
+          "editSubtitle": "Cuatro campos aún se pueden cambiar. El resto está congelado.",
+          "edit": "Editar",
+          "saveChanges": "Guardar cambios",
+          "savingChanges": "Guardando…",
+          "savedChanges": "Guardado.",
+          "lockedSection": "Fijado al crear",
+          "lockedHint": "Stripe congela el importe, la duración y el límite de canjes de un cupón en cuanto existe. Para cambiar cualquiera de ellos, archiva este código y crea uno nuevo.",
+          "usageTitle": "Canjes",
+          "usageSubtitle": "Quién ha usado {code}",
+          "usageEmpty": "Todavía nadie ha canjeado este código.",
+          "usageLoading": "Cargando…",
+          "colWhen": "Cuándo",
+          "colEmail": "Correo de facturación",
+          "colSubscription": "Suscripción",
+          "emailDerivedHint": "El correo de facturación proviene del registro de cliente de Stripe del espacio de trabajo, no del canje. Los canjes de talento no tienen.",
+          "usageCapped": "Mostrando los {count} más recientes."
         }
       },
       "common": {
