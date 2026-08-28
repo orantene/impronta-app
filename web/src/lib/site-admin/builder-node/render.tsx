@@ -46,9 +46,9 @@ import {
   collectPresentNodeKinds,
 } from "./renderer-css-scope";
 import {
-  buildGoogleFontsHrefForFamilies,
-  collectBuilderNodeFontFamilies,
+  collectBuilderNodeFontUsage,
 } from "./fonts-registry";
+import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
@@ -6378,8 +6378,14 @@ export function BuilderNodeFontLinks({
   nodes: ReadonlyArray<BuilderNode>;
   components?: ComponentDefinitions;
 }): ReactNode {
-  const href = buildGoogleFontsHrefForFamilies(
-    collectBuilderNodeFontFamilies(nodes, components),
+  // Usage-aware since the custom-fonts build: only the weights/italics the
+  // tree can actually render are requested, weights are clamped to what each
+  // family ships (one bad axis tuple 400s the WHOLE css2 stylesheet), variable
+  // families load as a single ranged file, and families the Google catalogue
+  // does not know (tenant-uploaded faces served by TenantFontFaces) never
+  // reach fonts.googleapis.com at all.
+  const href = buildGoogleFontsHrefFromUsage(
+    collectBuilderNodeFontUsage(nodes, components),
   );
   if (!href) return null;
   return (

@@ -31,6 +31,11 @@ export const LEGACY_THEME_PASSTHROUGH_KEYS: ReadonlySet<string> = new Set([
   "logo_url",
   "favicon_url",
   "watermark_preset",
+  // Tenant-uploaded brand fonts (lib/site-admin/builder-node/tenant-fonts.ts).
+  // A JSON array, written by the font upload actions, read by TenantFontFaces
+  // in the root layout. Not a registry token — without this entry a design
+  // publish would strip every uploaded font from the live row.
+  "custom_fonts",
 ]);
 
 /**
