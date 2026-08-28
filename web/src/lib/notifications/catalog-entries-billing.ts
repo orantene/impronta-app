@@ -12,6 +12,7 @@ import ClientPaymentRefunded from "../../../emails/client/PaymentRefunded";
 import BillingPlanUpgraded from "../../../emails/billing/PlanUpgraded";
 import BillingSubscriptionCanceled from "../../../emails/billing/SubscriptionCanceled";
 import BillingTrialWillEnd from "../../../emails/billing/TrialWillEnd";
+import BillingDiscountEnding from "../../../emails/billing/DiscountEnding";
 import BillingTrialStarted from "../../../emails/billing/TrialStarted";
 import type { CatalogEntry } from "./types";
 import {
@@ -594,6 +595,82 @@ const TALENT_TRIAL_WILL_END: CatalogEntry = {
   },
 };
 
+/**
+ * workspace.discount_ending / talent.discount_ending — a time-boxed discount is
+ * about to lapse.
+ *
+ * Distinct from trial_will_end on purpose: Stripe fires no event before a
+ * coupon expires, so this is emitted by a scheduled sweep over the mirrored
+ * discount_ends_at. The copy asks for nothing — the point is that the next
+ * invoice is never a surprise, which is what keeps a generous campaign from
+ * turning into refund requests.
+ */
+const WORKSPACE_DISCOUNT_ENDING: CatalogEntry = {
+  id: "workspace.discount_ending",
+  category: "billing",
+  defaultChannels: ["email", "in_app"],
+  required: true,
+  triggers: ["workspace.discount_ending"],
+  resolveAudience: workspaceOwner,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: () => "Your discount ends soon",
+    body: (event) => {
+      const ends = formatDateLabel(str(event.payload.discountEndsIso));
+      return ends
+        ? `Your discount ends on ${ends}. Your next invoice will be at the standard rate.`
+        : "Your discount is ending. Your next invoice will be at the standard rate.";
+    },
+  },
+  email: {
+    templateId: "billing.discount_ending.workspace",
+    subject: () => "Your discount ends soon",
+    render: ({ event, recipient, brand }) =>
+      React.createElement(BillingDiscountEnding, {
+        recipientName: recipient.displayName,
+        planLabel: planLabel(str(event.payload.planKey)),
+        discountEndsAt: formatDateLabel(str(event.payload.discountEndsIso)) ?? null,
+        nextAmount: str(event.payload.nextAmountLabel) ?? null,
+        billingUrl: pageUrl(brand, "/admin/account"),
+        brand,
+      }),
+  },
+};
+
+const TALENT_DISCOUNT_ENDING: CatalogEntry = {
+  id: "talent.discount_ending",
+  category: "billing",
+  defaultChannels: ["email", "in_app"],
+  required: true,
+  triggers: ["talent.discount_ending"],
+  resolveAudience: invitedTalent,
+  in_app: {
+    kind: "system",
+    surface: "talent",
+    title: () => "Your discount ends soon",
+    body: (event) => {
+      const ends = formatDateLabel(str(event.payload.discountEndsIso));
+      return ends
+        ? `Your discount ends on ${ends}. Your next invoice will be at the standard rate.`
+        : "Your discount is ending. Your next invoice will be at the standard rate.";
+    },
+  },
+  email: {
+    templateId: "billing.discount_ending.talent",
+    subject: () => "Your discount ends soon",
+    render: ({ event, recipient, brand }) =>
+      React.createElement(BillingDiscountEnding, {
+        recipientName: recipient.displayName,
+        planLabel: planLabel(str(event.payload.planKey)),
+        discountEndsAt: formatDateLabel(str(event.payload.discountEndsIso)) ?? null,
+        nextAmount: str(event.payload.nextAmountLabel) ?? null,
+        billingUrl: pageUrl(brand, "/talent/settings"),
+        brand,
+      }),
+  },
+};
+
 /** workspace.trial_started → the agency owner (email + in_app). */
 const WORKSPACE_TRIAL_STARTED: CatalogEntry = {
   id: "workspace.trial_started",
@@ -672,6 +749,8 @@ export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   WORKSPACE_SUBSCRIPTION_CANCELLED,
   WORKSPACE_TRIAL_WILL_END,
   TALENT_TRIAL_WILL_END,
+  WORKSPACE_DISCOUNT_ENDING,
+  TALENT_DISCOUNT_ENDING,
   WORKSPACE_TRIAL_STARTED,
   TALENT_TRIAL_STARTED,
 ];
