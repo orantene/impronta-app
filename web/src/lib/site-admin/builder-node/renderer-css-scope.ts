@@ -330,15 +330,61 @@ function keepBlockForKinds(
  * proven safe: an empty/undefined kind set, an unparseable sheet, or any
  * structural anomaly. The retained rules are byte-for-byte the originals.
  */
+/**
+ * Strip CSS comments from the sheet that actually ships.
+ *
+ * The renderer stylesheet is authored with substantial inline commentary — the
+ * reason a rule exists, the incident it prevents, the trap it avoids — and that
+ * commentary is worth keeping in source. It is not worth shipping: it was ~5.4
+ * KB of the emitted sheet, which is the whole of the perf-budget breach it
+ * caused. Stripping here keeps every word for the next developer and sends none
+ * of it to a visitor, so no rule is lost and no budget is raised.
+ *
+ * Quote-aware on purpose: a `/*` inside a `content: "..."` value is DATA, not a
+ * comment, and blindly regexing comments out would corrupt it. Escapes inside a
+ * string are honoured so a trailing backslash cannot swallow the closing quote.
+ */
+export function stripCssComments(sheet: string): string {
+  let out = "";
+  let quote: string | null = null;
+  for (let i = 0; i < sheet.length; i++) {
+    const ch = sheet[i];
+    if (quote) {
+      out += ch;
+      if (ch === "\\" && i + 1 < sheet.length) {
+        out += sheet[++i];
+        continue;
+      }
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      out += ch;
+      continue;
+    }
+    if (ch === "/" && sheet[i + 1] === "*") {
+      const end = sheet.indexOf("*/", i + 2);
+      if (end === -1) break; // unterminated comment: drop the remainder
+      // Collapse to a single space so `a/*x*/b` cannot fuse into `ab`.
+      out += " ";
+      i = end + 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+}
+
 export function buildScopedRendererCss(
   fullSheet: string,
   presentKinds: ReadonlySet<BuilderNodeKind> | null | undefined,
 ): string {
   // No kinds known (undefined / empty) → conservative full sheet.
-  if (!presentKinds || presentKinds.size === 0) return fullSheet;
+  if (!presentKinds || presentKinds.size === 0) return stripCssComments(fullSheet);
 
   const blocks = splitTopLevelCssBlocks(fullSheet);
-  if (!blocks) return fullSheet; // parse anomaly → full sheet
+  if (!blocks) return stripCssComments(fullSheet); // parse anomaly → full sheet
 
   let kept = "";
   for (const block of blocks) {
@@ -351,6 +397,6 @@ export function buildScopedRendererCss(
   }
   // Defensive: an empty result would mean the page has styling but we emitted
   // nothing — never ship that, fall back to the full sheet.
-  if (kept.trim() === "") return fullSheet;
-  return kept;
+  if (kept.trim() === "") return stripCssComments(fullSheet);
+  return stripCssComments(kept);
 }
