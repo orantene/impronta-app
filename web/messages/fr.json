@@ -469,7 +469,11 @@
       "recapUseDifferentEmail": "Utiliser une autre adresse",
       "recapSendLink": "Envoyer le lien",
       "recapLinkSent": "Lien envoyé à {email}. Consultez votre boîte de réception pour continuer.",
-      "pickerStartNewSub": "{name} seulement, à part"
+      "pickerStartNewSub": "{name} seulement, à part",
+      "emailTeamAccount": "Cette adresse est déjà liée à un compte d'équipe. Essayez une adresse personnelle.",
+      "emailRegisteredReplace": "Cette adresse est déjà enregistrée. Connectez-vous avec ce compte ou utilisez une autre adresse.",
+      "emailRegisteredGate": "Cette adresse a déjà un compte Tulala. Nous enverrons un lien de connexion après l'envoi de votre message.",
+      "emailSameAccount": "C'est l'adresse de votre conversation. Nous y enverrons un lien de connexion."
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",

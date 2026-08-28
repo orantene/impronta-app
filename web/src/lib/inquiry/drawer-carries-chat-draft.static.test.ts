@@ -87,3 +87,32 @@ test("the drawer spreads the carry BEFORE its explicit sections", () => {
       "talent (from the shared lineup) always win over anything the draft carries.",
   );
 });
+
+const ACTIONS = path.join(
+  process.cwd(),
+  "src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions.ts",
+);
+
+test("a successful submit retires ONLY the carried draft, and safely", () => {
+  const src = readFileSync(ACTIONS, "utf8");
+  const i = src.indexOf("carried_draft_id");
+  assert.ok(i > 0, "the submit action must read source_context.carried_draft_id");
+  const block = src.slice(i, i + 1400);
+
+  // Ownership lives in the WHERE — the id arrives from the client and must
+  // never retire another guest's (or another tenant's) row.
+  assert.match(block, /\.eq\("guest_session_id", ctx\.guestSessionId\)/,
+    "retirement must be scoped to the submitting guest session");
+  assert.match(block, /\.eq\("tenant_id", ctx\.tenantId\)/,
+    "retirement must be scoped to the tenant");
+  assert.match(block, /\.eq\("status", "draft"\)/,
+    "only an un-sent draft may be retired — a submitted inquiry is immutable here");
+  assert.match(block, /"cancelled"/,
+    "retire via status='cancelled' — the one bucket getActiveGuestInquiry's " +
+      "resume filter already drops, so the chat stops resuming the ghost");
+
+  // A guest can hold several deliberate drafts (chat's "Start a separate
+  // inquiry"), so there must be no blanket cancel of all drafts.
+  assert.match(block, /\.eq\("id", carriedDraftId\)/,
+    "retirement must target the ONE carried draft id, never all drafts");
+});

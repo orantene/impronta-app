@@ -1178,7 +1178,11 @@
       "recapUseDifferentEmail": "Use a different email",
       "recapSendLink": "Send link",
       "recapLinkSent": "Link sent to {email}. Check your inbox to continue.",
-      "pickerStartNewSub": "Just {name}, on its own"
+      "pickerStartNewSub": "Just {name}, on its own",
+      "emailTeamAccount": "That email is already tied to a team account. Try a personal email instead.",
+      "emailRegisteredReplace": "This email is already registered. Sign in with that account, or use a different email.",
+      "emailRegisteredGate": "This email already has a Tulala account. We'll send a sign-in link after you send your message.",
+      "emailSameAccount": "This is the email on your conversation. We'll send a sign-in link here."
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",

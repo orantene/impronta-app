@@ -194,6 +194,7 @@ export function MiniChatPanel({
     stage,
     email,
     onCheckClaimEmail,
+    t,
   });
 
   const [pulseActive, setPulseActive] = useState(false);
