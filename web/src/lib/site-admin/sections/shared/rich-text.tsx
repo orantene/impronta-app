@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
+
+import { splitRichBlocks } from "./rich-text-lists";
 
 /**
  * M8 / Phase 2 — lightweight rich-text annotation renderer.
@@ -70,6 +72,31 @@ export function renderInlineRich(
   input: string | null | undefined,
 ): ReactNode[] {
   if (!input) return [];
+  const blocks = splitRichBlocks(input);
+  const hasList = blocks.some((block) => block.kind === "ul" || block.kind === "ol");
+  if (!hasList) return renderInlineTokens(input);
+  const out: ReactNode[] = [];
+  blocks.forEach((block, i) => {
+    if (block.kind === "text") {
+      out.push(
+        <Fragment key={`text-${i}`}>{renderInlineTokens(block.text)}</Fragment>,
+      );
+      return;
+    }
+    const Tag = block.kind;
+    out.push(
+      <Tag key={`list-${i}`} className="site-rich-list">
+        {block.items.map((item, k) => (
+          <li key={k}>{renderInlineTokens(item)}</li>
+        ))}
+      </Tag>,
+    );
+  });
+  return out;
+}
+
+function renderInlineTokens(input: string): ReactNode[] {
+  if (!input) return [];
   // Capture by wrapping the alternation in a single group so split keeps
   // the matched markers in the parts array.
   const captured = new RegExp(`(${TOKEN_RE.source})`, "g");
@@ -131,7 +158,7 @@ export function renderInlineRich(
  */
 export function hasRichAnnotations(input: string | null | undefined): boolean {
   if (!input) return false;
-  return /\{accent\}[^{]*\{\/accent\}|\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}|\{b\}[^{]*\{\/b\}|\{i\}[^{]*\{\/i\}|\[[^\]]+\]\([^)]+\)/.test(
+  return /\{accent\}[^{]*\{\/accent\}|\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}|\{b\}[^{]*\{\/b\}|\{i\}[^{]*\{\/i\}|\[[^\]]+\]\([^)]+\)|\{ul\}|\{ol\}/.test(
     input,
   );
 }

@@ -48,6 +48,11 @@ export const INSPECTOR_TAB_HINT: Record<InspectorTabKey, string> = {
 
 const DEFAULT_TABS: ReadonlyArray<InspectorTabKey> = ["layout", "content", "style"];
 
+/**
+ * The only per-type allow-list. The command rail and the dock body both
+ * resolve through `resolveInspectorVisibleTabs`. Do not add a second map
+ * in inspector-dock.
+ */
 const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<InspectorTabKey>> = {
   hero: ["layout", "content", "style", "data", "motion"],
   featured_talent: ["layout", "content", "style", "data", "motion"],
@@ -99,7 +104,7 @@ const KINDS_WITH_VISIBILITY_RULES: ReadonlySet<string> = new Set([
   "social_links",
 ]);
 
-export function resolveInspectorVisibleTabs(input: {
+function allowedInspectorTabKeys(input: {
   sectionTypeKey: string | null | undefined;
   selectedStandaloneBuilderNode: ReturnType<
     typeof resolveStandaloneBuilderNodeForContent
@@ -129,9 +134,42 @@ export function resolveInspectorVisibleTabs(input: {
     }
     return tabs;
   }
-  const allowed = tabsForSectionType(sectionTypeKey);
-  const set = new Set(allowed);
-  return INSPECTOR_TABS.filter((t) => set.has(t.key)).map((t) => t.key);
+  return tabsForSectionType(sectionTypeKey);
+}
+
+/**
+ * Single tab resolver for the command rail AND the dock body.
+ * Curated cms_page_sections rows and freeform builder nodes both go through
+ * here so the inspector product stays one chrome (Layout / Content / Style /
+ * Animation / Data). Empty tabs stay hidden via the allow-lists above.
+ */
+export function resolveInspectorVisibleTabs(input: {
+  sectionTypeKey: string | null | undefined;
+  selectedStandaloneBuilderNode: ReturnType<
+    typeof resolveStandaloneBuilderNodeForContent
+  >;
+}): ReadonlyArray<InspectorTabKey> {
+  const allowed = new Set(allowedInspectorTabKeys(input));
+  return INSPECTOR_TABS.filter((t) => allowed.has(t.key)).map((t) => t.key);
+}
+
+/** The Style tab always mounts this panel, for curated sections and freeform nodes. */
+export const INSPECTOR_STYLE_MOUNT = "StylePanel" as const;
+export type InspectorStyleMount = typeof INSPECTOR_STYLE_MOUNT;
+
+export function resolveInspectorChrome(input: {
+  sectionTypeKey: string | null | undefined;
+  selectedStandaloneBuilderNode: ReturnType<
+    typeof resolveStandaloneBuilderNodeForContent
+  >;
+}): {
+  tabKeys: ReadonlyArray<InspectorTabKey>;
+  styleMount: InspectorStyleMount;
+} {
+  return {
+    tabKeys: resolveInspectorVisibleTabs(input),
+    styleMount: INSPECTOR_STYLE_MOUNT,
+  };
 }
 
 export function inspectorTabItemsForKeys(

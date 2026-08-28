@@ -272,6 +272,70 @@ export async function resolveTenantContext(
   return value;
 }
 
+/**
+ * Is this profile code on the tenant's PUBLICLY VISIBLE roster?
+ *
+ * WHY THIS LIVES IN THE EDGE LAYER
+ * ────────────────────────────────
+ * The page-level gate (`_guards/agency-roster-visibility`) renders the right
+ * thing — not-found body, noindex, no Inquire CTA — but it cannot fix the
+ * STATUS. `t/[profileCode]/loading.tsx` puts an implicit Suspense boundary on
+ * the segment, so Next flushes the shell before any server component resolves
+ * and a later notFound() cannot retract a 200 already on the wire. Measured,
+ * not assumed. That leaves a soft 404: not-found content served as 200, which
+ * is what crawlers and link-preview bots read.
+ *
+ * Deciding it here, before the response starts, is the only way to send a real
+ * 404 without deleting the loading skeleton for every talent page.
+ *
+ * COST: this is a hot path, so the answer is cached per (tenant, code) on the
+ * SAME 60s TTL as the host lookup above. Steady state is one query per profile
+ * per minute per worker, not one per request. A failure returns `true` —
+ * fail-OPEN — because a transient DB blip must never 404 a real profile; the
+ * page-level gate is still there and will render the not-found body if the
+ * talent genuinely is off-roster.
+ */
+export async function isProfileCodeOnTenantRoster(
+  request: NextRequest,
+  tenantId: string,
+  profileCode: string,
+): Promise<boolean> {
+  const key = `${tenantId}/_roster/${profileCode.toLowerCase()}`;
+  const cached = cacheGet(key);
+  if (cached) return cached.kind !== "not_found";
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return true; // no client — fail open, never hide a real page
+
+  try {
+    const { data, error } = await supabase
+      .from("talent_profiles")
+      .select("id, agency_talent_roster!inner(tenant_id, status, agency_visibility, talent_site_hidden)")
+      .eq("profile_code", profileCode)
+      .eq("agency_talent_roster.tenant_id", tenantId)
+      .eq("agency_talent_roster.status", "active")
+      .in("agency_talent_roster.agency_visibility", ["site_visible", "featured"])
+      .eq("agency_talent_roster.talent_site_hidden", false)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return true; // fail open
+
+    const onRoster = Boolean(data);
+    // Reuse the host cache's two buckets: a hit means "serve it", a miss means
+    // "404 it". Nothing else reads these keys — they are namespaced by /_roster/.
+    cacheSet(
+      key,
+      onRoster
+        ? { kind: "app", tenantId: null, hostname: key }
+        : { kind: "not_found", tenantId: null, hostname: key },
+    );
+    return onRoster;
+  } catch {
+    return true; // fail open
+  }
+}
+
 export type TalentSiteEdgeClient = {
   rpc: (
     fn: "talent_site_domain_lookup",

@@ -36,9 +36,14 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import {
+  loadDiscountRedemptions,
+  type DiscountRedemptionRow,
+} from "@/lib/billing/discount-redemptions";
+import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
+import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
   PRODUCT_DISCOUNT_SELECT,
   normalizeProductDiscount,
@@ -380,6 +385,111 @@ export async function archiveDiscount(
 
   revalidateCommerceSurfaces();
   return { ok: true };
+}
+
+// ─── updateDiscount ──────────────────────────────────────────────────────────
+
+/**
+ * The four fields a live code can still change.
+ *
+ * EVERYTHING ELSE IS FROZEN BY STRIPE, not by us. A coupon's `percent_off`,
+ * `amount_off`, `duration`, `duration_in_months` and `max_redemptions` are
+ * immutable once it exists, and a promotion code accepts only `active` and
+ * `metadata` — so changing a cap or a percentage genuinely means archiving the
+ * code and minting a new one. (That is why TULALA2FREE had to be rebuilt to go
+ * from uncapped to 30 spots.) The drawer shows those fields locked rather than
+ * hiding them, so the constraint is discovered before a campaign ships instead
+ * of after.
+ *
+ * What is safe here:
+ *   - `name`     — Stripe allows a coupon rename; we mirror it, best-effort.
+ *   - `campaign` — ours entirely; a reporting label.
+ *   - `perCustomerLimit` — ours entirely; the redemption LEDGER enforces it at
+ *     checkout, so it takes effect immediately with no Stripe involvement.
+ *   - `startsAt` — ours entirely; we hold the code back before this time, since
+ *     Stripe has no start date. Clearable.
+ */
+const updateDiscountSchema = z
+  .object({
+    discountId: pgUuidSchema(),
+    name: z.string().trim().min(1, "Give the code an internal name.").max(120),
+    campaign: z.string().trim().max(60).nullable(),
+    perCustomerLimit: z.number().int().min(1).max(1000),
+    startsAt: z.string().trim().min(1).nullable(),
+  })
+  .strict();
+
+export type UpdateDiscountResult = { ok: true } | { ok: false; error: string };
+
+export async function updateDiscount(
+  raw: unknown,
+): Promise<UpdateDiscountResult> {
+  const gate = await requirePlatformAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const parsed = updateDiscountSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const input = parsed.data;
+
+  // A start date is only meaningful as a real instant; a half-typed one would
+  // otherwise persist as an epoch date and hold the code back forever.
+  let startsAt: string | null = null;
+  if (input.startsAt) {
+    const when = new Date(input.startsAt);
+    if (Number.isNaN(when.getTime())) {
+      return { ok: false, error: "Start date is not a valid date." };
+    }
+    startsAt = when.toISOString();
+  }
+
+  const outcome = await applyDiscountEdit(
+    {
+      discountId: input.discountId,
+      name: input.name,
+      campaign: input.campaign,
+      perCustomerLimit: input.perCustomerLimit,
+      startsAt,
+    },
+    CLIENT_ERROR.update,
+  );
+  if (!outcome.ok) return outcome;
+
+  revalidateCommerceSurfaces();
+  return { ok: true };
+}
+
+// ─── listDiscountRedemptions ─────────────────────────────────────────────────
+
+/**
+ * The people behind the `12/30`.
+ *
+ * Called when the usage drawer OPENS rather than loaded with the tab: the list
+ * is per-code and unbounded in principle, and nobody pages through redemptions
+ * on the way to editing a price.
+ */
+export async function listDiscountRedemptions(
+  raw: { discountId: string },
+): Promise<
+  | { ok: true; redemptions: DiscountRedemptionRow[] }
+  | { ok: false; error: string }
+> {
+  const gate = await requirePlatformAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const parsed = z
+    .object({ discountId: pgUuidSchema() })
+    .strict()
+    .safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  return {
+    ok: true,
+    redemptions: await loadDiscountRedemptions(parsed.data.discountId),
+  };
 }
 
 // ─── validateDiscount (PUBLIC — not super_admin-gated) ───────────────────────

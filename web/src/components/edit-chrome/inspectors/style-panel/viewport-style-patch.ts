@@ -21,6 +21,11 @@ import type {
 import { isResponsivePlumbedStyleKey } from "@/lib/site-admin/builder-node/responsive-style-keys";
 
 import type { NodeViewport } from "./section-types";
+import {
+  mergeHoverLane,
+  type HoverLaneStyle,
+  type StyleValueWithHover,
+} from "./hover-lane";
 
 /**
  * Split a patch by whether the renderer has a breakpoint lane for each key.
@@ -67,7 +72,7 @@ export interface StyleCleaners {
 export type StyleWriteTarget = "base" | "container" | "responsive";
 
 export function styleWriteTarget(
-  viewport: NodeViewport,
+  viewport: string,
   scope: string,
 ): StyleWriteTarget {
   if (viewport === "desktop") return "base";
@@ -83,7 +88,7 @@ export function styleWriteTarget(
  */
 export function styleWithViewportPatch(
   currentStyle: BuilderNodeStyle | undefined,
-  viewport: NodeViewport,
+  viewport: string,
   scope: string,
   patch: Partial<BuilderNodeStyleValue>,
   { cleanStyle, cleanValue }: StyleCleaners,
@@ -92,7 +97,10 @@ export function styleWithViewportPatch(
   // bucket writes below index their maps without a cast.
   if (viewport === "desktop") return cleanStyle({ ...currentStyle, ...patch });
 
-  if (styleWriteTarget(viewport, scope) === "container") {
+  if (
+    styleWriteTarget(viewport, scope) === "container" &&
+    (viewport === "tablet" || viewport === "mobile")
+  ) {
     return cleanStyle({
       ...currentStyle,
       containerQueries: {
@@ -113,6 +121,38 @@ export function styleWithViewportPatch(
         ...(currentStyle?.responsive?.[viewport] ?? {}),
         ...patch,
       }),
+    },
+  });
+}
+
+/**
+ * Hover writes: desktop → `style.hover`. Tablet/mobile →
+ * `style.responsive.{tier}.hover` (the viewport router spine).
+ */
+export function styleWithHoverPatch(
+  currentStyle: BuilderNodeStyle | undefined,
+  viewport: NodeViewport,
+  patch: Partial<HoverLaneStyle>,
+  { cleanStyle, cleanValue }: StyleCleaners,
+): BuilderNodeStyle | undefined {
+  if (viewport === "desktop") {
+    return cleanStyle({
+      ...currentStyle,
+      hover: mergeHoverLane(currentStyle?.hover as HoverLaneStyle | undefined, patch),
+    });
+  }
+  const bucket = currentStyle?.responsive?.[viewport] as
+    | StyleValueWithHover
+    | undefined;
+  const nextBucket = cleanValue({
+    ...(bucket ?? {}),
+    hover: mergeHoverLane(bucket?.hover, patch),
+  } as BuilderNodeStyleValue);
+  return cleanStyle({
+    ...currentStyle,
+    responsive: {
+      ...(currentStyle?.responsive ?? {}),
+      [viewport]: nextBucket,
     },
   });
 }

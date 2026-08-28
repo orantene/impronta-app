@@ -15,8 +15,11 @@
  * codes across before the old screen was deleted.
  *
  * Drawer state lives in the URL (`?d=new`, `?d=account:new`) via `useUrlDrawer`,
- * so a deep link restores the open drawer and Back closes it.
+ * so a deep link restores the open drawer and Back closes it. On a COLD load the
+ * server's reading of `?d=` seeds it -- see the drawer-state comment below.
  */
+
+import * as React from "react";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -26,6 +29,8 @@ import type { AccountDiscountRow } from "@/lib/billing/subscription-discounts";
 import { HQ, F } from "../_tokens";
 import { SectionLabel, EmptyHint } from "../_primitives";
 import { DiscountCreateDrawer } from "./DiscountCreateDrawer";
+import { DiscountEditDrawer } from "./DiscountEditDrawer";
+import { DiscountUsageDrawer } from "./DiscountUsageDrawer";
 import { AccountDiscountDrawer } from "./AccountDiscountDrawer";
 import {
   AccountGrantRow,
@@ -44,13 +49,35 @@ export function DiscountsView({
   discounts,
   accountDiscounts,
   tiers,
+  initialDrawerId = null,
 }: {
   discounts: PricingDiscountRow[];
   accountDiscounts: AccountGrant[];
   tiers: DiscountTierOption[];
+  /** `?d=` as the SERVER saw it. See the drawer-state comment below. */
+  initialDrawerId?: string | null;
 }) {
   const t = useT();
-  const [openDrawer, setOpenDrawer] = useUrlDrawer<string>();
+  const [urlDrawer, setOpenDrawer] = useUrlDrawer<string>();
+
+  // `useUrlDrawer` reads `?d=` through useSearchParams, which is only populated
+  // once the client has hydrated. Invisible when you CLICK a button, but on a
+  // cold load of a shared link the drawer stayed shut while the id sat right
+  // there in the address bar. So the server's reading seeds the first render and
+  // the hook takes over from the first interaction. `closed` is what makes
+  // closing stick: without it the seed would reopen the drawer the user just
+  // dismissed, since the prop cannot change without a fresh navigation.
+  const [closed, setClosed] = React.useState(false);
+  const openDrawer = urlDrawer ?? (closed ? null : initialDrawerId);
+
+  const editId = openDrawer?.startsWith("edit:") ? openDrawer.slice(5) : null;
+  const usageId = openDrawer?.startsWith("uses:") ? openDrawer.slice(5) : null;
+  const editingDiscount = editId
+    ? (discounts.find((d) => d.id === editId) ?? null)
+    : null;
+  const usageDiscount = usageId
+    ? (discounts.find((d) => d.id === usageId) ?? null)
+    : null;
 
   const activeCodes = discounts.filter((d) => d.isActive);
   const archivedCodes = discounts.filter((d) => !d.isActive);
@@ -62,11 +89,17 @@ export function DiscountsView({
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <PrimaryButton
           label={t(`${P}.newCode`)}
-          onClick={() => setOpenDrawer("new")}
+          onClick={() => {
+            setClosed(false);
+            setOpenDrawer("new");
+          }}
         />
         <SecondaryButton
           label={t(`${P}.newAccountGrant`)}
-          onClick={() => setOpenDrawer("account:new")}
+          onClick={() => {
+            setClosed(false);
+            setOpenDrawer("account:new");
+          }}
         />
         <ImportFromStripeButton />
       </div>
@@ -96,7 +129,19 @@ export function DiscountsView({
           ]}
         >
           {activeCodes.map((row) => (
-            <DiscountCodeRow key={row.id} row={row} tiers={tiers} />
+            <DiscountCodeRow
+              key={row.id}
+              row={row}
+              tiers={tiers}
+              onEdit={() => {
+                setClosed(false);
+                setOpenDrawer(`edit:${row.id}`);
+              }}
+              onViewUses={() => {
+                setClosed(false);
+                setOpenDrawer(`uses:${row.id}`);
+              }}
+            />
           ))}
         </Table>
       )}
@@ -109,7 +154,16 @@ export function DiscountsView({
         >
           <Table grid={CODE_GRID} headers={[]} dimmed>
             {archivedCodes.map((row) => (
-              <DiscountCodeRow key={row.id} row={row} tiers={tiers} dimmed />
+              <DiscountCodeRow
+                key={row.id}
+                row={row}
+                tiers={tiers}
+                dimmed
+                onViewUses={() => {
+                  setClosed(false);
+                  setOpenDrawer(`uses:${row.id}`);
+                }}
+              />
             ))}
           </Table>
         </Archived>
@@ -155,10 +209,40 @@ export function DiscountsView({
       )}
 
       {openDrawer === "new" && (
-        <DiscountCreateDrawer tiers={tiers} onClose={() => setOpenDrawer(null)} />
+        <DiscountCreateDrawer
+          tiers={tiers}
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
+      )}
+      {editingDiscount && (
+        <DiscountEditDrawer
+          row={editingDiscount}
+          tiers={tiers}
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
+      )}
+      {usageDiscount && (
+        <DiscountUsageDrawer
+          row={usageDiscount}
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
       )}
       {openDrawer === "account:new" && (
-        <AccountDiscountDrawer onClose={() => setOpenDrawer(null)} />
+        <AccountDiscountDrawer
+          onClose={() => {
+            setClosed(true);
+            setOpenDrawer(null);
+          }}
+        />
       )}
     </div>
   );

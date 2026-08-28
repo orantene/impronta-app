@@ -156,7 +156,6 @@ export const ES_SECTION_PANEL_TEXT: Record<string, string> = {
   "Below image": "Debajo de la imagen",
   "Big stat + caption per item.": "Cifra grande y leyenda por elemento.",
   "Bio": "Biografía",
-  "Blocks": "Bloques",
   "Blueprints overwrite layout fields only; your copy stays. Click Save draft to persist.": "Las plantillas solo sobrescriben los campos de diseño; tu texto se mantiene. Haz clic en Guardar borrador para conservarlo.",
   "Body copy": "Texto del cuerpo",
   "Border Color": "Color del borde",

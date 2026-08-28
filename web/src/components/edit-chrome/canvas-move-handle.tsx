@@ -3,13 +3,14 @@
 /**
  * Direct manipulation — canvas move grip.
  *
- * A grip at the centre of the selected freeform block that drags it around by
- * writing the non-destructive `style.translate` escape (CSS `translate`, e.g.
- * "24px -8px"). Unlike switching to absolute positioning, translate offsets
- * the element visually while leaving it in flow — so it's reversible and never
- * collapses the surrounding layout. Completes the resize / space / MOVE trio.
+ * In-flow blocks drag by writing the non-destructive `style.translate` escape
+ * (CSS `translate`, e.g. "24px -8px"). That offsets the element visually while
+ * leaving it in flow, so it is reversible and never collapses the surrounding
+ * layout. Absolute / fixed children take a second write path: `top` / `left`
+ * insets (canvas-move-place.ts). Drag never converts an in-flow node to
+ * absolute. Completes the resize / space / MOVE trio.
  *
- * Same mechanism as the resize + spacing handles: read the live translate on
+ * Same mechanism as the resize + spacing handles: read the live origin on
  * grab, preview by writing the element's inline style during the drag, commit
  * once on release through the normal patch flow. 8px grid snap; ⌘ = free
  * (the shared modifier convention across the handle set — see
@@ -20,18 +21,19 @@ import { useEffect, useRef, useState } from "react";
 
 import { useEditorLocale } from "./use-editor-locale";
 
-import {
-  equalSpacingSnapDelta,
-  findEqualSpacing,
-  type GuideBox,
-  type SpacingGuide,
-} from "./canvas-align-guides";
+import { type GuideBox, type SpacingGuide } from "./canvas-align-guides";
 import {
   collectGuideViewportLines,
   GUIDE_SNAP_HIGHLIGHT,
-  snapToGuideLines,
   type GuideViewportLines,
 } from "./canvas-guide-snap";
+import {
+  applyMovePreview,
+  readPaintedMoveOrigin,
+  resolveMoveDragStep,
+  type AbsolutePlaceCommit,
+  type MovePlacement,
+} from "./canvas-move-place";
 
 interface Rect {
   top: number;
@@ -40,13 +42,6 @@ interface Rect {
   height: number;
 }
 
-const GRID = 8;
-// Pointer distance within which the dragged block snaps its centre to the
-// parent's centre (and shows an alignment guide), Figma/Webflow-style.
-const ALIGN = 6;
-// Pointer distance within which the move softly snaps to an EQUAL-SPACING
-// (distribution) position between the nearest siblings on an axis.
-const SPACING_SNAP = 6;
 // Boxes roomier than this get the grip at their CENTRE. Smaller boxes still
 // get a grip — a 40px logo is exactly the block an operator most needs to
 // nudge — but it pins just OUTSIDE the bottom edge so a centre control never
@@ -84,12 +79,17 @@ export function CanvasMoveHandle({
   rect,
   liveEl,
   onCommitTranslate,
+  onCommitPlace,
+  placement = "translate",
   accent = "#7c3aed",
   overlayRef,
 }: {
   rect: Rect;
   liveEl: HTMLElement | null;
   onCommitTranslate: (x: number, y: number) => void;
+  /** Absolute / fixed drag-to-place. Omitted for in-flow (translate) moves. */
+  onCommitPlace?: (commit: AbsolutePlaceCommit) => void;
+  placement?: MovePlacement;
   accent?: string;
   /**
    * When provided, the parent owns the move-grip overlay box's
@@ -122,10 +122,11 @@ export function CanvasMoveHandle({
     py: number;
     x: number;
     y: number;
+    placement: MovePlacement;
     natCx: number;
     natCy: number;
-    // Natural (untranslated) top-left, so a candidate translate maps to a full
-    // box for the equal-spacing geometry.
+    // Natural (untranslated / zero-inset) top-left, so a candidate offset maps
+    // to a full box for the equal-spacing geometry.
     natLeft: number;
     natTop: number;
     width: number;
@@ -152,146 +153,38 @@ export function CanvasMoveHandle({
       const start = startRef.current;
       if (!start) return;
       // ⌘ = free (shared modifier convention across the handle set).
-      const free = e.metaKey || e.ctrlKey;
-      const snap = (v: number) =>
-        free ? Math.round(v) : Math.round(v / GRID) * GRID;
-      let x = snap(start.x + (e.clientX - start.px));
-      let y = snap(start.y + (e.clientY - start.py));
-      // Align any of the block's three edges (left/centre/right on X,
-      // top/middle/bottom on Y) to any parent- or sibling-derived snap
-      // coordinate, drawing a guide at the match. Closest wins (⌘ skips).
-      let gv: number | null = null;
-      let gh: number | null = null;
-      let uv: number | null = null;
-      let uh: number | null = null;
-      if (!free) {
-        // The block's edge anchor positions as a function of translate 0.
-        const xAnchors = [
-          start.natCx - start.halfW,
-          start.natCx,
-          start.natCx + start.halfW,
-        ];
-        const yAnchors = [
-          start.natCy - start.halfH,
-          start.natCy,
-          start.natCy + start.halfH,
-        ];
-        let bestX: { guide: number; tx: number; d: number } | null = null;
-        for (const coord of start.snapX) {
-          for (const anchor of xAnchors) {
-            const tx = coord - anchor;
-            const d = Math.abs(tx - x);
-            if (d <= ALIGN && (!bestX || d < bestX.d))
-              bestX = { guide: coord, tx, d };
-          }
-        }
-        if (bestX) {
-          x = Math.round(bestX.tx);
-          gv = bestX.guide;
-        }
-        let bestY: { guide: number; ty: number; d: number } | null = null;
-        for (const coord of start.snapY) {
-          for (const anchor of yAnchors) {
-            const ty = coord - anchor;
-            const d = Math.abs(ty - y);
-            if (d <= ALIGN && (!bestY || d < bestY.d))
-              bestY = { guide: coord, ty, d };
-          }
-        }
-        if (bestY) {
-          y = Math.round(bestY.ty);
-          gh = bestY.guide;
-        }
-        // #31 wiring — operator-placed ruler guides as snap targets (via the
-        // previously dead findGuideSnap). Sibling/parent edge alignment wins
-        // (the stronger, content-derived cue); an unclaimed axis then snaps
-        // any of the block's three edge anchors to the nearest guide line.
-        if (gv === null && start.guideLines.v.length > 0) {
-          let best: { tx: number; line: number; d: number } | null = null;
-          for (const anchor of xAnchors) {
-            const p = anchor + x;
-            const s = snapToGuideLines(p, start.guideLines.v, "y", ALIGN);
-            if (s.guide === null) continue;
-            const d = Math.abs(s.pos - p);
-            if (!best || d < best.d) best = { tx: x + (s.pos - p), line: s.guide, d };
-          }
-          if (best) {
-            x = Math.round(best.tx);
-            uv = best.line;
-          }
-        }
-        if (gh === null && start.guideLines.h.length > 0) {
-          let best: { ty: number; line: number; d: number } | null = null;
-          for (const anchor of yAnchors) {
-            const p = anchor + y;
-            const s = snapToGuideLines(p, start.guideLines.h, "x", ALIGN);
-            if (s.guide === null) continue;
-            const d = Math.abs(s.pos - p);
-            if (!best || d < best.d) best = { ty: y + (s.pos - p), line: s.guide, d };
-          }
-          if (best) {
-            y = Math.round(best.ty);
-            uh = best.line;
-          }
-        }
-      }
-      // 4A #8 — equal-spacing (distribution). On an axis NOT already claimed by
-      // a hard edge alignment, softly pull toward the position where the gaps
-      // to the nearest siblings on each side are equal, and draw teal gap pills
-      // there. Edge alignment (above) takes priority — it's the stronger cue.
-      const spacing: SpacingGuide[] = [];
-      if (!free && start.sibBoxes.length > 0) {
-        const boxAt = (tx: number, ty: number): GuideBox => ({
-          left: start.natLeft + tx,
-          top: start.natTop + ty,
-          width: start.width,
-          height: start.height,
-        });
-        if (gv === null && uv === null) {
-          const delta = equalSpacingSnapDelta({
-            dragged: boxAt(x, y),
-            siblings: start.sibBoxes,
-            axis: "x",
-            tol: SPACING_SNAP,
-          });
-          if (delta !== null) x = Math.round(x + delta);
-        }
-        if (gh === null && uh === null) {
-          const delta = equalSpacingSnapDelta({
-            dragged: boxAt(x, y),
-            siblings: start.sibBoxes,
-            axis: "y",
-            tol: SPACING_SNAP,
-          });
-          if (delta !== null) y = Math.round(y + delta);
-        }
-        // After any snap, re-test at the final position to decide which pills
-        // to draw (only when genuinely balanced).
-        const finalBox = boxAt(x, y);
-        for (const axis of ["x", "y"] as const) {
-          const match = findEqualSpacing({
-            dragged: finalBox,
-            siblings: start.sibBoxes,
-            axis,
-            tol: 1,
-          });
-          if (match) spacing.push(match);
-        }
-      }
+      const stepped = resolveMoveDragStep({
+        origin: start,
+        rawX: start.x + (e.clientX - start.px),
+        rawY: start.y + (e.clientY - start.py),
+        free: e.metaKey || e.ctrlKey,
+      });
+      const { x, y } = stepped;
       latestRef.current = { x, y };
       setLive({ x, y });
       setGuides({
-        v: gv,
-        h: gh,
+        v: stepped.alignV,
+        h: stepped.alignH,
         parent: start.parent,
-        spacing,
-        userV: uv,
-        userH: uh,
+        spacing: stepped.spacing,
+        userV: stepped.userV,
+        userH: stepped.userH,
       });
-      if (liveEl) liveEl.style.translate = `${x}px ${y}px`;
+      if (liveEl) applyMovePreview(liveEl, start.placement, x, y);
     };
     const onUp = () => {
-      onCommitTranslate(latestRef.current.x, latestRef.current.y);
+      const start = startRef.current;
+      const latest = latestRef.current;
+      if (start?.placement === "absolute" && onCommitPlace) {
+        onCommitPlace({
+          left: latest.x,
+          top: latest.y,
+          startLeft: start.x,
+          startTop: start.y,
+        });
+      } else {
+        onCommitTranslate(latest.x, latest.y);
+      }
       setDragging(false);
       setGuides({
         v: null,
@@ -308,7 +201,7 @@ export function CanvasMoveHandle({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [dragging, liveEl, onCommitTranslate]);
+  }, [dragging, liveEl, onCommitPlace, onCommitTranslate]);
 
   const smallBox = rect.width < MIN_BOX || rect.height < MIN_BOX;
   // Flip to the right side when the box hugs the viewport's left edge.
@@ -319,7 +212,7 @@ export function CanvasMoveHandle({
     e.preventDefault();
     e.stopPropagation();
     const current = liveEl
-      ? parseTranslate(getComputedStyle(liveEl).translate)
+      ? readPaintedMoveOrigin(liveEl, placement)
       : { x: 0, y: 0 };
     // Natural (untranslated) centre = current centre minus the applied
     // translate — the fixed anchor the alignment maths references.
@@ -367,6 +260,7 @@ export function CanvasMoveHandle({
       py: e.clientY,
       x: current.x,
       y: current.y,
+      placement,
       natCx,
       natCy,
       natLeft,
@@ -545,18 +439,30 @@ export function CanvasMoveHandle({
     >
       <button
         type="button"
-        aria-label="Drag to move (double-click to reset position)"
-        title="Drag to move · double-click to snap back to natural position"
+        aria-label={
+          placement === "absolute"
+            ? t("Drag to place (double-click to reset position)")
+            : t("Drag to move (double-click to reset position)")
+        }
+        title={
+          placement === "absolute"
+            ? t("Drag to place · double-click to snap back to origin")
+            : t("Drag to move · double-click to snap back to natural position")
+        }
         data-canvas-move-handle=""
         data-canvas-move-handle-placement={smallBox ? "outside" : "center"}
+        data-canvas-move-mode={placement}
         onPointerDown={begin}
         onDoubleClick={(e) => {
-          // Recover a strayed block: reset its translate to 0,0 (natural
-          // position). The commit path drops the translate entirely at 0,0,
-          // restoring the block on every breakpoint.
+          // Recover a strayed block: reset translate to 0,0 (natural position)
+          // or pin an absolute child back at 0,0 origin.
           e.preventDefault();
           e.stopPropagation();
-          onCommitTranslate(0, 0);
+          if (placement === "absolute" && onCommitPlace) {
+            onCommitPlace({ left: 0, top: 0, startLeft: 0, startTop: 0 });
+          } else {
+            onCommitTranslate(0, 0);
+          }
         }}
         style={{
           position: "absolute",
@@ -623,7 +529,15 @@ export function CanvasMoveHandle({
           {/* live offset + a one-line modifier hint (W3-T6). ⌘ bypasses the
            *  grid snap + sibling align ("free") — the only modifier this handle
            *  implements, so the only one advertised. */}
-          <span>{`move ${live.x}, ${live.y}`}</span>
+          <span>
+            {placement === "absolute"
+              ? t("place {x}, {y}")
+                  .replace("{x}", String(live.x))
+                  .replace("{y}", String(live.y))
+              : t("move {x}, {y}")
+                  .replace("{x}", String(live.x))
+                  .replace("{y}", String(live.y))}
+          </span>
           <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
             {t("⌘ free")}
           </span>

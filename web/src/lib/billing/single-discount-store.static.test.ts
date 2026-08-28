@@ -116,7 +116,37 @@ test("product_discounts is written only where discounts are validated", () => {
       /from\("product_discounts"\)[\s\S]{0,400}?\.(insert|update|upsert|delete)\(/,
     ),
   );
-  assert.deepEqual(writers, ["lib/server-actions/admin-product-discounts.ts"]);
+  assert.deepEqual(writers, [
+    // The edit write. It sits in a library rather than beside the other
+    // mutations for two mechanical reasons — the action file is at its
+    // 800-line cap, and its raw `.from()` calls are grandfathered BY COUNT in
+    // the eslint suppressions, so new ones there break the ratchet for
+    // everyone. Sanctioned only because it is unreachable except through the
+    // gated action, which the next assertion pins.
+    "lib/billing/discount-edit.ts",
+    "lib/server-actions/admin-product-discounts.ts",
+  ]);
+});
+
+test("the discount-edit library has exactly one caller, and it is gated", () => {
+  // Moving a write out of a "use server" file moves it out of that file's gate
+  // too. What keeps the move honest is that nothing else may import it: one
+  // caller, and that caller runs `requirePlatformAdmin` before delegating.
+  const importers = withoutTests(grep(/from "@\/lib\/billing\/discount-edit"/));
+  assert.deepEqual(importers, ["lib/server-actions/admin-product-discounts.ts"]);
+
+  const action = readFileSync(
+    join(SRC, "lib/server-actions/admin-product-discounts.ts"),
+    "utf8",
+  );
+  const updateFn = action.slice(action.indexOf("export async function updateDiscount("));
+  const gateAt = updateFn.indexOf("requirePlatformAdmin()");
+  const callAt = updateFn.indexOf("applyDiscountEdit(");
+  assert.ok(gateAt !== -1, "updateDiscount must gate on requirePlatformAdmin");
+  assert.ok(
+    callAt !== -1 && gateAt < callAt,
+    "the admin gate must run BEFORE the edit is applied",
+  );
 });
 
 test("subscription_discounts is written only by its own library and actions", () => {

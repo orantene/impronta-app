@@ -302,24 +302,11 @@ export function SurfaceDepthBody({
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
                   Text shadow
                 </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="0 2px 8px rgba(0,0,0,.4)"
-                  value={selectedStandaloneViewportStyle?.textShadow ?? ""}
-                  onChange={(e) =>
-                    patchSelectedStandaloneStyle({
-                      textShadow: e.target.value.trim() || undefined,
-                    })
+                <ShadowStackBuilder
+                  kind="text"
+                  value={selectedStandaloneViewportStyle?.textShadow}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({ textShadow: next })
                   }
                 />
               </div>

@@ -311,7 +311,7 @@ export function CatalogGalleryView({
         />
       </div>
 
-      {currentView === "connected" ? (
+      {currentView === "data" ? (
         <SurfaceSwitcher
           options={CONNECTED_DATA_GROUPS}
           value={connectedSurface}

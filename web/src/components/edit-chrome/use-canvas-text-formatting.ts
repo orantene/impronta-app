@@ -18,10 +18,17 @@ import {
   getActiveCanvasLexicalEditor,
   subscribeActiveCanvasLexicalEditor,
 } from "./canvas-lexical-bridge";
+import {
+  $selectionListType,
+  TOGGLE_BULLET_LIST_COMMAND,
+  TOGGLE_NUMBER_LIST_COMMAND,
+} from "./rich-editor/plugins/list-commands";
 
 export interface CanvasTextFormattingState {
   isBold: boolean;
   isItalic: boolean;
+  isBulletList: boolean;
+  isNumberedList: boolean;
 }
 
 export function useCanvasTextFormattingFromEditor(
@@ -31,11 +38,18 @@ export function useCanvasTextFormattingFromEditor(
   const [state, setState] = useState<CanvasTextFormattingState>({
     isBold: false,
     isItalic: false,
+    isBulletList: false,
+    isNumberedList: false,
   });
 
   useEffect(() => {
     if (!enabled || !editor) {
-      setState({ isBold: false, isItalic: false });
+      setState({
+        isBold: false,
+        isItalic: false,
+        isBulletList: false,
+        isNumberedList: false,
+      });
       return;
     }
 
@@ -44,12 +58,20 @@ export function useCanvasTextFormattingFromEditor(
       editor.getEditorState().read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection)) {
-          setState({ isBold: false, isItalic: false });
+          setState({
+            isBold: false,
+            isItalic: false,
+            isBulletList: false,
+            isNumberedList: false,
+          });
           return;
         }
+        const listType = $selectionListType();
         setState({
           isBold: selection.hasFormat("bold"),
           isItalic: selection.hasFormat("italic"),
+          isBulletList: listType === "bullet",
+          isNumberedList: listType === "number",
         });
       });
     }
@@ -78,7 +100,22 @@ export function useCanvasTextFormattingFromEditor(
     editor?.dispatchCommand(FORMAT_TEXT_COMMAND, "italic");
   }, [editor]);
 
-  return { state, toggleBold, toggleItalic, editor };
+  const toggleBulletList = useCallback(() => {
+    editor?.dispatchCommand(TOGGLE_BULLET_LIST_COMMAND, undefined);
+  }, [editor]);
+
+  const toggleNumberedList = useCallback(() => {
+    editor?.dispatchCommand(TOGGLE_NUMBER_LIST_COMMAND, undefined);
+  }, [editor]);
+
+  return {
+    state,
+    toggleBold,
+    toggleItalic,
+    toggleBulletList,
+    toggleNumberedList,
+    editor,
+  };
 }
 
 /** Toolbar outside composer — reads the active canvas inline editor. */

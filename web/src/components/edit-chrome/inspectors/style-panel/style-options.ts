@@ -337,6 +337,16 @@ export const BUILDER_NODE_BLEND_OPTIONS: ReadonlyArray<SegmentedOption<string>> 
   { value: "overlay", label: "Overlay" },
   { value: "darken", label: "Darken" },
   { value: "lighten", label: "Lighten" },
+  { value: "color-dodge", label: "Dodge" },
+  { value: "color-burn", label: "Burn" },
+  { value: "hard-light", label: "Hard light" },
+  { value: "soft-light", label: "Soft light" },
+  { value: "difference", label: "Difference" },
+  { value: "exclusion", label: "Exclusion" },
+  { value: "hue", label: "Hue" },
+  { value: "saturation", label: "Sat." },
+  { value: "color", label: "Color" },
+  { value: "luminosity", label: "Luminosity" },
 ];
 
 export const BUILDER_NODE_BG_CLIP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [

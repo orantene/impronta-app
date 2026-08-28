@@ -10,8 +10,9 @@
  *   • mode    — "all" | "hidden" | "customized"
  *   • surface — Connected-view sub-grouping ("agency" | "talent")
  *
- * `surface` is stored but is only relevant when `tab === "connected"`; for
- * every other tab it is preserved for symmetry but ignored by the predicates.
+ * `surface` is stored but is only relevant when `tab === "data"` (or the
+ * legacy `connected` id); for every other tab it is preserved for symmetry
+ * but ignored by the predicates.
  */
 
 export type FilterPresetMode = "all" | "hidden" | "customized";
@@ -26,8 +27,8 @@ export interface FilterPreset {
   tab: string | null;
   /** Filter mode. */
   mode: FilterPresetMode;
-  /** Connected-view surface dimension (stored on every preset; honoured only
-   *  when tab === "connected"). */
+  /** Data-view surface dimension (stored on every preset; honoured only
+   *  when tab is Data / the legacy connected id). */
   surface: FilterPresetSurface;
 }
 
@@ -58,7 +59,7 @@ export function makePreset(
 export const BUILT_IN_PRESETS: FilterPreset[] = [
   makePreset("all-components", "All", { tab: null, mode: "all" }),
   makePreset("awaiting-review", "Awaiting review", {
-    tab: "page_templates",
+    tab: "designs",
     mode: "customized",
   }),
   makePreset("hidden-items", "Hidden", { tab: null, mode: "hidden" }),
@@ -134,8 +135,13 @@ export function stateMatchesPreset(
 ): boolean {
   if (state.tab !== preset.tab) return false;
   if (state.mode !== preset.mode) return false;
-  // Surface only compared for the connected tab.
-  if (state.tab === "connected" && state.surface !== preset.surface) return false;
+  // Surface only compared for the Data tab (legacy connected id included).
+  if (
+    (state.tab === "data" || state.tab === "connected") &&
+    state.surface !== preset.surface
+  ) {
+    return false;
+  }
   return true;
 }
 

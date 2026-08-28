@@ -14,28 +14,30 @@
  *
  * Wave 0 wires only `resolveTabs` (the de-dup). `resolveCategoriesForTab` +
  * `applyStructureToItems` are provided for WS-B to thread into the gallery
- * read-path. Creating brand-new TABS (which would widen `AddGalleryTab`) is a
- * WS-B follow-up; this module deliberately only renames/reorders/hides the
- * built-in tabs.
+ * read-path. The four UI tabs (Blocks / Designs / Data / Shell) are the
+ * built-in set; admin structure rows may still name the legacy six-tab ids
+ * and are canonicalized on read.
  */
 
 import { ADD_GALLERY_CATEGORIES } from "./registry";
 import type { AddGalleryCategoryDef, AddGalleryItem, AddGalleryTab } from "./types";
+import {
+  CODE_TAB_LABELS,
+  GALLERY_TAB_IDS,
+  LEGACY_TAB_STRUCTURE_FALLBACKS,
+  canonicalGalleryTab,
+} from "./gallery-tab-ids";
+
+export {
+  allowListHasPageTemplates,
+  canonicalGalleryTab,
+  isCanonicalGalleryTab,
+  normalizeAllowedTabs,
+} from "./gallery-tab-ids";
 
 /** The canonical built-in tabs, in order. THE single source (was duplicated). */
-export const CODE_TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
-  { id: "layout", label: "Layout" },
-  { id: "elements", label: "Elements" },
-  { id: "sections", label: "Sections" },
-  { id: "connected", label: "Connected" },
-  { id: "page_templates", label: "Page Templates" },
-  // WS-A A7 — shell templates tab. Listed here so the single-source resolvers
-  // (`resolveTabs`, the Lab's `TAB_LABEL`/`ALL_TABS`) know its label/order; the
-  // live "+" gallery still only shows it where a surface's `allowedTabs`
-  // includes "shell" AND items exist (the same gating `page_templates` uses), so
-  // adding it here does NOT make it appear on any page-builder surface.
-  { id: "shell", label: "Shell" },
-];
+export const CODE_TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
+  GALLERY_TAB_IDS.map((id) => ({ id, label: CODE_TAB_LABELS[id] }));
 
 /** One `builder_catalog_structure` row. `ref` = 'tab:<id>' | 'cat:<id>' | 'item:<id>'. */
 export interface CatalogStructureRow {
@@ -54,6 +56,18 @@ export interface CatalogStructureRow {
 export type CatalogStructureMap = Record<string, CatalogStructureRow>;
 
 function tabRow(structure: CatalogStructureMap, id: string) {
+  const canon = canonicalGalleryTab(id) ?? id;
+  const direct = structure[`tab:${canon}`];
+  if (direct) return direct;
+  if (canon === id) {
+    const fallbacks = LEGACY_TAB_STRUCTURE_FALLBACKS[canon as AddGalleryTab];
+    if (fallbacks) {
+      for (const legacy of fallbacks) {
+        const row = structure[`tab:${legacy}`];
+        if (row) return row;
+      }
+    }
+  }
   return structure[`tab:${id}`];
 }
 function catRow(structure: CatalogStructureMap, id: string) {
@@ -62,8 +76,8 @@ function catRow(structure: CatalogStructureMap, id: string) {
 
 /**
  * The resolved tab list: built-in tabs with admin label/order/hidden overrides
- * applied. Empty structure ⇒ `CODE_TAB_DEFS` verbatim. (New tabs are a WS-B
- * follow-up — they require widening `AddGalleryTab` and are out of scope here.)
+ * applied. Empty structure ⇒ `CODE_TAB_DEFS` verbatim. Legacy structure rows
+ * (`tab:elements`, `tab:sections`, …) still apply to the merged four tabs.
  */
 export function resolveTabs(
   structure: CatalogStructureMap = {},
@@ -112,7 +126,7 @@ export function resolveCategoriesForTab(
     (r) =>
       r.kind === "category" &&
       r.created &&
-      r.parent_tab === tab &&
+      canonicalGalleryTab(r.parent_tab) === tab &&
       !ADD_GALLERY_CATEGORIES.some((c) => `cat:${c.id}` === r.ref),
   );
   const all: Array<
@@ -128,7 +142,7 @@ export function resolveCategoriesForTab(
         id: c.id,
         label: ov?.label_override ?? c.label,
         icon: ov?.icon_override ?? c.icon,
-        tab: (ov?.parent_tab as AddGalleryTab | undefined) ?? c.tab,
+        tab: canonicalGalleryTab(ov?.parent_tab) ?? c.tab,
         order: ov?.sort_order ?? null,
         codeIdx,
         hidden: ov?.hidden ?? false,
@@ -169,7 +183,9 @@ export function applyStructureToItems(
   const out: AddGalleryItem[] = [];
   for (const item of items) {
     const row = structure[`item:${item.id}`];
-    const nextTab = (row?.parent_tab as AddGalleryTab | null) ?? item.tab;
+    const nextTab = row?.parent_tab
+      ? (canonicalGalleryTab(row.parent_tab) ?? item.tab)
+      : item.tab;
     const nextCategory = row?.category_override ?? item.category;
     // STRUCTURE HIDE — hiding a tab or a category in Catalog Studio means
     // "tenants shouldn't see this", so the components INSIDE it must drop from

@@ -14,6 +14,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { startWorkspaceUpgrade, openSubscriptionPortal } from "./stripe-billing-actions";
+import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { createTranslator } from "@/i18n/messages";
 
@@ -52,7 +53,7 @@ export function UpgradePlanButton({
     if (pending) return;
     setError(null);
     startTransition(async () => {
-      const result = await startWorkspaceUpgrade(plan, tenantSlug);
+      const result = await startWorkspaceUpgrade(plan, tenantSlug, readPromoCodeFromUrl());
       if (result.ok) {
         // Redirect to Stripe Checkout
         window.location.href = result.redirectUrl;

@@ -1,10 +1,10 @@
 /**
- * ONB-4 — gallery Sections default + Recommended row + inline page CRUD slug preview.
+ * ONB-4 — gallery Designs default + Recommended row + inline page CRUD slug preview.
  *
  * Tests:
- *   1. The default AddGalleryPanel tab is now "sections" (not "layout").
- *   2. A "Recommended" category exists in the sections tab with the curated items.
- *   3. The recommended items are the first category listed for the sections tab.
+ *   1. The default AddGalleryPanel tab is now "designs" (not "blocks").
+ *   2. A "Recommended" category exists in the Designs tab with the curated items.
+ *   3. The recommended items are the first category listed for the Designs tab.
  *   4. slugifyTitle (client-side slug preview) handles edge cases correctly.
  *
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' \
@@ -20,29 +20,29 @@ import {
   RECOMMENDED_SECTION_IDS,
   filterGalleryItemsFrom,
   listGalleryCategoriesForTabFrom,
-} from "@/lib/site-admin/add-gallery";
+} from "@/lib/site-admin/add-gallery/registry";
 
-// ── 1. Default tab is "sections" ─────────────────────────────────────────────
+// ── 1. Default tab is "designs" ─────────────────────────────────────────────
 describe("ONB-4 — AddGalleryPanel default tab", () => {
-  it('The panel default tab is sections (constant import verifies code change)', () => {
-    // The default useState initializer in add-gallery-panel.tsx is now "sections".
+  it("The panel default tab is designs (constant import verifies code change)", () => {
+    // The default useState initializer in add-gallery-panel.tsx is now "designs".
     // We cannot import a React component in a pure-node test runner, so we verify
-    // the registry invariants that make the sections tab meaningful on first open.
-    const sectionCats = ADD_GALLERY_CATEGORIES.filter((c) => c.tab === "sections");
-    assert.ok(sectionCats.length > 0, "sections tab has at least one category");
+    // the registry invariants that make the Designs tab meaningful on first open.
+    const sectionCats = ADD_GALLERY_CATEGORIES.filter((c) => c.tab === "designs");
+    assert.ok(sectionCats.length > 0, "designs tab has at least one category");
 
-    // Recommended is the first category for sections in the canonical order.
+    // Recommended is the first category for designs in the canonical order.
     const firstSectionCat = sectionCats[0];
-    assert.equal(firstSectionCat?.id, "recommended", "Recommended is first in sections tab");
+    assert.equal(firstSectionCat?.id, "recommended", "Recommended is first in designs tab");
   });
 });
 
 // ── 2. Recommended category exists and contains the curated items ─────────────
 describe("ONB-4 — Recommended category", () => {
-  it("ADD_GALLERY_CATEGORIES has a recommended entry in the sections tab", () => {
+  it("ADD_GALLERY_CATEGORIES has a recommended entry in the designs tab", () => {
     const rec = ADD_GALLERY_CATEGORIES.find((c) => c.id === "recommended");
     assert.ok(rec, "recommended category must exist");
-    assert.equal(rec.tab, "sections", "recommended category must be in sections tab");
+    assert.equal(rec.tab, "designs", "recommended category must be in designs tab");
     assert.equal(rec.label, "Recommended", "label must be 'Recommended'");
   });
 
@@ -56,19 +56,19 @@ describe("ONB-4 — Recommended category", () => {
 
   it("filterGalleryItemsFrom returns items in the recommended category", () => {
     const items = filterGalleryItemsFrom(ADD_GALLERY_ITEMS, {
-      tab: "sections",
+      tab: "designs",
       categoryId: "recommended",
     });
     assert.ok(items.length >= 1, "at least one item in the recommended category");
     for (const item of items) {
       assert.equal(item.category, "recommended", `item "${item.id}" must have category=recommended`);
-      assert.equal(item.tab, "sections", `item "${item.id}" must be in sections tab`);
+      assert.equal(item.tab, "designs", `item "${item.id}" must be in designs tab`);
     }
   });
 
   it("recommended items count matches RECOMMENDED_SECTION_IDS that are available (not roadmap)", () => {
     const recItems = filterGalleryItemsFrom(ADD_GALLERY_ITEMS, {
-      tab: "sections",
+      tab: "designs",
       categoryId: "recommended",
     });
     // Each recommended ID should produce exactly one aliased item in the gallery.
@@ -80,18 +80,18 @@ describe("ONB-4 — Recommended category", () => {
   });
 
   it("listGalleryCategoriesForTabFrom includes recommended when items are present", () => {
-    const cats = listGalleryCategoriesForTabFrom(ADD_GALLERY_ITEMS, "sections", {
+    const cats = listGalleryCategoriesForTabFrom(ADD_GALLERY_ITEMS, "designs", {
       synthesizeUnknownCategories: true,
     });
     const rec = cats.find((c) => c.id === "recommended");
-    assert.ok(rec, "recommended category must appear in the sections category rail");
+    assert.ok(rec, "recommended category must appear in the designs category rail");
   });
 
-  it("recommended is the first category in the sections rail", () => {
-    const cats = listGalleryCategoriesForTabFrom(ADD_GALLERY_ITEMS, "sections", {
+  it("recommended is the first category in the designs rail", () => {
+    const cats = listGalleryCategoriesForTabFrom(ADD_GALLERY_ITEMS, "designs", {
       synthesizeUnknownCategories: false,
     });
-    assert.equal(cats[0]?.id, "recommended", "recommended must be first in sections rail");
+    assert.equal(cats[0]?.id, "recommended", "recommended must be first in designs rail");
   });
 
   it("recommended items have unique rec:-prefixed ids (no collision with originals)", () => {

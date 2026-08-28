@@ -58,6 +58,7 @@ import type {
 
 import { GradientStopsBuilder } from "../css-value-builders";
 import { GlassBackdropField } from "./glass-backdrop-field";
+import { FilterField } from "./filter-field";
 import { ShadowStackBuilder } from "./shadow-stack-builder";
 import { BorderSidesField, CornerRadiusField } from "./corner-border-sides-fields";
 import { styleWithViewportPatch, type StyleCleaners } from "./viewport-style-patch";
@@ -345,8 +346,28 @@ test("corner radius: linked typing writes one uniform value; unlinked writes the
   unmount(root, host);
 });
 
-test("corner radius: an elliptical hand-authored value stands the controls down, verbatim", () => {
+test("corner radius: elliptical 16px / 8px opens controls and emits zero patches until edited", () => {
   const exotic = "16px / 8px";
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(CornerRadiusField, {
+        value: vs?.borderRadius,
+        onChange: (next) => patch({ borderRadius: next }),
+      }),
+    { borderRadius: exotic },
+  );
+  click(host.querySelector("[data-builder-corner-radius-toggle]"), "Each corner toggle");
+  assert.equal(styleRef.patches, 0, "no patch on mount/open");
+  assert.ok(cornerInput(host, "topLeft"), "circular X inputs are offered");
+  assert.ok(cornerInput(host, "topLeftY"), "elliptical Y inputs are offered");
+  assert.equal(styleRef.value?.borderRadius, exotic);
+  setInput(cornerInput(host, "topLeftY"), "4", "TL Y input");
+  assert.equal(styleRef.value?.borderRadius, "16px / 4px");
+  unmount(root, host);
+});
+
+test("corner radius: a calc() value stands the controls down, verbatim", () => {
+  const exotic = "calc(1rem + 2px)";
   const { root, host } = mount(
     (vs, patch) =>
       createElement(CornerRadiusField, {
@@ -366,7 +387,7 @@ test("corner radius: an elliptical hand-authored value stands the controls down,
 
 // ── 4. Per-side border widths ────────────────────────────────────────────────
 
-test("border sides: a top-only rule writes the shorthand; over-cap combos refuse with a warning", () => {
+test("border sides: a top-only rule writes the shorthand; four distinct sides now fit the cap", () => {
   const { root, host } = mount((vs, patch) =>
     createElement(BorderSidesField, {
       value: vs?.borderWidth,
@@ -376,18 +397,15 @@ test("border sides: a top-only rule writes the shorthand; over-cap combos refuse
   click(host.querySelector("[data-builder-border-sides-toggle]"), "Each side toggle");
   setInput(host.querySelector("[data-builder-border-side='top']"), "1", "top input");
   assert.equal(styleRef.value?.borderWidth, "1px 0 0");
-  // Push all four to distinct 2-digit widths — the minimal shorthand would
-  // blow the 16-char save cap, so the LAST write must refuse (value keeps its
-  // previous state) and the warning must be visible.
   setInput(host.querySelector("[data-builder-border-side='right']"), "11", "right input");
   setInput(host.querySelector("[data-builder-border-side='bottom']"), "12", "bottom input");
   setInput(host.querySelector("[data-builder-border-side='top']"), "10", "top input");
-  const before = styleRef.value?.borderWidth;
   setInput(host.querySelector("[data-builder-border-side='left']"), "13", "left input");
-  assert.equal(styleRef.value?.borderWidth, before, "over-cap write refused");
-  assert.ok(
+  assert.equal(styleRef.value?.borderWidth, "10px 11px 12px 13px");
+  assert.equal(
     host.querySelector("[data-builder-border-sides-overcap]"),
-    "the refusal is explained on screen",
+    null,
+    "realistic per-side values no longer blow the cap",
   );
   unmount(root, host);
 });
@@ -520,4 +538,66 @@ test("renderer: the stored shorthands actually emit as CSS", () => {
     `layered box-shadow in ${html}`,
   );
   assert.ok(html.includes("backdrop-filter:blur(12px) saturate(1.4)"), `backdrop in ${html}`);
+});
+
+test("renderer: elliptical radius and text-shadow stacks emit as CSS", () => {
+  const html = renderCard({
+    borderRadius: "16px / 8px",
+    textShadow: "0px 2px 8px rgba(0,0,0,0.4), 0px 0px 2px #111",
+    filter: "blur(8px) grayscale(0.4)",
+    mixBlendMode: "difference",
+  });
+  assert.ok(html.includes("border-radius:16px / 8px"), `elliptical radius in ${html}`);
+  assert.ok(html.includes("text-shadow:0px 2px 8px"), `text-shadow in ${html}`);
+  assert.ok(html.includes("filter:blur(8px) grayscale(0.4)"), `filter in ${html}`);
+  assert.ok(html.includes("mix-blend-mode:difference"), `blend in ${html}`);
+});
+
+test("filter: a hand-authored invert value is shown verbatim and never rewritten", () => {
+  const exotic = "blur(4px) invert(1)";
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(FilterField, { value: vs?.filter, onPatch: patch }),
+    { filter: exotic },
+  );
+  assert.equal(styleRef.patches, 0, "mounting over an exotic value emits no patch");
+  const raw = host.querySelector("[data-builder-filter-raw]") as HTMLInputElement;
+  assert.equal(raw.value, exotic, "raw input shows the value verbatim");
+  assert.equal(host.querySelector("[data-builder-filter-field='blur']"), null);
+  assert.ok(host.querySelector("[data-builder-filter-foreign]"));
+  assert.equal(styleRef.value?.filter, exotic);
+  unmount(root, host);
+});
+
+test("filter: owned blur edits recompose only filter; mobile lands in the bucket", () => {
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(FilterField, { value: vs?.filter, onPatch: patch }),
+    { filter: "blur(8px)" },
+    "mobile",
+  );
+  assert.equal(styleRef.patches, 0);
+  setInput(host.querySelector("[data-builder-filter-field='blur']"), "12", "blur");
+  assert.equal(styleRef.value?.responsive?.mobile?.filter, "blur(12px)");
+  assert.equal(styleRef.value?.filter, "blur(8px)", "base untouched");
+  unmount(root, host);
+});
+
+test("text-shadow stack: add appends a layer without rewriting the existing one", () => {
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(ShadowStackBuilder, {
+        kind: "text",
+        value: vs?.textShadow,
+        onChange: (next) => patch({ textShadow: next }),
+      }),
+    { textShadow: "0 2px 8px rgba(0,0,0,0.4)" },
+  );
+  assert.equal(styleRef.patches, 0);
+  click(host.querySelector("[data-builder-shadow-layer-add]"), "add text shadow");
+  assert.ok(
+    styleRef.value?.textShadow?.startsWith("0 2px 8px rgba(0,0,0,0.4), "),
+    "existing layer byte-identical",
+  );
+  unmount(root, host);
 });

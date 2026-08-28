@@ -28,19 +28,39 @@ test("tablet-hidden CSS is isolated to the tablet band, not all max-width:900px"
   );
 });
 
+function cssBlockAt(src: string, from: number): string | null {
+  const brace = src.indexOf("{", from);
+  if (brace < 0) return null;
+  let depth = 0;
+  for (let i = brace; i < src.length; i++) {
+    if (src[i] === "{") depth += 1;
+    else if (src[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return src.slice(from, i + 1);
+    }
+  }
+  return null;
+}
+
 test("phones still hide only via the mobile-hidden attribute", () => {
   const hideRule =
     ".site-builder-node[data-builder-style-tablet-hidden]{display:none!important}";
-  const first = SOURCE.indexOf(hideRule);
+  const compact = SOURCE.replace(/\s+/g, "");
+  const first = compact.indexOf(hideRule);
   assert.ok(first > 0, "tablet-hidden hide rule must exist");
   assert.equal(
-    SOURCE.indexOf(hideRule, first + 1),
+    compact.indexOf(hideRule, first + 1),
     -1,
     "tablet-hidden must have exactly one CSS hide rule (the 641–900px band)",
   );
+
+  const query = "@media (min-width:641px) and (max-width:900px)";
+  const mediaAt = SOURCE.indexOf(query);
+  assert.ok(mediaAt >= 0, "tablet-band media query exists");
+  const block = cssBlockAt(SOURCE, mediaAt);
+  assert.ok(block, "tablet-band media query is a closed block");
   assert.ok(
-    SOURCE.includes(
-      "@media (min-width:641px) and (max-width:900px){\n  " + hideRule,
-    ),
+    block.replace(/\s+/g, "").includes(hideRule),
+    "tablet-hidden hide rule sits inside the 641–900px band",
   );
 });

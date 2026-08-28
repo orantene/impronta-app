@@ -12,12 +12,14 @@ import { CHROME } from "../../kit/tokens";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { StateStyleFields } from "../style-panel-state-style-fields";
 import { GlassBackdropField } from "./glass-backdrop-field";
+import { FilterField } from "./filter-field";
 import { BUILDER_NODE_BLEND_OPTIONS } from "./style-options";
 import type { StandaloneSectionCtx } from "./section-types";
+import { hoverLaneHasValue, readHoverLane } from "./hover-lane";
 
 export type EffectsStatesSectionProps = Pick<
   StandaloneSectionCtx,
-  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneViewportStyle" | "setSelectedInteractionState"
+  "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneViewportStyle" | "setSelectedInteractionState" | "selectedViewport"
 >;
 
 export function EffectsStatesSection({
@@ -28,8 +30,10 @@ export function EffectsStatesSection({
   selectedInteractionState,
   selectedStandaloneFullStyle,
   selectedStandaloneViewportStyle,
+  selectedViewport,
   setSelectedInteractionState,
 }: EffectsStatesSectionProps) {
+  const hoverStyle = readHoverLane(selectedStandaloneFullStyle, selectedViewport);
   return (
     <>
             <div
@@ -43,35 +47,10 @@ export function EffectsStatesSection({
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="filter"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Filter
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="blur(8px) grayscale(1)"
-                  value={selectedStandaloneViewportStyle?.filter ?? ""}
-                  onChange={(e) =>
-                    patchSelectedStandaloneStyle({
-                      filter: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
+              <FilterField
+                value={selectedStandaloneViewportStyle?.filter}
+                onPatch={patchSelectedStandaloneStyle}
+              />
               {/* Backdrop filter + the one-click glass surface preset. The raw
                   input lives inside the field (verbatim escape hatch); blur and
                   saturation get real controls whenever the value is one the
@@ -152,7 +131,7 @@ export function EffectsStatesSection({
                   const label = state === "default" ? "Hover" : state === "focus" ? "Focus" : "Active";
                   const hasValue =
                     state === "default"
-                      ? Boolean(selectedStandaloneFullStyle?.hover && Object.values(selectedStandaloneFullStyle.hover).some(Boolean))
+                      ? hoverLaneHasValue(hoverStyle)
                       : state === "focus"
                         ? Boolean(selectedStandaloneFullStyle?.stateStyles?.focus && Object.values(selectedStandaloneFullStyle.stateStyles.focus).some(Boolean))
                         : Boolean(selectedStandaloneFullStyle?.stateStyles?.active && Object.values(selectedStandaloneFullStyle.stateStyles.active).some(Boolean));
@@ -187,7 +166,7 @@ export function EffectsStatesSection({
               {/* State-specific fields — same controls for all three states */}
               <StateStyleFields
                 state={selectedInteractionState}
-                hoverStyle={selectedStandaloneFullStyle?.hover}
+                hoverStyle={hoverStyle}
                 focusStyle={selectedStandaloneFullStyle?.stateStyles?.focus}
                 activeStyle={selectedStandaloneFullStyle?.stateStyles?.active}
                 onPatchHover={(patch) => patchSelectedHoverStyle(patch)}

@@ -33,13 +33,15 @@ import { templateRolloutAllowed } from "@/lib/site-admin/builder-core/templates/
 import { ADD_GALLERY_ITEMS } from "./registry";
 import {
   applyStructureToItems,
+  allowListHasPageTemplates,
+  normalizeAllowedTabs,
   type CatalogStructureMap,
 } from "./catalog-structure";
 import {
   usageCountForItem,
   type ComponentUsageTally,
 } from "./component-usage-scan";
-import type { AddGalleryItem, AddGalleryTab } from "./types";
+import type { AddGalleryItem } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
 
@@ -391,7 +393,7 @@ export function builderTemplateRowToGalleryItem(
     // row.category maps to AddGalleryCategoryDef.id; unknown categories still
     // render (the gallery falls back to the tab grouping).
     category: row.category,
-    icon: tab === "page_templates" ? "layout" : "sparkle",
+    icon: row.gallery_tab === "page_templates" ? "layout" : "sparkle",
     previewType: options?.previewImageUrl ? "image-card" : "icon-card",
     itemKind: row.data_binding_requirements.length > 0 ? "connected" : "static",
     insertMethod: "dbTemplate",
@@ -402,6 +404,7 @@ export function builderTemplateRowToGalleryItem(
     searchTerms: [...row.tags, row.slug],
     previewImageUrl: options?.previewImageUrl,
     dbTemplateId: row.id,
+    dbGalleryTab: row.gallery_tab,
     dbTemplateTree: row.builder_tree,
     requiredPlan: row.required_plan,
     targetContext: row.target_context,
@@ -463,7 +466,7 @@ export interface GalleryMergeContext {
 export function codeGalleryItemsForPolicy(
   galleryPolicy: BuilderGalleryPolicy,
 ): AddGalleryItem[] {
-  const allowed = new Set<AddGalleryTab>(galleryPolicy.allowedTabs);
+  const allowed = new Set(normalizeAllowedTabs(galleryPolicy.allowedTabs));
   return ADD_GALLERY_ITEMS.filter((item) => allowed.has(item.tab));
 }
 
@@ -477,10 +480,13 @@ export function gateDbGalleryItems(
   ctx: GalleryMergeContext,
 ): AddGalleryItem[] {
   if (!ctx.galleryPolicy.allowDbTemplates) return [];
-  const allowedTabs = new Set<AddGalleryTab>(ctx.galleryPolicy.allowedTabs);
+  const rawAllowed = ctx.galleryPolicy.allowedTabs as readonly string[];
+  const allowedTabs = new Set(normalizeAllowedTabs(rawAllowed));
+  const pageTemplatesOk = allowListHasPageTemplates(rawAllowed);
   return items.filter((item) => {
     if (item.insertMethod !== "dbTemplate") return false;
     if (!allowedTabs.has(item.tab)) return false;
+    if (item.dbGalleryTab === "page_templates" && !pageTemplatesOk) return false;
     if (!templateTargetAllowed(item.targetContext ?? "both", ctx.surfaceTarget)) {
       return false;
     }

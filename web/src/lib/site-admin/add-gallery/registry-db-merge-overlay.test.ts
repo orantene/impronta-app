@@ -40,7 +40,7 @@ function item(over: Partial<AddGalleryItem> = {}): AddGalleryItem {
     id: "el-button",
     label: "Button",
     description: "",
-    tab: "elements",
+    tab: "blocks",
     category: "buttons",
     icon: "buttons",
     previewType: "icon-card",
@@ -69,7 +69,7 @@ function overlay(over: Partial<CatalogOverlayRow> = {}): CatalogOverlayRow {
 }
 
 const POLICY: BuilderGalleryPolicy = {
-  allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+    allowedTabs: ["blocks", "designs", "data", "page_templates"],
   allowDbTemplates: true,
 };
 
@@ -147,7 +147,7 @@ test("buildCatalogAdminView computes per-surface visibility and lists hidden ite
     item({
       id: "db-template:abc",
       label: "Talent Hero",
-      tab: "page_templates",
+      tab: "designs",
       insertMethod: "dbTemplate",
       targetContext: "talent",
     }),
@@ -230,7 +230,7 @@ test("listGalleryItems applies the structure loader (item tab/category move) to 
         kind: "item" as const,
         label_override: null,
         icon_override: null,
-        parent_tab: "layout",
+        parent_tab: "blocks",
         sort_order: null,
         created: false,
         hidden: false,
@@ -242,7 +242,7 @@ test("listGalleryItems applies the structure loader (item tab/category move) to 
   const items = await listGalleryItems(workspaceCtx, deps);
   const moved = items.find((i) => i.id === "el-button");
   assert.ok(moved, "el-button should be present");
-  assert.equal(moved!.tab, "layout"); // moved by the structure row
+  assert.equal(moved!.tab, "blocks"); // moved by the structure row
   assert.equal(moved!.category, "promos");
 });
 
@@ -325,7 +325,7 @@ function liveResolve(
 }
 
 test("F4: structure category WINS over overlay category (Lab == live)", () => {
-  const it = item({ id: "el-button", category: "buttons", tab: "elements" });
+  const it = item({ id: "el-button", category: "buttons", tab: "blocks" });
   const overlays: CatalogOverlayMap = {
     "el-button": overlay({ category_override: "actions" }),
   };
@@ -376,11 +376,11 @@ test("F4: overlay category applies when NO structure row (Lab == live)", () => {
 });
 
 test("F4: structure tab move is reflected in the Lab row (Lab == live)", () => {
-  const it = item({ id: "el-button", tab: "elements", category: "buttons" });
+  const it = item({ id: "el-button", tab: "blocks", category: "buttons" });
   const structure: CatalogStructureMap = {
     "item:el-button": structRow({
       ref: "item:el-button",
-      parent_tab: "sections",
+      parent_tab: "designs",
     }),
   };
   const live = liveResolve(it, {}, structure, {
@@ -389,18 +389,18 @@ test("F4: structure tab move is reflected in the Lab row (Lab == live)", () => {
     plan: null,
     talentTier: null,
   });
-  assert.equal(live.tab, "sections");
+  assert.equal(live.tab, "designs");
 
   const [row] = buildCatalogAdminView([it], {}, {}, structure);
-  assert.equal(row.tab, "sections");
+  assert.equal(row.tab, "designs");
   assert.equal(row.tab, live.tab);
 });
 
 test("F4: empty structure ⇒ overlay-only placement (back-compat identity)", () => {
-  const it = item({ id: "el-button", category: "buttons", tab: "elements" });
+  const it = item({ id: "el-button", category: "buttons", tab: "blocks" });
   const [row] = buildCatalogAdminView([it], {}, {});
   assert.equal(row.effectiveCategory, "buttons");
-  assert.equal(row.tab, "elements");
+  assert.equal(row.tab, "blocks");
 });
 
 // ── W13: applyCatalogOverlay null-surface / null-plan contract (homepage/Lab) ──

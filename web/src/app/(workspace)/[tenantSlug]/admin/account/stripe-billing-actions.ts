@@ -44,6 +44,13 @@ export type BillingActionResult =
 export async function startWorkspaceUpgrade(
   planKey: WorkspacePlanKey,
   tenantSlug: string,
+  /**
+   * Optional `?promo=` carried from the page the button was clicked on, so a
+   * campaign link works for an EXISTING customer the same way it does at
+   * signup. Browser-supplied and re-validated server-side by
+   * `resolveCheckoutDiscount`; never trusted as given.
+   */
+  promoCode?: string | null,
 ): Promise<BillingActionResult> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
@@ -82,6 +89,7 @@ export async function startWorkspaceUpgrade(
     // The app already resolved this owner's language; hand it to Stripe so
     // Checkout does not fall back to guessing from the browser.
     locale: await getRequestLocale(),
+    promoCode: promoCode ?? null,
   });
 
   if (!result.ok) {

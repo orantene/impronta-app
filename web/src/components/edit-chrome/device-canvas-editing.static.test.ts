@@ -40,13 +40,30 @@ test("the resize/spacing gate is no longer desktop-only", () => {
 });
 
 test("rotate is the ONE handle left desktop-only, and deliberately", () => {
-  assert.match(
-    SRC,
-    /const canRotateSelectedNode =\s*selectedNodeIsEditableBlock && !!selectedCaps\?\.rotate && device === "desktop";/,
+  // Assert the SHAPE of the gate, not its exact text. This guard used to pin
+  // the whole declaration as a literal, which turned the capability refactor
+  // (`canResizeSelectedNode` -> `selectedCaps?.rotate`) into a red main even
+  // though the rule it protects was never broken. What matters is that rotate
+  // keeps its OWN declaration and that the declaration carries the desktop
+  // clause -- re-merging it into the resize gate, or dropping the clause, still
+  // fails here.
+  const start = SRC.indexOf("const canRotateSelectedNode =");
+  assert.ok(start !== -1, "canRotateSelectedNode moved — repoint this test");
+  const decl = SRC.slice(start, SRC.indexOf(";", start));
+  assert.ok(
+    decl.includes('device === "desktop"'),
     "rotate's separate gate is what lets the others be device-agnostic",
   );
   assert.ok(
-    SRC.includes("{canRotateSelectedNode && !dragChromeSuppressed ? (\n\t            <CanvasRotateHandle"),
+    !decl.includes("canResizeSelectedNode"),
+    "rotate must not hang off the resize gate again — that is what made the " +
+      "phone canvas read-only, and it is a one-word edit to reintroduce",
+  );
+  // Whitespace-tolerant: the previous literal included a hard tab and a fixed
+  // indent, so any reformat of this JSX read as a regression.
+  assert.match(
+    SRC,
+    /\{\s*canRotateSelectedNode\s*&&\s*!dragChromeSuppressed\s*\?\s*\(\s*<CanvasRotateHandle/,
     "CanvasRotateHandle must render off the rotate gate, not the resize gate",
   );
 });
@@ -74,6 +91,21 @@ test("the move grip commits into the active device's bucket", () => {
     SRC,
     /commitSelectedNodeTranslate\(x, y, canvasStyleBucket\)/,
     "a move-grip drag on the phone canvas must not move the block on desktop",
+  );
+});
+
+test("absolute children drag-to-place through the viewport patch helper", () => {
+  assert.ok(
+    SRC.includes("styleWithAbsolutePlacePatch"),
+    "absolute inset commits must call styleWithAbsolutePlacePatch",
+  );
+  assert.ok(
+    SRC.includes("resolveMovePlacement"),
+    "the grip must switch to inset writes only when position is absolute/fixed",
+  );
+  assert.ok(
+    SRC.includes("onCommitPlace={commitSelectedNodePlace}"),
+    "CanvasMoveHandle must receive the inset commit, not only translate",
   );
 });
 

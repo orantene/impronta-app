@@ -16,7 +16,7 @@
  */
 
 import { type AddGalleryTab } from "@/lib/site-admin/add-gallery";
-import { CODE_TAB_DEFS } from "@/lib/site-admin/add-gallery/catalog-structure";
+import { CODE_TAB_DEFS, canonicalGalleryTab } from "@/lib/site-admin/add-gallery/catalog-structure";
 
 // ── View universe (lifted from component-catalog.tsx) ───────────────────────
 // Tab → default label, derived from the Builder Studio catalog-structure
@@ -85,17 +85,16 @@ export const GROUP_LABEL: Record<CatalogGroup, string> = {
 };
 
 /** Static group → ordered member views. For `structure` the gallery-tab portion
- *  (layout/elements/sections/connected/shell) is the DESIGN-time order; at
- *  render time `orderedViewsForGroup` filters those by presence + reorders to
- *  the live CODE_TAB_DEFS order, with `all` pinned first and `catalog_studio`
- *  last. design/admin are static. */
+ *  (blocks/designs/data/shell) is the DESIGN-time order; at render time
+ *  `orderedViewsForGroup` filters those by presence + reorders to the live
+ *  CODE_TAB_DEFS order, with `all` pinned first and `catalog_studio` last.
+ *  design/admin are static. */
 export const GROUP_VIEWS: Record<CatalogGroup, ReadonlyArray<CatalogView>> = {
   structure: [
     "all",
-    "layout",
-    "elements",
-    "sections",
-    "connected",
+    "blocks",
+    "designs",
+    "data",
     "shell",
     "catalog_studio",
   ],
@@ -121,27 +120,35 @@ export function groupOfView(view: CatalogView): CatalogGroup {
   return VIEW_GROUP.get(view) ?? "structure";
 }
 
-/** Is `v` a real, navigable Catalog view? Excludes the empty `page_templates`
- *  gallery tab (its full-page role moved to Site Starter Kit) and anything not
- *  in the view universe. Accepts "health". */
+/** Is `v` a real, navigable Catalog view? Excludes the empty former
+ *  `page_templates` UI tab (its cards live on Designs; its full-page role
+ *  moved to Site Starter Kit) unless the caller first canonicalizes via
+ *  `coerceCatalogView`. Accepts "health". */
 export function isValidView(v: string): v is CatalogView {
   if (v === "page_templates") return false;
   if ((SPECIAL_TABS as readonly string[]).includes(v)) return true;
-  return CODE_TAB_DEFS.some((t) => t.id === v && t.id !== "page_templates");
+  return CODE_TAB_DEFS.some((t) => t.id === v);
+}
+
+/** Map a stored/URL view (including legacy six-tab ids) onto a CatalogView.
+ *  `page_templates` → Designs so old bookmarks land on the merged tab. */
+export function coerceCatalogView(v: string): CatalogView | null {
+  if ((SPECIAL_TABS as readonly string[]).includes(v)) return v as CatalogView;
+  if (v === "page_templates") return "designs";
+  const canon = canonicalGalleryTab(v);
+  if (canon && CODE_TAB_DEFS.some((t) => t.id === canon)) return canon;
+  return null;
 }
 
 /** The Structure group's gallery-tab members in CODE_TAB_DEFS order (the live
- *  tab order admins can rename but not reorder here), excluding the empty
- *  page_templates tab. */
+ *  tab order admins can rename but not reorder here). */
 const STRUCTURE_GALLERY_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map(
   (t) => t.id,
-).filter(
-  (id) => id !== "page_templates" && GROUP_VIEWS.structure.includes(id),
-);
+).filter((id) => GROUP_VIEWS.structure.includes(id));
 
 /** Ordered tier-2 views for a group.
- *  - structure: `all` first, then the dynamic gallery tabs (layout/elements/
- *    sections/connected/shell) filtered to those PRESENT in `presentGalleryTabs`
+ *  - structure: `all` first, then the dynamic gallery tabs (blocks/designs/
+ *    data/shell) filtered to those PRESENT in `presentGalleryTabs`
  *    and ordered by CODE_TAB_DEFS, then `catalog_studio` last.
  *  - design / admin: the static GROUP_VIEWS list verbatim. */
 export function orderedViewsForGroup(

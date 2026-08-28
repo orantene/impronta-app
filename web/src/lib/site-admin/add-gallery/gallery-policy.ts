@@ -17,25 +17,23 @@ import type { AddGalleryTab } from "./types";
 /**
  * Map a DB `builder_templates.gallery_tab` to the live `AddGalleryTab`. Code
  * items already carry an `AddGalleryTab`; DB rows use the builder-tab vocabulary
- * so they land beside the code items of the same family; `page_templates` is the
- * fallback for unknown tabs.
+ * so they land beside the code items of the same family. Unknown tabs fall
+ * through to Designs (the former page_templates default).
  */
 export function dbGalleryTabToAddGalleryTab(tab: BuilderGalleryTab): AddGalleryTab {
   switch (tab) {
     case "elements":
-      return "elements";
+      return "blocks";
     case "sections":
-      return "sections";
+      return "designs";
     case "connected":
-      return "connected";
+      return "data";
     case "page_templates":
-      return "page_templates";
-    // WS-A A7 — shell templates land on the shell-only tab (offered solely on
-    // the site-shell surface via `allowedTabs`).
+      return "designs";
     case "shell":
       return "shell";
     default:
-      return "page_templates";
+      return "designs";
   }
 }
 

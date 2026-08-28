@@ -9,7 +9,7 @@ import {
 } from "./registry-catalog";
 
 // ONB-4 — curated recommended section IDs; the category is listed first in the
-// sections tab so operators land on the most-useful items immediately.
+// Designs tab so operators land on the most-useful items immediately.
 export const RECOMMENDED_SECTION_IDS: ReadonlyArray<string> = [
   "sec-hero-centered",
   "sec-hero-split",
@@ -21,38 +21,38 @@ export const RECOMMENDED_SECTION_IDS: ReadonlyArray<string> = [
 
 export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
   // ONB-4 — "Recommended" always first in the sections tab.
-  { id: "recommended", label: "Recommended", tab: "sections", icon: "sparkle" },
-  { id: "text", label: "Text", tab: "elements", icon: "text" },
-  { id: "buttons", label: "Buttons", tab: "elements", icon: "buttons" },
-  { id: "media", label: "Media", tab: "elements", icon: "media" },
-  { id: "layout", label: "Layout", tab: "layout", icon: "layout" },
+  { id: "recommended", label: "Recommended", tab: "designs", icon: "sparkle" },
+  { id: "text", label: "Text", tab: "blocks", icon: "text" },
+  { id: "buttons", label: "Buttons", tab: "blocks", icon: "buttons" },
+  { id: "media", label: "Media", tab: "blocks", icon: "media" },
+  { id: "layout", label: "Layout", tab: "blocks", icon: "layout" },
   // Backgrounds — pre-dressed containers (video / YouTube / image / gradient).
-  // Sits on the `layout` tab next to the raw Container it dresses, rather than
+  // Sits on Blocks next to the raw Container it dresses, rather than
   // opening a whole new tab; see registry-catalog-backgrounds.ts for why.
-  { id: "backgrounds", label: "Backgrounds", tab: "layout", icon: "media" },
-  { id: "cards", label: "Cards", tab: "elements", icon: "cards" },
-  { id: "interactive", label: "Interactive", tab: "elements", icon: "interactive" },
-  { id: "forms", label: "Forms", tab: "elements", icon: "forms" },
-  { id: "utility", label: "Utility", tab: "elements", icon: "utility" },
-  { id: "social-embed", label: "Social & Embed", tab: "elements", icon: "social" },
+  { id: "backgrounds", label: "Backgrounds", tab: "blocks", icon: "media" },
+  { id: "cards", label: "Cards", tab: "blocks", icon: "cards" },
+  { id: "interactive", label: "Interactive", tab: "blocks", icon: "interactive" },
+  { id: "forms", label: "Forms", tab: "blocks", icon: "forms" },
+  { id: "utility", label: "Utility", tab: "blocks", icon: "utility" },
+  { id: "social-embed", label: "Social & Embed", tab: "blocks", icon: "social" },
   // WS-A A5 — shell-only interactive header widgets (search / account / inquiry /
   // favorites), surfaced as curated section_embed presets in the shell gallery.
-  { id: "header-widgets", label: "Header Widgets", tab: "elements", icon: "interactive" },
-  { id: "hero", label: "Hero", tab: "sections", icon: "hero" },
-  { id: "about", label: "About", tab: "sections", icon: "about" },
-  { id: "services", label: "Services", tab: "sections", icon: "services" },
-  { id: "gallery-section", label: "Gallery", tab: "sections", icon: "gallery" },
-  { id: "featured-talent", label: "Featured Talent", tab: "sections", icon: "talent" },
-  { id: "talent-roster", label: "Talent Roster", tab: "sections", icon: "roster" },
-  { id: "testimonials", label: "Testimonials", tab: "sections", icon: "testimonials" },
-  { id: "cta", label: "CTA", tab: "sections", icon: "cta" },
-  { id: "faq", label: "FAQ", tab: "sections", icon: "faq" },
-  { id: "contact", label: "Contact", tab: "sections", icon: "contact" },
-  { id: "talent", label: "Talent", tab: "connected", icon: "talent" },
-  { id: "agency", label: "Agency", tab: "connected", icon: "agency" },
-  { id: "directory", label: "Directory", tab: "connected", icon: "directory" },
-  { id: "booking", label: "Booking & Inquiry", tab: "connected", icon: "booking" },
-  { id: "dynamic", label: "Dynamic Data", tab: "connected", icon: "dynamic" },
+  { id: "header-widgets", label: "Header Widgets", tab: "blocks", icon: "interactive" },
+  { id: "hero", label: "Hero", tab: "designs", icon: "hero" },
+  { id: "about", label: "About", tab: "designs", icon: "about" },
+  { id: "services", label: "Services", tab: "designs", icon: "services" },
+  { id: "gallery-section", label: "Gallery", tab: "designs", icon: "gallery" },
+  { id: "featured-talent", label: "Featured Talent", tab: "designs", icon: "talent" },
+  { id: "talent-roster", label: "Talent Roster", tab: "designs", icon: "roster" },
+  { id: "testimonials", label: "Testimonials", tab: "designs", icon: "testimonials" },
+  { id: "cta", label: "CTA", tab: "designs", icon: "cta" },
+  { id: "faq", label: "FAQ", tab: "designs", icon: "faq" },
+  { id: "contact", label: "Contact", tab: "designs", icon: "contact" },
+  { id: "talent", label: "Talent", tab: "data", icon: "talent" },
+  { id: "agency", label: "Agency", tab: "data", icon: "agency" },
+  { id: "directory", label: "Directory", tab: "data", icon: "directory" },
+  { id: "booking", label: "Booking & Inquiry", tab: "data", icon: "booking" },
+  { id: "dynamic", label: "Dynamic Data", tab: "data", icon: "dynamic" },
 ];
 
 // ONB-4 — synthetic "recommended" category items: alias the curated section
@@ -99,12 +99,9 @@ function humanizeCategoryId(id: string): string {
 }
 
 const FALLBACK_CATEGORY_ICON_BY_TAB: Record<AddGalleryItem["tab"], string> = {
-  layout: "layout",
-  elements: "utility",
-  sections: "hero",
-  connected: "dynamic",
-  page_templates: "layout",
-  // WS-A A7 — shell templates tab.
+  blocks: "layout",
+  designs: "hero",
+  data: "dynamic",
   shell: "layout",
 };
 

@@ -34,7 +34,8 @@ import {
 
 import { AccentNode } from "./nodes/AccentNode";
 import { ColorNode } from "./nodes/ColorNode";
-import { markerStringToNodes } from "./transformers/markerToLexical";
+import { BuilderListItemNode, BuilderListNode } from "./nodes/ListNode";
+import { $appendBlocksFromMarkerString } from "./transformers/markerToLexical";
 import { richEditorTheme } from "./theme";
 import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
 import { SerializePlugin } from "./plugins/SerializePlugin";
@@ -43,6 +44,8 @@ import { CanvasLexicalBridgePlugin } from "./plugins/CanvasLexicalBridgePlugin";
 import { SingleLinePlugin } from "./plugins/SingleLinePlugin";
 import { LinkPickerPopover } from "./plugins/LinkPickerPopover";
 import { FormatPlugin } from "./plugins/FormatPlugin";
+import { ListCommandPlugin } from "./plugins/ListCommandPlugin";
+import { ListToolbarPlugin } from "./plugins/ListToolbarPlugin";
 import {
   AutoFocusCaretPlugin,
   type CaretPoint,
@@ -105,18 +108,11 @@ function buildInitialState(value: string, variant: RichEditorVariant) {
   return (editor: LexicalEditor) => {
     editor.update(() => {
       const root = $getRoot();
-      // Lexical fills root with an initial empty paragraph; clear it.
       root.clear();
-      const lines =
-        variant === "multi"
-          ? (value || "").split("\n")
-          : [(value || "").replace(/\n/g, " ")];
-      if (lines.length === 0) lines.push("");
-      for (const line of lines) {
-        const paragraph = $createParagraphNode();
-        const nodes = markerStringToNodes(line);
-        for (const n of nodes) paragraph.append(n);
-        root.append(paragraph);
+      const blocks = $appendBlocksFromMarkerString(value, variant);
+      for (const block of blocks) root.append(block);
+      if (root.getChildrenSize() === 0) {
+        root.append($createParagraphNode());
       }
     });
   };
@@ -152,7 +148,7 @@ export function RichEditor({
   const initialConfig = {
     namespace: "phase-c-rich-editor",
     theme: richEditorTheme,
-    nodes: [AccentNode, ColorNode, LinkNode],
+    nodes: [AccentNode, ColorNode, LinkNode, BuilderListNode, BuilderListItemNode],
     editable: !readOnly,
     onError: (error: Error) => {
       logServerError("inline_editor", error);
@@ -199,7 +195,13 @@ export function RichEditor({
         />
         <LinkPlugin />
         <FormatPlugin />
-        <SerializePlugin onChange={onChange} multiline={variant === "multi"} />
+        <ListCommandPlugin />
+        <ListToolbarPlugin />
+        <SerializePlugin
+          onChange={onChange}
+          multiline={variant === "multi"}
+          seed={value}
+        />
         <KeyboardShortcutsPlugin onRequestLink={onRequestLink} />
         <ToolbarPlugin
           onRequestLink={onRequestLink}

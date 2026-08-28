@@ -22,10 +22,10 @@ import { ADD_GALLERY_BACKGROUND_ITEMS } from "./registry-catalog-backgrounds";
 import { resolveAddGalleryInsertAction } from "./insert";
 import { resolveKindGovernance } from "./kind-governance";
 
-test("the Backgrounds category exists on the layout tab", () => {
+test("the Backgrounds category exists on the Blocks tab", () => {
   const category = ADD_GALLERY_CATEGORIES.find((c) => c.id === "backgrounds");
   assert.ok(category, "the Backgrounds rail entry is missing");
-  assert.equal(category.tab, "layout");
+  assert.equal(category.tab, "blocks");
 });
 
 test("every background card is registered and reachable in the real catalog", () => {
@@ -35,7 +35,7 @@ test("every background card is registered and reachable in the real catalog", ()
       ADD_GALLERY_ITEMS.some((registered) => registered.id === item.id),
       `${item.id} is not in ADD_GALLERY_ITEMS — it was never spread into the catalog`,
     );
-    assert.equal(item.tab, "layout");
+    assert.equal(item.tab, "blocks");
     assert.equal(item.category, "backgrounds");
   }
 });

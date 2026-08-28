@@ -8,7 +8,10 @@
  * common case. The generated CSS is deterministic + unit-tested in
  * `custom-breakpoint-css.test.ts`.
  */
-import { generateCustomBreakpointCss } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
+import {
+  generateContainerLayoutCss,
+  generateCustomBreakpointCss,
+} from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import type { CustomBreakpoint } from "@/lib/site-admin/sections/shared/presentation";
 
 export function BreakpointStyleEngine({
@@ -16,7 +19,9 @@ export function BreakpointStyleEngine({
 }: {
   tiers?: readonly CustomBreakpoint[] | null;
 }) {
-  const css = generateCustomBreakpointCss(tiers);
+  const css = [generateCustomBreakpointCss(tiers), generateContainerLayoutCss(tiers)]
+    .filter(Boolean)
+    .join("\n\n");
   if (!css) return null;
   return (
     <style
