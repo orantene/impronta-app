@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
@@ -60,18 +60,30 @@ export function SupportCardRenderer({
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 600, color: ink, marginBottom: 6 }}>
-        {typeof payload.title === "string" ? payload.title : t("dashboard.adminSupport.cardTitle")}
+        {typeof payload.title === "string"
+          ? payload.title
+          : kind === "offer-human"
+            ? t("dashboard.adminSupport.offerHumanTitle")
+            : t("dashboard.adminSupport.cardTitle")}
       </div>
       {typeof payload.description === "string" ? (
         <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: 10 }}>
           {payload.description}
         </div>
+      ) : kind === "offer-human" ? (
+        <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: 10 }}>
+          {t("dashboard.adminSupport.offerHumanBody")}
+        </div>
       ) : null}
-      {kind === "callback" || kind === "auto-close" ? (
+      {kind === "callback" || kind === "auto-close" || kind === "offer-human" ? (
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => onAction?.(kind === "callback" ? "add-phone" : "keep-open")}
+            onClick={() =>
+              onAction?.(
+                kind === "callback" ? "add-phone" : kind === "auto-close" ? "keep-open" : "talk-human",
+              )
+            }
             style={{
               border: "none",
               background: COLORS.fill,
@@ -85,7 +97,9 @@ export function SupportCardRenderer({
           >
             {kind === "callback"
               ? t("dashboard.adminSupport.addNumber")
-              : t("dashboard.adminSupport.keepOpen")}
+              : kind === "auto-close"
+                ? t("dashboard.adminSupport.keepOpen")
+                : t("dashboard.adminSupport.talkToHuman")}
           </button>
         </div>
       ) : null}
@@ -112,6 +126,7 @@ export function SupportThreadView({
   contract?: SupportContract;
 }) {
   const t = useT();
+  const [acked, setAcked] = useState<Record<string, boolean>>({});
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -212,7 +227,22 @@ export function SupportThreadView({
                     {m.body}
                   </div>
                   {!isHq ? (
-                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, alignItems: "center" }}>
+                      {acked[m.id] ? null : (
+                        <>
+                          <span style={{ fontSize: 11, color: COLORS.royal }}>{t("dashboard.adminSupport.didThisHelp")}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAcked((prev) => ({ ...prev, [m.id]: true }))}
+                            style={ghostBtn}
+                          >
+                            {t("dashboard.adminSupport.yesHelped")}
+                          </button>
+                          <button type="button" onClick={onRequestHuman} style={ghostBtn}>
+                            {t("dashboard.adminSupport.noHelped")}
+                          </button>
+                        </>
+                      )}
                       <button type="button" onClick={onRequestHuman} style={ghostBtn}>
                         {t("dashboard.adminSupport.talkToHuman")}
                       </button>

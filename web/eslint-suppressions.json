@@ -390,11 +390,13 @@
     }
   },
   "src/components/admin/shell/internal/help.tsx": {
-    "max-lines": {
-      "count": 1
-    },
     "ratchet/no-new-inline-style": {
       "count": 19
+    }
+  },
+  "src/components/admin/shell/internal/help-registry.ts": {
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/language-add-search.tsx": {

@@ -738,6 +738,11 @@
       "keepOpen": "Garder ce ticket ouvert",
       "aiEyebrow": "TULALA AI",
       "talkToHuman": "Parler a une personne",
+      "didThisHelp": "Cela a-t-il aide ?",
+      "yesHelped": "Oui",
+      "noHelped": "Non",
+      "offerHumanTitle": "Voulez-vous qu'Oran y jette un oeil ?",
+      "offerHumanBody": "J'ai partage ce que je peux depuis les guides. Une personne peut reprendre si vous voulez.",
       "requesterEyebrow": "DEMANDEUR",
       "staffEyebrow": "ORAN · TULALA HQ",
       "rateAria": "Noter cette resolution",
@@ -807,7 +812,8 @@
         "cannedGreeting": "Merci pour votre message. Je regarde cela maintenant.",
         "cannedNeedMore": "Pouvez-vous donner un peu plus de detail, ou une capture de ce que vous voyez ?",
         "cannedFixed": "Cela devrait etre regle. Pouvez-vous reessayer et me dire si c'est clair ?",
-        "cannedResolve": "Je marque ce ticket resolu. Notez-le si vous avez un instant."
+        "cannedResolve": "Je marque ce ticket resolu. Notez-le si vous avez un instant.",
+        "takeOver": "Prendre le ticket"
       }
     }
   }

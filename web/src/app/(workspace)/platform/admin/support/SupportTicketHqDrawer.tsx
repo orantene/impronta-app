@@ -9,6 +9,7 @@ import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
   hqChangeStatusAction,
+  hqEscalateOverrideAction,
   hqLoadTicketDetailAction,
   hqReplySupportTicketAction,
 } from "@/lib/support/hq-actions";
@@ -136,6 +137,25 @@ export function SupportTicketHqDrawer({
                 </button>
               ))}
             </div>
+          ) : null}
+          {ticket?.handledBy === "ai" ? (
+            <button
+              type="button"
+              onClick={() =>
+                void hqEscalateOverrideAction({ ticketId: ticket.id }).then(() => reload(ticket.id))
+              }
+              style={{
+                border: `1px solid ${HQ.purple}`,
+                background: "transparent",
+                color: HQ.purple,
+                borderRadius: 7,
+                padding: "5px 8px",
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              {t("dashboard.platform.support.takeOver")}
+            </button>
           ) : null}
           <button
             type="button"

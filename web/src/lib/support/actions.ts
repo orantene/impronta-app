@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import {
   checkSupportMessageSend,
   checkSupportTicketCreate,
@@ -51,6 +52,9 @@ export async function createSupportTicketAction(
   const limited = await rateLimited(checkSupportTicketCreate(requester.userId));
   if (limited) return limited;
 
+  const flags = await getAiFeatureFlags();
+  const aiOn = flags.ai_master_enabled && flags.ai_support_enabled;
+
   const result = await supportEngine.createTicket({
     tenantId: requester.tenantId,
     surface: requester.surface,
@@ -65,7 +69,7 @@ export async function createSupportTicketAction(
     contactPhone: parsed.data.contactPhone,
     callbackRequested: parsed.data.callbackRequested,
     callbackPref: parsed.data.callbackPref as SupportCallbackPref | undefined,
-    handledBy: "human",
+    handledBy: aiOn ? "ai" : "human",
     messageOranDirectly: parsed.data.messageOranDirectly,
   });
   if (!result.ok) return result;

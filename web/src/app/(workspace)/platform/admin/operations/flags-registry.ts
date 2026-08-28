@@ -136,6 +136,14 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
         control: { kind: "toggle" },
       },
       {
+        key: "ai_support_enabled",
+        label: "AI support first-responder",
+        description: "Grounded in-app support answers with escalation to a human. Off by default.",
+        labelKey: "dashboard.platform.operations.flagAiSupportLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiSupportDesc",
+        control: { kind: "toggle" },
+      },
+      {
         key: "ai_search_quality_v2",
         label: "Search quality v2",
         description: "Stronger hybrid merge (RRF) + hybrid continuation cursor.",

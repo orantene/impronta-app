@@ -346,7 +346,10 @@ const BUDGETS: Record<string, number> = {
   // new "Analytics" sub-nav label — ES_TEXT is keyed by the English literal,
   // so it cannot live beside the nav item.
   "src/components/admin/shell/internal/dashboard-i18n.ts": 3536,
-  "src/components/admin/shell/internal/help.tsx": 2969,
+  "src/components/admin/shell/internal/help.tsx": 744,
+  // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
+  // the registry from a server module without pulling the HelpPanel island.
+  "src/components/admin/shell/internal/help-registry.ts": 2237,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
   // 2026-08-14 media-ownership phase 1: +72 for the ownership chip on every

@@ -8076,6 +8076,8 @@
         "flagAiRefineDesc": "Sugerencias de refinamiento de consulta asistidas por IA.",
         "flagAiDraftLabel": "Borrador con IA",
         "flagAiDraftDesc": "Asistentes de redacción con IA.",
+        "flagAiSupportLabel": "IA como primer respondedor de soporte",
+        "flagAiSupportDesc": "Respuestas de soporte en la app, con escalado a una persona. Desactivado por defecto.",
         "flagSearchQualityV2Label": "Calidad de búsqueda v2",
         "flagSearchQualityV2Desc": "Combinación híbrida más potente (RRF) + cursor de continuación híbrido.",
         "flagRefineV2Label": "Refinamiento v2",
@@ -8295,7 +8297,8 @@
         "cannedGreeting": "Gracias por escribir. Lo estoy mirando ahora.",
         "cannedNeedMore": "Puedes darme un poco mas de detalle, o una captura de lo que ves?",
         "cannedFixed": "Esto deberia estar resuelto. Puedes probar de nuevo y decirme si ya esta claro?",
-        "cannedResolve": "Marco este ticket como resuelto. Valoralo si tienes un momento."
+        "cannedResolve": "Marco este ticket como resuelto. Valoralo si tienes un momento.",
+        "takeOver": "Tomar el ticket"
       }
     },
     "clientBookings": {
@@ -11799,6 +11802,11 @@
       "keepOpen": "Mantener este ticket abierto",
       "aiEyebrow": "TULALA AI",
       "talkToHuman": "Hablar con una persona",
+      "didThisHelp": "Te ayudo esto?",
+      "yesHelped": "Si",
+      "noHelped": "No",
+      "offerHumanTitle": "Quieres que Oran lo mire?",
+      "offerHumanBody": "He compartido lo que puedo de las guias. Una persona puede retomar esto si quieres.",
       "requesterEyebrow": "SOLICITANTE",
       "staffEyebrow": "ORAN · TULALA HQ",
       "rateAria": "Valorar esta resolucion",

@@ -40,7 +40,23 @@ export function SupportPanel({
   const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
   const [ask, setAsk] = useState("");
   const [sending, setSending] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const unread = useSupportUnread(tickets);
+
+  const requestAi = useCallback(async (id: string) => {
+    setThinking(true);
+    try {
+      await fetch("/api/ai/support-chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ticketId: id }),
+      });
+    } catch {
+      /* fail-open: the route persists a system nudge when the model is down */
+    } finally {
+      setThinking(false);
+    }
+  }, []);
 
   const openToTicket = useCallback(
     (id: string) => {
@@ -101,6 +117,7 @@ export function SupportPanel({
     if (r.ok) {
       setAsk("");
       setView("thread", r.ticketId);
+      void requestAi(r.ticketId);
     }
   };
 
@@ -186,16 +203,16 @@ export function SupportPanel({
               }}
               onCardAction={(action) => {
                 if (action === "add-phone") setView("new");
+                if (action === "talk-human" && ticketId) void contract.requestHuman({ ticketId });
               }}
+              thinking={thinking}
             />
             <Composer
               disabled={!ticketId || ticket?.status === "closed"}
               onSend={async (body) => {
                 if (!ticketId) return;
                 const r = await contract.sendMessage({ ticketId, body });
-                if (r.ok) {
-                  /* realtime appends */
-                }
+                if (r.ok) void requestAi(ticketId);
               }}
             />
           </>
@@ -203,7 +220,10 @@ export function SupportPanel({
         {view === "new" && (
           <NewTicketForm
             contract={contract}
-            onCreated={(id) => setView("thread", id)}
+            onCreated={(id) => {
+              setView("thread", id);
+              void requestAi(id);
+            }}
           />
         )}
       </div>
