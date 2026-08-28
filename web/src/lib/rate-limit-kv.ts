@@ -227,6 +227,8 @@ interface KvLimiter {
   checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
   /** Support messages: 30 / 60 min / user. */
   checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
+  /** Public booking slots: 60 / 60 s / IP. */
+  checkBookingSlots(key: string): Promise<KvRateLimitResult>;
 }
 
 /** No-op fallback used when Upstash env vars are absent. */
@@ -256,6 +258,9 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkSupportMessageSend() {
+    return { ok: true };
+  },
+  async checkBookingSlots() {
     return { ok: true };
   },
 };
@@ -412,6 +417,13 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    const bookingSlotsLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(60, "1 m"),
+      prefix: "rl:booking_slots",
+      analytics: false,
+    });
+
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
         try {
@@ -504,6 +516,16 @@ async function getLimiter(): Promise<KvLimiter> {
       async checkSupportMessageSend(key: string): Promise<KvRateLimitResult> {
         try {
           const r = await supportMessageSendLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await bookingSlotsLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
         } catch {
@@ -614,6 +636,13 @@ export async function checkSupportTicketCreate(userId: string): Promise<KvRateLi
 export async function checkSupportMessageSend(userId: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkSupportMessageSend(`support_msg:${userId}`);
+}
+
+/** Public booking slots: 60 requests per minute per trusted client IP. */
+export async function checkBookingSlots(ip: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  const key = (ip.trim() || "x").toLowerCase();
+  return limiter.checkBookingSlots(`booking_slots:${key}`);
 }
 
 /**
