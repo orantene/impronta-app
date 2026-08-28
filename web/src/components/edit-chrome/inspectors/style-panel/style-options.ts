@@ -28,15 +28,13 @@ export const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "display", label: "Display" },
 ];
 
-export const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
-  { value: "xl", label: "XL" },
-  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
-  { value: "display", label: "Display" },
-];
+/*
+ * The text-size tiers used to live here as a label-only option list. They now
+ * render from `field-kit/preset-values.ts` (`TEXT_SIZE_PRESETS`), which derives
+ * the same ids from the renderer's own `TEXT_SIZE_CLAMP` AND carries the px
+ * range each tier resolves to. A second table with the ids but none of the
+ * numbers could only drift, so it is gone rather than kept as a fallback.
+ */
 
 export const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },

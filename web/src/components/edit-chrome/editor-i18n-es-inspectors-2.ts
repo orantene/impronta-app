@@ -664,4 +664,20 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "See all": "Ver todo",
   "e.g. The roster": "p. ej. El elenco",
   "e.g. for your next campaign": "p. ej. para tu próxima campaña",
+
+  // ── Token-scale style controls (Style panel, 2026-08-27) ─────────────────
+  // The per-side padding/margin boxes lead with the renderer's spacing scale
+  // and keep the exact numbers behind one expander per box. "Top" / "Right" /
+  // "Bottom" / "Left", "Auto", "Theme" and "Custom value" already live in the
+  // shared flat map, so only what these controls invent is added here.
+  "Padding sides": "Lados del relleno",
+  "Margin sides": "Lados del margen",
+  "Exact values": "Valores exactos",
+  "Hide exact values": "Ocultar valores exactos",
+  Smaller: "Más pequeño",
+  Larger: "Más grande",
+  "Any CSS length works here. Values off the scale stay exactly as you type them.":
+    "Aquí sirve cualquier medida CSS. Los valores fuera de la escala se quedan tal como los escribes.",
+  "The steps are your type scale. An exact size is still yours to set.":
+    "Los pasos son tu escala tipográfica. El tamaño exacto sigue estando en tus manos.",
 };

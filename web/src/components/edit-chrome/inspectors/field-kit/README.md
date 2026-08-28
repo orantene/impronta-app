@@ -85,6 +85,22 @@ The component holds **no selection state**. Everything is derived from the
 value by `preset-state.ts`, so a lit chip cannot end up contradicting the
 number next to it.
 
+### `ScaleStepper`
+
+Rule 1 in the width a four-up box has. Minus, a readout, plus — walking the
+same `preset-values` table the chips use, and printing the step's name AND its
+resolved number ("M · 24") rather than a name on its own. The eight per-side
+padding/margin fields use it; they were the only spacing controls in the panel
+with no scale in sight.
+
+It carries no exact input of its own: the group that owns the four sides shows
+ONE "Exact values" expander for the whole box (`style-panel/exact-spacing-
+sides.tsx`), which is rule 2 honoured once per box instead of four half-width
+numeric inputs. That expander OPENS ITSELF whenever a side already holds a
+length the scale does not own, so an existing hand-authored design shows its
+real numbers on arrival. A value off the scale is never re-lit as the nearest
+step and never rewritten on mount.
+
 ### `GlyphTiles`
 
 Rule 3. A radiogroup of tiles, each with a glyph slot and a caption. Ships the
@@ -114,6 +130,7 @@ negative case: six options must fail).
 | The field is… | Use |
 |---|---|
 | A size, spacing, radius, or any number with a preset scale | `PresetNumberRow` |
+| The same, in a cell too narrow for chips (a four-up box) | `ScaleStepper` |
 | A choice whose options have a **look** (radius, border, shadow, divider) | `GlyphTiles` |
 | A choice of **at most 5** options where text says it all | `ChoiceRow` |
 | More than 5 text-only options | Not this kit. Use a select, and reconsider the field. |
