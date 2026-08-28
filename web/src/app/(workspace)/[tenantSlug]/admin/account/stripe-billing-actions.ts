@@ -99,6 +99,7 @@ export async function startWorkspaceUpgrade(
     // Checkout does not fall back to guessing from the browser.
     locale: await getRequestLocale(),
     promoCode: campaignPromo,
+    buyerUserId: session.user.id,
   });
 
   if (!result.ok) {

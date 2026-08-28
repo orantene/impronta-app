@@ -7,11 +7,11 @@
  * "did the launch cohort redeem?" meant opening Stripe and matching
  * subscription ids by hand.
  *
- * One honesty note carried into the UI: the billing email is RESOLVED from the
- * workspace's Stripe customer record, not recorded at redemption time (the
- * ledger has a `user_id` column but the RPC that writes rows has no parameter
- * for it). Talent redemptions therefore have no email at all, and the drawer
- * says so rather than showing a blank cell that reads like missing data.
+ * Two honesty notes are carried into the UI rather than smoothed over. The
+ * billing email is RESOLVED from the workspace's Stripe customer record, not
+ * recorded at redemption, so talent redemptions have none. And the person's
+ * name is absent on rows written before 20261213010000, when `user_id` was
+ * finally passed to the ledger RPC — a blank there is history, not a bug.
  */
 
 import { useEffect, useState } from "react";
@@ -167,11 +167,12 @@ function Row({ r }: { r: DiscountRedemptionRow }) {
       <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <span>{r.subjectLabel ?? "—"}</span>
         <span style={{ fontSize: 10, color: HQ.inkDim }}>
-          {t(
-            r.subjectType === "talent"
-              ? `${P}.subjectTalent`
-              : `${P}.subjectWorkspace`,
-          )}
+          {r.redeemedByName ??
+            t(
+              r.subjectType === "talent"
+                ? `${P}.subjectTalent`
+                : `${P}.subjectWorkspace`,
+            )}
         </span>
       </span>
       <span style={{ color: r.email ? HQ.ink : HQ.inkDim }}>

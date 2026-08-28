@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -9286,10 +9286,12 @@ export type Database = {
           media_private_access_enabled: boolean
           multi_currency_display_enabled: boolean
           operating_currency: string
+          support_weekly_digest: Json | null
           updated_at: string
           updated_by: string | null
           workspace_fab_enabled: boolean
           workspace_quick_bar_enabled: boolean
+          workspace_support_enabled: boolean
           workspace_tour_enabled: boolean
         }
         Insert: {
@@ -9313,10 +9315,12 @@ export type Database = {
           media_private_access_enabled?: boolean
           multi_currency_display_enabled?: boolean
           operating_currency?: string
+          support_weekly_digest?: Json | null
           updated_at?: string
           updated_by?: string | null
           workspace_fab_enabled?: boolean
           workspace_quick_bar_enabled?: boolean
+          workspace_support_enabled?: boolean
           workspace_tour_enabled?: boolean
         }
         Update: {
@@ -9340,10 +9344,12 @@ export type Database = {
           media_private_access_enabled?: boolean
           multi_currency_display_enabled?: boolean
           operating_currency?: string
+          support_weekly_digest?: Json | null
           updated_at?: string
           updated_by?: string | null
           workspace_fab_enabled?: boolean
           workspace_quick_bar_enabled?: boolean
+          workspace_support_enabled?: boolean
           workspace_tour_enabled?: boolean
         }
         Relationships: [
@@ -10069,6 +10075,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          disabled_at: string | null
+          endpoint: string
+          failed_at: string | null
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint: string
+          failed_at?: string | null
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint?: string
+          failed_at?: string | null
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       requirement_role_keys: {
         Row: {
@@ -10887,6 +10932,653 @@ export type Database = {
           },
           {
             foreignKeyName: "subscription_discounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_message_reads: {
+        Row: {
+          last_read_at: string
+          last_read_message_id: string | null
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          last_read_message_id?: string | null
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          last_read_message_id?: string | null
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_message_reads_last_read_message_id_fkey"
+            columns: ["last_read_message_id"]
+            isOneToOne: false
+            referencedRelation: "support_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_message_reads_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          ai_meta: Json | null
+          author_kind: string
+          author_user_id: string | null
+          body: string
+          body_tsv: unknown
+          card_payload: Json | null
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          message_kind: string
+          metadata: Json
+          tenant_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          ai_meta?: Json | null
+          author_kind: string
+          author_user_id?: string | null
+          body: string
+          body_tsv?: unknown
+          card_payload?: Json | null
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          message_kind?: string
+          metadata?: Json
+          tenant_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          ai_meta?: Json | null
+          author_kind?: string
+          author_user_id?: string | null
+          body?: string
+          body_tsv?: unknown
+          card_payload?: Json | null
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          message_kind?: string
+          metadata?: Json
+          tenant_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_proposed_actions: {
+        Row: {
+          applied_at: string | null
+          applied_result: Json | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string
+          expires_at: string
+          id: string
+          kind: string
+          payload: Json
+          preview: Json | null
+          proposed_by: string
+          status: string
+          tenant_id: string | null
+          ticket_id: string
+          title: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_result?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description: string
+          expires_at: string
+          id?: string
+          kind: string
+          payload: Json
+          preview?: Json | null
+          proposed_by: string
+          status?: string
+          tenant_id?: string | null
+          ticket_id: string
+          title: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_result?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          preview?: Json | null
+          proposed_by?: string
+          status?: string
+          tenant_id?: string | null
+          ticket_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_proposed_actions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_proposed_actions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_replay_sessions: {
+        Row: {
+          chunk_count: number
+          chunks: Json
+          consent: Json
+          created_at: string
+          duration_ms: number | null
+          ended_at: string | null
+          event_count: number
+          expires_at: string
+          id: string
+          kind: string
+          started_at: string
+          status: string
+          storage_prefix: string | null
+          tenant_id: string | null
+          ticket_id: string
+          total_bytes: number
+          user_id: string
+        }
+        Insert: {
+          chunk_count?: number
+          chunks?: Json
+          consent: Json
+          created_at?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          event_count?: number
+          expires_at: string
+          id?: string
+          kind: string
+          started_at?: string
+          status?: string
+          storage_prefix?: string | null
+          tenant_id?: string | null
+          ticket_id: string
+          total_bytes?: number
+          user_id: string
+        }
+        Update: {
+          chunk_count?: number
+          chunks?: Json
+          consent?: Json
+          created_at?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          event_count?: number
+          expires_at?: string
+          id?: string
+          kind?: string
+          started_at?: string
+          status?: string
+          storage_prefix?: string | null
+          tenant_id?: string | null
+          ticket_id?: string
+          total_bytes?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_replay_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_replay_sessions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_diagnostics: {
+        Row: {
+          app_version: string | null
+          audit_events: Json | null
+          collected_at: string | null
+          console_events: Json
+          created_at: string
+          feature_flags: Json | null
+          id: string
+          locale: string | null
+          network_failures: Json
+          route: string | null
+          route_history: Json
+          sentry_last_event_id: string | null
+          sentry_link: string | null
+          tenant_id: string | null
+          tenant_plan: string | null
+          ticket_id: string
+          timezone: string | null
+          url: string | null
+          user_agent: string | null
+          viewport: Json | null
+        }
+        Insert: {
+          app_version?: string | null
+          audit_events?: Json | null
+          collected_at?: string | null
+          console_events?: Json
+          created_at?: string
+          feature_flags?: Json | null
+          id?: string
+          locale?: string | null
+          network_failures?: Json
+          route?: string | null
+          route_history?: Json
+          sentry_last_event_id?: string | null
+          sentry_link?: string | null
+          tenant_id?: string | null
+          tenant_plan?: string | null
+          ticket_id: string
+          timezone?: string | null
+          url?: string | null
+          user_agent?: string | null
+          viewport?: Json | null
+        }
+        Update: {
+          app_version?: string | null
+          audit_events?: Json | null
+          collected_at?: string | null
+          console_events?: Json
+          created_at?: string
+          feature_flags?: Json | null
+          id?: string
+          locale?: string | null
+          network_failures?: Json
+          route?: string | null
+          route_history?: Json
+          sentry_last_event_id?: string | null
+          sentry_link?: string | null
+          tenant_id?: string | null
+          tenant_plan?: string | null
+          ticket_id?: string
+          timezone?: string | null
+          url?: string | null
+          user_agent?: string | null
+          viewport?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_diagnostics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_diagnostics_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: true
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_events: {
+        Row: {
+          actor_kind: string
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          tenant_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          actor_kind: string
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          tenant_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          actor_kind?: string
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          tenant_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_events_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_fix_links: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          note: string | null
+          ticket_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          note?: string | null
+          ticket_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          ticket_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_fix_links_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_insights: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          is_bug_report: boolean
+          is_feature_request: boolean
+          model: string | null
+          product_area: string | null
+          resolution_kind: string | null
+          root_cause: string | null
+          sentiment: string | null
+          summary: string
+          tags: string[]
+          tenant_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          is_bug_report?: boolean
+          is_feature_request?: boolean
+          model?: string | null
+          product_area?: string | null
+          resolution_kind?: string | null
+          root_cause?: string | null
+          sentiment?: string | null
+          summary: string
+          tags?: string[]
+          tenant_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          is_bug_report?: boolean
+          is_feature_request?: boolean
+          model?: string | null
+          product_area?: string | null
+          resolution_kind?: string | null
+          root_cause?: string | null
+          sentiment?: string | null
+          summary?: string
+          tags?: string[]
+          tenant_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_insights_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_insights_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: true
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assignee_user_id: string | null
+          callback_pref: string | null
+          callback_requested: boolean
+          category: string | null
+          client_profile_id: string | null
+          closed_at: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          escalated_at: string | null
+          escalation_reason: string | null
+          first_human_response_at: string | null
+          guest_session_id: string | null
+          handled_by: string
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          long_term_fix: string | null
+          message_count: number
+          metadata: Json
+          origin_surface_slug: string | null
+          priority: string
+          rated_at: string | null
+          reopened_count: number
+          requester_user_id: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          satisfaction_comment: string | null
+          satisfaction_rating: number | null
+          status: string
+          subject: string
+          surface: string
+          tags: string[]
+          talent_profile_id: string | null
+          tenant_id: string | null
+          ticket_number: number
+          updated_at: string
+          waiting_on: string | null
+        }
+        Insert: {
+          assignee_user_id?: string | null
+          callback_pref?: string | null
+          callback_requested?: boolean
+          category?: string | null
+          client_profile_id?: string | null
+          closed_at?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          escalated_at?: string | null
+          escalation_reason?: string | null
+          first_human_response_at?: string | null
+          guest_session_id?: string | null
+          handled_by?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          long_term_fix?: string | null
+          message_count?: number
+          metadata?: Json
+          origin_surface_slug?: string | null
+          priority?: string
+          rated_at?: string | null
+          reopened_count?: number
+          requester_user_id?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          satisfaction_comment?: string | null
+          satisfaction_rating?: number | null
+          status?: string
+          subject?: string
+          surface: string
+          tags?: string[]
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          ticket_number?: never
+          updated_at?: string
+          waiting_on?: string | null
+        }
+        Update: {
+          assignee_user_id?: string | null
+          callback_pref?: string | null
+          callback_requested?: boolean
+          category?: string | null
+          client_profile_id?: string | null
+          closed_at?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          escalated_at?: string | null
+          escalation_reason?: string | null
+          first_human_response_at?: string | null
+          guest_session_id?: string | null
+          handled_by?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          long_term_fix?: string | null
+          message_count?: number
+          metadata?: Json
+          origin_surface_slug?: string | null
+          priority?: string
+          rated_at?: string | null
+          reopened_count?: number
+          requester_user_id?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          satisfaction_comment?: string | null
+          satisfaction_rating?: number | null
+          status?: string
+          subject?: string
+          surface?: string
+          tags?: string[]
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          ticket_number?: never
+          updated_at?: string
+          waiting_on?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_guest_session_id_fkey"
+            columns: ["guest_session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
@@ -15787,6 +16479,18 @@ export type Database = {
           },
         ]
       }
+      support_insights_rollup: {
+        Row: {
+          ai_resolved: number | null
+          bug_reports: number | null
+          feature_requests: number | null
+          negative: number | null
+          product_area: string | null
+          ticket_count: number | null
+          week: string | null
+        }
+        Relationships: []
+      }
       talent_discover_index: {
         Row: {
           agency_name: string | null
@@ -16800,6 +17504,7 @@ export type Database = {
           p_subject_type: string
           p_talent_profile_id: string
           p_tenant_id: string
+          p_user_id?: string
         }
         Returns: boolean
       }
