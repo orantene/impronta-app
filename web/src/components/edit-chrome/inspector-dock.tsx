@@ -111,8 +111,6 @@ const AnimationPanel = dynamic(
     })),
   { ssr: false, loading: () => null },
 );
-import { useAdvancedMode } from "./advanced-mode";
-import { filterInspectorTabsByAdvanced } from "./advanced-mode-visibility";
 import {
   InspectorDraftStatus,
   InspectorViewportRail,
@@ -139,9 +137,12 @@ import {
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditorLocale } from "./use-editor-locale";
 import {
+  humanizeSectionTypeKey,
+  type InspectorTabKey,
+} from "./inspector-tab-config";
+import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
+import {
   BUILDER_NODE_REGISTRY,
-  builderNodeSupportsFieldBindings,
-  builderNodeSupportsDataBinding,
   normalizeBuilderDataBinding,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
@@ -149,71 +150,10 @@ import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 
-type TabKey = "content" | "layout" | "style" | "data" | "motion";
-
-const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
-  { key: "content", label: "Content" },
-  { key: "layout", label: "Layout" },
-  { key: "style", label: "Style" },
-  // Animation before Data, matching `inspector-tab-config.ts`. The two lists
-  // are separate on purpose (this dock predates the config module) but they
-  // must agree on order and label, and `inspector-tab-config.test.ts` asserts
-  // the pairing rather than trusting it.
-  { key: "motion", label: "Animation" },
-  { key: "data", label: "Data" },
-];
-
-/**
- * Per-section-type tab visibility.
- *
- * The audit (2026-04-28 product-feel sprint) flagged the always-five-tabs
- * inspector as "implies missing controls when most sections don't use
- * Responsive or Motion." This map opts each section into the tabs that
- * are actually meaningful for it. Anything not listed falls back to
- * `DEFAULT_TABS` — Content + Style + Layout — so unfamiliar types get a
- * sensible minimum without surfacing aspirational surfaces (Responsive,
- * Motion) that read as broken when empty.
- *
- * Add a section here if Responsive overrides or Motion entry effects
- * meaningfully add to the operator's vocabulary for that block.
- */
-const DEFAULT_TABS: ReadonlyArray<TabKey> = ["content", "style", "layout"];
-
-const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<TabKey>> = {
-  // Heroes — five-tab surface; responsive controls live in Layout + viewport rail.
-  hero: ["content", "style", "layout", "data", "motion"],
-  featured_talent: ["content", "style", "layout", "data", "motion"],
-  gallery_strip: ["content", "style", "layout", "motion"],
-  testimonials_trio: ["content", "style", "layout", "motion"],
-  cta_banner: ["content", "style", "layout", "motion"],
-  image_copy_alternating: ["content", "style", "layout"],
-  trust_strip: ["content", "style", "layout"],
-  press_strip: ["content", "style", "layout"],
-  values_trio: ["content", "style", "layout"],
-  process_steps: ["content", "style", "layout"],
-  category_grid: ["content", "style", "layout", "data"],
-  destinations_mosaic: ["content", "style", "layout", "data"],
-  map_overlay: ["content", "style", "layout", "data"],
-  marquee: ["content", "style", "layout", "motion"],
-};
-
-function tabsForSection(typeKey: string | null | undefined): ReadonlyArray<TabKey> {
-  if (!typeKey) return DEFAULT_TABS;
-  return TABS_BY_SECTION_TYPE[typeKey] ?? DEFAULT_TABS;
-}
-
-function humanizeTypeKey(key: string | null | undefined): string {
-  if (!key) return "Section";
-  return key
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 /** Canvas-first inspector block title — type label, not content-derived copy. */
 function inspectorBlockTitle(typeKey: string | null | undefined): string {
   if (!typeKey) return "Section";
-  const base = humanizeTypeKey(typeKey);
+  const base = humanizeSectionTypeKey(typeKey);
   if (/\bsection\b/i.test(base)) return base;
   return `${base} Section`;
 }
@@ -279,24 +219,6 @@ type InspectorBreadcrumbCrumb =
       selectable: true;
       kind: "section" | "node";
     };
-
-function nodeUsesLayoutInspector(
-  node: Exclude<BuilderNode, { kind: "section" }>,
-): boolean {
-  switch (node.kind) {
-    case "container":
-    case "split":
-    case "accordion":
-    case "tabs":
-    case "carousel":
-    case "masonry":
-    case "divider":
-    case "spacer":
-      return true;
-    default:
-      return false;
-  }
-}
 
 /** Returns null if raw is empty/null, otherwise strips seeder debug suffixes. */
 function cleanSectionName(raw: string | null | undefined): string | null {
@@ -441,7 +363,7 @@ export function InspectorDock() {
       const found = entries.find((e) => e.sectionId === selectedSectionId);
       if (found) {
         return {
-          name: cleanSectionName(found.name) || humanizeTypeKey(found.sectionTypeKey),
+          name: cleanSectionName(found.name) || humanizeSectionTypeKey(found.sectionTypeKey),
           typeKey: found.sectionTypeKey,
         };
       }
@@ -461,7 +383,7 @@ export function InspectorDock() {
     }
   }, [selectedBuilderNodeId, selectedSectionId, clearSearch]);
 
-  const [tab, setTab] = useState<TabKey>("content");
+  const [tab, setTab] = useState<InspectorTabKey>("content");
   useEffect(() => {
     if (!inspectorTabRequest) return;
     const nextTab =
@@ -1234,43 +1156,10 @@ export function InspectorDock() {
     sectionTitle,
   ]);
 
-  // 2026-04-28 — Tab strip is now adaptive per section type. Sections
-  // declare which tabs they meaningfully use; the strip only renders
-  // those. Sections not listed in TABS_BY_SECTION_TYPE fall back to
-  // DEFAULT_TABS (Content + Style + Layout). Falls back to all 5 only
-  // while the section row is still loading, so the strip doesn't jump
-  // size at hand-off.
-  const { advanced } = useAdvancedMode();
-  const visibleTabs = useMemo<ReadonlyArray<TabKey>>(() => {
-    let resolved: TabKey[];
-    if (selectedStandaloneBuilderNode) {
-      const tabs: TabKey[] = ["content", "style"];
-      if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
-        tabs.push("layout");
-      }
-      // Animation is offered for every standalone kind (the same set Style is
-      // offered for) and sits before Data, matching TABS above.
-      tabs.push("motion");
-      if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
-        tabs.push("data");
-      } else if (builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)) {
-        tabs.push("data");
-      }
-      resolved = tabs;
-    } else {
-      const allowed = currentLoadedSection
-        ? tabsForSection(currentLoadedSection.sectionTypeKey)
-        : skeletonHint
-          ? tabsForSection(skeletonHint.typeKey)
-          : DEFAULT_TABS;
-      const set = new Set(allowed);
-      // Preserve the canonical TABS order.
-      resolved = TABS.filter((t) => set.has(t.key)).map((t) => t.key);
-    }
-    // W2-C4 — Advanced OFF hides Data + Motion tabs (data model untouched; the
-    // fallback effect below resets an orphaned active tab to Content).
-    return filterInspectorTabsByAdvanced(resolved, advanced);
-  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint, advanced]);
+  // Tab strip + which Style body to mount come from the same chrome
+  // resolver the command rail uses (`inspector-tab-config.ts`). Curated
+  // cms_page_sections rows and freeform nodes share that product.
+  const { visibleTabKeys: visibleTabs, styleMount } = useInspectorVisibleTabs();
 
   // Vertical icon-rail items removed — tab strip lives on InspectorCommandRail.
 
@@ -1506,14 +1395,16 @@ export function InspectorDock() {
                     });
                   }}
                 />
-              ) : (
-                <StylePanel
-                  sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
-                  draftProps={currentDraftProps ?? {}}
-                  selectedBuilderNodeId={selectedBuilderNodeId}
-                  onPatch={handleStylePatch}
-                />
-              )
+              ) : styleMount === "StylePanel" ? (
+                <div data-inspector-style-mount={styleMount} className="contents">
+                  <StylePanel
+                    sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
+                    draftProps={currentDraftProps ?? {}}
+                    selectedBuilderNodeId={selectedBuilderNodeId}
+                    onPatch={handleStylePatch}
+                  />
+                </div>
+              ) : null
             ) : null}
             {tab === "data" ? (
               <DataPanel
