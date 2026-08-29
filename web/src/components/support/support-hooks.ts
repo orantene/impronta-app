@@ -8,12 +8,12 @@ import { parseSupportDeepLink } from "./support-deep-link";
 const VIEW_KEY = "tulala.support.view";
 
 export function useSupportSessionRestore(): {
-  view: "home" | "tickets" | "thread" | "new";
+  view: "home" | "tickets" | "thread" | "new" | "idea";
   ticketId: string | null;
-  setView: (v: "home" | "tickets" | "thread" | "new", ticketId?: string | null) => void;
+  setView: (v: "home" | "tickets" | "thread" | "new" | "idea", ticketId?: string | null) => void;
   restoredRef: { current: boolean };
 } {
-  const [view, setViewState] = useState<"home" | "tickets" | "thread" | "new">("home");
+  const [view, setViewState] = useState<"home" | "tickets" | "thread" | "new" | "idea">("home");
   const [ticketId, setTicketId] = useState<string | null>(null);
   const restoredRef = useRef(false);
 
@@ -22,7 +22,7 @@ export function useSupportSessionRestore(): {
       const raw = sessionStorage.getItem(VIEW_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as { view?: string; ticketId?: string | null };
-      if (parsed.view === "home" || parsed.view === "tickets" || parsed.view === "thread" || parsed.view === "new") {
+      if (parsed.view === "home" || parsed.view === "tickets" || parsed.view === "thread" || parsed.view === "new" || parsed.view === "idea") {
         if (parsed.view === "thread") restoredRef.current = true;
         setViewState(parsed.view);
         setTicketId(parsed.ticketId ?? null);
@@ -32,7 +32,7 @@ export function useSupportSessionRestore(): {
     }
   }, []);
 
-  const setView = useCallback((v: "home" | "tickets" | "thread" | "new", id?: string | null) => {
+  const setView = useCallback((v: "home" | "tickets" | "thread" | "new" | "idea", id?: string | null) => {
     // Any user-driven navigation ends the "restored from a previous session"
     // state — without this, the park-to-Home effect re-fires on later status
     // changes (e.g. right as the rating row should appear).

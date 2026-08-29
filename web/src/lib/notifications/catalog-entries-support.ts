@@ -8,6 +8,8 @@ import AgentReply from "../../../emails/support/AgentReply";
 import TicketResolved from "../../../emails/support/TicketResolved";
 import AutoCloseWarning from "../../../emails/support/AutoCloseWarning";
 import TicketFixed from "../../../emails/support/TicketFixed";
+import FeatureRequestAlert from "../../../emails/support/FeatureRequestAlert";
+import FeatureRequestUpdate from "../../../emails/support/FeatureRequestUpdate";
 import WeeklyDigest from "../../../emails/support/WeeklyDigest";
 import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent } from "./types";
 import { eventUser, platformAdmins, str } from "./catalog-audiences";
@@ -356,7 +358,79 @@ const WEEKLY_DIGEST: CatalogEntry = {
   },
 };
 
+const FEATURE_REQUEST_CREATED: CatalogEntry = {
+  id: "support.feature_request.created.platform",
+  category: "platform_alerts",
+  defaultChannels: ["email", "in_app", "push"],
+  required: false,
+  triggers: ["support.feature_request.created"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: platformAdmins,
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: (event) => `New idea #${num(event, "requestNumber")}`,
+    body: (event) => str(event.payload.title) ?? "A customer asked for something.",
+    targetPayload: (event) => ({ requestId: str(event.payload.requestId) }),
+  },
+  email: {
+    templateId: "support.feature_request.created",
+    subject: (event) =>
+      `New idea #${num(event, "requestNumber")} - ${str(event.payload.title) ?? "feature request"}`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(FeatureRequestAlert, {
+        requestNumber: num(event, "requestNumber"),
+        title: str(event.payload.title) ?? "",
+        body: str(event.payload.body) ?? "",
+        requesterLabel: str(event.payload.requesterLabel) ?? "A customer",
+        phone: str(event.payload.contactPhone),
+        adminUrl: pageUrl(
+          brand,
+          str(event.payload.adminPath) ?? "/platform/admin/support?view=ideas",
+        ),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "platform alerts",
+      }),
+  },
+};
+
+const FEATURE_REQUEST_UPDATED: CatalogEntry = {
+  id: "support.feature_request.updated.requester",
+  category: "messages",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["support.feature_request.updated"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventUser("workspace_member"),
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: (event) => `Your idea is ${str(event.payload.status) ?? "updated"}`,
+    body: (event) => str(event.payload.title),
+    targetPayload: (event) => ({ requestId: str(event.payload.requestId) }),
+  },
+  email: {
+    templateId: "support.feature_request.updated",
+    subject: (event) =>
+      `Your idea #${num(event, "requestNumber")} is ${str(event.payload.status) ?? "updated"}`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(FeatureRequestUpdate, {
+        requestNumber: num(event, "requestNumber"),
+        title: str(event.payload.title) ?? "",
+        statusLabel: (str(event.payload.status) ?? "updated").replace(/_/g, " "),
+        ownerNote: str(event.payload.ownerNote),
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
 export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
+  FEATURE_REQUEST_CREATED,
+  FEATURE_REQUEST_UPDATED,
   TICKET_CREATED,
   TICKET_ESCALATED,
   AGENT_REPLY,

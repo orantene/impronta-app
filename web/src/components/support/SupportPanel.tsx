@@ -16,6 +16,8 @@ import {
 import { SupportThreadView } from "./SupportThreadView";
 import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
+import { SupportIdeaForm } from "./SupportIdeaForm";
+import { HomeView, TicketRow } from "./SupportPanelHome";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
@@ -28,7 +30,7 @@ import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
 
-type View = "home" | "tickets" | "thread" | "new";
+type View = "home" | "tickets" | "thread" | "new" | "idea";
 
 export function SupportPanel({
   open,
@@ -59,6 +61,7 @@ export function SupportPanel({
   const [sending, setSending] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [attachReplay, setAttachReplay] = useState(false);
+  const [ideaSent, setIdeaSent] = useState<number | null>(null);
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -287,6 +290,8 @@ export function SupportPanel({
       <div ref={scrollRef} style={{ flex: 1, overflow: "auto" }}>
         {view === "home" && (
           <HomeView
+            ideaSent={ideaSent}
+            onDismissIdeaSent={() => setIdeaSent(null)}
             firstName={contract.firstName}
             ask={ask}
             setAsk={setAsk}
@@ -296,6 +301,7 @@ export function SupportPanel({
             recent={tickets.slice(0, 2)}
             onOpenTicket={(id) => setView("thread", id)}
             onStartTicket={() => setView("new")}
+            onAskFeature={() => setView("idea")}
             replayEnabled={replay.enabled}
             attachReplay={attachReplay}
             setAttachReplay={setAttachReplay}
@@ -351,6 +357,15 @@ export function SupportPanel({
               if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
             thinking={thinking}
+          />
+        )}
+        {view === "idea" && (
+          <SupportIdeaForm
+            contract={contract}
+            onSubmitted={(n) => {
+              setIdeaSent(n);
+              setView("home");
+            }}
           />
         )}
         {view === "new" && (
@@ -484,204 +499,6 @@ function DockTab({
           {badge}
         </span>
       ) : null}
-    </button>
-  );
-}
-
-function HomeView({
-  firstName,
-  ask,
-  setAsk,
-  onSubmit,
-  sending,
-  error,
-  recent,
-  onOpenTicket,
-  onStartTicket,
-  onMessageOran,
-  replayEnabled,
-  attachReplay,
-  setAttachReplay,
-}: {
-  firstName: string;
-  ask: string;
-  setAsk: (v: string) => void;
-  onSubmit: () => void;
-  sending: boolean;
-  error: string | null;
-  recent: SupportTicketSummary[];
-  onOpenTicket: (id: string) => void;
-  onStartTicket: () => void;
-  onMessageOran: () => void;
-  replayEnabled: boolean;
-  attachReplay: boolean;
-  setAttachReplay: (v: boolean) => void;
-}) {
-  const t = useT();
-  return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 19, fontWeight: 600, color: COLORS.ink }}>
-          {interpolate(t("dashboard.adminSupport.greeting"), { name: firstName })}
-        </div>
-        <div style={{ fontSize: 13, color: COLORS.inkMuted, marginTop: 4 }}>
-          {t("dashboard.adminSupport.subline")}
-        </div>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: COLORS.card,
-          border: "1px solid rgba(95,75,139,0.35)",
-          borderRadius: 14,
-          padding: "8px 10px 8px 12px",
-        }}
-      >
-        <Icon name="sparkle" size={16} color={COLORS.royal} />
-        <input
-          value={ask}
-          onChange={(e) => setAsk(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSubmit();
-            }
-          }}
-          placeholder={t("dashboard.adminSupport.askPlaceholder")}
-          style={{
-            flex: 1,
-            border: "none",
-            outline: "none",
-            fontSize: 13.5,
-            fontFamily: FONTS.body,
-            background: "transparent",
-            color: COLORS.ink,
-          }}
-        />
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!ask.trim() || sending}
-          aria-label={t("dashboard.adminSupport.send")}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            border: "none",
-            background: ask.trim() ? COLORS.fill : COLORS.surfaceAlt,
-            color: "#fff",
-            cursor: ask.trim() ? "pointer" : "default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Icon name="send" size={14} color={ask.trim() ? "#fff" : COLORS.inkDim} />
-        </button>
-      </div>
-      {error ? (
-        <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
-          {error}
-        </div>
-      ) : null}
-      {replayEnabled ? (
-        <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
-      ) : null}
-      {recent.length > 0 ? (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkDim, marginBottom: 8 }}>
-            {t("dashboard.adminSupport.recent")}
-          </div>
-          {recent.map((row) => (
-            <TicketRow key={row.id} row={row} onOpen={() => onOpenTicket(row.id)} />
-          ))}
-        </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={onStartTicket}
-        style={{
-          border: `1px solid ${COLORS.border}`,
-          background: COLORS.card,
-          borderRadius: 10,
-          padding: "10px 12px",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: "pointer",
-          color: COLORS.ink,
-        }}
-      >
-        {t("dashboard.adminSupport.startTicket")}
-      </button>
-      <button
-        type="button"
-        onClick={onMessageOran}
-        style={{ border: "none", background: "transparent", color: COLORS.royal, fontSize: 12.5, cursor: "pointer" }}
-      >
-        {t("dashboard.adminSupport.messageOran")}
-      </button>
-    </div>
-  );
-}
-
-function TicketRow({ row, onOpen }: { row: SupportTicketSummary; onOpen: () => void }) {
-  const t = useT();
-  const waitingYou = row.status === "open" && row.waitingOn === "requester";
-  const withSupport = row.status === "open" && row.waitingOn === "support";
-  const label = waitingYou
-    ? t("dashboard.adminSupport.statusWaitingYou")
-    : withSupport
-      ? t("dashboard.adminSupport.statusWithSupport")
-      : t("dashboard.adminSupport.statusResolved");
-  const pillBg = waitingYou ? COLORS.coralSoft : row.status !== "open" ? COLORS.successSoft : COLORS.surfaceAlt;
-  const pillFg = waitingYou ? COLORS.coralDeep : row.status !== "open" ? COLORS.successDeep : COLORS.inkMuted;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      data-tulala-support-ticket-row=""
-      style={{
-        display: "flex",
-        width: "100%",
-        textAlign: "left",
-        gap: 10,
-        padding: "10px 4px",
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        alignItems: "center",
-      }}
-    >
-      {row.unread ? (
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.coral, flexShrink: 0 }} />
-      ) : (
-        <span style={{ width: 8, height: 8, flexShrink: 0 }} />
-      )}
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{row.subject || t("dashboard.adminSupport.untitled")}</span>
-        <span style={{ display: "block", fontSize: 12, color: COLORS.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {row.lastMessagePreview}
-        </span>
-      </span>
-      <span style={{ fontSize: 10.5, color: COLORS.inkDim, flexShrink: 0, whiteSpace: "nowrap" }}>
-        {relTime(row.lastMessageAt)}
-      </span>
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          background: pillBg,
-          color: pillFg,
-          borderRadius: 999,
-          padding: "3px 8px",
-          flexShrink: 0,
-        }}
-      >
-        {label}
-      </span>
     </button>
   );
 }
