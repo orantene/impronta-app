@@ -85,6 +85,8 @@ import {
   type EditDraft,
 } from "./starter-kit-helpers";
 import { StarterKitFilters } from "./starter-kit-filters";
+import { StarterKitPlatformPanel } from "./starter-kit-platform-panel";
+import { useStarterKitPlatformState } from "./use-lab-platform-defaults";
 
 const STARTER_KIT_GROUPS = [
   {
@@ -148,6 +150,9 @@ export function SiteStarterKitView({
   // a hidden <input type="file"> ref used to trigger the file picker.
   const [importing, setImporting] = useState(false);
   const importFileRef = useRef<HTMLInputElement | null>(null);
+  // Built-in staleness + the platform-default pointer for the active surface.
+  // One hook so this file stays under its 800-line cap.
+  const platform = useStarterKitPlatformState(surface);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -398,6 +403,9 @@ export function SiteStarterKitView({
       }
       const { imported, updated, errors } = res.data;
       await reload();
+      // Re-check drift so the staleness banner clears (or persists, if a design
+      // failed to import) instead of showing a pre-sync verdict.
+      await platform.drift.refresh();
       const parts: string[] = [];
       if (imported) parts.push(`${imported} imported`);
       if (updated) parts.push(`${updated} refreshed`);
@@ -411,7 +419,7 @@ export function SiteStarterKitView({
     } finally {
       setSyncing(false);
     }
-  }, [reload, flash]);
+  }, [reload, flash, platform.drift]);
 
   // ── A4 import handler ──────────────────────────────────────────────────────
 
@@ -660,6 +668,11 @@ export function SiteStarterKitView({
     onStartDelete: startDelete,
     onCancelDelete: cancelDelete,
     onConfirmDelete: confirmDelete,
+    platformDefaultId: platform.pointer.pointerId,
+    staleSlugs: platform.staleSlugs,
+    settingDefaultId: platform.pointer.savingId,
+    onSetPlatformDefault: (r: BuilderTemplateRow) =>
+      void platform.pointer.setDefault(r.id, r.title),
   };
 
   return (
@@ -717,6 +730,8 @@ export function SiteStarterKitView({
         categoryFilter={categoryFilter}
         groups={STARTER_KIT_GROUPS}
       />
+
+      <StarterKitPlatformPanel state={platform} surface={surface} />
 
       {toast ? <LabToast>{toast}</LabToast> : null}
       {error ? <div style={{ fontSize: 12, color: T.red }}>{error}</div> : null}
