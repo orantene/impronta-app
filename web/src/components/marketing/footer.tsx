@@ -9,22 +9,45 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { CurrencyPicker } from "./currency-picker";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import { FEATURE_NAV_ITEMS } from "@/lib/marketing/features/feature-nav-items";
 
 /** Hrefs by column. Labels come from the copy module (per locale), in order. */
 const FOOTER_HREFS = {
-  platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
+  /** Built from the catalogue instead, see FOOTER_FEATURE_KEYS below. */
+  platform: [] as string[],
   solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
   discover: ["/directory", "/discover-agencies", "/#stories"],
   company: [
     "/about",
     "/pricing",
+    "/how-it-works",
     "/get-started",
     "/faq",
     "/resources",
+    "/integrations",
+    "/network",
     "/legal/privacy",
     "/legal/terms",
   ],
 };
+
+/**
+ * The features the footer names, on every marketing page.
+ *
+ * The old Platform column pointed at two homepage anchors and three pages. A
+ * sitewide footer is the strongest internal link surface a site has, so it
+ * spends it on the pages that answer a commercial search: the money features,
+ * plus the support promise that closes the deal. The rest are one click away
+ * behind the link at the foot of the column.
+ */
+const FOOTER_FEATURE_KEYS = [
+  "appointments",
+  "website-builder",
+  "payments",
+  "ticketing",
+  "qr-engine",
+  "premium-support",
+] as const;
 
 export async function MarketingFooter() {
   // L50 Phase 2: every marketing footer ends with a currency picker so
@@ -43,12 +66,25 @@ export async function MarketingFooter() {
   // Same rule as the header: hrefs are authored unprefixed and localized at
   // render, so a Spanish reader stays in the Spanish tree and crawlers see
   // /es linking to /es rather than funnelling all authority to English.
+  const featureItems = FOOTER_FEATURE_KEYS.flatMap((key) => {
+    const item = FEATURE_NAV_ITEMS.find((i) => i.key === key);
+    if (!item) return [];
+    const side = locale === "es" ? item.es : item.en;
+    return [{ label: side.name, href: withLocaleHref(side.path, locale) }];
+  }).concat({
+    label: copy.columns.platform.allFeatures,
+    href: withLocaleHref("/features", locale),
+  });
+
   const COLUMNS = (["platform", "solutions", "discover", "company"] as const).map((key) => ({
     label: copy.columns[key].label,
-    items: copy.columns[key].items.map((label, i) => ({
-      label,
-      href: withLocaleHref(FOOTER_HREFS[key][i], locale),
-    })),
+    items:
+      key === "platform"
+        ? featureItems
+        : copy.columns[key].items.map((label, i) => ({
+            label,
+            href: withLocaleHref(FOOTER_HREFS[key][i], locale),
+          })),
   }));
   return (
     <footer

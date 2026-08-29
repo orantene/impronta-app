@@ -13,6 +13,13 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 const en = {
   nav: {
+    platformExtras: {
+      howItWorks: "How it works",
+      integrations: "Integrations & API",
+      network: "The network",
+      seeAll: "See all 21 features",
+      coming: "Soon",
+    },
     platform: {
       label: "Platform",
       blurb: "One place to build a business around people, and get paid.",
@@ -85,6 +92,7 @@ const en = {
     hiddenEverywhere: "Your profile is hidden everywhere",
     support: "Support",
     helpCenter: "Help center",
+    talkToPerson: "Talk to a person",
     contactSupport: "Contact support",
     savedTalent: "Saved talent",
     accountSettings: "Account settings",
@@ -354,14 +362,10 @@ const en = {
     stageLine: "Free workspaces · No card",
     columns: {
       platform: {
-        label: "Platform",
-        items: [
-          "One-click page builder",
-          "Booking messenger",
-          "The network",
-          "Integrations & API",
-          "How it works",
-        ],
+        label: "Features",
+        /** Built from the feature catalogue, not from this list. */
+        items: [],
+        allFeatures: "All 21 features",
       },
       solutions: {
         label: "Solutions",
@@ -373,7 +377,18 @@ const en = {
       },
       company: {
         label: "Company",
-        items: ["About", "Pricing", "Start free", "FAQ", "Resources", "Privacy", "Terms"],
+        items: [
+          "About",
+          "Pricing",
+          "How it works",
+          "Start free",
+          "FAQ",
+          "Resources",
+          "Integrations & API",
+          "The network",
+          "Privacy",
+          "Terms",
+        ],
       },
     },
   },
@@ -383,6 +398,13 @@ export type MarketingCopy = typeof en;
 
 const es: MarketingCopy = {
   nav: {
+    platformExtras: {
+      howItWorks: "Cómo funciona",
+      integrations: "Integraciones y API",
+      network: "La red",
+      seeAll: "Ver las 21 funciones",
+      coming: "Pronto",
+    },
     platform: {
       label: "Plataforma",
       blurb: "Un solo lugar para construir un negocio alrededor de tu gente, y cobrar.",
@@ -455,6 +477,7 @@ const es: MarketingCopy = {
     hiddenEverywhere: "Tu perfil está oculto en todas partes",
     support: "Soporte",
     helpCenter: "Centro de ayuda",
+    talkToPerson: "Habla con una persona",
     contactSupport: "Contactar soporte",
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
@@ -711,14 +734,9 @@ const es: MarketingCopy = {
     stageLine: "Espacios de trabajo gratis · Sin tarjeta",
     columns: {
       platform: {
-        label: "Plataforma",
-        items: [
-          "Constructor en un clic",
-          "Mensajería de reservas",
-          "La red",
-          "Integraciones y API",
-          "Cómo funciona",
-        ],
+        label: "Funciones",
+        items: [],
+        allFeatures: "Las 21 funciones",
       },
       solutions: {
         label: "Soluciones",
@@ -733,9 +751,12 @@ const es: MarketingCopy = {
         items: [
           "Nosotros",
           "Precios",
+          "Cómo funciona",
           "Empieza gratis",
           "Preguntas frecuentes",
           "Recursos",
+          "Integraciones y API",
+          "La red",
           "Privacidad",
           "Términos",
         ],

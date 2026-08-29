@@ -9,6 +9,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { buildNav, isActive, type NavNode } from "./marketing-header-nav";
+import { DesktopMegaMenu, MobileMegaSection } from "./marketing-header-mega";
 import { MarketingCta } from "./cta-link";
 import { LOGIN_MODAL_EVENT } from "./login-modal";
 import { MarketingLanguageMenu } from "./marketing-language-menu";
@@ -144,6 +145,17 @@ export function MarketingHeader({
                 node={node}
                 active={isActive(pathname, node.href)}
               />
+            ) : node.kind === "mega" ? (
+              <DesktopMegaMenu
+                key={node.label}
+                node={node}
+                open={openMenu === node.label}
+                onOpen={() => setOpenMenu(node.label)}
+                onClose={() => setOpenMenu(null)}
+                onToggle={() =>
+                  setOpenMenu((cur) => (cur === node.label ? null : node.label))
+                }
+              />
             ) : (
               <DesktopMenu
                 key={node.label}
@@ -277,6 +289,17 @@ export function MarketingHeader({
                   {node.label}
                   <ChevronGlyph />
                 </Link>
+              ) : node.kind === "mega" ? (
+                <MobileMegaSection
+                  key={node.label}
+                  node={node}
+                  expanded={mobileExpanded === node.label}
+                  onToggle={() =>
+                    setMobileExpanded((cur) =>
+                      cur === node.label ? null : node.label,
+                    )
+                  }
+                />
               ) : (
                 <MobileSection
                   key={node.label}

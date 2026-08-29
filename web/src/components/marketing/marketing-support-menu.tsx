@@ -66,6 +66,19 @@ export function DesktopSupport({
           >
             {copy.support}
           </p>
+          {/* The promise page comes FIRST. Someone opening this menu is
+              usually already annoyed, and the thing they most want to know is
+              whether a person is on the other end. */}
+          <Link
+            href={withLocaleHref("/support", locale)}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={ROW}
+            style={{ color: "var(--plt-ink)" }}
+          >
+            <PersonGlyph />
+            {copy.talkToPerson}
+          </Link>
           <Link
             href={withLocaleHref("/help", locale)}
             role="menuitem"
@@ -88,6 +101,25 @@ export function DesktopSupport({
         </HeaderPopover>
       ) : null}
     </div>
+  );
+}
+
+function PersonGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={15}
+      height={15}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5.5 19.2c0-3.2 2.9-5.2 6.5-5.2s6.5 2 6.5 5.2" />
+    </svg>
   );
 }
 

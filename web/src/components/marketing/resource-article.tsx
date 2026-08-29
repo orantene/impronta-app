@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getArticleContent,
   getResourceArticle,
@@ -133,7 +134,7 @@ export function ResourceArticleBody({
                 {related.map((r) => (
                   <li key={r.slug}>
                     <Link
-                      href={`/resources/${r.slug}`}
+                      href={withLocaleHref(`/resources/${r.slug}`, locale)}
                       className="text-[1rem] leading-snug underline-offset-4 hover:underline"
                       style={{ color: "var(--plt-ink-strong)" }}
                     >
@@ -163,7 +164,7 @@ export function ResourceArticleList({ locale }: { locale: string }) {
         return (
           <li key={article.slug}>
             <Link
-              href={`/resources/${article.slug}`}
+              href={withLocaleHref(`/resources/${article.slug}`, locale)}
               className="group flex h-full flex-col rounded-[22px] p-6 transition-transform duration-300 sm:p-7"
               style={{
                 background: "var(--plt-bg-elevated)",

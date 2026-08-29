@@ -1,5 +1,10 @@
 import { pathnameWithoutAnyLocalePrefix, withLocaleHref } from "@/i18n/pathnames";
 import type { MarketingCopy } from "@/lib/marketing/copy";
+import {
+  FEATURE_NAV_ITEMS,
+  type FeatureNavItem,
+} from "@/lib/marketing/features/feature-nav-items";
+import { FEATURE_GROUP_ORDER, featureGroupLabel } from "@/lib/marketing/features/types";
 
 /**
  * Nav model for the marketing header and its mobile menu. Split out of
@@ -8,9 +13,25 @@ import type { MarketingCopy } from "@/lib/marketing/copy";
  */
 
 export type NavLeaf = { label: string; href: string; description?: string };
+/** One lifecycle stage as a column in the platform mega panel. */
+export type NavMegaColumn = {
+  stage: string;
+  items: (NavLeaf & { featureKey: FeatureNavItem["key"]; coming: boolean })[];
+};
 export type NavNode =
   | { kind: "link"; label: string; href: string }
-  | { kind: "menu"; label: string; blurb: string; items: NavLeaf[] };
+  | { kind: "menu"; label: string; blurb: string; items: NavLeaf[] }
+  | {
+      kind: "mega";
+      label: string;
+      blurb: string;
+      columns: NavMegaColumn[];
+      /** The platform pages that are not features, kept along the panel foot. */
+      extras: NavLeaf[];
+      allHref: string;
+      allLabel: string;
+      comingLabel: string;
+    };
 
 /**
  * Product-forward navigation. Three menus carry the whole story:
@@ -21,7 +42,13 @@ export type NavNode =
  * (per locale); hrefs are authored here in canonical unprefixed form.
  */
 export const NAV_HREFS = {
-  platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
+  /**
+   * The Platform menu is now the feature panel, so its own list is only the
+   * platform pages that are NOT features. The five features it used to point
+   * at are reached from the columns instead, at their real pages rather than
+   * homepage anchors.
+   */
+  platform: ["/how-it-works", "/integrations", "/network"],
   solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
   discover: ["/directory", "/discover-agencies", "/network"],
 };
@@ -46,8 +73,36 @@ export function buildNav(copy: MarketingCopy, locale: string): NavNode[] {
       href: L(hrefs[i]),
     })),
   });
+  const columns: NavMegaColumn[] = FEATURE_GROUP_ORDER.map((group) => ({
+    stage: featureGroupLabel(group, locale),
+    items: FEATURE_NAV_ITEMS.filter((i) => i.group === group).map((i) => {
+      const side = locale === "es" ? i.es : i.en;
+      return {
+        label: side.name,
+        href: L(side.path),
+        featureKey: i.key,
+        coming: i.status === "coming",
+      };
+    }),
+  }));
+
+  const platformExtras: NavLeaf[] = [
+    { label: copy.nav.platformExtras.howItWorks, href: L(NAV_HREFS.platform[0]) },
+    { label: copy.nav.platformExtras.integrations, href: L(NAV_HREFS.platform[1]) },
+    { label: copy.nav.platformExtras.network, href: L(NAV_HREFS.platform[2]) },
+  ];
+
   return [
-    menu(copy.nav.platform, NAV_HREFS.platform),
+    {
+      kind: "mega",
+      label: copy.nav.platform.label,
+      blurb: copy.nav.platform.blurb,
+      columns,
+      extras: platformExtras,
+      allHref: L("/features"),
+      allLabel: copy.nav.platformExtras.seeAll,
+      comingLabel: copy.nav.platformExtras.coming,
+    },
     menu(copy.nav.solutions, NAV_HREFS.solutions),
     menu(copy.nav.discover, NAV_HREFS.discover),
     { kind: "link", label: copy.nav.pricing, href: L("/pricing") },

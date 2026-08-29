@@ -31,7 +31,7 @@ const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
  * BUMP THIS when marketing copy materially changes (new page, rewritten
  * positioning, pricing change). Do not bump it for code-only refactors.
  */
-const MARKETING_CONTENT_REVISED = new Date("2026-08-28T00:00:00.000Z");
+const MARKETING_CONTENT_REVISED = new Date("2026-08-29T00:00:00.000Z");
 
 /**
  * Real publication date per resource article, keyed by its sitemap path.
@@ -146,6 +146,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/network",
       "/pricing",
       "/faq",
+      // The human support promise page. One path, both locales.
+      "/support",
       // Company page (who runs Tulala, how support works). Serves EN at /about
       // and Spanish at /es/about, like the rest of this list.
       "/about",

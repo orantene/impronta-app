@@ -21,7 +21,14 @@ import { FOUND_FEATURES } from "./features-found";
 import { PAID_FEATURES } from "./features-paid";
 import { PRESENCE_FEATURES } from "./features-presence";
 import { RUN_FEATURES } from "./features-run";
-import { FEATURE_GROUP_ORDER, type Feature, type FeatureContent, type FeatureGroup, type FeatureKey } from "./types";
+import {
+  FEATURE_GROUP_ORDER,
+  featureGroupLabel,
+  type Feature,
+  type FeatureContent,
+  type FeatureGroup,
+  type FeatureKey,
+} from "./types";
 
 export type {
   Feature,
@@ -102,19 +109,8 @@ export function featuresInGroup(group: FeatureGroup): Feature[] {
   return MARKETING_FEATURES.filter((f) => f.group === group);
 }
 
-/** Stage headings. The wording is the pitch, so it is authored, not derived. */
-export const FEATURE_GROUP_LABELS: Record<FeatureGroup, { en: string; es: string }> = {
-  presence: { en: "Build your presence", es: "Construye tu presencia" },
-  found: { en: "Get found", es: "Que te encuentren" },
-  booked: { en: "Get booked", es: "Que te reserven" },
-  paid: { en: "Get paid", es: "Cobra" },
-  run: { en: "Run and grow", es: "Opera y crece" },
-};
+export { FEATURE_GROUP_LABELS, featureGroupLabel } from "./types";
 
-export function featureGroupLabel(group: FeatureGroup, locale: string): string {
-  const label = FEATURE_GROUP_LABELS[group];
-  return locale === "es" ? label.es : label.en;
-}
 
 /**
  * The homepage split the owner specified: plates 01 to 12 in the first

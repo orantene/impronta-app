@@ -103,3 +103,23 @@ export type Feature = {
   en: FeatureContent;
   es: FeatureContent;
 };
+
+/**
+ * Stage headings. The wording is the pitch, so it is authored, not derived.
+ *
+ * These live in `types.ts` rather than the catalogue index because the header
+ * nav needs them in a CLIENT bundle, and importing them from the index would
+ * drag every feature's long form prose along for the ride.
+ */
+export const FEATURE_GROUP_LABELS: Record<FeatureGroup, { en: string; es: string }> = {
+  presence: { en: "Build your presence", es: "Construye tu presencia" },
+  found: { en: "Get found", es: "Que te encuentren" },
+  booked: { en: "Get booked", es: "Que te reserven" },
+  paid: { en: "Get paid", es: "Cobra" },
+  run: { en: "Run and grow", es: "Opera y crece" },
+};
+
+export function featureGroupLabel(group: FeatureGroup, locale: string): string {
+  const label = FEATURE_GROUP_LABELS[group];
+  return locale === "es" ? label.es : label.en;
+}
