@@ -533,7 +533,7 @@ export function SupportThreadView({
       ) : null}
       {ticket?.handledBy === "ai" && onRequestHuman ? (
         <button type="button" onClick={onRequestHuman} style={{ ...ghostBtn, alignSelf: "center" }}>
-          <Icon name="life-buoy" size={12} color={COLORS.royal} />
+          <Icon name="user" size={12} color={COLORS.royal} />
           {t("dashboard.adminSupport.talkToHuman")}
         </button>
       ) : null}
