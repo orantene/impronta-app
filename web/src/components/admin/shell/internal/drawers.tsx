@@ -5,7 +5,7 @@
 //
 // The 31,468-LOC god-file was decomposed into ./drawers/* (byte-for-byte
 // bodies): drawer-shared.tsx (external re-export hub + 94 cross-cutting
-// helpers), light-01..23.tsx (118 leaf drawer bodies), UpgradeModal.tsx,
+// helpers), light-01..23.tsx (118 leaf drawer bodies),
 // profile-shell/* (TalentProfileShellDrawer + ECO support cast). This
 // file keeps ONLY DrawerRoot + DrawerSwitch (byte-for-byte) and re-
 // exports the historical public surface so importers stay byte-unbroken.
@@ -669,5 +669,4 @@ function ReviewModerationQueueDrawer() {
 
 
 // ── Phase 1d public-surface re-exports (byte-stable) ──
-export { UpgradeModal } from "./drawers/UpgradeModal";
 export type { DiffEntry } from "./drawers/profile-shell";

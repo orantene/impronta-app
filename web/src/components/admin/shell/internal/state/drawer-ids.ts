@@ -285,6 +285,16 @@ export type DrawerContext = {
 
 // ─── Upgrade modal ───────────────────────────────────────────────────
 
+/**
+ * The framing a contextual upgrade prompt passes to `openUpgrade()`.
+ *
+ * `feature`, `why`/`outcome` and `requiredPlan` reach the real modal. The
+ * remaining fields are inert leftovers from the deleted prototype modal, which
+ * rendered a caller-supplied bullet list; the real modal shows each tier's
+ * actual feature list, so it does not need one. They are kept so the ~45
+ * existing call sites still type-check, and are the obvious thing to delete in
+ * a follow-up sweep.
+ */
 export type UpgradeOffer = {
   open: boolean;
   feature?: string;

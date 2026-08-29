@@ -6,7 +6,10 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Minus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { Plan } from "./capability-catalog";
+import type { UpgradeReason } from "./upgrade-context";
 
 /**
  * UpgradeModal — premium "Choose your plan" dialog.
@@ -132,13 +135,32 @@ export function UpgradeModal({
   onOpenChange,
   activePlan,
   onSelect,
+  reason = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activePlan: Plan;
   onSelect?: (plan: Plan) => void;
+  /**
+   * Why the modal opened. Contextual prompts ("Custom domain", "Media
+   * gallery") set this so the modal names the blocked feature and marks the
+   * tier that unlocks it, instead of showing a bare four-card picker.
+   */
+  reason?: UpgradeReason | null;
 }) {
   const [cycle, setCycle] = React.useState<Cycle>("monthly");
+  const t = useT();
+
+  const requiredPlan = reason?.requiredPlan ?? null;
+  const requiredPlanName =
+    PLANS.find((p) => p.key === requiredPlan)?.name ?? null;
+  const contextLine =
+    reason?.feature && requiredPlanName
+      ? interpolate(t("dashboard.adminShared.upgradeReason.needsPlan"), {
+          feature: reason.feature,
+          plan: requiredPlanName,
+        })
+      : (reason?.feature ?? null);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -177,6 +199,31 @@ export function UpgradeModal({
                 Every plan runs on the same product — higher tiers unlock more
                 cards. Switch or cancel anytime.
               </Dialog.Description>
+
+              {/* Contextual framing — which feature was blocked, and by which
+                  tier. Present only when a contextual prompt opened the modal;
+                  the tier-chip and other generic entry points pass no reason. */}
+              {contextLine ? (
+                <div
+                  data-upgrade-reason
+                  className="mt-3 rounded-[10px] border border-[rgba(201,162,39,0.35)] bg-[rgba(201,162,39,0.09)] px-3 py-2"
+                >
+                  <p
+                    className="text-[12.5px] font-semibold leading-[1.4]"
+                    style={{ color: "#0b0b0d" }}
+                  >
+                    {contextLine}
+                  </p>
+                  {reason?.why ? (
+                    <p
+                      className="mt-0.5 text-[12px] leading-[1.45]"
+                      style={{ color: "#5b5b62" }}
+                    >
+                      {reason.why}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             {/* Billing cycle toggle */}
@@ -241,7 +288,11 @@ export function UpgradeModal({
                 const isCurrent = plan.key === activePlan;
                 const isLower = RANK[plan.key] < RANK[activePlan];
                 const isUpgrade = RANK[plan.key] > RANK[activePlan];
-                const isPopular = plan.key === "studio";
+                const isRequired = requiredPlan != null && plan.key === requiredPlan;
+                // The required tier owns the badge slot when a contextual
+                // prompt opened the modal — "Recommended" answers the question
+                // the user just asked; "Most popular" does not.
+                const isPopular = !isRequired && requiredPlan == null && plan.key === "studio";
                 const price =
                   plan.monthly === null
                     ? "Custom"
@@ -274,8 +325,11 @@ export function UpgradeModal({
                       "group relative flex flex-col overflow-hidden rounded-[16px] border bg-white transition-[border-color,box-shadow,transform] duration-200",
                       isCurrent
                         ? "border-[rgba(201,162,39,0.55)] shadow-[0_0_0_1px_rgba(201,162,39,0.3),0_18px_40px_-30px_rgba(201,162,39,0.45)]"
-                        : "border-[rgba(24,24,27,0.08)] hover:-translate-y-0.5 hover:border-[rgba(24,24,27,0.18)] hover:shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)]",
+                        : isRequired
+                          ? "border-[rgba(20,107,58,0.5)] shadow-[0_0_0_1px_rgba(20,107,58,0.28),0_18px_40px_-28px_rgba(20,107,58,0.5)] hover:-translate-y-0.5"
+                          : "border-[rgba(24,24,27,0.08)] hover:-translate-y-0.5 hover:border-[rgba(24,24,27,0.18)] hover:shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)]",
                     )}
+                    data-upgrade-required-plan={isRequired ? plan.key : undefined}
                   >
                     {/* Tier accent strip */}
                     <span
@@ -299,6 +353,17 @@ export function UpgradeModal({
                           aria-hidden
                         />
                         Current
+                      </span>
+                    ) : isRequired ? (
+                      <span
+                        data-upgrade-recommended
+                        className="absolute right-3 top-[14px] rounded-full px-2 py-[2px] text-[9.5px] font-bold uppercase tracking-[0.14em]"
+                        style={{
+                          color: plan.accent,
+                          backgroundColor: `${plan.accent}1f`,
+                        }}
+                      >
+                        {t("dashboard.adminShared.upgradeReason.recommended")}
                       </span>
                     ) : isPopular ? (
                       <span

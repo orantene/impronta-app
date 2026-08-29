@@ -2065,17 +2065,6 @@ const ES_TEXT: Record<string, string> = {
   "Hi! Tell us about your event and we’ll get the right person to reply.": "¡Hola! Cuéntanos sobre tu evento y haremos que la persona adecuada responda.",
   "Guest chat settings saved": "Ajustes del chat de invitados guardados",
 
-  // UpgradeModal
-  "Tailored to your operation.": "A la medida de tu operación.",
-  "14-day refund · Cancel any time · No card required to preview": "Reembolso de 14 días · Cancela cuando quieras · Sin tarjeta para previsualizar",
-  "Upgrade to {plan}": "Mejorar a {plan}",
-  "at limit": "en el límite",
-  "What you'll unlock": "Lo que desbloquearás",
-  "Not now": "Ahora no",
-  "Contact sales": "Contactar a ventas",
-  "We'll be in touch about Network": "Te contactaremos sobre Network",
-  "Welcome to {plan} · upgrade applied": "Te damos la bienvenida a {plan} · mejora aplicada",
-
   // profile-data-editors
   "{filled} of 5 polaroids set. Casting directors check this set first.": "{filled} de 5 polaroids listas. Los directores de casting revisan este set primero.",
   "Upload failed": "No se pudo subir",

@@ -13,7 +13,7 @@ export function ControlBar() {
   const {
     state,
     setSurface,
-    setPlan,
+    devSetPlan,
     setRole,
     setEntityType,
     setAlsoTalent,
@@ -119,12 +119,20 @@ export function ControlBar() {
 
       {state.surface === "workspace" && (
         <>
-          <SegmentedControl
-            label="Plan"
-            value={state.plan}
-            options={PLANS.map((p) => ({ value: p, label: PLAN_META[p].label }))}
-            onChange={(v) => setPlan(v as Plan)}
-          />
+          {/* Plan switcher — prototype/demo ONLY. `devSetPlan` is a hard
+              no-op once a real tenant is bridged in (their tier is
+              `agencies.plan_tier`, and faking the client copy just produces a
+              UI that lies until the next reload), so the control is hidden
+              rather than rendered dead. Real tier changes go through the
+              upgrade modal and Stripe Checkout. */}
+          {!bridgeTenantIdentity && (
+            <SegmentedControl
+              label="Plan"
+              value={state.plan}
+              options={PLANS.map((p) => ({ value: p, label: PLAN_META[p].label }))}
+              onChange={(v) => devSetPlan(v as Plan)}
+            />
+          )}
           <SegmentedControl
             label="Entity"
             value={state.entityType}
