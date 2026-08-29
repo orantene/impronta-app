@@ -7,7 +7,7 @@
  * No em dashes. Keys are en + es only (fr has no dashboard.platform).
  */
 
-export const TERMINOLOGY_IDS = ["reservations", "appointments", "bookings"] as const;
+export const TERMINOLOGY_IDS = ["reservations", "appointments", "bookings", "agenda"] as const;
 export type TerminologyId = (typeof TERMINOLOGY_IDS)[number];
 
 export type TerminologyCopy = {
@@ -67,6 +67,23 @@ const BUNDLES: Record<TerminologyId, TerminologyBundle> = {
       plural: "reservaciones",
       verb: "reservar",
       cta: "Reservar",
+    },
+  },
+  // AgendaPro's lead pair. LATAM verb is agendar; the picker label is
+  // "Agenda / Citas" so a barber recognizes the word he already uses.
+  agenda: {
+    id: "agenda",
+    en: {
+      singular: "appointment",
+      plural: "appointments",
+      verb: "book",
+      cta: "Book",
+    },
+    es: {
+      singular: "cita",
+      plural: "citas",
+      verb: "agendar",
+      cta: "Agendar",
     },
   },
 };

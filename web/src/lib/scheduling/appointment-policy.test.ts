@@ -112,7 +112,9 @@ test("terminology defaults to reservations/reservas and has no em dashes", () =>
   assert.equal(def.es.plural, "reservas");
   assert.equal(terminologyCopy("appointments", "es").plural, "citas");
   assert.equal(terminologyCopy("bookings", "es").plural, "reservaciones");
-  for (const id of ["reservations", "appointments", "bookings"] as const) {
+  assert.equal(terminologyCopy("agenda", "es").verb, "agendar");
+  assert.equal(terminologyCopy("agenda", "es").plural, "citas");
+  for (const id of ["reservations", "appointments", "bookings", "agenda"] as const) {
     const bundle = resolveTerminology(id);
     for (const locale of ["en", "es"] as const) {
       for (const value of Object.values(bundle[locale])) {

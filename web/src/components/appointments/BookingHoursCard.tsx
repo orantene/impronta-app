@@ -71,7 +71,14 @@ export function BookingHoursCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
   const [, startTransition] = useTransition();
+
+  const filteredTargets = useMemo(() => {
+    const q = pickerQuery.trim().toLowerCase();
+    if (!q) return targets;
+    return targets.filter((row) => row.name.toLowerCase().includes(q));
+  }, [targets, pickerQuery]);
 
   useEffect(() => {
     if (talentProfileId) setSelectedId(talentProfileId);
@@ -181,27 +188,52 @@ export function BookingHoursCard({
       </div>
 
       {showTalentPicker && (
-        <select
-          aria-label={t(`${K}.hoursWho`)}
-          value={selectedId ?? ""}
-          onChange={(e) => setSelectedId(e.target.value || null)}
-          style={{
-            fontSize: 13,
-            fontFamily: FONT,
-            border: `1px solid ${C.border}`,
-            borderRadius: 8,
-            padding: "6px 10px",
-            marginBottom: 10,
-            minWidth: 220,
-          }}
-        >
-          {targets.length === 0 ? <option value="">{t(`${K}.hoursNobody`)}</option> : null}
-          {targets.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginBottom: 10 }}>
+          <input
+            type="search"
+            aria-label={t(`${K}.hoursSearch`)}
+            placeholder={t(`${K}.hoursSearchPlaceholder`)}
+            value={pickerQuery}
+            onChange={(e) => setPickerQuery(e.target.value)}
+            style={{
+              display: "block",
+              fontSize: 13,
+              fontFamily: FONT,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: "6px 10px",
+              marginBottom: 6,
+              minWidth: 220,
+              width: "100%",
+              maxWidth: 320,
+            }}
+          />
+          <select
+            aria-label={t(`${K}.hoursWho`)}
+            value={selectedId ?? ""}
+            onChange={(e) => setSelectedId(e.target.value || null)}
+            style={{
+              fontSize: 13,
+              fontFamily: FONT,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: "6px 10px",
+              minWidth: 220,
+              width: "100%",
+              maxWidth: 320,
+            }}
+          >
+            {targets.length === 0 ? <option value="">{t(`${K}.hoursNobody`)}</option> : null}
+            {targets.length > 0 && filteredTargets.length === 0 ? (
+              <option value="">{t(`${K}.hoursSearchEmpty`)}</option>
+            ) : null}
+            {filteredTargets.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {showTalentOptIn && selectedId && (
