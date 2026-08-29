@@ -142,6 +142,15 @@ const SHARED_API_PREFIXES = [
   "/api/health",
   "/api/dev/reset-guest",
   "/api/media/asset",
+  // Public booking slots. The slot picker runs on EVERY public surface an
+  // appointment can be booked from -- an agency storefront, a talent site, the
+  // platform host -- so it cannot belong to one host kind. It derives its
+  // tenant from the offering row rather than from Host, returns only free slot
+  // starts (never a hold, booking or block), and is rate-limited per IP and
+  // per tenant. Omitting it here is not a soft failure: the route never runs,
+  // the fetch gets the branded HTML 404, and the picker renders no times at
+  // all on every host.
+  "/api/public/booking",
 ] as const;
 
 /**
