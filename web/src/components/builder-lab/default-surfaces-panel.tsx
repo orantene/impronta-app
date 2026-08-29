@@ -30,7 +30,21 @@ import {
 import type { PlatformTemplateSurface } from "@/lib/platform/default-templates";
 import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { SurfaceSwitcher } from "./surface-switcher";
+import { useBuiltinStarterDrift } from "./use-lab-platform-defaults";
 import { LAB as T, RADII, fieldStyle, LabViewHeader, SectionLabel } from "./ui";
+
+/**
+ * What actually happens when a surface has NO pointer. The old copy said "Using
+ * the built-in default", which reads as a deliberate choice; that phrasing is
+ * why the storefront slot sat unclaimed for months while every new tenant was
+ * seeded with the legacy 2024-era design. Say the consequence instead.
+ */
+const UNSET_CONSEQUENCE: Record<PlatformTemplateSurface, string> = {
+  storefront:
+    "Nothing is claiming this slot. Every workspace that has not published its own homepage renders the legacy seeded design, not a template you chose. Point this at a published starter to change what a brand-new tenant gets.",
+  talent:
+    "Nothing is claiming this slot. Talents without a published Max site render the built-in code tree, not a template you chose.",
+};
 
 // Which DEFAULT surface the operator is managing. "storefront" = the agency
 // homepage default (every unconfigured agency homepage); "talent" = the fallback
@@ -69,6 +83,9 @@ export function DefaultSurfacesPanel() {
     null,
   );
   const [pending, startTransition] = useTransition();
+  // Built-in staleness — a stale PLATFORM DEFAULT is the dangerous case, so the
+  // same drift check the Starter Kit runs is consulted here too.
+  const drift = useBuiltinStarterDrift();
 
   // Reload the pointers + published-template options whenever the surface flips.
   useEffect(() => {
@@ -106,6 +123,17 @@ export function DefaultSurfacesPanel() {
   // explicitly so they can re-point or reset rather than guess.
   const isGhostPointer = pointerId != null && activeOption == null;
 
+  // UNSET pointer — an unclaimed slot, not a choice. Only meaningful once the
+  // load has settled (during the load `pointerId` is null for every surface).
+  const isUnsetPointer = !loading && !loadError && pointerId == null;
+
+  // STALE pointer — the pointed-at template is a built-in row whose published
+  // tree no longer matches its code design. The live default is then shipping
+  // known-old content to every unconfigured tenant.
+  const isStalePointer =
+    pointerId != null &&
+    (drift.report?.staleTemplateIds.includes(pointerId) ?? false);
+
   // The hydrated preview renders the RESOLVED pointer template (the persisted
   // `builder_templates` row), NOT the built-in tree. Only a live, published
   // pointer is previewable — a ghost pointer would 404 the route, and the
@@ -129,7 +157,7 @@ export function DefaultSurfacesPanel() {
           ok: true,
           msg: nextId
             ? "Saved. This template is now the default for this surface."
-            : "Reset. This surface now uses the built-in default.",
+            : "Cleared. This surface has no default set and falls back to the built-in.",
         });
       } else {
         setStatus({ ok: false, msg: `Failed: ${r.error}` });
@@ -199,7 +227,7 @@ export function DefaultSurfacesPanel() {
                 onChange={(e) => onSelectTemplate(e.target.value)}
                 style={{ ...fieldStyle, padding: "8px 10px", borderRadius: RADII.control }}
               >
-                <option value={BUILT_IN}>Use built-in default</option>
+                <option value={BUILT_IN}>Not set (falls back to the built-in)</option>
                 {isGhostPointer ? (
                   <option value={pointerId ?? ""} disabled>
                     ⚠ Stale pointer, template no longer published
@@ -212,6 +240,48 @@ export function DefaultSurfacesPanel() {
                 ))}
               </select>
             </label>
+            {isUnsetPointer ? (
+              <div
+                role="alert"
+                data-testid={`lab-default-unset-${surface}`}
+                style={{
+                  fontSize: 12,
+                  color: T.red,
+                  background: T.redBg,
+                  border: `1px solid ${T.red}`,
+                  borderRadius: RADII.control,
+                  padding: "10px 12px",
+                  lineHeight: 1.55,
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>No default set. </span>
+                {UNSET_CONSEQUENCE[surface]}
+              </div>
+            ) : null}
+            {isStalePointer ? (
+              <div
+                role="alert"
+                data-testid={`lab-default-stale-${surface}`}
+                style={{
+                  fontSize: 12,
+                  color: T.red,
+                  background: T.redBg,
+                  border: `1px solid ${T.red}`,
+                  borderRadius: RADII.control,
+                  padding: "10px 12px",
+                  lineHeight: 1.55,
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>
+                  This default is out of date.{" "}
+                </span>
+                Its published content no longer matches the built-in code design
+                it was imported from, so every tenant on this default is getting
+                older content. Run{" "}
+                <strong style={{ color: T.ink }}>Sync built-in starters</strong>{" "}
+                on the Site Starter Kit tab, then re-check here.
+              </div>
+            ) : null}
             <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
               {activeOption ? (
                 <>
@@ -229,8 +299,8 @@ export function DefaultSurfacesPanel() {
                 </span>
               ) : (
                 <>
-                  Using the <span style={{ color: T.ink, fontWeight: 600 }}>built-in default</span>{" "}
-                  (the reserved-slug template, then the code fallback). No pointer set.
+                  Fallback order with no pointer: reserved-slug template, then the
+                  code fallback.
                 </>
               )}
             </div>

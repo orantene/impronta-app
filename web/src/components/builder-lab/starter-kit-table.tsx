@@ -15,6 +15,7 @@ import type {
   BuilderTemplateTarget,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { TemplateThumbnailCell } from "./template-thumbnail-cell";
+import { StarterDefaultCell } from "./starter-kit-default-action";
 import { rolloutChipText } from "./template-rollout-panel";
 import {
   openStarterPreview,
@@ -116,6 +117,13 @@ export interface StarterTableProps {
   onStartDelete: (row: BuilderTemplateRow) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (row: BuilderTemplateRow) => void;
+  /** Template id this surface's platform default currently points at (null = unset). */
+  platformDefaultId: string | null;
+  /** Slugs whose published tree no longer matches the code design. */
+  staleSlugs: ReadonlySet<string>;
+  /** Row whose "Set as platform default" write is in flight. */
+  settingDefaultId: string | null;
+  onSetPlatformDefault: (row: BuilderTemplateRow) => void;
 }
 
 export function StarterTable(props: StarterTableProps) {
@@ -141,6 +149,10 @@ export function StarterTable(props: StarterTableProps) {
     onStartDelete,
     onCancelDelete,
     onConfirmDelete,
+    platformDefaultId,
+    staleSlugs,
+    settingDefaultId,
+    onSetPlatformDefault,
   } = props;
 
   return (
@@ -157,6 +169,7 @@ export function StarterTable(props: StarterTableProps) {
             <Th>Target</Th>
             <Th center>Status</Th>
             <Th>Rollout</Th>
+            <Th>Platform default</Th>
             <Th right>Manage</Th>
           </tr>
         </thead>
@@ -268,6 +281,17 @@ export function StarterTable(props: StarterTableProps) {
                         </span>
                       );
                     })()}
+                  </td>
+                  {/* Platform default — claim the slot without leaving the tab
+                      you are browsing candidates on. */}
+                  <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
+                    <StarterDefaultCell
+                      row={r}
+                      isDefault={platformDefaultId === r.id}
+                      isStale={staleSlugs.has(r.slug)}
+                      saving={settingDefaultId === r.id}
+                      onSetDefault={onSetPlatformDefault}
+                    />
                   </td>
                   <td
                     style={{
@@ -423,7 +447,7 @@ function EditAccordionRow({
 }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={8} style={{ padding: "12px 16px" }}>
+      <td colSpan={9} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <SectionLabel>Edit starter</SectionLabel>
           <div

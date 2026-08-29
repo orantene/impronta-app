@@ -41,6 +41,12 @@ import {
   publishTemplate,
 } from "./registry-actions";
 import { listAllTemplates } from "./registry-admin-actions";
+import {
+  builtinStarterSlug,
+  compareBuiltinStarterDrift,
+  hashBuilderTreeContent,
+  type BuiltinStarterDriftReport,
+} from "./builtin-starter-hash";
 import type {
   BuilderTemplateRow,
   BuilderTemplateTarget,
@@ -80,12 +86,45 @@ export async function listStarterTemplatesAction(): Promise<ListStarterTemplates
   };
 }
 
-/** Deterministic slug for a built-in design's imported row. The whole import is
- *  idempotent on this — re-running matches the existing row and refreshes it.
- *  Module-private: a "use server" file may only EXPORT async functions, so this
- *  pure helper stays internal. */
-function builtinStarterSlug(designId: string): string {
-  return `builtin-${designId}`;
+/**
+ * DRIFT CHECK — is what is PUBLISHED still what the code designs say?
+ *
+ * The sync below is one-way and manual. Nothing re-runs it, so a fix landed in
+ * `page-designs/` sits invisible behind 11 rows that were imported months
+ * earlier and still read `published`. This action hashes each design's BAKED
+ * tree (the exact artefact the sync writes) and compares it to the tree the row
+ * actually holds, so the Site Starter Kit tab can name the stale rows next to
+ * the sync button instead of leaving it to tribal knowledge.
+ *
+ * Hash scope + what it ignores: see `builtin-starter-hash.ts`. Read-only;
+ * super_admin gated via `listAllTemplates`.
+ */
+export async function checkBuiltinStarterDriftAction(): Promise<
+  { ok: true; data: BuiltinStarterDriftReport } | { ok: false; error: string }
+> {
+  const existing = await listAllTemplates();
+  if (!existing.ok) return { ok: false, error: existing.error };
+
+  const designs = PAGE_DESIGNS.map((design) => ({
+    designId: design.id,
+    label: design.label,
+    hash: hashBuilderTreeContent(
+      bakePageDesignTree(design.tree, design.dataSources),
+    ),
+  }));
+
+  return {
+    ok: true,
+    data: compareBuiltinStarterDrift(
+      designs,
+      existing.data.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        status: row.status,
+        builder_tree: row.builder_tree ?? [],
+      })),
+    ),
+  };
 }
 
 export interface SyncBuiltinStartersSummary {

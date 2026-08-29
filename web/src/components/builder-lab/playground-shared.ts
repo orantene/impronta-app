@@ -6,6 +6,7 @@
  */
 import type {
   BuilderTemplateKind,
+  BuilderTemplateRow,
   BuilderTemplateStatus,
   BuilderTemplateTarget,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
@@ -22,6 +23,23 @@ export function isShellKind(kind: BuilderTemplateKind): boolean {
 /** builder_templates target_context → the editor's launch target. */
 export function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
   return t === "talent" || t === "workspace" ? t : "both";
+}
+
+/**
+ * An ABANDONED draft: a draft row whose `builder_tree` has zero roots.
+ *
+ * These are "+ New" clicks that were never authored into anything. They can
+ * never be published — `validateTemplateForPublish` blocks an empty tree by
+ * design, since publishing one would insert nothing — so they are permanent
+ * clutter in the Playground list with no path forward. Four such rows have sat
+ * there since 2026-08-19.
+ *
+ * Scoped to `draft` deliberately: an already-archived empty row is resolved, and
+ * a published/in-review row with an empty tree would be a different (and worse)
+ * bug that this label must not quietly absorb.
+ */
+export function isEmptyDraft(row: BuilderTemplateRow): boolean {
+  return row.status === "draft" && (row.builder_tree?.length ?? 0) === 0;
 }
 
 export const STATUS_TONE: Record<BuilderTemplateStatus, { bg: string; fg: string }> = {

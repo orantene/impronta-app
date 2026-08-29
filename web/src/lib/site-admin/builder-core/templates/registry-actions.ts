@@ -19,6 +19,16 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+
+import {
+  loadPlatformDefaultTemplatePointers,
+  type PlatformTemplateSurface,
+} from "@/lib/platform/default-templates";
+import {
+  PLATFORM_ADMIN_REVALIDATE,
+  revalidateTargetsForTemplateWrite,
+  type LabRevalidateTarget,
+} from "./lab-cache-paths";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -100,9 +110,68 @@ function getAdminClient() {
   return client;
 }
 
-// ── Revalidation path ─────────────────────────────────────────────────────────
+// ── Revalidation ──────────────────────────────────────────────────────────────
 
-const TEMPLATE_CACHE_PATH = "/platform/admin";
+/**
+ * Invalidate the Lab's own admin segment.
+ *
+ * Was `revalidatePath("/platform/admin")` — which defaults to `type: "page"` and
+ * therefore reached the `/platform/admin` page and NOTHING nested under it. The
+ * Lab is at `/platform/admin/builder-lab`, a child segment, so every publish /
+ * unpublish / archive in the Lab was busting a page the operator was not looking
+ * at while the Lab kept its cached RSC payload: publish a starter, come back,
+ * still see the old row. `"layout"` invalidates the segment and its subtree.
+ *
+ * The path + type live in `lab-cache-paths.ts` so this file and the platform
+ * default-pointer action cannot disagree about them again.
+ */
+function applyRevalidation(targets: ReadonlyArray<LabRevalidateTarget>): void {
+  for (const target of targets) {
+    if (target.type) revalidatePath(target.path, target.type);
+    else revalidatePath(target.path);
+  }
+}
+
+/** The Lab segment only — for writes that cannot change published content. */
+function revalidateLabAdmin(): void {
+  applyRevalidation([PLATFORM_ADMIN_REVALIDATE]);
+}
+
+/**
+ * The Lab segment PLUS the public surface — for writes that change whether a row
+ * is renderable as a platform default (publish / unpublish / archive).
+ *
+ * The public path is added ONLY when this exact row is the live pointer for a
+ * surface its `target_context` can serve. Blanket `revalidatePath("/")` on every
+ * template publish would drop the cached data for every tenant storefront, which
+ * is a real cost for a write that usually changes nothing public. The pointer
+ * read is cheap (one `platform_settings` select, request-cached) and best-effort:
+ * a failure degrades to admin-only revalidation rather than failing a publish
+ * that has already committed.
+ */
+async function revalidateAfterPublishStateChange(
+  row: Pick<BuilderTemplateRow, "id" | "target_context">,
+): Promise<void> {
+  let pointerBySurface: Partial<
+    Record<PlatformTemplateSurface, string | null>
+  > = {};
+  try {
+    const pointers = await loadPlatformDefaultTemplatePointers();
+    pointerBySurface = {
+      storefront: pointers.storefrontTemplateId,
+      talent: pointers.talentTemplateId,
+    };
+  } catch {
+    // Best-effort: fall through with an empty pointer map (admin path only).
+  }
+  applyRevalidation(
+    revalidateTargetsForTemplateWrite({
+      templateId: row.id,
+      targetContext: row.target_context,
+      pointerBySurface,
+    }),
+  );
+}
 
 // ── publishRowCore (shared publish sequence) ──────────────────────────────────
 
@@ -209,7 +278,7 @@ async function publishRowCore(
   });
 
   await bumpCatalogVersion(sb);
-  revalidatePath(TEMPLATE_CACHE_PATH);
+  await revalidateAfterPublishStateChange(rowAfterThumbnail);
   return ok(rowAfterThumbnail);
 }
 
@@ -371,7 +440,9 @@ export async function setTemplateRollout(
       before: beforeRow ?? null,
       after: patch,
     });
-    revalidatePath(TEMPLATE_CACHE_PATH);
+    // Rollout percentage does not change what the platform default resolves to,
+    // so this is an admin-only invalidation.
+    revalidateLabAdmin();
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("setTemplateRollout", err);
@@ -439,7 +510,9 @@ export async function rejectToDraft(
     if (error) return fail(error.message);
     if (!data) return fail("Template not found or not in review.");
 
-    revalidatePath(TEMPLATE_CACHE_PATH);
+    // in_review → draft: never published, so nothing public can be pointing at
+    // it. Admin-only invalidation.
+    revalidateLabAdmin();
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("rejectToDraft", err);
@@ -637,7 +710,9 @@ export async function unpublishTemplate(
       before: { status: "published" },
       after: { status: (data as BuilderTemplateRow).status },
     });
-    revalidatePath(TEMPLATE_CACHE_PATH);
+    // Unpublishing the pointed-at default drops the live tenant back down the
+    // fallback chain — a public change, so the public path is invalidated too.
+    await revalidateAfterPublishStateChange(data as BuilderTemplateRow);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("unpublishTemplate", err);
@@ -892,7 +967,9 @@ export async function archiveTemplate(
       before: beforeRow ? { status: (beforeRow as { status: string }).status } : null,
       after: { status: (data as BuilderTemplateRow).status },
     });
-    revalidatePath(TEMPLATE_CACHE_PATH);
+    // Archiving the pointed-at default has the same public effect as
+    // unpublishing it.
+    await revalidateAfterPublishStateChange(data as BuilderTemplateRow);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("archiveTemplate", err);
