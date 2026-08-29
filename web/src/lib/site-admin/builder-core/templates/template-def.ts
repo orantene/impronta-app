@@ -217,14 +217,22 @@ export function previewFamilyForRegistry(
  * every surface, so all pickers share one contract and a fifth surface inherits
  * it for free.
  *
- * @param key      template key (slot-template key or Max-site key)
- * @param family   which template family `key` belongs to (defaults talent-site)
+ * A `db-template` row that targets `workspace` / `both` previews through the
+ * STOREFRONT render path instead, against a real tenant. `tenantSlug` picks
+ * which one; omitted, the route resolves the platform hub (then the oldest
+ * active workspace). See `preview-workspace-context.ts` for why a real tenant
+ * and not a fixture.
+ *
+ * @param key         template key (slot-template key, Max-site key, or row id)
+ * @param family      which template family `key` belongs to (defaults talent-site)
+ * @param tenantSlug  workspace-targeted previews only: which tenant to render against
  */
 export function getTemplatePreviewUrl(
   key: string,
   opts: {
     talentProfileId?: string | null;
     family?: TemplatePreviewFamily;
+    tenantSlug?: string | null;
   } = {},
 ): string {
   const family = opts.family ?? "talent-site";
@@ -232,6 +240,8 @@ export function getTemplatePreviewUrl(
   params.set("kind", family);
   const talentProfileId = opts.talentProfileId?.trim();
   if (talentProfileId) params.set("talent", talentProfileId);
+  const tenantSlug = opts.tenantSlug?.trim();
+  if (tenantSlug) params.set("tenant", tenantSlug);
   return `${TEMPLATE_PREVIEW_BASE_PATH}/${encodeURIComponent(key)}?${params.toString()}`;
 }
 

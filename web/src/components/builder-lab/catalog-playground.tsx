@@ -26,7 +26,7 @@ import type {
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import { PlaygroundDraftRow } from "./playground-draft-row";
-import { isShellKind, targetToLabTarget } from "./playground-shared";
+import { isEmptyDraft, isShellKind, targetToLabTarget } from "./playground-shared";
 import {
   EmptyCard,
   LAB as T,
@@ -124,12 +124,18 @@ const PLAYGROUND_TARGETS: ReadonlyArray<{
   },
 ];
 
+/** "empty" is not a DB status — it is the abandoned-draft view (drafts with a
+ *  zero-root tree, which the publish validator can never let through). It gets a
+ *  filter of its own so the clutter is findable and clearable in one place. */
+type PlaygroundFilter = "all" | "empty" | BuilderTemplateStatus;
+
 const PLAYGROUND_STATUS_FILTERS: ReadonlyArray<{
-  key: "all" | BuilderTemplateStatus;
+  key: PlaygroundFilter;
   label: string;
 }> = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
+  { key: "empty", label: "Empty" },
   { key: "in_review", label: "In Review" },
   { key: "published", label: "Published" },
   { key: "archived", label: "Archived" },
@@ -225,9 +231,7 @@ export function PlaygroundView({
   const [menuOpen, setMenuOpen] = useState(false);
   const [drafts, setDrafts] = useState<BuilderTemplateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | BuilderTemplateStatus>(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<PlaygroundFilter>("all");
   const [creating, setCreating] = useState(false);
 
   const reload = useCallback(async () => {
@@ -280,13 +284,20 @@ export function PlaygroundView({
   );
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: drafts?.length ?? 0 };
-    for (const d of drafts ?? []) c[d.status] = (c[d.status] ?? 0) + 1;
+    const c: Record<string, number> = { all: drafts?.length ?? 0, empty: 0 };
+    for (const d of drafts ?? []) {
+      c[d.status] = (c[d.status] ?? 0) + 1;
+      if (isEmptyDraft(d)) c.empty += 1;
+    }
     return c;
   }, [drafts]);
 
-  const visible = (drafts ?? []).filter(
-    (d) => statusFilter === "all" || d.status === statusFilter,
+  const visible = (drafts ?? []).filter((d) =>
+    statusFilter === "all"
+      ? true
+      : statusFilter === "empty"
+        ? isEmptyDraft(d)
+        : d.status === statusFilter,
   );
 
   return (
@@ -389,7 +400,9 @@ export function PlaygroundView({
         <EmptyCard>
           {statusFilter === "all"
             ? "No drafts yet. Hit + New to start a full-page draft. It’s saved as you edit."
-            : `No ${statusFilter.replace("_", " ")} drafts.`}
+            : statusFilter === "empty"
+              ? "No abandoned drafts. Every draft here has something on the canvas."
+              : `No ${statusFilter.replace("_", " ")} drafts.`}
         </EmptyCard>
       ) : (
         <section style={{ ...panelStyle, overflow: "hidden" }}>
