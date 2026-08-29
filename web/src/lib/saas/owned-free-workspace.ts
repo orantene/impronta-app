@@ -1,5 +1,6 @@
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { isRetiredWorkspaceStatus } from "./workspace-lifecycle";
 
 /**
  * "One Free workspace per owner" — the anti-abuse rule.
@@ -31,6 +32,7 @@ type AgencyJoinRow = {
   slug: string | null;
   display_name: string | null;
   plan_tier: string | null;
+  status: string | null;
   settings: Record<string, unknown> | null;
 };
 
@@ -49,7 +51,14 @@ export function normalizeWorkspaceTierInterest(
 }
 
 /**
- * Every Free-tier workspace this user OWNS (role=owner, status=active).
+ * Every LIVE Free-tier workspace this user OWNS (role=owner, status=active).
+ *
+ * "Live" is load-bearing. The delete in platform admin is a SOFT delete: it
+ * only sets `agencies.status = 'cancelled'`. This read used to filter on the
+ * MEMBERSHIP row's status and on `plan_tier` alone, never on the AGENCY's
+ * status, so a cancelled workspace kept occupying its owner's single Free slot
+ * — and `findFreeWorkspaceLimitBlocker` then refused them a new one, forever,
+ * with no self-serve way out. Retired agencies are skipped here.
  *
  * Returns an empty array both when the user owns none and when the read
  * fails — callers that need to distinguish should treat a failure as "unknown"
@@ -64,7 +73,9 @@ export async function listOwnedFreeWorkspaces(
 
   const { data, error } = await admin
     .from("agency_memberships")
-    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier, settings )")
+    .select(
+      "tenant_id, agencies:tenant_id ( slug, display_name, plan_tier, status, settings )",
+    )
     .eq("profile_id", userId)
     .eq("role", "owner")
     .eq("status", "active");
@@ -78,6 +89,9 @@ export async function listOwnedFreeWorkspaces(
   for (const row of (data ?? []) as MembershipRow[]) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
     if (!agency || agency.plan_tier !== "free" || !agency.slug) continue;
+    // A cancelled/archived workspace is gone. It must not consume the owner's
+    // one Free slot. `suspended` deliberately still counts: it is reversible.
+    if (isRetiredWorkspaceStatus(agency.status)) continue;
     const settings =
       agency.settings && typeof agency.settings === "object" ? agency.settings : {};
     const leadId = (settings as Record<string, unknown>)["signup_lead_id"];

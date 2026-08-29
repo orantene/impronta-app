@@ -5,8 +5,11 @@ import { notifyWorkspaceSignupWelcome } from "./workspace-signup-welcome-notify"
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
+import {
+  SIGNUP_BUSINESS_DESCRIPTION_KEY,
+  normalizeSignupBusinessDescription,
+} from "@/lib/site-admin/server/onboard-signup-description";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
-import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   createServiceRoleClient,
@@ -20,15 +23,13 @@ import {
   findFreeWorkspaceLimitBlocker,
   findLeadOwnedFreeWorkspace,
 } from "./workspace-signup-free-limit";
+import { generateAvailableWorkspaceSlug } from "./workspace-signup-slug.server";
 import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
-  isReservedWorkspaceSlug,
   isSelfServeWorkspaceLeadEligible,
   resolveWorkspaceOwnerAppRole,
-  normalizeWorkspaceSlugCandidate,
   preferredWorkspaceSlugFromLead,
-  WORKSPACE_SLUG_MAX_LENGTH,
 } from "./workspace-signup";
 
 type MarketingLeadRow = {
@@ -36,6 +37,13 @@ type MarketingLeadRow = {
   email: string;
   name: string;
   business_name: string | null;
+  /**
+   * The free-text "what do you do?" blurb from the /get-started disclosure.
+   * Its migration comment promises it "seeds the page-builder AI 'describe your
+   * page' front door during onboarding"; it never reached the workspace because
+   * `loadLead` did not select it.
+   */
+  business_description: string | null;
   audience: "operator" | "agency" | "organization" | "business";
   roster_size: string | null;
   subdomain_wanted: string | null;
@@ -98,6 +106,8 @@ async function ensureWorkspaceScaffold(params: {
   actorProfileId: string;
   /** Signup answer, so the starter homepage speaks to this kind of business. */
   audience?: "operator" | "agency" | "organization" | "business";
+  /** Signup blurb, parked on the workspace for the AI "describe your page" door. */
+  businessDescription?: string | null;
 }): Promise<void> {
   // READ-AFTER-WRITE: this whole trampoline executes inside a Server Component
   // render (`/onboarding/workspace`), where Next memoizes identical fetch GETs
@@ -151,6 +161,7 @@ async function ensureWorkspaceScaffold(params: {
     actorProfileId: params.actorProfileId,
     seedFreeStarter: true,
     audience: params.audience,
+    businessDescription: params.businessDescription,
   });
   if (!starter.ok) {
     logServerError(
@@ -160,50 +171,6 @@ async function ensureWorkspaceScaffold(params: {
   }
 }
 
-async function generateAvailableWorkspaceSlug(
-  preferred: string,
-): Promise<string> {
-  const admin = createServiceRoleClient();
-  if (!admin) {
-    return preferred || "workspace";
-  }
-
-  const normalizedBase = normalizeWorkspaceSlugCandidate(preferred) || "workspace";
-  const base = isReservedWorkspaceSlug(normalizedBase) ? "workspace" : normalizedBase;
-
-  const { data, error } = await admin
-    .from("agencies")
-    .select("slug")
-    .or(`slug.eq.${base},slug.like.${base}-%`)
-    .limit(200);
-
-  if (error) {
-    logServerError("workspace-signup.generateAvailableWorkspaceSlug", error);
-    return base;
-  }
-
-  const existing = new Set(
-    (data ?? [])
-      .map((row) => String((row as { slug?: string }).slug ?? "").trim().toLowerCase())
-      .filter(Boolean),
-  );
-
-  if (!existing.has(base) && !isReservedSlug(base)) {
-    return base;
-  }
-
-  for (let suffix = 2; suffix < 500; suffix += 1) {
-    const suffixText = `-${suffix}`;
-    const trimmedBase = base.slice(0, WORKSPACE_SLUG_MAX_LENGTH - suffixText.length);
-    const candidate = `${trimmedBase.replace(/-+$/, "")}${suffixText}`;
-    if (!existing.has(candidate) && !isReservedSlug(candidate)) {
-      return candidate;
-    }
-  }
-
-  return `${base.slice(0, 28).replace(/-+$/, "")}-${Date.now().toString().slice(-3)}`;
-}
-
 async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
@@ -211,7 +178,7 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const { data, error } = await admin
     .from("saas_marketing_signups")
     .select(
-      "id, email, name, business_name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes, promo_code",
+      "id, email, name, business_name, business_description, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes, promo_code",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -266,6 +233,10 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
     signup_audience: lead.audience,
     signup_roster_size: lead.roster_size,
     signup_tier_interest: lead.tier_interest,
+    // Collected by the funnel since 20260711183427 and stored nowhere the
+    // workspace could read it. Parked here with the other provenance keys.
+    [SIGNUP_BUSINESS_DESCRIPTION_KEY]:
+      normalizeSignupBusinessDescription(lead.business_description),
     // Provenance stamp. `findLeadOwnedFreeWorkspace` uses this to recover a
     // crashed run of THIS lead without ever reaching for an unrelated
     // workspace the same person happens to own.
@@ -523,6 +494,7 @@ export async function provisionWorkspaceFromLead(params: {
         displayName: data.display_name,
         actorProfileId: params.userId,
         audience: lead.audience,
+        businessDescription: lead.business_description,
       });
       return finalizeProvisionResult({
         lead,
@@ -555,6 +527,7 @@ export async function provisionWorkspaceFromLead(params: {
       displayName: existingFree.displayName,
       actorProfileId: params.userId,
       audience: lead.audience,
+      businessDescription: lead.business_description,
     });
     await attachLeadToTenant({
       leadId: lead.id,
@@ -704,6 +677,15 @@ export async function provisionWorkspaceFromLead(params: {
     tenantId: agency.id,
     displayName: agency.display_name,
     actorProfileId: params.userId,
+    // THE FIRST-RUN PATH. This is the only one of the three scaffold calls a
+    // real new customer takes, and it was the only one that omitted the
+    // audience — so `buildFreeStarterEntries` silently defaulted every fresh
+    // workspace to "agency" and a solo photographer's homepage announced that
+    // they "represent makeup, hair, photography, and styling professionals".
+    // The two crash-recovery calls above passed it, which is exactly why this
+    // shipped: the tests exercised the pure builder, never this wiring.
+    audience: lead.audience,
+    businessDescription: lead.business_description,
   });
   await attachLeadToTenant({
     leadId: lead.id,

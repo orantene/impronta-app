@@ -34,9 +34,10 @@ import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   resolveCasExpectedVersion,
-  resolveFreeStarterRosterSeedCount,
   shouldSkipFreeStarterHomepageSeed,
 } from "./onboard-starter-content-policy";
+import { seedFreeStarterRosterProfiles } from "./onboard-starter-roster";
+import { persistSignupBusinessDescription } from "./onboard-signup-description";
 import { publishSection, upsertSection } from "./sections";
 import {
   ensureHomepageRow,
@@ -44,15 +45,11 @@ import {
   saveHomepageDraftComposition,
 } from "./homepage";
 import { resolvePlatformDefaultStorefrontTree } from "./default-storefront-template";
-import {
-  FREE_STARTER_TALENT_SEEDS,
-  buildFreeStarterEntries,
-} from "./onboard-starter-content-entries";
+import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
 import { ensureNotFoundPage } from "./onboard-notfound-page";
 import { ensureBookingPage } from "./onboard-booking-page";
-import { platformOwnedStamp } from "@/lib/media/ownership";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
 // single import site for the seed's public surface.
@@ -77,10 +74,18 @@ export interface OnboardStarterContentInput {
   seedFreeStarter?: boolean;
   /**
    * The signup answer to "Which describes you best?", carried from the lead
-   * row so the starter homepage speaks to the right kind of business.
-   * Defaults to "agency" when a caller has no lead to read it from.
+   * row so the starter homepage speaks to the right kind of business. Falls
+   * back to DEFAULT_SIGNUP_AUDIENCE (the funnel's own default) when a caller
+   * has no lead to read it from.
    */
   audience?: StarterAudience;
+  /**
+   * The free-text "what do you do?" blurb the /get-started disclosure collects
+   * (`saas_marketing_signups.business_description`). Parked on the workspace so
+   * the page-builder AI's "describe your page" front door has something real to
+   * start from instead of an empty box.
+   */
+  businessDescription?: string | null;
 }
 
 export interface OnboardStarterContentResult {
@@ -91,157 +96,6 @@ export interface OnboardStarterContentResult {
   error?: string;
 }
 
-
-async function seedFreeStarterRosterProfiles(params: {
-  client: SupabaseClient;
-  tenantId: string;
-  actorProfileId: string;
-}): Promise<number> {
-  const [{ data: agency }, visibleRes, totalRes] = await Promise.all([
-    params.client
-      .from("agencies")
-      .select("plan_tier, talent_seat_limit")
-      .eq("id", params.tenantId)
-      .maybeSingle<{ plan_tier: string | null; talent_seat_limit: number | null }>(),
-    params.client
-      .from("agency_talent_roster")
-      .select("id", { head: true, count: "exact" })
-      .eq("tenant_id", params.tenantId)
-      .eq("status", "active")
-      .in("agency_visibility", ["site_visible", "featured"]),
-    params.client
-      .from("agency_talent_roster")
-      .select("id", { head: true, count: "exact" })
-      .eq("tenant_id", params.tenantId)
-      .neq("status", "removed"),
-  ]);
-
-  const targetCount = resolveFreeStarterRosterSeedCount({
-    planTier: agency?.plan_tier ?? null,
-    seatLimit: agency?.talent_seat_limit ?? null,
-    publicVisibleCount: visibleRes.count ?? 0,
-    totalRosterCount: totalRes.count ?? 0,
-  });
-  if (targetCount <= 0) return 0;
-
-  const { data: talentTypeTerms } = await params.client
-    .from("taxonomy_terms")
-    .select("id")
-    .eq("kind", "talent_type")
-    .is("archived_at", null)
-    .order("sort_order", { ascending: true })
-    .limit(targetCount);
-
-  let seeded = 0;
-  for (let index = 0; index < targetCount; index += 1) {
-    const template = FREE_STARTER_TALENT_SEEDS[index % FREE_STARTER_TALENT_SEEDS.length]!;
-    const { data: codeRow, error: codeError } =
-      await params.client.rpc("generate_profile_code");
-    if (codeError || !codeRow) {
-      logServerError("onboardStarterContent.seedRoster.profileCode", codeError ?? "missing profile code");
-      continue;
-    }
-
-    const { data: inserted, error: insertError } = await params.client
-      .from("talent_profiles")
-      .insert({
-        profile_code: String(codeRow),
-        display_name: template.displayName,
-        first_name: template.firstName,
-        last_name: template.lastName,
-        short_bio: template.shortBio,
-        workflow_status: "approved",
-        visibility: "public",
-        // Template content: visible on THIS workspace's storefront, but never
-        // auto-enrolled into the platform hub. Without this marker
-        // `trg_talent_auto_enroll_hub` published every seeded copy to
-        // tulala.digital/directory, so each new workspace added 5 more clones
-        // of the same 5 demo people (33 accumulated before 20260806002850).
-        is_starter_seed: true,
-        membership_tier: "free",
-        membership_status: "active",
-        is_featured: index < 2,
-        featured_level: index < 2 ? 1 : 0,
-        featured_position: index + 1,
-      })
-      .select("id")
-      .single<{ id: string }>();
-
-    if (insertError || !inserted?.id) {
-      logServerError("onboardStarterContent.seedRoster.insertTalent", insertError ?? "missing talent id");
-      continue;
-    }
-
-    const { error: rosterError } = await params.client
-      .from("agency_talent_roster")
-      .insert({
-        tenant_id: params.tenantId,
-        source_workspace_id: params.tenantId,
-        talent_profile_id: inserted.id,
-        source_type: "agency_created",
-        status: "active",
-        agency_visibility: index < 2 ? "featured" : "site_visible",
-        hub_visibility_status: "not_submitted",
-        is_primary: false,
-        added_by: params.actorProfileId,
-      });
-
-    if (rosterError) {
-      logServerError("onboardStarterContent.seedRoster.insertRoster", rosterError);
-      await params.client.from("talent_profiles").delete().eq("id", inserted.id);
-      continue;
-    }
-
-    // Demo headshot: a media_assets row pointing at a root-relative
-    // `web/public` asset. approval_state=approved + variant_kind=card is
-    // exactly what the card-thumbnail resolvers rank first, so the seeded
-    // roster renders real editorial portraits instead of blank dark cards
-    // (owner rule: editorial/real photos, never placeholder boxes).
-    const { error: mediaError } = await params.client
-      .from("media_assets")
-      .insert({
-        tenant_id: params.tenantId,
-        owner_talent_profile_id: inserted.id,
-        // Ownership truth (plan §5a / P1) — seeded demo imagery ships with
-        // the platform, so it is 'platform'-owned, not the workspace's and
-        // not the demo talent's.
-        ...platformOwnedStamp(params.actorProfileId),
-        bucket_id: "media-public",
-        storage_path: template.portraitPath,
-        variant_kind: "card",
-        approval_state: "approved",
-        sort_order: 0,
-      });
-    if (mediaError) {
-      // Non-fatal: the profile still works; the card degrades to initials.
-      logServerError("onboardStarterContent.seedRoster.insertMedia", mediaError);
-    }
-
-    const typeTermId = talentTypeTerms?.[index]?.id;
-    if (typeTermId) {
-      const { error: taxonomyError } = await params.client
-        .from("talent_profile_taxonomy")
-        .insert({
-          talent_profile_id: inserted.id,
-          taxonomy_term_id: typeTermId,
-          is_primary: true,
-          // REQUIRED. Omitting this defaults the column to 'attribute', which
-          // `validate_talent_profile_taxonomy_relationship` rejects for a
-          // talent_type term — so every seeded starter profile silently ended
-          // up with no role at all (blank type label on the storefront card,
-          // invisible to the directory's type facet).
-          relationship_type: "primary_role",
-        });
-      if (taxonomyError) {
-        logServerError("onboardStarterContent.seedRoster.insertTaxonomy", taxonomyError);
-      }
-    }
-
-    seeded += 1;
-  }
-
-  return seeded;
-}
 
 /**
  * Slug of the theme preset the Free starter publishes. Matches the
@@ -661,6 +515,14 @@ export async function onboardStarterContent(
   if (!ensured.ok) {
     return { ok: false, error: ensured.code ?? "ENSURE_FAILED" };
   }
+
+  // Independent of `seedFreeStarter`: the blurb belongs to the workspace, not
+  // to the starter homepage, and the two crash-recovery provisioning paths
+  // re-enter here after the homepage seed has already short-circuited.
+  await persistSignupBusinessDescription(client, {
+    tenantId: input.tenantId,
+    businessDescription: input.businessDescription,
+  });
 
   if (input.seedFreeStarter) {
     const actorProfileId = input.actorProfileId ?? null;

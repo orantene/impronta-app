@@ -1,5 +1,19 @@
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 
+/**
+ * The four answers to "Which describes you best?" on /get-started.
+ *
+ * ONE default, read by both ends. The funnel's `mapAudience` fell back to
+ * "operator" while the starter seed's `buildFreeStarterEntries` fell back to
+ * "agency", so a visitor who never touched the radio was filed as a solo
+ * operator by the funnel and handed a homepage announcing they "represent
+ * makeup, hair, photography, and styling professionals". The funnel's value
+ * wins: it is the one the visitor actually saw selected.
+ */
+export type SignupAudience = "operator" | "agency" | "organization" | "business";
+
+export const DEFAULT_SIGNUP_AUDIENCE: SignupAudience = "operator";
+
 export const WORKSPACE_SIGNUP_INTENT = "workspace" as const;
 export const WORKSPACE_SIGNUP_LEAD_PARAM = "lead" as const;
 

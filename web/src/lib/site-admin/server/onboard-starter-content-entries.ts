@@ -5,6 +5,11 @@
  */
 
 import type { SectionTypeKey } from "@/lib/site-admin/sections/registry";
+import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";
+import {
+  DEFAULT_SIGNUP_AUDIENCE,
+  type SignupAudience,
+} from "@/lib/saas/workspace-signup";
 
 export interface FreeStarterEntry {
   slotKey: string;
@@ -56,7 +61,23 @@ const STARTER_IMG = {
  * solo photographer and a wedding band both opened a homepage announcing they
  * "represent makeup, hair, photography, and styling professionals".
  */
-export type StarterAudience = "operator" | "agency" | "organization" | "business";
+export type StarterAudience = SignupAudience;
+
+/**
+ * Does a workspace born from this signup answer represent talent?
+ *
+ * Mirrors the provisioner exactly: `workspace-signup.server.ts` inserts
+ * `workspace_type: lead.audience === "business" ? "business" : "talent"`, and
+ * `rosterEnabled` is the same predicate every other roster surface asks. A
+ * restaurant or a clinic represents nobody, so a "The roster / Featured
+ * professionals" section on its homepage is furniture for a business it is
+ * not running, pointed at people it does not have.
+ */
+export function starterAudienceHasRoster(audience: StarterAudience): boolean {
+  return rosterEnabled(
+    normalizeWorkspaceType(audience === "business" ? "business" : "talent"),
+  );
+}
 
 /** Hero copy per signup audience. Everything else about the page is shared. */
 function heroCopyFor(
@@ -88,14 +109,54 @@ function heroCopyFor(
   }
 }
 
+/**
+ * The roster showcase, held out of the starter array so the "does this
+ * workspace represent anyone?" question is asked in exactly one place.
+ */
+const FEATURED_ROSTER_ENTRY: FreeStarterEntry = {
+  slotKey: "featured",
+  sectionTypeKey: "featured_talent",
+  propsOverride: {
+    eyebrow: "The roster",
+    headline: "Featured professionals",
+    intro:
+      "A first look at the artists and specialists available through the studio.",
+    sourceMode: "auto_recent",
+    limit: 5,
+    columnsDesktop: 3,
+    variant: "grid",
+    // The library default for this section is the v11 NOIR showcase
+    // (ivory display heading + black card chrome), which is tuned for
+    // dark storefronts. On the light starter theme it rendered as a
+    // huge ghost heading over pitch-black cards. Pin the neutral,
+    // token-driven treatment instead.
+    layoutPreset: "standard",
+    headerAlign: "split",
+    cardChrome: "standard",
+    imageTreatment: "natural",
+    actionStyle: "primary-duo",
+    // The default footer CTA points to /directory, which Free tenants
+    // do not have (Amendment A3). Shallow-merge with undefined unsets it.
+    footerCta: undefined,
+  },
+};
+
 export function buildFreeStarterEntries(
   studioName?: string | null,
-  audience: StarterAudience = "agency",
+  audience: StarterAudience = DEFAULT_SIGNUP_AUDIENCE,
 ): ReadonlyArray<FreeStarterEntry> {
   const name = studioName?.trim() || "Our studio";
   const hero = heroCopyFor(audience, name);
   const solo = audience === "operator";
-  return [
+  const hasRoster = starterAudienceHasRoster(audience);
+  // `/directory` is served by the built-in directory adapter, but ONLY for a
+  // roster-shaped workspace: a business workspace 404s there (the route guard
+  // in `app/(public)/directory/page.tsx`). `/book` is the seeded, fenced
+  // booking page every workspace type gets unconditionally
+  // (`onboard-booking-page.ts`), so it is the one live inquiry destination a
+  // business workspace can be pointed at from its first second.
+  const inquiryHref = hasRoster ? "/directory" : "/book";
+  const entries: FreeStarterEntry[] = [
     {
       slotKey: "hero",
       sectionTypeKey: "hero",
@@ -112,7 +173,7 @@ export function buildFreeStarterEntries(
         // or not the workspace has a directory CMS page, so this CTA is live
         // from the workspace's first second. It is also the real head of the
         // inquiry funnel.
-        primaryCta: { label: "Start an inquiry", href: "/directory" },
+        primaryCta: { label: "Start an inquiry", href: inquiryHref },
         slides: [
           {
             backgroundImageUrl: STARTER_IMG.hero,
@@ -162,33 +223,6 @@ export function buildFreeStarterEntries(
       },
     },
     {
-      slotKey: "featured",
-      sectionTypeKey: "featured_talent",
-      propsOverride: {
-        eyebrow: "The roster",
-        headline: "Featured professionals",
-        intro:
-          "A first look at the artists and specialists available through the studio.",
-        sourceMode: "auto_recent",
-        limit: 5,
-        columnsDesktop: 3,
-        variant: "grid",
-        // The library default for this section is the v11 NOIR showcase
-        // (ivory display heading + black card chrome), which is tuned for
-        // dark storefronts. On the light starter theme it rendered as a
-        // huge ghost heading over pitch-black cards. Pin the neutral,
-        // token-driven treatment instead.
-        layoutPreset: "standard",
-        headerAlign: "split",
-        cardChrome: "standard",
-        imageTreatment: "natural",
-        actionStyle: "primary-duo",
-        // The default footer CTA points to /directory, which Free tenants
-        // do not have (Amendment A3). Shallow-merge with undefined unsets it.
-        footerCta: undefined,
-      },
-    },
-    {
       slotKey: "final_cta",
       sectionTypeKey: "cta_banner",
       propsOverride: {
@@ -199,7 +233,7 @@ export function buildFreeStarterEntries(
             ? "Share your date, location, and creative direction. I reply within one business day with availability and a quote."
             : "Share your date, location, and creative direction. We reply within one business day with availability and a suggested team.",
         // See the hero CTA above: `/contact` 404s on a fresh workspace.
-        primaryCta: { label: "Start an inquiry", href: "/directory" },
+        primaryCta: { label: "Start an inquiry", href: inquiryHref },
         backgroundImageUrl: STARTER_IMG.ctaBanner,
         // See the hero note: "" reads as missing to the publish blocker.
         backgroundImageAlt:
@@ -217,6 +251,16 @@ export function buildFreeStarterEntries(
       },
     },
   ];
+
+  // The roster showcase is not universal. It used to be seeded on EVERY Free
+  // workspace, so a restaurant or a wedding band opened its brand-new homepage
+  // to "The roster / Featured professionals" over three demo models it does
+  // not represent. Spliced back at its original index so a roster-shaped
+  // workspace's starter page is unchanged.
+  if (hasRoster) {
+    entries.splice(2, 0, FEATURED_ROSTER_ENTRY);
+  }
+  return entries;
 }
 
 export interface FreeStarterTalentSeed {
