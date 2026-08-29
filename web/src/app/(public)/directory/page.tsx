@@ -10,6 +10,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { assertRosterWorkspace } from "@/lib/saas/assert-roster-workspace";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { resolveDirectorySlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
@@ -87,6 +88,15 @@ export default async function DirectoryPage() {
   // seed lands).
   const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
+  // WORKSPACE SHAPE. `/directory` is the talent directory. A business workspace
+  // (a restaurant, a clinic) represents nobody, so this route does not exist
+  // for it — and until this guard landed it was the ONE public roster surface
+  // with no `workspace_type` check at all, which is where a business
+  // workspace's own seeded CTAs used to land its visitors. Same predicate the
+  // roster's server routes use; it fails OPEN on a missing tenant or a failed
+  // read (empty tenantId resolves to "talent"), so the platform hub's own
+  // /directory and every agency host are untouched.
+  await assertRosterWorkspace(tenantId);
   // PAGE ROLES — an ASSIGNED directory page (a real, published page) is served
   // through the full storefront renderer (CmsPublicPage), exactly like the home
   // role. This is required because assigned pages are freeform (cms_pages.blocks)

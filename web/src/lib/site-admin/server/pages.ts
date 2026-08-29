@@ -46,10 +46,7 @@ import {
   versionConflict,
   type Phase5Result,
 } from "@/lib/site-admin";
-import {
-  cmsAdditionalPageDeniedReason,
-  loadBuilderWorkspacePlan,
-} from "@/lib/site-admin/builder-capabilities";
+import { resolveAdditionalPageDenial } from "./page-quota";
 import { getTemplate } from "@/lib/site-admin/templates/registry";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
@@ -474,8 +471,24 @@ export async function upsertPage(
       return fail("VALIDATION_FAILED", "expectedVersion must be 0 on create");
     }
 
-    const plan = await loadBuilderWorkspacePlan(supabase, tenantId);
-    const deniedReason = cmsAdditionalPageDeniedReason(plan);
+    // QUOTA — one gate, not two. This branch used to call
+    // `cmsAdditionalPageDeniedReason(plan)` with NO page count, and that helper
+    // fails CLOSED on an absent count ("assume the quota is spent"). So every
+    // Free workspace was refused its FIRST operator page: "+ Add page",
+    // "Duplicate" and "Describe with AI" all passed the outer gate in the
+    // server action, rendered enabled, and then errored here -- which also made
+    // the AI page generator unreachable for every new customer, since its other
+    // entry point only appears on an empty canvas and the seeded homepage never
+    // is one. `resolveAdditionalPageDenial` is the DEFAULT PAGES CONTRACT's one
+    // evaluator (see page-quota.ts); routing this branch through it makes the
+    // two answers identical by construction. Kept as a gate rather than deleted
+    // because `upsertPage` is exported low-level CRUD: a future caller that
+    // forgets the outer gate must still not get a free page.
+    const deniedReason = await resolveAdditionalPageDenial(
+      supabase,
+      tenantId,
+      "site-admin/pages/upsert.plan",
+    );
     if (deniedReason) {
       return fail(
         "VALIDATION_FAILED",

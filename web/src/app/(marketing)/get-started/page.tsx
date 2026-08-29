@@ -13,6 +13,7 @@ import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
 import { getAppUrl } from "@/lib/auth-flow";
 import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
+import { DEFAULT_SIGNUP_AUDIENCE } from "@/lib/saas/workspace-signup";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -266,7 +267,9 @@ export default async function GetStartedPage({
 function mapAudience(raw: string | null, rawTier?: string | null): AudienceKey {
   if (raw === "agency" || raw === "organization" || raw === "business") return raw;
   if (!raw && rawTier === "website") return "business";
-  return "operator";
+  // Shared with the starter seed so the funnel's default and the seeded
+  // homepage's default can never disagree again.
+  return DEFAULT_SIGNUP_AUDIENCE;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

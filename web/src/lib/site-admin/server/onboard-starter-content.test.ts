@@ -8,6 +8,7 @@ import { existsSync } from "node:fs";
 
 import { buildFreeStarterEntries } from "./onboard-starter-content";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { DEFAULT_SIGNUP_AUDIENCE } from "@/lib/saas/workspace-signup";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
 import {
   FREE_STARTER_PROFILE_CAP,
@@ -219,7 +220,13 @@ test("resolveCasExpectedVersion falls back when the re-read is unavailable", () 
 // stays dependency-free in the capabilities lane.
 
 const here = dirname(fileURLToPath(import.meta.url));
-const seedSrc = readFileSync(join(here, "onboard-starter-content.ts"), "utf8");
+// The seed is two modules: the orchestration, and the demo-roster seeder that
+// was split out of it when the workspace-shape gate landed (the file was at its
+// 800-line cap). Read as one blob so every assertion below keeps asking about
+// "the seed" rather than about which file a function happens to live in.
+const seedSrc =
+  readFileSync(join(here, "onboard-starter-content.ts"), "utf8") +
+  readFileSync(join(here, "onboard-starter-roster.ts"), "utf8");
 /** Content definitions split out to honor the 800-line cap. */
 const entriesSrc = readFileSync(
   join(here, "onboard-starter-content-entries.ts"),
@@ -538,10 +545,16 @@ test("a solo operator's starter copy speaks in the first person singular", () =>
   assert.doesNotMatch(copy, /\bWe reply\b/);
 });
 
-test("omitting the audience keeps the agency copy — no caller has to change", () => {
+test("omitting the audience falls back to the FUNNEL's default, not a second one", () => {
+  // Was "agency". The /get-started form's own `mapAudience` falls back to
+  // "operator", so a visitor who never touched the radio was filed as a solo
+  // operator by the funnel and then handed a homepage announcing they
+  // "represent makeup, hair, photography, and styling professionals". One
+  // constant now, read by both ends.
+  assert.equal(DEFAULT_SIGNUP_AUDIENCE, "operator");
   assert.deepEqual(
     heroOf(buildFreeStarterEntries("Vera Atelier")),
-    heroOf(buildFreeStarterEntries("Vera Atelier", "agency")),
+    heroOf(buildFreeStarterEntries("Vera Atelier", DEFAULT_SIGNUP_AUDIENCE)),
   );
 });
 

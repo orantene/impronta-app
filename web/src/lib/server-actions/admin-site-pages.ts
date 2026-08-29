@@ -68,12 +68,6 @@ function single(formData: FormData, name: string): string {
   return typeof v === "string" ? v : "";
 }
 
-function singleOrNull(formData: FormData, name: string): string | null {
-  const v = formData.get(name);
-  if (typeof v !== "string" || v === "") return null;
-  return v;
-}
-
 function zodErrorsToFieldMap(error: {
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>;
 }): Record<string, string> {
@@ -138,77 +132,6 @@ function mapActionError(result: {
     error: result.message ?? CLIENT_ERROR.update,
     code: result.code,
   };
-}
-
-// ---- upsert ---------------------------------------------------------------
-
-export async function savePageAction(
-  _prev: PageActionState,
-  formData: FormData,
-): Promise<PageActionState> {
-  const auth = await requireSession();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) {
-    return {
-      ok: false,
-      error: "Select an agency workspace before editing pages.",
-    };
-  }
-
-  const parsed = pageUpsertSchema.safeParse({
-    id: singleOrNull(formData, "id"),
-    tenantId: scope.tenantId,
-    locale: single(formData, "locale"),
-    slug: single(formData, "slug"),
-    templateKey: single(formData, "templateKey"),
-    templateSchemaVersion: Number(single(formData, "templateSchemaVersion") || "1"),
-    title: single(formData, "title"),
-    body: single(formData, "body"),
-    hero: {
-      title: singleOrNull(formData, "heroTitle") ?? undefined,
-      subtitle: singleOrNull(formData, "heroSubtitle") ?? undefined,
-      eyebrow: singleOrNull(formData, "heroEyebrow") ?? undefined,
-    },
-    metaTitle: singleOrNull(formData, "metaTitle"),
-    metaDescription: singleOrNull(formData, "metaDescription"),
-    ogTitle: singleOrNull(formData, "ogTitle"),
-    ogDescription: singleOrNull(formData, "ogDescription"),
-    ogImageMediaAssetId: singleOrNull(formData, "ogImageMediaAssetId"),
-    noindex: single(formData, "noindex") === "true",
-    includeInSitemap: single(formData, "includeInSitemap") !== "false",
-    canonicalUrl: singleOrNull(formData, "canonicalUrl"),
-    expectedVersion: Number(single(formData, "expectedVersion") || "0"),
-  });
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Some fields need attention.",
-      fieldErrors: zodErrorsToFieldMap(parsed.error),
-    };
-  }
-
-  try {
-    const result = await upsertPage(auth.supabase, {
-      tenantId: scope.tenantId,
-      values: parsed.data,
-      actorProfileId: auth.user.id,
-    });
-    if (!result.ok) return mapActionError(result);
-    return {
-      ok: true,
-      id: result.data.id,
-      version: result.data.version,
-      message: parsed.data.id ? "Page saved." : "Page created.",
-    };
-  } catch (error) {
-    logServerError("site-admin/pages/save", error);
-    if (error instanceof Error && /forbidden/i.test(error.message)) {
-      return { ok: false, error: "Not authorized." };
-    }
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
 }
 
 // ---- delete ---------------------------------------------------------------

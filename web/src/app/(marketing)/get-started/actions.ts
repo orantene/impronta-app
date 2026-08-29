@@ -22,6 +22,7 @@ import {
   WORKSPACE_SLUG_REGEX,
 } from "@/lib/saas/workspace-signup";
 import { logServerError } from "@/lib/server/safe-error";
+import { isRetiredWorkspaceStatus } from "@/lib/saas/workspace-lifecycle";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /**
@@ -135,7 +136,7 @@ async function isRequestedLinkTaken(
     { data: existingReservation, error: reservationError },
   ] = await Promise.all([
     supabase.from("agency_domains").select("id").eq("hostname", hostCandidate).maybeSingle(),
-    supabase.from("agencies").select("id").eq("slug", slug).maybeSingle(),
+    supabase.from("agencies").select("id, status").eq("slug", slug).maybeSingle(),
     reservationQuery,
   ]);
 
@@ -146,7 +147,16 @@ async function isRequestedLinkTaken(
     return { taken: false, pending: false, error: true };
   }
 
-  const taken = Boolean(existingDomain || existingSlug);
+  // A RETIRED workspace does not hold its name. Platform admin's delete is a
+  // soft delete (`agencies.status = 'cancelled'`), and this check had no status
+  // filter, so deleting a workspace burned its slug permanently for everyone,
+  // its own owner included. The provisioner keeps this promise honest: it
+  // reclaims the name off the retired row (see `reclaimRetiredWorkspaceSlug`)
+  // rather than silently handing the visitor `<slug>-2`.
+  const slugHeldByLiveWorkspace =
+    Boolean(existingSlug) &&
+    !isRetiredWorkspaceStatus((existingSlug as { status?: unknown } | null)?.status);
+  const taken = Boolean(existingDomain) || slugHeldByLiveWorkspace;
   const reservationBlocks =
     !!existingReservation &&
     (!excludeLeadId || existingReservation.lead_id !== excludeLeadId);
