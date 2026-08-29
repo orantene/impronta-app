@@ -334,6 +334,8 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/features",
     "/features/appointments",
     "/features/website-builder",
+    "/funciones",
+    "/funciones/citas-y-reservas",
     "/docs",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
@@ -431,6 +433,8 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
     // their branded domain must never see it.
     "/features",
     "/features/appointments",
+    "/funciones",
+    "/funciones/citas-y-reservas",
     "/docs",
   ];
   for (const p of marketingPages) {
