@@ -80,6 +80,8 @@ export type FeaturedTalentCardDTO = {
   parentCategoryLabel?: string | null;
   isFeatured: boolean;
   thumbnailUrl: string | null;
+  /** Timed request/instant offering on this tenant (directory path). */
+  bookable?: boolean;
 };
 
 /**
@@ -132,6 +134,7 @@ export function featuredDtoToCanonicalCard(
       : AVAILABILITY_UNKNOWN,
     availabilityKnown: hasAvailability,
     availableDaysInNext30: null,
+    bookable: card.bookable === true,
   };
 }
 
@@ -176,6 +179,7 @@ function projectDirectoryCard(c: DirectoryCardDTO): FeaturedTalentCardDTO {
     parentCategoryLabel: null,
     isFeatured: c.isFeatured,
     thumbnailUrl: c.thumbnail.url,
+    bookable: c.bookable === true,
   };
 }
 

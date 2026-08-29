@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { usePathname } from "next/navigation";
 
+import { createTranslator } from "@/i18n/messages";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -119,6 +120,7 @@ export function DirectoryCardAdapter({
   const pathname = usePathname();
   const mediaRef = useRef<HTMLDivElement>(null);
   const cart = useInquiryCart();
+  const t = createTranslator(locale);
 
   const data = mapDtoToCardData(card, pathname);
   // hover:"swap" — give the canonical card its second photo. Only under swap
@@ -215,6 +217,23 @@ export function DirectoryCardAdapter({
           density={density}
           priority={priority}
           index={index}
+          badgeSlot={
+            data.bookable ? (
+              <span className="pointer-events-none absolute left-2.5 bottom-2.5 z-[2] rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur-sm">
+                {t("public.directory.card.booksByAppointment")}
+              </span>
+            ) : undefined
+          }
+          secondaryActionSlot={
+            data.bookable && data.profileHref ? (
+              <a
+                href={data.profileHref}
+                className="pointer-events-auto rounded-full border border-border bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground backdrop-blur-sm"
+              >
+                {t("public.directory.card.reserve")}
+              </a>
+            ) : undefined
+          }
         />
         {/* Top-right affordance cluster: the favorite heart (always visible)
             and a hover-revealed gold "Inquire" pill. This in-media pill is the
@@ -454,6 +473,7 @@ function mapDtoToCardData(
     ratingAvg: card.ratingAvg ?? null,
     ratingCount: card.ratingCount ?? null,
     wouldBookAgainPct: card.wouldBookAgainPct ?? null,
+    bookable: card.bookable === true,
   };
 }
 

@@ -1,3 +1,4 @@
+import { createTranslator } from "@/i18n/messages";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -15,6 +16,7 @@ import {
   buttonSize,
 } from "./style-helpers";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
+import { createTranslator } from "@/i18n/messages";
 import type { CSSProperties } from "react";
 
 import "./featured-talent.css";
@@ -238,6 +240,7 @@ export async function FeaturedTalentComponent({
   publicPathPrefix,
   builderNodeBindings,
 }: SectionComponentProps<FeaturedTalentV1>) {
+  const t = createTranslator(locale);
   const {
     eyebrow,
     headline,
@@ -248,6 +251,7 @@ export async function FeaturedTalentComponent({
     footerCta,
     presentation,
     requestCta,
+    itemCtas,
     emptyStateText,
     layoutPreset,
     headerAlign,
@@ -286,6 +290,7 @@ export async function FeaturedTalentComponent({
   };
 
   // Hard cap at 15 regardless of source mode (schema also bounds `limit`).
+  const t = createTranslator(locale);
   const cards = (
     await fetchFeaturedTalentForSection(tenantId, props, locale)
   ).slice(0, 15);
@@ -683,7 +688,12 @@ export async function FeaturedTalentComponent({
                   requestCta={
                     requestCta
                       ? {
-                          label: requestCta.label,
+                          label:
+                            itemCtas?.find((row) => row.profileCode === card.profileCode)
+                              ?.label ??
+                            (card.bookable
+                              ? t("public.directory.card.reserve")
+                              : requestCta.label),
                           href: resolveLinkLike(requestCta.href, linkCtx).href,
                         }
                       : null

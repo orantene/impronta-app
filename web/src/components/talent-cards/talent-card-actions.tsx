@@ -100,10 +100,14 @@ export function TalentCardActions({
     lastMessageRole: null,
   });
   const inLineupState = ctaState.kind === "in_lineup";
-  const inquiryLabel = inLineupState ? "In lineup" : "Inquire";
+  const copy = withInterpolation(createTranslator(locale));
+  const fallbackName = displayName?.trim() || copy("public.directory.fallbackPrimaryTalentType");
+  const inquiryLabel = inLineupState
+    ? copy("public.directory.card.inLineup")
+    : copy("public.directory.card.inquire");
   const inquiryAria = inLineupState
-    ? `${displayName || "Talent"} is in your lineup. Tap to remove.`
-    : `Add${nameSuffix} to your lineup`;
+    ? copy("public.directory.card.inLineupAria", { name: fallbackName })
+    : copy("public.directory.card.inquireAria", { name: fallbackName });
 
   const handleFavorite = (event: MouseEvent) => {
     // Cards are usually wrapped in a <Link> — keep the toggle local.
