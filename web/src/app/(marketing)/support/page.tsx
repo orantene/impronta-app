@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MarketingContainer, MarketingSection } from "@/components/marketing/container";
 import { MarketingCta } from "@/components/marketing/cta-link";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
-import { SUPPORT_EMAIL } from "@/components/marketing/marketing-support-menu";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
