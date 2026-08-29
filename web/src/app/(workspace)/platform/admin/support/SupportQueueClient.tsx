@@ -41,10 +41,14 @@ export function SupportQueueClient({
   rows,
   initialTicketId,
   cannedReplies,
+  onOpenCountChange,
 }: {
   rows: HqQueueRow[];
   initialTicketId: string | null;
   cannedReplies: SupportCannedReply[];
+  /** Lifts the live open count so the page header stops showing a stale
+   *  server-render number after realtime inserts. */
+  onOpenCountChange?: (n: number) => void;
 }) {
   const t = useT();
   const [filter, setFilter] = useState<FilterId>("needsYou");
@@ -137,6 +141,10 @@ export function SupportQueueClient({
     [ping],
   );
   useHqSupportRealtime({ onTicketInsert, onTicketUpdate, onRequesterMessage });
+
+  useEffect(() => {
+    onOpenCountChange?.(queue.filter((r) => r.ticket.status === "open").length);
+  }, [queue, onOpenCountChange]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();

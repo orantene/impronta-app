@@ -8404,7 +8404,8 @@
         "ideasSave": "Save",
         "ideasSaved": "Saved",
         "ideasCall": "Call",
-        "ideasWhatsapp": "WhatsApp"
+        "ideasWhatsapp": "WhatsApp",
+        "pageSubtitleOne": "1 open ticket"
       }
     },
     "clientBookings": {

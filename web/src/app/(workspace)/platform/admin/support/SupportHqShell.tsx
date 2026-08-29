@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useT } from "@/i18n/use-t";
-import { HQ } from "../tenants/hq-kit";
+import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
+import { interpolate } from "@/i18n/interpolate";
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import type { HqFeatureRequestRow } from "@/lib/support/feature-request-types";
 import type { HqInsightsDashboard } from "@/lib/support/insights/types";
@@ -17,6 +18,7 @@ export function SupportHqShell({
   insights,
   cannedReplies,
   ideas,
+  initialOpenCount,
   initialTicketId,
   initialView,
 }: {
@@ -24,6 +26,7 @@ export function SupportHqShell({
   insights: HqInsightsDashboard;
   cannedReplies: SupportCannedReply[];
   ideas: HqFeatureRequestRow[];
+  initialOpenCount: number;
   initialTicketId: string | null;
   initialView: "queue" | "insights" | "ideas";
 }) {
@@ -32,9 +35,36 @@ export function SupportHqShell({
   const [cannedOpen, setCannedOpen] = useState(false);
   // Local copy so a save refreshes the composer popover without a reload.
   const [canned, setCanned] = useState(cannedReplies);
+  const [openCount, setOpenCount] = useState(initialOpenCount);
+  const onOpenCountChange = useCallback((n: number) => setOpenCount(n), []);
 
   return (
     <div>
+      <div style={{ marginBottom: 18 }}>
+        <h1
+          style={{
+            fontFamily: HQ_FD,
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: -0.4,
+            color: HQ.ink,
+            margin: 0,
+            lineHeight: 1.15,
+          }}
+        >
+          {t("dashboard.platform.support.pageTitle")}
+        </h1>
+        <p style={{ fontFamily: HQ_F, fontSize: 13, color: HQ.inkMuted, margin: "5px 0 0" }}>
+          {interpolate(
+            t(
+              openCount === 1
+                ? "dashboard.platform.support.pageSubtitleOne"
+                : "dashboard.platform.support.pageSubtitle",
+            ),
+            { count: openCount },
+          )}
+        </p>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
       <div
         style={{
@@ -104,6 +134,7 @@ export function SupportHqShell({
           rows={rows}
           initialTicketId={initialTicketId}
           cannedReplies={canned}
+          onOpenCountChange={onOpenCountChange}
         />
       )}
     </div>

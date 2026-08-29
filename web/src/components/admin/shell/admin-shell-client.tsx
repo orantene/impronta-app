@@ -303,6 +303,7 @@ export function AdminShellClient({
             <WorkspaceShellWithCanonicalChildren>
               {children}
             </WorkspaceShellWithCanonicalChildren>
+            <SupportSlotGate />
           </AdminShellProvider>
         </SupportSlotContext.Provider>
       </Suspense>
@@ -363,6 +364,7 @@ export function TalentShellClient({
                 CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
                 exactly as before (pathIsCanonical → false → AdminShellRoot). */}
             <ConditionalAdminShellRoot />
+            <SupportSlotGate />
           </AdminShellProvider>
         </SupportSlotContext.Provider>
       </Suspense>
@@ -1252,9 +1254,25 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   );
 }
 
-function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
-  const { bridgeTenantIdentity, workspaceFabEnabled, workspaceSupportEnabled } = useAdminShell();
+/**
+ * Support launcher mount point.
+ *
+ * This used to live inside AdminShellContent, i.e. inside AdminShellRoot. On
+ * the TALENT shell, ConditionalAdminShellRoot returns null for canonical
+ * paths, so the launcher silently vanished on /talent/today and every other
+ * canonical talent route. Rendering it as a sibling of the shell root — still
+ * inside AdminShellProvider, so shell state (including the drawer-open check)
+ * is available — makes it route- and surface-agnostic.
+ */
+function SupportSlotGate() {
+  const { workspaceSupportEnabled } = useAdminShell();
   const supportSlot = useContext(SupportSlotContext);
+  if (!workspaceSupportEnabled) return null;
+  return <>{supportSlot}</>;
+}
+
+function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
+  const { bridgeTenantIdentity, workspaceFabEnabled } = useAdminShell();
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
   // `--tulala-accent-deep` re-tint every accent token in the shell; when
@@ -2477,7 +2495,6 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           {/* First-time admin tour — 4 tooltip overlays. Self-fires once.
               Platform-gated by the same Workspace UI switch card. */}
           <AdminTourGate />
-          {workspaceSupportEnabled && supportSlot}
         </div>
     </>
   );
