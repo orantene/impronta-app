@@ -10,6 +10,7 @@ import { SecondaryButton, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
 import { parseInquiryDays } from "./InboxPage";
 import { PageHeader } from "./pages-shared";
+import { CalendarListViews } from "@/components/workspace-calendar/CalendarListViews";
 
 
 export function CalendarPage() {
@@ -20,6 +21,7 @@ export function CalendarPage() {
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
+  const [view, setView] = useState<"month" | "agenda" | "day">("month");
   const year = displayYear;
   const month = displayMonth;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -34,7 +36,8 @@ export function CalendarPage() {
     // no RICH_INQUIRIES mock fallback. Previously guarded by `length > 0`,
     // which caused new workspaces to see Mango / Vogue Italia mock events.
     effectiveCalendarEvents.forEach((ev) => {
-      const d = new Date(ev.event_date + "T00:00:00");
+      const dayKey = ev.starts_at ? ev.starts_at.slice(0, 10) : ev.event_date;
+      const d = new Date(dayKey + "T00:00:00");
       if (d.getFullYear() !== year || d.getMonth() !== month) return;
       const day = d.getDate();
       const tone: "ink" | "green" | "amber" | "red" =
@@ -42,7 +45,11 @@ export function CalendarPage() {
         : ev.status === "rejected" || ev.status === "expired" ? "red"
         : ev.status === "submitted" ? "amber"
         : "ink";
-      const label = ev.company ?? ev.contact_name;
+      const kindPrefix =
+        ev.kind === "hold" ? `${t("dashboard.adminCalendar.holdLabel")}: `
+        : ev.kind === "booking" ? `${t("dashboard.adminCalendar.bookingLabel")}: `
+        : "";
+      const label = `${kindPrefix}${ev.company ?? ev.contact_name}`;
       events[day] = events[day] ?? [];
       events[day].push({ id: ev.id, title: label.slice(0, 24), tone });
     });
@@ -146,11 +153,32 @@ export function CalendarPage() {
             </div>
           </div>
           <div className="flex gap-1">
+            {(["month", "agenda", "day"] as const).map((v) => {
+              const viewLabel =
+                v === "month"
+                  ? t("dashboard.adminCalendar.viewMonth")
+                  : v === "agenda"
+                    ? t("dashboard.adminCalendar.viewAgenda")
+                    : t("dashboard.adminCalendar.viewDay");
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                    view === v ? "bg-admin-accent text-white" : "text-admin-ink-muted"
+                  }`}
+                >
+                  {viewLabel}
+                </button>
+              );
+            })}
             <CalendarNavBtn label="prev" onClick={goToPrev} />
             <CalendarNavBtn label="today" onClick={goToToday} disabled={isCurrentMonth} />
             <CalendarNavBtn label="next" onClick={goToNext} />
           </div>
         </div>
+        <div className={view === "month" ? undefined : "hidden"}>
         <div
           style={{
             display: "grid",
@@ -309,7 +337,15 @@ export function CalendarPage() {
             );
           })}
         </div>
+        </div>
       </div>
+      {view !== "month" && effectiveCalendarEvents != null ? (
+        <CalendarListViews
+          events={effectiveCalendarEvents}
+          view={view}
+          onOpen={(id) => { pinNextConversationP(id); setPage("messages"); }}
+        />
+      ) : null}
     </>
   );
 }

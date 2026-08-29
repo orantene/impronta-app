@@ -26,6 +26,7 @@ import {
   BalanceDueCard,
   CallSheetUpdateCard,
   SystemEventCard,
+  ReservationCard,
 } from "@/components/chat-cards/ChatCard";
 import { LineupAddTalentPicker } from "./LineupAddTalentPicker";
 import { isMutablePhase } from "@/lib/inquiry/inquiry-lifecycle";
@@ -824,6 +825,7 @@ const CLIENT_ACTIVITY_KINDS = new Set<string>([
   "call_sheet_update",
   "booking_status",
   "system_event",
+  "reservation",
 ]);
 
 function isClientActivityMessage(m: WorkspaceMessage): boolean {
@@ -3032,7 +3034,7 @@ function Bubble({
   // Voice notes render as an inline player bubble (handled below), never a
   // money/booking card. Detect from metadata so a tolerant parse wins.
   const voiceMeta = kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
-  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t }) : null;
+  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t, tenantSlug, inquiryId }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
@@ -3503,7 +3505,7 @@ function Bubble({
 function renderClientChatCard(
   kind: string,
   payload: Record<string, unknown>,
-  ctx: { onJumpToOffer?: () => void; onPayNow?: (amountLabel: string) => void; t: (key: string) => string },
+  ctx: { onJumpToOffer?: () => void; onPayNow?: (amountLabel: string) => void; t: (key: string) => string; tenantSlug?: string; inquiryId?: string },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
   const { t } = ctx;
@@ -3545,6 +3547,26 @@ function renderClientChatCard(
           summary={get<string>("summary", t("dashboard.clientMessages.cardBookingConfirmed"))}
         />
       );
+    case "reservation": {
+      const status = get<"requested" | "proposed" | "confirmed" | "declined">("status", "requested");
+      const titleKey =
+        status === "proposed" ? "dashboard.clientMessages.cardReservationProposed"
+        : status === "confirmed" ? "dashboard.clientMessages.cardReservationConfirmed"
+        : status === "declined" ? "dashboard.clientMessages.cardReservationDeclined"
+        : "dashboard.clientMessages.cardReservationRequested";
+      return (
+        <ReservationCard
+          status={status}
+          startsAt={get<string>("starts_at", "")}
+          endsAt={get<string>("ends_at", "")}
+          timezone={get<string>("timezone", "UTC")}
+          tenantSlug={ctx.tenantSlug}
+          inquiryId={ctx.inquiryId}
+          viewerRole="client"
+          title={t(titleKey)}
+        />
+      );
+    }
     case "balance_due": {
       // 6.3: the deposit settled; the client owes the remaining balance. Pay
       // balance reuses the same checkout flow — the admin creates the balance

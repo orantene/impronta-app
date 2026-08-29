@@ -45,7 +45,8 @@ export type GuestMessageKind =
   | "booking_confirmed"
   | "balance_due"
   | "voice"
-  | "system_event";
+  | "system_event"
+  | "reservation";
 
 /**
  * Who authored a message, as the popup needs to render it (the guest only ever

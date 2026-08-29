@@ -22,6 +22,7 @@ import { isFirstConvWith } from "./shared/inbox-identity-1";
 import { buildInquiryTabs } from "./shared/machinery-1";
 import { ReassignCoordinatorSheet } from "./shared/machinery-4";
 import { EditJobSheet, EditJobButton } from "@/components/messages-edit-job-sheet/EditJobSheet";
+import { ProposeTimeButton } from "@/components/reservation/ProposeTimeButton";
 import { getOffer } from "./shared/machinery-10";
 import { LiveLineupPanel } from "./shared/machinery-11";
 import { OfferTab } from "./shared/machinery-12";
@@ -309,6 +310,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         rightSlot={(
           <div className="flex items-center gap-2">
             {inquiryIsUuid && <EditJobButton onClick={() => setEditJobOpen(true)} />}
+            {inquiryIsUuid && (
+              <ProposeTimeButton tenantSlug={effectiveTenant.slug} inquiryId={inquiry.id} />
+            )}
             {inquiryIsUuid && (
               <button
                 type="button"

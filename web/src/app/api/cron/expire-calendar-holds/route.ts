@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,30 @@ export async function GET(request: Request) {
 
   try {
     const nowIso = new Date().toISOString();
+    const soonIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const { data: expiring } = await admin
+      .from("talent_holds")
+      .select("id, inquiry_id, starts_at")
+      .eq("hold_strength", "firm")
+      .not("inquiry_id", "is", null)
+      .not("expires_at", "is", null)
+      .gt("expires_at", nowIso)
+      .lte("expires_at", soonIso)
+      .limit(200);
+    for (const row of (expiring ?? []) as Array<{
+      id: string;
+      inquiry_id: string;
+      starts_at: string;
+    }>) {
+      await emitStandardEngineEvent(admin, {
+        type: ENGINE_EVENT_TYPES.RESERVATION_HOLD_EXPIRING,
+        inquiryId: row.inquiry_id,
+        actorUserId: null,
+        eventId: `hold-expiring:${row.id}`,
+        data: { startsAt: row.starts_at, holdId: row.id },
+      });
+    }
+
     const { data, error } = await admin
       .from("talent_holds")
       .delete()

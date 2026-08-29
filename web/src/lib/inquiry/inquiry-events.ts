@@ -76,6 +76,13 @@ export const ENGINE_EVENT_TYPES = {
 
   // Booking
   BOOKING_CREATED: "booking.created",
+
+  // Appointments / reservations (P1)
+  RESERVATION_REQUESTED: "reservation.requested",
+  RESERVATION_PROPOSED: "reservation.proposed",
+  RESERVATION_CONFIRMED: "reservation.confirmed",
+  RESERVATION_DECLINED: "reservation.declined",
+  RESERVATION_HOLD_EXPIRING: "reservation.hold_expiring",
 } as const;
 
 export type EngineEventType = (typeof ENGINE_EVENT_TYPES)[keyof typeof ENGINE_EVENT_TYPES];
@@ -395,6 +402,11 @@ const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.APPROVAL_REJECTED]: "high",
   [ENGINE_EVENT_TYPES.APPROVALS_COMPLETED]: "high",
   [ENGINE_EVENT_TYPES.BOOKING_CREATED]: "high",
+  [ENGINE_EVENT_TYPES.RESERVATION_REQUESTED]: "high",
+  [ENGINE_EVENT_TYPES.RESERVATION_PROPOSED]: "high",
+  [ENGINE_EVENT_TYPES.RESERVATION_CONFIRMED]: "high",
+  [ENGINE_EVENT_TYPES.RESERVATION_DECLINED]: "high",
+  [ENGINE_EVENT_TYPES.RESERVATION_HOLD_EXPIRING]: "medium",
 };
 
 export async function emitStandardEngineEvent(
@@ -405,6 +417,7 @@ export async function emitStandardEngineEvent(
     actorUserId: string | null;
     timestamp?: string;
     priority?: EngineEventPriority;
+    eventId?: string;
     data?: Record<string, unknown>;
     systemMessage?: EngineSystemMessage;
     notifications?: EngineNotification[];
@@ -415,7 +428,7 @@ export async function emitStandardEngineEvent(
     type: input.type,
     inquiryId: input.inquiryId,
     actorUserId: input.actorUserId,
-    eventId: crypto.randomUUID(),
+    eventId: input.eventId ?? crypto.randomUUID(),
     timestamp: ts,
     priority: input.priority ?? DEFAULT_PRIORITY[input.type],
     payload: {

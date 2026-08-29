@@ -23,7 +23,7 @@
  *   - PlainText (passthrough for messages that aren't a card)
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 const C = {
   ink:        "#0B0B0D",
@@ -494,6 +494,123 @@ export function SuggestedTalentCard(props: {
         </svg>
       }
     />
+  );
+}
+
+export function ReservationCard(props: {
+  status: "requested" | "proposed" | "confirmed" | "declined";
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  tenantSlug?: string;
+  inquiryId?: string;
+  viewerRole?: "client" | "staff";
+  title?: string;
+}) {
+  const { status, startsAt, endsAt, timezone, tenantSlug, inquiryId, viewerRole = "staff", title: titleOverride } = props;
+  const when = (() => {
+    try {
+      const start = new Date(startsAt);
+      const end = new Date(endsAt);
+      const date = start.toLocaleDateString(undefined, { dateStyle: "medium", timeZone: timezone });
+      const startT = start.toLocaleTimeString(undefined, { timeStyle: "short", timeZone: timezone });
+      const endT = end.toLocaleTimeString(undefined, { timeStyle: "short", timeZone: timezone });
+      return `${date} · ${startT} to ${endT}`;
+    } catch {
+      return startsAt;
+    }
+  })();
+  const title = titleOverride
+    ?? (status === "confirmed" ? "Time confirmed"
+    : status === "declined" ? "Time declined"
+    : status === "proposed" ? "Time proposed"
+    : "Time requested");
+  const tone: CardTone =
+    status === "confirmed" ? "success"
+    : status === "declined" ? "alert"
+    : status === "proposed" ? "amber"
+    : "info";
+  const canDecide = viewerRole === "client" && status === "proposed" && tenantSlug && inquiryId;
+  return (
+    <ReservationCardActions
+      tone={tone}
+      title={title}
+      when={when}
+      canDecide={Boolean(canDecide)}
+      tenantSlug={tenantSlug}
+      inquiryId={inquiryId}
+    />
+  );
+}
+
+function ReservationCardActions({
+  tone,
+  title,
+  when,
+  canDecide,
+  tenantSlug,
+  inquiryId,
+}: {
+  tone: CardTone;
+  title: string;
+  when: string;
+  canDecide: boolean;
+  tenantSlug?: string;
+  inquiryId?: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const actions = canDecide && tenantSlug && inquiryId
+    ? [
+        {
+          label: "Decline",
+          tone: "ghost" as const,
+          disabled: busy,
+          onClick: () => {
+            setBusy(true);
+            setErr(null);
+            void import("@/lib/server-actions/reservation-propose").then(async (m) => {
+              const r = await m.declineReservationTimeAction({ tenantSlug, inquiryId });
+              setBusy(false);
+              if (!r.ok) setErr(r.error);
+              else window.location.reload();
+            });
+          },
+        },
+        {
+          label: "Confirm time",
+          tone: "primary" as const,
+          disabled: busy,
+          onClick: () => {
+            setBusy(true);
+            setErr(null);
+            void import("@/lib/server-actions/reservation-propose").then(async (m) => {
+              const r = await m.confirmReservationTimeAction({ tenantSlug, inquiryId });
+              setBusy(false);
+              if (!r.ok) setErr(r.error);
+              else window.location.reload();
+            });
+          },
+        },
+      ]
+    : undefined;
+  return (
+    <>
+      <ChatCardShell
+        tone={tone}
+        kind="Reservation"
+        title={title}
+        summary={when}
+        actions={actions}
+        icon={
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="2" y="3" width="10" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M2 6h10M5 2v2M9 2v2" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        }
+      />
+      {err ? <div style={{ fontSize: 11, color: C.coral, marginTop: 4 }}>{err}</div> : null}
+    </>
   );
 }
 
