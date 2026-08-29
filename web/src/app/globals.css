@@ -1431,6 +1431,15 @@ html[data-public-font-preset="editorial"] {
   outline: 2px solid var(--plt-forest);
   outline-offset: 2px;
 }
+.mkt-toc-link {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.mkt-toc-link:hover {
+  color: var(--plt-forest) !important;
+}
+
 .mkt-stage-chip {
   transition:
     border-color 160ms ease,
@@ -1452,7 +1461,16 @@ html[data-public-font-preset="editorial"] {
     transform 200ms cubic-bezier(0.2, 0, 0, 1),
     opacity 200ms ease;
 }
-.mkt-feature-card:hover .mkt-stage-chip {
+.mkt-feature-card:hover .mkt-toc-link {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.mkt-toc-link:hover {
+  color: var(--plt-forest) !important;
+}
+
+.mkt-stage-chip {
   transition:
     border-color 160ms ease,
     color 160ms ease,
@@ -1499,7 +1517,16 @@ html[data-public-font-preset="editorial"] {
 
 @media (prefers-reduced-motion: reduce) {
   .mkt-feature-card,
-  .mkt-stage-chip {
+  .mkt-toc-link {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.mkt-toc-link:hover {
+  color: var(--plt-forest) !important;
+}
+
+.mkt-stage-chip {
   transition:
     border-color 160ms ease,
     color 160ms ease,
@@ -1520,7 +1547,16 @@ html[data-public-font-preset="editorial"] {
   .mkt-feature-card:hover {
     transform: none;
   }
-  .mkt-feature-card:hover .mkt-stage-chip {
+  .mkt-feature-card:hover .mkt-toc-link {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.mkt-toc-link:hover {
+  color: var(--plt-forest) !important;
+}
+
+.mkt-stage-chip {
   transition:
     border-color 160ms ease,
     color 160ms ease,
