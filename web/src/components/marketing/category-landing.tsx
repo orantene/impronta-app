@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getCategoryContent,
   getTalentCategory,
@@ -51,7 +52,7 @@ export function TalentCategoryLinks({ locale }: { locale: string }) {
           {TALENT_CATEGORIES.map((cat) => (
             <li key={cat.slug}>
               <Link
-                href={`/for/${cat.slug}`}
+                href={withLocaleHref(`/for/${cat.slug}`, locale)}
                 className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
                 style={{
                   border: "1px solid var(--plt-hairline-strong)",
@@ -201,7 +202,7 @@ export function CategoryLanding({
               {related.map((r) => (
                 <li key={r.slug}>
                   <Link
-                    href={`/for/${r.slug}`}
+                    href={withLocaleHref(`/for/${r.slug}`, locale)}
                     className="inline-flex min-h-11 items-center rounded-full px-5 text-[0.9375rem] transition-colors"
                     style={{
                       border: "1px solid var(--plt-hairline-strong)",

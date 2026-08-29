@@ -7,7 +7,7 @@ import { CASE_STUDY_PHOTOS, MARKETING_PHOTOS } from "@/lib/marketing/photography
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildBreadcrumbJsonLd, breadcrumbJsonLdToString } from "@/lib/seo/breadcrumb-json-ld";
 import { buildFaqPageJsonLd, faqJsonLdToString } from "@/lib/seo/faq-json-ld";
-import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildSpanishOnlyMarketingAlternates } from "@/lib/seo/spanish-named-routes";
 import {
   MarketingContainer,
   MarketingEyebrow,
@@ -59,7 +59,12 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
     },
     twitter: { card: "summary_large_image", title, description },
-    ...buildMarketingLocaleAlternates(locale, "/sitios-web"),
+    // This route is locale PINNED to Spanish, so it serves Spanish at both
+    // `/sitios-web` and `/es/sitios-web`. The generic helper was advertising an
+    // `en` alternate at `/sitios-web`, promising search engines an English
+    // document at a URL that has never served one. Its two siblings
+    // (/agencia-de-talento, /contratar-modelos) already use the honest helper.
+    ...buildSpanishOnlyMarketingAlternates("/sitios-web"),
   };
 }
 

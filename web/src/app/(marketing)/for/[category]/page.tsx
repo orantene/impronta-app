@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CategoryLanding } from "@/components/marketing/category-landing";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocalePath } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getCategoryContent, getTalentCategory } from "@/lib/marketing/talent-categories";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -41,7 +42,10 @@ export default async function TalentCategoryPage({ params }: Props) {
 
   const locale = await getRequestLocale();
   const c = getCategoryContent(category, locale);
-  const pageUrl = `https://${PLATFORM_BRAND.domain}/for/${slug}`;
+  // Built for the locale being RENDERED. Hardcoding the English URL meant the
+  // Spanish page's FAQ and breadcrumb markup both pointed at /for/<slug>,
+  // handing search engines the same drift that caused the canonical incident.
+  const pageUrl = `https://${PLATFORM_BRAND.domain}${withLocalePath(`/for/${slug}`, locale)}`;
 
   // Built from the SAME faq array the page renders below, so the markup can
   // never claim a question the visitor cannot see.

@@ -309,7 +309,7 @@ export default async function HelpRolePage({ params }: Props) {
         {ROLES.filter((r) => r !== role).map((other) => (
           <Link
             key={other}
-            href={`/help/${other}`}
+            href={withLocaleHref(`/help/${other}`, locale)}
             style={{
               fontSize: "0.9rem",
               color: "#1f4a3a",

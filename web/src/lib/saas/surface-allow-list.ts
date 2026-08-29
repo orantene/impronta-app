@@ -602,6 +602,9 @@ const MARKETING_PAGE_PREFIXES = [
   // `/help` is a four-role docs hub (operators / agencies / talents / clients).
   "/status",
   "/help",
+  // The human support promise page. Named separately from `/help` because it
+  // is positioning, not documentation.
+  "/support",
   // Talent-category landing pages (`/for/models`, `/for/musicians`, ...).
   // Two segments on purpose: a single-segment `/models` would collide with
   // the tenant-slug namespace, `/for/*` never can.

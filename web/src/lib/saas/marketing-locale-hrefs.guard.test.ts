@@ -61,6 +61,17 @@ function findBareInternalHrefs(file: string): string[] {
     // `href="//host"` is protocol-relative, i.e. external.
     const match = line.match(/href="(\/(?!\/)[^"]*)"/);
     if (match) hits.push(match[1]);
+
+    // A TEMPLATE literal starting at the root is the same bug wearing braces,
+    // and it was this guard's blind spot: `href={`/for/${slug}`}` sailed
+    // through while `href="/for"` was caught. The category chips shipped
+    // un-localised for exactly this reason, sending every Spanish reader who
+    // clicked one back into the English tree.
+    //
+    // Only a template that STARTS at `/` is judged. Anything beginning with an
+    // interpolation is a computed base this guard cannot reason about.
+    const tpl = line.match(/href=\{`(\/(?!\/)[^`]*)`\}/);
+    if (tpl) hits.push(tpl[1]);
   }
   return hits;
 }
