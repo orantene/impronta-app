@@ -50,6 +50,7 @@ const EMPTY: TalentBookingTerms = {
   depositPct: null,
   refundPolicy: null,
   instantBookOptIn: false,
+  directBookingOptIn: false,
   fixedRateCents: null,
 };
 

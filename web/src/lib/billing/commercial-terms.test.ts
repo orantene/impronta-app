@@ -49,6 +49,7 @@ const talent = (
   depositPct: null,
   refundPolicy: null,
   instantBookOptIn: false,
+    directBookingOptIn: false,
   fixedRateCents: null,
   ...o,
 });
@@ -253,6 +254,7 @@ describe("parseTalentBookingTerms", () => {
       refundPolicy: "manual",
       instantBookOptIn: true,
       fixedRateCents: 1_000_00,
+      directBookingOptIn: false,
     });
   });
 

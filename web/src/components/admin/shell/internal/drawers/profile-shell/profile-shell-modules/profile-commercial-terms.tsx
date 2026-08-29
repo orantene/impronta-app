@@ -41,6 +41,7 @@ const EMPTY: TalentBookingTerms = {
   refundPolicy: null,
   instantBookOptIn: false,
   fixedRateCents: null,
+  directBookingOptIn: false,
 };
 
 function centsToInput(cents: number | null): string {

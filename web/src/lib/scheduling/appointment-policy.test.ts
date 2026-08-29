@@ -122,3 +122,15 @@ test("terminology defaults to reservations/reservas and has no em dashes", () =>
     }
   }
 });
+
+test("roster row can enable one talent when the workspace fallback is off", () => {
+  const policy = resolveAppointmentPolicy({
+    tenant: { enabled: true, allowTalentDirectBooking: false },
+    talent: { profileKind: "person", directBookingOptIn: true },
+    rosterDirectBooking: true,
+    planTier: "free",
+    offering: { bookingMode: "request", durationMinutes: 30 },
+  });
+  assert.equal(policy.enabled, true);
+  assert.equal(policy.effectiveMode, "request");
+});

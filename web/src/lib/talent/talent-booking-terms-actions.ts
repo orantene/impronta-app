@@ -44,6 +44,7 @@ const EMPTY_TERMS: TalentBookingTerms = {
   refundPolicy: null,
   instantBookOptIn: false,
   fixedRateCents: null,
+  directBookingOptIn: false,
 };
 
 /** Coerce an arbitrary stored jsonb value into a safe TalentBookingTerms. */
@@ -72,6 +73,7 @@ function normalizeBookingTerms(raw: unknown): TalentBookingTerms {
     refundPolicy,
     instantBookOptIn: o.instantBookOptIn === true,
     fixedRateCents,
+    directBookingOptIn: o.directBookingOptIn === true,
   };
 }
 
