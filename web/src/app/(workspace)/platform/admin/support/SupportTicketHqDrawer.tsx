@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F } from "../tenants/hq-kit";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
@@ -9,6 +9,7 @@ import { TicketDiagnosticsPanel } from "./TicketDiagnosticsPanel";
 import { TicketReplayPanel } from "./TicketReplayPanel";
 import { TicketInsightsPanel } from "./TicketInsightsPanel";
 import { ProposeFixComposer } from "./ProposeFixComposer";
+import { SupportAttachButton } from "@/components/support/SupportAttachButton";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -17,20 +18,19 @@ import {
   hqLoadTicketDetailAction,
   hqReplySupportTicketAction,
 } from "@/lib/support/hq-actions";
-
-const CANNED = [
-  { id: "greeting", text: (tr: (k: string) => string) => tr("dashboard.platform.support.cannedGreeting") },
-  { id: "need-more", text: (tr: (k: string) => string) => tr("dashboard.platform.support.cannedNeedMore") },
-  { id: "fixed", text: (tr: (k: string) => string) => tr("dashboard.platform.support.cannedFixed") },
-  { id: "resolve", text: (tr: (k: string) => string) => tr("dashboard.platform.support.cannedResolve") },
-];
+import { useSupportRealtime } from "@/components/support/support-hooks";
+import { useThreadPresence } from "@/lib/realtime/presence";
+import { createClient } from "@/lib/supabase/client";
+import type { SupportCannedReply } from "@/lib/platform/support-canned";
 
 export function SupportTicketHqDrawer({
   ticketId,
+  cannedReplies,
   onClose,
   onOpenPast,
 }: {
   ticketId: string;
+  cannedReplies: SupportCannedReply[];
   onClose: () => void;
   onOpenPast: (id: string) => void;
 }) {
@@ -57,9 +57,38 @@ export function SupportTicketHqDrawer({
     void reload(ticketId);
   }, [ticketId]);
 
+  const onMessage = useCallback((row: SupportMessageRow) => {
+    setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+  }, []);
+  const onTicket = useCallback((row: SupportTicketRow) => setTicket(row), []);
+  useSupportRealtime({ ticketId, onMessage, onTicket });
+
+  const [hqSelf, setHqSelf] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    void supabase.auth.getUser().then(({ data }) => {
+      const user = data.user;
+      if (!user) return;
+      const name =
+        (typeof user.user_metadata?.first_name === "string"
+          ? user.user_metadata.first_name
+          : null) || "Oran";
+      setHqSelf({ id: user.id, name });
+    });
+  }, []);
+  const { setTyping, peers } = useThreadPresence({
+    channelKey: hqSelf ? `support.${ticketId}` : null,
+    userId: hqSelf?.id ?? "",
+    displayName: hqSelf?.name ?? "Oran",
+    role: "hq",
+  });
+  const requesterViewing = peers.some((p) => p.role === "requester");
+
   const reply = async (andResolve: boolean) => {
     if (!ticket || (!body.trim() && !andResolve) || busy) return;
     setBusy(true);
+    setTyping(false);
     if (body.trim()) {
       await hqReplySupportTicketAction({
         ticketId: ticket.id,
@@ -221,12 +250,12 @@ export function SupportTicketHqDrawer({
               ) : null}
               {slash ? (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                  {CANNED.map((c) => (
+                  {cannedReplies.map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => {
-                        setBody(c.text(t));
+                        setBody(c.body);
                         setSlash(false);
                       }}
                       style={{
@@ -239,21 +268,28 @@ export function SupportTicketHqDrawer({
                         cursor: "pointer",
                       }}
                     >
-                      {c.text(t)}
+                      {c.title}
                     </button>
                   ))}
                 </div>
               ) : null}
-              <textarea
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <SupportAttachButton
+                  ticketId={ticket?.id ?? null}
+                  disabled={busy || ticket?.status === "closed"}
+                  tone="hq"
+                />
+                <textarea
                 value={body}
                 onChange={(e) => {
                   setBody(e.target.value);
                   setSlash(e.target.value === "/");
+                  setTyping(true);
                 }}
                 rows={3}
                 placeholder={t("dashboard.platform.support.replyPlaceholder")}
                 style={{
-                  width: "100%",
+                  flex: 1,
                   background: HQ.card,
                   color: HQ.ink,
                   border: `1px solid ${HQ.border}`,
@@ -263,6 +299,7 @@ export function SupportTicketHqDrawer({
                   resize: "vertical",
                 }}
               />
+              </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
                 <label style={{ fontSize: 12, color: HQ.inkMuted, display: "flex", gap: 6, alignItems: "center" }}>
                   <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} />
@@ -307,7 +344,12 @@ export function SupportTicketHqDrawer({
           </div>
           <div style={{ flex: "1 1 40%", borderLeft: `1px solid ${HQ.border}`, minWidth: 0 }}>
             {ticket && context ? (
-              <TicketContextCard ticket={ticket} context={context} onOpenPast={onOpenPast} />
+              <TicketContextCard
+                ticket={ticket}
+                context={context}
+                onOpenPast={onOpenPast}
+                viewingNow={requesterViewing}
+              />
             ) : null}
           </div>
         </div>

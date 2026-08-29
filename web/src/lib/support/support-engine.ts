@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { updateContact, keepTicketOpen } from "./support-engine-contact";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import {
@@ -102,7 +103,9 @@ export async function createTicket(input: {
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
-  const subject = (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
+  const subject = input.messageOranDirectly
+    ? "Direct message"
+    : (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
@@ -363,6 +366,13 @@ export async function changeStatus(input: {
     if (input.status === "resolved") patch.resolved_at = now;
     if (input.status === "closed") patch.closed_at = now;
   }
+  const aiSelfServe =
+    input.status === "resolved" &&
+    input.actorKind === "requester" &&
+    ticket.handledBy === "ai";
+  if (aiSelfServe) {
+    patch.metadata = { ...ticket.metadata, ai_self_serve: true };
+  }
 
   let query = supportFrom(admin, "support_tickets").update(patch).eq("id", ticket.id);
   if (input.expectedStatus) query = query.eq("status", input.expectedStatus);
@@ -383,6 +393,16 @@ export async function changeStatus(input: {
     oldValue: { status: ticket.status },
     newValue: { status: input.status },
   });
+  if (aiSelfServe) {
+    await insertEvent(admin, {
+      ticketId: ticket.id,
+      tenantId: ticket.tenantId,
+      actorKind: input.actorKind,
+      actorUserId: input.actorUserId,
+      eventType: "ai_marked_helpful",
+      newValue: { status: input.status },
+    });
+  }
 
   if (input.status === "resolved") {
     notify({
@@ -475,7 +495,21 @@ export async function escalateTicket(input: {
     input.actorUserId,
     ticket.id,
   );
-  return { ok: true, data: updated };
+
+  const handoff = await appendMessage({
+    ticketId: ticket.id,
+    authorKind: "system",
+    authorUserId: null,
+    messageKind: "card",
+    skipNotify: true,
+    body: "Your ticket is with Oran.",
+    cardPayload: {
+      kind: "handoff",
+      ticketId: ticket.id,
+      hasPhone: Boolean(updated.contactPhone),
+    },
+  });
+  return { ok: true, data: handoff.ok ? handoff.data.ticket : updated };
 }
 
 export async function assignTicket(input: {
@@ -686,43 +720,6 @@ export async function reopenTicket(input: {
   return { ok: true, data: updated };
 }
 
-export async function updateContact(input: {
-  ticketId: string;
-  contactPhone?: string | null;
-  callbackRequested?: boolean;
-  callbackPref?: SupportCallbackPref | null;
-  actorUserId: string;
-}): Promise<SupportEngineResult<SupportTicketRow>> {
-  const admin = adminClient();
-  if (!admin) return { ok: false, error: "Not configured." };
-  const ticket = await loadTicketById(input.ticketId, admin);
-  if (!ticket) return { ok: false, error: "Ticket not found." };
-
-  const patch: Record<string, unknown> = {};
-  if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone;
-  if (input.callbackRequested !== undefined) patch.callback_requested = input.callbackRequested;
-  if (input.callbackPref !== undefined) patch.callback_pref = input.callbackPref;
-
-  const { data, error } = await supportFrom(admin, "support_tickets")
-    .update(patch)
-    .eq("id", ticket.id)
-    .select("*")
-    .maybeSingle();
-  if (error || !data) return { ok: false, error: "Could not update contact." };
-  const updated = mapTicketRow(data);
-  if (!updated) return { ok: false, error: "Could not update contact." };
-
-  await insertEvent(admin, {
-    ticketId: ticket.id,
-    tenantId: ticket.tenantId,
-    actorKind: "requester",
-    actorUserId: input.actorUserId,
-    eventType: "contact_updated",
-    newValue: patch,
-  });
-  return { ok: true, data: updated };
-}
-
 export async function claimIfUnassigned(
   ticketId: string,
   actorUserId: string,
@@ -747,6 +744,7 @@ export const supportEngine = {
   markRead,
   reopenTicket,
   updateContact,
+  keepTicketOpen,
   claimIfUnassigned,
   loadTicketById,
 };

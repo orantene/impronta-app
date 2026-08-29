@@ -97,6 +97,20 @@ const SELF_FILES = new Set([
  */
 const RUNTIME_COMPOSED: ReadonlyMap<string, string> = new Map([
   /*
+   * SupportIdeasView.tsx composes the feature-request status label as
+   *   t(`dashboard.platform.support.ideasStatus_${status}`)
+   * over FEATURE_REQUEST_STATUSES (lib/support/feature-requests.ts), which is
+   * also the DB CHECK on support_feature_requests.status. Listed one key per
+   * status on purpose: a status added to the enum without copy should fail
+   * this guard rather than hide behind a prefix skip.
+   */
+  ["dashboard.platform.support.ideasStatus_new", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  ["dashboard.platform.support.ideasStatus_under_review", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  ["dashboard.platform.support.ideasStatus_planned", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  ["dashboard.platform.support.ideasStatus_in_progress", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  ["dashboard.platform.support.ideasStatus_shipped", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  ["dashboard.platform.support.ideasStatus_declined", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
+  /*
    * admin/roster/[id]/EditorSections.tsx:501 builds the language label as
    *   t(`admin.talent.edit.languages.names.${l.code === "zh" ? "mandarin" : …}`)
    * The hole is a nested ternary, not an identifier, so the family detector

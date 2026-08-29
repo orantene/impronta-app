@@ -1,24 +1,41 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useSyncExternalStore } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
-import { COLORS, FONTS, RADIUS } from "./support-tokens";
+import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
-import { acceptLiveShareFromCard } from "@/lib/support/replay/LiveShareHost";
-import { declineLiveViewAction } from "@/lib/support/replay/live-actions";
-import {
-  approveProposedActionAction,
-  declineProposedActionAction,
-} from "@/lib/support/proposed-actions/actions";
+import { resolveSupportTicketAction } from "@/lib/support/actions";
+import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
-export type SupportThreadTone = "light" | "hq";
+export type { SupportThreadTone };
 
 function dayKey(ts: string): string {
   return ts.slice(0, 10);
 }
 
+function useReducedMotion(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+        return () => undefined;
+      }
+      const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    },
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
+}
+
 function TypingDots({ color }: { color: string }) {
+  const reduce = useReducedMotion();
   return (
     <span aria-hidden style={{ display: "inline-flex", gap: 4, alignItems: "center", height: 16 }}>
       {[0, 1, 2].map((i) => (
@@ -29,7 +46,8 @@ function TypingDots({ color }: { color: string }) {
             height: 6,
             borderRadius: "50%",
             background: color,
-            animation: `tulala-support-dot 1s ease-in-out ${i * 0.15}s infinite`,
+            opacity: reduce ? 0.35 + i * 0.25 : 1,
+            animation: reduce ? "none" : `tulala-support-dot 1s ease-in-out ${i * 0.15}s infinite`,
           }}
         />
       ))}
@@ -37,188 +55,39 @@ function TypingDots({ color }: { color: string }) {
   );
 }
 
-export function SupportCardRenderer({
-  payload,
-  onAction,
-  tone,
-  liveShareAvailable = true,
-}: {
-  payload: Record<string, unknown>;
-  onAction?: (action: string) => void;
-  tone: SupportThreadTone;
-  /** False on surfaces with no LiveShareHost (client) — accepting there would
-   *  mark the session accepted while no stream ever starts. */
-  liveShareAvailable?: boolean;
-}) {
+function ThinkingStages() {
   const t = useT();
-  const [liveDone, setLiveDone] = useState(false);
-  const kind = typeof payload.kind === "string" ? payload.kind : "generic";
-  const ink = tone === "hq" ? "#F5F2EB" : COLORS.ink;
-  const muted = tone === "hq" ? "rgba(245,242,235,0.62)" : COLORS.inkMuted;
-  const cardBg = tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.card;
-  const border = tone === "hq" ? "rgba(255,255,255,0.10)" : COLORS.border;
-  const ticketId = typeof payload.ticketId === "string" ? payload.ticketId : null;
-  const actionId = typeof payload.actionId === "string" ? payload.actionId : null;
-  const [fixDone, setFixDone] = useState(false);
-  const showLiveActions =
-    kind === "live-view" && tone !== "hq" && !liveDone && ticketId && liveShareAvailable;
-  const showFixActions = kind === "proposed-action" && tone !== "hq" && !fixDone && actionId;
-
+  const reduce = useReducedMotion();
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (reduce) {
+      setStep(2);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setStep((n) => {
+        const next = Math.min(2, n + 1);
+        // Stop ticking once the last stage holds.
+        if (next === 2) window.clearInterval(id);
+        return next;
+      });
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [reduce]);
+  const key = step === 0 ? "thinking1" : step === 1 ? "thinking2" : "thinking3";
   return (
-    <div
+    <span
       style={{
-        background: cardBg,
-        border: `1px solid ${border}`,
-        borderRadius: RADIUS.lg,
-        padding: "14px 16px",
-        maxWidth: "86%",
-        margin: "8px auto",
+        fontSize: 12,
+        color: COLORS.royal,
+        ...(reduce ? {} : { transition: "opacity 200ms ease" }),
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, color: ink, marginBottom: 6 }}>
-        {typeof payload.title === "string"
-          ? payload.title
-          : kind === "offer-human"
-            ? t("dashboard.adminSupport.offerHumanTitle")
-            : t("dashboard.adminSupport.cardTitle")}
-      </div>
-      {typeof payload.description === "string" ? (
-        <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: 10 }}>
-          {payload.description}
-        </div>
-      ) : kind === "offer-human" ? (
-        <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: 10 }}>
-          {t("dashboard.adminSupport.offerHumanBody")}
-        </div>
-      ) : null}
-      {kind === "callback" || kind === "auto-close" || kind === "offer-human" || showLiveActions ? (
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (showLiveActions && ticketId) {
-                void acceptLiveShareFromCard(ticketId);
-                setLiveDone(true);
-                return;
-              }
-              onAction?.(
-                kind === "callback" ? "add-phone" : kind === "auto-close" ? "keep-open" : "talk-human",
-              );
-            }}
-            style={{
-              border: "none",
-              background: COLORS.fill,
-              color: "#fff",
-              borderRadius: 8,
-              padding: "7px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {kind === "callback"
-              ? t("dashboard.adminSupport.addNumber")
-              : kind === "auto-close"
-                ? t("dashboard.adminSupport.keepOpen")
-                : kind === "live-view"
-                  ? t("dashboard.adminSupport.acceptLiveView")
-                  : t("dashboard.adminSupport.talkToHuman")}
-          </button>
-          {showLiveActions && ticketId ? (
-            <button
-              type="button"
-              onClick={() => {
-                void declineLiveViewAction({ ticketId });
-                setLiveDone(true);
-              }}
-              style={{
-                border: `1px solid ${border}`,
-                background: "transparent",
-                color: ink,
-                borderRadius: 8,
-                padding: "7px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t("dashboard.adminSupport.declineLiveView")}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {kind === "proposed-action" ? (
-        <>
-          {payload.preview != null ? (
-            <div
-              style={{
-                background: tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.surface,
-                border: `1px solid ${border}`,
-                borderRadius: 8,
-                padding: "8px 10px",
-                fontSize: 12,
-                color: ink,
-                marginBottom: 10,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {typeof payload.preview === "string"
-                ? payload.preview
-                : JSON.stringify(payload.preview, null, 2)}
-            </div>
-          ) : null}
-          {showFixActions && actionId ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  void approveProposedActionAction({ actionId });
-                  setFixDone(true);
-                }}
-                style={{
-                  border: "none",
-                  background: COLORS.fill,
-                  color: "#fff",
-                  borderRadius: 8,
-                  padding: "7px 12px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {t("dashboard.adminSupport.approveAndApply")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void declineProposedActionAction({ actionId });
-                  setFixDone(true);
-                }}
-                style={{
-                  border: `1px solid ${border}`,
-                  background: "transparent",
-                  color: ink,
-                  borderRadius: 8,
-                  padding: "7px 12px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {t("dashboard.adminSupport.declineFix")}
-              </button>
-              <span style={{ marginLeft: "auto", fontSize: 10.5, color: muted }}>
-                {t("dashboard.adminSupport.appliedChangeLogged")}
-              </span>
-            </div>
-          ) : (
-            <div style={{ fontSize: 10.5, color: muted }}>{t("dashboard.adminSupport.appliedChangeLogged")}</div>
-          )}
-        </>
-      ) : null}
-    </div>
+      {t(`dashboard.adminSupport.${key}`)}
+    </span>
   );
 }
+
 
 export function SupportThreadView({
   ticket,
@@ -226,21 +95,31 @@ export function SupportThreadView({
   tone = "light",
   thinking = false,
   liveShareAvailable = true,
+  allowAddPhone = true,
   onRate,
   onRequestHuman,
   onCardAction,
+  onResolved,
 }: {
   ticket: SupportTicketRow | null;
   messages: SupportMessageRow[];
   tone?: SupportThreadTone;
   thinking?: boolean;
   liveShareAvailable?: boolean;
-  onRate?: (rating: number) => void;
+  allowAddPhone?: boolean;
+  onRate?: (rating: number, comment?: string) => void;
   onRequestHuman?: () => void;
   onCardAction?: (action: string) => void;
+  /** Local echo after a successful requester resolve (rating row must not wait on realtime). */
+  onResolved?: () => void;
 }) {
   const t = useT();
   const [acked, setAcked] = useState<Record<string, boolean>>({});
+  const [confirmHelpful, setConfirmHelpful] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [pickedRating, setPickedRating] = useState<number | null>(null);
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingThanks, setRatingThanks] = useState(false);
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -281,11 +160,11 @@ export function SupportThreadView({
                   onAction={onCardAction}
                   tone={tone}
                   liveShareAvailable={liveShareAvailable}
+                  allowAddPhone={allowAddPhone}
                 />
               );
             }
             if (m.authorKind === "system" || m.messageKind === "system") {
-              const resolved = /resolv/i.test(m.body);
               return (
                 <div
                   key={m.id}
@@ -304,7 +183,7 @@ export function SupportThreadView({
                       width: 6,
                       height: 6,
                       borderRadius: "50%",
-                      background: resolved ? COLORS.success : COLORS.coral,
+                      background: COLORS.coral,
                     }}
                   />
                   {m.body}
@@ -343,12 +222,58 @@ export function SupportThreadView({
                   </div>
                   {!isHq ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, alignItems: "center" }}>
-                      {acked[m.id] ? null : (
+                      {acked[m.id] ? null : confirmHelpful === m.id ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: COLORS.royal }}>
+                            {t("dashboard.adminSupport.helpedConfirm")}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={resolving || !ticket}
+                            onClick={() => {
+                              if (!ticket) return;
+                              setResolving(true);
+                              void resolveSupportTicketAction({ ticketId: ticket.id }).then((r) => {
+                                setResolving(false);
+                                if (r.ok) {
+                                  setAcked((prev) => ({ ...prev, [m.id]: true }));
+                                  // Local echo: the rating row keys off ticket
+                                  // status, which must not depend on realtime
+                                  // being up to appear.
+                                  onResolved?.();
+                                }
+                              });
+                            }}
+                            style={{
+                              border: "none",
+                              background: COLORS.fill,
+                              color: "#fff",
+                              borderRadius: 8,
+                              padding: "7px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t("dashboard.adminSupport.markResolved")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAcked((prev) => ({ ...prev, [m.id]: true }));
+                              setConfirmHelpful(null);
+                            }}
+                            style={ghostBtn}
+                          >
+                            {t("dashboard.adminSupport.keepItOpen")}
+                          </button>
+                        </div>
+                      ) : (
                         <>
                           <span style={{ fontSize: 11, color: COLORS.royal }}>{t("dashboard.adminSupport.didThisHelp")}</span>
                           <button
                             type="button"
-                            onClick={() => setAcked((prev) => ({ ...prev, [m.id]: true }))}
+                            onClick={() => setConfirmHelpful(m.id)}
                             style={ghostBtn}
                           >
                             {t("dashboard.adminSupport.yesHelped")}
@@ -519,32 +444,91 @@ export function SupportThreadView({
           >
             {t("dashboard.adminSupport.aiEyebrow")}
           </div>
-          <TypingDots color={COLORS.royal} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <TypingDots color={COLORS.royal} />
+            <ThinkingStages />
+          </div>
         </div>
       ) : null}
-      {ticket?.status === "resolved" && onRate && ticket.satisfactionRating == null ? (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "12px 0" }}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-label={t("dashboard.adminSupport.rateAria")}
-              onClick={() => onRate(n)}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                border: `1px solid ${COLORS.success}`,
-                background: COLORS.successSoft,
-                color: COLORS.successDeep,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {n}
-            </button>
-          ))}
+      {ratingThanks ? (
+        <div style={{ textAlign: "center", fontSize: 12, color: COLORS.success, padding: "8px 0" }}>
+          {t("dashboard.adminSupport.ratingThanks")}
+        </div>
+      ) : ticket?.status === "resolved" && onRate && ticket.satisfactionRating == null ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 0" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-label={interpolate(t("dashboard.adminSupport.rateAriaN"), { n: String(n) })}
+                aria-pressed={pickedRating === n}
+                onClick={() => setPickedRating(n)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  border: `1px solid ${COLORS.success}`,
+                  background: pickedRating != null && n <= pickedRating ? COLORS.success : COLORS.successSoft,
+                  color: pickedRating != null && n <= pickedRating ? "#fff" : COLORS.successDeep,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          {pickedRating != null ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 280 }}>
+              <input
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                placeholder={t("dashboard.adminSupport.ratingCommentPlaceholder")}
+                maxLength={500}
+                style={{
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 12.5,
+                  fontFamily: FONTS.body,
+                  outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRate(pickedRating, ratingComment.trim() || undefined);
+                    setRatingThanks(true);
+                  }}
+                  style={{
+                    border: "none",
+                    background: COLORS.fill,
+                    color: "#fff",
+                    borderRadius: 8,
+                    padding: "7px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("dashboard.adminSupport.send")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRate(pickedRating);
+                    setRatingThanks(true);
+                  }}
+                  style={ghostBtn}
+                >
+                  {t("dashboard.adminSupport.ratingSkip")}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {ticket?.handledBy === "ai" && onRequestHuman ? (

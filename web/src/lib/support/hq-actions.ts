@@ -202,3 +202,107 @@ export async function hqSaveInvestigationFindingsAction(raw: {
   if (error) return { ok: false, error: "Could not save findings." };
   return { ok: true };
 }
+
+export async function hqSaveCannedRepliesAction(raw: {
+  entries: Array<{ id: string; title: string; body: string }>;
+}): Promise<Ok | Fail> {
+  const parsed = z
+    .object({
+      entries: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(80),
+            title: z.string().trim().min(1).max(60),
+            body: z.string().trim().min(1).max(2000),
+          }),
+        )
+        .max(30),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const { writeSupportCannedReplies } = await import("@/lib/platform/support-canned");
+  const { logPlatformAdminAction } = await import("@/lib/platform/audit");
+  const written = await writeSupportCannedReplies(hq.userId, parsed.data.entries);
+  if (!written.ok) return written;
+  await logPlatformAdminAction({
+    actorUserId: hq.userId,
+    targetKind: "workspace",
+    targetId: "platform_settings",
+    action: "support.canned_replies.save",
+    after: { count: parsed.data.entries.length },
+    supportMode: "read_only",
+  });
+  return { ok: true };
+}
+
+export async function hqSummarizeDiagnosticsAction(raw: {
+  ticketId: string;
+}): Promise<{ ok: true; summary: string } | Fail> {
+  const parsed = z.object({ ticketId: uuid }).safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+
+  const { isResolvedAiChatConfigured, resolveAiChatAdapter } = await import("@/lib/ai/resolve-provider");
+  const { assertAiInvocationAllowed, recordAiUsageEstimate } = await import("@/lib/ai/ai-usage-gate");
+  const { DEFAULT_AI_TENANT_ID } = await import("@/lib/ai/ai-tenant-constants");
+  const { getAiFeatureFlags } = await import("@/lib/settings/ai-feature-flags");
+  const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+  const { supportFrom } = await import("./support-from");
+  const { logServerError } = await import("@/lib/server/safe-error");
+
+  const flags = await getAiFeatureFlags();
+  if (!flags.ai_master_enabled || !flags.ai_support_enabled || !(await isResolvedAiChatConfigured())) {
+    return { ok: false, error: "AI is not available." };
+  }
+  const gate = await assertAiInvocationAllowed(DEFAULT_AI_TENANT_ID);
+  if (!gate.ok) return { ok: false, error: "AI is not available." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Not configured." };
+  const { data: diag } = await supportFrom(admin, "support_ticket_diagnostics")
+    .select("console_events, network_failures, route_history, route, url, app_version")
+    .eq("ticket_id", parsed.data.ticketId)
+    .maybeSingle();
+  if (!diag) return { ok: false, error: "No diagnostics on this ticket." };
+
+  const adapter = await resolveAiChatAdapter();
+  const timeout = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), 15_000);
+  });
+  const completion = await Promise.race([
+    adapter.chatCompletion({
+      model: "claude-haiku-4-5",
+      systemPrompt:
+        "You summarize in-app support diagnostics for Tulala HQ. At most 3 short plain-language bullets on what looks broken. Ground only in the JSON. No em dashes. No preamble.",
+      userMessage: JSON.stringify({
+        route: diag.route ?? null,
+        url: diag.url ?? null,
+        app_version: diag.app_version ?? null,
+        console: diag.console_events ?? [],
+        network: diag.network_failures ?? [],
+        routes: diag.route_history ?? [],
+      }),
+      temperature: 0.2,
+      maxTokens: 280,
+    }),
+    timeout,
+  ]);
+  if (!completion?.ok) {
+    return { ok: false, error: "Could not summarize." };
+  }
+  const summary = completion.text.trim().slice(0, 2000);
+  if (!summary) return { ok: false, error: "Could not summarize." };
+
+  const { error } = await supportFrom(admin, "support_ticket_diagnostics")
+    .update({ ai_summary: summary })
+    .eq("ticket_id", parsed.data.ticketId);
+  if (error) {
+    logServerError("support.diagnostics.summarize", error);
+    return { ok: false, error: "Could not save summary." };
+  }
+  void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
+  return { ok: true, summary };
+}

@@ -30,9 +30,9 @@ export async function sendInAppNotification(
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   _ctx: AudienceContext,
-): Promise<void> {
+): Promise<string | null> {
   const cfg = entry.in_app;
-  if (!cfg || !recipient.userId) return;
+  if (!cfg || !recipient.userId) return null;
 
   const tenantId = event.tenantId;
   const payloadSurface = event.payload.surface;
@@ -74,4 +74,5 @@ export async function sendInAppNotification(
     originKind: event.type,
     originInquiryId: event.inquiryId ?? null,
   });
+  return "in_app";
 }

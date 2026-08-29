@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { useT } from "@/i18n/use-t";
 import { HQ } from "../tenants/hq-kit";
-import { hqSaveInvestigationFindingsAction } from "@/lib/support/hq-actions";
+import { Icon } from "@/components/admin/shell/internal/primitives";
+import { hqSaveInvestigationFindingsAction, hqSummarizeDiagnosticsAction } from "@/lib/support/hq-actions";
 
 export function TicketDiagnosticsPanel({
   ticketId,
@@ -15,6 +16,10 @@ export function TicketDiagnosticsPanel({
   const t = useT();
   const [paste, setPaste] = useState("");
   const [copied, setCopied] = useState(false);
+  const storedSummary = typeof diagnostics?.ai_summary === "string" ? diagnostics.ai_summary : "";
+  const [aiSummary, setAiSummary] = useState(storedSummary);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiErr, setAiErr] = useState<string | null>(null);
   const consoleEvents = Array.isArray(diagnostics?.console_events)
     ? (diagnostics.console_events as Array<{ level?: string; message?: string }>)
     : [];
@@ -58,7 +63,44 @@ export function TicketDiagnosticsPanel({
             {t("dashboard.platform.support.openSentry")}
           </a>
         ) : null}
+        {diagnostics ? (
+          <button
+            type="button"
+            disabled={aiBusy}
+            onClick={() => {
+              setAiBusy(true);
+              setAiErr(null);
+              void hqSummarizeDiagnosticsAction({ ticketId }).then((r) => {
+                setAiBusy(false);
+                if (r.ok) setAiSummary(r.summary);
+                else setAiErr(t("dashboard.platform.support.summarizeFailed"));
+              });
+            }}
+            style={{
+              marginLeft: "auto",
+              border: `1px solid ${HQ.purple}`,
+              background: "rgba(160,122,224,0.12)",
+              color: HQ.purple,
+              borderRadius: 7,
+              padding: "6px 10px",
+              fontSize: 12,
+              cursor: aiBusy ? "default" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Icon name="sparkle" size={12} color={HQ.purple} />
+            {t("dashboard.platform.support.summarizeAi")}
+          </button>
+        ) : null}
       </div>
+      {aiSummary ? (
+        <div style={{ fontSize: 12.5, color: HQ.inkMuted, lineHeight: 1.5, whiteSpace: "pre-wrap", marginBottom: 12 }}>
+          {aiSummary}
+        </div>
+      ) : null}
+      {aiErr ? <div style={{ fontSize: 12, color: HQ.red, marginBottom: 8 }}>{aiErr}</div> : null}
       {!diagnostics ? (
         <div style={{ fontSize: 13, color: HQ.inkDim }}>{t("dashboard.platform.support.noDiagnostics")}</div>
       ) : (

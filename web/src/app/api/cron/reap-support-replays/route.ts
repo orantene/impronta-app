@@ -4,6 +4,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "@/lib/support/support-from";
 
+// Image attachments live with the ticket in the `support-attachments`
+// bucket (FK cascade only). This cron must not list or delete them.
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

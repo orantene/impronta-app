@@ -21,6 +21,10 @@ import type {
   NotificationEvent,
   ResolvedRecipient,
 } from "./types";
+import {
+  dispatchLogPatchFromHandlerResult,
+  dispatchLogPatchFromThrown,
+} from "./dispatcher-outcome";
 
 /**
  * The dispatcher (spec §2.2) — the heart of the engine.
@@ -44,7 +48,7 @@ import type {
 export async function dispatchEventNotifications(
   event: NotificationEvent,
 ): Promise<DispatchResult> {
-  const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0 };
+  const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0, skipped: 0 };
 
   const entries = findCatalogEntries(event.type);
   if (entries.length === 0) return result;
@@ -77,10 +81,12 @@ export async function dispatchEventNotifications(
     dispatched: number;
     suppressed: number;
     failed: number;
+    queued?: number;
+    skipped?: number;
   }> = [];
 
   for (const entry of entries) {
-    const entryResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0 };
+    const entryResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0, skipped: 0 };
     // Entry-specific hydration: enrich the event payload with whatever this
     // entry's audience resolver + templates need (inquiry context, offer
     // total, …). Runs once per entry; a failure degrades to the bare event
@@ -186,20 +192,34 @@ export async function dispatchEventNotifications(
         const recipientRef = recipient.userId ?? `guest:${recipient.email ?? ""}`;
         try {
           const providerRef = await handler(enriched, entry, recipient, ctx);
-          const reference = typeof providerRef === "string" ? providerRef : null;
-          await markDispatchLogSent(ctx.admin, logId, reference);
-          entryResult.dispatched++;
-          // §9: every channel send logs with timing + provider response.
-          void improntaLog(`notif.send.${channel}`, {
-            eventType: enriched.type,
-            eventId: enriched.eventId,
-            entryId: entry.id,
-            tenantId: enriched.tenantId,
-            recipient: recipientRef,
-            durationMs: Date.now() - startedAt,
-            providerReference: reference,
-            ok: true,
-          });
+          if (providerRef == null) {
+            await markDispatchLogSkipped(ctx.admin, logId);
+            entryResult.skipped++;
+            void improntaLog(`notif.send.${channel}`, {
+              eventType: enriched.type,
+              eventId: enriched.eventId,
+              entryId: entry.id,
+              tenantId: enriched.tenantId,
+              recipient: recipientRef,
+              durationMs: Date.now() - startedAt,
+              providerReference: null,
+              ok: true,
+              skipped: true,
+            });
+          } else {
+            await markDispatchLogSent(ctx.admin, logId, providerRef);
+            entryResult.dispatched++;
+            void improntaLog(`notif.send.${channel}`, {
+              eventType: enriched.type,
+              eventId: enriched.eventId,
+              entryId: entry.id,
+              tenantId: enriched.tenantId,
+              recipient: recipientRef,
+              durationMs: Date.now() - startedAt,
+              providerReference: providerRef,
+              ok: true,
+            });
+          }
         } catch (err) {
           await markDispatchLogFailed(ctx.admin, logId, err);
           entryResult.failed++;
@@ -258,6 +278,7 @@ export async function dispatchEventNotifications(
     result.suppressed += entryResult.suppressed;
     result.failed += entryResult.failed;
     result.queued += entryResult.queued;
+    result.skipped = (result.skipped ?? 0) + entryResult.skipped;
     perEntry.push({ id: entry.id, ...entryResult });
   }
 
@@ -271,20 +292,21 @@ export async function dispatchEventNotifications(
     suppressed: result.suppressed,
     failed: result.failed,
     queued: result.queued,
+    skipped: result.skipped ?? 0,
   });
 
   return result;
 }
 
-// Handlers may return a provider message id (the email channel returns the
-// Resend id; in_app returns void). The dispatcher persists a string return as
-// the dispatch_log `provider_reference` for webhook correlation.
+// Handlers return a provider message id, or null when nothing was sent
+// (unconfigured channel / no endpoint). The dispatcher marks null as
+// `skipped`, not `sent`.
 type ChannelHandler = (
   event: NotificationEvent,
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-) => Promise<string | null | void>;
+) => Promise<string | null>;
 
 type DispatchLogInsertArgs = {
   event: NotificationEvent;
@@ -336,15 +358,15 @@ async function tryInsertDispatchLog(
 async function markDispatchLogSent(
   admin: SupabaseClient,
   id: string,
-  providerRef: string | null,
+  providerRef: string,
 ): Promise<void> {
+  const patch = dispatchLogPatchFromHandlerResult(providerRef);
   const { error } = await admin
     .from("notification_dispatch_log")
     .update({
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      // Resend message id (email channel). Null for in_app / dev no-op sends.
-      provider_reference: providerRef,
+      status: patch.status,
+      sent_at: patch.sent_at,
+      provider_reference: patch.provider_reference,
     })
     .eq("id", id);
   if (error) logServerError("notifications.dispatchLog.markSent", error);
@@ -355,10 +377,22 @@ async function markDispatchLogFailed(
   id: string,
   err: unknown,
 ): Promise<void> {
-  const message = (err instanceof Error ? err.message : String(err)).slice(0, 1000);
+  const patch = dispatchLogPatchFromThrown(err);
   const { error } = await admin
     .from("notification_dispatch_log")
-    .update({ status: "failed", error_message: message })
+    .update({ status: patch.status, error_message: patch.error_message })
     .eq("id", id);
   if (error) logServerError("notifications.dispatchLog.markFailed", error);
+}
+
+async function markDispatchLogSkipped(admin: SupabaseClient, id: string): Promise<void> {
+  const patch = dispatchLogPatchFromHandlerResult(null);
+  const { error } = await admin
+    .from("notification_dispatch_log")
+    .update({
+      status: patch.status,
+      error_message: patch.error_message,
+    })
+    .eq("id", id);
+  if (error) logServerError("notifications.dispatchLog.markSkipped", error);
 }

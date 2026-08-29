@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, HQ_FD } from "../tenants/hq-kit";
@@ -73,10 +73,12 @@ export function SupportInsightsView({ data }: { data: HqInsightsDashboard }) {
             {data.aiResolvedShare == null ? "-" : `${Math.round(data.aiResolvedShare * 100)}%`}
           </div>
           <div style={{ fontSize: 11, color: HQ.inkMuted, marginTop: 4 }}>
-            {interpolate(t("dashboard.platform.support.statAiResolvedHint"), {
-              n: data.aiResolvedCount,
-              total: data.resolvedThisWeek,
-            })}
+            {data.aiResolvedShare == null
+              ? t("dashboard.platform.support.insightsPending")
+              : interpolate(t("dashboard.platform.support.statAiResolvedHint"), {
+                  n: data.aiResolvedCount,
+                  total: data.resolvedThisWeek,
+                })}
           </div>
         </div>
       </div>
@@ -149,6 +151,7 @@ export function SupportInsightsView({ data }: { data: HqInsightsDashboard }) {
               </div>
             ) : null}
           </div>
+          <PastDigests items={data.pastDigests} />
           <div style={card}>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: HQ.ink, marginBottom: 10 }}>
               {t("dashboard.platform.support.shippedTitle")}
@@ -171,6 +174,48 @@ export function SupportInsightsView({ data }: { data: HqInsightsDashboard }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PastDigests({ items }: { items: Array<{ weekStart: string; summary: string }> }) {
+  const t = useT();
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div style={card}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: HQ.ink, marginBottom: 10 }}>
+        {t("dashboard.platform.support.pastDigests")}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: HQ.inkDim }}>{t("dashboard.platform.support.noDigests")}</div>
+      ) : (
+        items.map((item) => {
+          const firstLine = item.summary.split(/\n/)[0]?.slice(0, 140) || item.weekStart;
+          const expanded = open === item.weekStart;
+          return (
+            <button
+              key={item.weekStart}
+              type="button"
+              onClick={() => setOpen(expanded ? null : item.weekStart)}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                background: "transparent",
+                border: "none",
+                padding: "8px 0",
+                cursor: "pointer",
+                color: HQ.inkMuted,
+              }}
+            >
+              <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 2 }}>{item.weekStart}</div>
+              <div style={{ fontSize: 12, lineHeight: 1.45, whiteSpace: expanded ? "pre-wrap" : "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {expanded ? item.summary : firstLine}
+              </div>
+            </button>
+          );
+        })
+      )}
     </div>
   );
 }

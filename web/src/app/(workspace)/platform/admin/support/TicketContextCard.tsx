@@ -16,10 +16,12 @@ export function TicketContextCard({
   ticket,
   context,
   onOpenPast,
+  viewingNow = false,
 }: {
   ticket: SupportTicketRow;
   context: HqTicketContext;
   onOpenPast: (id: string) => void;
+  viewingNow?: boolean;
 }) {
   const t = useT();
   const wa = ticket.contactPhone ? waHref(ticket.contactPhone) : null;
@@ -49,8 +51,14 @@ export function TicketContextCard({
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: HQ.inkDim, marginBottom: 8 }}>
           {t("dashboard.platform.support.contextRequester")}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: HQ.ink }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: HQ.ink, display: "flex", alignItems: "center", gap: 8 }}>
           {context.requesterName ?? t("dashboard.platform.support.unknownRequester")}
+          {viewingNow ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 500, color: HQ.green }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: HQ.green }} />
+              {t("dashboard.platform.support.viewingNow")}
+            </span>
+          ) : null}
         </div>
         <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 4 }}>
           {ticket.surface} {context.requesterEmail ? `· ${context.requesterEmail}` : ""}

@@ -13,7 +13,12 @@ import {
   type SupportTicketRow,
 } from "@/lib/support/support-types";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
-import { markSupportTicketReadAction } from "@/lib/support/actions";
+import { SupportThreadStatusLine } from "@/components/support/SupportThreadHeader";
+import {
+  keepTicketOpenAction,
+  markSupportTicketReadAction,
+  requestHumanAction,
+} from "@/lib/support/actions";
 import { useSupportRealtime } from "@/components/support/support-hooks";
 
 export function SupportTicketDrawer() {
@@ -59,10 +64,24 @@ export function SupportTicketDrawer() {
       onClose={closeDrawer}
       title={ticket?.subject || t("dashboard.adminSupport.drawerTitle")}
       description={ticket ? `#${ticket.ticketNumber}` : undefined}
+      toolbar={ticket ? <SupportThreadStatusLine ticket={ticket} /> : undefined}
       defaultSize="compact"
     >
       {ticketId ? (
-        <SupportThreadView ticket={ticket} messages={messages} />
+        <SupportThreadView
+          ticket={ticket}
+          messages={messages}
+          allowAddPhone={false}
+          onRequestHuman={() => {
+            if (ticketId) void requestHumanAction({ ticketId });
+          }}
+          onCardAction={(action) => {
+            // add-phone has no target here (the phone form lives in the
+            // panel); the renderer hides action chips it cannot serve.
+            if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
+            if (action === "talk-human" && ticketId) void requestHumanAction({ ticketId });
+          }}
+        />
       ) : (
         <p className="p-4 text-[13px] text-admin-ink-muted">{t("dashboard.adminSupport.drawerEmpty")}</p>
       )}

@@ -77,6 +77,7 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
     friction: [],
     weeklyVolume: [],
     digest: null,
+    pastDigests: [],
     shipped: [],
   };
   const admin = createServiceRoleClient();
@@ -163,6 +164,22 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
       ? (rawDigest as WeeklyDigestSnapshot)
       : null;
 
+  const { data: digestRows } = await supportFrom(admin, "support_weekly_digests")
+    .select("week_start, snapshot")
+    .order("week_start", { ascending: false })
+    .limit(16);
+  const pastDigests: Array<{ weekStart: string; summary: string }> = [];
+  for (const row of digestRows ?? []) {
+    const weekStart = String((row as { week_start?: string }).week_start ?? "");
+    if (!weekStart || (digest && weekStart === digest.weekStart)) continue;
+    const snap = (row as { snapshot?: unknown }).snapshot;
+    const summary =
+      snap && typeof snap === "object" && typeof (snap as { summary?: unknown }).summary === "string"
+        ? (snap as { summary: string }).summary
+        : "";
+    pastDigests.push({ weekStart, summary });
+  }
+
   const { data: links } = await supportFrom(admin, "support_ticket_fix_links")
     .select("id, ticket_id, kind, url, note, created_at")
     .order("created_at", { ascending: false })
@@ -189,6 +206,7 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
     friction,
     weeklyVolume: buckets.map((b) => ({ weekLabel: b.weekLabel, count: b.count })),
     digest,
+    pastDigests,
     shipped: (links ?? []).map((l: Record<string, unknown>) => {
       const mapped = mapFixLinkRow(l);
       return {
