@@ -65,7 +65,7 @@ const BASE_TREE: BuilderNode[] = [
   {
     id: "sec-a",
     kind: "container",
-    props: { label: "Hero" },
+    props: { label: "Hero", layout: "stack" },
     children: [heading("h-a", "Sell what you do"), heading("h-b", "Not what you ship")],
   } as BuilderNode,
 ];
@@ -75,7 +75,7 @@ const REBAKED_TREE: BuilderNode[] = [
   {
     id: "sec-z9",
     kind: "container",
-    props: { label: "Hero" },
+    props: { label: "Hero", layout: "stack" },
     children: [heading("h-q1", "Sell what you do"), heading("h-q2", "Not what you ship")],
   } as BuilderNode,
 ];
