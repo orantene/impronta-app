@@ -151,7 +151,7 @@ export async function GET(request: Request) {
       return slotsJson([]);
     }
 
-    const [{ data: agency }, { data: hoursRow }] = await Promise.all([
+    const [{ data: agency }, { data: hoursRow }, { data: roster }] = await Promise.all([
       admin
         .from("agencies")
         .select("settings, plan_tier")
@@ -163,6 +163,13 @@ export async function GET(request: Request) {
           "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
         )
         .eq("talent_profile_id", talent.id)
+        .maybeSingle(),
+      admin
+        .from("agency_talent_roster")
+        .select("direct_booking_enabled")
+        .eq("tenant_id", offeringTenantId)
+        .eq("talent_profile_id", talent.id)
+        .in("status", ["active", "pending"])
         .maybeSingle(),
     ]);
 
@@ -186,6 +193,8 @@ export async function GET(request: Request) {
         durationMinutes: offering.duration_minutes,
       },
       planTier: typeof agency?.plan_tier === "string" ? agency.plan_tier : null,
+      rosterDirectBooking:
+        (roster as { direct_booking_enabled?: boolean } | null)?.direct_booking_enabled === true,
     });
 
     if (!policy.enabled || policy.effectiveMode === "off") {

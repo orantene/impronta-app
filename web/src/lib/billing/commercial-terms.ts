@@ -164,16 +164,19 @@ export function parseTalentBookingTerms(
       ? Math.round(json.fixedRateCents)
       : null;
 
+  const directBookingOptIn = json.directBookingOptIn === true;
+
   if (
     depositPct == null &&
     refundPolicy == null &&
     !instantBookOptIn &&
-    fixedRateCents == null
+    fixedRateCents == null &&
+    !directBookingOptIn
   ) {
     return null;
   }
 
-  return { depositPct, refundPolicy, instantBookOptIn, fixedRateCents };
+  return { depositPct, refundPolicy, instantBookOptIn, fixedRateCents, directBookingOptIn };
 }
 
 /**

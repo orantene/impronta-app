@@ -97,6 +97,8 @@ export function resolveAppointmentPolicy(input: {
   hours?: unknown;
   offering?: OfferingAppointmentLayer | null;
   planTier?: string | null;
+  /** Per-roster-row agency gate. ORs with tenant.allowTalentDirectBooking. */
+  rosterDirectBooking?: boolean | null;
 }): ResolvedAppointmentPolicy {
   const platform = input.platform ?? PLATFORM_FALLBACK;
   const tenant = input.tenant;
@@ -136,15 +138,16 @@ export function resolveAppointmentPolicy(input: {
   const effectiveMode = minAppointmentMode(requestedMode, maxMode);
 
   const tenantEnabled = tenant == null ? platform.enabled : tenant.enabled === true;
-  const allowDirect =
+  const workspaceAllow =
     tenant == null
       ? platform.allowTalentDirectBooking
       : tenant.allowTalentDirectBooking === true;
+  const allowDirect = workspaceAllow || input.rosterDirectBooking === true;
   const isResource = talent?.profileKind === "resource";
   const talentOptIn = talent?.directBookingOptIn === true;
 
   // Resource profiles skip talent opt-in (no login). Person profiles need the
-  // agency AND-gate (allowTalentDirectBooking) and their own opt-in.
+  // agency AND-gate (workspace fallback OR per-roster-row) and their own opt-in.
   const actorAllowed = isResource || (allowDirect && talentOptIn);
   const reallyEnabled = tenantEnabled && effectiveMode !== "off" && actorAllowed;
 

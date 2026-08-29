@@ -24,6 +24,9 @@ import { DiscoverExposureSection } from "./DiscoverExposureSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
+import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
+import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
+import { StaffResourcesCard } from "@/components/appointments/StaffResourcesCard";
 
 // ════════════════════════════════════════════════════════════════════════
 // 2026-07-24 flat redesign — replaces the old tabs + 13-accordion wall with
@@ -115,6 +118,7 @@ type GroupId =
   | "plan"
   | "workspace"
   | "commercial-terms"
+  | "appointments"
   | "pricing-defaults"
   | "domain"
   | "branding"
@@ -421,6 +425,28 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? <CommercialTermsSettingsCard tenantSlug={tenantSlug} /> : null,
         extraSearch: [{ title: t("dashboard.adminWorkspace.bookingTermsLabel"), desc: t("dashboard.adminWorkspace.bookingTermsDesc") }],
+      },
+      {
+        id: "appointments",
+        label: t("dashboard.adminWorkspace.appointments.label"),
+        desc: t("dashboard.adminWorkspace.appointments.desc"),
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? (
+          <>
+            <AppointmentsSettingsCard tenantSlug={tenantSlug} />
+            <BookingHoursCard
+              talentProfileId={bridgeTalentSelfProfile?.id ?? null}
+              showTalentPicker
+            />
+            {state.workspaceType === "business" ? <StaffResourcesCard /> : null}
+          </>
+        ) : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.appointments.label"), desc: t("dashboard.adminWorkspace.appointments.desc") },
+          { title: t("dashboard.adminWorkspace.appointments.hoursTitle"), desc: t("dashboard.adminWorkspace.appointments.hoursDesc") },
+          { title: t("dashboard.adminWorkspace.appointments.staffTitle"), desc: t("dashboard.adminWorkspace.appointments.staffDesc") },
+        ],
       },
       {
         id: "pricing-defaults",

@@ -12,6 +12,7 @@ import { CalendarEventRow, ConflictBanner, FilterChipStrip, computePayoutSpeed, 
 import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { PageHeader } from "../shared/page-chrome-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
+import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
 
 
 
@@ -773,6 +774,10 @@ export function CalendarPage() {
           </section>
         );
       })()}
+
+      {bridgeTalentSelfProfile?.id ? (
+        <BookingHoursCard talentProfileId={bridgeTalentSelfProfile.id} showTalentOptIn />
+      ) : null}
 
       <ICalSubscribeCard
         talentName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}

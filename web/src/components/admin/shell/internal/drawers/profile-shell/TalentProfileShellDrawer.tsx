@@ -205,6 +205,7 @@ import {
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 import {
@@ -4260,6 +4261,7 @@ export function TalentProfileShellDrawer() {
                 onToggle={() => setActiveSection(activeSection === "commercial_terms" ? "" : "commercial_terms")}
               >
                 <CommercialTermsEditor talentId={payload.talentId} />
+                <DirectBookingRosterSwitch talentId={payload.talentId} />
                 {/* S13 — admin parity for the services menu (same self-saving
                     card the talent uses; configuration only). */}
                 <TalentOfferingsManager talentId={payload.talentId} />

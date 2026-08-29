@@ -1782,6 +1782,7 @@ export type Database = {
           archived_for_downgrade_by: string | null
           archived_for_downgrade_event: string | null
           created_at: string
+          direct_booking_enabled: boolean
           exclusivity_auto_assigned_at: string | null
           exclusivity_confirmed_at: string | null
           exclusivity_declined_at: string | null
@@ -1809,6 +1810,7 @@ export type Database = {
           archived_for_downgrade_by?: string | null
           archived_for_downgrade_event?: string | null
           created_at?: string
+          direct_booking_enabled?: boolean
           exclusivity_auto_assigned_at?: string | null
           exclusivity_confirmed_at?: string | null
           exclusivity_declined_at?: string | null
@@ -1836,6 +1838,7 @@ export type Database = {
           archived_for_downgrade_by?: string | null
           archived_for_downgrade_event?: string | null
           created_at?: string
+          direct_booking_enabled?: boolean
           exclusivity_auto_assigned_at?: string | null
           exclusivity_confirmed_at?: string | null
           exclusivity_declined_at?: string | null

@@ -31,6 +31,8 @@ export type TalentBookingTerms = {
   refundPolicy: RefundPolicyKey | null;
   instantBookOptIn: boolean;
   fixedRateCents: number | null;
+  /** Talent half of the appointments AND-gate. Merged; never clobber siblings. */
+  directBookingOptIn?: boolean;
 };
 
 /** Platform-wide base defaults (the deepest fallback layer). */
