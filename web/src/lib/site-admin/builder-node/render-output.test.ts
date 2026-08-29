@@ -119,6 +119,27 @@ test("escapes: surface + transform + blend escapes emit correct CSS", () => {
   assert.ok(html.toLowerCase().includes("backdrop-filter"), "backdrop-filter");
 });
 
+test("B9: per-side border style/color shorthand and named blend modes emit as CSS", () => {
+  const html = render([
+    container({
+      borderWidth: "2px",
+      borderStyle: "dashed solid",
+      borderColor: "#111111 #c9a227",
+      mixBlendMode: "difference",
+    }),
+  ]);
+  assert.ok(html.includes("border-style:dashed solid"), "per-side style");
+  assert.ok(html.includes("border-color:#111111 #c9a227"), "per-side color");
+  assert.ok(html.includes("mix-blend-mode:difference"), "difference blend");
+  for (const mode of ["color-dodge", "luminosity", "soft-light"] as const) {
+    const one = render([container({ mixBlendMode: mode })]);
+    assert.ok(
+      one.includes(`mix-blend-mode:${mode}`),
+      `blend ${mode} must emit`,
+    );
+  }
+});
+
 test("transitions: longhands emit through renderer CSS vars", () => {
   const html = render([
     container({

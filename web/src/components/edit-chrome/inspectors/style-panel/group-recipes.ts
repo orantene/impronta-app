@@ -271,6 +271,12 @@ export const STYLE_GROUP_SEARCH_TERMS: Record<
     // was Effects & motion (minus the surface block, now in Appearance)
     "blur",
     "backdrop",
+    // Product names for the glass preset. "blur" / "backdrop" are the CSS
+    // spellings; without these, Find-a-setting hid the control from anyone
+    // who searched for what the button actually says.
+    "glass",
+    "glassmorphism",
+    "frosted",
     "blend",
     "filter",
     "hover",

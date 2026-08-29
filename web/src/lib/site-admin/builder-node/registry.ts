@@ -17,6 +17,13 @@ import {
 } from "./animation-presets";
 import { backgroundMediaSchema } from "./background-media";
 import { BUILDER_MIX_BLEND_MODES, type BuilderNodeKind } from "./types";
+import {
+  BORDER_COLOR_MAX_CHARS,
+  BORDER_STYLE_MAX_CHARS,
+  isBuilderBorderStyleShorthand,
+  isBuilderColorShorthand,
+  splitCssSpaceList,
+} from "./border-shorthand";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
 const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
@@ -108,6 +115,27 @@ function tokenAwareStyleString(max: number) {
     .optional();
 }
 
+function isBindableTokenOrRaw(part: string): boolean {
+  if (!isStyleTokenRef(part)) return true;
+  return isBindableTokenKey(part.slice(STYLE_TOKEN_REF_PREFIX.length));
+}
+
+/**
+ * `borderColor` accepts a single color OR a 1-4 value TRBL shorthand.
+ * Each term is validated independently so `token:color.primary #111` is legal
+ * and a typo'd sentinel is still rejected. Cap is named in border-shorthand.ts.
+ */
+function tokenAwareColorShorthand(max: number) {
+  return z
+    .string()
+    .max(max)
+    .refine((v) => isBuilderColorShorthand(v) && splitCssSpaceList(v).every(isBindableTokenOrRaw), {
+      message:
+        "Unknown theme token reference, or more than four border-color terms. Use token:<color.*> or a raw CSS color, up to four sides.",
+    })
+    .optional();
+}
+
 const sectionPropsSchema = z.object({
   sectionId: pgUuidSchema().nullable().optional(),
   sectionTypeKey: z.string().min(1),
@@ -169,11 +197,19 @@ export const builderNodeStyleValueSchema = z.object({
   // accept a `token:color.*` reference (Wave 3 · 3A) — bound to a Theme token.
   textColor: tokenAwareStyleString(64),
   backgroundColor: tokenAwareStyleString(64),
-  borderColor: tokenAwareStyleString(64),
+  borderColor: tokenAwareColorShorthand(BORDER_COLOR_MAX_CHARS),
   // 64, not 16: a per-side shorthand (`10px 8px 12px 4px`) is the normal way
   // to write an uneven border and the old cap rejected every realistic combo.
   borderWidth: z.string().max(64).optional(),
-  borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
+  // 1-4 CSS border-style keywords (TRBL). Existing solid/dashed/dotted keep
+  // working as one-value shorthands; mixed sides store e.g. `dashed solid`.
+  borderStyle: z
+    .string()
+    .max(BORDER_STYLE_MAX_CHARS)
+    .refine(isBuilderBorderStyleShorthand, {
+      message: "borderStyle must be 1-4 CSS border-style keywords (top right bottom left).",
+    })
+    .optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
   // after the radius token so an exact value wins. Also accepts a `token:radius.*`
   // binding → follows the theme's radius scale live.

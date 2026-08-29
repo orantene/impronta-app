@@ -740,6 +740,9 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   Conic: "Cónico",
   Backdrop: "Filtro de fondo",
   Glass: "Cristal",
+  glass: "cristal",
+  glassmorphism: "glassmorfismo",
+  frosted: "esmerilado",
   "Frosted blur, a translucent fill and a hairline border in one click. Every part stays adjustable.":
     "Desenfoque esmerilado, relleno translúcido y borde fino en un clic. Cada parte sigue siendo ajustable.",
   // "Blur" and "Linked" already live in editor-i18n-es-inspectors.ts.
@@ -762,6 +765,14 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Ancho de borde personalizado, se conserva tal como está escrito:",
   "That combination is too long to save. Use smaller widths.":
     "Esa combinación es demasiado larga para guardar. Usa anchos más pequeños.",
+  "Each side style": "Estilo por lado",
+  "Each side color": "Color por lado",
+  "Custom border style, kept exactly as written:":
+    "Estilo de borde personalizado, se conserva tal como está escrito:",
+  "Custom border color, kept exactly as written:":
+    "Color de borde personalizado, se conserva tal como está escrito:",
+  "That combination is too long to save. Use simpler colors.":
+    "Esa combinación es demasiado larga para guardar. Usa colores más simples.",
   Elliptical: "Elíptico",
   "+ Add text shadow": "+ Añadir sombra de texto",
   "Custom filter, kept exactly as written.":

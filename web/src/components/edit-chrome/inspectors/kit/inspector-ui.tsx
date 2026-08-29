@@ -9,14 +9,16 @@
  */
 
 import {
-  useCallback,
   useId,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useInspectorSearchFilter } from "./inspector-search";
+import {
+  useInspectorSearchFilter,
+  useInspectorSearchQuery,
+} from "./inspector-search";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
 import { useEditContext } from "../../edit-context";
@@ -199,6 +201,9 @@ export function InspectorAccordion({
     ...(searchTerms ?? []).flatMap((term) => [term, t(term)]),
   ]);
   const [open, setOpen] = useState(defaultOpen);
+  const searchQuery = useInspectorSearchQuery();
+  // Match stays open for the query only; do not persist via onToggle.
+  const shown = open || searchQuery.trim().length > 0;
   const panelId = useId();
   if (hidden) return null;
 
@@ -225,7 +230,7 @@ export function InspectorAccordion({
       >
         <button
           type="button"
-          aria-expanded={open}
+          aria-expanded={shown}
           aria-controls={panelId}
           onClick={() => {
             const next = !open;
@@ -235,14 +240,14 @@ export function InspectorAccordion({
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent px-3.5 py-3 text-left"
           style={{ color: CHROME.ink }}
         >
-          {open ? (
+          {shown ? (
             <ChevronDown size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
           ) : (
             <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
           )}
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
-            {localizedDescription && descriptionPlacement === "inline" && !open ? (
+            {localizedDescription && descriptionPlacement === "inline" && !shown ? (
               <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>
                 {localizedDescription}
               </span>
@@ -254,7 +259,7 @@ export function InspectorAccordion({
           <InspectorInfoTip content={description} title={title} />
         ) : null}
       </div>
-      {open ? (
+      {shown ? (
         <div
           id={panelId}
           className="flex flex-col border-t px-3.5 pb-3.5 pt-2"
