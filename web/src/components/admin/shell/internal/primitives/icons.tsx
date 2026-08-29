@@ -313,12 +313,12 @@ export function Icon({
           <path d="M7 15l4-5 3 3 5-7" />
         </svg>
       );
+    // Support: a speech bubble with a tail. Was a life-ring (two circles +
+    // four spokes) which collapsed into a ship's-wheel smudge below ~24px.
     case "life-buoy":
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="12" r="4" />
-          <path d="M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24" />
+          <path d="M8.6 16.5H6.5A3.5 3.5 0 013 13V8.5A3.5 3.5 0 016.5 5h11A3.5 3.5 0 0121 8.5V13a3.5 3.5 0 01-3.5 3.5h-4.7l-3.5 3a.7.7 0 01-1.2-.5v-2.5z" />
         </svg>
       );
   }

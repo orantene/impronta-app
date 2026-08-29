@@ -43,62 +43,58 @@ export function SupportLauncher({
 
   return (
     <>
+      {/* One solid dark circle with a white chat bubble. The previous
+          white edge-tab read as a floating blob, and the ring icon plus a
+          stray violet dot looked like a rendering artifact. */}
       <button
-          type="button"
-          data-tulala-support-launcher=""
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls="tulala-support-panel"
-          aria-label={t("dashboard.adminSupport.launcherAria")}
-          onClick={toggle}
-          style={{
-            position: "fixed",
-            right: 0,
-            top: compact ? "60%" : "50%",
-            transform: "translateY(-50%)",
-            width: compact ? 36 : 40,
-            height: compact ? 72 : 96,
-            background: COLORS.card,
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRight: "none",
-            borderRadius: "12px 0 0 12px",
-            zIndex: 380,
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            boxShadow: "0 4px 16px rgba(11,11,13,0.08)",
-            visibility: hide ? "hidden" : "visible",
-            pointerEvents: hide ? "none" : "auto",
-          }}
-        >
-          <Icon name="life-buoy" size={18} color={COLORS.ink} />
+        type="button"
+        data-tulala-support-launcher=""
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="tulala-support-panel"
+        aria-label={t("dashboard.adminSupport.launcherAria")}
+        onClick={toggle}
+        style={{
+          position: "fixed",
+          right: compact ? 14 : 18,
+          top: compact ? "62%" : "50%",
+          transform: "translateY(-50%)",
+          width: compact ? 46 : 52,
+          height: compact ? 46 : 52,
+          background: COLORS.fill,
+          border: "none",
+          borderRadius: "50%",
+          zIndex: 380,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 10px 26px -8px rgba(11,11,13,0.42), 0 2px 6px rgba(11,11,13,0.16)",
+          visibility: hide ? "hidden" : "visible",
+          pointerEvents: hide ? "none" : "auto",
+          transition: "transform .16s cubic-bezier(.22,1,.36,1), box-shadow .16s ease",
+        }}
+      >
+        <Icon name="life-buoy" size={compact ? 20 : 22} color="#FFFFFF" stroke={1.7} />
+        {unread > 0 ? (
           <span
+            aria-hidden
             style={{
-              width: 5,
-              height: 5,
+              position: "absolute",
+              top: -1,
+              right: -1,
+              width: 13,
+              height: 13,
               borderRadius: "50%",
-              background: COLORS.royal,
+              background: COLORS.coral,
+              // Ring in the page background so the badge reads as a badge,
+              // not a smudge on the circle's edge.
+              boxShadow: `0 0 0 2.5px ${COLORS.surface}`,
+              animation: "tulala-support-pulse 1.6s ease-out 1",
             }}
           />
-          {unread > 0 ? (
-            <span
-              style={{
-                position: "absolute",
-                top: 8,
-                left: 8,
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: COLORS.coral,
-                boxShadow: "0 0 0 0 rgba(194,106,69,0.5)",
-                animation: "tulala-support-pulse 1.6s ease-out 1",
-              }}
-            />
-          ) : null}
-        </button>
+        ) : null}
+      </button>
       <SupportPanel
         open={open}
         onClose={() => setOpen(false)}
@@ -107,7 +103,16 @@ export function SupportLauncher({
         setTickets={setTickets}
         deepLinkTicketId={deepLinkTicketId}
       />
-      <style>{`@keyframes tulala-support-pulse{0%{box-shadow:0 0 0 0 rgba(194,106,69,.45)}100%{box-shadow:0 0 0 10px rgba(194,106,69,0)}}@media (prefers-reduced-motion:reduce){button[data-tulala-support-launcher] span{animation:none!important}}`}</style>
+      <style>{`
+        button[data-tulala-support-launcher]:hover{transform:translateY(-50%) scale(1.06)}
+        button[data-tulala-support-launcher]:active{transform:translateY(-50%) scale(.97)}
+        @keyframes tulala-support-badge{0%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 2.5px rgba(194,106,69,.45)}100%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 12px rgba(194,106,69,0)}}
+        button[data-tulala-support-launcher] span{animation-name:tulala-support-badge}
+        @media (prefers-reduced-motion:reduce){
+          button[data-tulala-support-launcher] span{animation:none!important}
+          button[data-tulala-support-launcher]:hover{transform:translateY(-50%)}
+        }
+      `}</style>
     </>
   );
 }
