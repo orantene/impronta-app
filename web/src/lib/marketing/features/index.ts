@@ -10,6 +10,8 @@
  */
 
 import { APPOINTMENTS_FEATURE } from "./feature-appointments";
+import { PAYMENTS_FEATURE } from "./feature-payments";
+import { PREMIUM_SUPPORT_FEATURE } from "./feature-premium-support";
 import { QR_ENGINE_FEATURE } from "./feature-qr-engine";
 import { TABLES_FEATURE } from "./feature-tables";
 import { TICKETING_FEATURE } from "./feature-ticketing";
@@ -35,9 +37,9 @@ export { FEATURE_GROUP_ORDER } from "./types";
 /**
  * Ordered by plate number, which is the lifecycle order the story depends on.
  *
- * The five Tier S pages carry long-form content and live in their own modules
- * so no single file approaches the size cap as they grow. The rest travel in
- * their stage groups.
+ * Pages carrying long-form content live in their own modules so no single file
+ * approaches the size cap as they grow: the five Tier S money pages, plus the
+ * Tier A pages that earned the same depth. The rest travel in stage groups.
  */
 export const MARKETING_FEATURES: Feature[] = [
   ...PRESENCE_FEATURES,
@@ -46,6 +48,8 @@ export const MARKETING_FEATURES: Feature[] = [
   ...PAID_FEATURES,
   ...RUN_FEATURES,
   APPOINTMENTS_FEATURE,
+  PAYMENTS_FEATURE,
+  PREMIUM_SUPPORT_FEATURE,
   QR_ENGINE_FEATURE,
   TABLES_FEATURE,
   TICKETING_FEATURE,

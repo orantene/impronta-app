@@ -14,6 +14,7 @@ import {
 } from "@/lib/marketing/features";
 import { FeatureIcon } from "./feature-icons";
 import { FeatureProse } from "./feature-prose";
+import { FeatureSectionNav } from "./feature-section-nav";
 import { RelatedFeatures } from "./related-features";
 
 /**
@@ -47,7 +48,15 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
     allFeatures: pickLocale(locale, { en: "All features", es: "Todas las funciones" }),
     whatYouGet: pickLocale(locale, { en: "What you get", es: "Lo que incluye" }),
     faqTitle: pickLocale(locale, { en: "Questions", es: "Preguntas" }),
+    onThisPage: pickLocale(locale, { en: "On this page", es: "En esta página" }),
   };
+
+  // Index based so the anchor survives a copy edit and is identical in both
+  // languages, which keeps a shared link working across locales.
+  const sectionNav = c.sections.map((section, i) => ({
+    id: `s-${i + 1}`,
+    heading: section.heading,
+  }));
 
   return (
     <>
@@ -130,7 +139,14 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
 
       <MarketingSection spacing="tight">
         <MarketingContainer size="wide">
-          <div className="max-w-2xl">
+          <div className="gap-14 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+            {/* Sticky contents on desktop. A long page a reader cannot navigate
+                is a long page they leave. */}
+            <aside className="hidden lg:block">
+              <FeatureSectionNav items={sectionNav} label={t.onThisPage} />
+            </aside>
+
+            <div className="max-w-2xl">
             <FeatureProse
               paras={c.intro}
               locale={locale}
@@ -140,7 +156,7 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
 
             <div className="mt-12 flex flex-col gap-11">
               {c.sections.map((section, i) => (
-                <section key={i}>
+                <section key={i} id={`s-${i + 1}`} className="scroll-mt-28">
                   <h2
                     className="plt-display"
                     style={{ fontSize: "clamp(1.25rem, 3vw, 1.6rem)", color: "var(--plt-ink)" }}
@@ -213,6 +229,7 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
                 </div>
               </div>
             ) : null}
+            </div>
           </div>
         </MarketingContainer>
       </MarketingSection>
