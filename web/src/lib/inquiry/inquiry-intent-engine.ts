@@ -36,6 +36,9 @@ import {
   placeReservationHold,
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
+import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling/reservation-card";
+import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
+import { logServerError } from "@/lib/server/safe-error";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One-shot path — no draft persistence.
@@ -140,6 +143,26 @@ export async function createInquiryFromIntent(
 
   if (placedHoldId && admin) {
     await attachReservationHoldToInquiry(admin, placedHoldId, result.data!.inquiryId);
+    const stamp = parseReservationStamp(working.source_context);
+    if (stamp) {
+      try {
+        await insertReservationCards(admin, {
+          inquiryId: result.data!.inquiryId,
+          tenantId: ctx.tenant_id,
+          actorUserId: ctx.actor_user_id,
+          payload: reservationCardPayload(stamp, "requested", "client"),
+          body: "A time was requested.",
+        });
+        await emitStandardEngineEvent(admin, {
+          type: ENGINE_EVENT_TYPES.RESERVATION_REQUESTED,
+          inquiryId: result.data!.inquiryId,
+          actorUserId: ctx.actor_user_id,
+          data: { startsAt: stamp.starts_at, timezone: stamp.timezone },
+        });
+      } catch (err) {
+        logServerError("inquiry-intent-engine.reservation-card", err);
+      }
+    }
   }
 
   return {

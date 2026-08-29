@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
+import { OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard, ReservationCard } from "@/components/chat-cards/ChatCard";
 import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -361,6 +361,16 @@ export function renderChatCardForMessage(
       );
     case "payment_paid":
       return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "reservation":
+      return (
+        <ReservationCard
+          status={get<"requested" | "proposed" | "confirmed" | "declined">("status", "requested")}
+          startsAt={get<string>("starts_at", "")}
+          endsAt={get<string>("ends_at", "")}
+          timezone={get<string>("timezone", "UTC")}
+          viewerRole="staff"
+        />
+      );
     case "booking_confirmed":
       return (
         <BookingConfirmedCard

@@ -29,6 +29,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { notifyBookingDayOfReminder } from "@/lib/notifications/producers/booking-day-of-reminder-notify";
 import { runReviewRequestReminders } from "@/lib/notifications/producers/review-request-reminder-notify";
 import type { DispatchResult } from "@/lib/notifications/types";
+import { bookingIsRemindableTomorrow } from "@/lib/scheduling/booking-reminder-window";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,12 +71,15 @@ export async function GET(request: Request) {
     // Half-open [tomorrow, dayAfter) window on `event_date`. ISO strings sort
     // lexicographically, so this captures the date whether it's stored as a
     // bare "2026-06-14" or a full "2026-06-14T10:00:00Z" timestamp.
+    const tomorrowStart = `${tomorrow}T00:00:00.000Z`;
+    const dayAfterStart = `${dayAfter}T00:00:00.000Z`;
     const { data, error } = await admin
       .from("agency_bookings")
-      .select("id, tenant_id, source_inquiry_id, event_date, status")
-      .gte("event_date", tomorrow)
-      .lt("event_date", dayAfter)
-      .in("status", REMINDABLE_STATUSES);
+      .select("id, tenant_id, source_inquiry_id, event_date, starts_at, status")
+      .in("status", REMINDABLE_STATUSES)
+      .or(
+        `and(starts_at.gte.${tomorrowStart},starts_at.lt.${dayAfterStart}),and(starts_at.is.null,event_date.gte.${tomorrow},event_date.lt.${dayAfter})`,
+      );
 
     if (error) {
       logServerError("cron/booking-reminders.query", error);
@@ -87,11 +91,14 @@ export async function GET(request: Request) {
       tenant_id: string;
       source_inquiry_id: string | null;
       event_date: string | null;
+      starts_at: string | null;
       status: string;
     }>;
 
-    // Only inquiry-backed bookings can be hydrated + fanned out to talent.
-    const eligible = rows.filter((r) => r.source_inquiry_id);
+    // Prefer starts_at when present. Only inquiry-backed bookings hydrate.
+    const eligible = rows.filter(
+      (r) => r.source_inquiry_id && bookingIsRemindableTomorrow(r, tomorrow, dayAfter),
+    );
 
     const totals: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0 };
     const results = await Promise.allSettled(
