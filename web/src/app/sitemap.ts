@@ -11,7 +11,11 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
-import { MARKETING_FEATURES } from "@/lib/marketing/features";
+import {
+  FEATURE_HUB_PATHS,
+  MARKETING_FEATURES,
+  featurePaths,
+} from "@/lib/marketing/features";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -179,14 +183,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/resources",
       "/resources/glossary",
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
-      // The feature hub and one page per capability, derived from the
-      // catalogue so adding a feature is a single data edit. (/docs is
-      // deliberately excluded: it is a shell marked noindex until the guides
-      // are written, and an empty documentation site that ranks is worse than
-      // one that does not exist.)
-      "/features",
-      ...MARKETING_FEATURES.map((f) => `/features/${f.slugEn}`),
     ];
+    // The feature hub is emitted separately from `marketingPaths`, because the
+    // generic flatMap below assumes both locales share ONE path. These pages
+    // do not: the Spanish page lives at a Spanish slug, which is the whole
+    // reason it exists. Running them through the flatMap would advertise
+    // `/es/features/<en-slug>` twins that redirect away, so the pairs are
+    // built explicitly from the catalogue instead.
+    const featureEntries: MetadataRoute.Sitemap = [
+      FEATURE_HUB_PATHS,
+      ...MARKETING_FEATURES.map((f) => featurePaths(f)),
+    ].flatMap(({ enPath, esPath }) => {
+      const lastModified = MARKETING_CONTENT_REVISED;
+      const enUrl = new URL(enPath, base).toString();
+      const esUrl = new URL(withLocalePath(esPath, "es"), base).toString();
+      const languages = { en: enUrl, es: esUrl, "x-default": enUrl };
+      return [
+        { url: enUrl, lastModified, alternates: { languages } },
+        { url: esUrl, lastModified, alternates: { languages } },
+      ];
+    });
+
     const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
       (path) => {
         // EN and ES ship together, so both locales share one lastmod.
@@ -214,7 +231,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ];
       },
     );
-    return [...marketingEntries, ...platformTalentEntries];
+    return [...marketingEntries, ...featureEntries, ...platformTalentEntries];
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {
     return platformTalentEntries;

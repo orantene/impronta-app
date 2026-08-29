@@ -614,6 +614,10 @@ const MARKETING_PAGE_PREFIXES = [
   // visitors on their branded domain should never be pitched the platform.
   // The prefix covers all twenty one slugs and the `opengraph-image` route.
   "/features",
+  // The same hub in Spanish, at Spanish slugs (`/funciones/citas-y-reservas`).
+  // A separate tree rather than a locale prefix because the search term is the
+  // URL: that is the whole reason a Spanish slug earns its keep.
+  "/funciones",
   // Documentation shell. Published as a "coming soon" skeleton and marked
   // noindex until it has real content, so it is reachable from the feature
   // pages that link to it without being offered to search.

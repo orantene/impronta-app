@@ -145,7 +145,14 @@ function FeaturePlateDialog({
         onClick={onClose}
         aria-hidden
       />
-      <div className="fixed inset-0 z-[201] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
+      {/* The click target for "outside" is THIS container, not the scrim
+          underneath it: the container covers the viewport, so a click on the
+          scrim never reaches it. The card stops propagation, so anything that
+          bubbles up to here happened outside the card. */}
+      <div
+        className="fixed inset-0 z-[201] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+        onClick={onClose}
+      >
         <div
           ref={cardRef}
           role="dialog"
@@ -173,42 +180,49 @@ function FeaturePlateDialog({
             </svg>
           </button>
 
-          <div className="px-7 pb-8 pt-9 sm:px-10 sm:pb-10 sm:pt-11">
-            <span className="inline-flex" style={{ color: "var(--plt-forest)" }}>
-              <FeatureIcon featureKey={payload.key} size={56} strokeWidth={1.25} />
-            </span>
+          <div className="px-7 pb-8 pt-8 sm:px-9 sm:pb-9 sm:pt-9">
+            <div className="flex items-start gap-4">
+              <span
+                className="inline-flex shrink-0"
+                style={{ color: "var(--plt-forest)", marginTop: "0.15rem" }}
+              >
+                <FeatureIcon featureKey={payload.key} size={38} strokeWidth={1.3} />
+              </span>
 
-            <p className="plt-eyebrow mt-6" style={{ color: "var(--plt-muted)" }}>
-              {payload.stage}
-              {isComing ? (
-                <span
-                  className="ml-2 rounded-full px-2 py-[2px]"
-                  style={{
-                    background: "var(--tl-warning-bg)",
-                    color: "var(--tl-warning)",
-                    fontSize: "0.625rem",
-                    letterSpacing: "0.08em",
-                  }}
+              <div className="min-w-0">
+                <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
+                  {payload.stage}
+                  {isComing ? (
+                    <span
+                      className="ml-2 rounded-full px-2 py-[2px]"
+                      style={{
+                        background: "var(--tl-warning-bg)",
+                        color: "var(--tl-warning)",
+                        fontSize: "0.625rem",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {comingLabel}
+                    </span>
+                  ) : null}
+                </p>
+
+                <h2
+                  id={titleId}
+                  className="plt-display mt-1"
+                  style={{ fontSize: "clamp(1.5rem, 3.6vw, 1.9rem)", color: "var(--plt-ink)" }}
                 >
-                  {comingLabel}
-                </span>
-              ) : null}
-            </p>
+                  {payload.name}
+                </h2>
 
-            <h2
-              id={titleId}
-              className="plt-display mt-2"
-              style={{ fontSize: "clamp(1.65rem, 4vw, 2.15rem)", color: "var(--plt-ink)" }}
-            >
-              {payload.name}
-            </h2>
-
-            <p
-              className="plt-display-serif mt-2 italic"
-              style={{ fontSize: "1.0625rem", color: "var(--plt-forest)" }}
-            >
-              {payload.promise}
-            </p>
+                <p
+                  className="plt-display-serif mt-1 italic"
+                  style={{ fontSize: "1rem", color: "var(--plt-forest)" }}
+                >
+                  {payload.promise}
+                </p>
+              </div>
+            </div>
 
             <div
               className="plt-body mt-5 flex flex-col gap-3"

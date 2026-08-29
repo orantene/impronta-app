@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { FeatureHubProvider } from "@/components/marketing/features/feature-hub";
 import { FeaturePageBody } from "@/components/marketing/features/feature-page-body";
-import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocalePath } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
@@ -17,61 +16,67 @@ import { breadcrumbJsonLdToString, buildBreadcrumbJsonLd } from "@/lib/seo/bread
 import { buildFaqPageJsonLd, faqJsonLdToString } from "@/lib/seo/faq-json-ld";
 import { buildCrossSlugMarketingAlternates } from "@/lib/seo/spanish-named-routes";
 
+/**
+ * The Spanish feature pages.
+ *
+ * A separate route tree rather than a locale prefix over the English slugs,
+ * because the whole reason this exists is that the search term IS the URL:
+ * somebody types "sistema de citas para barberia", and `/funciones/citas-y-
+ * reservas` matches in a way `/es/features/appointments` never will.
+ *
+ * The locale is pinned to Spanish at the proxy for this subtree, so the
+ * chrome around the page is Spanish too. Rendering Spanish copy inside English
+ * chrome is the exact bug the pin was built to prevent.
+ */
+
 type Props = { params: Promise<{ slug: string }> };
+
+// Always Spanish here. The pin guarantees the chrome agrees.
+const LOCALE = "es";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const feature = getFeatureBySlugEn(slug);
+  const feature = getFeatureBySlugEs(slug);
   if (!feature) return {};
 
-  const locale = await getRequestLocale();
-  const c = getFeatureContent(feature, locale);
-
+  const c = getFeatureContent(feature, LOCALE);
   return {
     title: c.title,
     description: c.subtitle,
-    ...buildCrossSlugMarketingAlternates(locale, featurePaths(feature)),
+    ...buildCrossSlugMarketingAlternates(LOCALE, featurePaths(feature)),
   };
 }
 
-export default async function FeaturePage({ params }: Props) {
+export default async function FeaturePageEs({ params }: Props) {
   const { slug } = await params;
-  const feature = getFeatureBySlugEn(slug);
+  const feature = getFeatureBySlugEs(slug);
+
   if (!feature) {
-    // Spanish slug on the English tree: the intent is clear, so send them to
-    // the Spanish page rather than a 404.
-    const byEs = getFeatureBySlugEs(slug);
-    if (byEs) permanentRedirect(withLocalePath(featurePaths(byEs).esPath, "es"));
+    // Somebody used the English slug on the Spanish tree. Send them to the
+    // right Spanish page rather than a 404, since the intent is unambiguous.
+    const byEnglishSlug = getFeatureBySlugEn(slug);
+    if (byEnglishSlug) {
+      permanentRedirect(withLocalePath(featurePaths(byEnglishSlug).esPath, LOCALE));
+    }
     notFound();
   }
 
-  const locale = await getRequestLocale();
-  // `/es/features/<en-slug>` is a stray form. The Spanish page lives at its
-  // own slug, so collapse to it instead of serving a second Spanish URL.
-  if (locale === "es") {
-    permanentRedirect(withLocalePath(featurePaths(feature).esPath, "es"));
-  }
-  const c = getFeatureContent(feature, locale);
+  const c = getFeatureContent(feature, LOCALE);
   const base = `https://${PLATFORM_BRAND.domain}`;
-  // Built for the locale being rendered. Stamping the English URL into the
-  // Spanish page's structured data is how a page claims to be its own
-  // translation, which is the drift that caused a canonical incident before.
-  const pageUrl = `${base}${featurePaths(feature).enPath}`;
-  const inLanguage = pickLocale(locale, { en: "en", es: "es" });
+  const pageUrl = `${base}${withLocalePath(featurePaths(feature).esPath, LOCALE)}`;
 
-  // Built from the SAME faq array the page renders.
-  const faqJsonLd = buildFaqPageJsonLd({ pageUrl, items: c.faq, inLanguage });
+  const faqJsonLd = buildFaqPageJsonLd({ pageUrl, items: c.faq, inLanguage: "es" });
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: PLATFORM_BRAND.name, url: `${base}/` },
     {
-      name: pickLocale(locale, { en: "Features", es: "Funciones" }),
-      url: `${base}/features`,
+      name: pickLocale(LOCALE, { en: "Features", es: "Funciones" }),
+      url: `${base}${withLocalePath("/funciones", LOCALE)}`,
     },
     { name: c.title, url: pageUrl },
   ]);
 
   return (
-    <FeatureHubProvider payloads={allPopupPayloads(locale)} locale={locale}>
+    <FeatureHubProvider payloads={allPopupPayloads(LOCALE)} locale={LOCALE}>
       {faqJsonLd ? (
         <script
           type="application/ld+json"
@@ -85,7 +90,7 @@ export default async function FeaturePage({ params }: Props) {
           dangerouslySetInnerHTML={{ __html: breadcrumbJsonLdToString(breadcrumbJsonLd) }}
         />
       ) : null}
-      <FeaturePageBody feature={feature} locale={locale} />
+      <FeaturePageBody feature={feature} locale={LOCALE} />
     </FeatureHubProvider>
   );
 }

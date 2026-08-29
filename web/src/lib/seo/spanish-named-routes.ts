@@ -32,6 +32,21 @@ export const SPANISH_NAMED_MARKETING_PATHS: readonly string[] = [
   "/sitios-web",
 ];
 
+/**
+ * Marketing SUBTREES whose slugs are Spanish.
+ *
+ * `SPANISH_NAMED_MARKETING_PATHS` above are single landings with no English
+ * twin. This list is the other shape: a whole tree of Spanish-slugged pages
+ * that DO have an English counterpart at a different slug, which is why the
+ * feature hub needs `buildCrossSlugMarketingAlternates` rather than the
+ * Spanish-only helper. `/funciones/citas-y-reservas` pairs with
+ * `/features/appointments`, and each claims only its own URL.
+ *
+ * The locale pin is the same and for the same reason: without it the chrome
+ * around a Spanish page renders in English.
+ */
+export const SPANISH_NAMED_MARKETING_PREFIXES: readonly string[] = ["/funciones"];
+
 const SPANISH_NAMED_SET = new Set(SPANISH_NAMED_MARKETING_PATHS);
 
 /**
@@ -48,7 +63,12 @@ export function isSpanishNamedMarketingPath(pathname: string): boolean {
     withoutLocale.length > 1 && withoutLocale.endsWith("/")
       ? withoutLocale.slice(0, -1)
       : withoutLocale;
-  return SPANISH_NAMED_SET.has(normalized);
+  if (SPANISH_NAMED_SET.has(normalized)) return true;
+  // Prefix match on a `/` boundary so `/funciones` and `/funciones/x` match
+  // while `/funciones-falso` does not.
+  return SPANISH_NAMED_MARKETING_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
+  );
 }
 
 /**
@@ -94,4 +114,35 @@ export function pinnedMarketingLocale(
   pathname: string,
 ): "es" | null {
   return hostKind === "marketing" && isSpanishNamedMarketingPath(pathname) ? "es" : null;
+}
+
+/**
+ * Canonical + hreflang for a page that exists in BOTH languages at DIFFERENT
+ * slugs.
+ *
+ * The feature hub is the first of these: `/features/appointments` and
+ * `/funciones/citas-y-reservas` are the same page in two languages, and the
+ * Spanish slug carries the search term, which is the entire point of having
+ * one. `buildMarketingLocaleAlternates` cannot express this because it assumes
+ * both locales share a path.
+ *
+ * Each locale claims ONLY its own URL as canonical, and `x-default` points at
+ * English because an English version genuinely exists (unlike the Spanish-only
+ * landings above, where x-default is Spanish because nothing else exists).
+ * Getting this wrong is how a page declares itself a duplicate of another
+ * locale, which is the failure that produced a canonical incident in August.
+ */
+export function buildCrossSlugMarketingAlternates(
+  currentLocale: string,
+  pair: { enPath: string; esPath: string },
+): Pick<Metadata, "metadataBase" | "alternates"> {
+  const en = pair.enPath;
+  const es = withLocalePath(pair.esPath, "es");
+  return {
+    metadataBase: marketingSiteMetadataBase(),
+    alternates: {
+      canonical: currentLocale === "es" ? es : en,
+      languages: { en, es, "x-default": en },
+    },
+  };
 }

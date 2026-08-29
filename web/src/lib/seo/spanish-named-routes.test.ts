@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   SPANISH_NAMED_MARKETING_PATHS,
+  SPANISH_NAMED_MARKETING_PREFIXES,
+  buildCrossSlugMarketingAlternates,
   buildSpanishOnlyMarketingAlternates,
   isSpanishNamedMarketingPath,
   pinnedMarketingLocale,
@@ -88,4 +90,46 @@ test("pins es only on the marketing host, and only for these routes", () => {
       `${kind} host must not be pinned`,
     );
   }
+});
+
+test("a Spanish-slugged SUBTREE pins to Spanish, on a slash boundary", () => {
+  assert.deepEqual([...SPANISH_NAMED_MARKETING_PREFIXES], ["/funciones"]);
+  for (const p of [
+    "/funciones",
+    "/funciones/",
+    "/funciones/citas-y-reservas",
+    "/es/funciones",
+    "/es/funciones/citas-y-reservas",
+  ]) {
+    assert.equal(isSpanishNamedMarketingPath(p), true, `expected a pin for ${p}`);
+  }
+  // A neighbour that merely starts with the same letters must NOT pin, or an
+  // unrelated future route would silently render in Spanish.
+  for (const p of ["/funciones-falso", "/funcionesx", "/fun", "/features/appointments"]) {
+    assert.equal(isSpanishNamedMarketingPath(p), false, `expected no pin for ${p}`);
+  }
+});
+
+test("cross-slug pages claim only their own URL in each locale", () => {
+  const pair = { enPath: "/features/appointments", esPath: "/funciones/citas-y-reservas" };
+
+  const en = buildCrossSlugMarketingAlternates("en", pair);
+  assert.equal(en.alternates?.canonical, "/features/appointments");
+
+  const es = buildCrossSlugMarketingAlternates("es", pair);
+  assert.equal(es.alternates?.canonical, "/es/funciones/citas-y-reservas");
+
+  // Both sides advertise the same pair, and x-default is the English one
+  // because an English version genuinely exists here (unlike the Spanish-only
+  // landings, where x-default is Spanish).
+  for (const built of [en, es]) {
+    const languages = built.alternates?.languages as Record<string, string>;
+    assert.equal(languages.en, "/features/appointments");
+    assert.equal(languages.es, "/es/funciones/citas-y-reservas");
+    assert.equal(languages["x-default"], "/features/appointments");
+  }
+
+  // The failure this guards: a Spanish page claiming the English URL as its
+  // own canonical, which is how a page declares itself a duplicate.
+  assert.notEqual(es.alternates?.canonical, en.alternates?.canonical);
 });

@@ -3,7 +3,7 @@ import { MarketingContainer, MarketingSection } from "@/components/marketing/con
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { FeatureHubProvider } from "@/components/marketing/features/feature-hub";
 import { FeaturePlateGrid } from "@/components/marketing/features/feature-plate-grid";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocalePath } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
   FEATURE_HUB_PATHS,
@@ -16,54 +16,47 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { breadcrumbJsonLdToString, buildBreadcrumbJsonLd } from "@/lib/seo/breadcrumb-json-ld";
 import { buildCrossSlugMarketingAlternates } from "@/lib/seo/spanish-named-routes";
 
+/** The Spanish hub index. Pinned to Spanish by the `/funciones` prefix. */
+
+const LOCALE = "es";
+
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getRequestLocale();
   return {
-    title: pickLocale(locale, {
+    title: pickLocale(LOCALE, {
       en: "Everything Tulala gives you",
       es: "Todo lo que Tulala te da",
     }),
-    description: pickLocale(locale, {
-      en: "Website, storefront, bookings, payments, clients and support. The twenty one things you get, and how they work together.",
+    description: pickLocale(LOCALE, {
+      en: "Website, storefront, bookings, payments, clients and support.",
       es: "Sitio web, vitrina, reservas, pagos, clientes y soporte. Las veintiún cosas que recibes, y cómo funcionan juntas.",
     }),
-    ...buildCrossSlugMarketingAlternates(locale, FEATURE_HUB_PATHS),
+    ...buildCrossSlugMarketingAlternates(LOCALE, FEATURE_HUB_PATHS),
   };
 }
 
-export default async function FeatureHubPage() {
-  const locale = await getRequestLocale();
+export default async function FeatureHubPageEs() {
   const base = `https://${PLATFORM_BRAND.domain}`;
 
   const groups = featureGroupsInOrder().map(({ group, features }) => ({
     group,
-    stage: featureGroupLabel(group, locale),
-    features: features.map((f) => toPlatePayload(f, locale)),
+    stage: featureGroupLabel(group, LOCALE),
+    features: features.map((f) => toPlatePayload(f, LOCALE)),
   }));
 
   const copy = {
-    eyebrow: pickLocale(locale, { en: "The platform", es: "La plataforma" }),
-    title: pickLocale(locale, {
-      en: "Everything you need to sell what you do",
-      es: "Todo lo que necesitas para vender lo que haces",
-    }),
-    lede: pickLocale(locale, {
-      en: "Most tools give you one piece and leave you to connect the rest. This is the whole journey, from the first page you build to the money in your account, in one place and on one login.",
-      es: "La mayoría de las herramientas te da una pieza y te deja conectar el resto. Esto es el camino completo, desde la primera página que construyes hasta el dinero en tu cuenta, en un solo lugar y con una sola cuenta.",
-    }),
-    coming: pickLocale(locale, { en: "Coming soon", es: "Próximamente" }),
+    eyebrow: "La plataforma",
+    title: "Todo lo que necesitas para vender lo que haces",
+    lede: "La mayoría de las herramientas te da una pieza y te deja conectar el resto. Esto es el camino completo, desde la primera página que construyes hasta el dinero en tu cuenta, en un solo lugar y con una sola cuenta.",
+    coming: "Próximamente",
   };
 
   const breadcrumb = buildBreadcrumbJsonLd([
     { name: PLATFORM_BRAND.name, url: `${base}/` },
-    {
-      name: pickLocale(locale, { en: "Features", es: "Funciones" }),
-      url: `${base}/features`,
-    },
+    { name: "Funciones", url: `${base}${withLocalePath("/funciones", LOCALE)}` },
   ]);
 
   return (
-    <FeatureHubProvider payloads={allPopupPayloads(locale)} locale={locale}>
+    <FeatureHubProvider payloads={allPopupPayloads(LOCALE)} locale={LOCALE}>
       {breadcrumb ? (
         <script
           type="application/ld+json"
@@ -101,7 +94,7 @@ export default async function FeatureHubPage() {
         <MarketingContainer size="wide">
           <FeaturePlateGrid
             groups={groups}
-            locale={locale}
+            locale={LOCALE}
             comingLabel={copy.coming}
             showStageNav
           />
