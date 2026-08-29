@@ -57,7 +57,7 @@ export function mapHoldInsertError(
   err: { code?: string | null; message?: string | null } | null | undefined,
 ): PlaceReservationHoldFailure {
   if (isExclusionViolation(err)) {
-    return { ok: false, code: "slot_taken", error: "That slot was just taken. Pick another time." };
+    return { ok: false, code: "slot_taken", error: "That time was just taken. Pick another time." };
   }
   return { ok: false, code: "unavailable", error: "Could not hold that time. Try again." };
 }
@@ -122,4 +122,38 @@ export async function releaseReservationHold(
     return { ok: false, code: "unavailable", error: "Could not release hold." };
   }
   return { ok: true };
+}
+
+export async function attachReservationHoldToInquiry(
+  admin: SupabaseClient,
+  holdId: string,
+  inquiryId: string,
+): Promise<{ ok: true } | PlaceReservationHoldFailure> {
+  if (!holdId || !inquiryId) return { ok: false, code: "invalid", error: "Missing hold or inquiry." };
+  const { error } = await admin
+    .from("talent_holds")
+    .update({ inquiry_id: inquiryId })
+    .eq("id", holdId);
+  if (error) {
+    logServerError("reservation-hold/attach", error);
+    return { ok: false, code: "unavailable", error: "Could not attach hold." };
+  }
+  return { ok: true };
+}
+
+export async function releaseHoldsForInquiry(
+  admin: SupabaseClient,
+  inquiryId: string,
+): Promise<{ ok: true; released: number } | PlaceReservationHoldFailure> {
+  if (!inquiryId) return { ok: false, code: "invalid", error: "Missing inquiry." };
+  const { data, error } = await admin
+    .from("talent_holds")
+    .delete()
+    .eq("inquiry_id", inquiryId)
+    .select("id");
+  if (error) {
+    logServerError("reservation-hold/release_inquiry", error);
+    return { ok: false, code: "unavailable", error: "Could not release hold." };
+  }
+  return { ok: true, released: (data ?? []).length };
 }

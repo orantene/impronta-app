@@ -39,6 +39,7 @@ import {
   sumBookingGrossChargedCents,
   sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
+import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import { readOfferTermsFromRow } from "@/lib/billing/offer-commercial-terms";
 import {
   createBookingTransaction,
@@ -562,6 +563,20 @@ export async function createInstantBooking(
       await releaseStock();
       await admin.from("agency_bookings").delete().eq("id", bookingId);
       return { ok: false, reason: "engine_error", error: `commission_snapshot:${snap.reason ?? "persist_failed"}` };
+    }
+
+    // Dormant until P2: no-op unless source_context.reservation is present.
+    try {
+      const enriched = await enrichBookingFromReservation(admin, {
+        inquiryId,
+        bookingId,
+        actorUserId: staffActor,
+      });
+      if (!enriched.ok) {
+        logServerError("instantBook.reservation_enrichment", new Error(enriched.error));
+      }
+    } catch (enrichErr) {
+      logServerError("instantBook.reservation_enrichment", enrichErr);
     }
 
     // ── Step 8 — create + request the payment ───────────────────────────────

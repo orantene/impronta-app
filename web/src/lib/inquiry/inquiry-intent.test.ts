@@ -33,7 +33,7 @@ import { createInquiryFromIntent } from "./inquiry-intent-engine";
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("INQUIRY_INTENT_SOURCES", () => {
-  it("is exactly the 10 provenance values, in order", () => {
+  it("includes offering_request after the original 10 provenance values", () => {
     assert.deepEqual(
       [...INQUIRY_INTENT_SOURCES],
       [
@@ -47,6 +47,7 @@ describe("INQUIRY_INTENT_SOURCES", () => {
         "pitch",
         "admin_created",
         "book_again",
+        "offering_request",
       ],
     );
   });
@@ -481,6 +482,7 @@ describe("intentToSubmitInquiryInput", () => {
       pitch: "/share/pitch",
       admin_created: "admin-workspace-new-inquiry",
       book_again: "/client/bookings",
+      offering_request: "/book",
     };
     for (const [source, path] of Object.entries(expected)) {
       it(`source "${source}" → "${path}"`, () => {

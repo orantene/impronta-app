@@ -16,6 +16,21 @@ import { buildInquiryBells } from "./inquiry-notifications";
 import { COORDINATOR_STALE_ANCHOR_EVENT, classifyStaleAlert } from "./coordinator-stale-policy";
 import { logServerError } from "@/lib/server/safe-error";
 import type { EngineResult } from "./inquiry-engine.types";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
+
+async function releaseReservationHoldsBestEffort(inquiryId: string): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return;
+    const released = await releaseHoldsForInquiry(admin, inquiryId);
+    if (!released.ok) {
+      logServerError("inquiry-engine-lifecycle/release_holds", new Error(released.error));
+    }
+  } catch (err) {
+    logServerError("inquiry-engine-lifecycle/release_holds", err);
+  }
+}
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Staff lifecycle actions
 // require a tenantId in ctx. Cron helpers (processCoordinatorTimeouts,
@@ -183,6 +198,8 @@ export async function archiveInquiry(
       data: {},
     });
 
+    await releaseReservationHoldsBestEffort(ctx.inquiryId);
+
     return { success: true };
   });
 }
@@ -256,6 +273,8 @@ export async function clientCancelInquiry(
         excludeUserId: ctx.actorUserId,
       }),
     });
+
+    await releaseReservationHoldsBestEffort(ctx.inquiryId);
 
     return { success: true };
   });

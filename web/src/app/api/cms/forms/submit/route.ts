@@ -741,6 +741,10 @@ async function routeFormSubmissionToInquiry(args: {
     origin_domain: originDomain,
   });
 
-  if (!created.ok) return { ok: false, reason: created.reason };
+  if (!created.ok) {
+    // Forms never attach a reservation stamp; slot_taken is defensive.
+    if (created.reason === "slot_taken") return { ok: false, reason: "engine_error" };
+    return { ok: false, reason: created.reason };
+  }
   return { ok: true, inquiryId: created.inquiryId };
 }
