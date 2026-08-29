@@ -1,0 +1,241 @@
+import type { Feature } from "./types";
+
+/**
+ * Plate 11, Tier S, roadmap.
+ *
+ * Target intent: "sistema de reservaciones para restaurantes", "reservas
+ * restaurante online", "software de reservaciones". Competes with OpenTable
+ * and CoverManager, whose real moat is card-on-file no-show protection plus a
+ * directory. We have the card rail and the directory, and the restaurant's
+ * own website on top.
+ *
+ * Not shipped.
+ */
+export const TABLES_FEATURE: Feature = {
+  key: "tables-and-seating",
+  plate: 11,
+  group: "booked",
+  slugEn: "tables-and-seating",
+  slugEs: "mesas-y-reservaciones",
+  tier: "S",
+  status: "coming",
+  related: ["appointments", "qr-engine", "payments", "website-builder"],
+
+  en: {
+    name: "Tables & Seating",
+    title: "Restaurant reservations on your own site",
+    subtitle:
+      "Your floor plan online, reservations with party size and service windows, and deposits that put an end to no shows.",
+    promise: "Your dining room, bookable from your own page.",
+
+    popup: [
+      [
+        "Your floor plan, your service windows, your party sizes. Guests book a table from your own website instead of a marketplace that rents you your own customers.",
+      ],
+      [
+        "Deposits end the no show problem, and the reservation lands on the same calendar and in the same inbox as everything else you run.",
+      ],
+    ],
+
+    intro: [
+      [
+        "A reservation marketplace charges you to reach a guest who was already searching for your restaurant by name, then keeps that guest as theirs. You pay for the introduction every single time, including the tenth time.",
+      ],
+      [
+        "Taking your own direct bookings does not mean leaving the marketplace on day one. It means stopping the part where you pay a commission on the people who already knew where they were going.",
+      ],
+    ],
+
+    sections: [
+      {
+        heading: "A dining room is a calendar with a shape",
+        body: [
+          [
+            "Party size, service windows and how long a table turns decide what is genuinely available. The page never offers a table for six at eight o'clock if there is no table for six at eight o'clock.",
+          ],
+          [
+            "You set the shape of the room and the rules of the service, and the availability follows from that rather than from a number somebody typed in.",
+          ],
+        ],
+      },
+      {
+        heading: "Deposits end the no show",
+        body: [
+          [
+            "A Friday table for eight that does not arrive is not a small loss, it is the whole evening for that table. A deposit changes who carries that risk, and it filters the bookings that were never serious.",
+          ],
+          [
+            "You set the amount, the window in which it is refundable, and what happens when somebody does not turn up. Guests who respect the booking never notice it exists.",
+          ],
+        ],
+      },
+      {
+        heading: "The same engine that books a haircut",
+        body: [
+          [
+            "Underneath, this is ",
+            { f: "appointments", label: "appointments" },
+            " with a floor plan on top. Same deposits, same reminders, same inbox, same calendar. That is why it can arrive quickly and behave predictably rather than being a second system with its own bugs.",
+          ],
+        ],
+      },
+      {
+        heading: "The table itself becomes a channel",
+        body: [
+          [
+            "A ",
+            { f: "qr-engine", label: "QR code" },
+            " on the table can show the menu, take the next reservation, or collect a tip. The cheapest marketing you own is the customer already sitting in your dining room.",
+          ],
+        ],
+      },
+      {
+        heading: "Guests you can actually recognise",
+        body: [
+          [
+            "Repeat guests build a history in your own ",
+            { f: "client-management", label: "client list" },
+            ": what they booked, how often, whether they showed. That is yours, not a marketplace's, and it is what lets you treat a regular like a regular.",
+          ],
+        ],
+      },
+    ],
+
+    highlights: [
+      "Floor plan and table configuration",
+      "Party size and service windows",
+      "Deposits and no show protection",
+      "Reservations on your own website and domain",
+      "Shared calendar and inbox with the rest of the business",
+      "Guests recorded in your own client list",
+    ],
+
+    faq: [
+      {
+        q: "When is this available?",
+        a: "It is on the roadmap and not shipped yet. Join the waitlist to hear the day it opens.",
+      },
+      {
+        q: "Do I have to leave my current reservation system?",
+        a: "Not on day one. Most restaurants start by taking their own direct bookings here, where there is no commission on a guest who already knew the name, and keep the marketplace for discovery while they decide.",
+      },
+      {
+        q: "What about walk ins?",
+        a: "A dining room is not only its bookings, so the floor has to reflect what is actually occupied. Handling walk ins alongside reservations is part of the design.",
+      },
+      {
+        q: "Can I take a deposit only for large parties?",
+        a: "That is the intent. The rule belongs to the service and the party size rather than to the whole restaurant, in the same way a deposit rule belongs to a service rather than an account.",
+      },
+    ],
+  },
+
+  es: {
+    name: "Mesas y reservaciones",
+    title: "Reservaciones de restaurante en tu propio sitio",
+    subtitle:
+      "Tu plano de mesas en línea, reservaciones con número de personas y horarios de servicio, y anticipos que acaban con las ausencias.",
+    promise: "Tu comedor, reservable desde tu propia página.",
+
+    popup: [
+      [
+        "Tu plano de mesas, tus horarios de servicio, tus tamaños de grupo. Los comensales reservan desde tu propio sitio en lugar de un marketplace que te renta a tus propios clientes.",
+      ],
+      [
+        "Los anticipos acaban con el problema de las ausencias, y la reservación llega al mismo calendario y a la misma bandeja que todo lo demás que operas.",
+      ],
+    ],
+
+    intro: [
+      [
+        "Un marketplace de reservaciones te cobra por llegar a un comensal que ya estaba buscando tu restaurante por nombre, y después se queda con ese comensal como suyo. Pagas la presentación cada vez, incluida la décima.",
+      ],
+      [
+        "Tomar tus propias reservas directas no significa dejar el marketplace el primer día. Significa dejar de pagar comisión por la gente que ya sabía a dónde iba.",
+      ],
+    ],
+
+    sections: [
+      {
+        heading: "Un comedor es un calendario con forma",
+        body: [
+          [
+            "El número de personas, los horarios de servicio y cuánto dura una mesa deciden qué hay disponible de verdad. La página nunca ofrece una mesa para seis a las ocho si no hay mesa para seis a las ocho.",
+          ],
+          [
+            "Tú defines la forma del salón y las reglas del servicio, y la disponibilidad sale de ahí en lugar de un número que alguien escribió a mano.",
+          ],
+        ],
+      },
+      {
+        heading: "El anticipo acaba con la ausencia",
+        body: [
+          [
+            "Una mesa para ocho un viernes que no llega no es una pérdida chica, es la noche completa de esa mesa. Un anticipo cambia quién carga ese riesgo, y filtra las reservas que nunca iban en serio.",
+          ],
+          [
+            "Tú defines el monto, la ventana en la que es reembolsable y qué pasa si alguien no se presenta. El comensal que respeta su reserva nunca se entera de que existe.",
+          ],
+        ],
+      },
+      {
+        heading: "El mismo motor que agenda un corte de cabello",
+        body: [
+          [
+            "Por debajo, esto es ",
+            { f: "appointments", label: "citas y reservas" },
+            " con un plano de mesas encima. Los mismos anticipos, los mismos recordatorios, la misma bandeja, el mismo calendario. Por eso puede llegar pronto y comportarse de forma predecible, en lugar de ser un segundo sistema con sus propios errores.",
+          ],
+        ],
+      },
+      {
+        heading: "La mesa misma se vuelve un canal",
+        body: [
+          [
+            "Un ",
+            { f: "qr-engine", label: "código QR" },
+            " en la mesa puede mostrar el menú, tomar la siguiente reservación o recibir una propina. El marketing más barato que tienes es el cliente que ya está sentado en tu comedor.",
+          ],
+        ],
+      },
+      {
+        heading: "Comensales que sí puedes reconocer",
+        body: [
+          [
+            "Los comensales que regresan van formando un historial en tu propia ",
+            { f: "client-management", label: "lista de clientes" },
+            ": qué reservaron, cada cuánto, si llegaron. Eso es tuyo y no de un marketplace, y es lo que te permite tratar a un cliente frecuente como cliente frecuente.",
+          ],
+        ],
+      },
+    ],
+
+    highlights: [
+      "Plano y configuración de mesas",
+      "Tamaño de grupo y horarios de servicio",
+      "Anticipos y protección contra ausencias",
+      "Reservaciones en tu propio sitio y dominio",
+      "Calendario y bandeja compartidos con el resto del negocio",
+      "Comensales registrados en tu propia lista de clientes",
+    ],
+
+    faq: [
+      {
+        q: "¿Cuándo estará disponible?",
+        a: "Está en la hoja de ruta y todavía no se lanza. Únete a la lista para enterarte el día que abra.",
+      },
+      {
+        q: "¿Tengo que dejar mi sistema de reservaciones actual?",
+        a: "El primer día no. La mayoría empieza tomando aquí sus reservas directas, donde no hay comisión por un comensal que ya conocía el nombre, y conserva el marketplace para descubrimiento mientras decide.",
+      },
+      {
+        q: "¿Y los que llegan sin reservación?",
+        a: "Un comedor no es solo sus reservas, así que el plano tiene que reflejar lo que de verdad está ocupado. Manejar a quien llega sin reservación junto con las reservas es parte del diseño.",
+      },
+      {
+        q: "¿Puedo pedir anticipo solo para grupos grandes?",
+        a: "Esa es la intención. La regla pertenece al servicio y al tamaño del grupo, no a todo el restaurante, igual que una regla de anticipo pertenece a un servicio y no a una cuenta.",
+      },
+    ],
+  },
+};

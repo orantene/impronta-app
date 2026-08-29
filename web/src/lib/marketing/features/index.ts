@@ -10,6 +10,10 @@
  */
 
 import { APPOINTMENTS_FEATURE } from "./feature-appointments";
+import { QR_ENGINE_FEATURE } from "./feature-qr-engine";
+import { TABLES_FEATURE } from "./feature-tables";
+import { TICKETING_FEATURE } from "./feature-ticketing";
+import { WEBSITE_BUILDER_FEATURE } from "./feature-website-builder";
 import { BOOKED_FEATURES } from "./features-booked";
 import { FOUND_FEATURES } from "./features-found";
 import { PAID_FEATURES } from "./features-paid";
@@ -28,14 +32,24 @@ export type {
 } from "./types";
 export { FEATURE_GROUP_ORDER } from "./types";
 
-/** Ordered by plate number, which is the lifecycle order the story depends on. */
+/**
+ * Ordered by plate number, which is the lifecycle order the story depends on.
+ *
+ * The five Tier S pages carry long-form content and live in their own modules
+ * so no single file approaches the size cap as they grow. The rest travel in
+ * their stage groups.
+ */
 export const MARKETING_FEATURES: Feature[] = [
   ...PRESENCE_FEATURES,
   ...FOUND_FEATURES,
   ...BOOKED_FEATURES,
-  APPOINTMENTS_FEATURE,
   ...PAID_FEATURES,
   ...RUN_FEATURES,
+  APPOINTMENTS_FEATURE,
+  QR_ENGINE_FEATURE,
+  TABLES_FEATURE,
+  TICKETING_FEATURE,
+  WEBSITE_BUILDER_FEATURE,
 ].sort((a, b) => a.plate - b.plate);
 
 export function getFeatureByKey(key: string): Feature | undefined {
