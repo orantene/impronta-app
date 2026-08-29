@@ -38,7 +38,8 @@
  * Dev-handoff documentation lives at `web/docs/admin-prototype/dev-handoff.md`.
  */
 
-import { Component, Suspense, createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { SupportSlotContext, SupportSlotGate } from "./internal/support-slot-gate";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
@@ -209,7 +210,6 @@ class ErrorBoundary extends Component<
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
 
-const SupportSlotContext = createContext<ReactNode>(null);
 
 function ConditionalAdminShellRoot() {
   // usePathname is null during initial server render, then resolves on
@@ -1252,23 +1252,6 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
       </div>
     </div>
   );
-}
-
-/**
- * Support launcher mount point.
- *
- * This used to live inside AdminShellContent, i.e. inside AdminShellRoot. On
- * the TALENT shell, ConditionalAdminShellRoot returns null for canonical
- * paths, so the launcher silently vanished on /talent/today and every other
- * canonical talent route. Rendering it as a sibling of the shell root — still
- * inside AdminShellProvider, so shell state (including the drawer-open check)
- * is available — makes it route- and surface-agnostic.
- */
-function SupportSlotGate() {
-  const { workspaceSupportEnabled } = useAdminShell();
-  const supportSlot = useContext(SupportSlotContext);
-  if (!workspaceSupportEnabled) return null;
-  return <>{supportSlot}</>;
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
