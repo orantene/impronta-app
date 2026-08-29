@@ -24,6 +24,7 @@ import {
 } from "@/lib/scheduling/hours-types";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { actorMayWriteHours } from "@/lib/scheduling/hours-edit-policy";
 
 const weeklySchema = z.record(
   z.string(),
@@ -49,7 +50,14 @@ const hoursPayloadSchema = z
   .strict();
 
 type HoursAuth =
-  | { ok: true; userId: string; isStaff: boolean; staffTenantId: string | null }
+  | {
+      ok: true;
+      userId: string;
+      isOwner: boolean;
+      isStaff: boolean;
+      staffTenantId: string | null;
+      canEditHours: boolean;
+    }
   | { ok: false; error: string };
 
 async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
@@ -61,7 +69,7 @@ async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
 
   const { data: tp, error } = await supabase
     .from("talent_profiles")
-    .select("id, user_id")
+    .select("id, user_id, profile_kind")
     .eq("id", talentProfileId)
     .maybeSingle();
 
@@ -78,8 +86,16 @@ async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
   return {
     ok: true,
     userId: session.user.id,
+    isOwner,
     isStaff: staff.ok,
     staffTenantId: staff.ok ? staff.tenantId : null,
+    canEditHours: actorMayWriteHours(
+      { isOwner, isStaff: staff.ok },
+      {
+        profileKind: typeof tp.profile_kind === "string" ? tp.profile_kind : "person",
+        userId: typeof tp.user_id === "string" ? tp.user_id : null,
+      },
+    ),
   };
 }
 
@@ -187,7 +203,12 @@ export async function listBookingHoursTargets(): Promise<ListTargetsResult> {
 }
 
 type LoadHoursResult =
-  | { ok: true; hours: BookingHours | null; directBookingOptIn: boolean }
+  | {
+      ok: true;
+      hours: BookingHours | null;
+      directBookingOptIn: boolean;
+      canEditHours: boolean;
+    }
   | { ok: false; error: string };
 
 export async function loadBookingHours(talentProfileId: string): Promise<LoadHoursResult> {
@@ -229,6 +250,7 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
     ok: true,
     hours: parseBookingHours(hoursRow),
     directBookingOptIn: terms.directBookingOptIn === true,
+    canEditHours: auth.canEditHours,
   };
 }
 
@@ -248,6 +270,9 @@ export async function saveBookingHours(
 ): Promise<SaveHoursResult> {
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
+  if (!auth.canEditHours) {
+    return { ok: false, error: "This person sets their own hours." };
+  }
 
   const parsed = hoursPayloadSchema.safeParse({
     ...payload,
