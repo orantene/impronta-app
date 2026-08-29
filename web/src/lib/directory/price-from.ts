@@ -124,15 +124,16 @@ export async function fetchStartingPrices(
     ) {
       bookableIds.add(row.talent_profile_id);
     }
+    const amountCents = row.amount_cents;
     const priced =
       row.price_type !== "custom" &&
       row.price_display !== "quote" &&
-      typeof row.amount_cents === "number" &&
-      row.amount_cents > 0;
+      typeof amountCents === "number" &&
+      amountCents > 0;
     if (!priced) continue;
     const list = byTalent.get(row.talent_profile_id) ?? [];
     list.push({
-      amountCents: row.amount_cents,
+      amountCents,
       currency: (row.currency ?? "USD").toUpperCase(),
       priceType: row.price_type ?? "",
       isFeatured: row.is_featured === true,
