@@ -1,4 +1,3 @@
-import { createTranslator } from "@/i18n/messages";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -290,7 +289,6 @@ export async function FeaturedTalentComponent({
   };
 
   // Hard cap at 15 regardless of source mode (schema also bounds `limit`).
-  const t = createTranslator(locale);
   const cards = (
     await fetchFeaturedTalentForSection(tenantId, props, locale)
   ).slice(0, 15);
