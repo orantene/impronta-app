@@ -72,31 +72,38 @@ export default async function FeatureHubPage() {
 
       <MarketingSection spacing="tight">
         <MarketingContainer size="wide">
-          <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
-            {copy.eyebrow}
-          </p>
-          <h1
-            className="plt-display mt-3 max-w-3xl"
-            style={{
-              fontSize: "clamp(2.1rem, 6vw, 3.5rem)",
-              lineHeight: 1.04,
-              color: "var(--plt-ink)",
-            }}
-          >
-            {copy.title}
-          </h1>
-          <p
-            className="plt-body mt-5 max-w-2xl"
-            style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
-          >
-            {copy.lede}
-          </p>
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
+              {copy.eyebrow}
+            </p>
+            <h1
+              className="plt-display mt-4"
+              style={{
+                fontSize: "clamp(2.1rem, 6vw, 3.5rem)",
+                lineHeight: 1.04,
+                color: "var(--plt-ink)",
+              }}
+            >
+              {copy.title}
+            </h1>
+            <p
+              className="plt-body mx-auto mt-5 max-w-2xl"
+              style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
+            >
+              {copy.lede}
+            </p>
+          </div>
         </MarketingContainer>
       </MarketingSection>
 
       <MarketingSection spacing="tight">
         <MarketingContainer size="wide">
-          <FeaturePlateGrid groups={groups} locale={locale} comingLabel={copy.coming} />
+          <FeaturePlateGrid
+            groups={groups}
+            locale={locale}
+            comingLabel={copy.coming}
+            showStageNav
+          />
         </MarketingContainer>
       </MarketingSection>
 

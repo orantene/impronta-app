@@ -191,10 +191,13 @@ const PATHS: Record<FeatureKey, React.ReactNode> = {
 export function FeatureIcon({
   featureKey,
   size = 28,
+  strokeWidth = 1.5,
   className,
 }: {
   featureKey: FeatureKey;
   size?: number;
+  /** Bumped slightly at large sizes so the line keeps its weight. */
+  strokeWidth?: number;
   className?: string;
 }) {
   return (
@@ -205,7 +208,7 @@ export function FeatureIcon({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

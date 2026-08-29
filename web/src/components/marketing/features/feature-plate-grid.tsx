@@ -7,101 +7,119 @@ import { useFeatureHub } from "./feature-hub";
 import { FeatureIcon } from "./feature-icons";
 
 /**
- * The specimen grid: numbered plates hanging off one drawn line.
+ * The feature cards.
  *
- * The line is the point. Tulala is one spine with many doors, so the hub
- * literally draws that: a single rule runs down the whole section and every
- * stage and every plate attaches to it. It is honest here in a way it would
- * not be on a competitor's site, which is what makes it ours.
+ * An earlier pass drew this as a hairline table with a plate number in every
+ * corner. It read as a calendar, and the numbers served the concept rather
+ * than the reader, so both are gone. What replaces them is what the eye
+ * actually wants from a catalogue of twenty one things: separated cards with
+ * room to breathe, a large icon that carries the meaning, and a name and a
+ * promise in that order.
  *
- * Plates are anchors first and popup triggers second, for the same reason the
- * inline links are: the page behind a plate has to be reachable without
- * script.
+ * Cards are anchors first and popup triggers second, so the page behind each
+ * one stays reachable without script.
  */
 
 export type PlateGroup = { group: FeatureGroup; stage: string; features: FeaturePlatePayload[] };
 
+/**
+ * A quiet ink shift per stage. Enough that the five bands feel like chapters,
+ * far short of a colour per card, which would turn the page into confetti.
+ * The icon carries this on its own line work: there is no tile behind it, so
+ * the mark sits directly on the card the way a drawn symbol should.
+ */
+const STAGE_MARK: Record<FeatureGroup, string> = {
+  presence: "var(--tl-forest)",
+  found: "var(--tl-clay)",
+  booked: "var(--tl-forest-bright)",
+  paid: "var(--tl-forest)",
+  run: "var(--tl-ink-soft)",
+};
+
 export function FeaturePlateGrid({
   groups,
   locale,
-  startIndex = 1,
   comingLabel,
+  showStageNav = false,
 }: {
   groups: PlateGroup[];
   locale: string;
-  /** Stage numbering continues across the two homepage sections. */
-  startIndex?: number;
   comingLabel: string;
+  /** Jump links to each stage. Worth it where the whole catalogue is shown. */
+  showStageNav?: boolean;
 }) {
   return (
-    <div className="relative">
-      {/* The spine. One continuous rule behind every band in this section. */}
-      <span
-        aria-hidden
-        className="absolute top-2 bottom-2 w-px"
-        style={{ left: "0.5rem", background: "var(--plt-hairline)" }}
-      />
-      <div className="flex flex-col gap-12 sm:gap-16">
-        {groups.map((band, i) => (
-          <StageBand
-            key={band.group}
-            band={band}
-            index={startIndex + i}
-            locale={locale}
-            comingLabel={comingLabel}
-          />
-        ))}
-      </div>
+    <div className="flex flex-col gap-14 sm:gap-16">
+      {showStageNav ? <StageNav groups={groups} /> : null}
+      {groups.map((band) => (
+        <StageBand key={band.group} band={band} locale={locale} comingLabel={comingLabel} />
+      ))}
     </div>
+  );
+}
+
+function StageNav({ groups }: { groups: PlateGroup[] }) {
+  return (
+    <nav className="flex flex-wrap justify-center gap-2">
+      {groups.map((band) => (
+        <a
+          key={band.group}
+          href={`#stage-${band.group}`}
+          className="mkt-stage-chip inline-flex items-center rounded-full px-4 py-2"
+          style={{
+            border: "1px solid var(--plt-hairline)",
+            background: "var(--tl-surface-raised)",
+            color: "var(--plt-ink-soft)",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+          }}
+        >
+          {band.stage}
+        </a>
+      ))}
+    </nav>
   );
 }
 
 function StageBand({
   band,
-  index,
   locale,
   comingLabel,
 }: {
   band: PlateGroup;
-  index: number;
   locale: string;
   comingLabel: string;
 }) {
   return (
-    <section className="relative pl-7 sm:pl-12">
-      {/* The node where this stage attaches to the spine. */}
-      <span
-        aria-hidden
-        className="absolute left-[0.28rem] top-[0.42rem] h-[0.45rem] w-[0.45rem] rounded-full"
-        style={{ background: "var(--plt-forest)" }}
-      />
-      <h3 className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
-        <span className="plt-numeral" style={{ color: "var(--plt-forest)" }}>
-          {String(index).padStart(2, "0")}
-        </span>
-        <span aria-hidden className="mx-2" style={{ color: "var(--plt-hairline-strong)" }}>
-          /
-        </span>
-        {band.stage}
-      </h3>
-
-      <div className="mt-5 grid grid-cols-2 gap-px md:grid-cols-3 lg:grid-cols-4"
-        style={{ background: "var(--plt-hairline)" }}
-      >
+    <section id={`stage-${band.group}`} className="scroll-mt-28">
+      <div className="text-center">
+        <h3 className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
+          {band.stage}
+        </h3>
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {band.features.map((f) => (
-          <Plate key={`${band.group}-${f.key}`} feature={f} locale={locale} comingLabel={comingLabel} />
+          <FeatureCard
+            key={`${band.group}-${f.key}`}
+            feature={f}
+            mark={STAGE_MARK[band.group]}
+            locale={locale}
+            comingLabel={comingLabel}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function Plate({
+function FeatureCard({
   feature,
+  mark,
   locale,
   comingLabel,
 }: {
   feature: FeaturePlatePayload;
+  mark: string;
   locale: string;
   comingLabel: string;
 }) {
@@ -116,58 +134,45 @@ function Plate({
         e.preventDefault();
         open(feature.key, "grid");
       }}
-      className="mkt-plate group relative flex min-h-[10.5rem] flex-col justify-between p-5 sm:min-h-[11.5rem] sm:p-6"
-      style={{ background: "var(--plt-bg)" }}
+      className="mkt-feature-card group flex flex-col items-center px-6 py-9 text-center sm:px-7"
+      style={{
+        background: "var(--tl-surface-raised)",
+        border: "1px solid var(--plt-hairline)",
+        borderRadius: "var(--tl-radius-lg)",
+      }}
     >
-      {/* The plate number, set large and quiet. It takes the accent on hover,
-          which is the only colour the grid ever spends. */}
+      <span className="mkt-feature-mark" style={{ color: mark }}>
+        <FeatureIcon featureKey={feature.key} size={52} strokeWidth={1.25} />
+      </span>
+
       <span
-        aria-hidden
-        className="mkt-plate-number plt-numeral absolute right-4 top-3 leading-none"
-        style={{ fontSize: "1.75rem", color: "var(--plt-hairline-strong)" }}
+        className="plt-display mt-6"
+        style={{ fontSize: "1.0625rem", lineHeight: 1.3, color: "var(--plt-ink)" }}
       >
-        {String(feature.plate).padStart(2, "0")}
+        {feature.name}
       </span>
-
-      <span className="mkt-plate-icon" style={{ color: "var(--plt-forest)" }}>
-        <FeatureIcon featureKey={feature.key} size={30} />
-      </span>
-
-      <span className="mt-5 flex flex-col gap-1">
-        <span
-          className="plt-display"
-          style={{ fontSize: "1rem", lineHeight: 1.25, color: "var(--plt-ink)" }}
-        >
-          {feature.name}
-        </span>
-        <span
-          className="plt-display-serif italic"
-          style={{ fontSize: "0.8125rem", lineHeight: 1.4, color: "var(--plt-muted)" }}
-        >
-          {feature.promise}
-        </span>
-        {feature.status === "coming" ? (
-          <span
-            className="mt-2 inline-flex w-fit rounded-full px-2 py-[2px]"
-            style={{
-              background: "var(--tl-warning-bg)",
-              color: "var(--tl-warning)",
-              fontSize: "0.625rem",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            {comingLabel}
-          </span>
-        ) : null}
-      </span>
-
-      {/* The hairline that takes the accent on hover. */}
       <span
-        aria-hidden
-        className="mkt-plate-rule absolute bottom-0 left-0 h-px w-0"
-        style={{ background: "var(--plt-accent)" }}
-      />
+        className="plt-body mt-2"
+        style={{ fontSize: "0.875rem", lineHeight: 1.55, color: "var(--plt-muted)" }}
+      >
+        {feature.promise}
+      </span>
+
+      {feature.status === "coming" ? (
+        <span
+          className="mt-4 inline-flex rounded-full px-2.5 py-1"
+          style={{
+            background: "var(--tl-warning-bg)",
+            color: "var(--tl-warning)",
+            fontSize: "0.625rem",
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+          }}
+        >
+          {comingLabel}
+        </span>
+      ) : null}
     </a>
   );
 }

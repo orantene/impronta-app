@@ -14,13 +14,13 @@ import { FeaturePlateGrid, type PlateGroup } from "./feature-plate-grid";
 /**
  * The two feature sections on the homepage.
  *
- * The split is the owner's: plates one to twelve, then thirteen to twenty one,
- * with Premium Support closing BOTH. Support appearing twice is deliberate. It
- * is the promise behind every other plate, and the one thing a competitor
- * cannot copy by shipping a feature.
+ * The split is the owner's: the first twelve features, then the rest, with
+ * Premium Support closing BOTH. Support appearing twice is deliberate. It is
+ * the promise behind every other card, and the one thing a competitor cannot
+ * copy by shipping a feature.
  *
- * Both sections render inside the page's `FeatureHubProvider`, so a plate here
- * opens the same popup as a plate anywhere else.
+ * Both sections render inside the page's `FeatureHubProvider`, so a card here
+ * opens the same popup as a card anywhere else.
  */
 
 function bandsFor(section: "one" | "two", locale: string): PlateGroup[] {
@@ -38,7 +38,7 @@ function bandsFor(section: "one" | "two", locale: string): PlateGroup[] {
       });
     }
   }
-  // Keep the lifecycle order, which is the story the numbering tells.
+  // Keep the lifecycle order. It is the story the page tells.
   return FEATURE_GROUP_ORDER.map((g) => byGroup.get(g)).filter(
     (b): b is PlateGroup => Boolean(b),
   );
@@ -61,26 +61,27 @@ export function HomeFeatureSectionOne({ locale }: { locale: string }) {
   return (
     <MarketingSection spacing="default">
       <MarketingContainer size="wide">
-        <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
-          {copy.eyebrow}
-        </p>
-        <h2
-          className="plt-display mt-3 max-w-3xl"
-          style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
-        >
-          {copy.title}
-        </h2>
-        <p
-          className="plt-body mt-4 max-w-2xl"
-          style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
-        >
-          {copy.lede}
-        </p>
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
+            {copy.eyebrow}
+          </p>
+          <h2
+            className="plt-display mt-4"
+            style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
+          >
+            {copy.title}
+          </h2>
+          <p
+            className="plt-body mx-auto mt-4 max-w-2xl"
+            style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
+          >
+            {copy.lede}
+          </p>
+        </div>
         <div className="mt-12">
           <FeaturePlateGrid
             groups={bandsFor("one", locale)}
             locale={locale}
-            startIndex={1}
             comingLabel={copy.coming}
           />
         </div>
@@ -107,30 +108,31 @@ export function HomeFeatureSectionTwo({ locale }: { locale: string }) {
   return (
     <MarketingSection spacing="default" style={{ background: "var(--plt-bg-raised)" }}>
       <MarketingContainer size="wide">
-        <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
-          {copy.eyebrow}
-        </p>
-        <h2
-          className="plt-display mt-3 max-w-3xl"
-          style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
-        >
-          {copy.title}
-        </h2>
-        <p
-          className="plt-body mt-4 max-w-2xl"
-          style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
-        >
-          {copy.lede}
-        </p>
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
+            {copy.eyebrow}
+          </p>
+          <h2
+            className="plt-display mt-4"
+            style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
+          >
+            {copy.title}
+          </h2>
+          <p
+            className="plt-body mx-auto mt-4 max-w-2xl"
+            style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
+          >
+            {copy.lede}
+          </p>
+        </div>
         <div className="mt-12">
           <FeaturePlateGrid
             groups={bandsFor("two", locale)}
             locale={locale}
-            startIndex={4}
             comingLabel={copy.coming}
           />
         </div>
-        <div className="mt-12">
+        <div className="mt-12 flex justify-center">
           <MarketingCta href={withLocaleHref("/features", locale)} size="md" eventSource="home" eventIntent="feature-hub">
             {copy.all}
           </MarketingCta>

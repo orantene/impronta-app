@@ -53,23 +53,23 @@ export function RelatedFeatures({
             <h2 className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
               {t.relatedTitle}
             </h2>
-            <div
-              className="mt-5 grid grid-cols-1 gap-px sm:grid-cols-2"
-              style={{ background: "var(--plt-hairline)" }}
-            >
+            <div className="mt-5 grid grid-cols-1 gap-px sm:grid-cols-2">
               {related.map(({ plate, href }) => (
                 <a
                   key={plate.key}
                   href={withLocaleHref(href, locale)}
-                  className="mkt-plate group flex items-start gap-4 p-6"
-                  style={{ background: "var(--plt-bg)" }}
+                  className="mkt-feature-card group flex items-start gap-4 p-6"
+                  style={{
+                    background: "var(--tl-surface-raised)",
+                    border: "1px solid var(--plt-hairline)",
+                    borderRadius: "var(--tl-radius-lg)",
+                  }}
                 >
                   <span
-                    aria-hidden
-                    className="mkt-plate-number plt-numeral leading-none"
-                    style={{ fontSize: "1.35rem", color: "var(--plt-hairline-strong)" }}
+                    className="mkt-feature-mark inline-flex shrink-0"
+                    style={{ color: "var(--plt-forest)" }}
                   >
-                    {String(plate.plate).padStart(2, "0")}
+                    <FeatureIcon featureKey={plate.key} size={36} strokeWidth={1.3} />
                   </span>
                   <span className="min-w-0">
                     <span
@@ -79,14 +79,11 @@ export function RelatedFeatures({
                       {plate.name}
                     </span>
                     <span
-                      className="plt-display-serif mt-1 block italic"
+                      className="plt-body mt-1 block"
                       style={{ fontSize: "0.875rem", color: "var(--plt-muted)" }}
                     >
                       {plate.promise}
                     </span>
-                  </span>
-                  <span className="ml-auto shrink-0" style={{ color: "var(--plt-forest)" }}>
-                    <FeatureIcon featureKey={plate.key} size={22} />
                   </span>
                 </a>
               ))}
@@ -109,8 +106,12 @@ export function RelatedFeatures({
         {/* The documentation slot. A shell, and it says so. */}
         <a
           href={withLocaleHref("/docs", locale)}
-          className="mkt-plate mt-12 flex items-center justify-between gap-4 p-6"
-          style={{ background: "var(--plt-bg)", border: "1px solid var(--plt-hairline)" }}
+          className="mkt-feature-card mt-12 flex items-center justify-between gap-4 p-6"
+          style={{
+            background: "var(--tl-surface-raised)",
+            border: "1px solid var(--plt-hairline)",
+            borderRadius: "var(--tl-radius-lg)",
+          }}
         >
           <span>
             <span className="plt-display block" style={{ fontSize: "1rem", color: "var(--plt-ink)" }}>

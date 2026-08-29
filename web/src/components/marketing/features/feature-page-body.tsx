@@ -64,12 +64,8 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
           </a>
 
           <div className="mt-8 flex items-start gap-6">
-            <span
-              aria-hidden
-              className="plt-numeral shrink-0 leading-none"
-              style={{ fontSize: "clamp(2.5rem, 7vw, 4rem)", color: "var(--plt-hairline-strong)" }}
-            >
-              {String(feature.plate).padStart(2, "0")}
+            <span className="inline-flex shrink-0" style={{ color: "var(--plt-forest)" }}>
+              <FeatureIcon featureKey={feature.key} size={60} strokeWidth={1.25} />
             </span>
             <div className="min-w-0">
               <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
@@ -95,9 +91,6 @@ export function FeaturePageBody({ feature, locale }: { feature: Feature; locale:
           </div>
 
           <div className="mt-8 flex items-center gap-5">
-            <span style={{ color: "var(--plt-forest)" }}>
-              <FeatureIcon featureKey={feature.key} size={34} />
-            </span>
             <MarketingCta
               href={withLocaleHref(
                 isComing ? `/waitlist?feature=${feature.key}` : "/get-started",

@@ -1410,48 +1410,68 @@ html[data-public-font-preset="editorial"] {
   }
 }
 
-/* ── Feature hub: the specimen plates ─────────────────────────────────────
-   The hub draws Tulala's own architecture: one spine, plates hanging off it.
-   Colour is spent in exactly two places on interaction, the plate number and
-   the rule beneath it, so a grid of twenty one items still reads as quiet. */
+/* ── Feature hub cards ────────────────────────────────────────────────────
+   Separated cards rather than a hairline table: an earlier hairline-and-
+   numbers version read as a calendar. Interaction is a lift plus a warmed
+   border, and the icon tile answers with it, which is enough movement for a
+   grid of twenty one without any of them shouting. */
 
-.mkt-plate {
+.mkt-feature-card {
   transition:
-    background 180ms ease,
-    color 180ms ease;
+    transform 200ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 200ms ease;
 }
-.mkt-plate:hover {
-  background: var(--plt-bg-raised) !important;
+.mkt-feature-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--plt-hairline-strong) !important;
+  box-shadow: var(--tl-shadow-md);
 }
-.mkt-plate-number {
-  transition:
-    color 180ms ease,
-    transform 180ms ease;
-}
-.mkt-plate:hover .mkt-plate-number,
-.mkt-plate:focus-visible .mkt-plate-number {
-  color: var(--plt-accent);
-}
-.mkt-plate-icon {
-  display: inline-flex;
-  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
-}
-.mkt-plate:hover .mkt-plate-icon {
-  transform: translateY(-2px);
-}
-.mkt-plate-rule {
-  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
-}
-.mkt-plate:hover .mkt-plate-rule,
-.mkt-plate:focus-visible .mkt-plate-rule {
-  width: 100%;
-}
-.mkt-plate:focus-visible {
+.mkt-feature-card:focus-visible {
   outline: 2px solid var(--plt-forest);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+.mkt-stage-chip {
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+.mkt-stage-chip:hover {
+  border-color: var(--plt-forest) !important;
+  color: var(--plt-forest) !important;
+}
+.mkt-stage-chip:focus-visible {
+  outline: 2px solid var(--plt-forest);
+  outline-offset: 2px;
 }
 
-/* The popup is a plate lifted off the page, not a card sliding in. */
+.mkt-feature-mark {
+  display: inline-flex;
+  transition:
+    transform 200ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 200ms ease;
+}
+.mkt-feature-card:hover .mkt-stage-chip {
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+.mkt-stage-chip:hover {
+  border-color: var(--plt-forest) !important;
+  color: var(--plt-forest) !important;
+}
+.mkt-stage-chip:focus-visible {
+  outline: 2px solid var(--plt-forest);
+  outline-offset: 2px;
+}
+
+.mkt-feature-mark {
+  transform: translateY(-2px) scale(1.04);
+}
+
+/* The popup is a card lifted off the page. */
 @keyframes mkt-plate-rise {
   from {
     opacity: 0;
@@ -1478,18 +1498,49 @@ html[data-public-font-preset="editorial"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mkt-plate,
-  .mkt-plate-number,
-  .mkt-plate-icon,
-  .mkt-plate-rule {
+  .mkt-feature-card,
+  .mkt-stage-chip {
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+.mkt-stage-chip:hover {
+  border-color: var(--plt-forest) !important;
+  color: var(--plt-forest) !important;
+}
+.mkt-stage-chip:focus-visible {
+  outline: 2px solid var(--plt-forest);
+  outline-offset: 2px;
+}
+
+.mkt-feature-mark {
     transition: none;
+  }
+  .mkt-feature-card:hover {
+    transform: none;
+  }
+  .mkt-feature-card:hover .mkt-stage-chip {
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+.mkt-stage-chip:hover {
+  border-color: var(--plt-forest) !important;
+  color: var(--plt-forest) !important;
+}
+.mkt-stage-chip:focus-visible {
+  outline: 2px solid var(--plt-forest);
+  outline-offset: 2px;
+}
+
+.mkt-feature-mark {
+    transform: none;
   }
   .mkt-plate-rise,
   .mkt-plate-scrim {
     animation: none;
-  }
-  .mkt-plate:hover .mkt-plate-icon {
-    transform: none;
   }
 }
 

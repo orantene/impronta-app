@@ -9,13 +9,13 @@ import { trackProductEvent } from "@/lib/analytics/track-client";
 import { FeatureIcon } from "./feature-icons";
 
 /**
- * The plate reader: one context, one dialog, opened from anywhere on a page.
+ * The feature reader: one context, one dialog, opened from anywhere on a page.
  *
- * A plate in the grid and a feature named inside a sentence both open the same
+ * A card in the grid and a feature named inside a sentence both open the same
  * popup, so the reader can check what something is without losing their place.
  * The dialog is authored here rather than adapted from another marketing
- * section, because the hub has its own visual language: a specimen plate
- * lifted off the page, not a card in a modal.
+ * section: it is a card lifted off the page, with the icon carrying the top
+ * of it because this version ships without screenshots.
  *
  * The anchor underneath every trigger is a real link to the full page. Script
  * intercepts the click to open the popup instead, which keeps the popup as a
@@ -161,14 +161,6 @@ function FeaturePlateDialog({
             boxShadow: "var(--tl-shadow-lg)",
           }}
         >
-          {/* The spine: the same drawn line that threads the grid, entering
-              the plate and running down its left edge. */}
-          <span
-            aria-hidden
-            className="absolute left-0 top-8 bottom-8 w-px"
-            style={{ background: "var(--plt-hairline-strong)" }}
-          />
-
           <button
             type="button"
             onClick={onClose}
@@ -182,17 +174,9 @@ function FeaturePlateDialog({
           </button>
 
           <div className="px-7 pb-8 pt-9 sm:px-10 sm:pb-10 sm:pt-11">
-            <div className="flex items-start gap-5">
-              <span
-                className="plt-numeral shrink-0 leading-none"
-                style={{ fontSize: "2.75rem", color: "var(--plt-accent)" }}
-              >
-                {String(payload.plate).padStart(2, "0")}
-              </span>
-              <span style={{ color: "var(--plt-forest)" }}>
-                <FeatureIcon featureKey={payload.key} size={40} />
-              </span>
-            </div>
+            <span className="inline-flex" style={{ color: "var(--plt-forest)" }}>
+              <FeatureIcon featureKey={payload.key} size={56} strokeWidth={1.25} />
+            </span>
 
             <p className="plt-eyebrow mt-6" style={{ color: "var(--plt-muted)" }}>
               {payload.stage}
@@ -255,10 +239,7 @@ function FeaturePlateDialog({
                         fontSize: "0.8125rem",
                       }}
                     >
-                      <span className="plt-numeral" style={{ color: "var(--plt-muted-soft)" }}>
-                        {String(r.plate).padStart(2, "0")}
-                      </span>
-                      {r.name}
+                        {r.name}
                     </button>
                   ))}
                 </div>
