@@ -123,8 +123,16 @@ function FeaturePlateDialog({
 
   React.useEffect(() => {
     // Move focus into the plate so the keyboard and a screen reader follow.
+    //
+    // `mounted` MUST be in the dependency list. The component returns null
+    // until the portal is ready, so on the first render this effect ran while
+    // the dialog was not in the DOM and `cardRef.current` was null; keyed only
+    // on `payload.key`, it then never re-ran once the dialog actually mounted.
+    // Verified in a browser: the dialog opened with aria-modal="true" while
+    // focus stayed on the link behind it, and Tab walked the page underneath.
+    if (!mounted) return;
     cardRef.current?.focus();
-  }, [payload.key]);
+  }, [payload.key, mounted]);
 
   if (!mounted) return null;
 

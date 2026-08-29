@@ -7,7 +7,8 @@ import { withLocaleHref } from "@/i18n/pathnames";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /** Support contact — used in the header cluster and the mobile menu alike. */
-export const SUPPORT_EMAIL = "hello@tulala.digital";
+export { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 const ROW =
   "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]";
