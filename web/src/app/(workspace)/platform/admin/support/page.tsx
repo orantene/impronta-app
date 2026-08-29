@@ -29,37 +29,13 @@ export default async function PlatformSupportPage({
 
   return (
     <>
-      <div style={{ marginBottom: 18 }}>
-        <h1
-          style={{
-            fontFamily: HQ_FD,
-            fontSize: 24,
-            fontWeight: 600,
-            letterSpacing: -0.4,
-            color: HQ.ink,
-            margin: 0,
-            lineHeight: 1.15,
-          }}
-        >
-          {t("dashboard.platform.support.pageTitle")}
-        </h1>
-        <p
-          style={{
-            fontFamily: HQ_F,
-            fontSize: 13,
-            color: HQ.inkMuted,
-            margin: "5px 0 0",
-          }}
-        >
-          {interpolate(t("dashboard.platform.support.pageSubtitle"), { count: openCount })}
-        </p>
-      </div>
       <NotificationPermissionCard />
       <SupportHqShell
         rows={rows}
         insights={insights}
         cannedReplies={cannedReplies}
         ideas={ideas}
+        initialOpenCount={openCount}
         initialTicketId={openTicketId ?? null}
         initialView={view === "insights" ? "insights" : view === "ideas" ? "ideas" : "queue"}
       />

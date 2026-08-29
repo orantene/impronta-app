@@ -38,7 +38,8 @@
  * Dev-handoff documentation lives at `web/docs/admin-prototype/dev-handoff.md`.
  */
 
-import { Component, Suspense, createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { SupportSlotContext, SupportSlotGate } from "./internal/support-slot-gate";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
@@ -209,7 +210,6 @@ class ErrorBoundary extends Component<
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
 
-const SupportSlotContext = createContext<ReactNode>(null);
 
 function ConditionalAdminShellRoot() {
   // usePathname is null during initial server render, then resolves on
@@ -303,6 +303,7 @@ export function AdminShellClient({
             <WorkspaceShellWithCanonicalChildren>
               {children}
             </WorkspaceShellWithCanonicalChildren>
+            <SupportSlotGate />
           </AdminShellProvider>
         </SupportSlotContext.Provider>
       </Suspense>
@@ -363,6 +364,7 @@ export function TalentShellClient({
                 CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
                 exactly as before (pathIsCanonical → false → AdminShellRoot). */}
             <ConditionalAdminShellRoot />
+            <SupportSlotGate />
           </AdminShellProvider>
         </SupportSlotContext.Provider>
       </Suspense>
@@ -1253,8 +1255,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
-  const { bridgeTenantIdentity, workspaceFabEnabled, workspaceSupportEnabled } = useAdminShell();
-  const supportSlot = useContext(SupportSlotContext);
+  const { bridgeTenantIdentity, workspaceFabEnabled } = useAdminShell();
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
   // `--tulala-accent-deep` re-tint every accent token in the shell; when
@@ -2477,7 +2478,6 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           {/* First-time admin tour — 4 tooltip overlays. Self-fires once.
               Platform-gated by the same Workspace UI switch card. */}
           <AdminTourGate />
-          {workspaceSupportEnabled && supportSlot}
         </div>
     </>
   );

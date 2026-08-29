@@ -6,7 +6,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { syncBrandSettingsToTheme } from "@/lib/site-admin/server/brand-library";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { supportFrom } from "../support-from";
-import { isSettingsPatchKey, setDotted, type ProposedActionKind } from "./kinds";
+import { getDotted, isSettingsPatchKey, setDotted, type ProposedActionKind } from "./kinds";
 
 const HEX = /^#[0-9a-fA-F]{6}$/u;
 
@@ -75,6 +75,7 @@ export async function applyApprovedAction(input: {
           agency?.settings && typeof agency.settings === "object" && !Array.isArray(agency.settings)
             ? { ...(agency.settings as Record<string, unknown>) }
             : {};
+        const previous: Record<string, unknown> = {};
         const brandingPatch: {
           logo_url?: string | null;
           favicon_url?: string | null;
@@ -83,6 +84,9 @@ export async function applyApprovedAction(input: {
         } = {};
         for (const [key, value] of Object.entries(payload)) {
           if (!isSettingsPatchKey(key)) continue;
+          // Record what this replaced. Without it the audit shows only the new
+          // value, so an applied support change cannot be reviewed or undone.
+          previous[key] = getDotted(settings, key) ?? null;
           if (key.endsWith("_color") && typeof value === "string" && !HEX.test(value)) {
             throw new Error(`Invalid color for ${key}`);
           }
@@ -106,7 +110,7 @@ export async function applyApprovedAction(input: {
           .eq("id", tenantId);
         if (writeErr) throw writeErr;
         await syncBrandSettingsToTheme(admin, tenantId, brandingPatch);
-        result = { patched: Object.keys(payload), tenantId };
+        result = { patched: Object.keys(payload), previous, tenantId };
       }
     } else {
       status = "failed";
@@ -126,6 +130,10 @@ export async function applyApprovedAction(input: {
     targetId: input.tenantId ?? input.ticketId,
     action: "support.proposed_action.applied",
     supportMode: "assisted_edit",
+    before:
+      result && typeof result === "object" && "previous" in result
+        ? ((result as { previous?: Record<string, unknown> }).previous ?? undefined)
+        : undefined,
     after: result,
     context: {
       proposed_action_id: input.actionId,

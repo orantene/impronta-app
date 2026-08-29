@@ -5,6 +5,7 @@ import {
   FORBIDDEN_SETTINGS_PREFIXES,
   pickWhitelistedPatch,
   SETTINGS_PATCH_KEYS,
+  getDotted,
   setDotted,
 } from "./kinds";
 
@@ -41,4 +42,11 @@ test("setDotted writes nested branding without clobbering siblings", () => {
   assert.equal(branding.tagline, "new");
   assert.equal(branding.extra, 1);
   assert.equal(settings.other, true);
+});
+
+test("getDotted reads nested values and returns undefined for missing paths", () => {
+  const settings = { branding: { tagline: "before" } } as Record<string, unknown>;
+  assert.equal(getDotted(settings, "branding.tagline"), "before");
+  assert.equal(getDotted(settings, "branding.logo_url"), undefined);
+  assert.equal(getDotted(settings, "missing.deep.path"), undefined);
 });

@@ -43,6 +43,17 @@ export function pickWhitelistedPatch(
   return { ok: true, patch: patch as Record<SettingsPatchKey, unknown> };
 }
 
+/** Read a dotted path, for capturing what a patch is about to replace. */
+export function getDotted(source: Record<string, unknown>, path: string): unknown {
+  const parts = path.split(".");
+  let cur: unknown = source;
+  for (const part of parts) {
+    if (typeof cur !== "object" || cur === null || Array.isArray(cur)) return undefined;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  return cur;
+}
+
 export function setDotted(target: Record<string, unknown>, path: string, value: unknown): void {
   const parts = path.split(".");
   let cur = target;
