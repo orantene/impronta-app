@@ -20,6 +20,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
+import { unexpiredHoldOrFilter } from "@/lib/scheduling/hold-expiry";
 import { revalidatePath } from "next/cache";
 
 export type HoldStrength = "soft" | "firm";
@@ -107,6 +108,7 @@ export async function placeTalentHold(
         .eq("hold_strength", "firm")
         .lt("starts_at", input.endsAt)
         .gt("ends_at", input.startsAt)
+        .or(unexpiredHoldOrFilter())
         .limit(1);
       if (conflictErr) {
         logServerError("hold-actions/conflict_check", conflictErr);
@@ -259,7 +261,8 @@ export async function checkTalentAvailability(
         .select("hold_strength")
         .eq("talent_profile_id", talentProfileId)
         .lt("starts_at", endsAt)
-        .gt("ends_at", startsAt),
+        .gt("ends_at", startsAt)
+        .or(unexpiredHoldOrFilter()),
       supabase
         .from("talent_availability_blocks")
         .select("id")
