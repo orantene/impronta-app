@@ -5,7 +5,7 @@
  * Used by /book and the profile BookingCard.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -45,30 +45,56 @@ export function BookableComposer({
 }) {
   const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<SlotPickerValue | null>(null);
+  const [eventOffering, setEventOffering] = useState<BookableOffering | null>(null);
+  const active = eventOffering ?? offering;
+
+  useEffect(() => {
+    const onSlot = (e: Event) => {
+      const d = (e as CustomEvent<{
+        offeringId?: string;
+        talentProfileId?: string;
+        durationMinutes?: number | null;
+      }>).detail;
+      if (!d?.offeringId) return;
+      setEventOffering({
+        offeringId: d.offeringId,
+        durationMinutes:
+          typeof d.durationMinutes === "number" && d.durationMinutes > 0
+            ? d.durationMinutes
+            : offering.durationMinutes,
+        timezone: offering.timezone,
+        locationLabel: offering.locationLabel,
+        talentProfileId: d.talentProfileId ?? offering.talentProfileId,
+      });
+      setSlot(null);
+    };
+    window.addEventListener("tulala:offering-slot", onSlot);
+    return () => window.removeEventListener("tulala:offering-slot", onSlot);
+  }, [offering]);
 
   function stampFromSlot(value: SlotPickerValue): ReservationStamp {
     return {
       v: 1,
-      offering_id: offering.offeringId,
+      offering_id: active.offeringId,
       starts_at: value.startsAt,
       ends_at: value.endsAt,
       timezone: value.timezone,
-      duration_minutes: offering.durationMinutes,
+      duration_minutes: active.durationMinutes,
       mode: "request",
     };
   }
 
   const initialIntent: InquiryIntent = slot
-    ? applyReservationToIntent(baseIntent(offering), stampFromSlot(slot))
-    : baseIntent(offering);
+    ? applyReservationToIntent(baseIntent(active), stampFromSlot(slot))
+    : baseIntent(active);
 
   return (
     <div>
       {showInlinePicker ? (
         <SlotPicker
-          offeringId={offering.offeringId}
-          durationMinutes={offering.durationMinutes}
-          timezone={offering.timezone}
+          offeringId={active.offeringId}
+          durationMinutes={active.durationMinutes}
+          timezone={active.timezone}
           value={slot}
           onChange={(next) => {
             setSlot(next);
@@ -83,7 +109,7 @@ export function BookableComposer({
           agencyName={agencyName}
           client={null}
           enableDraftAutosave={false}
-          bookableOffering={offering}
+          bookableOffering={active}
           initialIntent={initialIntent}
           onClose={() => setOpen(false)}
         />

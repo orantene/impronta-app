@@ -209,4 +209,5 @@ test("public slots route returns starts only and does not re-add the hold reaper
   assert.doesNotMatch(route, /\.from\("talent_holds"\)/);
   assert.doesNotMatch(route, /\.from\("talent_bookings"\)/);
   assert.match(route, /loadBusyIntervals/);
+  assert.match(route, /resolveTalentBookingMode/);
 });
