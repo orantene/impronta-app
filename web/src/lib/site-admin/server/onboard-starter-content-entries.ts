@@ -5,6 +5,7 @@
  */
 
 import type { SectionTypeKey } from "@/lib/site-admin/sections/registry";
+import { STARTER_BUSINESS_NAME_FALLBACK } from "@/lib/site-admin/builder-node/starter-personalisation";
 import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";
 import {
   DEFAULT_SIGNUP_AUDIENCE,
@@ -145,7 +146,9 @@ export function buildFreeStarterEntries(
   studioName?: string | null,
   audience: StarterAudience = DEFAULT_SIGNUP_AUDIENCE,
 ): ReadonlyArray<FreeStarterEntry> {
-  const name = studioName?.trim() || "Our studio";
+  // One fallback noun for BOTH starter paths: the legacy section seed here and
+  // the `{{business.name}}` substitution the admin-authored Lab template gets.
+  const name = studioName?.trim() || STARTER_BUSINESS_NAME_FALLBACK;
   const hero = heroCopyFor(audience, name);
   const solo = audience === "operator";
   const hasRoster = starterAudienceHasRoster(audience);

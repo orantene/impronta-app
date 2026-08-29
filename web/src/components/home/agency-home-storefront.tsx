@@ -214,8 +214,21 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   if (wouldRenderDefaultBranch) {
     try {
       const serviceSupabase = createServiceRoleClient();
+      // Personalise the platform template for THIS tenant on the way out (see
+      // starter-personalisation.ts). `brandLabel` is not used: it falls back to
+      // the PLATFORM brand name, and stamping "Tulala" into a tenant's headline
+      // is worse than the neutral fallback the personaliser supplies.
+      //
+      // No `audience` here on purpose. The signup answer ("agency" /
+      // "organization" / "business" / "operator") lives on the marketing lead
+      // row, not on `agencies`, and `workspace_type` only distinguishes
+      // talent-vs-business, so it cannot reconstruct the four cases. Audience
+      // switches therefore resolve to their `else` case on this fallback path;
+      // name substitution is unaffected.
       const resolved = serviceSupabase
-        ? await resolvePlatformDefaultStorefrontTree(serviceSupabase)
+        ? await resolvePlatformDefaultStorefrontTree(serviceSupabase, {
+            businessName: identity?.public_name ?? null,
+          })
         : null;
       if (resolved && resolved.builderTree.length > 0) {
         defaultStorefrontSnapshot = {
