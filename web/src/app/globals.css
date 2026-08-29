@@ -1410,6 +1410,89 @@ html[data-public-font-preset="editorial"] {
   }
 }
 
+/* ── Feature hub: the specimen plates ─────────────────────────────────────
+   The hub draws Tulala's own architecture: one spine, plates hanging off it.
+   Colour is spent in exactly two places on interaction, the plate number and
+   the rule beneath it, so a grid of twenty one items still reads as quiet. */
+
+.mkt-plate {
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+.mkt-plate:hover {
+  background: var(--plt-bg-raised) !important;
+}
+.mkt-plate-number {
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+.mkt-plate:hover .mkt-plate-number,
+.mkt-plate:focus-visible .mkt-plate-number {
+  color: var(--plt-accent);
+}
+.mkt-plate-icon {
+  display: inline-flex;
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+.mkt-plate:hover .mkt-plate-icon {
+  transform: translateY(-2px);
+}
+.mkt-plate-rule {
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.mkt-plate:hover .mkt-plate-rule,
+.mkt-plate:focus-visible .mkt-plate-rule {
+  width: 100%;
+}
+.mkt-plate:focus-visible {
+  outline: 2px solid var(--plt-forest);
+  outline-offset: -2px;
+}
+
+/* The popup is a plate lifted off the page, not a card sliding in. */
+@keyframes mkt-plate-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes mkt-plate-scrim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.mkt-plate-rise {
+  animation: mkt-plate-rise 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+.mkt-plate-scrim {
+  animation: mkt-plate-scrim 180ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-plate,
+  .mkt-plate-number,
+  .mkt-plate-icon,
+  .mkt-plate-rule {
+    transition: none;
+  }
+  .mkt-plate-rise,
+  .mkt-plate-scrim {
+    animation: none;
+  }
+  .mkt-plate:hover .mkt-plate-icon {
+    transform: none;
+  }
+}
+
 /* Ambient drift — used on hero background flourishes. */
 @keyframes mkt-drift {
   0%,
