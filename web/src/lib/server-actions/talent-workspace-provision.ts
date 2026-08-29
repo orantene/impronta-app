@@ -30,6 +30,7 @@ import {
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 
 export type ProvisionFreeWorkspaceResult =
   | { ok: true; slug: string }
@@ -49,8 +50,11 @@ async function isSlugTaken(admin: ReturnType<typeof createServiceRoleClient>, sl
   return data !== null;
 }
 
-async function hasTalentProfile(admin: ReturnType<typeof createServiceRoleClient>, userId: string): Promise<boolean> {
-  if (!admin) return false;
+async function findLiveTalentProfileId(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+): Promise<string | null> {
+  if (!admin) return null;
   const { data, error } = await admin
     .from("talent_profiles")
     .select("id")
@@ -59,10 +63,10 @@ async function hasTalentProfile(admin: ReturnType<typeof createServiceRoleClient
     .limit(1)
     .maybeSingle();
   if (error) {
-    logServerError("talent-workspace-provision.hasTalentProfile", error);
-    return false;
+    logServerError("talent-workspace-provision.findLiveTalentProfileId", error);
+    return null;
   }
-  return data !== null;
+  return typeof data?.id === "string" ? data.id : null;
 }
 
 async function rollbackAgency(admin: ReturnType<typeof createServiceRoleClient>, agencyId: string): Promise<void> {
@@ -91,8 +95,8 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   }
 
   // ── Must have a talent profile somewhere ──────────────────────────────────
-  const isTalent = await hasTalentProfile(admin, userId);
-  if (!isTalent) {
+  const talentProfileId = await findLiveTalentProfileId(admin, userId);
+  if (!talentProfileId) {
     return { ok: false, error: "Only talent accounts can use this shortcut." };
   }
 
@@ -239,6 +243,20 @@ export async function provisionFreeWorkspaceFromTalent(params: {
       "talent-workspace-provision.onboardStarterContent (non-fatal)",
       new Error(starter.error ?? "starter-content failed"),
     );
+  }
+
+  const selfRoster = await ensureSelfRosterSiteVisible(admin, {
+    tenantId: agency.id,
+    talentProfileId,
+    addedBy: userId,
+  });
+  if (!selfRoster.ok) {
+    logServerError(
+      "talent-workspace-provision.ensureSelfRoster",
+      new Error(selfRoster.error),
+    );
+    await rollbackAgency(admin, agency.id);
+    return { ok: false, error: selfRoster.error };
   }
 
   return { ok: true, slug: agency.slug };

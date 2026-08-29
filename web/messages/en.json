@@ -4365,6 +4365,7 @@
         "hoursSearchPlaceholder": "Search by name",
         "hoursSearchEmpty": "No match",
         "hoursNobody": "Add a person or resource first.",
+        "hoursReadOnly": "This person sets their own hours.",
         "optInTitle": "Accept bookings on my page",
         "optInDesc": "Your half of the switch. The agency still has to enable your roster row.",
         "staffTitle": "Staff and resources",

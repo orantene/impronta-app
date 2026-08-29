@@ -72,6 +72,7 @@ export function BookingHoursCard({
   const [error, setError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+  const [canEditHours, setCanEditHours] = useState(true);
   const [, startTransition] = useTransition();
 
   const filteredTargets = useMemo(() => {
@@ -112,6 +113,7 @@ export function BookingHoursCard({
         setWeekly(res.hours?.weekly ?? emptyWeekly());
         setSlotMinutes(res.hours?.slotMinutes ?? DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
         setOptIn(res.directBookingOptIn);
+        setCanEditHours(res.canEditHours);
       }
       setLoading(false);
     });
@@ -123,7 +125,7 @@ export function BookingHoursCard({
   const dayRows = useMemo(() => [0, 1, 2, 3, 4, 5, 6] as const, []);
 
   function persist(nextWeekly: WeeklyHours, nextTz = timezone, nextSlot = slotMinutes) {
-    if (!selectedId) return;
+    if (!selectedId || !canEditHours) return;
     setSaving(true);
     setError(null);
     setSavedOk(false);
@@ -300,10 +302,16 @@ export function BookingHoursCard({
         <div style={{ fontSize: 12, color: C.inkMuted }}>{t(`${K}.hoursNobody`)}</div>
       ) : (
         <>
+          {!canEditHours ? (
+            <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 10 }}>
+              {t(`${K}.hoursReadOnly`)}
+            </div>
+          ) : null}
           <label style={{ fontSize: 11, color: C.inkMuted, display: "block", marginBottom: 10 }}>
             {t(`${K}.timezoneTitle`)}
             <input
               defaultValue={timezone}
+              disabled={!canEditHours}
               onBlur={(e) => {
                 const next = e.target.value.trim() || "UTC";
                 if (next !== timezone) {
@@ -340,7 +348,7 @@ export function BookingHoursCard({
                 <button
                   type="button"
                   onClick={() => toggleDay(day)}
-                  disabled={saving}
+                  disabled={saving || !canEditHours}
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
@@ -361,7 +369,7 @@ export function BookingHoursCard({
                       type="time"
                       value={minToInput(win.startMin)}
                       onChange={(e) => setDayWindow(day, "start", e.target.value)}
-                      disabled={saving}
+                      disabled={saving || !canEditHours}
                       style={{ fontSize: 13, fontFamily: FONT }}
                     />
                     <span style={{ color: C.inkMuted }}>{t(`${K}.to`)}</span>
@@ -369,7 +377,7 @@ export function BookingHoursCard({
                       type="time"
                       value={minToInput(win.endMin)}
                       onChange={(e) => setDayWindow(day, "end", e.target.value)}
-                      disabled={saving}
+                      disabled={saving || !canEditHours}
                       style={{ fontSize: 13, fontFamily: FONT }}
                     />
                   </>

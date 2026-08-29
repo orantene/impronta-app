@@ -79,14 +79,13 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
 
   const isOwner = tp.user_id === session.user.id;
 
-  // TENANT-SCOPED staff check (W3-7): staff may edit only talents on THEIR
-  // active tenant's roster — a staff role on tenant A grants nothing on
-  // tenant B (closes the global-staff footgun class).
+  // Prefer the active workspace when the actor is staff/owner there and the
+  // talent is on that roster. is_primary-first inference would pin a studio
+  // owner's new offerings to their exclusive agency.
+  const staff = await requireWorkspaceStaffAction();
   let isStaff = false;
   let staffTenantId: string | null = null;
-  if (!isOwner) {
-    const staff = await requireWorkspaceStaffAction();
-    if (!staff.ok) return { ok: false, error: "Forbidden." };
+  if (staff.ok) {
     const adminForCheck = createServiceRoleClient();
     if (!adminForCheck) return { ok: false, error: "Server configuration error." };
     const { data: rosterRow } = await adminForCheck
@@ -96,9 +95,14 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
       .eq("talent_profile_id", talentProfileId)
       .neq("status", "removed")
       .maybeSingle();
-    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
-    isStaff = true;
-    staffTenantId = staff.tenantId;
+    if (rosterRow) {
+      isStaff = !isOwner;
+      staffTenantId = staff.tenantId;
+    } else if (!isOwner) {
+      return { ok: false, error: "Talent not on this roster." };
+    }
+  } else if (!isOwner) {
+    return { ok: false, error: "Forbidden." };
   }
 
   let tenantId: string | null = staffTenantId;

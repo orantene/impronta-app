@@ -4365,6 +4365,7 @@
         "hoursSearchPlaceholder": "Buscar por nombre",
         "hoursSearchEmpty": "Sin coincidencias",
         "hoursNobody": "Agrega primero a una persona o recurso.",
+        "hoursReadOnly": "Esta persona define sus propios horarios.",
         "optInTitle": "Aceptar reservas en mi pagina",
         "optInDesc": "Tu mitad del interruptor. La agencia aun debe activar tu fila del roster.",
         "staffTitle": "Personal y recursos",

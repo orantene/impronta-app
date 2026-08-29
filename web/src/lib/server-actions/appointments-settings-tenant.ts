@@ -10,6 +10,11 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  ensureSelfRosterSiteVisible,
+  resolveOwnerTalentProfileId,
+} from "@/lib/saas/ensure-self-roster";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   normalizeTenantAppointmentsSettings,
@@ -88,6 +93,21 @@ export async function updateTenantAppointmentsSettings(
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Invalid appointments payload.",
     };
+  }
+
+  if (parsed.data.enabled) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const talentProfileId = await resolveOwnerTalentProfileId(admin, tenantId);
+      if (talentProfileId) {
+        const roster = await ensureSelfRosterSiteVisible(admin, {
+          tenantId,
+          talentProfileId,
+          addedBy: auth.user.id,
+        });
+        if (!roster.ok) return { ok: false, error: roster.error };
+      }
+    }
   }
 
   const { data: agency, error: readErr } = await supabase
