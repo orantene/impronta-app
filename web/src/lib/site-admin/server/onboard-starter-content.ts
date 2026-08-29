@@ -304,8 +304,17 @@ async function seedFreeStarterHomepage(params: {
   // workspace looks like from the Lab, with no deploy; the hardcoded
   // section starter below remains only as the fallback for installs where
   // no starter template is published.
+  // The resolver stamps the admin-authored template for THIS tenant before it
+  // hands the tree back: `{{business.name}}` becomes the workspace's display
+  // name and `{{audience:…}}` collapses to the case this signup answered. Both
+  // facts are known here and nowhere later, which is why they are read at the
+  // resolve call rather than after it.
   const starterKitTree = await resolvePlatformDefaultStorefrontTree(
     params.client,
+    {
+      businessName: planRow?.display_name,
+      audience: params.audience,
+    },
   );
   if (starterKitTree && starterKitTree.builderTree.length > 0) {
     const kitSaveVersion = resolveCasExpectedVersion({
