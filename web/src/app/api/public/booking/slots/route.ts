@@ -16,10 +16,7 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import {
-  parseTenantAppointmentSettings,
-  resolveAppointmentPolicy,
-} from "@/lib/scheduling/appointment-policy";
+import { resolveTalentBookingMode } from "@/lib/scheduling/booking-surface";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import {
@@ -58,10 +55,6 @@ function resolveClientIp(h: Headers): string {
     if (trusted) return trusted;
   }
   return "x";
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 export async function GET(request: Request) {
@@ -155,57 +148,25 @@ export async function GET(request: Request) {
       return slotsJson([]);
     }
 
-    const [{ data: agency }, { data: hoursRow }, { data: roster }] = await Promise.all([
-      admin
-        .from("agencies")
-        .select("settings, plan_tier")
-        .eq("id", offeringTenantId)
-        .maybeSingle(),
-      admin
-        .from("talent_booking_hours")
-        .select(
-          "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
-        )
-        .eq("talent_profile_id", talent.id)
-        .maybeSingle(),
-      admin
-        .from("agency_talent_roster")
-        .select("direct_booking_enabled")
-        .eq("tenant_id", offeringTenantId)
-        .eq("talent_profile_id", talent.id)
-        .in("status", ["active", "pending"])
-        .maybeSingle(),
-    ]);
-
-    const bookingTerms = isPlainObject(talent.booking_terms) ? talent.booking_terms : null;
-    const policy = resolveAppointmentPolicy({
-      tenant: parseTenantAppointmentSettings(agency?.settings ?? null),
-      talent: {
-        profileKind: talent.profile_kind === "resource" ? "resource" : "person",
-        directBookingOptIn: bookingTerms?.directBookingOptIn === true,
-        timezone: typeof bookingTerms?.timezone === "string" ? bookingTerms.timezone : null,
+    const mode = await resolveTalentBookingMode(admin, {
+      talentProfileId: talent.id,
+      offeringId: offering.id,
+      host: {
+        kind: host.kind,
+        tenantId: host.kind === "agency" ? host.tenantId : null,
       },
-      hours: hoursRow,
-      offering: {
-        bookingMode: offering.booking_mode === "instant" ? "instant" : "request",
-        reserveMode:
-          offering.reserve_mode === "deposit" ||
-          offering.reserve_mode === "full" ||
-          offering.reserve_mode === "free"
-            ? offering.reserve_mode
-            : null,
-        durationMinutes: offering.duration_minutes,
-      },
-      planTier: typeof agency?.plan_tier === "string" ? agency.plan_tier : null,
-      rosterDirectBooking:
-        (roster as { direct_booking_enabled?: boolean } | null)?.direct_booking_enabled === true,
     });
+    if (mode === "inquire") return slotsJson([]);
 
-    if (!policy.enabled || policy.effectiveMode === "off") {
-      return slotsJson([]);
-    }
+    const { data: hoursRow } = await admin
+      .from("talent_booking_hours")
+      .select(
+        "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
+      )
+      .eq("talent_profile_id", talent.id)
+      .maybeSingle();
 
-    const hours = policy.hours ?? parseBookingHours(hoursRow);
+    const hours = parseBookingHours(hoursRow);
     if (!hours) return slotsJson([]);
 
     const now = new Date();
@@ -226,7 +187,10 @@ export async function GET(request: Request) {
 
     const slots = computePublicSlotStarts({
       hours,
-      durationMinutes: policy.durationMinutes,
+      durationMinutes:
+        typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
+          ? offering.duration_minutes
+          : hours.slotMinutes,
       from,
       days: horizon,
       busy,

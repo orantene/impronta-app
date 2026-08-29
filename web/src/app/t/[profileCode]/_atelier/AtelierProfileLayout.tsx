@@ -742,6 +742,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             {inquireButtonFooter}
             {discoveryCta3}
           </div>
+          {props.slotPicker}
         </div>
       </section>
 
