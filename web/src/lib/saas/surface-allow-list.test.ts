@@ -13,6 +13,7 @@ test("agency host: storefront + workspace + auth + root + static allowed", () =>
     "/",
     "/directory",
     "/directory/cart",
+    "/book",
     "/t/jane-doe",
     "/p/about",
     "/posts/spring-2026",
@@ -241,6 +242,7 @@ test("path-based tenant public routes strip the tenant prefix before agency disp
     ["/impronta/t/jane-doe", "/t/jane-doe"],
     ["/impronta/directory", "/directory"],
     ["/impronta/directory/cart", "/directory/cart"],
+    ["/impronta/book", "/book"],
     ["/impronta/models", "/models"],
     ["/impronta/p/about", "/p/about"],
     ["/impronta/posts/spring-2026", "/posts/spring-2026"],
@@ -282,6 +284,7 @@ test("canonical /w/<slug> resolves the same shapes as the legacy flat form", () 
   const cases = [
     ["/w/impronta", "/"],
     ["/w/impronta/directory", "/directory"],
+    ["/w/impronta/book", "/book"],
     ["/w/impronta/t/jane-doe", "/t/jane-doe"],
     ["/w/impronta/p/about", "/p/about"],
     ["/w/impronta/contact", "/contact"],

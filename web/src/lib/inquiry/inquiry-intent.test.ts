@@ -156,6 +156,22 @@ describe("validateIntentForSubmit", () => {
     assert.ok(ws.ok === false && ws.missingFields.includes("date.event_date_or_status"));
   });
 
+  it("a reservation stamp skips brief, location, and date hard fields", () => {
+    const r = validateIntentForSubmit({
+      source: "offering_request",
+      requester: { name: "Orlando", email: "orlando@x.co" },
+      source_context: {
+        reservation: {
+          v: 1,
+          offering_id: "00000000-0000-4000-8000-000000000001",
+          starts_at: "2026-09-01T15:00:00.000Z",
+          ends_at: "2026-09-01T15:30:00.000Z",
+        },
+      },
+    });
+    assert.equal(r.ok, true);
+  });
+
   it("a valid minimal intent returns { ok:true, missingInfoFlags } with NO missingFields key", () => {
     const r = validateIntentForSubmit({
       source: "admin_created",

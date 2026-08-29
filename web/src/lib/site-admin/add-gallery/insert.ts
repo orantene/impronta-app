@@ -265,6 +265,19 @@ export function applyNativeVariant(
         };
       }
       break;
+    case "booking-button":
+      if (node.kind === "button") {
+        return {
+          ...node,
+          props: {
+            ...node.props,
+            label: "Book now",
+            href: "/book",
+            tone: "primary",
+          },
+        };
+      }
+      break;
     case "stack":
       if (node.kind === "container") {
         return {

@@ -226,6 +226,7 @@ export type LightProfileLayoutProps = {
   themeVars?: Record<string, string>;
 
   // ── Component slots (already instantiated by page.tsx) ──────────────────
+  slotPicker?: React.ReactNode;
   inquireButtonHeader: React.ReactNode;
   inquireButtonSidebar: React.ReactNode;
   inquireButtonFooter: React.ReactNode;
@@ -370,6 +371,7 @@ export function LightProfileLayout({
   discoveryCta,
   discoveryCta2,
   discoveryCta3,
+  slotPicker,
 }: LightProfileLayoutProps) {
   // Free-tier gating: talent_basic = gate social/embeds
   const isFreePlan = !talentPlanKey || talentPlanKey === "talent_basic";
@@ -641,6 +643,7 @@ export function LightProfileLayout({
               inquireButton={inquireButtonSidebar}
               shareMenu={shareMenuSidebar}
               discoveryCta={discoveryCta2}
+              slotPicker={slotPicker}
               availableDaysInNext30={availableDaysInNext30}
               availabilityDots14d={availabilityDots14d}
               nextAvailableDate={nextAvailableDate}

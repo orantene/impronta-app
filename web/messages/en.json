@@ -1192,9 +1192,11 @@
       "eyebrowReview": "Review & send",
       "titleSent": "Inquiry sent",
       "titleCompose": "Start a new project",
+      "titleComposeAppointment": "Reserve a time",
       "titleReview": "Looks good, ready to send?",
       "leadSent": "Your request is with {agency}.",
       "leadCompose": "Tell {agency} what you need. We'll match talent and draft an offer.",
+      "leadComposeAppointment": "Pick a time and {agency} will confirm shortly.",
       "leadReview": "One last check before {agency} picks this up.",
       "draftSaved": "Draft saved {when}",
       "draftWillSave": "Draft will save automatically",
@@ -1377,6 +1379,19 @@
       "relativeMinuteOther": "{count} minutes ago",
       "relativeHourOne": "1 hour ago",
       "relativeHourOther": "{count} hours ago"
+    },
+    "slotPicker": {
+      "title": "Choose a time",
+      "subtitle": "Times are shown in the studio timezone.",
+      "loading": "Loading times…",
+      "empty": "No open times in the next two weeks. Try again later.",
+      "unavailable": "Times are not available right now."
+    },
+    "bookPage": {
+      "title": "Reserve a time",
+      "lead": "Pick a service and a time. We will confirm shortly.",
+      "chooseService": "Service",
+      "studioFallback": "the studio"
     },
     "siteShellSurface": {
       "title": "Site header & footer",

@@ -94,6 +94,16 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     nativeKind: "button",
     nativeVariant: "icon-button",
   }),
+  el({
+    id: "el-book-now",
+    label: "Book now",
+    description: "Opens the existing booking page.",
+    category: "buttons",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "button",
+    nativeVariant: "booking-button",
+  }),
   roadmap({
     id: "el-inquiry-button",
     label: "Inquiry Button",

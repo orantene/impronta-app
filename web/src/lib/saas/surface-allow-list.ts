@@ -250,6 +250,7 @@ const AUTH_PREFIXES = [
 
 const AGENCY_STOREFRONT_PREFIXES = [
   "/directory",
+  "/book",
   "/t",
   "/p",
   "/posts",
@@ -397,6 +398,7 @@ const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
   "w",
   "contact",
   "directory",
+  "book",
   "get-started",
   "discover-agencies",
   "operators",
@@ -418,6 +420,7 @@ const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
 
 const PATH_BASED_STOREFRONT_PREFIXES = [
   "/directory",
+  "/book",
   "/t",
   "/p",
   "/posts",

@@ -1192,9 +1192,11 @@
       "eyebrowReview": "Revisar y enviar",
       "titleSent": "Solicitud enviada",
       "titleCompose": "Comienza un nuevo proyecto",
+      "titleComposeAppointment": "Reserva un horario",
       "titleReview": "Todo bien, ¿listo para enviar?",
       "leadSent": "Tu solicitud ya está con {agency}.",
       "leadCompose": "Cuéntale a {agency} lo que necesitas. Buscaremos el talento y prepararemos una oferta.",
+      "leadComposeAppointment": "Elige un horario y {agency} confirma enseguida.",
       "leadReview": "Una última revisión antes de que {agency} lo tome.",
       "draftSaved": "Borrador guardado {when}",
       "draftWillSave": "El borrador se guardará automáticamente",
@@ -1377,6 +1379,19 @@
       "relativeMinuteOther": "hace {count} minutos",
       "relativeHourOne": "hace 1 hora",
       "relativeHourOther": "hace {count} horas"
+    },
+    "slotPicker": {
+      "title": "Elige un horario",
+      "subtitle": "Los horarios se muestran en la zona del estudio.",
+      "loading": "Cargando horarios…",
+      "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
+      "unavailable": "Los horarios no están disponibles ahora."
+    },
+    "bookPage": {
+      "title": "Reserva un horario",
+      "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "chooseService": "Servicio",
+      "studioFallback": "el estudio"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
