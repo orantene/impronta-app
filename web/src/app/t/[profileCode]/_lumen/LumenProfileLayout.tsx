@@ -672,6 +672,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               />
             ) : null}
             <div className="lm-book__actions">{inquireButtonSidebar}</div>
+            {props.slotPicker}
             <div className="lm-book__row">
               {shareMenuSidebar}
               {discoveryCta2}

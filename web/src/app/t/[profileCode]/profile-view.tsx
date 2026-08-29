@@ -23,6 +23,7 @@ import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-
 import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
+import { ProfileSlotPickerMount } from "@/components/public-booking/ProfileSlotPickerMount";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
@@ -2416,6 +2417,14 @@ export async function TalentProfileView({
               className={inquireBtnClass}
             />
           </>
+        }
+        slotPicker={
+          <ProfileSlotPickerMount
+            offerings={storefrontOfferings}
+            tenantSlug={chatTenantSlug}
+            agencyName={tenantBrand ?? "the studio"}
+            locationLabel={livesIn}
+          />
         }
         inquireButtonSidebar={
           <>

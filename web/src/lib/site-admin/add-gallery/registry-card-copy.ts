@@ -77,6 +77,11 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
     infoTooltip:
       "Use this for social, share, play, or utility actions where the icon carries the meaning.",
   },
+  "el-book-now": {
+    description: "Opens the existing booking page.",
+    infoTooltip:
+      "Use this to send visitors to /book. It uses the existing button, not an inline scheduler.",
+  },
   "el-whatsapp": {
     description: "Opens a WhatsApp chat.",
     infoTooltip:

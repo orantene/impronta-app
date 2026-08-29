@@ -37,9 +37,13 @@ const OFFERING_ID_RE =
 
 const SLOTS_CACHE = "public, s-maxage=30, stale-while-revalidate=60";
 
-function slotsJson(slots: string[], status = 200): NextResponse {
+function slotsJson(
+  slots: string[],
+  status = 200,
+  extra?: { timezone?: string },
+): NextResponse {
   return NextResponse.json(
-    { slots },
+    { slots, ...(extra?.timezone ? { timezone: extra.timezone } : {}) },
     { status, headers: { "Cache-Control": SLOTS_CACHE } },
   );
 }
@@ -227,7 +231,7 @@ export async function GET(request: Request) {
       days: horizon,
       busy,
     });
-    return slotsJson(slots);
+    return slotsJson(slots, 200, { timezone: hours.timezone });
   } catch (err) {
     logServerError("api.public.booking.slots", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });

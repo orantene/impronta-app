@@ -226,6 +226,19 @@ export type IntentValidationResult =
  * Soft "missing info" (§16) — does not block submit; surfaced as
  * Details-tab prompts post-submit.
  */
+function parseReservationFromContext(sourceContext: unknown): boolean {
+  if (!sourceContext || typeof sourceContext !== "object") return false;
+  const raw = (sourceContext as { reservation?: unknown }).reservation;
+  if (!raw || typeof raw !== "object") return false;
+  const stamp = raw as { offering_id?: unknown; starts_at?: unknown; ends_at?: unknown };
+  return (
+    typeof stamp.offering_id === "string" &&
+    stamp.offering_id.length > 0 &&
+    typeof stamp.starts_at === "string" &&
+    typeof stamp.ends_at === "string"
+  );
+}
+
 export function validateIntentForSubmit(
   intent: InquiryIntent,
 ): IntentValidationResult {
@@ -236,22 +249,25 @@ export function validateIntentForSubmit(
     missing.push("requester.email_or_phone");
   }
 
-  const hasBrief = !!intent.brief?.summary?.trim();
-  const hasTalent = (intent.talent?.selected_ids?.length ?? 0) > 0;
-  if (!hasBrief && !hasTalent) {
-    missing.push("brief.summary_or_talent");
-  }
+  const reservation = parseReservationFromContext(intent.source_context);
+  if (!reservation) {
+    const hasBrief = !!intent.brief?.summary?.trim();
+    const hasTalent = (intent.talent?.selected_ids?.length ?? 0) > 0;
+    if (!hasBrief && !hasTalent) {
+      missing.push("brief.summary_or_talent");
+    }
 
-  const hasLocationCity = !!intent.location?.city?.trim();
-  const hasLocationStatus = !!intent.location?.status;
-  if (!hasLocationCity && !hasLocationStatus) {
-    missing.push("location.city_or_status");
-  }
+    const hasLocationCity = !!intent.location?.city?.trim();
+    const hasLocationStatus = !!intent.location?.status;
+    if (!hasLocationCity && !hasLocationStatus) {
+      missing.push("location.city_or_status");
+    }
 
-  const hasDate = !!intent.date?.event_date?.trim();
-  const hasDateStatus = !!intent.date?.status;
-  if (!hasDate && !hasDateStatus) {
-    missing.push("date.event_date_or_status");
+    const hasDate = !!intent.date?.event_date?.trim();
+    const hasDateStatus = !!intent.date?.status;
+    if (!hasDate && !hasDateStatus) {
+      missing.push("date.event_date_or_status");
+    }
   }
 
   const flags = computeMissingInfoFlags(intent);

@@ -25,6 +25,12 @@ import {
   buildNotFoundPageTree,
 } from "./onboard-notfound-page";
 import { directoryPageCapabilityEnabled } from "./onboard-directory-page";
+import {
+  BOOKING_SYSTEM_KEY,
+  RESERVED_BOOKING_SLUG,
+  bookingPageCapabilityEnabled,
+  buildBookingPageTree,
+} from "./onboard-booking-page";
 import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -112,6 +118,7 @@ const DEFAULT_TEMPLATE_SOURCES = [
   "src/lib/site-admin/server/onboard-starter-content-entries.ts",
   "src/lib/site-admin/server/default-storefront-tree.ts",
   "src/lib/site-admin/server/onboard-notfound-page.ts",
+  "src/lib/site-admin/server/onboard-booking-page.ts",
 ];
 
 test("no default shell / nav / starter template links to /contact", () => {
@@ -135,6 +142,17 @@ test("no default shell / nav / starter template links to /contact", () => {
       "creates that page. Drop the link or point it at a path the platform " +
       "always serves (/ or /directory).",
   );
+});
+
+test("the booking page is fenced and always-on", () => {
+  assert.equal(RESERVED_BOOKING_SLUG, "__book__");
+  assert.equal(BOOKING_SYSTEM_KEY, "booking");
+  assert.equal(bookingPageCapabilityEnabled(), true);
+  const hrefs = flatten(buildBookingPageTree())
+    .map((n) => (n.props as { href?: unknown }).href)
+    .filter((h): h is string => typeof h === "string");
+  assert.deepEqual([...new Set(hrefs)], ["/book"]);
+  assert.doesNotMatch(JSON.stringify(buildBookingPageTree()), /—/);
 });
 
 test("the seeded starter homepage's CTAs point at paths a fresh workspace serves", () => {

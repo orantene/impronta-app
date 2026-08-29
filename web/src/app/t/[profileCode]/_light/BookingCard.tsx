@@ -25,6 +25,8 @@ type BookingCardProps = {
   shareMenu: React.ReactNode;
   /** Slot: ProfileDiscoveryCta */
   discoveryCta: React.ReactNode;
+  /** Slot: ProfileSlotPickerMount when the profile has a bookable offering. */
+  slotPicker?: React.ReactNode;
   availableDaysInNext30: number | null;
   availabilityDots14d: string | null;
   nextAvailableDate: string | null;
@@ -37,6 +39,7 @@ export function BookingCard({
   inquireButton,
   shareMenu,
   discoveryCta,
+  slotPicker,
   availableDaysInNext30,
   availabilityDots14d,
   nextAvailableDate,
@@ -79,6 +82,7 @@ export function BookingCard({
         {inquireButton}
         {discoveryCta}
       </div>
+      {slotPicker ? <div className="mt-4">{slotPicker}</div> : null}
 
       {/* Availability */}
       {availableDaysInNext30 !== null ||

@@ -49,6 +49,12 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SearchTalentField } from "./SearchTalentField";
+import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
+import {
+  applyReservationToIntent,
+  type ReservationStamp,
+} from "@/lib/scheduling/reservation-intent";
+import type { BookableOffering } from "@/components/public-booking/pick-bookable-offering";
 
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
@@ -125,6 +131,11 @@ export type InquiryDrawerProps = {
    * quick-add search next to the chips it populates.
    */
   talentToolsSlot?: React.ReactNode;
+  /**
+   * When the offering resolves bookable, Compose swaps the date picker for
+   * SlotPicker and hides event-only sections (budget / brief / wardrobe).
+   */
+  bookableOffering?: BookableOffering | null;
   onClose: () => void;
 };
 
@@ -139,6 +150,7 @@ export function InquiryDrawer({
   enableDraftAutosave,
   bindToInquiryCart = false,
   talentToolsSlot,
+  bookableOffering = null,
   onClose,
 }: InquiryDrawerProps) {
   const t = useT();
@@ -157,6 +169,36 @@ export function InquiryDrawer({
   // ─ Compute defaults (spec §13 smart defaults per source) ──────────────────
   const defaults = useMemo<InquiryIntent>(() => buildDefaults(source, initialIntent, client), [source, initialIntent, client]);
   const [intent, setIntent] = useState<InquiryIntent>(defaults);
+
+  useEffect(() => {
+    if (!bookableOffering?.locationLabel) return;
+    const city = bookableOffering.locationLabel;
+    setIntent((cur) => {
+      if (cur.location?.city === city) return cur;
+      return { ...cur, location: { ...cur.location, city, status: "confirmed" } };
+    });
+  }, [bookableOffering?.locationLabel]);
+
+  const applySlot = useCallback((value: SlotPickerValue | null) => {
+    if (!bookableOffering) return;
+    setIntent((cur) => {
+      if (!value) {
+        const nextCtx = { ...(cur.source_context ?? {}) };
+        delete nextCtx.reservation;
+        return { ...cur, source_context: nextCtx };
+      }
+      const stamp: ReservationStamp = {
+        v: 1,
+        offering_id: bookableOffering.offeringId,
+        starts_at: value.startsAt,
+        ends_at: value.endsAt,
+        timezone: value.timezone,
+        duration_minutes: bookableOffering.durationMinutes,
+        mode: "request",
+      };
+      return applyReservationToIntent(cur, stamp);
+    });
+  }, [bookableOffering]);
 
   const [step, setStep] = useState<"compose" | "review">("compose");
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
@@ -371,18 +413,25 @@ export function InquiryDrawer({
                   ? t("public.inquiryDrawer.eyebrowCompose")
                   : t("public.inquiryDrawer.eyebrowReview")}
             </div>
-            <h2 style={{ margin: "3px 0 0", fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
+              <h2 style={{ margin: "3px 0 0", fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
               {submitted
                 ? t("public.inquiryDrawer.titleSent")
                 : step === "compose"
-                  ? t("public.inquiryDrawer.titleCompose")
+                  ? t(bookableOffering
+                    ? "public.inquiryDrawer.titleComposeAppointment"
+                    : "public.inquiryDrawer.titleCompose")
                   : t("public.inquiryDrawer.titleReview")}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {submitted
                 ? interpolate(t("public.inquiryDrawer.leadSent"), { agency: agencyName })
                 : step === "compose"
-                  ? interpolate(t("public.inquiryDrawer.leadCompose"), { agency: agencyName })
+                  ? interpolate(
+                      t(bookableOffering
+                        ? "public.inquiryDrawer.leadComposeAppointment"
+                        : "public.inquiryDrawer.leadCompose"),
+                      { agency: agencyName },
+                    )
                   : interpolate(t("public.inquiryDrawer.leadReview"), { agency: agencyName })
               }
             </p>
@@ -443,6 +492,8 @@ export function InquiryDrawer({
               talentToolsSlot={talentToolsSlot}
               boundToCart={bindToInquiryCart}
               onRemoveTalent={removeTalentFromCart}
+              bookableOffering={bookableOffering}
+              onSlotChange={applySlot}
             />
           ) : (
             <Review intent={intent} agencyName={agencyName} stagedFiles={stagedFiles} />
@@ -533,8 +584,21 @@ function Compose(props: {
   boundToCart?: boolean;
   /** B2 — when cart-bound, removing a chip writes back to the cart. */
   onRemoveTalent?: (id: string) => void;
+  bookableOffering?: BookableOffering | null;
+  onSlotChange?: (value: SlotPickerValue | null) => void;
 }) {
-  const { intent } = props;
+  const { intent, bookableOffering } = props;
+  const reservation = intent.source_context?.reservation as
+    | { starts_at?: string; ends_at?: string; timezone?: string }
+    | undefined;
+  const slotValue: SlotPickerValue | null =
+    reservation?.starts_at && reservation.ends_at && reservation.timezone
+      ? {
+          startsAt: reservation.starts_at,
+          endsAt: reservation.ends_at,
+          timezone: reservation.timezone,
+        }
+      : null;
   return (
     <div className="flex flex-col gap-4">
       <RequesterSection
@@ -547,8 +611,20 @@ function Compose(props: {
         value={intent.client ?? {}}
         onChange={props.setClient}
       />
-      <LocationSection value={intent.location ?? {}} onChange={props.setLocation} />
-      <DateSection value={intent.date ?? {}} onChange={props.setDate} />
+      {bookableOffering ? (
+        <SlotPicker
+          offeringId={bookableOffering.offeringId}
+          durationMinutes={bookableOffering.durationMinutes}
+          timezone={bookableOffering.timezone}
+          value={slotValue}
+          onChange={(next) => props.onSlotChange?.(next)}
+        />
+      ) : (
+        <>
+          <LocationSection value={intent.location ?? {}} onChange={props.setLocation} />
+          <DateSection value={intent.date ?? {}} onChange={props.setDate} />
+        </>
+      )}
       <TalentSection
         value={intent.talent ?? {}}
         onChange={props.setTalent}
@@ -557,6 +633,8 @@ function Compose(props: {
         onRemoveTalent={props.onRemoveTalent}
         toolsSlot={props.talentToolsSlot}
       />
+      {bookableOffering ? null : (
+        <>
       <BudgetSection
         value={intent.budget ?? {}}
         onChange={props.setBudget}
@@ -578,6 +656,8 @@ function Compose(props: {
             : "",
         }}
       />
+        </>
+      )}
       <FilesLinksSection
         files={intent.files ?? []}
         links={intent.links ?? []}

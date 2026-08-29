@@ -51,6 +51,7 @@ import {
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
 import { ensureNotFoundPage } from "./onboard-notfound-page";
+import { ensureBookingPage } from "./onboard-booking-page";
 import { platformOwnedStamp } from "@/lib/media/ownership";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
@@ -732,6 +733,18 @@ export async function onboardStarterContent(
       logServerError(
         "onboardStarterContent.ensureDirectoryPage (non-fatal)",
         new Error(directoryResult.error),
+      );
+    }
+
+    const bookingResult = await ensureBookingPage({
+      admin: client,
+      tenantId: input.tenantId,
+      actorProfileId,
+    });
+    if (!bookingResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureBookingPage (non-fatal)",
+        new Error(bookingResult.error),
       );
     }
 
