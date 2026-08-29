@@ -10,6 +10,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import {
+  archiveTemplate,
   publishTemplate,
   restoreTemplateRevision,
   rollbackToRevision,
@@ -26,6 +27,7 @@ import {
   promoteBlockMessage,
 } from "./promote-to-starter";
 import {
+  isEmptyDraft,
   isShellKind,
   STATUS_TONE,
   type DrawerActionState,
@@ -62,6 +64,12 @@ export function PlaygroundDraftRow({
   onPromoted: () => void | Promise<void>;
 }) {
   const [promote, setPromote] = useState<PromoteState>({ kind: "idle" });
+  // Abandoned "+ New" click: a draft with zero roots. It can never be published
+  // (the publish validator blocks an empty tree), so the only useful action is
+  // to get it out of the list. `discarding` guards the two-step confirm.
+  const empty = isEmptyDraft(d);
+  const [discardArmed, setDiscardArmed] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   // O4: expandable drawer state
   const [drawerTab, setDrawerTab] = useState<DrawerTab>(null);
   const [drawerAction, setDrawerAction] = useState<DrawerActionState>({ kind: "idle" });
@@ -110,6 +118,25 @@ export function PlaygroundDraftRow({
     setPromote({ kind: "done", version: pub.data.version });
     await onPromoted();
   }, [plan, d, onPromoted]);
+
+  /**
+   * Discard an empty draft. ARCHIVES the row (the existing, reversible
+   * lifecycle transition) rather than deleting it: an archived row is still
+   * listed under the Archived filter and can be moved back to draft, so this
+   * clears the clutter without destroying anything. Deliberately not a
+   * migration and not a hard delete.
+   */
+  const runDiscard = useCallback(async () => {
+    setDiscarding(true);
+    const res = await archiveTemplate(d.id);
+    setDiscarding(false);
+    setDiscardArmed(false);
+    if (!res.ok) {
+      setPromote({ kind: "error", reasons: [res.error ?? "Discard failed."] });
+      return;
+    }
+    await onPromoted();
+  }, [d.id, onPromoted]);
 
   // O4: rollout save
   const handleRolloutSave = useCallback(
@@ -239,6 +266,47 @@ export function PlaygroundDraftRow({
         <LabBadge tone="custom" bg={tone.bg} fg={tone.fg} style={{ flexShrink: 0 }}>
           {d.status.replace("_", " ")}
         </LabBadge>
+
+        {/* Abandoned draft — say so, and offer the only useful action. */}
+        {empty ? (
+          <LabBadge
+            tone="custom"
+            bg={T.redBg}
+            fg={T.red}
+            style={{ flexShrink: 0 }}
+          >
+            Empty
+          </LabBadge>
+        ) : null}
+        {empty ? (
+          discardArmed ? (
+            <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: T.inkMuted }}>
+                Discard this empty draft?
+              </span>
+              <LinkBtn
+                label={discarding ? "Discarding…" : "Yes"}
+                onClick={() => void runDiscard()}
+                disabled={discarding}
+                danger
+                testId={`lab-playground-discard-confirm-${d.id}`}
+              />
+              <LinkBtn
+                label="No"
+                onClick={() => setDiscardArmed(false)}
+                disabled={discarding}
+              />
+            </span>
+          ) : (
+            <LinkBtn
+              label="Discard"
+              onClick={() => setDiscardArmed(true)}
+              disabled={discarding}
+              danger
+              testId={`lab-playground-discard-${d.id}`}
+            />
+          )
+        ) : null}
 
         {/* One-click promote — only for promotable (page-template) drafts. */}
         {plan.promotable ? (

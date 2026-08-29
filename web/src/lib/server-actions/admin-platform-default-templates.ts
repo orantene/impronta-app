@@ -16,6 +16,8 @@
  * ratchet). Published-template options come from the existing registry action.
  */
 
+import { revalidatePath } from "next/cache";
+
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
@@ -27,6 +29,10 @@ import {
   type PlatformTemplateSurface,
 } from "@/lib/platform/default-templates";
 import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import {
+  revalidateTargetsForPointerWrite,
+  type LabRevalidateTarget,
+} from "@/lib/site-admin/builder-core/templates/lab-cache-paths";
 import type { BuilderTemplateTarget } from "@/lib/site-admin/builder-core/templates/registry-rows";
 
 /** A lightweight published-template option for the Default-surfaces select. */
@@ -46,6 +52,29 @@ async function requireSuperAdmin(): Promise<
     return { ok: false, error: "Platform admin access required." };
   }
   return { ok: true, userId: session.user.id };
+}
+
+/**
+ * Cache paths a DEFAULT-pointer write invalidates.
+ *
+ * Every OTHER template-affecting write in the Lab (`publishTemplate`,
+ * `unpublishTemplate`, `archiveTemplate`, the rollout ramp, the shell apply)
+ * calls `revalidatePath("/platform/admin")`. The pointer write called nothing at
+ * all, which made it the one write in the Lab that could change what the public
+ * renders while leaving both the admin tree and the public surface untouched.
+ *
+ * The path list itself now lives in `lab-cache-paths.ts` — a plain module both
+ * this file and `registry-actions.ts` read, so the two writers cannot drift
+ * apart again (they already had: the segment TYPE was wrong on the publish side
+ * and the pointer side had no call at all). See that file for why
+ * `/platform/admin` is revalidated as a LAYOUT and why the public path is
+ * per-surface rather than blanket.
+ */
+function applyRevalidation(targets: ReadonlyArray<LabRevalidateTarget>): void {
+  for (const target of targets) {
+    if (target.type) revalidatePath(target.path, target.type);
+    else revalidatePath(target.path);
+  }
 }
 
 /** Map a DEFAULT surface to the template target_context filter it offers. */
@@ -110,6 +139,9 @@ export async function savePlatformDefaultTemplatePointerAction(input: {
     input.templateId,
   );
   if (!result.ok) return { ok: false, error: CLIENT_ERROR.update };
+
+  applyRevalidation(revalidateTargetsForPointerWrite(input.surface));
+
   return { ok: true };
 }
 
@@ -129,5 +161,11 @@ export async function savePlatformDefaultTalentFreeformAction(input: {
     input.enabled,
   );
   if (!result.ok) return { ok: false, error: CLIENT_ERROR.update };
+
+  // Same class of write: it changes what an anonymous visitor sees on the
+  // fallback talent profile, so it invalidates the same two paths the talent
+  // pointer does.
+  applyRevalidation(revalidateTargetsForPointerWrite("talent"));
+
   return { ok: true };
 }
