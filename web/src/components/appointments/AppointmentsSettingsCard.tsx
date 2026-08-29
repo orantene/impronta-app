@@ -1,8 +1,27 @@
 "use client";
 
 /**
- * Workspace appointments master switch, terminology, defaults, presets.
- * Lives OUTSIDE components/admin/shell.
+ * Workspace appointments settings — progressive, not a control panel.
+ *
+ * WHY IT IS SHAPED THIS WAY: the feature has ~20 legitimate knobs (slot length,
+ * buffers, notice, horizon, terminology, direct-booking, timezone, hours per
+ * subject). Rendered flat, a barber opening this screen met nineteen controls
+ * before deciding anything, in ops vocabulary he does not use ("Min notice
+ * (min)", "Horizon (days)"). That is a feature people close.
+ *
+ * So the screen asks one question at a time:
+ *   OFF  → the master switch and a sentence saying what happens today. Nothing
+ *          else exists; there is nothing to configure about a feature you have
+ *          not turned on.
+ *   ON   → "What kind of business is this?" first, because the preset fills
+ *          hours, visit length and notice in one choice. Then the public word.
+ *   Then → everything else behind Advanced, phrased as questions a person
+ *          asks ("How much warning do you need?") rather than field names.
+ *
+ * The preset therefore sits ABOVE the values it writes, not below them.
+ * The card does not repeat the settings-group "Appointments" heading — the
+ * group already owns that label.
+ * Lives OUTSIDE components/admin/shell (inline-style ratchet).
  */
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
@@ -106,11 +125,6 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
         borderRadius: 10,
       }}
     >
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t(`${K}.label`)}</div>
-        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>{t(`${K}.desc`)}</div>
-      </div>
-
       <Row
         title={t(`${K}.masterTitle`)}
         desc={t(`${K}.masterDesc`)}
@@ -122,131 +136,158 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
             onClick={() => save({ ...settings, enabled: !settings.enabled })}
           />
         }
+        first
       />
 
-      <Row
-        title={t(`${K}.terminologyTitle`)}
-        desc={t(`${K}.terminologyDesc`)}
-        right={
-          <select
-            aria-label={t(`${K}.terminologyTitle`)}
-            value={settings.terminology}
-            disabled={saving || !settings.enabled}
-            onChange={(e) =>
-              save({ ...settings, terminology: e.target.value as TerminologyId })
-            }
-            style={{ ...inputBoxStyle, minWidth: 180, cursor: saving ? "wait" : "pointer" }}
-          >
-            {TERMINOLOGY_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t(`${K}.term.${id}`)}
-              </option>
-            ))}
-          </select>
-        }
-      />
+      {/* Nothing to configure about a feature that is off. One sentence saying
+          what guests get today, and the screen ends here. */}
+      {!settings.enabled && (
+        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 10, lineHeight: 1.5 }}>
+          {t(`${K}.offSummary`)}
+        </div>
+      )}
 
-      <Row
-        title={t(`${K}.timezoneTitle`)}
-        desc={t(`${K}.timezoneDesc`)}
-        right={
-          <input
-            aria-label={t(`${K}.timezoneTitle`)}
-            defaultValue={settings.timezone}
-            disabled={saving || !settings.enabled}
-            onBlur={(e) => {
-              const next = e.target.value.trim() || "UTC";
-              if (next !== settings.timezone) save({ ...settings, timezone: next });
-            }}
-            style={{ ...inputBoxStyle, minWidth: 200 }}
-          />
-        }
-      />
-
-      <Row
-        title={t(`${K}.allowDirectTitle`)}
-        desc={t(`${K}.allowDirectDesc`)}
-        right={
-          <Switch
-            checked={settings.allowTalentDirectBooking}
-            disabled={saving || !settings.enabled}
-            label={t(`${K}.allowDirectTitle`)}
-            onClick={() =>
-              save({
-                ...settings,
-                allowTalentDirectBooking: !settings.allowTalentDirectBooking,
-              })
-            }
-          />
-        }
-      />
-
-      <Row
-        title={t(`${K}.presetTitle`)}
-        desc={t(`${K}.presetDesc`)}
-        right={
-          <select
-            aria-label={t(`${K}.presetTitle`)}
-            value={settings.presetId ?? ""}
-            disabled={saving || !settings.enabled}
-            onChange={(e) => {
-              const id = e.target.value as AppointmentPresetId | "";
-              if (!id) {
-                save({ ...settings, presetId: null });
-                return;
-              }
-              const preset = getAppointmentPreset(id);
-              save({
-                ...settings,
-                presetId: id,
-                defaults: preset.defaults,
-                timezone: preset.timezoneHint ?? settings.timezone,
-              });
-            }}
-            style={{ ...inputBoxStyle, minWidth: 180, cursor: saving ? "wait" : "pointer" }}
-          >
-            <option value="">{t(`${K}.presetNone`)}</option>
-            {PRESETS.map((id) => (
-              <option key={id} value={id}>
-                {t(`${K}.preset.${id}`)}
-              </option>
-            ))}
-          </select>
-        }
-      />
-
-      <div style={{ paddingTop: 10, marginTop: 10, borderTop: `1px solid ${C.borderSoft}` }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t(`${K}.defaultsTitle`)}</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
-          {(
-            [
-              ["slotMinutes", t(`${K}.slotMinutes`)],
-              ["bufferBeforeMin", t(`${K}.bufferBefore`)],
-              ["bufferAfterMin", t(`${K}.bufferAfter`)],
-              ["minNoticeMin", t(`${K}.minNotice`)],
-              ["horizonDays", t(`${K}.horizonDays`)],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} style={{ fontSize: 11, color: C.inkMuted }}>
-              {label}
-              <input
-                type="number"
-                defaultValue={settings.defaults[key]}
-                disabled={saving || !settings.enabled}
-                onBlur={(e) => {
-                  const n = Number(e.target.value);
-                  if (!Number.isFinite(n) || n === settings.defaults[key]) return;
+      {settings.enabled && (
+        <>
+          {/* The preset is the interface: one answer fills hours, visit length
+              and notice, so it comes FIRST — above the values it writes. */}
+          <Row
+            title={t(`${K}.businessTypeTitle`)}
+            desc={t(`${K}.businessTypeDesc`)}
+            right={
+              <select
+                aria-label={t(`${K}.businessTypeTitle`)}
+                value={settings.presetId ?? ""}
+                disabled={saving}
+                onChange={(e) => {
+                  const id = e.target.value as AppointmentPresetId | "";
+                  if (!id) {
+                    save({ ...settings, presetId: null });
+                    return;
+                  }
+                  const preset = getAppointmentPreset(id);
                   save({
                     ...settings,
-                    defaults: { ...settings.defaults, [key]: Math.round(n) },
+                    presetId: id,
+                    defaults: preset.defaults,
+                    timezone: preset.timezoneHint ?? settings.timezone,
                   });
                 }}
-                style={{ ...inputBoxStyle, width: 72, display: "block", marginTop: 4 }}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
+                style={{ ...inputBoxStyle, minWidth: 200, cursor: saving ? "wait" : "pointer" }}
+              >
+                <option value="">{t(`${K}.presetNone`)}</option>
+                {PRESETS.map((id) => (
+                  <option key={id} value={id}>
+                    {t(`${K}.preset.${id}`)}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+
+          <Row
+            title={t(`${K}.terminologyTitle`)}
+            desc={t(`${K}.terminologyDesc`)}
+            right={
+              <select
+                aria-label={t(`${K}.terminologyTitle`)}
+                value={settings.terminology}
+                disabled={saving || !settings.enabled}
+                onChange={(e) =>
+                  save({ ...settings, terminology: e.target.value as TerminologyId })
+                }
+                style={{ ...inputBoxStyle, minWidth: 180, cursor: saving ? "wait" : "pointer" }}
+              >
+                {TERMINOLOGY_IDS.map((id) => (
+                  <option key={id} value={id}>
+                    {t(`${K}.term.${id}`)}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+
+          {/* Everything a working business never needs to open. Collapsed by
+              default so the screen above stays one decision wide. */}
+          <details style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.borderSoft}` }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.ink }}>
+              {t(`${K}.advanced`)}
+            </summary>
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4 }}>
+              {t(`${K}.advancedDesc`)}
+            </div>
+            <Row
+              title={t(`${K}.timezoneTitle`)}
+              desc={t(`${K}.timezoneDesc`)}
+              right={
+                <input
+                  aria-label={t(`${K}.timezoneTitle`)}
+                  defaultValue={settings.timezone}
+                  disabled={saving || !settings.enabled}
+                  onBlur={(e) => {
+                    const next = e.target.value.trim() || "UTC";
+                    if (next !== settings.timezone) save({ ...settings, timezone: next });
+                  }}
+                  style={{ ...inputBoxStyle, minWidth: 200 }}
+                />
+              }
+            />
+
+            <Row
+              title={t(`${K}.allowDirectTitle`)}
+              desc={t(`${K}.allowDirectDesc`)}
+              right={
+                <Switch
+                  checked={settings.allowTalentDirectBooking}
+                  disabled={saving || !settings.enabled}
+                  label={t(`${K}.allowDirectTitle`)}
+                  onClick={() =>
+                    save({
+                      ...settings,
+                      allowTalentDirectBooking: !settings.allowTalentDirectBooking,
+                    })
+                  }
+                />
+              }
+            />
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 4 }}>
+              {(
+                [
+                  ["slotMinutes", t(`${K}.slotMinutesPlain`), t(`${K}.unitMinutes`)],
+                  ["bufferBeforeMin", t(`${K}.bufferBeforePlain`), t(`${K}.unitMinutes`)],
+                  ["bufferAfterMin", t(`${K}.bufferAfterPlain`), t(`${K}.unitMinutes`)],
+                  ["minNoticeMin", t(`${K}.minNoticePlain`), t(`${K}.unitMinutes`)],
+                  ["horizonDays", t(`${K}.horizonDaysPlain`), t(`${K}.unitDays`)],
+                ] as const
+              ).map(([key, label, unit]) => (
+                <label key={key} style={{ fontSize: 12, color: C.ink, flex: "1 1 200px" }}>
+                  {label}
+                  <span
+                    style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}
+                  >
+                    <input
+                      type="number"
+                      defaultValue={settings.defaults[key]}
+                      disabled={saving}
+                      onBlur={(e) => {
+                        const n = Number(e.target.value);
+                        if (!Number.isFinite(n) || n === settings.defaults[key]) return;
+                        save({
+                          ...settings,
+                          defaults: { ...settings.defaults, [key]: Math.round(n) },
+                        });
+                      }}
+                      style={{ ...inputBoxStyle, width: 80 }}
+                    />
+                    <span style={{ fontSize: 11, color: C.inkMuted }}>{unit}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
 
       {saving && <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 8 }}>{t(`${K}.saving`)}</div>}
       {savedOk && !saving && (
@@ -261,10 +302,12 @@ function Row({
   title,
   desc,
   right,
+  first,
 }: {
   title: string;
   desc: string;
   right: ReactNode;
+  first?: boolean;
 }) {
   return (
     <div
@@ -274,9 +317,9 @@ function Row({
         justifyContent: "space-between",
         gap: 12,
         flexWrap: "wrap",
-        paddingTop: 10,
-        marginTop: 10,
-        borderTop: `1px solid ${C.borderSoft}`,
+        paddingTop: first ? 0 : 10,
+        marginTop: first ? 0 : 10,
+        borderTop: first ? "none" : `1px solid ${C.borderSoft}`,
       }}
     >
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>

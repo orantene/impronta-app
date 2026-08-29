@@ -4328,7 +4328,8 @@
         "term": {
           "reservations": "Reservas",
           "appointments": "Citas",
-          "bookings": "Reservaciones"
+          "bookings": "Reservaciones",
+          "agenda": "Agenda / Citas"
         },
         "timezoneTitle": "Zona horaria predeterminada",
         "timezoneDesc": "Se usa hasta que una fila de horarios defina la suya.",
@@ -4352,6 +4353,9 @@
         "hoursTitle": "Horario de reservas",
         "hoursDesc": "Ventanas semanales que usa el selector publico. Los slots se calculan, no se guardan.",
         "hoursWho": "Horario de quien",
+        "hoursSearch": "Buscar personas",
+        "hoursSearchPlaceholder": "Buscar por nombre",
+        "hoursSearchEmpty": "Sin coincidencias",
         "hoursNobody": "Agrega primero a una persona o recurso.",
         "optInTitle": "Aceptar reservas en mi pagina",
         "optInDesc": "Tu mitad del interruptor. La agencia aun debe activar tu fila del roster.",
@@ -4376,7 +4380,19 @@
           "thu": "Jue",
           "fri": "Vie",
           "sat": "Sab"
-        }
+        },
+        "businessTypeTitle": "Que tipo de negocio es?",
+        "businessTypeDesc": "Define tus horarios, la duracion de la visita y el aviso. Puedes cambiarlo despues.",
+        "offSummary": "Los clientes envian un mensaje y tu respondes. Activalo para que puedan elegir una hora.",
+        "advanced": "Avanzado",
+        "advancedDesc": "La mayoria de los negocios nunca los necesita.",
+        "slotMinutesPlain": "Cuanto dura una visita?",
+        "bufferBeforePlain": "Tiempo de preparacion antes",
+        "bufferAfterPlain": "Tiempo para ordenar despues",
+        "minNoticePlain": "Cuanta anticipacion necesitas?",
+        "horizonDaysPlain": "Con cuanta anticipacion pueden reservar?",
+        "unitMinutes": "minutos",
+        "unitDays": "dias"
       },
       "domainLabel": "Dominio",
       "domainDesc": "Ejecuta tu storefront en tu propio dominio.",

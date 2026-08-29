@@ -4328,7 +4328,8 @@
         "term": {
           "reservations": "Reservations / Reservas",
           "appointments": "Appointments / Citas",
-          "bookings": "Bookings / Reservaciones"
+          "bookings": "Bookings / Reservaciones",
+          "agenda": "Agenda / Citas"
         },
         "timezoneTitle": "Default time zone",
         "timezoneDesc": "Used until a hours row sets its own zone.",
@@ -4352,6 +4353,9 @@
         "hoursTitle": "Booking hours",
         "hoursDesc": "Weekly windows the public picker uses. Slots are computed, not stored.",
         "hoursWho": "Whose hours",
+        "hoursSearch": "Search people",
+        "hoursSearchPlaceholder": "Search by name",
+        "hoursSearchEmpty": "No match",
         "hoursNobody": "Add a person or resource first.",
         "optInTitle": "Accept bookings on my page",
         "optInDesc": "Your half of the switch. The agency still has to enable your roster row.",
@@ -4376,7 +4380,19 @@
           "thu": "Thu",
           "fri": "Fri",
           "sat": "Sat"
-        }
+        },
+        "businessTypeTitle": "What kind of business is this?",
+        "businessTypeDesc": "Sets your hours, visit length and notice. Change anything after.",
+        "offSummary": "Guests send a message and you reply. Turn this on to let them pick a time.",
+        "advanced": "Advanced",
+        "advancedDesc": "Most businesses never need these.",
+        "slotMinutesPlain": "How long is a visit?",
+        "bufferBeforePlain": "Time to set up before",
+        "bufferAfterPlain": "Time to clean up after",
+        "minNoticePlain": "How much warning do you need?",
+        "horizonDaysPlain": "How far ahead can people book?",
+        "unitMinutes": "minutes",
+        "unitDays": "days"
       },
       "domainLabel": "Domain",
       "domainDesc": "Run your storefront at your own domain.",
