@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       .eq("status", "sent")
       .not("valid_until", "is", null)
       .lt("valid_until", nowIso)
-      .select("id");
+      .select("id, inquiry_id");
 
     if (error) {
       logServerError("cron/expire-offers", error);
@@ -62,8 +62,21 @@ export async function GET(request: Request) {
     }
 
     const expired = (data ?? []).length;
-    void improntaLog("inquiry.cron.expire_offers", { expired });
-    return NextResponse.json({ ok: true, expired });
+    const inquiryIds = [
+      ...new Set(
+        (data ?? [])
+          .map((row) => (row as { inquiry_id?: string | null }).inquiry_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const { releaseHoldsForInquiry } = await import("@/lib/scheduling/reservation-hold");
+    let holdsReleased = 0;
+    for (const inquiryId of inquiryIds) {
+      const released = await releaseHoldsForInquiry(admin, inquiryId);
+      if (released.ok) holdsReleased += released.released;
+    }
+    void improntaLog("inquiry.cron.expire_offers", { expired, holdsReleased });
+    return NextResponse.json({ ok: true, expired, holdsReleased });
   } catch (err) {
     logServerError("cron/expire-offers", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

@@ -7,6 +7,8 @@ import { findCatalogEntries } from "@/lib/notifications/catalog";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { scheduleWorkspaceAuditWith } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
+import { releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
 
 export type EngineEventPriority = "high" | "medium" | "low";
 
@@ -196,6 +198,31 @@ const listeners: Listener[] = [
         "inquiry-events/notification-dispatch",
         err instanceof Error ? err : new Error(String(err)),
       );
+    }
+  },
+  // Appointments — convert enrichment + hold release. Appended so existing
+  // listener_${i} retry rows keep their indexes. Idempotent.
+  async (supabase, event) => {
+    const admin = createServiceRoleClient() ?? supabase;
+    if (event.type === ENGINE_EVENT_TYPES.BOOKING_CREATED) {
+      const bookingId =
+        typeof event.payload.data?.bookingId === "string" ? event.payload.data.bookingId : null;
+      if (!bookingId) return;
+      const enriched = await enrichBookingFromReservation(admin, {
+        inquiryId: event.inquiryId,
+        bookingId,
+        actorUserId: event.actorUserId,
+      });
+      if (!enriched.ok) throw new Error(enriched.error);
+      return;
+    }
+    if (
+      event.type === ENGINE_EVENT_TYPES.INQUIRY_CANCELLED ||
+      event.type === ENGINE_EVENT_TYPES.INQUIRY_ARCHIVED ||
+      event.type === ENGINE_EVENT_TYPES.INQUIRY_EXPIRED
+    ) {
+      const released = await releaseHoldsForInquiry(admin, event.inquiryId);
+      if (!released.ok) throw new Error(released.error);
     }
   },
 ];

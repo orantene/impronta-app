@@ -37,6 +37,7 @@ export const INQUIRY_INTENT_SOURCES = [
   "pitch",
   "admin_created",
   "book_again",
+  "offering_request",
 ] as const;
 
 export type InquirySource = (typeof INQUIRY_INTENT_SOURCES)[number];
@@ -428,6 +429,8 @@ function sourceToPagePath(intent: InquiryIntent): string | null {
       return "admin-workspace-new-inquiry";
     case "book_again":
       return "/client/bookings";
+    case "offering_request":
+      return "/book";
     default:
       return null;
   }

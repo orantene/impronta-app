@@ -26,6 +26,16 @@ import {
   type IntentAdapterContext,
   type MissingInfoFlag,
 } from "./inquiry-intent";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  applyReservationToIntent,
+  parseReservationStamp,
+} from "@/lib/scheduling/reservation-intent";
+import {
+  attachReservationHoldToInquiry,
+  placeReservationHold,
+  releaseReservationHold,
+} from "@/lib/scheduling/reservation-hold";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One-shot path — no draft persistence.
@@ -43,7 +53,8 @@ export type CreateInquiryFromIntentResult =
         | "validation_failed"
         | "rate_limited"
         | "forbidden"
-        | "engine_error";
+        | "engine_error"
+        | "slot_taken";
       missingFields?: string[];
       error?: string;
     };
@@ -71,10 +82,53 @@ export async function createInquiryFromIntent(
     };
   }
 
-  const submitInput = intentToSubmitInquiryInput(intent, ctx);
+  const incomingStamp = parseReservationStamp(intent.source_context);
+  let working = intent;
+  let placedHoldId: string | null = null;
+  const admin = incomingStamp ? createServiceRoleClient() : null;
+
+  if (incomingStamp) {
+    if (!admin) {
+      return { ok: false, reason: "engine_error", error: "Could not hold that time. Try again." };
+    }
+    const { data: offering } = await admin
+      .from("talent_offerings")
+      .select("id, talent_profile_id, tenant_id, title")
+      .eq("id", incomingStamp.offering_id)
+      .maybeSingle();
+    if (!offering?.talent_profile_id) {
+      return { ok: false, reason: "engine_error", error: "That service is not available." };
+    }
+    const hold = await placeReservationHold(admin, {
+      talentProfileId: offering.talent_profile_id,
+      tenantId: (typeof offering.tenant_id === "string" && offering.tenant_id) || ctx.tenant_id,
+      startsAt: incomingStamp.starts_at,
+      endsAt: incomingStamp.ends_at,
+      title: typeof offering.title === "string" ? offering.title : "Reservation",
+      createdByUserId: ctx.actor_user_id,
+    });
+    if (!hold.ok) {
+      return {
+        ok: false,
+        reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
+        error: hold.error,
+      };
+    }
+    placedHoldId = hold.holdId;
+    working = applyReservationToIntent(intent, {
+      ...incomingStamp,
+      hold_id: hold.holdId,
+      hold_expires_at: hold.expiresAt,
+    });
+  }
+
+  const submitInput = intentToSubmitInquiryInput(working, ctx);
   const result = await submitInquiry(supabase, submitInput);
 
   if (!result.success) {
+    if (placedHoldId && admin) {
+      await releaseReservationHold(admin, placedHoldId);
+    }
     if (result.rateLimited) {
       return { ok: false, reason: "rate_limited" };
     }
@@ -82,6 +136,10 @@ export async function createInquiryFromIntent(
       return { ok: false, reason: "forbidden" };
     }
     return { ok: false, reason: "engine_error", error: result.error };
+  }
+
+  if (placedHoldId && admin) {
+    await attachReservationHoldToInquiry(admin, placedHoldId, result.data!.inquiryId);
   }
 
   return {

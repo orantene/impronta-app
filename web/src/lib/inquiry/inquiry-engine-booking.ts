@@ -10,6 +10,9 @@ import { getInquiryGroupShortfall } from "./inquiry-fulfillment";
 import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
 import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import type { Database } from "@/lib/supabase/database.types";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
+import { logServerError } from "@/lib/server/safe-error";
 
 type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
 type InquiryOffersRow = Database["public"]["Tables"]["inquiry_offers"]["Row"];
@@ -404,6 +407,22 @@ export async function convertToBooking(
         bookingId,
         detail: termErr instanceof Error ? termErr.message : String(termErr),
       });
+    }
+
+    // Appointments: stamp agency_bookings times + talent_bookings mirror.
+    // No-op when the inquiry has no reservation stamp. RPC is untouched.
+    try {
+      const enrichClient = createServiceRoleClient() ?? supabase;
+      const enriched = await enrichBookingFromReservation(enrichClient, {
+        inquiryId: ctx.inquiryId,
+        bookingId,
+        actorUserId: ctx.actorUserId,
+      });
+      if (!enriched.ok) {
+        logServerError("convertToBooking.reservation_enrichment", new Error(enriched.error));
+      }
+    } catch (enrichErr) {
+      logServerError("convertToBooking.reservation_enrichment", enrichErr);
     }
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);

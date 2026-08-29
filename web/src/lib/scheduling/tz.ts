@@ -120,6 +120,14 @@ export function utcToZonedYmd(instant: Date, timeZone: string): string | null {
   return formatInZone(instant, timeZone)?.ymd ?? null;
 }
 
+/** Local HH:MM for an instant in `timeZone`, or null. */
+export function utcToZonedHmm(instant: Date, timeZone: string): string | null {
+  if (!isValidIanaTimeZone(timeZone) || Number.isNaN(instant.getTime())) return null;
+  const z = formatInZone(instant, timeZone);
+  if (!z) return null;
+  return minutesToHmm(z.hour * 60 + z.minute);
+}
+
 /** Add `days` civil days to a YYYY-MM-DD string (UTC calendar, not zone). */
 export function addUtcDays(ymd: string, days: number): string | null {
   const match = YMD_RE.exec(ymd);

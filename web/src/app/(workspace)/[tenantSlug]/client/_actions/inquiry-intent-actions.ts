@@ -552,6 +552,9 @@ function finalizeSubmit(
     if (result.reason === "forbidden") {
       return { kind: "error", message: "You don't have permission to do that." };
     }
+    if (result.reason === "slot_taken") {
+      return { kind: "error", message: result.error ?? "That time was just taken. Pick another time." };
+    }
     return { kind: "error", message: result.error ?? "Could not send inquiry." };
   }
 

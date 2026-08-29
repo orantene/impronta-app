@@ -927,6 +927,9 @@ export async function startGuestChatInquiry(
     if (created.reason === "forbidden") {
       return fail("forbidden", "You don't have permission to do that.");
     }
+    if (created.reason === "slot_taken") {
+      return fail("engine_error", created.error ?? "That time was just taken. Pick another time.");
+    }
     return fail("engine_error", created.error ?? "Could not start the conversation.");
   }
 
