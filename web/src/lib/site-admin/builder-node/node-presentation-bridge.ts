@@ -174,7 +174,13 @@ export function builderStyleToNodePresentation(
     out.backgroundColor = style.backgroundColor;
   }
   if (style.borderColor !== undefined) out.borderColor = style.borderColor;
-  if (style.borderStyle !== undefined) out.borderStyle = style.borderStyle;
+  if (
+    style.borderStyle === "solid" ||
+    style.borderStyle === "dashed" ||
+    style.borderStyle === "dotted"
+  ) {
+    out.borderStyle = style.borderStyle;
+  }
   if (style.visibility !== undefined) out.visibility = style.visibility;
 
   // ── CSS-string → px-int (with key-name map) ───────────────────────────────

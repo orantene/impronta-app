@@ -230,6 +230,15 @@ test("D5: no pre-D4 search term was dropped by the regroup", () => {
   );
 });
 
+test("D5: glass is findable without knowing backdrop-filter", () => {
+  for (const term of ["glass", "glassmorphism", "frosted"]) {
+    assert.ok(
+      (STYLE_GROUP_SEARCH_TERMS.advanced as string[]).includes(term),
+      `"${term}" must be registered by the Advanced group so the Glass preset is searchable`,
+    );
+  }
+});
+
 test("D5: the loose blocks folded into Advanced are now searchable at all", () => {
   // Visibility and Custom CSS rendered OUTSIDE every group before D4, so the
   // filter could never match them. This is new coverage, not preserved

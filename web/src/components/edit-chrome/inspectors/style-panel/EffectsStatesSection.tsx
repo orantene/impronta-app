@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * StylePanel · EffectsStatesSection — sub-section of Effects & motion (W5-C1 file-size split).
  *
@@ -10,6 +12,7 @@ import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
+import { useInspectorSearchQuery } from "../kit/inspector-search";
 import { StateStyleFields } from "../style-panel-state-style-fields";
 import { GlassBackdropField } from "./glass-backdrop-field";
 import { FilterField } from "./filter-field";
@@ -34,6 +37,12 @@ export function EffectsStatesSection({
   setSelectedInteractionState,
 }: EffectsStatesSectionProps) {
   const hoverStyle = readHoverLane(selectedStandaloneFullStyle, selectedViewport);
+  const searchQuery = useInspectorSearchQuery().trim().toLowerCase();
+  const openEffectsForSearch =
+    searchQuery.length > 0 &&
+    ["glass", "glassmorphism", "frosted", "blur", "backdrop", "cristal", "esmerilado"].some(
+      (term) => searchQuery.includes(term),
+    );
   return (
     <>
             <div
@@ -41,7 +50,7 @@ export function EffectsStatesSection({
               data-builder-node-style-control="effects"
               style={{ borderColor: CHROME.line }}
             >
-              <details>
+              <details {...(openEffectsForSearch ? { open: true } : {})}>
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
                   <span className={FIELD_LABEL}>Effects</span>
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>

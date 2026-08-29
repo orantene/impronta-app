@@ -44,7 +44,7 @@ g.requestAnimationFrame = (cb: FrameRequestCallback) =>
 g.cancelAnimationFrame = (id: number) => clearTimeout(id);
 g.IS_REACT_ACT_ENVIRONMENT = true;
 
-/* eslint-disable import/first -- jsdom globals must exist before these load */
+// jsdom globals above must exist before these load.
 import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -60,10 +60,13 @@ import { GradientStopsBuilder } from "../css-value-builders";
 import { GlassBackdropField } from "./glass-backdrop-field";
 import { FilterField } from "./filter-field";
 import { ShadowStackBuilder } from "./shadow-stack-builder";
+import {
+  BorderColorSidesField,
+  BorderStyleSidesField,
+} from "./border-side-style-color-fields";
 import { BorderSidesField, CornerRadiusField } from "./corner-border-sides-fields";
 import { styleWithViewportPatch, type StyleCleaners } from "./viewport-style-patch";
 import type { NodeViewport } from "./section-types";
-/* eslint-enable import/first */
 
 const PASS_THROUGH_CLEANERS: StyleCleaners = {
   cleanStyle: (v) => v as BuilderNodeStyle | undefined,
@@ -172,6 +175,27 @@ function setInput(el: Element | null, value: string, what: string) {
   assert.ok(props?.onChange, `${what} has a wired onChange`);
   act(() => {
     props.onChange?.({ target: input });
+  });
+}
+
+function setSelect(el: Element | null, value: string, what: string) {
+  assert.ok(el, `${what} is rendered`);
+  const select = el as HTMLSelectElement;
+  const desc = Object.getOwnPropertyDescriptor(
+    dom.window.HTMLSelectElement.prototype,
+    "value",
+  );
+  assert.ok(desc?.set, `${what} has a value setter`);
+  desc.set.call(select, value);
+  const propsKey = Object.keys(select).find((k) => k.startsWith("__reactProps"));
+  assert.ok(propsKey, `${what} carries React props`);
+  const props = (select as unknown as Record<
+    string,
+    { onChange?: (e: { target: HTMLSelectElement }) => void }
+  >)[propsKey];
+  assert.ok(props?.onChange, `${what} has a wired onChange`);
+  act(() => {
+    props.onChange?.({ target: select });
   });
 }
 
@@ -425,6 +449,48 @@ test("border sides: mobile tier writes land in responsive.mobile, base untouched
   setInput(host.querySelector("[data-builder-border-side='top']"), "4", "top input");
   assert.equal(styleRef.value?.responsive?.mobile?.borderWidth, "4px 2px 2px");
   assert.equal(styleRef.value?.borderWidth, "2px", "base untouched");
+  unmount(root, host);
+});
+
+test("B9: per-side style writes dashed-on-top shorthand; existing solid still mounts", () => {
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(BorderStyleSidesField, {
+        value: vs?.borderStyle,
+        onChange: (next) => patch({ borderStyle: next }),
+      }),
+    { borderStyle: "solid" },
+  );
+  click(
+    host.querySelector("[data-builder-border-style-sides-toggle]"),
+    "Each side style toggle",
+  );
+  setSelect(
+    host.querySelector("[data-builder-border-style-side='top']"),
+    "dashed",
+    "top style",
+  );
+  assert.equal(styleRef.value?.borderStyle, "dashed solid solid");
+  unmount(root, host);
+});
+
+test("B9: per-side color writes four hex values; a five-term color stands down", () => {
+  const exotic = "#111 #222 #333 #444 #555";
+  const { root, host } = mount(
+    (vs, patch) =>
+      createElement(BorderColorSidesField, {
+        value: vs?.borderColor,
+        onChange: (next) => patch({ borderColor: next }),
+      }),
+    { borderColor: exotic },
+  );
+  click(
+    host.querySelector("[data-builder-border-color-sides-toggle]"),
+    "Each side color toggle",
+  );
+  assert.equal(styleRef.patches, 0, "no patch on mount/open");
+  const note = host.querySelector("[data-builder-border-color-sides-foreign]");
+  assert.ok(note?.textContent?.includes(exotic), "verbatim foreign color");
   unmount(root, host);
 });
 
