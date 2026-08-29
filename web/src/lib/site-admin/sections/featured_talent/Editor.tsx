@@ -72,6 +72,7 @@ export function FeaturedTalentEditor({
     showBadge: initial.showBadge,
     parentCategoryDisplay: initial.parentCategoryDisplay,
     requestCta: initial.requestCta,
+    itemCtas: initial.itemCtas,
     emptyStateText: initial.emptyStateText ?? "",
     footerCta: initial.footerCta,
     presentation: initial.presentation,
@@ -484,11 +485,77 @@ export function FeaturedTalentEditor({
         </div>
       </div>
 
+      <ItemCtaOverrides
+        rows={value.itemCtas ?? []}
+        onChange={(itemCtas) => patch({ itemCtas })}
+      />
+
       <PresentationPanel
         value={value.presentation}
         onChange={(next) => patch({ presentation: next })}
       />
     </div>
+  );
+}
+
+function ItemCtaOverrides({
+  rows,
+  onChange,
+}: {
+  rows: NonNullable<FeaturedTalentV1["itemCtas"]>;
+  onChange: (rows: NonNullable<FeaturedTalentV1["itemCtas"]>) => void;
+}) {
+  const t = useSectionT();
+  const [draftCode, setDraftCode] = useState("");
+  const [draftLabel, setDraftLabel] = useState("");
+  const addDraft = () => {
+    const profileCode = draftCode.trim();
+    const label = draftLabel.trim();
+    if (!profileCode || !label) return;
+    onChange([...rows, { profileCode, label }]);
+    setDraftCode("");
+    setDraftLabel("");
+  };
+
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className={LABEL}>{t("Per-card CTA override")}</legend>
+      <p className="text-[11px] text-muted-foreground">
+        {t(
+          "Optional. Overrides the section Request label on one card so a mixed rail can say Reserve on a bookable person and Request on a model.",
+        )}
+      </p>
+      {rows.map((row, index) => (
+        <div key={`${row.profileCode}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <span className="truncate px-2 py-1.5 text-sm">{row.profileCode}</span>
+          <span className="truncate px-2 py-1.5 text-sm">{row.label}</span>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline"
+            onClick={() => onChange(rows.filter((_, i) => i !== index))}
+          >
+            {t("Remove")}
+          </button>
+        </div>
+      ))}
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+        <input
+          className={INPUT}
+          placeholder={t("Profile code")}
+          value={draftCode}
+          onChange={(e) => setDraftCode(e.target.value)}
+        />
+        <input
+          className={INPUT}
+          placeholder={t("Reserve")}
+          value={draftLabel}
+          onChange={(e) => setDraftLabel(e.target.value)}
+        />
+        <button type="button" className="text-xs font-medium underline" onClick={addDraft}>
+          {t("Add")}
+        </button>
+      </div>
+    </fieldset>
   );
 }
 

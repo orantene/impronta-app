@@ -465,6 +465,14 @@
       "emptyResults": "No talent matches these filters yet. Try clearing filters or check back soon.",
       "loadingMore": "Loading…",
       "fallbackPrimaryTalentType": "Talent",
+      "card": {
+        "inquire": "Inquire",
+        "inLineup": "In lineup",
+        "inquireAria": "Add {name} to your lineup",
+        "inLineupAria": "{name} is in your lineup. Tap to remove.",
+        "booksByAppointment": "Books by appointment",
+        "reserve": "Reserve"
+      },
       "inquiry": {
         "saveThisTalent": "Save This Talent",
         "savedToInquiryCart": "Saved to your lineup",

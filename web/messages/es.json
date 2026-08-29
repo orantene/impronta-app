@@ -465,6 +465,14 @@
       "emptyResults": "Aún no hay talento que coincida con estos filtros. Prueba a limpiar filtros o vuelve pronto.",
       "loadingMore": "Cargando…",
       "fallbackPrimaryTalentType": "Talento",
+      "card": {
+        "inquire": "Consultar",
+        "inLineup": "En lineup",
+        "inquireAria": "Agregar a {name} a tu lineup",
+        "inLineupAria": "{name} esta en tu lineup. Toca para quitar.",
+        "booksByAppointment": "Se agenda",
+        "reserve": "Reservar"
+      },
       "inquiry": {
         "saveThisTalent": "Guardar este talento",
         "savedToInquiryCart": "Guardado en tu lista",

@@ -68,6 +68,8 @@ export type DirectoryCardData = {
    * `showPriceFrom` knob is off — the renderer shows it iff present.
    */
   priceFromLabel?: string | null;
+  /** Timed request/instant offering on this tenant. Drives the card badge/CTA. */
+  bookable?: boolean;
 };
 
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */

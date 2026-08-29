@@ -112,6 +112,8 @@ export type DirectoryCardDTO = {
    * (and presented differently) by source.
    */
   priceFromSource?: "talent" | "tenant_default" | "platform_default" | null;
+  /** True when this tenant has a timed request/instant offering for them. */
+  bookable?: boolean;
 };
 
 /**

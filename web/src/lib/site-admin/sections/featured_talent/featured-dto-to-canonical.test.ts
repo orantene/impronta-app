@@ -66,6 +66,11 @@ test("availability is preserved + marked known when present", () => {
   assert.equal(card.availabilityLabel, "Available from Jul 3");
 });
 
+test("bookable copies through so a mixed rail can swap the CTA", () => {
+  assert.equal(featuredDtoToCanonicalCard(dto()).bookable, false);
+  assert.equal(featuredDtoToCanonicalCard(dto({ bookable: true })).bookable, true);
+});
+
 test("featured DTO has no ownership data → independent fallback inputs", () => {
   const card = featuredDtoToCanonicalCard(dto());
   assert.equal(card.agencyName, null);

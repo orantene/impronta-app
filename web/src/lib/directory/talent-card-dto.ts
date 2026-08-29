@@ -65,6 +65,8 @@ export type ApiDirectoryCardRpcRow = {
   price_from_cents?: number | null;
   price_from_currency?: string | null;
   price_from_source?: "talent" | "tenant_default" | "platform_default" | null;
+  /** Published timed request/instant offering on this tenant. */
+  bookable?: boolean | null;
 };
 
 function pickLocalizedName(
@@ -225,5 +227,6 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
       typeof row.price_from_cents === "number" ? row.price_from_cents : null,
     priceFromCurrency: row.price_from_currency ?? null,
     priceFromSource: row.price_from_source ?? null,
+    bookable: row.bookable === true,
   };
 }

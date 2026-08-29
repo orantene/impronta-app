@@ -1111,7 +1111,7 @@ export async function fetchDirectoryPage(
   // the page's talents. Both are additive: empty maps degrade to the old
   // behavior (no chip, base recency order).
   const [
-    startingPriceByProfile,
+    startingPriceResult,
     talentsWithOfferings,
     tenantPricingDefaults,
     platformPriceDefault,
@@ -1312,7 +1312,7 @@ export async function fetchDirectoryPage(
       // overridden (see resolveStartingPrice's consent gate).
       ...(() => {
         const resolved = resolveStartingPrice({
-          ownPrice: startingPriceByProfile.get(profile.id) ?? null,
+          ownPrice: startingPriceResult.prices.get(profile.id) ?? null,
           hasDeliberateQuoteOnly: talentsWithOfferings.has(profile.id),
           primaryTypeSlug,
           tenantDefaults: tenantPricingDefaults,
@@ -1323,6 +1323,7 @@ export async function fetchDirectoryPage(
           price_from_cents: resolved?.amountCents ?? null,
           price_from_currency: resolved?.currency ?? null,
           price_from_source: resolved?.source ?? null,
+          bookable: startingPriceResult.bookableIds.has(profile.id),
         };
       })(),
     };

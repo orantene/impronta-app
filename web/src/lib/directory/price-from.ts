@@ -34,6 +34,12 @@ import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headlin
  */
 export type StartingPrice = { amountCents: number; currency: string };
 
+export type StartingPriceResult = {
+  prices: Map<string, StartingPrice>;
+  /** Talents with a published timed request/instant offering on this tenant. */
+  bookableIds: Set<string>;
+};
+
 /**
  * Talents with ANY published, publicly-visible offering — priced or not.
  *
@@ -81,38 +87,53 @@ type OfferingPriceRow = {
   currency: string | null;
   price_type: string | null;
   is_featured: boolean | null;
+  booking_mode: string | null;
+  duration_minutes: number | null;
+  kind: string | null;
+  price_display: string | null;
 };
 
 export async function fetchStartingPrices(
   supabase: SupabaseClient,
   talentProfileIds: string[],
   tenantId: string | null,
-): Promise<Map<string, StartingPrice>> {
-  const out = new Map<string, StartingPrice>();
-  if (talentProfileIds.length === 0 || !tenantId) return out;
+): Promise<StartingPriceResult> {
+  const prices = new Map<string, StartingPrice>();
+  const bookableIds = new Set<string>();
+  if (talentProfileIds.length === 0 || !tenantId) return { prices, bookableIds };
 
   const { data, error } = await supabase
     .from("talent_offerings")
-    .select("talent_profile_id, amount_cents, currency, price_type, is_featured")
+    .select(
+      "talent_profile_id, amount_cents, currency, price_type, is_featured, booking_mode, duration_minutes, kind, price_display",
+    )
     .in("talent_profile_id", talentProfileIds)
     .eq("tenant_id", tenantId)
     .eq("status", "published")
     .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
-    .neq("price_type", "custom")
-    .neq("price_display", "quote")
-    .gt("amount_cents", 0);
+    .in("visibility", ["public", "on_request"]);
 
-  if (error || !data) return out;
+  if (error || !data) return { prices, bookableIds };
 
-  // Group the catalog per talent, then let pickHeadlinePrice choose which of
-  // their services represents them on a card.
   const byTalent = new Map<string, CatalogPriceRow[]>();
   for (const row of data as OfferingPriceRow[]) {
-    if (typeof row.amount_cents !== "number" || row.amount_cents <= 0) continue;
+    if (
+      row.kind !== "product" &&
+      (row.duration_minutes ?? 0) > 0 &&
+      (row.booking_mode === "request" || row.booking_mode === "instant")
+    ) {
+      bookableIds.add(row.talent_profile_id);
+    }
+    const amountCents = row.amount_cents;
+    const priced =
+      row.price_type !== "custom" &&
+      row.price_display !== "quote" &&
+      typeof amountCents === "number" &&
+      amountCents > 0;
+    if (!priced) continue;
     const list = byTalent.get(row.talent_profile_id) ?? [];
     list.push({
-      amountCents: row.amount_cents,
+      amountCents,
       currency: (row.currency ?? "USD").toUpperCase(),
       priceType: row.price_type ?? "",
       isFeatured: row.is_featured === true,
@@ -121,7 +142,7 @@ export async function fetchStartingPrices(
   }
   for (const [talentId, rows] of byTalent) {
     const headline = pickHeadlinePrice(rows);
-    if (headline) out.set(talentId, headline);
+    if (headline) prices.set(talentId, headline);
   }
-  return out;
+  return { prices, bookableIds };
 }

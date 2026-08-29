@@ -82,6 +82,20 @@ export const featuredTalentSchemaV1 = z.object({
   parentCategoryDisplay: z.boolean().optional(),
   /** Optional Request/add-to-inquiry CTA per card. */
   requestCta: ctaSchema.optional(),
+  /**
+   * Per-card CTA label override. The section requestCta.label stays the
+   * default; a mixed rail can set Reserve on a nail artist and Request on
+   * a model without splitting the section.
+   */
+  itemCtas: z
+    .array(
+      z.object({
+        profileCode: z.string().min(1).max(40),
+        label: z.string().min(1).max(60),
+      }),
+    )
+    .max(15)
+    .optional(),
   /** Copy shown when the resolved collection is empty. */
   emptyStateText: z.string().max(240).optional(),
   footerCta: ctaSchema.optional(),
