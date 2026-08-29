@@ -11,13 +11,17 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "@/lib/support/support-from";
+import { parseLooseJson } from "@/lib/support/parse-loose-json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MODEL = "claude-haiku-4-5";
-const TIMEOUT_MS = 6000;
+// This is an offline nightly batch, not a user-facing call: a 6s budget was
+// shorter than a normal Haiku round-trip, so every ticket timed out and the
+// learning loop produced nothing, silently. maxDuration is 60s.
+const TIMEOUT_MS = 25_000;
 
 type InsightParsed = {
   summary?: string;
@@ -101,6 +105,9 @@ export async function GET(request: Request) {
 
   const adapter = await resolveAiChatAdapter();
   let generated = 0;
+  // Every skip reason is counted and returned. A bare `continue` made a
+  // fully-timing-out run look identical to a run with nothing to do.
+  const skipped = { gated: 0, timedOut: 0, modelError: 0, unparsable: 0, writeFailed: 0 };
   for (const ticket of pending as Array<{
     id: string;
     tenant_id: string | null;
@@ -110,7 +117,10 @@ export async function GET(request: Request) {
     metadata?: Record<string, unknown> | null;
   }>) {
     const gate = await assertAiInvocationAllowed(ticket.tenant_id ?? DEFAULT_AI_TENANT_ID);
-    if (!gate.ok) continue;
+    if (!gate.ok) {
+      skipped.gated += 1;
+      continue;
+    }
     const { data: messages } = await supportFrom(admin, "support_messages")
       .select("author_kind, body")
       .eq("ticket_id", ticket.id)
@@ -136,14 +146,26 @@ export async function GET(request: Request) {
       }),
       timeoutNull<Awaited<ReturnType<typeof adapter.chatCompletion>>>(TIMEOUT_MS),
     ]);
-    if (!completion || !completion.ok) continue;
-    let parsed: InsightParsed | null = null;
-    try {
-      parsed = JSON.parse(completion.text) as InsightParsed;
-    } catch {
+    if (!completion) {
+      skipped.timedOut += 1;
+      logServerError("cron/support-insights", `insight timed out after ${TIMEOUT_MS}ms`);
       continue;
     }
-    if (!parsed?.summary) continue;
+    if (!completion.ok) {
+      skipped.modelError += 1;
+      continue;
+    }
+    const parsed = parseLooseJson<InsightParsed>(completion.text);
+    if (!parsed?.summary) {
+      skipped.unparsable += 1;
+      // Log the SHAPE so a recurring format change is diagnosable instead of
+      // showing up as a permanently empty Insights tab.
+      logServerError(
+        "cron/support-insights.parse",
+        `unparsable insight output (${completion.text.length} chars): ${completion.text.slice(0, 200)}`,
+      );
+      continue;
+    }
     const meta =
       ticket.metadata && typeof ticket.metadata === "object" ? ticket.metadata : {};
     const resolutionKind: string =
@@ -170,6 +192,7 @@ export async function GET(request: Request) {
       model: MODEL,
     });
     if (error) {
+      skipped.writeFailed += 1;
       logServerError("cron/support-insights.insert", error);
       continue;
     }
@@ -184,5 +207,5 @@ export async function GET(request: Request) {
     generated += 1;
   }
 
-  return NextResponse.json({ ok: true, generated, scanned: pending.length });
+  return NextResponse.json({ ok: true, generated, scanned: pending.length, skipped });
 }
