@@ -19,6 +19,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { improntaLog } from "@/lib/server/structured-log";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import {
+  personaliseStarterBuilderTree,
+  type StarterPersonalisation,
+} from "@/lib/site-admin/builder-node/starter-personalisation";
 import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-templates";
 import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
@@ -107,9 +111,20 @@ async function loadReservedStorefrontSlugTree(
  * (`source_tenant_id = null`), and the storefront render path is anonymous, so
  * the read must bypass tenant RLS. Callers already mint a service-role client
  * for media/collection reads on the same render.
+ *
+ * PERSONALISATION (required, deliberately). The Lab template is authored once
+ * for every tenant, so it is stamped through
+ * {@link personaliseStarterBuilderTree} before it leaves this function: the
+ * tenant's name replaces `{{business.name}}`, audience switches collapse to the
+ * matching case, and unknown placeholders are stripped so no `{{…}}` can reach
+ * a published page. `personalisation` is a REQUIRED parameter precisely so the
+ * pass cannot be dropped by a future caller without a type error — the failure
+ * mode we are guarding against is a personaliser that is alive in its unit test
+ * and dead at its real call site. Pass `{}` only when nothing is known.
  */
 export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
+  personalisation: StarterPersonalisation,
 ): Promise<ResolvedDefaultStorefront | null> {
   try {
     // Fallback chain: Lab pointer → reserved slug → null (caller keeps
@@ -131,7 +146,12 @@ export async function resolvePlatformDefaultStorefrontTree(
     });
 
     if (!builderTree || builderTree.length === 0) return null;
-    return { builderTree: builderTree as BuilderNodeTree };
+    return {
+      builderTree: personaliseStarterBuilderTree(
+        builderTree as BuilderNodeTree,
+        personalisation,
+      ),
+    };
   } catch (err) {
     // Defensive — the fallback caller must never throw to the visitor.
     void improntaLog("site_admin_default_storefront.warn", {

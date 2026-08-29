@@ -8,16 +8,24 @@ export type BookableOffering = {
   talentProfileId?: string | null;
 };
 
+/** An offering that can actually produce public slots (duration + not a product). */
+export function isSlotEligibleOffering(
+  o: Pick<TalentOffering, "durationMinutes" | "kind" | "bookingMode">,
+): boolean {
+  if (o.kind === "product") return false;
+  if ((o.durationMinutes ?? 0) <= 0) return false;
+  return o.bookingMode === "request" || o.bookingMode === "instant";
+}
+
 export function pickBookableOffering(
   offerings: TalentOffering[],
   opts?: { locationLabel?: string | null; timezone?: string | null },
 ): BookableOffering | null {
-  const pick =
-    offerings.find((o) => (o.durationMinutes ?? 0) > 0) ?? offerings[0] ?? null;
+  const pick = offerings.find(isSlotEligibleOffering) ?? null;
   if (!pick) return null;
   return {
     offeringId: pick.id,
-    durationMinutes: pick.durationMinutes && pick.durationMinutes > 0 ? pick.durationMinutes : 30,
+    durationMinutes: pick.durationMinutes as number,
     timezone: opts?.timezone && opts.timezone.trim() ? opts.timezone : "UTC",
     locationLabel: opts?.locationLabel ?? null,
     talentProfileId: pick.talentProfileId,

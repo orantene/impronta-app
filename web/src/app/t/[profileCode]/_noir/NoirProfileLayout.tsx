@@ -62,8 +62,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
-
-/** Group detail rows by their resolved group label, preserving first-seen order. */
+/** Group detail rows by resolved group label, first-seen order. */
 function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: DetailRow[] }> {
   const order: string[] = [];
   const byGroup = new Map<string, DetailRow[]>();
@@ -751,6 +750,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             {inquireButtonFooter}
             {discoveryCta3}
           </div>
+          {props.slotPicker}
         </div>
       </section>
 

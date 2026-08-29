@@ -24,6 +24,7 @@ import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { ProfileSlotPickerMount } from "@/components/public-booking/ProfileSlotPickerMount";
+import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
@@ -1924,6 +1925,19 @@ export async function TalentProfileView({
     hostCtx.kind === "agency" ? hostCtx.tenantId : chatHub?.tenantId ?? null;
   const chatTenantSlug =
     hostCtx.kind === "agency" ? hostCtx.tenantSlug : chatHub?.slug ?? "";
+  const bookingAdmin = createServiceRoleClient();
+  const booking = bookingAdmin
+    ? await resolveTalentBooking(bookingAdmin, {
+        talentProfileId: profile.id,
+        host: {
+          kind: hostCtx.kind,
+          tenantId: hostCtx.kind === "agency" ? hostCtx.tenantId : null,
+        },
+      })
+    : { mode: "inquire" as const, tenantId: null, tenantSlug: null };
+  const showSlotPicker = booking.mode !== "inquire";
+  const slotTenantSlug = booking.tenantSlug ?? chatTenantSlug;
+  const slotTenantId = booking.tenantId ?? chatTenantId;
   const chatBrandName =
     hostCtx.kind === "agency"
       ? tenantBrand ?? "the agency"
@@ -2210,6 +2224,35 @@ export async function TalentProfileView({
     "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
+  const inquireButtons = (btnClass: string) =>
+    showSlotPicker ? null : (
+      <>
+        {instantBook.eligible && instantBook.fixedRateDollars != null ? (
+          <TalentProfileInstantBookButton
+            talentId={profile.id}
+            displayName={name}
+            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+            sourcePage={profileSourcePage}
+            fixedRateDollars={instantBook.fixedRateDollars}
+            currencyCode={instantBook.currencyCode}
+            locale={locale}
+            className={btnClass}
+          />
+        ) : null}
+        <TalentProfileInquireButton
+          talentId={profile.id}
+          talentProfileCode={profile.profile_code}
+          displayName={name}
+          tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+          tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+          agencyName={tenantBrand ?? "the agency"}
+          sourcePage={profileSourcePage}
+          locale={locale}
+          className={btnClass}
+        />
+      </>
+    );
+
   // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a
   // <script type="application/ld+json"> inside the page tree so Google
   // can build rich-result cards + knowledge-panel hints for talent
@@ -2391,95 +2434,19 @@ export async function TalentProfileView({
             <ProfileHubsIndicator hubs={otherHubs} label={alsoOnLabel} />
           ) : null
         }
-        inquireButtonHeader={
-          <>
-            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
-              <TalentProfileInstantBookButton
-                talentId={profile.id}
-                displayName={name}
-                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                sourcePage={profileSourcePage}
-                fixedRateDollars={instantBook.fixedRateDollars}
-                currencyCode={instantBook.currencyCode}
-                locale={locale}
-                className={inquireBtnClass}
-              />
-            ) : null}
-            <TalentProfileInquireButton
-              talentId={profile.id}
-              talentProfileCode={profile.profile_code}
-              displayName={name}
-              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-              agencyName={tenantBrand ?? "the agency"}
-              sourcePage={profileSourcePage}
-              locale={locale}
-              className={inquireBtnClass}
-            />
-          </>
-        }
+        inquireButtonHeader={inquireButtons(inquireBtnClass)}
         slotPicker={
-          <ProfileSlotPickerMount
-            offerings={storefrontOfferings}
-            tenantSlug={chatTenantSlug}
-            agencyName={tenantBrand ?? "the studio"}
-            locationLabel={livesIn}
-          />
-        }
-        inquireButtonSidebar={
-          <>
-            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
-              <TalentProfileInstantBookButton
-                talentId={profile.id}
-                displayName={name}
-                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                sourcePage={profileSourcePage}
-                fixedRateDollars={instantBook.fixedRateDollars}
-                currencyCode={instantBook.currencyCode}
-                locale={locale}
-                className={inquireBtnClassFull}
-              />
-            ) : null}
-            <TalentProfileInquireButton
-              talentId={profile.id}
-              talentProfileCode={profile.profile_code}
-              displayName={name}
-              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-              agencyName={tenantBrand ?? "the agency"}
-              sourcePage={profileSourcePage}
-              locale={locale}
-              className={inquireBtnClassFull}
+          showSlotPicker ? (
+            <ProfileSlotPickerMount
+              offerings={storefrontOfferings}
+              tenantSlug={slotTenantSlug}
+              agencyName={tenantBrand ?? "the studio"}
+              locationLabel={livesIn}
             />
-          </>
+          ) : null
         }
-        inquireButtonFooter={
-          <>
-            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
-              <TalentProfileInstantBookButton
-                talentId={profile.id}
-                displayName={name}
-                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                sourcePage={profileSourcePage}
-                fixedRateDollars={instantBook.fixedRateDollars}
-                currencyCode={instantBook.currencyCode}
-                locale={locale}
-                className={inquireBtnClass}
-              />
-            ) : null}
-            <TalentProfileInquireButton
-              talentId={profile.id}
-              talentProfileCode={profile.profile_code}
-              displayName={name}
-              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-              agencyName={tenantBrand ?? "the agency"}
-              sourcePage={profileSourcePage}
-              locale={locale}
-              className={inquireBtnClass}
-            />
-          </>
-        }
+        inquireButtonSidebar={inquireButtons(inquireBtnClassFull)}
+        inquireButtonFooter={inquireButtons(inquireBtnClass)}
         shareMenuHeader={
           <ProfileShareRow
             talentId={profile.id}
@@ -2544,14 +2511,14 @@ export async function TalentProfileView({
         />
       ) : null}
       {/* Storefront direct booking — consumes "tulala:offering-instant" from a
-          card's Book now / Buy click; agency surface only (needs a tenant). */}
-      {hostCtx.kind === "agency" && (
+          card's Book now / Buy click. Armed on any host that resolved a seller tenant. */}
+      {slotTenantId ? (
         <OfferingInstantMount
-          tenantId={hostCtx.tenantId}
+          tenantId={slotTenantId}
           sourcePage={`/t/${profile.profile_code}`}
           locale={locale}
         />
-      )}
+      ) : null}
       {!isModal && guestChatSettings.enabled && guestChatSettings.showOnTalent && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}

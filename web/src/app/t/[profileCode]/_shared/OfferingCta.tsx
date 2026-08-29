@@ -7,6 +7,7 @@
  * dispatches a window CustomEvent that the profile's chat launcher /
  * instant-book mount consumes:
  *   - "tulala:offering-request"  → carry the offering into the inquiry/chat
+ *   - "tulala:offering-slot"     → open the SlotPicker for this offering
  *   - "tulala:offering-instant"  → direct booking (generalized instant-book)
  *
  * The event contract is the ONLY coupling between the storefront render and
@@ -59,6 +60,10 @@ export function OfferingCta({
 }) {
   const cta = resolveOfferingCta(offering);
   const instant = cta === "book_now" || cta === "buy_now";
+  const slotEligible =
+    cta === "request_to_book" &&
+    offering.kind !== "product" &&
+    (offering.durationMinutes ?? 0) > 0;
   const label = pickLocale(locale, CTA_COPY[cta]);
 
   const onClick = () => {
@@ -81,9 +86,12 @@ export function OfferingCta({
       inventoryQty: offering.inventoryQty,
       intent: instant ? "instant" : "request",
     };
-    window.dispatchEvent(
-      new CustomEvent(instant ? "tulala:offering-instant" : "tulala:offering-request", { detail }),
-    );
+    const eventName = instant
+      ? "tulala:offering-instant"
+      : slotEligible
+        ? "tulala:offering-slot"
+        : "tulala:offering-request";
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
 
   return (
