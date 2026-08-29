@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { isResolvedAiChatConfigured, resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { parseLooseJson } from "@/lib/support/parse-loose-json";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -18,7 +19,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MODEL = "claude-haiku-4-5";
-const TIMEOUT_MS = 6000;
+// Offline weekly batch, not user-facing: 6s was shorter than a normal
+// round-trip, so the digest silently shipped mechanical fallback copy.
+const TIMEOUT_MS = 25_000;
 
 function mondayUtc(d: Date): string {
   const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -59,7 +62,10 @@ export async function GET(request: Request) {
   };
 
   let summary = `Resolved ${dash.resolvedThisWeek} tickets this week. ${dash.needsYou} still need a reply.`;
-  let suggestedFixes: string[] = dash.friction.slice(0, 3).map((f) => `Review ${f.area} (${f.count} tickets)`);
+  let suggestedFixes: string[] = dash.friction
+    .slice(0, 3)
+    .map((f) => `Review ${f.area} (${f.count} ${f.count === 1 ? "ticket" : "tickets"})`);
+  let aiUsed = false;
 
   const flags = await getAiFeatureFlags();
   if (flags.ai_master_enabled && flags.ai_support_enabled && (await isResolvedAiChatConfigured())) {
@@ -91,16 +97,21 @@ export async function GET(request: Request) {
         timeoutNull<Awaited<ReturnType<typeof adapter.chatCompletion>>>(TIMEOUT_MS),
       ]);
       if (completion?.ok) {
-        try {
-          const parsed = JSON.parse(completion.text) as { summary?: string; suggestedFixes?: string[] };
-          if (parsed.summary) summary = parsed.summary.slice(0, 1200);
-          if (Array.isArray(parsed.suggestedFixes) && parsed.suggestedFixes.length > 0) {
-            suggestedFixes = parsed.suggestedFixes.map((s) => String(s).slice(0, 160)).slice(0, 5);
-          }
-          void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
-        } catch {
-          /* keep fallback copy */
+        const parsed = parseLooseJson<{ summary?: string; suggestedFixes?: string[] }>(
+          completion.text,
+        );
+        if (parsed?.summary) {
+          summary = parsed.summary.slice(0, 1200);
+          aiUsed = true;
         }
+        if (Array.isArray(parsed?.suggestedFixes) && parsed.suggestedFixes.length > 0) {
+          suggestedFixes = parsed.suggestedFixes.map((s) => String(s).slice(0, 160)).slice(0, 5);
+          aiUsed = true;
+        }
+        if (aiUsed) void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
+        else logServerError("cron/support-weekly-digest", "model output unusable; sent fallback copy");
+      } else if (!completion) {
+        logServerError("cron/support-weekly-digest", `model timed out after ${TIMEOUT_MS}ms`);
       }
     }
   }
@@ -130,5 +141,5 @@ export async function GET(request: Request) {
     },
   }).catch(() => undefined);
 
-  return NextResponse.json({ ok: true, snapshot });
+  return NextResponse.json({ ok: true, aiUsed, snapshot });
 }
