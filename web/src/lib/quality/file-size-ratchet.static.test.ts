@@ -426,7 +426,7 @@ const BUDGETS: Record<string, number> = {
   // and the note recording why the setup checklist must not count seeded
   // demo profiles as the operator's own talent.
   "src/components/admin/shell/internal/state/types.ts": 2871,
-  "src/components/admin/shell/admin-shell-client.tsx": 2494,
+  "src/components/admin/shell/admin-shell-client.tsx": 2430,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type

@@ -13,19 +13,40 @@ import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/acco
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 
 /**
- * GlobalUpgradeModal — single modal instance mounted at the admin shell.
+ * GlobalUpgradeModal — THE upgrade modal. One instance, mounted at the admin
+ * shell, reached by every upgrade CTA in the product.
  *
  * Free downgrade  → changeWorkspacePlan (direct DB write, no Stripe)
  * Studio / Agency → startWorkspaceUpgrade → Stripe Checkout redirect
  * Network         → mailto: sales handoff (no self-serve price yet)
+ *
+ * There is deliberately no local "set the plan" path here. A second modal used
+ * to have one (`shell/internal/drawers/UpgradeModal.tsx`): its CTA flipped a
+ * `useState` plan value, toasted "upgrade applied", and charged nothing, so the
+ * shell unlocked cards the server still refused until the next reload. It was
+ * deleted; if you are adding a plan-changing branch, it goes through a server
+ * action or it does not exist.
  */
-export function GlobalUpgradeModal() {
+export function GlobalUpgradeModal({
+  tenantSlug,
+  activePlan: activePlanOverride,
+}: {
+  /**
+   * Workspace slug for the checkout session. Falls back to
+   * {@link useAdminWorkspace}; the SPA shell has the slug as a prop and no
+   * AdminWorkspaceProvider above it, so it passes the value in directly.
+   */
+  tenantSlug?: string;
+  /** Live plan tier. Same fallback story as `tenantSlug`. */
+  activePlan?: Plan;
+} = {}) {
   const queueRouterRefresh = useQueuedRouterRefresh();
-  const { open, setOpen } = useUpgradeModal();
+  const { open, reason, setOpen } = useUpgradeModal();
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
 
-  const activePlan: Plan = workspace?.plan ?? "free";
+  const activePlan: Plan = activePlanOverride ?? workspace?.plan ?? "free";
+  const slug = tenantSlug ?? workspace?.slug;
 
   function handleSelect(plan: Plan) {
     if (pending) return;
@@ -36,7 +57,6 @@ export function GlobalUpgradeModal() {
       plan === "agency" ||
       plan === "network"
     ) {
-      const slug = workspace?.slug;
       if (!slug) {
         toast.error("Couldn't identify workspace.");
         return;
@@ -76,6 +96,7 @@ export function GlobalUpgradeModal() {
       onOpenChange={setOpen}
       activePlan={activePlan}
       onSelect={handleSelect}
+      reason={reason}
     />
   );
 }

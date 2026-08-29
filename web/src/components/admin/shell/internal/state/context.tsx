@@ -42,6 +42,7 @@ import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
+import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
@@ -97,7 +98,6 @@ export type AdminShellState = {
   impersonating: Impersonation;
   // shared
   drawer: DrawerContext;
-  upgrade: UpgradeOffer;
   toasts: Toast[];
   completedTasks: Set<string>;
   /** Comfortable (default) vs compact list density. Persisted to localStorage. */
@@ -123,7 +123,11 @@ type Ctx = {
    * back. No-op when alsoTalent is false.
    */
   flipMode: () => void;
-  setPlan: (p: Plan) => void;
+  /**
+   * PROTOTYPE-ONLY plan override, a hard no-op for any real bridged tenant.
+   * Not named `setPlan` on purpose — see ./upgrade-bridge for the incident.
+   */
+  devSetPlan: (p: Plan) => void;
   setRole: (r: Role) => void;
   setEntityType: (e: EntityType) => void;
   setAlsoTalent: (b: boolean) => void;
@@ -152,8 +156,11 @@ type Ctx = {
   popDrawer: () => void;
   /** The chain of drawers the user opened to get here (excluding current). */
   drawerStack: DrawerContext[];
+  /**
+   * Open THE upgrade modal (GlobalUpgradeModal → Stripe Checkout), framed by
+   * the blocked feature. See UpgradeOffer in ./drawer-ids for which fields land.
+   */
   openUpgrade: (offer: Omit<UpgradeOffer, "open">) => void;
-  closeUpgrade: () => void;
   toast: (message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: ToastTone }) => void;
   dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
@@ -1073,6 +1080,9 @@ export function AdminShellProvider({
 
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [role, setRole] = useState<Role>(initialRole);
+  // Plan tier: the two things the shell may do about it, and nothing else.
+  const openUpgrade = useOpenUpgradeModal();
+  const devSetPlan = useDevPlanOverride(initialBridgeData, setPlan);
   const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
   // Phase 0 (talent-surface launch readiness) — derive hybrid signal from the
   // bridge instead of hardcoding `true`. The bridge sets `isHybrid` to true
@@ -1175,7 +1185,6 @@ export function AdminShellProvider({
   const [impersonating, setImpersonating] = useState<Impersonation>(null);
   // shared
   const [drawer, setDrawer] = useState<DrawerContext>({ drawerId: null });
-  const [upgrade, setUpgrade] = useState<UpgradeOffer>({ open: false });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   // Pending-approvals queue lifted into proto state. Mutating this
@@ -1758,13 +1767,6 @@ export function AdminShellProvider({
     });
   }, []);
 
-  const openUpgrade = useCallback((offer: Omit<UpgradeOffer, "open">) => {
-    setUpgrade({ open: true, ...offer });
-  }, []);
-  const closeUpgrade = useCallback(() => {
-    setUpgrade({ open: false });
-  }, []);
-
   const toast = useCallback((message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: ToastTone }) => {
     const id = ++toastIdRef.current;
     // WS-0.9 — toast queue limit. Max 3 toasts on screen at once.
@@ -2185,7 +2187,6 @@ export function AdminShellProvider({
         platformPage,
         impersonating,
         drawer,
-        upgrade,
         toasts,
         completedTasks,
         density,
@@ -2193,7 +2194,7 @@ export function AdminShellProvider({
       },
       setSurface: handleSetSurface,
       flipMode,
-      setPlan,
+      devSetPlan,
       setRole,
       setEntityType,
       setAlsoTalent,
@@ -2217,7 +2218,6 @@ export function AdminShellProvider({
       popDrawer,
       drawerStack,
       openUpgrade,
-      closeUpgrade,
       toast,
       dismissToast,
       handleSetTalentTier,
@@ -2332,7 +2332,6 @@ export function AdminShellProvider({
       impersonating,
       drawer,
       drawerStack,
-      upgrade,
       toasts,
       completedTasks,
       density,
@@ -2341,13 +2340,13 @@ export function AdminShellProvider({
       setWorkspaceLayout,
       handleSetSurface,
       flipMode,
+      devSetPlan,
       startImpersonation,
       stopImpersonation,
       openDrawer,
       closeDrawer,
       popDrawer,
       openUpgrade,
-      closeUpgrade,
       toast,
       dismissToast,
       handleSetTalentTier,

@@ -6,7 +6,8 @@
  * A single keyboard-accessible spotlight surface that indexes:
  *   - Surfaces (workspace / talent / client / platform)
  *   - Pages within the active surface
- *   - Plan / role / entity switches (workspace only)
+ *   - Role switches (workspace only). NOT plan: tier is a billing fact, so
+ *     it changes through the upgrade modal and Stripe, never from here.
  *   - Common drawers (new inquiry, plan compare, danger zone, etc.)
  *
  * It is intentionally small and fast: substring match, no debounce, no
@@ -27,8 +28,6 @@ import {
   COLORS,
   FONTS,
   PAGE_META,
-  PLANS,
-  PLAN_META,
   PLATFORM_PAGES,
   PLATFORM_PAGE_META,
   ROLES,
@@ -42,7 +41,6 @@ import {
   type ClientPage,
   type DrawerId,
   type PlatformPage,
-  type Plan,
   type Role,
   type Surface,
   type TalentPage,
@@ -183,21 +181,14 @@ export function CommandPalette() {
       });
     }
 
-    // Workspace-only switches: plan / role
+    // Workspace-only switches: role
+    //
+    // The plan switcher used to live here too. It called the shell's local
+    // plan setter, so ⌘K → "Plan: Agency" silently pretended a real tenant
+    // had upgraded — locked cards opened, server gates kept refusing, and one
+    // reload undid it. Changing tier is a billing action; it lives in the
+    // upgrade modal (`openUpgrade` → Stripe Checkout) and nowhere else.
     if (state.surface === "workspace") {
-      PLANS.forEach((p) => {
-        items.push({
-          id: `plan-${p}`,
-          label: `${t("dashboard.adminShell.commandPalette.planPrefix")}: ${PLAN_META[p].label}`,
-          group: t("dashboard.adminShell.commandPalette.groupWorkspacePlan"),
-          keywords: `plan ${t("dashboard.adminShell.commandPalette.planPrefix")} ${p} ${PLAN_META[p].label}`.toLowerCase(),
-          current: state.plan === p,
-          run: () => {
-            proto.setPlan(p as Plan);
-            close();
-          },
-        });
-      });
       ROLES.forEach((r) => {
         items.push({
           id: `role-${r}`,

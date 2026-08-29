@@ -8748,9 +8748,7 @@
         "surfaceWorkspace": "Workspace",
         "surfaceTalent": "Talent",
         "surfacePlatform": "Platform",
-        "planPrefix": "Plan",
         "rolePrefix": "Role",
-        "groupWorkspacePlan": "Workspace plan",
         "groupWorkspaceRole": "Workspace role",
         "groupHelp": "Help",
         "groupView": "View",
@@ -9461,6 +9459,10 @@
       "loading": "Loading…"
     },
     "adminShared": {
+      "upgradeReason": {
+        "needsPlan": "{feature} needs {plan}",
+        "recommended": "Recommended"
+      },
       "talentUsage": {
         "unlimited": "Unlimited talents",
         "counted": {

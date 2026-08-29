@@ -23,7 +23,7 @@
  *   _state.tsx        — types, mock data, AdminShellProvider, useAdminShell, tokens
  *   _primitives.tsx   — Icon library, atoms, cards, drawer/modal shells, ToastHost
  *   _pages.tsx        — ControlBar, WorkspaceTopbar, all surface/page renderers
- *   _drawers.tsx      — DrawerRoot dispatcher, every drawer body, UpgradeModal
+ *   _drawers.tsx      — DrawerRoot dispatcher, every drawer body
  *
  * Four dev dimensions (set via the dark ControlBar at the top):
  *   Surface           — workspace · talent · client · platform
@@ -38,8 +38,8 @@
  * Dev-handoff documentation lives at `web/docs/admin-prototype/dev-handoff.md`.
  */
 
-import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { SupportSlotContext, SupportSlotGate } from "./internal/support-slot-gate";
+import { useEffect, useRef, useState } from "react";
+import { SupportSlotGate } from "./internal/support-slot-gate";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
@@ -56,7 +56,9 @@ import {
 import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
 import { AdminTour } from "./internal/admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
-import { DrawerRoot, UpgradeModal } from "./internal/drawers";
+import { DrawerRoot } from "./internal/drawers";
+import { ShellBoundary } from "./internal/shell-boundary";
+import { ShellUpgradeModal } from "./internal/shell-upgrade-modal";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
@@ -129,65 +131,6 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
   return <ControlBar />;
 }
 
-
-// ─── Error boundary (#26) ─────────────────────────────────────────────
-// Catches render-time exceptions and shows a friendly fallback page.
-
-class ErrorBoundary extends Component<
-  { children: ReactNode },
-  { caught: Error | null }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { caught: null };
-  }
-  static getDerivedStateFromError(err: Error) {
-    return { caught: err };
-  }
-  override render() {
-    if (this.state.caught) {
-      return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            gap: 16,
-            fontFamily: "system-ui, sans-serif",
-            padding: 32,
-            textAlign: "center",
-          }}
-        >
-          <div className="text-[40px]">⚠️</div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Something broke</h1>
-          <p style={{ fontSize: 14, color: "rgba(11,11,13,0.6)", margin: 0 }}>
-            {this.state.caught.message || "An unexpected error occurred."}
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: 8,
-              padding: "10px 22px",
-              background: "#0F4F3E",
-              color: "#fff",
-              border: "none",
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Reload
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 // ─── Page entry ──────────────────────────────────────────────────────
 
@@ -291,23 +234,19 @@ export function AdminShellClient({
   supportSlot?: import("react").ReactNode;
 } = {}) {
   return (
-    <ErrorBoundary>
-      <Suspense fallback={null}>
-        <SupportSlotContext.Provider value={supportSlot ?? null}>
-          <AdminShellProvider
-            initialBridgeData={initialBridgeData}
-            initialPage={initialPage}
-            tenantSlug={tenantSlug}
-            brandedHost={brandedHost}
-          >
-            <WorkspaceShellWithCanonicalChildren>
-              {children}
-            </WorkspaceShellWithCanonicalChildren>
-            <SupportSlotGate />
-          </AdminShellProvider>
-        </SupportSlotContext.Provider>
-      </Suspense>
-    </ErrorBoundary>
+    <ShellBoundary supportSlot={supportSlot}>
+      <AdminShellProvider
+        initialBridgeData={initialBridgeData}
+        initialPage={initialPage}
+        tenantSlug={tenantSlug}
+        brandedHost={brandedHost}
+      >
+        <WorkspaceShellWithCanonicalChildren>
+          {children}
+        </WorkspaceShellWithCanonicalChildren>
+        <SupportSlotGate />
+      </AdminShellProvider>
+    </ShellBoundary>
   );
 }
 
@@ -345,30 +284,26 @@ export function TalentShellClient({
   supportSlot?: import("react").ReactNode;
 } = {}) {
   return (
-    <ErrorBoundary>
-      <Suspense fallback={null}>
-        <SupportSlotContext.Provider value={supportSlot ?? null}>
-          <AdminShellProvider
-            initialBridgeData={initialBridgeData}
-            initialSurface="talent"
-            initialTalentPage={initialTalentPage}
-            tenantSlug={tenantSlug}
-            platformTalentRoutes={platformTalentRoutes}
-          >
-            {children}
-            <RealtimeBridge />
-            {/* ConditionalAdminShellRoot (not AdminShellRoot directly) so
-                canonical talent routes — e.g. /talent/trust — render their
-                standalone Next.js page instead of the SPA shell. Every
-                existing /talent/* route is absent from
-                CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
-                exactly as before (pathIsCanonical → false → AdminShellRoot). */}
-            <ConditionalAdminShellRoot />
-            <SupportSlotGate />
-          </AdminShellProvider>
-        </SupportSlotContext.Provider>
-      </Suspense>
-    </ErrorBoundary>
+    <ShellBoundary supportSlot={supportSlot}>
+      <AdminShellProvider
+        initialBridgeData={initialBridgeData}
+        initialSurface="talent"
+        initialTalentPage={initialTalentPage}
+        tenantSlug={tenantSlug}
+        platformTalentRoutes={platformTalentRoutes}
+      >
+        {children}
+        <RealtimeBridge />
+        {/* ConditionalAdminShellRoot (not AdminShellRoot directly) so
+            canonical talent routes — e.g. /talent/trust — render their
+            standalone Next.js page instead of the SPA shell. Every
+            existing /talent/* route is absent from
+            CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
+            exactly as before (pathIsCanonical → false → AdminShellRoot). */}
+        <ConditionalAdminShellRoot />
+        <SupportSlotGate />
+      </AdminShellProvider>
+    </ShellBoundary>
   );
 }
 
@@ -2445,8 +2380,9 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           {/* Layered on top: drawer overlay + drawer panel */}
           <DrawerRoot />
 
-          {/* Layered on top: upgrade modal (cream header + plan unlocks) */}
-          <UpgradeModal />
+          {/* Layered on top: THE upgrade modal — openUpgrade lands here, and
+              here goes to Stripe Checkout. */}
+          <ShellUpgradeModal />
 
           {/* Layered on top: toast stack (bottom-right) */}
           <ToastBridge />
