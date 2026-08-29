@@ -11,6 +11,7 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
+import { MARKETING_FEATURES } from "@/lib/marketing/features";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -26,7 +27,7 @@ const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
  * BUMP THIS when marketing copy materially changes (new page, rewritten
  * positioning, pricing change). Do not bump it for code-only refactors.
  */
-const MARKETING_CONTENT_REVISED = new Date("2026-08-21T00:00:00.000Z");
+const MARKETING_CONTENT_REVISED = new Date("2026-08-28T00:00:00.000Z");
 
 /**
  * Real publication date per resource article, keyed by its sitemap path.
@@ -178,6 +179,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/resources",
       "/resources/glossary",
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
+      // The feature hub and one page per capability, derived from the
+      // catalogue so adding a feature is a single data edit. (/docs is
+      // deliberately excluded: it is a shell marked noindex until the guides
+      // are written, and an empty documentation site that ranks is worse than
+      // one that does not exist.)
+      "/features",
+      ...MARKETING_FEATURES.map((f) => `/features/${f.slugEn}`),
     ];
     const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
       (path) => {

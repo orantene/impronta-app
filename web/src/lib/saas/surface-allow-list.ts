@@ -599,6 +599,16 @@ const MARKETING_PAGE_PREFIXES = [
   "/for",
   // Educational resource articles + glossary (`/resources/*`).
   "/resources",
+  // The feature hub (`/features` and `/features/{slug}`), one page per
+  // capability plus the index. Marketing-host only for the same reason as the
+  // rest of this list: these pages sell Tulala itself, and an agency's own
+  // visitors on their branded domain should never be pitched the platform.
+  // The prefix covers all twenty one slugs and the `opengraph-image` route.
+  "/features",
+  // Documentation shell. Published as a "coming soon" skeleton and marked
+  // noindex until it has real content, so it is reachable from the feature
+  // pages that link to it without being offered to search.
+  "/docs",
   // Global Talent Directory — public, platform-wide cross-tenant browse of
   // the discoverable set (talent_discover_index matview). Reads no per-tenant
   // private data, requires no auth. `/directory` is already reserved in

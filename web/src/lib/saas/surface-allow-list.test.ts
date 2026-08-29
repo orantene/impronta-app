@@ -331,6 +331,10 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/resources",
     "/resources/glossary",
     "/resources/booking-deposits",
+    "/features",
+    "/features/appointments",
+    "/features/website-builder",
+    "/docs",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
     "/t/jane-doe",
@@ -423,6 +427,11 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
     "/faq",
     "/waitlist",
     "/legal/privacy",
+    // The feature hub sells Tulala itself, so an agency's own visitors on
+    // their branded domain must never see it.
+    "/features",
+    "/features/appointments",
+    "/docs",
   ];
   for (const p of marketingPages) {
     assert.equal(isPathAllowedForHostKind("agency", p), false, `agency must 404 ${p}`);
