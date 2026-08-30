@@ -44,7 +44,7 @@ import {
   publishHomepage,
   saveHomepageDraftComposition,
 } from "./homepage";
-import { resolvePlatformDefaultStorefrontTree } from "./default-storefront-template";
+import { resolveSignupStarterTreeForOnboard } from "./signup-ai-draft-serve";
 import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
@@ -228,6 +228,11 @@ async function seedFreeStarterHomepage(params: {
   actorProfileId: string;
   audience?: StarterAudience;
   /**
+   * Free-text "what do you do?" from signup. Drives design pick + copy
+   * rewrite. Absent or blank keeps the deterministic fallback.
+   */
+  businessDescription?: string | null;
+  /**
    * The homepage row `ensureHomepageRow` just created or found.
    *
    * FIRST-RUN CONTRACT (do not reintroduce a `loadHomepageForStaff` call here):
@@ -309,11 +314,13 @@ async function seedFreeStarterHomepage(params: {
   // name and `{{audience:…}}` collapses to the case this signup answered. Both
   // facts are known here and nowhere later, which is why they are read at the
   // resolve call rather than after it.
-  const starterKitTree = await resolvePlatformDefaultStorefrontTree(
+  const starterKitTree = await resolveSignupStarterTreeForOnboard(
     params.client,
     {
       businessName: planRow?.display_name,
       audience: params.audience,
+      businessDescription: params.businessDescription,
+      tenantId: params.tenantId,
     },
   );
   if (starterKitTree && starterKitTree.builderTree.length > 0) {
@@ -548,6 +555,7 @@ export async function onboardStarterContent(
       locale,
       actorProfileId,
       audience: input.audience,
+      businessDescription: input.businessDescription,
       // Hand the just-ensured row straight over. See the `page` prop doc:
       // re-reading it here is what broke every self-serve signup.
       page: {

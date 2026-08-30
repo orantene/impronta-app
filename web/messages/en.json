@@ -5348,6 +5348,15 @@
         "profilesInfo": "A profile template sets which sections a talent page has and in what order, so you pick the shape once instead of laying out every profile by hand.",
         "profilesAction": "Open profile pages"
       },
+      "designSwap": {
+        "aria": "Homepage layouts",
+        "title": "Try a different look",
+        "body": "Your homepage is a first draft. Pick another layout. The live site stays as it is until you publish.",
+        "confirm": "This replaces the homepage draft with {label}. Publish from the editor to show visitors.",
+        "replace": "Replace homepage draft",
+        "cancel": "Cancel",
+        "appliedToast": "Homepage draft replaced. Open the editor and publish to go live."
+      },
       "setup": {
         "title": "Setup",
         "subtitle": "Your web address, how your site appears in search, and the code that runs on it.",

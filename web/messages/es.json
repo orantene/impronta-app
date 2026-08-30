@@ -5348,6 +5348,15 @@
         "profilesInfo": "Una plantilla de perfil define qué secciones tiene una página de talento y en qué orden, así eliges la forma una vez en lugar de montar cada perfil a mano.",
         "profilesAction": "Abrir páginas de perfil"
       },
+      "designSwap": {
+        "aria": "Diseños de la página de inicio",
+        "title": "Prueba otro aspecto",
+        "body": "Tu página de inicio es un primer borrador. Elige otra plantilla. El sitio publicado no cambia hasta que publiques.",
+        "confirm": "Esto reemplaza el borrador de la página de inicio por {label}. Publica desde el editor para que lo vean tus visitantes.",
+        "replace": "Reemplazar el borrador",
+        "cancel": "Cancelar",
+        "appliedToast": "Borrador de la página de inicio reemplazado. Abre el editor y publica para que se vea."
+      },
       "setup": {
         "title": "Configuración",
         "subtitle": "Tu dirección web, cómo aparece tu sitio en las búsquedas y el código que se ejecuta en él.",

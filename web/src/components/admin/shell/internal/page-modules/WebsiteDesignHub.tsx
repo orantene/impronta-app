@@ -14,7 +14,8 @@
  * looks" had four unrelated answers and no starting point.
  *
  * This is that starting point: one card per way in, each with a plain-language
- * sentence and an "i" for the jargon. It decides nothing and edits nothing.
+ * sentence and an "i" for the jargon, plus the homepage layout swap so a
+ * seeded first draft is not permanent.
  *
  * WHAT STAYS TRUE
  * ───────────────
@@ -39,6 +40,7 @@ import { Icon, type AdminShellIconName } from "../primitives";
 import { useAdminShell } from "../state";
 import { useSiteDesignUrl } from "./use-site-design-url";
 import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
+import { HomepageDesignSwap } from "./HomepageDesignSwap";
 import { PageHeader } from "./pages-shared";
 import { WebsiteDesignTabs } from "./website-design-tabs";
 
@@ -117,6 +119,7 @@ export function WebsiteDesignHub() {
         title={t("dashboard.adminWebsite.designHub.title")}
         subtitle={t("dashboard.adminWebsite.designHub.subtitle")}
       />
+      <HomepageDesignSwap />
       <section className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[14px]">
         {siteDesignUrl ? (
           <DesignEntryCard
