@@ -335,6 +335,21 @@ test("i18n overlays, instance overrides and experiment overrides are personalise
   assert.ok(blob.includes("/x?{{business.name}}"));
 });
 
+test("repeater field-binding tokens are not stripped as unknown placeholders", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "step",
+      kind: "heading",
+      props: {
+        text: "{{num}}",
+        fieldBindings: { text: "num" },
+      },
+    },
+  ];
+  const out = personaliseStarterBuilderTree(tree, CTX);
+  assert.equal(out[0]?.props.text, "{{num}}");
+});
+
 test("an empty tree and a non-array input are safe", () => {
   const empty: BuilderNodeTree = [];
   assert.equal(personaliseStarterBuilderTree(empty, CTX), empty);

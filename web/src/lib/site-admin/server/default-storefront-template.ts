@@ -27,6 +27,7 @@ import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates
 import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-templates";
 import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
 import { PLATFORM_DEFAULT_STOREFRONT_SLUG } from "./default-storefront-tree";
+import { pruneStarterRosterForAudience } from "./starter-roster-prune";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
@@ -146,10 +147,14 @@ export async function resolvePlatformDefaultStorefrontTree(
     });
 
     if (!builderTree || builderTree.length === 0) return null;
+    const stamped = personaliseStarterBuilderTree(
+      builderTree as BuilderNodeTree,
+      personalisation,
+    );
     return {
-      builderTree: personaliseStarterBuilderTree(
-        builderTree as BuilderNodeTree,
-        personalisation,
+      builderTree: pruneStarterRosterForAudience(
+        stamped,
+        personalisation.audience,
       ),
     };
   } catch (err) {

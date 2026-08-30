@@ -69,6 +69,18 @@ const AUTHORED_TREE: BuilderNodeTree = [
         kind: "button",
         props: { label: "Book {{business.name}}", href: "/book?src={{business.name}}" },
       },
+      {
+        id: "roster",
+        kind: "container",
+        props: { layout: "stack", layerLabel: "Featured Talent Section" },
+        children: [
+          {
+            id: "roster-embed",
+            kind: "section_embed",
+            props: { sectionTypeKey: "featured_talent" },
+          },
+        ],
+      },
     ],
   },
 ];
@@ -131,6 +143,32 @@ test("the REAL default-storefront resolver returns an already-personalised tree"
   assert.ok(blob.includes("/book?src={{business.name}}"), blob);
   // Nothing else may carry raw template syntax.
   assert.equal(blob.split("{{").length - 1, 1, blob);
+  // Agency keeps the roster showcase (the business prune must not fire here).
+  assert.ok(blob.includes("featured_talent"), "agency roster showcase was dropped");
+});
+
+test("the REAL resolver drops the roster showcase for a business audience", async () => {
+  const { client } = mockSupabase({
+    builder_tree: AUTHORED_TREE,
+    status: "published",
+    target_context: "workspace",
+    kind: "page",
+  });
+  const resolved = await resolvePlatformDefaultStorefrontTree(client, {
+    businessName: "Casa Verde",
+    audience: "business",
+  });
+  assert.ok(resolved);
+  const blob = JSON.stringify(resolved.builderTree);
+  assert.ok(blob.includes("Come see what we do."), blob);
+  assert.ok(
+    !blob.includes("featured_talent"),
+    "business seed still has a featured_talent embed",
+  );
+  assert.ok(
+    !blob.includes("Featured Talent Section"),
+    "business seed still has the decomposed roster wrapper",
+  );
 });
 
 test("the resolver degrades to the else case when the audience is unknown", async () => {
@@ -215,6 +253,18 @@ test("the RENDER-TIME fallback passes the tenant's public name", () => {
   // brandLabel falls back to the PLATFORM brand; stamping "Tulala" into a
   // tenant's headline would be worse than the neutral fallback.
   assert.doesNotMatch(call[1]!, /brandLabel/);
+});
+
+test("the resolver wires pruneStarterRosterForAudience after personalisation", () => {
+  const resolverSrc = readFileSync(
+    join(here, "default-storefront-template.ts"),
+    "utf8",
+  );
+  assert.match(
+    resolverSrc,
+    /pruneStarterRosterForAudience\([\s\S]*personalisation\.audience/,
+    "prune must run on the resolver output, not only in a helper nobody calls",
+  );
 });
 
 test("no call site opts out with an empty personalisation object", () => {
