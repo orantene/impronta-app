@@ -1393,7 +1393,10 @@
       "subtitle": "Los horarios se muestran en la zona del estudio.",
       "loading": "Cargando horarios…",
       "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
-      "unavailable": "Los horarios no están disponibles ahora."
+      "unavailable": "Los horarios no están disponibles ahora.",
+      "confirmInstant": "Confirmar este horario",
+      "confirming": "Confirmando…",
+      "requestInstead": "Pedir este horario en su lugar"
     },
     "bookPage": {
       "title": "Reserva un horario",

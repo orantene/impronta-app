@@ -9,6 +9,7 @@ describe("reservation catalog", () => {
     assert.ok(ids.includes("reservation.request_received.workspace"));
     assert.ok(ids.includes("reservation.proposed.client"));
     assert.ok(ids.includes("reservation.confirmed.client"));
+    assert.ok(ids.includes("reservation.confirmed.workspace"));
     assert.ok(ids.includes("reservation.declined.client"));
     assert.ok(ids.includes("reservation.hold_expiring.workspace"));
   });

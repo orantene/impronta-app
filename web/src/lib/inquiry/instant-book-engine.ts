@@ -40,6 +40,17 @@ import {
   sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
+import {
+  attachReservationHoldToInquiry,
+  placeReservationHold,
+  releaseReservationHold,
+} from "@/lib/scheduling/reservation-hold";
+import {
+  assertInstantPlanCeiling,
+  reservationStampForInstant,
+  type InstantReservationWindow,
+} from "@/lib/scheduling/instant-book-gates";
+import { emitInstantReservationConfirmed } from "@/lib/scheduling/instant-book-confirm-notify";
 import { readOfferTermsFromRow } from "@/lib/billing/offer-commercial-terms";
 import {
   createBookingTransaction,
@@ -93,6 +104,11 @@ export type InstantBookInput = {
    * atomic stock reserve). Everything else books as 1.
    */
   quantity?: number;
+  /**
+   * P2 — timed slot. When set, a firm hold is placed BEFORE confirm and
+   * released on any later failure (same compensation slot as releaseStock).
+   */
+  reservation?: InstantReservationWindow | null;
 };
 
 export type InstantBookReason =
@@ -100,11 +116,13 @@ export type InstantBookReason =
   | "no_fixed_rate"
   | "not_authenticated"
   | "multi_talent_unsupported"
-  | "engine_error";
+  | "engine_error"
+  | "slot_taken"
+  | "plan_lacks_capability";
 
 export type InstantBookResult =
   | { ok: true; inquiryId: string; bookingId: string; transactionId: string }
-  | { ok: false; reason: InstantBookReason; error?: string };
+  | { ok: false; reason: InstantBookReason; error?: string; maxMode?: string };
 
 export type InstantBookEligibility = {
   eligible: boolean;
@@ -212,10 +230,21 @@ export async function createInstantBooking(
         .select("booking_terms, display_name, services_menu")
         .eq("id", input.talentProfileId)
         .maybeSingle(),
-      admin.from("agencies").select("settings").eq("id", input.tenantId).maybeSingle(),
+      admin.from("agencies").select("settings, plan_tier").eq("id", input.tenantId).maybeSingle(),
     ]);
     const talentTerms = parseTalentBookingTerms(tp?.booking_terms ?? null);
     const tenantTerms = parseTenantCommercialTerms(ag?.settings ?? null);
+    const planGate = assertInstantPlanCeiling(
+      (ag as { plan_tier?: string | null } | null)?.plan_tier,
+    );
+    if (!planGate.ok) {
+      return {
+        ok: false,
+        reason: "plan_lacks_capability",
+        error: "This plan cannot auto-confirm. Send a request or upgrade.",
+        maxMode: planGate.maxMode,
+      };
+    }
     // S16 — same precedence as loadInstantBookEligibility: a priced, active
     // services-menu instant-book service drives the rate + satisfies opt-in.
     const menuItem = findInstantBookService(
@@ -294,9 +323,14 @@ export async function createInstantBooking(
       if (got !== true) return { ok: false, reason: "no_fixed_rate", error: "sold_out" };
       stockReserved = true;
     }
+    let placedHoldId: string | null = null;
     const releaseStock = async () => {
       if (stockReserved && offering) {
         await admin.rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: quantity });
+      }
+      if (placedHoldId) {
+        await releaseReservationHold(admin, placedHoldId);
+        placedHoldId = null;
       }
     };
 
@@ -329,6 +363,38 @@ export async function createInstantBooking(
     const staffActor = await resolveTenantStaffActor(admin, input.tenantId);
     if (!staffActor) return { ok: false, reason: "engine_error", error: "No staff actor for tenant." };
 
+    const reservationWindow = input.reservation ?? null;
+    const offeringIdForStamp = offering?.id ?? input.offeringId ?? null;
+    if (reservationWindow && offeringIdForStamp) {
+      const hold = await placeReservationHold(admin, {
+        talentProfileId: input.talentProfileId,
+        tenantId: input.tenantId,
+        startsAt: reservationWindow.startsAt,
+        endsAt: reservationWindow.endsAt,
+        title: offering?.title ?? "Reservation",
+        createdByUserId: input.clientUserId,
+      });
+      if (!hold.ok) {
+        await releaseStock();
+        return {
+          ok: false,
+          reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
+          error: hold.error,
+        };
+      }
+      placedHoldId = hold.holdId;
+    }
+
+    const reservationStamp =
+      reservationWindow && offeringIdForStamp
+        ? reservationStampForInstant({
+            offeringId: offeringIdForStamp,
+            window: reservationWindow,
+            durationMinutes: offering?.durationMinutes ?? 60,
+            holdId: placedHoldId,
+          })
+        : null;
+
     // ── Step 1 — create the inquiry (client-initiated) ──────────────────────
     const inq = await submitInquiry(admin, {
       contact_name: input.contactName,
@@ -338,32 +404,34 @@ export async function createInstantBooking(
       event_location: input.eventLocation ?? null,
       source_page: input.sourcePage ?? null,
       source_channel: "instant_book",
-      source_context: offering
-        ? {
-            offering: {
-              offering_id: offering.id,
-              title: offering.title,
-              amount_cents: offering.amountCents,
-              currency: offering.currency,
-              price_type: offering.priceType,
-              kind: offering.kind,
-              pay_in_person: payInPerson,
-              reserve: offering.reserveMode,
-              // Precise release signal: only a product whose stock was actually
-              // decremented here carries this flag, so cancel/expiry paths never
-              // over-release a request-mode product that never reserved.
-              stock_reserved: stockReserved,
-              // D5 — how many units were reserved (release paths mirror this).
-              stock_reserved_qty: stockReserved ? quantity : 0,
-              // D4/D5 — the client's selection, for the coordinator/composer.
-              quantity,
-              variant_id: variant?.id ?? null,
-              variant_label: variant?.label ?? null,
-              add_ons: chosenAddOns.map((a) => ({ id: a.id, label: a.label, amount_cents: a.amount_cents })),
-              order_total_cents: orderTotalCents,
-            },
-          }
-        : undefined,
+      source_context: {
+        ...(offering
+          ? {
+              offering: {
+                offering_id: offering.id,
+                title: offering.title,
+                amount_cents: offering.amountCents,
+                currency: offering.currency,
+                price_type: offering.priceType,
+                kind: offering.kind,
+                pay_in_person: payInPerson,
+                reserve: offering.reserveMode,
+                stock_reserved: stockReserved,
+                stock_reserved_qty: stockReserved ? quantity : 0,
+                quantity,
+                variant_id: variant?.id ?? null,
+                variant_label: variant?.label ?? null,
+                add_ons: chosenAddOns.map((a) => ({
+                  id: a.id,
+                  label: a.label,
+                  amount_cents: a.amount_cents,
+                })),
+                order_total_cents: orderTotalCents,
+              },
+            }
+          : {}),
+        ...(reservationStamp ? { reservation: reservationStamp } : {}),
+      },
       client_user_id: input.clientUserId,
       talent_profile_ids: [input.talentProfileId],
       actorUserId: input.clientUserId,
@@ -378,6 +446,9 @@ export async function createInstantBooking(
       return { ok: false, reason: "engine_error", error: "submit:" + JSON.stringify(inq) };
     }
     const inquiryId = (inq as { data: { inquiryId: string } }).data.inquiryId;
+    if (placedHoldId) {
+      await attachReservationHoldToInquiry(admin, placedHoldId, inquiryId);
+    }
 
     // The talent participant's owning party (engine_send_offer needs it set for
     // line-item talents); resolveOwningPartyForTalent already stamped it at
@@ -565,7 +636,8 @@ export async function createInstantBooking(
       return { ok: false, reason: "engine_error", error: `commission_snapshot:${snap.reason ?? "persist_failed"}` };
     }
 
-    // Dormant until P2: no-op unless source_context.reservation is present.
+    // P2: stamp is on source_context.reservation — enrichment writes times,
+    // inserts talent_bookings, deletes the hold.
     try {
       const enriched = await enrichBookingFromReservation(admin, {
         inquiryId,
@@ -574,9 +646,32 @@ export async function createInstantBooking(
       });
       if (!enriched.ok) {
         logServerError("instantBook.reservation_enrichment", new Error(enriched.error));
+        if (reservationStamp) {
+          await releaseStock();
+          await admin.from("agency_bookings").delete().eq("id", bookingId);
+          return { ok: false, reason: "engine_error", error: enriched.error };
+        }
+      } else if (reservationStamp && enriched.applied) {
+        placedHoldId = null;
+        await emitInstantReservationConfirmed(admin, {
+          inquiryId,
+          tenantId: input.tenantId,
+          actorUserId: input.clientUserId,
+          stamp: reservationStamp,
+          agencySettings: ag?.settings,
+        });
       }
     } catch (enrichErr) {
       logServerError("instantBook.reservation_enrichment", enrichErr);
+      if (reservationStamp) {
+        await releaseStock();
+        await admin.from("agency_bookings").delete().eq("id", bookingId);
+        return {
+          ok: false,
+          reason: "engine_error",
+          error: enrichErr instanceof Error ? enrichErr.message : String(enrichErr),
+        };
+      }
     }
 
     // ── Step 8 — create + request the payment ───────────────────────────────

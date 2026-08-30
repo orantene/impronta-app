@@ -1393,7 +1393,10 @@
       "subtitle": "Times are shown in the studio timezone.",
       "loading": "Loading times…",
       "empty": "No open times in the next two weeks. Try again later.",
-      "unavailable": "Times are not available right now."
+      "unavailable": "Times are not available right now.",
+      "confirmInstant": "Confirm this time",
+      "confirming": "Confirming…",
+      "requestInstead": "Request this time instead"
     },
     "bookPage": {
       "title": "Reserve a time",
