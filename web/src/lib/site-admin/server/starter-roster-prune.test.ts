@@ -36,7 +36,7 @@ function treeHasFeatured(tree: BuilderNodeTree): boolean {
     ) {
       return true;
     }
-    return (node.children ?? []).some(walk);
+    return ("children" in node ? (node.children ?? []) : []).some(walk);
   };
   return tree.some(walk);
 }

@@ -35,11 +35,17 @@ function isFeaturedTalentDecomposedRoot(node: BuilderNode): boolean {
   );
 }
 
+function childList(node: BuilderNode): BuilderNode[] | undefined {
+  return "children" in node && Array.isArray(node.children)
+    ? node.children
+    : undefined;
+}
+
 function pruneNode(node: BuilderNode): BuilderNode | null {
   if (isFeaturedTalentEmbed(node) || isFeaturedTalentDecomposedRoot(node)) {
     return null;
   }
-  const children = node.children;
+  const children = childList(node);
   if (!children || children.length === 0) return node;
   let changed = false;
   const next: BuilderNode[] = [];
@@ -53,7 +59,7 @@ function pruneNode(node: BuilderNode): BuilderNode | null {
     next.push(kept);
   }
   if (!changed) return node;
-  return { ...node, children: next };
+  return { ...node, children: next } as BuilderNode;
 }
 
 /**

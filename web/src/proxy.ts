@@ -150,19 +150,12 @@ export async function proxy(request: NextRequest) {
     // talent_profile_id from the host header set by the talent_site block.
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/") ||
-    // Dev sign-in shortcut — bypass in dev + preview only (previews are SSO-gated
-    // by Vercel team-auth; production is excluded here AND in the route handler as
-    // defense-in-depth).
-    ((process.env.NODE_ENV === "development" ||
-      process.env.VERCEL_ENV === "preview") &&
+    // Dev + preview only. Compile-time flag from next.config — Next 16 Edge
+    // inlines NODE_ENV=production under `next dev`. Host is not a gate.
+    // Route handlers still 403 outside dev/preview.
+    (process.env.TULALA_ALLOW_DEV_SURFACES === "1" &&
       pathname.startsWith("/api/dev/")) ||
-    // Dev UI routes — /dev/template-preview/[key] and /dev/section-sandbox/[type].
-    // Mirroring the /api/dev/ bypass above: reachable in dev and preview only.
-    // The surface allow-list would otherwise 404 these paths because /dev/ is
-    // not in any host-kind allow-list. Production is intentionally excluded so
-    // these QA surfaces are never reachable on tulala.digital.
-    ((process.env.NODE_ENV === "development" ||
-      process.env.VERCEL_ENV === "preview") &&
+    (process.env.TULALA_ALLOW_DEV_SURFACES === "1" &&
       pathname.startsWith("/dev/"))
   ) {
     // Forward the sanitized headers so the `/_talent-site` short-circuit can

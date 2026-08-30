@@ -30,6 +30,7 @@ import { fileURLToPath } from "node:url";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { improntaDesign } from "@/lib/site-admin/builder-node/page-designs";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { resolvePlatformDefaultStorefrontTree } from "./default-storefront-template";
 
@@ -187,6 +188,29 @@ test("the resolver degrades to the else case when the audience is unknown", asyn
       "Available for your next project.",
     ),
   );
+});
+
+test("the REAL resolver keeps repeater tokens from a PAGE_DESIGN that has them", async () => {
+  const authored = JSON.stringify(improntaDesign.tree);
+  assert.ok(
+    authored.includes('"{{num}}"'),
+    "improntaDesign no longer carries {{num}}; this test would go green for the wrong reason",
+  );
+  const { client } = mockSupabase({
+    builder_tree: improntaDesign.tree,
+    status: "published",
+    target_context: "workspace",
+    kind: "page",
+  });
+  const resolved = await resolvePlatformDefaultStorefrontTree(client, {
+    businessName: "Riviera Maya Work",
+    audience: "agency",
+  });
+  assert.ok(resolved);
+  const blob = JSON.stringify(resolved.builderTree);
+  assert.ok(blob.includes('"{{num}}"'), "resolver stripped impronta {{num}}");
+  assert.ok(blob.includes('"{{title}}"'), "resolver stripped impronta {{title}}");
+  assert.ok(blob.includes('"{{detail}}"'), "resolver stripped impronta {{detail}}");
 });
 
 test("a template with no placeholders is served through the resolver unchanged", async () => {

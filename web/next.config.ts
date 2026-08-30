@@ -282,6 +282,13 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+    // Edge-safe stand-in for NODE_ENV. Set here at config eval (next dev /
+    // Vercel preview), then inlined into proxy.ts. Do not derive this from Host.
+    TULALA_ALLOW_DEV_SURFACES:
+      process.env.VERCEL_ENV === "preview" ||
+      process.env.NODE_ENV !== "production"
+        ? "1"
+        : "",
   },
   /**
    * The talent media-kit PDF embeds a Noto Sans subset so Cyrillic/Greek names
