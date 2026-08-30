@@ -17,9 +17,13 @@ export async function refuseOfferingRequestIfPolicyOff(
   },
 ): Promise<{ forbidden: true; error: string } | null> {
   if (input.source_channel !== "offering_request") return null;
+  // Workspace menu orders stamp offering_request (until menu_order is in the
+  // enum) with an empty talent list + source_context.menu_order. They are not
+  // talent reservations — skip the appointment policy gate.
+  const ctx = input.source_context;
+  if (ctx && typeof ctx === "object" && ctx.menu_order != null) return null;
   const talentId = input.talent_profile_ids[0];
   if (!talentId) return { forbidden: true, error: "This time cannot be booked." };
-  const ctx = input.source_context;
   const hostKind =
     ctx && typeof ctx.host_kind === "string" ? ctx.host_kind : "agency";
   const hostTenant =
