@@ -100,7 +100,7 @@ export function WorkspaceShell() {
  */
 const SIDEBAR_GROUPS: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "roster", "clients"] },
+  { label: "Operate", pages: ["messages", "calendar", "menu", "roster", "clients"] },
   { label: "Grow", pages: ["pitches", "operations", "production"] },
   { label: "Site", pages: ["website", "media"] },
 ];
@@ -110,6 +110,7 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   overview: "home",
   messages: "mail",
   calendar: "calendar",
+  menu: "layers",
   roster: "team",
   clients: "briefcase",
   pitches: "send",

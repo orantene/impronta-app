@@ -13,6 +13,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "overview",
   "messages",
   "calendar",
+  "menu",
   "roster",     // also covers /roster/applications (layout strips to first segment)
   "clients",
   "operations",
