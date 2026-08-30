@@ -4386,6 +4386,7 @@
         "rosterSwitchDesc": "El boton de reserva en el sitio de este workspace.",
         "rosterReleaseTitle": "Permitir reservas fuera de nuestro sitio",
         "rosterReleaseDesc": "Pueden reservar en su propia pagina, en hubs y en sitios de otras agencias.",
+        "rosterReleaseStaffLocked": "Solo un propietario o administrador puede permitir reservas fuera de nuestro sitio.",
         "saving": "Guardando…",
         "saved": "Guardado",
         "loading": "Cargando…",

@@ -30,11 +30,13 @@ function Toggle({
   checked,
   label,
   disabled,
+  locked = false,
   onToggle,
 }: {
   checked: boolean;
   label: string;
   disabled: boolean;
+  locked?: boolean;
   onToggle: () => void;
 }) {
   return (
@@ -43,7 +45,7 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      disabled={disabled}
+      disabled={disabled || locked}
       onClick={onToggle}
       style={{
         width: 44,
@@ -52,9 +54,10 @@ function Toggle({
         border: `1px solid ${checked ? C.accent : C.border}`,
         background: checked ? C.accent : "#fff",
         position: "relative",
-        cursor: disabled ? "wait" : "pointer",
+        cursor: locked ? "not-allowed" : disabled ? "wait" : "pointer",
         padding: 0,
         flexShrink: 0,
+        opacity: locked ? 0.55 : 1,
       }}
     >
       <span
@@ -77,6 +80,7 @@ export function DirectBookingRosterSwitch({ talentId }: { talentId: string }) {
   const [enabled, setEnabled] = useState(false);
   const [released, setReleased] = useState(false);
   const [showRelease, setShowRelease] = useState(false);
+  const [canRelease, setCanRelease] = useState(false);
   const [visible, setVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +94,7 @@ export function DirectBookingRosterSwitch({ talentId }: { talentId: string }) {
         setEnabled(res.enabled);
         setReleased(res.exclusiveReleased);
         setShowRelease(res.showExclusiveRelease);
+        setCanRelease(res.canRelease);
         setVisible(true);
       }
     });
@@ -165,6 +170,11 @@ export function DirectBookingRosterSwitch({ talentId }: { talentId: string }) {
             <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
               {t(`${K}.rosterReleaseDesc`)}
             </div>
+            {!canRelease ? (
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 6 }}>
+                {t(`${K}.rosterReleaseStaffLocked`)}
+              </div>
+            ) : null}
             {error && (
               <div style={{ fontSize: 11, color: C.error, marginTop: 6 }}>{error}</div>
             )}
@@ -173,7 +183,9 @@ export function DirectBookingRosterSwitch({ talentId }: { talentId: string }) {
             checked={released}
             label={t(`${K}.rosterReleaseTitle`)}
             disabled={saving}
+            locked={!canRelease}
             onToggle={() => {
+              if (!canRelease) return;
               const next = !released;
               setReleased(next);
               setSaving(true);

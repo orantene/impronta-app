@@ -74,6 +74,7 @@ const GRADED: ReadonlyArray<readonly [string, string]> = [
   // a card/design surface, so it grades to the Phase-5 design capability.
   ["../server-actions/admin-roster-card-badges.ts", "agency.site_admin.design.edit"],
   ["../server-actions/admin-agency-logo-upload.ts", "agency.site_admin.branding.edit"],
+  ["../server-actions/roster-direct-booking.ts", "manage_agency_settings"],
 ];
 
 for (const [rel, cap] of GRADED) {
@@ -98,6 +99,7 @@ test("capability lattice: membership role alone decides the graded surfaces", ()
   for (const cap of [
     "agency.site_admin.design.edit",
     "agency.site_admin.branding.edit",
+    "manage_agency_settings",
   ] as const) {
     assert.equal(roleGrantsCapability("owner", cap), true, `owner holds ${cap}`);
     assert.equal(roleGrantsCapability("admin", cap), true, `admin holds ${cap}`);

@@ -4386,6 +4386,7 @@
         "rosterSwitchDesc": "The booking button on this workspace's own site.",
         "rosterReleaseTitle": "Allow bookings outside our site",
         "rosterReleaseDesc": "Lets them take bookings on their own page, on hubs, and on other agencies' sites.",
+        "rosterReleaseStaffLocked": "Only an owner or admin can allow bookings outside our site.",
         "saving": "Saving…",
         "saved": "Saved",
         "loading": "Loading…",
