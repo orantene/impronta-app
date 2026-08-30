@@ -3,7 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
-import { resolveTalentBookingMode } from "@/lib/scheduling/booking-surface";
+import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
 import {
   rowToOffering,
   type TalentOffering,
@@ -15,7 +15,7 @@ export async function loadPublicBookableOfferings(args: {
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
-}): Promise<TalentOffering[]> {
+}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode }>> {
   if (!args.tenantId && !args.talentProfileId) return [];
   try {
     const admin = createServiceRoleClient();
@@ -43,7 +43,7 @@ export async function loadPublicBookableOfferings(args: {
       kind: args.tenantId ? "agency" : "talent_site",
       tenantId: args.tenantId ?? null,
     };
-    const kept: TalentOffering[] = [];
+    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode }> = [];
     for (const offering of offerings) {
       if (!isSlotEligibleOffering(offering)) continue;
       const mode = await resolveTalentBookingMode(admin, {
@@ -51,7 +51,7 @@ export async function loadPublicBookableOfferings(args: {
         offeringId: offering.id,
         host,
       });
-      if (mode !== "inquire") kept.push(offering);
+      if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode });
     }
     return kept;
   } catch (err) {

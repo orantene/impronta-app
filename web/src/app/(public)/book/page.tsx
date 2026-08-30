@@ -93,6 +93,7 @@ export default async function BookPage() {
         </p>
         <BookPageClient
           tenantSlug={tenantSlug}
+          tenantId={tenantId}
           agencyName={agencyName}
           offerings={offerings}
         />

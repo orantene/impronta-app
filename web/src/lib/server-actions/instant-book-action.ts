@@ -33,11 +33,19 @@ export type InstantBookFormPayload = {
   addOnIds?: string[];
   /** D5 — client-picked quantity; engine clamps + gates on per-unit price types / products. */
   quantity?: number;
+  /** P2 — chosen slot. Engine places a firm hold before confirm. */
+  reservation?: { startsAt: string; endsAt: string; timezone: string } | null;
 };
 
 export type InstantBookActionResult =
   | { ok: true; inquiryId: string; bookingId: string; redirectPath: string }
-  | { ok: false; error: string; needsAuth?: boolean };
+  | {
+      ok: false;
+      error: string;
+      needsAuth?: boolean;
+      upgrade?: boolean;
+      slotTaken?: boolean;
+    };
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -66,10 +74,16 @@ export async function createInstantBookingAction(
       variantId: payload.variantId ?? null,
       addOnIds: payload.addOnIds ?? [],
       quantity: payload.quantity,
+      reservation: payload.reservation ?? null,
     });
 
     if (!res.ok) {
-      if (res.reason !== "instant_book_not_enabled" && res.reason !== "no_fixed_rate") {
+      if (
+        res.reason !== "instant_book_not_enabled" &&
+        res.reason !== "no_fixed_rate" &&
+        res.reason !== "slot_taken" &&
+        res.reason !== "plan_lacks_capability"
+      ) {
         logServerError("instantBookAction.engine", new Error(`${res.reason}: ${res.error ?? ""}`));
       }
       const msg =
@@ -79,8 +93,18 @@ export async function createInstantBookingAction(
             ? "This talent hasn't set an instant-book rate yet."
             : res.reason === "not_authenticated"
               ? "Please sign in to book instantly."
-              : "We couldn't complete the booking. Please try the inquiry option instead.";
-      return { ok: false, error: msg, needsAuth: res.reason === "not_authenticated" };
+              : res.reason === "slot_taken"
+                ? res.error ?? "That time was just taken. Pick another time."
+                : res.reason === "plan_lacks_capability"
+                  ? res.error ?? "This plan cannot auto-confirm. Send a request or upgrade."
+                  : "We couldn't complete the booking. Please try the inquiry option instead.";
+      return {
+        ok: false,
+        error: msg,
+        needsAuth: res.reason === "not_authenticated",
+        upgrade: res.reason === "plan_lacks_capability",
+        slotTaken: res.reason === "slot_taken",
+      };
     }
 
     return {

@@ -8,12 +8,14 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 export function BookPageClient({
   tenantSlug,
+  tenantId,
   agencyName,
   offerings,
 }: {
   tenantSlug: string;
+  tenantId?: string | null;
   agencyName: string;
-  offerings: TalentOffering[];
+  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant" }>;
 }) {
   const t = useT();
   const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
@@ -53,8 +55,10 @@ export function BookPageClient({
       ) : null}
       <BookableComposer
         tenantSlug={tenantSlug}
+        tenantId={tenantId}
         agencyName={agencyName}
         offering={bookable}
+        bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
       />
     </div>
   );

@@ -124,6 +124,37 @@ const RESERVATION_PROPOSED_CLIENT: CatalogEntry = {
   },
 };
 
+const RESERVATION_CONFIRMED_WORKSPACE: CatalogEntry = {
+  id: "reservation.confirmed.workspace",
+  category: "workspace_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["reservation.confirmed"],
+  hydrate: hydrateReservation,
+  resolveAudience: workspaceAdmins,
+  in_app: {
+    kind: "booking",
+    surface: "workspace",
+    title: (event) => `${noun(event)} confirmed`,
+    body: (event) => str(event.payload.contactName) ?? "A guest time is confirmed.",
+  },
+  email: {
+    templateId: "workspace.coordinator_assigned",
+    subject: (event) => `${noun(event)} confirmed`,
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceCoordinatorAssigned, {
+        coordinatorName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        agencyName: brand.accountName,
+        eventDate: str(event.payload.startsAt) ?? str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "workspace activity",
+      }),
+  },
+};
+
 const RESERVATION_CONFIRMED_CLIENT: CatalogEntry = {
   id: "reservation.confirmed.client",
   category: "bookings",
@@ -208,6 +239,7 @@ export const RESERVATION_CATALOG_ENTRIES: CatalogEntry[] = [
   RESERVATION_REQUEST_RECEIVED,
   RESERVATION_PROPOSED_CLIENT,
   RESERVATION_CONFIRMED_CLIENT,
+  RESERVATION_CONFIRMED_WORKSPACE,
   RESERVATION_DECLINED_CLIENT,
   RESERVATION_HOLD_EXPIRING,
 ];

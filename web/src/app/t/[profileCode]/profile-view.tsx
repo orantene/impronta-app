@@ -2446,8 +2446,10 @@ export async function TalentProfileView({
             <ProfileSlotPickerMount
               offerings={storefrontOfferings}
               tenantSlug={slotTenantSlug}
+              tenantId={slotTenantId}
               agencyName={tenantBrand ?? "the studio"}
               locationLabel={livesIn}
+              bookingMode={booking.mode}
             />
           ) : null
         }
