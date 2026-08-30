@@ -57,6 +57,7 @@ function devPortFromRequestHost(requestHost?: string | null): string {
 
 const KNOWN_WORKSPACE_URL_PLANS = new Set<WorkspaceUrlPlan>([
   "free",
+  "website",
   "studio",
   "agency",
   "network",

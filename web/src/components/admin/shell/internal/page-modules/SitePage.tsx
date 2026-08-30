@@ -251,7 +251,7 @@ export function SitePage() {
           description={
             bridgeTenantIdentity?.verifiedDomain
               ? interpolate(t("dashboard.adminSite.customDomainLiveAt"), { domain: bridgeTenantIdentity.verifiedDomain })
-              : interpolate(t("dashboard.adminSite.customDomainCurrentlyAt"), { domain: bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.digital` : effectiveTenant.domain })
+              : interpolate(t("dashboard.adminSite.customDomainCurrentlyAt"), { domain: effectiveTenant.domain })
           }
           icon="globe"
           requiredPlan="studio"

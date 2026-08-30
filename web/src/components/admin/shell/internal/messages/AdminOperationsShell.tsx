@@ -241,7 +241,7 @@ export function AdminOperationsShell() {
               </div>
               {(tenantSlug || effectiveTenant?.domain) && (
                 <a
-                  href={`https://${effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}`}
+                  href={`https://${effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

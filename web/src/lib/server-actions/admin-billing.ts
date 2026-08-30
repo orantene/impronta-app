@@ -5,26 +5,11 @@ import { revalidatePath } from "next/cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
+import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
-/**
- * Default seat caps mirror the public pricing page. Network is unlimited
- * (NULL in the DB). When a tenant moves between tiers we re-set the seat
- * limit to the tier default; bespoke caps for enterprise can override
- * later via a manual UPDATE.
- */
-const SEAT_LIMITS: Record<WorkspacePlan, number | null> = {
-  // `website` is the roster-off tier — 0 is the fail-closed backstop that
-  // makes every roster add reject.
-  free: 5,
-  website: 0,
-  studio: 50,
-  agency: 200,
-  network: null,
-};
-
-const VALID_PLANS = new Set<WorkspacePlan>([
-  "free",
+const PAID_PLANS = new Set<WorkspacePlan>([
+  "website",
   "studio",
   "agency",
   "network",
@@ -33,26 +18,24 @@ const VALID_PLANS = new Set<WorkspacePlan>([
 export type ChangeWorkspacePlanResult = ServerActionResult<{ plan: WorkspacePlan }>;
 
 /**
- * Updates `agencies.plan_tier` (+ resets `talent_seat_limit` to the tier
- * default) for the active tenant.
+ * Free downgrade only. Paid upgrades go through Stripe Checkout
+ * (`startWorkspaceUpgrade`); this action must not stamp a paid tier.
  *
- * Pre-Stripe scaffold: the upgrade modal calls this directly so the
- * dashboard reflects plan changes immediately. When real billing lands,
- * paid upgrades route through Stripe Checkout first and this action only
- * runs on the webhook. Free downgrades stay self-service.
- *
- * Authorization: caller must be agency staff with an active tenant scope
- * for the target tenant. We rely on the existing `requireStaff` guard +
- * the cookie-based scope resolver — no extra check beyond that for v0.
+ * Authorization: `manage_billing` on the active tenant.
  */
 export async function changeWorkspacePlan(
   plan: WorkspacePlan,
 ): Promise<ChangeWorkspacePlanResult> {
-  if (!VALID_PLANS.has(plan)) {
+  if (PAID_PLANS.has(plan)) {
+    return { ok: false, error: "Paid upgrades go through billing." };
+  }
+  if (plan !== "free") {
     return { ok: false, error: "Unknown plan." };
   }
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: "manage_billing",
+  });
   if (!auth.ok) {
     return { ok: false, error: auth.error };
   }
@@ -61,7 +44,7 @@ export async function changeWorkspacePlan(
     .from("agencies")
     .update({
       plan_tier: plan,
-      talent_seat_limit: SEAT_LIMITS[plan],
+      talent_seat_limit: seatCapForPlan(plan),
       updated_at: new Date().toISOString(),
     })
     .eq("id", auth.tenantId);

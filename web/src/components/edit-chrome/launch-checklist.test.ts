@@ -8,12 +8,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { ES_TEXT } from "./editor-i18n-es";
 import {
   deriveContentDone,
   deriveAddSectionDone,
   derivePublishDone,
   loadChecklistState,
   saveChecklistState,
+  LAUNCH_CHECKLIST_STEPS,
 } from "./launch-checklist";
 
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
@@ -59,6 +64,25 @@ describe("deriveContentDone", () => {
 });
 
 // ─── deriveAddSectionDone ───────────────────────────────────────────────────
+
+describe("launch checklist copy is in ES_TEXT", () => {
+  it("every step label, hint, and CTA has a Spanish entry", () => {
+    for (const step of LAUNCH_CHECKLIST_STEPS) {
+      for (const key of [step.label, step.hint, step.cta]) {
+        assert.ok(ES_TEXT[key]?.trim(), `missing ES_TEXT for "${key}"`);
+      }
+    }
+  });
+
+  it("the panel does not complete Add a section from the starter section count", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/edit-chrome/launch-checklist-panel.tsx"),
+      "utf8",
+    );
+    assert.equal(source.includes("deriveAddSectionDone"), false);
+    assert.match(source, /addMenuOpen/);
+  });
+});
 
 describe("deriveAddSectionDone", () => {
   it("returns false for empty tree", () => {

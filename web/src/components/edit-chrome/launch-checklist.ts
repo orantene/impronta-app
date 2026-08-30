@@ -95,11 +95,12 @@ export function deriveContentDone(tree: BuilderNodeTree): boolean {
 }
 
 /**
- * Derive the `addSection` step completion from the builder tree.
+ * True when the tree has two or more sections.
  *
- * "Add a section" is considered done when the tree has MORE than one section
- * node — meaning the operator has added at least one section beyond the
- * template's initial hero/first section.
+ * Do not use this as the launch-checklist completion signal. Every starter
+ * already ships with several sections, so this would mark the step done on
+ * first paint. The panel treats "Add a section" as done only when the add
+ * panel is opened.
  */
 export function deriveAddSectionDone(tree: BuilderNodeTree): boolean {
   const sectionCount = tree.filter(

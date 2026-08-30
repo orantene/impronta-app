@@ -14,6 +14,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 
 type TenantActionResult<T = void> =
   | { ok: true; data: T }
@@ -407,17 +408,15 @@ export async function actionCreateTenant(input: {
     // defaults to NULL, and `evaluateRosterSeatAvailability` in
     // lib/saas/roster-seat-limit.ts treats NULL as "unlimited" — meaning
     // a Platform-Admin-created Free workspace would silently bypass the
-    // 5-profile cap that every other Free workspace enforces. Mirrors
-    // SEAT_LIMITS.free in lib/server-actions/admin-billing.ts and the
-    // seed value workspace-signup.server.ts uses for the get-started
-    // funnel path, so all 3 agency-creation entry points converge.
+    // 5-profile cap that every other Free workspace enforces. Reads
+    // PLAN_SEAT_CAPS so the three agency-creation entry points cannot drift.
     .insert({
       display_name: displayName,
       slug,
       kind: input.kind,
       status: "active",
       plan_tier: "free",
-      talent_seat_limit: 5,
+      talent_seat_limit: PLAN_SEAT_CAPS.free,
     })
     .select("id")
     .single();

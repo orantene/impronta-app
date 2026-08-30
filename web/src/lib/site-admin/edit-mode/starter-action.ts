@@ -901,7 +901,9 @@ export async function applyStarterComposition(
     const deniedReason = starterTemplateDeniedReason(plan);
     return {
       ok: false,
-      error: deniedReason ?? `Starter "${slug}" is not available on this workspace plan.`,
+      error:
+        deniedReason ??
+        "That starter is not on this plan. Upgrade to Studio to unlock additional starters.",
     };
   }
 

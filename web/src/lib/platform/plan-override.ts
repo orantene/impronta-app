@@ -10,6 +10,8 @@
  * the server actions can both use it.
  */
 
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
+
 export type WorkspacePlanTier =
   | "free"
   | "website"
@@ -41,19 +43,12 @@ export const PLAN_TIER_LABEL: Record<WorkspacePlanTier, string> = {
 };
 
 /**
- * Standard talent seat limit per tier. `null` = unlimited (Network).
- * Mirrors the backfill in `20260630120000_saas_agencies_plan_tier_seats.sql`
- * and the reconcile function in `20260924000000_workspace_plan_overrides.sql`
- * — keep all three in sync.
+ * Standard talent seat limit per tier. Same table as `PLAN_SEAT_CAPS` —
+ * do not restate numbers here. Comp/trial overrides stamp this onto
+ * `agencies.talent_seat_limit`.
  */
-export const PLAN_TIER_SEAT_LIMIT: Record<WorkspacePlanTier, number | null> = {
-  free: 5,
-  // Website has no talent roster at all — see lib/saas/plan-seat-caps.ts.
-  website: 0,
-  studio: 50,
-  agency: 200,
-  network: null,
-};
+export const PLAN_TIER_SEAT_LIMIT: Record<WorkspacePlanTier, number | null> =
+  PLAN_SEAT_CAPS;
 
 /** Display rank for "is this an upgrade?" comparisons. */
 export const PLAN_TIER_RANK: Record<WorkspacePlanTier, number> = {

@@ -43,6 +43,7 @@ export function isLiveDomainStatus(status: string | null | undefined): boolean {
 
 const WORKSPACE_URL_PLANS: ReadonlySet<string> = new Set([
   "free",
+  "website",
   "studio",
   "agency",
   "network",

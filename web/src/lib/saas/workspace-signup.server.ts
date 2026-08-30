@@ -24,6 +24,8 @@ import {
   findLeadOwnedFreeWorkspace,
 } from "./workspace-signup-free-limit";
 import { generateAvailableWorkspaceSlug } from "./workspace-signup-slug.server";
+import { PLAN_TIER_LABEL, isWorkspacePlanTier } from "@/lib/platform/plan-override";
+import { PLAN_SEAT_CAPS } from "./plan-seat-caps";
 import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
@@ -304,7 +306,7 @@ async function finalizeProvisionResult(params: {
       ownerUserId: params.userId,
       ownerName,
       workspaceName: params.agency.display_name,
-      planLabel: "Free",
+      planLabel: PLAN_TIER_LABEL.free,
       adminPath,
       publicUrl,
     });
@@ -315,7 +317,7 @@ async function finalizeProvisionResult(params: {
       tenantId: params.agency.id,
       workspaceName: params.agency.display_name,
       ownerEmail,
-      planLabel: tierInterest ?? "free",
+      planLabel: PLAN_TIER_LABEL[isWorkspacePlanTier(tierInterest) ? tierInterest : "free"],
     });
   }
 
@@ -600,7 +602,7 @@ export async function provisionWorkspaceFromLead(params: {
       // sets `plan_tier`. Provisioning anyone straight onto a paid tier would
       // hand out a paid plan nobody has paid for.
       plan_tier: "free",
-      talent_seat_limit: 5,
+      talent_seat_limit: PLAN_SEAT_CAPS.free,
       settings: buildSignupSettings(lead),
     })
     .select("id, slug, display_name")

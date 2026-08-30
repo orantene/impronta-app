@@ -302,7 +302,7 @@ export function AdminInboxList({
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
               <a
-                href={`https://${effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}`}
+                href={`https://${effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -315,7 +315,7 @@ export function AdminInboxList({
                   <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
-                {effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}
+                {effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}
               </a>
             )}
             {search.trim() && (

@@ -540,4 +540,25 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Position mode": "Modo de posición",
   Rotation: "Rotación",
   Position: "Posición",
+  // Launch checklist (ONB-2). "Publish", "Publish now", and "Add a section"
+  // already live in editor-i18n-es.ts.
+  "Edit the words": "Edita las palabras",
+  "Headlines and copy are placeholders. Click any text to rewrite it.":
+    "Los titulares y textos son placeholders. Haz clic en cualquier texto para reescribirlo.",
+  "Start editing": "Empezar a editar",
+  "Set your brand style": "Define el estilo de tu marca",
+  "Pick your color and fonts once, the whole page updates automatically.":
+    "Elige color y tipografías una vez; toda la página se actualiza sola.",
+  "Open Theme": "Abrir tema",
+  "Use the + panel to drop in a gallery, contact form, testimonials, or more.":
+    "Usa el panel + para agregar una galería, un formulario de contacto, testimonios u otras secciones.",
+  "Add section": "Agregar sección",
+  "When you're happy with the preview, publish to make it live.":
+    "Cuando el preview te convenza, publica para que quede en vivo.",
+  "You're ready to publish.": "Ya puedes publicar.",
+  "Launch checklist": "Lista de lanzamiento",
+  "All steps done. Your page is ready.":
+    "Todos los pasos listos. Tu página está lista.",
+  "{done} of {total} steps done": "{done} de {total} pasos listos",
+  "Dismiss launch checklist": "Cerrar la lista de lanzamiento",
 };

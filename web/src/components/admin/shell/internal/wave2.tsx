@@ -26,6 +26,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
+import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
 import { useRouter } from "next/navigation";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
@@ -1059,7 +1060,7 @@ export function TenantSwitcherDrawer() {
               // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
                 ? "tulala.digital"
-                : (w.domain ?? `${w.slug}.tulala.digital`);
+                : (w.domain ?? workspaceLiveHost({ slug: w.slug, planTier: w.tier, domains: null }));
               const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
               return {
                 id: w.id,
@@ -1595,12 +1596,9 @@ export function WorkspaceProfileDrawer() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const tier: TenantTier = state.plan === "network" ? "network" : (state.plan as TenantTier);
   const tierPalette = TENANT_TIER_PALETTE[tier];
-  const seatsCap = tier === "free" ? 5 : tier === "studio" ? 15 : tier === "agency" ? 50 : "∞";
+  const seatsCap = seatCapForPlan(tier) ?? "∞";
   const seatsUsed = tier === "agency" ? 47 : tier === "free" ? 1 : tier === "studio" ? 8 : 124;
-  // Preview URL based on slug.
-  const previewUrl = tier === "free"
-    ? `tulala-hub.com/${slug}`
-    : `${slug}.tulala.digital`;
+  const previewUrl = workspaceLiveHost({ slug, planTier: tier, domains: null });
 
   if (!open) return null;
 
