@@ -6,6 +6,7 @@ import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 test("resolveWorkspaceAdminPage maps canonical workspace route segments", () => {
   assert.equal(resolveWorkspaceAdminPage("overview"), "overview");
   assert.equal(resolveWorkspaceAdminPage("messages"), "messages");
+  assert.equal(resolveWorkspaceAdminPage("menu"), "menu");
   assert.equal(resolveWorkspaceAdminPage("website"), "website");
 });
 
