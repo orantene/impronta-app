@@ -1970,11 +1970,8 @@ export function AdminShellProvider({
   // Phase 3.12 — additional bridge surface fields
   const bridgeInquiries = initialBridgeData?.inquiries ?? null;
   const effectiveMessagesInquiries = useMemo<RichInquiry[]>(
-    () =>
-      bridgeInquiries != null
-        ? bridgeInquiries.map(adaptBridgeInquiry)
-        : RICH_INQUIRIES,
-    [bridgeInquiries],
+    () => (bridgeInquiries != null ? bridgeInquiries.map(adaptBridgeInquiry) : tenantSlug ? [] : RICH_INQUIRIES),
+    [bridgeInquiries, tenantSlug],
   );
 
   const bridgeClients = initialBridgeData?.clients ?? null;

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import {
@@ -141,8 +143,27 @@ test("isLiveDomainStatus rejects every non-live status", () => {
 
 test("normalizeWorkspaceUrlPlan degrades unknown plans to free", () => {
   assert.equal(normalizeWorkspaceUrlPlan("studio"), "studio");
+  assert.equal(normalizeWorkspaceUrlPlan("website"), "website");
   assert.equal(normalizeWorkspaceUrlPlan("AGENCY"), "agency");
   assert.equal(normalizeWorkspaceUrlPlan(null), "free");
   assert.equal(normalizeWorkspaceUrlPlan(undefined), "free");
   assert.equal(normalizeWorkspaceUrlPlan("enterprise"), "free");
+});
+
+test("admin storefront cards do not synthesize slug.tulala.digital", () => {
+  const files = [
+    "src/components/admin/shell/internal/page-modules/OverviewPage.tsx",
+    "src/components/admin/shell/internal/page-modules/SitePage.tsx",
+    "src/components/admin/shell/internal/messages/admin-1.tsx",
+    "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx",
+  ];
+  const synthesized = /\$\{[^}]*slug[^}]*\}\.tulala\.digital/;
+  for (const rel of files) {
+    const source = readFileSync(join(process.cwd(), rel), "utf8");
+    assert.equal(
+      source.match(synthesized),
+      null,
+      `${rel} still fabricates a branded host for Free storefronts`,
+    );
+  }
 });

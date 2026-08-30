@@ -28,6 +28,7 @@ import {
   WORKSPACE_SLUG_REGEX,
 } from "@/lib/saas/workspace-signup";
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
@@ -145,7 +146,7 @@ export async function provisionFreeWorkspaceFromTalent(params: {
       supported_locales: ["en"],
       onboarding_completed_at: now,
       plan_tier: "free",
-      talent_seat_limit: 5,
+      talent_seat_limit: PLAN_SEAT_CAPS.free,
     })
     .select("id, slug, display_name")
     .single();

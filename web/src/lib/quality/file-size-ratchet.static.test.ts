@@ -214,7 +214,7 @@ const BUDGETS: Record<string, number> = {
   // carousel-edit-mode-binding.tsx; this file only says where it hangs. It has
   // to hang here because EditShell is the one component present on BOTH the
   // client-canvas and the server-rendered editing paths.
-  "src/components/edit-chrome/edit-shell.tsx": 2742,
+  "src/components/edit-chrome/edit-shell.tsx": 2395,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The

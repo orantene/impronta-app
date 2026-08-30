@@ -19,6 +19,7 @@ import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
@@ -415,15 +416,7 @@ export async function syncStripeSubscriptionToDb(
       return { ok: false, error: "Failed to update subscription record." };
     }
 
-    const SEAT_LIMITS: Record<string, number | null> = {
-      free: 5,
-      // Website has no talent roster — see lib/saas/plan-seat-caps.ts.
-      website: 0,
-      studio: 50,
-      agency: 200,
-      network: null,
-    };
-    const seatLimit = SEAT_LIMITS[newPlanTier] ?? SEAT_LIMITS.free;
+    const seatLimit = seatCapForPlan(newPlanTier);
 
     // Sync agencies.plan_tier + roster cap
     const { error: agencyError } = await sb

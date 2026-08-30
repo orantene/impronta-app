@@ -277,6 +277,7 @@ test("planLabel: title-cases known tiers, passes unknown through, empty for null
   assert.equal(planLabel("FREE"), "Free");
   assert.equal(planLabel(" studio "), "Studio");
   assert.equal(planLabel("network"), "Network");
+  assert.equal(planLabel("website"), "Website");
   assert.equal(planLabel("enterprise"), "enterprise"); // unknown → passthrough, not dropped
   assert.equal(planLabel(null), "");
   assert.equal(planLabel(undefined), "");

@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 
 type AgencySeatRow = {
   plan_tier: string | null;
   talent_seat_limit: number | null;
 };
 
-const FREE_DEFAULT_PUBLIC_PROFILE_CAP = 5;
+const FREE_DEFAULT_PUBLIC_PROFILE_CAP = PLAN_SEAT_CAPS.free ?? 5;
 
 export type RosterSeatAvailability =
   | {

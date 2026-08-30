@@ -63,7 +63,6 @@ export function OverviewPage() {
     bridgeSessionIdentity,
     bridgeTenantIdentity,
     bridgeRecentActivity,
-    effectiveTenant,
     tenantSlug,
     adminBasePath,
   } = useAdminShell();
@@ -75,9 +74,6 @@ export function OverviewPage() {
   };
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
-  const tenantDomain = bridgeTenantIdentity?.slug
-    ? `${bridgeTenantIdentity.slug}.tulala.digital`
-    : effectiveTenant.domain;
 
   // Real workspace activity from inquiry_events (via the bridge). Empty array
   // = no events yet → honest empty state. No mock fallback.
@@ -583,9 +579,7 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
 function OverviewFree() {
   const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const t = useT();
-  const tenantDomain = bridgeTenantIdentity?.slug
-    ? `${bridgeTenantIdentity.slug}.tulala.digital`
-    : effectiveTenant.domain;
+  const tenantDomain = effectiveTenant.domain;
 
   // Live signals that prove a step is "really done" — overrides the
   // user-confirmed Set. Order: real state first, manual confirmation

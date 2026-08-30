@@ -1,5 +1,6 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import {
   brandedSubdomainEligible,
   customDomainEligible,
@@ -40,7 +41,7 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
   free: {
     plan: "free",
     maxPublicPages: 1,
-    maxVisibleRosterProfiles: 5,
+    maxVisibleRosterProfiles: PLAN_SEAT_CAPS.free,
     workspaceTemplateLibrary: false,
     starterTemplateMode: "free-only",
     shellEditMode: "locked",

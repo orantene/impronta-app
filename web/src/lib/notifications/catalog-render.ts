@@ -2,6 +2,7 @@ import "server-only";
 
 import { getAppUrl } from "@/lib/auth-flow";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
+import { PLAN_TIER_LABEL, isWorkspacePlanTier } from "@/lib/platform/plan-override";
 import type { RecipientRole } from "./types";
 
 /**
@@ -117,14 +118,9 @@ export function formatMoneyCents(
   return code ? `${code} ${amount}` : amount;
 }
 
-/** Title-case a plan tier key for display ("agency" → "Agency"). */
-const PLAN_LABELS: Record<string, string> = {
-  free: "Free",
-  studio: "Studio",
-  agency: "Agency",
-  network: "Network",
-};
+/** Display label for a plan key. Same table as `PLAN_TIER_LABEL`. */
 export function planLabel(plan: string | null | undefined): string {
   if (!plan) return "";
-  return PLAN_LABELS[plan.trim().toLowerCase()] ?? plan;
+  const key = plan.trim().toLowerCase();
+  return isWorkspacePlanTier(key) ? PLAN_TIER_LABEL[key] : plan;
 }

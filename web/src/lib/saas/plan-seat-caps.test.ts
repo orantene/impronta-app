@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { PLAN_SEAT_CAPS, seatCapForPlan, seatCapLabel } from "./plan-seat-caps";
+import { PLAN_TIER_SEAT_LIMIT } from "../platform/plan-override";
+import { getBuilderPlanPolicy } from "@/lib/site-admin/builder-capabilities";
+import { PLAN_SEAT_CAPS, seatCapForPlan, seatCapLabel, type SeatCapPlan } from "./plan-seat-caps";
 import { evaluateRosterSeatAvailability } from "./roster-seat-limit";
 import {
   brandedSubdomainEligible,
@@ -107,6 +109,9 @@ test("no surface re-hard-codes a roster cap in copy", () => {
     "src/components/admin/shell/internal/state/fixtures.ts",
     "src/components/admin/shell/internal/wave2.tsx",
     "src/lib/server-actions/cancel-subscription.ts",
+    "src/lib/platform/plan-override.ts",
+    "src/lib/server-actions/admin-billing.ts",
+    "src/lib/stripe/workspace-billing.ts",
   ];
   const literalCap = /Up to \d+ (?:people profiles|talents?|talent\b)/;
   for (const rel of guarded) {
@@ -133,6 +138,66 @@ test("website plan: zero roster seats, custom domain, no whitelabel, no pitches"
   assert.equal(whitelabelBrandingEligible("website"), false);
   assert.equal(canUsePitchFeature("website"), false);
   assert.ok(pitchLockedReason("website"));
+});
+
+test("before/after: writers resolve every plan to PLAN_SEAT_CAPS", () => {
+  // What the three writers stamped before Wave 3. Studio 50 / Agency 200
+  // disagreed with the product table and the DB column comment.
+  const beforeWriterStamp: Record<SeatCapPlan, number | null> = {
+    free: 5,
+    website: 0,
+    studio: 50,
+    agency: 200,
+    network: null,
+  };
+  assert.notEqual(beforeWriterStamp.studio, PLAN_SEAT_CAPS.studio);
+  assert.notEqual(beforeWriterStamp.agency, PLAN_SEAT_CAPS.agency);
+
+  for (const plan of Object.keys(PLAN_SEAT_CAPS) as SeatCapPlan[]) {
+    assert.equal(seatCapForPlan(plan), PLAN_SEAT_CAPS[plan]);
+    assert.equal(PLAN_TIER_SEAT_LIMIT[plan], PLAN_SEAT_CAPS[plan]);
+  }
+  assert.equal(PLAN_TIER_SEAT_LIMIT, PLAN_SEAT_CAPS);
+});
+
+test("writers import the table instead of restating studio=50 / agency=200", () => {
+  const writers = [
+    "src/lib/platform/plan-override.ts",
+    "src/lib/server-actions/admin-billing.ts",
+    "src/lib/stripe/workspace-billing.ts",
+    "src/lib/saas/workspace-signup.server.ts",
+    "src/lib/server-actions/talent-workspace-provision.ts",
+    "src/app/(workspace)/platform/admin/tenants/actions-control.ts",
+    "src/lib/site-admin/builder-capabilities.ts",
+    "src/lib/saas/roster-seat-limit.ts",
+  ];
+  const stale = /\bstudio:\s*50\b|\bagency:\s*200\b/;
+  for (const rel of writers) {
+    const source = readFileSync(join(REPO_WEB, rel), "utf8");
+    assert.equal(
+      source.match(stale),
+      null,
+      `${rel} restates a stale roster cap — derive from PLAN_SEAT_CAPS`,
+    );
+    assert.match(
+      source,
+      /plan-seat-caps/,
+      `${rel} must import the canonical seat-cap table`,
+    );
+  }
+});
+
+test("builder + public-roster surfaces derive the Free cap from the table", () => {
+  assert.equal(getBuilderPlanPolicy("free").maxVisibleRosterProfiles, PLAN_SEAT_CAPS.free);
+  assert.equal(
+    evaluateRosterSeatAvailability({
+      planTier: "free",
+      limit: PLAN_SEAT_CAPS.free,
+      current: PLAN_SEAT_CAPS.free ?? 0,
+      additionalSeats: 1,
+    }).ok,
+    false,
+  );
 });
 
 test("a zero roster cap reads as 'no roster', not 'out of seats'", () => {

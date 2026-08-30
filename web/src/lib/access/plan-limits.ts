@@ -1,12 +1,11 @@
 /**
  * Plan limits (TS mirror of future `plan_limits` table).
  *
- * Phase 1 mirrors the existing hardcoded `SEAT_LIMITS` in
- * `web/src/app/(dashboard)/admin/account/billing-actions.ts`. Other limits
- * (`max_active_talent`, `max_custom_domains`, `max_locales`,
- * `max_custom_fields`) are scaffolded but currently unenforced — they
- * become real once Track C ships the DB table and limit-consuming actions
- * call `assertWithinLimit(limitKey, tenantId)`.
+ * Roster caps live in `PLAN_SEAT_CAPS` and are enforced via
+ * `agencies.talent_seat_limit`. This table is a different ladder:
+ * `max_team_seats` is canonical and enforced; `max_active_talent` and the
+ * rest are scaffolded and currently unenforced. Do not copy roster numbers
+ * here and do not treat this file as a second seat-cap source.
  *
  * Null = unlimited.
  */

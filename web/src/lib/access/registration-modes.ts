@@ -4,7 +4,7 @@
  * Encodes the locked product matrix (confirmed 2026-05-31): which "Open for
  * registration" modes each workspace plan may SELECT. Seat *caps* are NOT here —
  * they stay enforced by checkRosterSeatAvailability() reading
- * agencies.talent_seat_limit (free 5 / studio 50 / agency 200 / Hub ∞).
+ * agencies.talent_seat_limit (see PLAN_SEAT_CAPS).
  *
  *   Plan            closed  open  approval  exclusive   notes
  *   Free            ✓       ✓     ✓         —           open/approval capped at the 5-seat free limit

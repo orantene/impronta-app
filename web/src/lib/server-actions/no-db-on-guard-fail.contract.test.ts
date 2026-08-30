@@ -47,6 +47,7 @@ const PRE_DB_SENTINELS = new Set([
   "Database unavailable.",
   "Not configured.",
   "Unknown plan.",
+  "Paid upgrades go through billing.",
 ]);
 
 async function assertResolvesToPreDbError(
@@ -130,6 +131,14 @@ describe("admin-billing.changeWorkspacePlan: plan validation precedes auth/DB", 
       changeWorkspacePlan("__nope__" as unknown as Parameters<typeof changeWorkspacePlan>[0]),
     );
     assert.equal(e, "Unknown plan.");
+  });
+
+  it("paid plan → 'Paid upgrades go through billing.' (no self-serve stamp)", async () => {
+    const { changeWorkspacePlan } = await import("./admin-billing");
+    const e = await assertResolvesToPreDbError("changeWorkspacePlan('studio')", () =>
+      changeWorkspacePlan("studio"),
+    );
+    assert.equal(e, "Paid upgrades go through billing.");
   });
 });
 

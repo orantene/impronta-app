@@ -27,10 +27,9 @@
  *
  * A small number of literal branches legitimately exist today for mount /
  * gating (e.g. the homepage paints via its storefront body so the in-editor
- * canvas short-circuits on `surfaceKind === "homepage"`; the Lab suppresses the
- * end-user onboarding guide on `surfaceKind === "platform_lab"`). Those are
- * encoded as an explicit ALLOW-LIST (file + line + literal + reason), exactly
- * like `legacy-write-guard.static.test.ts` exempts the homepage adapter — so the
+ * canvas short-circuits on `surfaceKind === "homepage"`). Those are encoded as
+ * an explicit ALLOW-LIST (file + literal + count + reason), exactly like
+ * `legacy-write-guard.static.test.ts` exempts the homepage adapter — so the
  * guard is GREEN today and only NEW literal branches fail.
  *
  * Scanned files (the editor core):
@@ -201,14 +200,6 @@ const ALLOW_LIST: AllowEntry[] = [
     reason:
       "Mount: the homepage paints via its storefront body, so the in-editor freeform " +
       "canvas region is only mounted for non-homepage surfaces (surfaceKind !== \"homepage\").",
-  },
-  {
-    file: "components/edit-chrome/edit-shell.tsx",
-    literal: "platform_lab",
-    count: 1,
-    reason:
-      "Gating: the Builder Lab suppresses the end-user onboarding guide " +
-      "(authors don't need it) — isLabSurface = surfaceKind === \"platform_lab\".",
   },
   {
     file: "components/edit-chrome/inspectors/builder-node-content.tsx",
