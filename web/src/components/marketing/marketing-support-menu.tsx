@@ -6,8 +6,12 @@ import type { MarketingCopy } from "@/lib/marketing/copy";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { HeaderPopover } from "./marketing-header-popover";
 
-/** Support contact — used in the header cluster and the mobile menu alike. */
-export { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
+// Support contact, deliberately NOT re-exported from here. A "use client"
+// module re-exporting a value hands every importer a client reference, which
+// is the exact hazard the constant was moved out of this file to escape:
+// server components got a proxy that rendered as
+// `mailto:function(){throw Error(...` on the live support page. Import it
+// from @/lib/platform/support-contact instead.
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 const ROW =
