@@ -6,6 +6,11 @@
  * decides the header/sidebar/footer stack: Inquire, legacy Book now, SlotPicker.
  */
 
+import {
+  resolveOfferingCta,
+  type TalentOffering,
+} from "@/lib/talent/offerings-types";
+
 export type ProfileBookingMode = "inquire" | "request" | "instant";
 
 export type ProfileCtaSurface = {
@@ -54,4 +59,28 @@ export function resolveProfileCtaPrecedence(input: ProfileCtaInput): ProfileCtaS
     showLegacyInstantBook: !offeringsCta && input.legacyEligible,
     showInquire: !showSlotPicker,
   };
+}
+
+const BOOKING_OFFERING_CTAS = new Set(["book_now", "request_to_book", "buy_now"]);
+
+function isSlotEligibleOffering(o: TalentOffering): boolean {
+  if (o.kind === "product") return false;
+  if ((o.durationMinutes ?? 0) <= 0) return false;
+  return o.bookingMode === "request" || o.bookingMode === "instant";
+}
+
+/** Profile-view adapter — keeps the 2.6k-line page from owning offering CTA math. */
+export function resolveProfileCtasFromOfferings(input: {
+  bookingMode: ProfileBookingMode;
+  offerings: TalentOffering[];
+  legacyEligible: boolean;
+}): ProfileCtaSurface {
+  return resolveProfileCtaPrecedence({
+    bookingMode: input.bookingMode,
+    hasBookableOffering: input.offerings.some(isSlotEligibleOffering),
+    hasOfferingsCta: input.offerings.some((o) =>
+      BOOKING_OFFERING_CTAS.has(resolveOfferingCta(o)),
+    ),
+    legacyEligible: input.legacyEligible,
+  });
 }

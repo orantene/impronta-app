@@ -24,10 +24,8 @@ import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { ProfileSlotPickerMount } from "@/components/public-booking/ProfileSlotPickerMount";
-import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
-import { resolveProfileCtaPrecedence } from "@/lib/scheduling/profile-cta-precedence";
-import { resolveOfferingCta } from "@/lib/talent/offerings-types";
+import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
@@ -1938,13 +1936,9 @@ export async function TalentProfileView({
         },
       })
     : { mode: "inquire" as const, tenantId: null, tenantSlug: null };
-  const profileCtas = resolveProfileCtaPrecedence({
+  const profileCtas = resolveProfileCtasFromOfferings({
     bookingMode: booking.mode,
-    hasBookableOffering: pickBookableOffering(storefrontOfferings) != null,
-    hasOfferingsCta: storefrontOfferings.some((o) => {
-      const kind = resolveOfferingCta(o);
-      return kind === "book_now" || kind === "request_to_book" || kind === "buy_now";
-    }),
+    offerings: storefrontOfferings,
     legacyEligible: instantBook.eligible && instantBook.fixedRateDollars != null,
   });
   const showSlotPicker = profileCtas.showSlotPicker;
@@ -2237,7 +2231,7 @@ export async function TalentProfileView({
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
   const inquireButtons = (btnClass: string) =>
-    !profileCtas.showInquire && !profileCtas.showLegacyInstantBook ? null : (
+    showSlotPicker ? null : (
       <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
@@ -2251,19 +2245,17 @@ export async function TalentProfileView({
             className={btnClass}
           />
         ) : null}
-        {profileCtas.showInquire ? (
-          <TalentProfileInquireButton
-            talentId={profile.id}
-            talentProfileCode={profile.profile_code}
-            displayName={name}
-            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-            agencyName={tenantBrand ?? "the agency"}
-            sourcePage={profileSourcePage}
-            locale={locale}
-            className={btnClass}
-          />
-        ) : null}
+        <TalentProfileInquireButton
+          talentId={profile.id}
+          talentProfileCode={profile.profile_code}
+          displayName={name}
+          tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+          tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+          agencyName={tenantBrand ?? "the agency"}
+          sourcePage={profileSourcePage}
+          locale={locale}
+          className={btnClass}
+        />
       </>
     );
 

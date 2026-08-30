@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import {
   characterizeProfileCtas,
   resolveProfileCtaPrecedence,
+  resolveProfileCtasFromOfferings,
   type ProfileCtaInput,
 } from "./profile-cta-precedence";
+import { blankOffering } from "@/lib/talent/offerings-types";
 
 function shape(
   partial: Partial<ProfileCtaInput> & Pick<ProfileCtaInput, "bookingMode">,
@@ -162,4 +164,33 @@ test("precedence: policy on without a bookable offering keeps Inquire (closes th
       showInquire: true,
     },
   );
+});
+
+test("adapter: duration-bearing request offering is bookable and hides legacy", () => {
+  const offering = blankOffering("t1", "USD", 0);
+  offering.durationMinutes = 60;
+  offering.amountCents = 10000;
+  offering.bookingMode = "request";
+  const next = resolveProfileCtasFromOfferings({
+    bookingMode: "request",
+    offerings: [offering],
+    legacyEligible: true,
+  });
+  assert.equal(next.showSlotPicker, true);
+  assert.equal(next.showLegacyInstantBook, false);
+  assert.equal(next.showInquire, false);
+});
+
+test("adapter: quote-only offering is not a booking CTA — legacy stays", () => {
+  const offering = blankOffering("t1", "USD", 0);
+  offering.priceDisplay = "quote";
+  offering.amountCents = null;
+  const next = resolveProfileCtasFromOfferings({
+    bookingMode: "inquire",
+    offerings: [offering],
+    legacyEligible: true,
+  });
+  assert.equal(next.showSlotPicker, false);
+  assert.equal(next.showLegacyInstantBook, true);
+  assert.equal(next.showInquire, true);
 });
