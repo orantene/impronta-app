@@ -12,6 +12,7 @@ import {
   RESERVATION_STAMP_VERSION,
   type ReservationStamp,
 } from "./reservation-intent";
+import type { WeekdayIndex, WeeklyHours } from "./hours-types";
 
 export type InstantPlanGate =
   | { ok: true }
@@ -61,6 +62,28 @@ export function reservationStampForInstant(input: {
     hold_id: input.holdId ?? null,
     hold_expires_at: input.holdExpiresAt ?? null,
   };
+}
+
+/**
+ * A timed service with real hours must not confirm on the no-window path.
+ * Products and offerings with no duration or no hours keep today's behavior.
+ */
+export function instantRequiresSlot(input: {
+  kind: string | null | undefined;
+  durationMinutes: number | null | undefined;
+  hasBookableHours: boolean;
+}): boolean {
+  if (input.kind === "product") return false;
+  if ((input.durationMinutes ?? 0) <= 0) return false;
+  return input.hasBookableHours === true;
+}
+
+export function weeklyHasBookableWindow(weekly: WeeklyHours | null): boolean {
+  if (!weekly) return false;
+  for (let day = 0; day <= 6; day++) {
+    if ((weekly[day as WeekdayIndex] ?? []).length > 0) return true;
+  }
+  return false;
 }
 
 /** Distinct from "A time was requested." Terminology-aware. */

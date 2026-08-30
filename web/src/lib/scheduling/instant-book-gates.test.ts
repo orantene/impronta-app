@@ -1,10 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
+import { parseWeeklyHours } from "./hours-types";
 import {
   assertInstantPlanCeiling,
+  instantRequiresSlot,
   instantReservationConfirmedBody,
   reservationStampForInstant,
+  weeklyHasBookableWindow,
 } from "./instant-book-gates";
 
 test("free plan cannot auto-confirm (request ceiling)", () => {
@@ -54,4 +59,64 @@ test("instant confirm copy is terminology-aware and not request-received", () =>
     "Tu cita esta confirmada.",
   );
   assert.doesNotMatch(instantReservationConfirmedBody("reservation", "en"), /received/i);
+});
+
+test("product never requires a slot, even with duration and hours", () => {
+  assert.equal(
+    instantRequiresSlot({ kind: "product", durationMinutes: 30, hasBookableHours: true }),
+    false,
+  );
+});
+
+test("duration-bearing service with hours requires a slot", () => {
+  assert.equal(
+    instantRequiresSlot({ kind: "service", durationMinutes: 45, hasBookableHours: true }),
+    true,
+  );
+});
+
+test("duration-bearing service with no hours keeps the no-window path", () => {
+  assert.equal(
+    instantRequiresSlot({ kind: "service", durationMinutes: 45, hasBookableHours: false }),
+    false,
+  );
+});
+
+test("zero or missing duration never requires a slot", () => {
+  assert.equal(
+    instantRequiresSlot({ kind: "service", durationMinutes: 0, hasBookableHours: true }),
+    false,
+  );
+  assert.equal(
+    instantRequiresSlot({ kind: "service", durationMinutes: null, hasBookableHours: true }),
+    false,
+  );
+});
+
+test("weeklyHasBookableWindow is true when any day 0-6 has a window", () => {
+  const weekly = parseWeeklyHours({
+    2: [{ startMin: 600, endMin: 1080 }],
+  });
+  assert.equal(weeklyHasBookableWindow(weekly), true);
+  assert.equal(weeklyHasBookableWindow(parseWeeklyHours({})), false);
+  assert.equal(weeklyHasBookableWindow(null), false);
+});
+
+const ENGINE = readFileSync(
+  join(__dirname, "..", "inquiry", "instant-book-engine.ts"),
+  "utf8",
+);
+const MOUNT = readFileSync(
+  join(__dirname, "..", "..", "app", "t", "[profileCode]", "_shared", "OfferingInstantMount.tsx"),
+  "utf8",
+);
+
+test("engine refuses no-slot instant when a slot is required", () => {
+  assert.match(ENGINE, /slot_required/);
+  assert.match(ENGINE, /timedInstantMissingSlot/);
+});
+
+test("OfferingInstantMount routes a timed+hours Book now to the SlotPicker", () => {
+  assert.match(MOUNT, /instantRequiresSlot/);
+  assert.match(MOUNT, /tulala:offering-slot/);
 });

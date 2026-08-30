@@ -105,7 +105,8 @@ export async function createInstantBookingAction(
             booked.reason !== "no_fixed_rate" &&
             booked.reason !== "slot_taken" &&
             booked.reason !== "plan_lacks_capability" &&
-            booked.reason !== "not_authenticated"
+            booked.reason !== "not_authenticated" &&
+            booked.reason !== "slot_required"
           ) {
             logServerError("instantBookAction.engine", new Error(`${booked.reason}: ${booked.error ?? ""}`));
           }

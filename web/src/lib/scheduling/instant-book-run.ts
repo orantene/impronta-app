@@ -71,7 +71,9 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
             ? res.error ?? "That time was just taken. Pick another time."
             : res.reason === "plan_lacks_capability"
               ? res.error ?? "This plan cannot auto-confirm. Send a request or upgrade."
-              : "We couldn't complete the booking. Please try the inquiry option instead.";
+              : res.reason === "slot_required"
+                ? res.error ?? "Pick a time to book this service."
+                : "We couldn't complete the booking. Please try the inquiry option instead.";
   return {
     ok: false,
     error: msg,
