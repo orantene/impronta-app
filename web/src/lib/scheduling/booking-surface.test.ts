@@ -70,6 +70,7 @@ function fakeOffering(partial: Partial<TalentOffering> & Pick<TalentOffering, "i
     reserveMode: "full",
     depositPct: null,
     allowPayInPerson: false,
+    requireAccountToBook: false,
     cancellationHours: null,
     freeReserveExpiresDays: null,
     durationMinutes: 30,

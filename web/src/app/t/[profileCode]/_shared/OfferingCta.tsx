@@ -27,6 +27,7 @@ export type OfferingRequestDetail = {
   currency: string;
   durationMinutes: number | null;
   allowPayInPerson: boolean;
+  requireAccountToBook?: boolean;
   reserveMode: "full" | "deposit" | "free";
   depositPct: number | null;
   cancellationHours?: number | null;
@@ -77,6 +78,7 @@ export function OfferingCta({
       currency: offering.currency,
       durationMinutes: offering.durationMinutes,
       allowPayInPerson: offering.allowPayInPerson,
+      requireAccountToBook: offering.requireAccountToBook === true,
       reserveMode: offering.reserveMode,
       depositPct: offering.depositPct,
       cancellationHours: offering.cancellationHours,

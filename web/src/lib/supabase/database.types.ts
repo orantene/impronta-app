@@ -12804,6 +12804,7 @@ export type Database = {
           moderation_state: string
           price_display: string
           price_type: string
+          require_account_to_book: boolean
           reserve_mode: string
           sort_order: number
           status: string
@@ -12835,6 +12836,7 @@ export type Database = {
           moderation_state?: string
           price_display?: string
           price_type?: string
+          require_account_to_book?: boolean
           reserve_mode?: string
           sort_order?: number
           status?: string
@@ -12866,6 +12868,7 @@ export type Database = {
           moderation_state?: string
           price_display?: string
           price_type?: string
+          require_account_to_book?: boolean
           reserve_mode?: string
           sort_order?: number
           status?: string

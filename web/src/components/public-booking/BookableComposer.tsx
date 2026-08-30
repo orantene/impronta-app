@@ -16,6 +16,8 @@ import type { BookableOffering } from "@/components/public-booking/pick-bookable
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
 import { useT } from "@/i18n/use-t";
+import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
+import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 export type { BookableOffering };
 
@@ -39,6 +41,8 @@ export function BookableComposer({
   offering,
   bookingMode = "request",
   showInlinePicker = true,
+  signedIn = false,
+  captcha = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -46,6 +50,8 @@ export function BookableComposer({
   offering: BookableOffering;
   bookingMode?: TalentBookingMode;
   showInlinePicker?: boolean;
+  signedIn?: boolean;
+  captcha?: GuestCaptchaConfig | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -54,8 +60,13 @@ export function BookableComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forceRequest, setForceRequest] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
   const active = eventOffering ?? offering;
   const instant = bookingMode === "instant" && !forceRequest && !!tenantId;
+  const requireAccountToBook = active.requireAccountToBook === true;
 
   useEffect(() => {
     const onSlot = (e: Event) => {
@@ -63,6 +74,7 @@ export function BookableComposer({
         offeringId?: string;
         talentProfileId?: string;
         durationMinutes?: number | null;
+        requireAccountToBook?: boolean;
       }>).detail;
       if (!d?.offeringId) return;
       setEventOffering({
@@ -74,6 +86,7 @@ export function BookableComposer({
         timezone: offering.timezone,
         locationLabel: offering.locationLabel,
         talentProfileId: d.talentProfileId ?? offering.talentProfileId,
+        requireAccountToBook: d.requireAccountToBook === true,
       });
       setSlot(null);
       setForceRequest(false);
@@ -114,6 +127,10 @@ export function BookableComposer({
           endsAt: slot.endsAt,
           timezone: slot.timezone,
         },
+        contactName: signedIn ? undefined : guestName,
+        contactEmail: signedIn ? undefined : guestEmail,
+        captchaToken: signedIn ? undefined : captchaToken || null,
+        honeypot: signedIn ? undefined : honeypot,
       });
       if (!res.ok) {
         if (res.needsAuth) {
@@ -154,6 +171,37 @@ export function BookableComposer({
           {error ? (
             <p className="text-sm text-[var(--token-color-danger,#dc2626)]">{error}</p>
           ) : null}
+          {!signedIn && requireAccountToBook ? (
+            <a
+              href={`/login?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
+              className="inline-flex items-center justify-center rounded-full bg-[#0B0B0D] px-5 py-2.5 text-sm font-medium text-white"
+            >
+              {t("public.instantBook.signInToBook")}
+            </a>
+          ) : null}
+          {!signedIn && !requireAccountToBook ? (
+            <>
+              <GuestInstantContact
+                name={guestName}
+                email={guestEmail}
+                captcha={captcha}
+                locale={typeof document !== "undefined" && document.documentElement.lang.startsWith("es") ? "es" : "en"}
+                onName={setGuestName}
+                onEmail={setGuestEmail}
+                onCaptchaToken={setCaptchaToken}
+              />
+              <input
+                type="text"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden
+                className="absolute -left-[9999px] h-px w-px overflow-hidden"
+              />
+            </>
+          ) : null}
+          {signedIn || !requireAccountToBook ? (
           <button
             type="button"
             disabled={busy}
@@ -162,6 +210,7 @@ export function BookableComposer({
           >
             {busy ? t("public.slotPicker.confirming") : t("public.slotPicker.confirmInstant")}
           </button>
+          ) : null}
           {forceRequest ? (
             <button
               type="button"

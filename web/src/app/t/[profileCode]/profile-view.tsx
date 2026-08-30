@@ -23,7 +23,7 @@ import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-
 import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
-import { ProfileSlotPickerMount } from "@/components/public-booking/ProfileSlotPickerMount";
+import { ProfileSlotPickerChrome } from "./_shared/ProfileSlotPickerChrome";
 import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
@@ -121,7 +121,7 @@ import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
-import { OfferingInstantMount } from "./_shared/OfferingInstantMount";
+import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
@@ -2443,7 +2443,7 @@ export async function TalentProfileView({
         inquireButtonHeader={inquireButtons(inquireBtnClass)}
         slotPicker={
           showSlotPicker ? (
-            <ProfileSlotPickerMount
+            <ProfileSlotPickerChrome
               offerings={storefrontOfferings}
               tenantSlug={slotTenantSlug}
               tenantId={slotTenantId}
@@ -2521,7 +2521,7 @@ export async function TalentProfileView({
       {/* Storefront direct booking — consumes "tulala:offering-instant" from a
           card's Book now / Buy click. Armed on any host that resolved a seller tenant. */}
       {slotTenantId ? (
-        <OfferingInstantMount
+        <ProfileInstantBookingMount
           tenantId={slotTenantId}
           sourcePage={`/t/${profile.profile_code}`}
           locale={locale}

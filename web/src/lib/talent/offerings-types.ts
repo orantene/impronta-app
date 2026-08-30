@@ -85,6 +85,8 @@ export type TalentOffering = {
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;
   allowPayInPerson: boolean;
+  /** When true, guest instant booking is refused (sign-in required). Default off. */
+  requireAccountToBook: boolean;
   /** Hours before the appointment when free cancellation ends (null = flexible). */
   cancellationHours: number | null;
   /** Days a free reserve is held before the expiry cron auto-releases it (null = never). */
@@ -126,6 +128,7 @@ export type TalentOfferingRow = {
   reserve_mode: string;
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
+  require_account_to_book?: boolean;
   cancellation_hours: number | null;
   free_reserve_expires_days: number | null;
   duration_minutes: number | null;
@@ -192,6 +195,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
         ? Math.round(row.deposit_pct)
         : null,
     allowPayInPerson: row.allow_pay_in_person === true,
+    requireAccountToBook: row.require_account_to_book === true,
     cancellationHours:
       typeof row.cancellation_hours === "number" && Number.isFinite(row.cancellation_hours) && row.cancellation_hours >= 0
         ? Math.round(row.cancellation_hours)
@@ -234,6 +238,7 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
     reserve_mode: o.reserveMode,
     deposit_pct: o.reserveMode === "deposit" && o.depositPct ? Math.round(o.depositPct) : null,
     allow_pay_in_person: o.allowPayInPerson === true,
+    require_account_to_book: o.requireAccountToBook === true,
     cancellation_hours: o.cancellationHours != null && o.cancellationHours >= 0 ? Math.round(o.cancellationHours) : null,
     // Only free reserves auto-expire; other modes keep the column null.
     free_reserve_expires_days: o.reserveMode === "free" ? posInt(o.freeReserveExpiresDays) : null,
@@ -352,6 +357,7 @@ export function blankOffering(talentProfileId: string, defaultCurrency: string, 
     reserveMode: "full",
     depositPct: null,
     allowPayInPerson: false,
+    requireAccountToBook: false,
     cancellationHours: null,
     freeReserveExpiresDays: null,
     durationMinutes: null,

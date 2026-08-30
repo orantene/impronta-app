@@ -16,6 +16,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
 import { BookPageClient } from "./BookPageClient";
+import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -82,6 +83,7 @@ export default async function BookPage() {
     const identity = await loadPublicIdentity(tenantId);
     if (identity?.public_name?.trim()) agencyName = identity.public_name.trim();
   }
+  const guestChrome = await loadGuestInstantChrome(tenantId || null);
 
   return (
     <>
@@ -96,6 +98,8 @@ export default async function BookPage() {
           tenantId={tenantId}
           agencyName={agencyName}
           offerings={offerings}
+          signedIn={guestChrome.signedIn}
+          captcha={guestChrome.captcha}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

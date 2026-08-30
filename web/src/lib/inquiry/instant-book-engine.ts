@@ -14,12 +14,9 @@
  *     orchestration. The offer steps (create/update/send) are staff-gated, so
  *     they're driven with a resolved tenant STAFF actor (validateActorPermission
  *     short-circuits for staff).
- *   - engine_convert_to_booking RPC hard-requires auth.uid() == p_actor_user_id
- *     and EXECUTE is granted to anon — so it can only be satisfied by a real
- *     session, NOT service-role. We therefore convert with the CLIENT's own
- *     authenticated session (the client is a real authenticated user on their
- *     own already-approved inquiry; the RPC permits this) and then re-stamp the
- *     booking's owner/creator to the tenant staff actor.
+ *   - engine_convert_to_booking requires auth.uid() == p_actor_user_id for a
+ *     signed-in caller. service_role may convert as a provisioned guest actor
+ *     (walk-in instant). Signed-in clients still convert with their session.
  *
  * v1 is single-talent. The client is charged the SAME total a normal offer
  * would bill for the same fixed rate — subtotal + the platform's client-side
@@ -210,9 +207,10 @@ export async function loadInstantBookEligibility(
 }
 
 /**
- * Run the full instant-book flow. `clientSb` MUST be the authenticated client's
- * session client (used for the convert RPC's auth.uid() check). All other
- * writes go through the service-role client created here.
+ * Run the full instant-book flow. `clientSb` is the convert RPC client:
+ * the visitor session for a signed-in booker, or service-role for a
+ * provisioned guest. All other writes go through the service-role client
+ * created here.
  */
 export async function createInstantBooking(
   clientSb: SupabaseClient,

@@ -1398,6 +1398,11 @@
       "confirming": "Confirming…",
       "requestInstead": "Request this time instead"
     },
+    "instantBook": {
+      "guestName": "Your name",
+      "guestEmail": "Your email",
+      "signInToBook": "Sign in to book"
+    },
     "bookPage": {
       "title": "Reserve a time",
       "lead": "Pick a service and a time. We will confirm shortly.",

@@ -22,6 +22,8 @@ import type { OfferingRequestDetail } from "./OfferingCta";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
+import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -32,10 +34,14 @@ export function OfferingInstantMount({
   tenantId,
   sourcePage,
   locale,
+  signedIn = false,
+  captcha = null,
 }: {
   tenantId: string | null;
   sourcePage: string;
   locale: string;
+  signedIn?: boolean;
+  captcha?: GuestCaptchaConfig | null;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,6 +50,10 @@ export function OfferingInstantMount({
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     if (!tenantId) return;
@@ -117,6 +127,10 @@ export function OfferingInstantMount({
         variantId: variant?.id ?? null,
         addOnIds,
         quantity: effQty,
+        contactName: signedIn ? undefined : guestName,
+        contactEmail: signedIn ? undefined : guestEmail,
+        captchaToken: signedIn ? undefined : captchaToken || null,
+        honeypot: signedIn ? undefined : honeypot,
       });
       if (!res.ok) {
         if (res.needsAuth) {
@@ -265,18 +279,53 @@ export function OfferingInstantMount({
           <span style={{ display: "block", marginBottom: 12 }} />
         )}
 
+        {!signedIn && d.requireAccountToBook ? (
+          <a
+            href={`/login?next=${encodeURIComponent(sourcePage)}`}
+            style={{ ...btn(true), textAlign: "center", textDecoration: "none", marginBottom: 8 }}
+          >
+            {pickLocale(locale, { en: "Sign in to book", es: "Inicia sesion para reservar" })}
+          </a>
+        ) : null}
+        {!signedIn && !d.requireAccountToBook ? (
+          <div style={{ margin: "8px 0 12px" }}>
+            <GuestInstantContact
+              name={guestName}
+              email={guestEmail}
+              captcha={captcha}
+              locale={locale}
+              onName={setGuestName}
+              onEmail={setGuestEmail}
+              onCaptchaToken={setCaptchaToken}
+            />
+            <input
+              type="text"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden
+              style={{ position: "absolute", left: -9999, height: 1, width: 1, overflow: "hidden" }}
+            />
+          </div>
+        ) : null}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <button type="button" disabled={busy} onClick={() => void book(false)} style={btn(true)} data-sheet-action="card">
-            {d.reserveMode === "free"
-              ? pickLocale(locale, { en: "Reserve now — free", es: "Reservar ahora — gratis" })
-              : depositAmount
-                ? pickLocale(locale, { en: `Reserve with ${depositAmount} deposit`, es: `Reservar con depósito de ${depositAmount}` })
-                : pickLocale(locale, { en: `Book now · pay by card`, es: `Reservar ya · pagar con tarjeta` })}
-          </button>
-          {d.allowPayInPerson && d.reserveMode !== "free" ? (
-            <button type="button" disabled={busy} onClick={() => void book(true)} style={btn(false)} data-sheet-action="cash">
-              {pickLocale(locale, { en: "Reserve — pay at the appointment", es: "Reservar — pagar en la cita" })}
-            </button>
+          {signedIn || !d.requireAccountToBook ? (
+            <>
+              <button type="button" disabled={busy} onClick={() => void book(false)} style={btn(true)} data-sheet-action="card">
+                {d.reserveMode === "free"
+                  ? pickLocale(locale, { en: "Reserve now — free", es: "Reservar ahora — gratis" })
+                  : depositAmount
+                    ? pickLocale(locale, { en: `Reserve with ${depositAmount} deposit`, es: `Reservar con depósito de ${depositAmount}` })
+                    : pickLocale(locale, { en: `Book now · pay by card`, es: `Reservar ya · pagar con tarjeta` })}
+              </button>
+              {d.allowPayInPerson && d.reserveMode !== "free" ? (
+                <button type="button" disabled={busy} onClick={() => void book(true)} style={btn(false)} data-sheet-action="cash">
+                  {pickLocale(locale, { en: "Reserve — pay at the appointment", es: "Reservar — pagar en la cita" })}
+                </button>
+              ) : null}
+            </>
           ) : null}
           <button type="button" disabled={busy} onClick={() => setSheet(null)} style={{ ...btn(false), border: "none", color: MUTED }}>
             {pickLocale(locale, { en: "Cancel", es: "Cancelar" })}

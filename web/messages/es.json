@@ -1398,6 +1398,11 @@
       "confirming": "Confirmando…",
       "requestInstead": "Pedir este horario en su lugar"
     },
+    "instantBook": {
+      "guestName": "Tu nombre",
+      "guestEmail": "Tu correo",
+      "signInToBook": "Inicia sesion para reservar"
+    },
     "bookPage": {
       "title": "Reserva un horario",
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
