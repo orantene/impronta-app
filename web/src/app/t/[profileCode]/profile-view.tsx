@@ -2518,11 +2518,11 @@ export async function TalentProfileView({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
         />
       ) : null}
-      {/* Storefront direct booking — consumes "tulala:offering-instant" from a
-          card's Book now / Buy click. Armed on any host that resolved a seller tenant. */}
+      {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
       {slotTenantId ? (
         <ProfileInstantBookingMount
           tenantId={slotTenantId}
+          talentProfileId={profile.id}
           sourcePage={`/t/${profile.profile_code}`}
           locale={locale}
         />

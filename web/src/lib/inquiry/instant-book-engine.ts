@@ -18,13 +18,9 @@
  *     signed-in caller. service_role may convert as a provisioned guest actor
  *     (walk-in instant). Signed-in clients still convert with their session.
  *
- * v1 is single-talent. The client is charged the SAME total a normal offer
- * would bill for the same fixed rate — subtotal + the platform's client-side
- * surcharge (+ workspace base fee), read back from the booking's commission
- * snapshot (A2) — NOT the bare talent rate. When the resolved offer terms carry
- * a deposit, the first charge is the deposit (balance collected later, like the
- * offer path); otherwise the full amount is charged in one go. Multi-talent is an
- * explicit non-goal here.
+ * v1 is single-talent. Charge the same client total a normal offer would
+ * (subtotal + surcharge + base fee from the commission snapshot). Multi-talent
+ * is an explicit non-goal.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -47,6 +43,7 @@ import {
   reservationStampForInstant,
   type InstantReservationWindow,
 } from "@/lib/scheduling/instant-book-gates";
+import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { emitInstantReservationConfirmed } from "@/lib/scheduling/instant-book-confirm-notify";
 import { readOfferTermsFromRow } from "@/lib/billing/offer-commercial-terms";
 import {
@@ -115,7 +112,8 @@ export type InstantBookReason =
   | "multi_talent_unsupported"
   | "engine_error"
   | "slot_taken"
-  | "plan_lacks_capability";
+  | "plan_lacks_capability"
+  | "slot_required";
 
 export type InstantBookResult =
   | { ok: true; inquiryId: string; bookingId: string; transactionId: string }
@@ -268,6 +266,9 @@ export async function createInstantBooking(
       }
       if (tenantTerms?.instantBookEnabled === false) {
         return { ok: false, reason: "instant_book_not_enabled" };
+      }
+      if (await timedInstantMissingSlot(admin, offering, input.talentProfileId, !!input.reservation)) {
+        return { ok: false, reason: "slot_required", error: "Pick a time to book this service." };
       }
     }
 

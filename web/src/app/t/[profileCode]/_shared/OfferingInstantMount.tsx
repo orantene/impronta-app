@@ -24,6 +24,7 @@ import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
+import { instantRequiresSlot } from "@/lib/scheduling/instant-book-gates";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -36,12 +37,14 @@ export function OfferingInstantMount({
   locale,
   signedIn = false,
   captcha = null,
+  hasBookableHours = false,
 }: {
   tenantId: string | null;
   sourcePage: string;
   locale: string;
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
+  hasBookableHours?: boolean;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,17 +62,26 @@ export function OfferingInstantMount({
     if (!tenantId) return;
     const onInstant = (e: Event) => {
       const d = (e as CustomEvent).detail as OfferingRequestDetail | undefined;
-      if (d) {
-        setError(null);
-        setVariantId(d.variants?.[0]?.id ?? null);
-        setAddOnIds([]);
-        setQty(1);
-        setSheet(d);
+      if (!d) return;
+      if (
+        instantRequiresSlot({
+          kind: d.kind,
+          durationMinutes: d.durationMinutes,
+          hasBookableHours,
+        })
+      ) {
+        window.dispatchEvent(new CustomEvent("tulala:offering-slot", { detail: d }));
+        return;
       }
+      setError(null);
+      setVariantId(d.variants?.[0]?.id ?? null);
+      setAddOnIds([]);
+      setQty(1);
+      setSheet(d);
     };
     window.addEventListener("tulala:offering-instant", onInstant);
     return () => window.removeEventListener("tulala:offering-instant", onInstant);
-  }, [tenantId]);
+  }, [tenantId, hasBookableHours]);
 
   if (!tenantId || !sheet) {
     // Invisible marker so QA can confirm the mount rendered + hydrated.
