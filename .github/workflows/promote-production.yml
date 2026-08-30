@@ -13,6 +13,17 @@
 #
 # The pointer only ever moves FORWARD, and only to commits that are ancestors
 # of origin/main — see the guards below. Never force-push it.
+#
+# MANUAL RUNS (added 2026-08-30). This workflow can also be started by hand.
+# It was not, and that cost hours: a Vercel builder froze mid-deploy, and with
+# the pointer already sitting at the commit whose build hung there was nothing
+# left to fast-forward and no supported way to retry. The only way to get a
+# deploy moving was to invent a commit. A manual run fixes that.
+#
+# A manual run does NOT bypass the gate. It re-checks that the structural
+# quality gate concluded success on the exact commit being promoted, and
+# refuses otherwise. The guarantee stays exactly what it was: nothing reaches
+# production that CI has not vetted.
 
 name: Promote production pointer
 
@@ -21,14 +32,23 @@ on:
     workflows: ["CI — structural quality gate"]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit on main to promote. Leave blank for the current main head."
+        required: false
+        type: string
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   promote:
     name: Fast-forward `production` to the vetted commit
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # An automatic run is trusted because it fires FROM a successful gate. A
+    # manual run has no such provenance, so it verifies the gate itself below.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -37,9 +57,58 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve the commit to promote
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHA="${{ inputs.sha }}"
+            if [ -z "$SHA" ]; then
+              git fetch origin main
+              SHA="$(git rev-parse origin/main)"
+              echo "::notice::No sha given — using current main head $SHA."
+            fi
+            # Normalise to a FULL sha. This is not cosmetic: the Actions API
+            # `head_sha` filter matches only full shas, and a short one comes
+            # back with zero runs, which the verify step below would read as
+            # "never vetted" and refuse. Fail-safe, but baffling to debug.
+            SHA="$(git rev-parse "$SHA^{commit}")"
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify CI vetted this commit (manual runs only)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ steps.resolve.outputs.sha }}"
+          # The pointer's whole contract is that production only ever holds
+          # CI-vetted commits. A manual run must therefore prove the gate
+          # passed on THIS commit rather than take the operator's word.
+          CONCLUSION="$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=completed" \
+            --jq '[.workflow_runs[] | select(.name == "CI — structural quality gate")][0].conclusion' \
+            2>/dev/null || echo "")"
+
+          if [ -z "$CONCLUSION" ] || [ "$CONCLUSION" = "null" ]; then
+            # Fall back to scanning all workflows for that head sha, in case
+            # the gate does not live in ci.yml.
+            CONCLUSION="$(gh api \
+              "repos/${{ github.repository }}/actions/runs?head_sha=$SHA&status=completed" \
+              --jq '[.workflow_runs[] | select(.name == "CI — structural quality gate")][0].conclusion' \
+              2>/dev/null || echo "")"
+          fi
+
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::Refusing to promote $SHA — the structural quality gate has not succeeded on it (found: ${CONCLUSION:-no completed run}). Wait for CI, or promote a commit it has passed."
+            exit 1
+          fi
+          echo "::notice::CI vetted $SHA — proceeding."
+
       - name: Fast-forward production
         run: |
-          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHA="${{ steps.resolve.outputs.sha }}"
           git fetch origin main
           # Only promote commits that are actually on main (a re-run of an old
           # workflow must not rewind or sidetrack the pointer).
