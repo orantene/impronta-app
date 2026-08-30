@@ -101,6 +101,28 @@ test("direct action call: policy-off talent cannot be booked", async () => {
   }
 });
 
+test("menu_order offering_request with no talent skips the reservation gate", async () => {
+  const admin = fakeAdmin({});
+  const allowed = await refuseOfferingRequestIfPolicyOff(admin, {
+    source_channel: "offering_request",
+    talent_profile_ids: [],
+    tenant_id: "agency-1",
+    source_context: {
+      menu_order: { version: 1, items: [{ offering_id: "o1", units: 1 }] },
+    },
+  });
+  assert.equal(allowed, null);
+
+  const stillBlocked = await refuseOfferingRequestIfPolicyOff(admin, {
+    source_channel: "offering_request",
+    talent_profile_ids: [],
+    tenant_id: "agency-1",
+    source_context: { host_kind: "agency" },
+  });
+  assert.equal(stillBlocked?.forbidden, true);
+  assert.equal(stillBlocked?.error, "This time cannot be booked.");
+});
+
 test("submitInquiry helper refuses offering_request when the talent is policy-off", async () => {
   const admin = fakeAdmin({
     talent_profiles: {
