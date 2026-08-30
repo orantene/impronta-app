@@ -166,7 +166,9 @@ export async function createMenuOrder(
       event_date: null,
       event_location: null,
       source_page: input.sourcePage ?? null,
-      source_channel: "menu_order",
+      // Prefer menu_order when the enum has it; fall back to offering_request
+      // so live orders work before the ADD VALUE migration is applied.
+      source_channel: "offering_request",
       source_context: {
         menu_order: {
           version: 1,
