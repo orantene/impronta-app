@@ -163,6 +163,17 @@ test("canonical talent surface: /t/* allowed on agency + app + marketing + hub",
   assert.equal(isPathAllowedForHostKind("agency", "/talent"), true);
 });
 
+test("marketing host: guest support chat API is allowed; other /api/ai stays blocked", () => {
+  assert.equal(
+    isPathAllowedForHostKind("marketing", "/api/ai/guest-support-chat"),
+    true,
+    "Ask Tulala on tulala.digital must reach the guest AI handler",
+  );
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/ai/search"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/ai/inquiry-draft"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/ai/support-chat"), false);
+});
+
 test("read-only deploy diagnostics: /api/health/* allowed on every host kind", () => {
   // /api/health/guest-chat reports only the boolean presence of the Upstash KV
   // env vars (no secrets, no tenant data) and must be reachable unauthenticated
@@ -382,6 +393,9 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/register",
     "/join",
     "/auth/callback",
+    // Ask Tulala on tulala.digital POSTs here after startGuestSupportChatAction.
+    // The rest of `/api/ai` stays blocked below.
+    "/api/ai/guest-support-chat",
   ];
   for (const p of allowed) {
     assert.equal(

@@ -16,6 +16,18 @@ import {
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { SupportCardRenderer } from "@/components/support/SupportCardRenderer";
 
+const GUEST_SUPPORT_CHAT_PATH = "/api/ai/guest-support-chat";
+
+async function requestGuestSupportAnswer(ticketId: string): Promise<boolean> {
+  const res = await fetch(GUEST_SUPPORT_CHAT_PATH, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticketId }),
+  });
+  const ct = res.headers.get("content-type") ?? "";
+  return res.ok && ct.includes("application/json");
+}
+
 export function MarketingSupportPanel({
   locale,
   originSlug,
@@ -116,12 +128,12 @@ export function MarketingSupportPanel({
         setView("thread");
         setDraft("");
         trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_question_sent, { locale });
-        await fetch("/api/ai/guest-support-chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ticketId: created.ticketId }),
-        });
-        trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_answer_shown, { locale });
+        const answered = await requestGuestSupportAnswer(created.ticketId);
+        if (!answered) {
+          setError(copy.answerUnavailable);
+        } else {
+          trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_answer_shown, { locale });
+        }
         await loadThread(created.ticketId);
         return;
       }
@@ -137,12 +149,12 @@ export function MarketingSupportPanel({
       setDraft("");
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_question_sent, { locale });
       if (ticket?.handledBy === "ai") {
-        await fetch("/api/ai/guest-support-chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ticketId }),
-        });
-        trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_answer_shown, { locale });
+        const answered = await requestGuestSupportAnswer(ticketId);
+        if (!answered) {
+          setError(copy.answerUnavailable);
+        } else {
+          trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_answer_shown, { locale });
+        }
       }
       await loadThread(ticketId);
     } finally {

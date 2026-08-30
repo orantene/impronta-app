@@ -31,7 +31,12 @@
  *
  *  *Note: `/api/ai` is intentionally reachable on both agency (storefront
  *   discovery/draft) and app (admin inquiry authoring) — that's why it
- *   appears under both "storefront api" and "app api".
+ *   appears under both "storefront api" and "app api". The marketing apex
+ *   does **not** get the whole `/api/ai` tree (`/api/ai/search` must stay
+ *   404 there). Only `/api/ai/guest-support-chat` is opened, because the
+ *   Ask Tulala launcher lives on tulala.digital and POSTs that path after
+ *   the guest ticket is created. Without this entry the proxy never reaches
+ *   the handler; the browser gets marketing HTML and the chat stays silent.
  *
  * Auth-surface policy (documented here so it's alongside the gate):
  *   `/login` + `/register` are allowed on **agency** and **hub** hosts as
@@ -663,6 +668,13 @@ const MARKETING_PAGE_PREFIXES = [
   "/sitios-web",
 ] as const;
 
+/**
+ * Marketing-host APIs. Do not widen to `/api/ai` — directory search / draft
+ * stay agency+app only. The guest chat route authorizes via the signed
+ * guest cookie + ticket ownership; this entry only lets the POST reach it.
+ */
+const MARKETING_API_PREFIXES = ["/api/ai/guest-support-chat"] as const;
+
 function hasPrefix(pathname: string, prefix: string): boolean {
   if (pathname === prefix) return true;
   return pathname.startsWith(`${prefix}/`);
@@ -744,6 +756,7 @@ export function isPathAllowedForHostKind(
     return (
       hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, MARKETING_PAGE_PREFIXES) ||
+      anyPrefix(pathname, MARKETING_API_PREFIXES) ||
       hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
       // OAuth callbacks must be reachable on marketing because `window.location.origin`
       // is used as the redirectTo base and tulala.digital is the apex. Without this,

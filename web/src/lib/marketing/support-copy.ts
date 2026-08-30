@@ -31,6 +31,7 @@ const en = {
   successBody: "We have your message. Oran will reply by email.",
   askAQuestion: "Ask a question",
   close: "Close",
+  answerUnavailable: "We could not answer just now. Try again, or talk to Oran.",
 };
 
 export type MarketingSupportCopy = typeof en;
@@ -66,6 +67,7 @@ const es: MarketingSupportCopy = {
   successBody: "Tenemos tu mensaje. Oran responde por email.",
   askAQuestion: "Haz una pregunta",
   close: "Cerrar",
+  answerUnavailable: "No pudimos responder ahora. Intenta de nuevo, o habla con Oran.",
 };
 
 export function getMarketingSupportCopy(locale: string): MarketingSupportCopy {
