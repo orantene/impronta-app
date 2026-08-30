@@ -159,7 +159,9 @@ export const INQUIRY_SOURCE_CHANNEL_VALUES = [
   "hub_site",
   "admin_created",
   "book_again",
+  "instant_book",
   "offering_request",
+  "menu_order",
 ] as const;
 
 export const accountStatusSchema = z.enum(ACCOUNT_STATUS_VALUES);
