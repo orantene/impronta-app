@@ -6,6 +6,7 @@ import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-ana
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
+import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -512,6 +513,17 @@ export default async function CmsPublicPage({
             componentStyleDefaultsOverride: componentStyleDefaults,
           })
         : null;
+      // Native data blocks (`menu_board`, hero_search, …) need the same
+      // server-resolved dataSources HomepageCmsSections already loads —
+      // without them the board always renders the empty state on live
+      // freeform pages even when workspace Menu items are published.
+      const freeformDataSources = mountBodyCanvas
+        ? null
+        : await loadBuilderNodeDataSources(
+            blocks,
+            publicScope.tenantId,
+            locale,
+          );
       return (
         <>
           <SkipToContent />
@@ -571,6 +583,7 @@ export default async function CmsPublicPage({
                 mode: "freeform",
                 includeRendererStyles: false,
                 componentStyleDefaults,
+                dataSources: freeformDataSources ?? undefined,
                 captcha: pageCaptcha
                   ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
                   : null,
