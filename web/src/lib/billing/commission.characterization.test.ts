@@ -218,6 +218,44 @@ describe("override hierarchy — resolved bps + resolved_from", () => {
     assert.equal(r.resolved_from, "platform_default");
   });
 
+  it("relationship workspace_take_bps caps the workspace lane and gives the rest to talent", () => {
+    const r = resolveBookingCommissions(input({
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      relationshipOverride: {
+        platform_take_bps: null,
+        platform_take_floor_cents: null,
+        workspace_take_bps: 500,
+      },
+    }));
+    assert.equal(r.workspace_fee_cents, 5_000);
+    assert.equal(r.talent_net_cents, 80_000 + (20_000 - 2_500 - 5_000));
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents + r.channel_referral_cents,
+      r.gross_charged_cents,
+    );
+  });
+
+  it("L2b relationship override beats tenant; booking still wins", () => {
+    const rel = {
+      platform_take_bps: 150,
+      platform_take_floor_cents: null,
+      workspace_take_bps: null,
+    };
+    const r = resolveBookingCommissions(input({
+      tenantOverride: { platform_take_bps: 200, platform_take_floor_cents: null },
+      relationshipOverride: rel,
+    }));
+    assert.equal(r.platform_take_bps, 150);
+    assert.equal(r.resolved_from, "relationship_override");
+    const booked = resolveBookingCommissions(input({
+      tenantOverride: { platform_take_bps: 200, platform_take_floor_cents: null },
+      relationshipOverride: rel,
+      bookingPlatformTakeBpsOverride: 100,
+    }));
+    assert.equal(booked.resolved_from, "booking_override");
+    assert.equal(booked.platform_take_bps, 100);
+  });
+
   it("L3 booking override beats tenant override", () => {
     const r = resolveBookingCommissions(input({
       tenantOverride: { platform_take_bps: 200, platform_take_floor_cents: null },

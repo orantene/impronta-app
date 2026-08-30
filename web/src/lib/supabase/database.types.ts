@@ -16183,6 +16183,72 @@ export type Database = {
           },
         ]
       }
+      workspace_talent_commission_overrides: {
+        Row: {
+          created_at: string
+          override_note: string
+          platform_take_bps: number | null
+          platform_take_floor_cents: number | null
+          request_status: string | null
+          requested_at: string | null
+          requested_by_user_id: string | null
+          requested_note: string | null
+          requested_platform_take_bps: number | null
+          requested_platform_take_floor_cents: number | null
+          requested_workspace_take_bps: number | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          set_by_user_id: string | null
+          talent_profile_id: string
+          tenant_id: string
+          updated_at: string
+          workspace_take_bps: number | null
+        }
+        Insert: {
+          created_at?: string
+          override_note?: string
+          platform_take_bps?: number | null
+          platform_take_floor_cents?: number | null
+          request_status?: string | null
+          requested_at?: string | null
+          requested_by_user_id?: string | null
+          requested_note?: string | null
+          requested_platform_take_bps?: number | null
+          requested_platform_take_floor_cents?: number | null
+          requested_workspace_take_bps?: number | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          set_by_user_id?: string | null
+          talent_profile_id: string
+          tenant_id: string
+          updated_at?: string
+          workspace_take_bps?: number | null
+        }
+        Update: {
+          created_at?: string
+          override_note?: string
+          platform_take_bps?: number | null
+          platform_take_floor_cents?: number | null
+          request_status?: string | null
+          requested_at?: string | null
+          requested_by_user_id?: string | null
+          requested_note?: string | null
+          requested_platform_take_bps?: number | null
+          requested_platform_take_floor_cents?: number | null
+          requested_workspace_take_bps?: number | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          set_by_user_id?: string | null
+          talent_profile_id?: string
+          tenant_id?: string
+          updated_at?: string
+          workspace_take_bps?: number | null
+        }
+        Relationships: []
+      }
       workspace_field_group_settings: {
         Row: {
           created_at: string
