@@ -594,10 +594,10 @@ const restaurantTree: BuilderNode[] = [
 
 export const restaurantDesign: PageDesign = {
   id: "restaurant",
-  title: "Restaurant & menu landing page",
-  label: "Restaurant & menu",
+  title: "Restaurant & menu (display-only) landing page",
+  label: "Restaurant & menu (display)",
   description:
-    "A contemporary restaurant landing page: a Playfair Display name over a full-bleed food hero, a two-column kitchen-story split, a hand-set menu with live pricing, and a reservation CTA.",
+    "A contemporary restaurant landing page with a Playfair Display name, kitchen-story split, and a decorative display-only menu (not connected to workspace orders).",
   archetype: "restaurant",
   tree: restaurantTree,
   dataSources,

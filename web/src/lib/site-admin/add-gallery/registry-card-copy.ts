@@ -370,6 +370,11 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
     infoTooltip:
       "Use for a compact services list without heavy card chrome.",
   },
+  "sec-menu-display": {
+    description: "Decorative static menu with names and prices.",
+    infoTooltip:
+      "Display-only menu rows. For live workspace orders, use Menu - orderable instead.",
+  },
   "sec-gallery-grid": {
     description: "Masonry image showcase.",
     infoTooltip:

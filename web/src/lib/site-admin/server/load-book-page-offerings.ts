@@ -46,6 +46,8 @@ export async function loadPublicBookableOfferings(args: {
     const kept: Array<TalentOffering & { bookingMode: TalentBookingMode }> = [];
     for (const offering of offerings) {
       if (!isSlotEligibleOffering(offering)) continue;
+      // Slot booking is talent-owned only; workspace menu items never land here.
+      if (!offering.talentProfileId) continue;
       const mode = await resolveTalentBookingMode(admin, {
         talentProfileId: offering.talentProfileId,
         offeringId: offering.id,

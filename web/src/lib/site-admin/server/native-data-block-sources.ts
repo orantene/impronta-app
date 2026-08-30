@@ -31,6 +31,10 @@ import { byLabel } from "@/lib/field-engine/sort-comparators";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import {
+  rowToOffering,
+  type TalentOfferingRow,
+} from "@/lib/talent/offerings-types";
 
 /** One discipline card's worth of derived data. */
 export type NativeTalentDiscipline = {
@@ -254,6 +258,74 @@ export async function fetchTenantTalentDisciplines(params: {
     });
   } catch (error) {
     logServerError("native-data-blocks/fetchTenantTalentDisciplines", error);
+    return [];
+  }
+}
+
+export type WorkspaceMenuOffering = {
+  id: string;
+  title: string;
+  description: string | null;
+  amountCents: number | null;
+  currency: string;
+  priceType: string;
+  priceDisplay: string;
+  kind: string;
+};
+
+/**
+ * Workspace-owned menu items are NOT roster-gated.
+ *
+ * Business workspaces do not have a talent roster, so unlike the talent
+ * homepage blocks this fetch keys directly off `talent_offerings` with the
+ * workspace ownership predicates. Public menu pages still stay tenant-scoped
+ * because the tenant id is part of every query predicate.
+ */
+export function deriveWorkspaceMenuOfferings(
+  rows: ReadonlyArray<TalentOfferingRow>,
+  tenantId: string,
+): WorkspaceMenuOffering[] {
+  if (!tenantId) return [];
+  const out: WorkspaceMenuOffering[] = [];
+  for (const row of rows) {
+    if (row.tenant_id !== tenantId) continue;
+    if (row.owner_kind !== "workspace") continue;
+    if (row.status !== "published") continue;
+    if (row.moderation_state !== "approved") continue;
+    const offering = rowToOffering(row as TalentOfferingRow);
+    out.push({
+      id: offering.id,
+      title: offering.title,
+      description: offering.description,
+      amountCents: offering.amountCents,
+      currency: offering.currency,
+      priceType: offering.priceType,
+      priceDisplay: offering.priceDisplay,
+      kind: offering.kind,
+    });
+  }
+  return out;
+}
+
+export async function fetchWorkspaceMenuOfferings(tenantId: string): Promise<WorkspaceMenuOffering[]> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase || !tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("talent_offerings")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .eq("status", "published")
+      .eq("moderation_state", "approved")
+      .order("sort_order", { ascending: true });
+    if (error) {
+      logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
+      return [];
+    }
+    return deriveWorkspaceMenuOfferings((data ?? []) as TalentOfferingRow[], tenantId);
+  } catch (error) {
+    logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
     return [];
   }
 }

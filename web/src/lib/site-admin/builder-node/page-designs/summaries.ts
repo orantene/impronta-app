@@ -77,6 +77,15 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
     thumbnailUrl: "/marketing/photos/talent-services-hero.jpg",
   },
   {
+    id: "store-orderable",
+    label: "Store & menu (orderable)",
+    description:
+      "A simple retail page with a Cinzel wordmark, product intro and a live menu board for workspace orderable items.",
+    archetype: "store",
+    target: "both",
+    thumbnailUrl: "/marketing/photos/talent-services-hero.jpg",
+  },
+  {
     id: "festival",
     label: "Live event",
     description:
@@ -105,9 +114,18 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
   },
   {
     id: "restaurant",
-    label: "Restaurant & menu",
+    label: "Restaurant & menu (display)",
     description:
-      "A contemporary restaurant page with a Playfair Display name over a full-bleed food hero, a kitchen-story split, a hand-set menu with live pricing and a reservation call to action.",
+      "A contemporary restaurant page with a Playfair Display name over a full-bleed food hero, a kitchen-story split and a decorative display-only menu.",
+    archetype: "restaurant",
+    target: "both",
+    thumbnailUrl: "/marketing/photos/mk-hosts-restaurant.jpg",
+  },
+  {
+    id: "restaurant-orderable",
+    label: "Restaurant & menu (orderable)",
+    description:
+      "A restaurant landing page with a Playfair Display hero, kitchen-story split and a live menu board for workspace orderable items.",
     archetype: "restaurant",
     target: "both",
     thumbnailUrl: "/marketing/photos/mk-hosts-restaurant.jpg",

@@ -19,7 +19,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type OfferingRequestDetail = {
   offeringId: string;
-  talentProfileId: string;
+  talentProfileId: string | null;
   title: string;
   kind: string;
   priceType: string;

@@ -147,7 +147,9 @@ export async function TalentProfileChatLauncherMount({
     publicOfferings.length > 0
       ? publicOfferings.slice(0, 8).map((o) => ({
           offeringId: o.id,
-          talentProfileId: o.talentProfileId,
+          // Talent-profile public load always returns talent-owned rows; fall
+          // back to the mount's profile id if a row somehow lacks one.
+          talentProfileId: o.talentProfileId ?? talentProfileId,
           title: o.title,
           kind: o.kind,
           priceType: o.priceType,

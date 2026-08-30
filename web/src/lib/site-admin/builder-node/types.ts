@@ -43,6 +43,7 @@ export type BuilderNodeKind =
   // legacy section registry can be deleted without losing the homepage's two
   // data-driven blocks. Structural leaves (`children: { type: "none" }`).
   | "hero_search"
+  | "menu_board"
   | "talent_type_grid"
   | "section_embed";
 
@@ -1081,6 +1082,16 @@ export interface BuilderHeroSearchNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderMenuBoardNode extends BuilderNodeBase {
+  kind: "menu_board";
+  props: {
+    title?: string;
+    subtitle?: string;
+    emptyMessage?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 /**
  * WS7 Phase 0 — NATIVE "Talent, by discipline" taxonomy grid.
  *
@@ -1589,6 +1600,7 @@ export type BuilderNode =
   | BuilderSocialPostNode
   | BuilderSocialFeedNode
   | BuilderHeroSearchNode
+  | BuilderMenuBoardNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode

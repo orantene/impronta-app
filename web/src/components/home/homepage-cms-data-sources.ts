@@ -22,7 +22,11 @@ import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-
 import {
   fetchTenantTalentCount,
   fetchTenantTalentDisciplines,
+  fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
+import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+
+export { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
 function collectBuilderDataBindingMax(
   nodes: ReadonlyArray<BuilderNode>,
@@ -73,70 +77,11 @@ function hasBoundSocialLinksNode(nodes: ReadonlyArray<BuilderNode>): boolean {
 }
 
 /**
- * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `talent_type_grid`) are
- * their own data source: they carry no `dataBinding`, they ARE the binding. This
- * walk answers two questions in one pass — does the tree contain a hero whose
- * stat line is roster-derived, and does it contain a discipline grid in dynamic
- * mode (and with what settings)?
- *
- * Returning `null` for either means "nothing to fetch", which keeps the loader's
- * existing zero-round-trip fast path intact for every page that uses neither.
+ * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `menu_board`, `talent_type_grid`) are
+ * their own data source: they carry no `dataBinding`, they ARE the binding. The
+ * pure walk lives in `native-data-block-needs.ts` (imported above) so unit tests
+ * can call it without pulling this server module graph.
  */
-function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
-  needsTalentCount: boolean;
-  disciplines: {
-    maxItems: number;
-    parentCategoryMode: boolean;
-    selectedTermIds?: string[];
-  } | null;
-} {
-  let needsTalentCount = false;
-  let disciplines: {
-    maxItems: number;
-    parentCategoryMode: boolean;
-    selectedTermIds?: string[];
-  } | null = null;
-
-  const visit = (node: BuilderNode) => {
-    if (
-      node.kind === "hero_search" &&
-      node.props.statSource === "tenant_talent_count"
-    ) {
-      needsTalentCount = true;
-    }
-    if (node.kind === "talent_type_grid" && node.props.mode === "dynamic") {
-      // Several grids on one page: fetch ONE superset (the largest cap, the
-      // union of selected terms) and let each node slice it down at render.
-      const maxItems = node.props.maxItems ?? 7;
-      const selected = node.props.selectedTermIds ?? [];
-      if (!disciplines) {
-        disciplines = {
-          maxItems,
-          parentCategoryMode: node.props.parentCategoryMode === true,
-          ...(selected.length > 0 ? { selectedTermIds: [...selected] } : {}),
-        };
-      } else {
-        disciplines.maxItems = Math.max(disciplines.maxItems, maxItems);
-        disciplines.parentCategoryMode =
-          disciplines.parentCategoryMode || node.props.parentCategoryMode === true;
-        // A node with NO selection wants everything, so any such node clears the
-        // narrowing rather than intersecting it away.
-        if (selected.length === 0) {
-          delete disciplines.selectedTermIds;
-        } else if (disciplines.selectedTermIds) {
-          disciplines.selectedTermIds = [
-            ...new Set([...disciplines.selectedTermIds, ...selected]),
-          ];
-        }
-      }
-    }
-    if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
-    }
-  };
-  for (const node of nodes) visit(node);
-  return { needsTalentCount, disciplines };
-}
 
 export async function loadBuilderNodeDataSources(
   nodes: ReadonlyArray<BuilderNode>,
@@ -175,6 +120,7 @@ export async function loadBuilderNodeDataSources(
     !needsDirectoryShortcuts &&
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
+    !nativeNeeds.menuBoard &&
     nativeNeeds.disciplines == null &&
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
@@ -196,6 +142,7 @@ export async function loadBuilderNodeDataSources(
     socialContact,
     tenantTalentCount,
     talentDisciplines,
+    menuOfferings,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -241,6 +188,9 @@ export async function loadBuilderNodeDataSources(
           locale,
         })
       : Promise.resolve(undefined),
+    nativeNeeds.menuBoard
+      ? fetchWorkspaceMenuOfferings(dataTenantId)
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -259,6 +209,7 @@ export async function loadBuilderNodeDataSources(
     : undefined;
 
   return {
+    tenantId: dataTenantId,
     featuredTalentProfiles,
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,
@@ -267,5 +218,6 @@ export async function loadBuilderNodeDataSources(
     ...(socialLinks ? { socialLinks } : {}),
     ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
+    ...(menuOfferings === undefined ? {} : { menuOfferings }),
   };
 }

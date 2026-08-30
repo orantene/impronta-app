@@ -290,6 +290,59 @@ export async function convertToBooking(
       .select("total_client_revenue, currency_code, client_account_id")
       .eq("id", bookingId)
       .maybeSingle();
+
+    // Menu / house-lane regression guard: after convert, revenue must match the
+    // accepted offer total. Excluding house lines from booking_talent without
+    // re-basing the SQL recompute onto inquiry_offer_line_items books at $0
+    // while the client is charged in full. Take the same compensating-delete
+    // path as a commission snapshot failure.
+    const { data: acceptedOffer } = await supabase
+      .from("inquiry_offers")
+      .select("total_client_price")
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("status", "accepted")
+      .order("accepted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (acceptedOffer) {
+      const bookedRevenue = Number(bookingFigures?.total_client_revenue ?? 0);
+      const offerTotal = Number(acceptedOffer.total_client_price ?? 0);
+      // Compare at cent precision to absorb NUMERIC float noise.
+      if (Math.round(bookedRevenue * 100) !== Math.round(offerTotal * 100)) {
+        await improntaLog("convertToBooking.revenue_mismatch", {
+          bookingId,
+          bookedRevenue,
+          offerTotal,
+        });
+        const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+        const cleanupClient = createServiceRoleClient() ?? supabase;
+        await cleanupClient
+          .from("agency_bookings")
+          .delete()
+          .eq("id", bookingId)
+          .eq("tenant_id", ctx.tenantId);
+        await cleanupClient
+          .from("inquiries")
+          .update({
+            status: "approved" as never,
+            booked_at: null,
+            next_action_by: "coordinator",
+            version: ctx.expectedVersion,
+          })
+          .eq("id", ctx.inquiryId)
+          .eq("tenant_id", ctx.tenantId);
+        await logInquiryAction(supabase, {
+          inquiryId: ctx.inquiryId,
+          actorUserId: ctx.actorUserId,
+          actionType: "booking_conversion_attempt",
+          result: "failure",
+          reason: "revenue_mismatch",
+          metadata: { booking_id: bookingId, bookedRevenue, offerTotal },
+        });
+        return { success: false, error: "revenue_mismatch" };
+      }
+    }
+
     await onBookingCreated(bookingId, {
       inquiryId: ctx.inquiryId,
       totalClientPrice: Number(bookingFigures?.total_client_revenue ?? 0),

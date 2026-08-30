@@ -971,6 +971,11 @@
         "flagAiSupportLabel": "IA, premier repondant du support",
         "flagAiSupportDesc": "Reponses de support in-app ancrees dans les guides, avec escalade vers une personne. Desactive par defaut."
       }
+    },
+    "adminMenu": {
+      "title": "Menú",
+      "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
+      "noTenant": "No hay un espacio de trabajo activo."
     }
   },
   "client": {

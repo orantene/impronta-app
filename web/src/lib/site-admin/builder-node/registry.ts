@@ -976,6 +976,13 @@ const heroSearchPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const menuBoardPropsSchema = z.object({
+  title: z.string().max(120).optional(),
+  subtitle: z.string().max(240).optional(),
+  emptyMessage: z.string().max(240).optional(),
+  style: builderNodeStyleSchema,
+});
+
 /**
  * WS7 Phase 0 — NATIVE `talent_type_grid`. Same relationship to the frozen
  * curated `talent_type_grid` schema: the authoring fields survive, the section
@@ -1518,6 +1525,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Search-first hero: headline, a live directory search bar, quick filters and a roster-derived talent count.",
       children: { type: "none" },
       propsSchema: heroSearchPropsSchema,
+    },
+    menu_board: {
+      kind: "menu_board",
+      label: "Menu board",
+      description:
+        "Workspace-owned menu items with quantity steppers and an order form. Renders from live tenant data, never from child nodes.",
+      children: { type: "none" },
+      propsSchema: menuBoardPropsSchema,
     },
     talent_type_grid: {
       kind: "talent_type_grid",

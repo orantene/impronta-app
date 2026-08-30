@@ -10,7 +10,7 @@ import { logServerError } from "@/lib/server/safe-error";
  * Empty array stays blank (no RICH_INQUIRIES mock).
  */
 
-export type CalendarEventKind = "inquiry" | "booking" | "hold";
+export type CalendarEventKind = "inquiry" | "booking" | "hold" | "order";
 
 export type CalendarEvent = {
   id: string;
@@ -52,7 +52,9 @@ export async function loadCalendarEvents(
         .limit(500),
       supabase
         .from("agency_bookings")
-        .select("id, source_inquiry_id, title, starts_at, ends_at, timezone, status, event_date")
+        .select(
+          "id, source_inquiry_id, title, starts_at, ends_at, timezone, status, event_date, calendar_lane",
+        )
         .eq("tenant_id", tenantId)
         .not("starts_at", "is", null)
         .limit(500),
@@ -81,18 +83,20 @@ export async function loadCalendarEvents(
       timezone: string | null;
       status: string;
       event_date: string | null;
+      calendar_lane: string | null;
     }>) {
       if (row.source_inquiry_id) coveredInquiryIds.add(row.source_inquiry_id);
+      const isOrder = row.calendar_lane === "order";
       out.push({
         id: row.source_inquiry_id ?? row.id,
-        contact_name: row.title?.trim() || "Booking",
+        contact_name: row.title?.trim() || (isOrder ? "Order" : "Booking"),
         company: null,
         event_date: ymdFromInstant(row.starts_at),
         status: row.status || "booked",
         starts_at: row.starts_at,
         ends_at: row.ends_at,
         timezone: row.timezone,
-        kind: "booking",
+        kind: isOrder ? "order" : "booking",
       });
     }
 

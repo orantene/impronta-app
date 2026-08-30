@@ -15,6 +15,7 @@ const ES_TEXT: Record<string, string> = {
   "Overview": "Resumen",
   "Messages": "Mensajes",
   "Calendar": "Calendario",
+  "Menu": "Menú",
   "Roster": "Lista",
   "Clients": "Clientes",
   "Pitches": "Propuestas",

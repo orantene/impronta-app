@@ -24,10 +24,13 @@ import {
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { validateBuilderNodeTree } from "./validate";
 import { SHIPPED_ELEMENT_INSERT_KINDS } from "./mvp-allow-list";
+import { collectNativeDataBlockNeeds } from "./native-data-block-needs";
 import {
   deriveTalentDisciplines,
+  deriveWorkspaceMenuOfferings,
   type TalentTaxonomyJoinRow,
 } from "@/lib/site-admin/server/native-data-block-sources";
+import type { TalentOfferingRow } from "@/lib/talent/offerings-types";
 import type { BuilderNode } from "./types";
 
 function render(
@@ -69,10 +72,57 @@ function gridNode(props: Record<string, unknown> = {}): BuilderNode {
   } as BuilderNode;
 }
 
+function menuNode(props: Record<string, unknown> = {}): BuilderNode {
+  return {
+    id: "menu-1",
+    kind: "menu_board",
+    props: {
+      title: "Menu",
+      subtitle: "Pick what works for you.",
+      emptyMessage: "Nothing is published yet.",
+      ...props,
+    },
+  } as BuilderNode;
+}
+
+function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }): TalentOfferingRow {
+  return {
+    id: overrides.id ?? "menu-row",
+    talent_profile_id: overrides.talent_profile_id ?? null,
+    owner_kind: overrides.owner_kind ?? "workspace",
+    tenant_id: overrides.tenant_id,
+    kind: overrides.kind ?? "service",
+    title: overrides.title ?? "Menu item",
+    description: overrides.description ?? null,
+    price_type: overrides.price_type ?? "flat_package",
+    price_display: overrides.price_display ?? "exact",
+    amount_cents: overrides.amount_cents ?? 2500,
+    currency: overrides.currency ?? "USD",
+    booking_mode: overrides.booking_mode ?? "request",
+    reserve_mode: overrides.reserve_mode ?? "full",
+    deposit_pct: overrides.deposit_pct ?? null,
+    allow_pay_in_person: overrides.allow_pay_in_person ?? false,
+    require_account_to_book: overrides.require_account_to_book ?? false,
+    cancellation_hours: overrides.cancellation_hours ?? null,
+    free_reserve_expires_days: overrides.free_reserve_expires_days ?? null,
+    duration_minutes: overrides.duration_minutes ?? null,
+    category: overrides.category ?? null,
+    inventory_qty: overrides.inventory_qty ?? null,
+    status: overrides.status ?? "published",
+    visibility: overrides.visibility ?? "public",
+    moderation_state: overrides.moderation_state ?? "approved",
+    is_featured: overrides.is_featured ?? false,
+    sort_order: overrides.sort_order ?? 0,
+    attributes: overrides.attributes ?? {},
+    title_i18n: overrides.title_i18n ?? null,
+    description_i18n: overrides.description_i18n ?? null,
+  } as TalentOfferingRow;
+}
+
 // ── registry + insertability ────────────────────────────────────────────────
 
-test("both kinds are registered as structural leaves", () => {
-  for (const kind of ["hero_search", "talent_type_grid"] as const) {
+test("all native data blocks are registered as structural leaves", () => {
+  for (const kind of ["hero_search", "menu_board", "talent_type_grid"] as const) {
     const entry = BUILDER_NODE_REGISTRY[kind];
     assert.ok(entry, `missing registry entry for ${kind}`);
     assert.equal(
@@ -83,14 +133,15 @@ test("both kinds are registered as structural leaves", () => {
   }
 });
 
-test("both kinds are in the shipped insert catalog (so the gallery can insert them)", () => {
+test("all native data blocks are in the shipped insert catalog", () => {
   const shipped = new Set(SHIPPED_ELEMENT_INSERT_KINDS);
   assert.ok(shipped.has("hero_search"));
+  assert.ok(shipped.has("menu_board"));
   assert.ok(shipped.has("talent_type_grid"));
 });
 
-test("createBuilderNode seeds a VALID tree for both kinds", () => {
-  for (const kind of ["hero_search", "talent_type_grid"] as const) {
+test("createBuilderNode seeds a VALID tree for every native data block", () => {
+  for (const kind of ["hero_search", "menu_board", "talent_type_grid"] as const) {
     const node = createBuilderNode(kind);
     assert.equal(node.kind, kind);
     const result = validateBuilderNodeTree([node]);
@@ -104,6 +155,8 @@ test("seeded nodes pick their LIVE source, not a placeholder", () => {
     hero.kind === "hero_search" ? hero.props.statSource : null,
     "tenant_talent_count",
   );
+  const menu = createBuilderNode("menu_board");
+  assert.equal(menu.kind === "menu_board" ? menu.props.title : null, "Menu");
   const grid = createBuilderNode("talent_type_grid");
   assert.equal(grid.kind === "talent_type_grid" ? grid.props.mode : null, "dynamic");
 });
@@ -137,6 +190,48 @@ test("hero_search: a SINGLE talent renders the derived count with its label", ()
   const html = render([heroNode()], { tenantTalentCount: 1 });
   assert.ok(html.includes("1+"));
   assert.ok(html.includes("represented talent"));
+});
+
+// ── menu_board render ──────────────────────────────────────────────────────
+
+test("menu_board renders an empty state when no offerings are available", () => {
+  const html = render([menuNode()], { tenantId: "tenant-menu-a", menuOfferings: [] });
+  assert.ok(html.includes('data-builder-node-kind="menu_board"'));
+  assert.ok(html.includes("Nothing is published yet."));
+  assert.ok(html.includes("Pick what works for you."));
+});
+
+test("menu_board renders items, prices, and the order island", () => {
+  const html = render([menuNode()], {
+    tenantId: "tenant-menu-a",
+    menuOfferings: [
+      {
+        id: "menu-1",
+        title: "Pepperoni pizza",
+        description: "Tomato, mozzarella, pepperoni.",
+        amountCents: 2500,
+        currency: "USD",
+        priceType: "flat_package",
+        priceDisplay: "exact",
+        kind: "service",
+      },
+      {
+        id: "menu-2",
+        title: "Catering package",
+        description: null,
+        amountCents: 10000,
+        currency: "USD",
+        priceType: "event",
+        priceDisplay: "from",
+        kind: "package",
+      },
+    ],
+  });
+  assert.ok(html.includes("Pepperoni pizza"));
+  assert.ok(html.includes("$25"));
+  assert.ok(html.includes("Catering package"));
+  assert.ok(html.includes("from $100"));
+  assert.ok(html.includes("Send order"));
 });
 
 test("hero_search: manual stat source ignores the derived count entirely", () => {
@@ -257,6 +352,45 @@ test("TENANT SCOPING: the renderer has NO ambient data path — no dataSources, 
   const html = render([heroNode(), gridNode()], {});
   assert.ok(!html.includes("hero-search-stat"));
   assert.ok(html.includes("talent-type-grid-empty"));
+});
+
+test("TENANT SCOPING: menu_board is detected before the early-return guard", () => {
+  const needs = collectNativeDataBlockNeeds([menuNode()]);
+  assert.equal(needs.needsTalentCount, false);
+  assert.equal(needs.menuBoard, true);
+  assert.equal(needs.disciplines, null);
+});
+
+test("TENANT SCOPING: foreign-tenant menu rows never survive the fetch helper", () => {
+  const rows: TalentOfferingRow[] = [
+    menuRow({
+      id: "own-menu",
+      tenant_id: "tenant-a",
+      title: "Pepperoni pizza",
+      description: "Tomato, mozzarella, pepperoni.",
+      amount_cents: 2500,
+    }),
+    menuRow({
+      id: "foreign-menu",
+      tenant_id: "tenant-b",
+      title: "Other tenant platter",
+      description: "Should not survive.",
+      amount_cents: 4000,
+    }),
+  ];
+  const derived = deriveWorkspaceMenuOfferings(rows, "tenant-a");
+  assert.deepEqual(derived, [
+    {
+      id: "own-menu",
+      title: "Pepperoni pizza",
+      description: "Tomato, mozzarella, pepperoni.",
+      amountCents: 2500,
+      currency: "USD",
+      priceType: "flat_package",
+      priceDisplay: "exact",
+      kind: "service",
+    },
+  ]);
 });
 
 test("TENANT SCOPING: deriveTalentDisciplines drops rows outside the tenant roster", () => {

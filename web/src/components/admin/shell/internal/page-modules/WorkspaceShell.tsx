@@ -12,6 +12,7 @@ import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { CalendarPage } from "./CalendarPage";
+import { MenuPage } from "./MenuPage";
 import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
 import { UnifiedInboxPage, WorkspaceMessagesPage } from "./InboxPage";
@@ -482,6 +483,9 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       break;
     case "calendar":
       body = <CalendarPage />;
+      break;
+    case "menu":
+      body = <MenuPage />;
       break;
     // WS-3.3 — "work" pipeline is now a view-filter inside Messages;
     // keep the page component for now so deep-links still land somewhere.

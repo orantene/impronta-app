@@ -120,6 +120,24 @@ test("services templates expose service layers", () => {
   ]);
 });
 
+test("menu-display template is static freeform with no menu_board", () => {
+  const root = buildAddGallerySectionTemplate("menu-display");
+  assert.ok(root);
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Menu Display Section");
+  assert.equal(sectionTemplateContainsKind(root!, "menu_board"), false);
+  assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
+  assertTemplateLayerLabels("menu-display", [
+    "Title",
+    "Description",
+    "Menu List",
+    "Menu Item 1",
+    "Item Price 1",
+    "Menu Item 4",
+    "Item Price 4",
+  ]);
+});
+
 test("gallery templates expose image layers", () => {
   assertTemplateLayerLabels("gallery", [
     "Title",

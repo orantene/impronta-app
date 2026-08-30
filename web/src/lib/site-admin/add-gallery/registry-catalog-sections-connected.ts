@@ -126,6 +126,16 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     icon: "services-list",
     sectionTemplateId: "services-list",
   }),
+  section({
+    id: "sec-menu-display",
+    label: "Menu - display only",
+    description:
+      "Decorative static menu with item names and prices. Not connected to workspace orders.",
+    category: "services",
+    icon: "services-list",
+    sectionTemplateId: "menu-display",
+    searchTerms: ["menu", "display only", "static menu", "decorative menu", "prices"],
+  }),
 
   // ── Sections / Gallery ──────────────────────────────────────────────────
   section({
@@ -388,6 +398,18 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     icon: "booking",
     sectionEmbedKey: "booking_widget",
     connectedSource: "Booking",
+  }),
+  connected({
+    id: "conn-menu-board-native",
+    label: "Menu - orderable",
+    description: "Workspace menu with quantity steppers and an order form for published items.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "menu_board",
+    sourceType: "native-freeform",
+    connectedSource: "Workspace Menu",
+    searchTerms: ["menu board", "menu_order", "order food", "catering", "workspace menu"],
   }),
 
   // ── Connected / Dynamic Data ────────────────────────────────────────────

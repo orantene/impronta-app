@@ -218,8 +218,9 @@ export async function upsertTalentOffering(
     if (errors.length > 0) return { ok: false, error: errors[0] };
 
     const patch = {
-      ...offeringToRowPatch({ ...offering, tenantId: auth.tenantId }),
+      ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }),
       talent_profile_id: talentProfileId,
+      owner_kind: "talent",
       updated_at: new Date().toISOString(),
     };
 

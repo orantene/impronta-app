@@ -229,6 +229,16 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           layout: "centered",
         },
       };
+    case "menu_board":
+      return {
+        id: makeId("menu_board"),
+        kind: "menu_board",
+        props: {
+          title: "Menu",
+          subtitle: "Choose what you want and send the order.",
+          emptyMessage: "Menu items are not published yet.",
+        },
+      };
     case "talent_type_grid":
       return {
         id: makeId("talent_type_grid"),

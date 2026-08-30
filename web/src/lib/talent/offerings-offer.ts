@@ -41,12 +41,18 @@ export function offeringIsOfferPriceable(
  * Build the offer-line seed for a selected offering. `quantity` applies only
  * to quantity-bearing units (hours, days, people, sessions); flat/package/event
  * lines are always units=1.
+ *
+ * KEEP UNUSED in production. Menu / workspace orders must use
+ * `menuOrderToOfferLineSeeds` instead — this helper hard-codes a talent id,
+ * omits talent_cost, and forces units=1 for `event`/`flat_package` (so
+ * "2 pepperoni" would bill as 1). See menu-order-offer.ts.
  */
 export function offeringToOfferLineSeed(
   o: Pick<TalentOffering, "id" | "talentProfileId" | "title" | "priceType" | "amountCents">,
   quantity = 1,
 ): OfferingOfferLineSeed | null {
   if (o.amountCents == null || o.amountCents <= 0 || o.priceType === "custom") return null;
+  if (!o.talentProfileId) return null;
   const qty = QUANTITY_UNITS.includes(o.priceType)
     ? Math.max(1, Math.min(999, Math.round(quantity)))
     : 1;

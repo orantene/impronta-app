@@ -112,9 +112,11 @@ import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 import { isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
+import { MenuBoardIsland } from "./menu-board-island";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
+  tenantId?: string;
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
   talentLocations?: ReadonlyArray<{
     id: string;
@@ -161,6 +163,16 @@ export interface BuilderNodeRenderDataSources {
     termId: string;
     label: string;
     count: number;
+  }>;
+  menuOfferings?: ReadonlyArray<{
+    id: string;
+    title: string;
+    description: string | null;
+    amountCents: number | null;
+    currency: string;
+    priceType: string;
+    priceDisplay: string;
+    kind: string;
   }>;
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
   /**
@@ -4988,6 +5000,91 @@ function renderBuilderNodeElement(
               </div>
             ) : null}
           </div>
+        </section>
+      );
+    }
+    // WS7 Phase 0 — NATIVE `menu_board`. Workspace-owned published menu items
+    // render from server-resolved `dataSources.menuOfferings`; the render path
+    // never fetches, and an absent / empty source must still produce a visible
+    // empty state rather than a blank page.
+    case "menu_board": {
+      const p = node.props;
+      const offerings = options.dataSources.menuOfferings ?? [];
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const title = text("title", p.title);
+      const subtitle = text("subtitle", p.subtitle);
+      const emptyMessage =
+        text("emptyMessage", p.emptyMessage) || "Menu items are not published yet.";
+      const formatPriceLabel = (item: {
+        amountCents: number | null;
+        currency: string;
+        priceType: string;
+        priceDisplay: string;
+      }): string => {
+        if (
+          item.amountCents == null ||
+          item.priceDisplay === "quote" ||
+          item.priceType === "custom"
+        ) {
+          return "Quote on request";
+        }
+        const amount = item.amountCents / 100;
+        try {
+          const formatted = new Intl.NumberFormat(options.contentLocale?.locale ?? "en", {
+            style: "currency",
+            currency: item.currency.toUpperCase(),
+            maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+          }).format(amount);
+          return item.priceDisplay === "from" ? `from ${formatted}` : formatted;
+        } catch {
+          const fallback = `${item.currency.toUpperCase()} ${amount.toLocaleString()}`;
+          return item.priceDisplay === "from" ? `from ${fallback}` : fallback;
+        }
+      };
+      if (offerings.length === 0) {
+        return (
+          <section
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            {...builderNodeStyleAttrs(undefined)}
+            className="site-builder-node site-builder-node--menu-board site-builder-node--menu-board-empty"
+          >
+            {title ? <h2 className="site-builder-node--menu-board-title">{title}</h2> : null}
+            {subtitle ? <p className="site-builder-node--menu-board-subtitle">{subtitle}</p> : null}
+            <p className="site-builder-node--menu-board-empty-message">{emptyMessage}</p>
+          </section>
+        );
+      }
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(undefined)}
+          className="site-builder-node site-builder-node--menu-board"
+        >
+          {title ? <h2 className="site-builder-node--menu-board-title">{title}</h2> : null}
+          {subtitle ? <p className="site-builder-node--menu-board-subtitle">{subtitle}</p> : null}
+          <ul className="site-builder-node--menu-board-list">
+            {offerings.map((item) => (
+              <li key={item.id} className="site-builder-node--menu-board-item">
+                <div className="site-builder-node--menu-board-item-copy">
+                  <span className="site-builder-node--menu-board-item-title">{item.title}</span>
+                </div>
+                <span className="site-builder-node--menu-board-item-price">
+                  {formatPriceLabel(item)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <MenuBoardIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            offerings={offerings}
+          />
         </section>
       );
     }

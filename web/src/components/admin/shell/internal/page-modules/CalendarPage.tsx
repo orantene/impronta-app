@@ -41,12 +41,17 @@ export function CalendarPage() {
       if (d.getFullYear() !== year || d.getMonth() !== month) return;
       const day = d.getDate();
       const tone: "ink" | "green" | "amber" | "red" =
-        ev.status === "booked" || ev.status === "converted" || ev.status === "approved" ? "green"
+        ev.status === "booked" ||
+        ev.status === "converted" ||
+        ev.status === "approved" ||
+        ev.status === "confirmed"
+          ? "green"
         : ev.status === "rejected" || ev.status === "expired" ? "red"
         : ev.status === "submitted" ? "amber"
         : "ink";
       const kindPrefix =
         ev.kind === "hold" ? `${t("dashboard.adminCalendar.holdLabel")}: `
+        : ev.kind === "order" ? `${t("dashboard.adminCalendar.orderLabel")}: `
         : ev.kind === "booking" ? `${t("dashboard.adminCalendar.bookingLabel")}: `
         : "";
       const label = `${kindPrefix}${ev.company ?? ev.contact_name}`;

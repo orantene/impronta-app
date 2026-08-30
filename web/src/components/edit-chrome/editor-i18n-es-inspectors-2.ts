@@ -786,4 +786,8 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Hover filter": "Filtro al pasar el cursor",
   "Hover backdrop": "Fondo al pasar el cursor",
   "When parent is hovered": "Al pasar el cursor por el padre",
+
+  // ── Workspace Menu board (orderable) ─────────────────────────────────────
+  "Order from our kitchen": "Pide de nuestra cocina",
+  "No menu items published yet.": "Aun no hay articulos de menu publicados.",
 };

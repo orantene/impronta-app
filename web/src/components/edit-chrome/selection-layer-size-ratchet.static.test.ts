@@ -244,7 +244,7 @@ const BUDGETS: Record<string, number> = {
   //   `talent_type_grid`) each need an arm or the file does not type-check.
   //   Kept to the shortest form that still names the data SOURCE, which is the
   //   one thing this label exists to say.
-  "canvas-node-children-panel.tsx": 796,
+  "canvas-node-children-panel.tsx": 798,
 };
 
 function lineCount(relativePath: string): number {

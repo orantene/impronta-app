@@ -67,10 +67,19 @@ export type OfferingAddOn = {
   amountCents: number;
 };
 
+export type OfferingOwnerKind = "talent" | "workspace";
+
+/** Who owns a catalogue row — talent roster profile or workspace Menu. */
+export type OfferingOwner =
+  | { kind: "talent"; talentProfileId: string }
+  | { kind: "workspace"; tenantId: string };
+
 /** One offering, app shape (camelCase). imageUrls resolves via talent_offering_media. */
 export type TalentOffering = {
   id: string;
-  talentProfileId: string;
+  /** Null when ownerKind === 'workspace'. */
+  talentProfileId: string | null;
+  ownerKind: OfferingOwnerKind;
   tenantId: string | null;
   kind: OfferingKind;
   title: string;
@@ -115,7 +124,8 @@ export type TalentOffering = {
 /** DB row shape (snake_case) as read/written by the actions. */
 export type TalentOfferingRow = {
   id: string;
-  talent_profile_id: string;
+  talent_profile_id: string | null;
+  owner_kind?: string;
   tenant_id: string | null;
   kind: string;
   title: string;
@@ -180,6 +190,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
   return {
     id: row.id,
     talentProfileId: row.talent_profile_id,
+    ownerKind: row.owner_kind === "workspace" ? "workspace" : "talent",
     tenantId: row.tenant_id ?? null,
     kind: isOneOf(row.kind, OFFERING_KINDS) ? row.kind : "service",
     title: offeringText(row, "title", locale) ?? row.title,
@@ -227,6 +238,7 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
   const description = str(o.description, MAX_DESC);
   return {
     tenant_id: o.tenantId,
+    owner_kind: o.ownerKind,
     kind: o.kind,
     title,
     description,
@@ -341,11 +353,19 @@ export function offeringPriceLabel(
 }
 
 /** Blank offering for the editor's Add flow (smart defaults do the hiding). */
-export function blankOffering(talentProfileId: string, defaultCurrency: string, sortOrder: number): TalentOffering {
+export function blankOffering(
+  owner: OfferingOwner | string,
+  defaultCurrency: string,
+  sortOrder: number,
+): TalentOffering {
+  // Back-compat: callers that pass a talent profile id string.
+  const resolved: OfferingOwner =
+    typeof owner === "string" ? { kind: "talent", talentProfileId: owner } : owner;
   return {
     id: "",
-    talentProfileId,
-    tenantId: null,
+    talentProfileId: resolved.kind === "talent" ? resolved.talentProfileId : null,
+    ownerKind: resolved.kind,
+    tenantId: resolved.kind === "workspace" ? resolved.tenantId : null,
     kind: "service",
     title: "",
     description: null,
