@@ -479,6 +479,16 @@ function OfferingForm({
               />
               Also allow “pay at the appointment” (cash / in person) — card stays the default
             </label>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.inkMuted, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={value.requireAccountToBook}
+                disabled={saving}
+                onChange={(e) => onPatch({ requireAccountToBook: e.target.checked })}
+                style={{ accentColor: C.accentDeep, width: 15, height: 15 }}
+              />
+              Require an account to book
+            </label>
           </div>
         )}
       </div>

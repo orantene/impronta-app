@@ -6,6 +6,7 @@ export type BookableOffering = {
   timezone: string;
   locationLabel?: string | null;
   talentProfileId?: string | null;
+  requireAccountToBook?: boolean;
 };
 
 /** An offering that can actually produce public slots (duration + not a product). */
@@ -29,5 +30,6 @@ export function pickBookableOffering(
     timezone: opts?.timezone && opts.timezone.trim() ? opts.timezone : "UTC",
     locationLabel: opts?.locationLabel ?? null,
     talentProfileId: pick.talentProfileId,
+    requireAccountToBook: pick.requireAccountToBook === true,
   };
 }

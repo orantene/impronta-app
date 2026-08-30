@@ -5,17 +5,22 @@ import { BookableComposer } from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { useT } from "@/i18n/use-t";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 export function BookPageClient({
   tenantSlug,
   tenantId,
   agencyName,
   offerings,
+  signedIn = false,
+  captcha = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
   offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant" }>;
+  signedIn?: boolean;
+  captcha?: GuestCaptchaConfig | null;
 }) {
   const t = useT();
   const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
@@ -59,6 +64,8 @@ export function BookPageClient({
         agencyName={agencyName}
         offering={bookable}
         bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
+        signedIn={signedIn}
+        captcha={captcha}
       />
     </div>
   );

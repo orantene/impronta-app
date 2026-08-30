@@ -52,6 +52,12 @@ describe("rowToOffering", () => {
     assert.equal(o.priceType, "per_contact");
     assert.equal(o.amountCents, 12000);
     assert.equal(o.bookingMode, "request");
+    assert.equal(o.requireAccountToBook, false);
+
+    assert.equal(
+      rowToOffering(row({ require_account_to_book: true })).requireAccountToBook,
+      true,
+    );
 
     const junk = rowToOffering(row({ kind: "nonsense", price_type: "??", booking_mode: "x", price_display: "y" }));
     assert.equal(junk.kind, "service");
