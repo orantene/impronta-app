@@ -1,27 +1,30 @@
 /**
  * lib/bookings/commission.ts
  *
- * Platform commission (fee) calculation for booking transactions.
+ * Integer-safe money math and formatting for booking transactions.
  *
- * Binding source: docs/transaction-architecture.md + memory/project_agency_exclusivity_model.md
+ * THIS MODULE NO LONGER DECIDES RATES (2026-08-30)
+ * ────────────────────────────────────────────────
+ * It used to carry its own plan-tier fee table — free 0, studio 1100, agency
+ * 1750, network 1750 — while calling itself "the single source of truth". The
+ * canonical engine (`@/lib/billing/commission`) meanwhile resolved every tier
+ * from `platform_commission_config`, whose ratified default is 600 bps (6%).
+ * The two disagreed, and the divergent table was reachable from real money via
+ * the `createBookingTransaction` no-snapshot fallback, where a hardcoded
+ * `planTier: "agency"` billed 17.5% instead of 6%.
  *
- * Plan-tier → fee basis points mapping (1000 = 10.00%):
- *   free           →   0 bp  (0.00% — friend-link / no exclusivity case)
- *   studio         → 1100 bp (11.00% — mid-point of 10–12% range)
- *   agency         → 1750 bp (17.50% — mid-point of 15–20% range)
- *   network        → 1750 bp (same as agency for now; revisit when network plan ships)
+ * Rates now come from exactly one place:
+ *   - With a booking in hand: `persistBookingCommissionSnapshot`, which applies
+ *     the full override hierarchy and is what payouts read.
+ *   - Without one (legacy fallback, or "what does this plan pay" display):
+ *     `loadPlatformTakeBps` from `@/lib/billing/platform-take-rate`.
  *
- * These values live here as defaults. When a platform-config table is added
- * (Phase X), the evaluator will read from DB instead. Until then, this module
- * is the single source of truth — update here, nowhere else.
- *
- * All calculations are integer-safe (basis points × gross ÷ 10000, rounded down
- * to avoid over-charging). net = gross − fee.
+ * What remains here is arithmetic and presentation, which had no divergence:
+ * basis points × gross ÷ 10000, floored so we never over-charge, and currency
+ * formatting. Do not reintroduce a tier→rate map in this file.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export type PlanTier = "free" | "studio" | "agency" | "network";
 
 export type TransactionAmounts = {
   grossCents: number;
@@ -30,35 +33,10 @@ export type TransactionAmounts = {
   netCents: number;
 };
 
-// ─── Fee table ────────────────────────────────────────────────────────────────
-
-const FEE_TABLE: Record<PlanTier, number> = {
-  free:    0,
-  studio:  1100,  // 11.00%
-  agency:  1750,  // 17.50%
-  network: 1750,  // 17.50%
-} as const;
-
-/**
- * Fallback for unrecognised plan tier strings.
- * M15: must be 0 (free) — unknown plan = no fee (safe fail-open).
- * If we don't recognise the plan, charging the studio rate (1100) would be
- * incorrect; silently under-charging is far safer than over-charging.
- */
-const DEFAULT_FEE_BASIS_POINTS = 0;
-
 // ─── Core functions ───────────────────────────────────────────────────────────
 
 /**
- * Returns fee basis points for a plan tier string.
- * Unknown strings fall back to 0 bp (free / no fee) as a safe default.
- */
-export function getFeeBasisPoints(planTier: string): number {
-  return FEE_TABLE[planTier as PlanTier] ?? DEFAULT_FEE_BASIS_POINTS;
-}
-
-/**
- * Returns a human-readable fee percentage string (e.g. "11%", "17.5%").
+ * Returns a human-readable fee percentage string (e.g. "6%", "17.5%").
  */
 export function feePercent(basisPoints: number): string {
   const pct = basisPoints / 100;
@@ -66,26 +44,14 @@ export function feePercent(basisPoints: number): string {
 }
 
 /**
- * Calculates gross / fee / net amounts given a gross price and plan tier.
+ * Calculates gross / fee / net amounts from an already-resolved fee rate.
  *
- * Fee is floored (rounded down) to avoid over-charging.
- * Asserts: net + fee = gross.
+ * Fee is floored (rounded down) so rounding never over-charges the payer.
+ * Invariant: fee + net = gross.
  *
- * @param grossCents  Total amount charged to the client, in cents.
- * @param planTier    The workspace plan tier string from agencies.plan_tier.
- */
-export function calculateTransactionAmounts(
-  grossCents: number,
-  planTier: string,
-): TransactionAmounts {
-  const feeBasisPoints = getFeeBasisPoints(planTier);
-  return calculateTransactionAmountsForBasisPoints(grossCents, feeBasisPoints);
-}
-
-/**
- * Calculates gross / fee / net amounts when the fee rate is already resolved.
- * Use this in UI/data paths that load the plan context once and pass the
- * snapshotted basis points down to repeated rows.
+ * The caller resolves the rate — see the module header. There is deliberately no
+ * `(gross, planTier)` overload any more, because that signature is what let a
+ * second rate table exist.
  */
 export function calculateTransactionAmountsForBasisPoints(
   grossCents: number,

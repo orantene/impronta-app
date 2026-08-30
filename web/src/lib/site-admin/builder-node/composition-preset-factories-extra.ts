@@ -164,9 +164,13 @@ export function createFeatureComparisonPreset(): Exclude<BuilderNode, { kind: "s
           style: { maxWidth: "wide" },
         },
         children: [
-          plan("Starter", "Free", "Up to 5 listings · email support", false),
-          plan("Studio", "$29/mo", "Unlimited listings · custom domain · analytics", true),
-          plan("Agency", "$99/mo", "Everything in Studio · team seats · priority", false),
+          // Placeholder copy for a TENANT's own pricing section. Deliberately
+          // not named Studio/Agency: those are Tulala's plan names, and reusing
+          // them here put a third, wrong Agency price ($99) into the codebase
+          // next to the real one.
+          plan("Basic", "Free", "Up to 5 listings · email support", false),
+          plan("Plus", "$29/mo", "Unlimited listings · custom domain · analytics", true),
+          plan("Premium", "$99/mo", "Everything in Plus · team seats · priority", false),
         ],
       },
     ],

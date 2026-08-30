@@ -343,6 +343,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:money
 
+      # Tulala Agent: entitlement truth, the product laws, the recommendation
+      # engine. Deterministic and pure by design, so this lane is cheap and is
+      # the one that catches a rule change nobody meant to make.
+      - name: tests — tulala
+        if: ${{ !cancelled() }}
+        run: npm run test:tulala
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields
