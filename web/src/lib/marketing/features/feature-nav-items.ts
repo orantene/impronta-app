@@ -89,7 +89,7 @@ export const FEATURE_NAV_ITEMS: readonly FeatureNavItem[] = [
   {
     key: "appointments",
     group: "booked",
-    status: "coming",
+    status: "live",
     en: { name: "Appointments & Reservations", path: "/features/appointments" },
     es: { name: "Citas y reservas", path: "/funciones/citas-y-reservas" },
   },

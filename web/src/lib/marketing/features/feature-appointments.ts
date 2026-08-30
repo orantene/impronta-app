@@ -7,10 +7,12 @@ import type { Feature } from "./types";
  * "sistema de reservas", "appointment booking system". Displaces Booksy,
  * Fresha and Calendly, none of which give the business its own website.
  *
- * STATUS NOTE: marked `coming` until the appointments engine ships its first
- * phase. The page ranks either way; claiming it early is the one thing that
- * would cost trust, so the banner and the waitlist stay until a customer can
- * actually take a booking.
+ * STATUS: LIVE as of 2026-08-30, confirmed by the owner once the appointments
+ * engine shipped. It was held at `coming` until then on purpose, because
+ * claiming a booking feature before a customer can take a booking is the one
+ * thing that would cost trust. The waitlist banner and the "not yet" answer
+ * came off in the same change that flipped the flag; a page that says `live`
+ * while its own FAQ says "not yet" is worse than either.
  */
 export const APPOINTMENTS_FEATURE: Feature = {
   key: "appointments",
@@ -19,7 +21,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
   slugEn: "appointments",
   slugEs: "citas-y-reservas",
   tier: "S",
-  status: "coming",
+  status: "live",
   related: ["inquiry-engine", "payments", "messenger", "tables-and-seating"],
 
   en: {
@@ -128,7 +130,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "Can I use this today?",
-        a: "Not yet. Online booking is being built right now and is not shipped yet, so this page describes what it will do rather than what you can switch on this afternoon. Join the waitlist and you will hear the day it opens.",
+        a: "Yes. Online booking is live. Turn it on from your dashboard, set your hours and how each service should book, and your page starts taking real appointments.",
       },
       {
         q: "Do my clients need an account to book?",
@@ -263,7 +265,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "¿Puedo usarlo hoy?",
-        a: "Todavía no se lanza. Las reservas en línea se están construyendo justo ahora, así que esta página describe lo que hará y no lo que puedes encender esta tarde. Únete a la lista y te avisamos el día que abra.",
+        a: "Sí. Las reservas en línea ya están disponibles. Actívalas desde tu panel, define tus horarios y cómo se reserva cada servicio, y tu página empieza a recibir citas reales.",
       },
       {
         q: "¿Mis clientes necesitan cuenta para reservar?",
