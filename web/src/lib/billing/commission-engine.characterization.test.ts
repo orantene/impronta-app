@@ -230,7 +230,7 @@ describe("persistBookingCommissionSnapshot — persist_failed", () => {
       "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
     ]);
-    assert.deepEqual(calls.from, []); // returned before the audit-inquiry lookup
+    assert.deepEqual(calls.from, ["workspace_talent_commission_overrides"]);
   });
 });
 
@@ -357,7 +357,7 @@ describe("persistBookingCommissionSnapshot — success", () => {
     const res = await persistBookingCommissionSnapshot(supabase, BOOKING);
     assert.equal(res.ok, true);
     assert.equal(calls.rpc.some((r) => r.name === "inquiry_audit_emit"), false);
-    assert.deepEqual(calls.from, ["agency_bookings"]);
+    assert.deepEqual(calls.from, ["workspace_talent_commission_overrides", "agency_bookings"]);
   });
 
   it("MONEY-PATH GUARANTEE: a FAILING audit emit does NOT fail the booking (fire-and-forget)", async () => {

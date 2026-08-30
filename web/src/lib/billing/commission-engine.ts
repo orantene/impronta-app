@@ -29,6 +29,7 @@ import {
   type PaymentMethod,
   type PlatformCommissionConfig,
   type WorkspaceCommissionOverride,
+  type RelationshipCommissionOverride,
   type WorkspacePlanTier,
   type OfferLineItemForResolver,
   type BookingCommissionSnapshot,
@@ -183,6 +184,26 @@ export async function persistBookingCommissionSnapshot(
       // (the context RPC doesn't carry them). Workspace sellers only; non-fatal.
       let platformConfig = ctx.platform_config;
       let tenantOverride = p.tenant_override;
+      let relationshipOverride: RelationshipCommissionOverride | null = null;
+      if (p.tenant_id && p.talent_profile_id) {
+        try {
+          const { data: rel } = await supabase
+            .from("workspace_talent_commission_overrides")
+            .select("platform_take_bps, platform_take_floor_cents, workspace_take_bps")
+            .eq("tenant_id", p.tenant_id)
+            .eq("talent_profile_id", p.talent_profile_id)
+            .maybeSingle();
+          if (rel) {
+            relationshipOverride = {
+              platform_take_bps: rel.platform_take_bps ?? null,
+              platform_take_floor_cents: rel.platform_take_floor_cents ?? null,
+              workspace_take_bps: rel.workspace_take_bps ?? null,
+            };
+          }
+        } catch {
+          /* relationship override is non-fatal — tenant/plan still apply */
+        }
+      }
       if (p.owning_party_type !== "talent" && p.tenant_id) {
         try {
           const feeRes = (await supabase.rpc(
@@ -231,6 +252,7 @@ export async function persistBookingCommissionSnapshot(
         offPlatformReason,
         platformConfig,
         tenantOverride,
+        relationshipOverride,
         bookingPlatformTakeBpsOverride,
         // Phase C — referral applies only to workspace-seller rows; the resolver
         // itself no-ops the lane for independent talent + when channel === home.

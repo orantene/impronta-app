@@ -49,9 +49,10 @@
  *
  * Override hierarchy for the total take (most-specific wins):
  *   1. per-booking override (platform-admin elevation)
- *   2. tenant override (workspace_commission_overrides.platform_take_bps)
- *   3. plan-tier default (platform_commission_config.plan_tier_bps[plan])
- *   4. platform default (platform_commission_config.default_take_bps)
+ *   2. relationship override (workspace_talent_commission_overrides)
+ *   3. tenant override (workspace_commission_overrides.platform_take_bps)
+ *   4. plan-tier default (platform_commission_config.plan_tier_bps[plan])
+ *   5. platform default (platform_commission_config.default_take_bps)
  */
 
 export type WorkspacePlanTier = "free" | "studio" | "agency" | "network";
@@ -74,6 +75,7 @@ export type CommissionResolvedFrom =
   | "platform_default"
   | "plan_tier"
   | "tenant_override"
+  | "relationship_override"
   | "booking_override";
 
 /** Shape of one row in `inquiry_offer_line_items`, projected to the
@@ -116,6 +118,13 @@ export interface WorkspaceCommissionOverride {
   base_reservation_fee_bps?: number | null;
 }
 
+/** Per-workspace-talent rates. workspace_take_bps is the own-page fairness lever. */
+export interface RelationshipCommissionOverride {
+  platform_take_bps: number | null;
+  platform_take_floor_cents: number | null;
+  workspace_take_bps: number | null;
+}
+
 /** Input to the resolver. */
 export interface ResolveBookingCommissionsInput {
   tenantId: string;
@@ -133,6 +142,8 @@ export interface ResolveBookingCommissionsInput {
   platformConfig: PlatformCommissionConfig;
   /** Pre-loaded by the caller. `null` = no override row exists for the tenant. */
   tenantOverride: WorkspaceCommissionOverride | null;
+  /** Per-relationship rates. Beats tenant; loses to a booking override. */
+  relationshipOverride?: RelationshipCommissionOverride | null;
   /** Optional — if the offer was drafted with a per-booking platform-take
    *  override (rare, requires platform-admin elevation; falls under the
    *  "booking_override" resolved_from bucket). */
@@ -273,6 +284,15 @@ export function resolveBookingCommissions(
     platformTakeFloorCents = input.tenantOverride.platform_take_floor_cents;
   }
 
+  // Layer: per-relationship override (workspace × talent)
+  if (input.relationshipOverride?.platform_take_bps != null) {
+    platformTakeBps = input.relationshipOverride.platform_take_bps;
+    resolvedFrom = "relationship_override";
+  }
+  if (input.relationshipOverride?.platform_take_floor_cents != null) {
+    platformTakeFloorCents = input.relationshipOverride.platform_take_floor_cents;
+  }
+
   // Layer: per-booking override (rare — platform-admin elevation only).
   if (typeof input.bookingPlatformTakeBpsOverride === "number") {
     platformTakeBps = input.bookingPlatformTakeBpsOverride;
@@ -366,6 +386,16 @@ export function resolveBookingCommissions(
     talentNetCents = talentFullCents;                       // protected, 100%
     // Workspace nets its margin (less the seller deduction) PLUS its base fee.
     workspaceFeeCents = marginCents - sellerDeductionCents + baseReservationFeeCents;
+    // Relationship fairness: cap the workspace lane and give the rest to talent.
+    // Seller of record stays the workspace. Null workspace_take_bps is a no-op.
+    const wsTakeBps = input.relationshipOverride?.workspace_take_bps;
+    if (typeof wsTakeBps === "number" && Number.isFinite(wsTakeBps) && wsTakeBps >= 0) {
+      const target = Math.round((subtotalCents * wsTakeBps) / 10000) + baseReservationFeeCents;
+      const capped = Math.min(Math.max(target, 0), workspaceFeeCents);
+      const giveToTalent = workspaceFeeCents - capped;
+      workspaceFeeCents = capped;
+      talentNetCents += giveToTalent;
+    }
   }
 
   // 5b. Phase C — HUB REFERRAL LANE. A 4th lane carved OUT OF the managing
