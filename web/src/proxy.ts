@@ -107,6 +107,14 @@ export async function proxy(request: NextRequest) {
   // these; resetting them here means even the short-circuit's
   // `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
+  // Compile-time flag (next.config) covers `next dev` where Edge inlines
+  // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
+  // `VERCEL_ENV=preview npx next start` after a production compile. Host
+  // is never a gate. Route handlers still 403 outside dev/preview.
+  const allowDevSurfaces =
+    process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
+    process.env.NODE_ENV === "development" ||
+    process.env.VERCEL_ENV === "preview";
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers
@@ -150,20 +158,8 @@ export async function proxy(request: NextRequest) {
     // talent_profile_id from the host header set by the talent_site block.
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/") ||
-    // Dev sign-in shortcut — bypass in dev + preview only (previews are SSO-gated
-    // by Vercel team-auth; production is excluded here AND in the route handler as
-    // defense-in-depth).
-    ((process.env.NODE_ENV === "development" ||
-      process.env.VERCEL_ENV === "preview") &&
-      pathname.startsWith("/api/dev/")) ||
-    // Dev UI routes — /dev/template-preview/[key] and /dev/section-sandbox/[type].
-    // Mirroring the /api/dev/ bypass above: reachable in dev and preview only.
-    // The surface allow-list would otherwise 404 these paths because /dev/ is
-    // not in any host-kind allow-list. Production is intentionally excluded so
-    // these QA surfaces are never reachable on tulala.digital.
-    ((process.env.NODE_ENV === "development" ||
-      process.env.VERCEL_ENV === "preview") &&
-      pathname.startsWith("/dev/"))
+    (allowDevSurfaces && pathname.startsWith("/api/dev/")) ||
+    (allowDevSurfaces && pathname.startsWith("/dev/"))
   ) {
     // Forward the sanitized headers so the `/_talent-site` short-circuit can
     // NEVER carry a client-forged `x-impronta-talent-profile` /

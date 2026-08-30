@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { BuilderNode, BuilderNodeTree } from "./types";
+import { PAGE_DESIGNS } from "./page-designs";
 import {
   STARTER_BUSINESS_NAME_FALLBACK,
   personaliseStarterBuilderTree,
@@ -333,6 +334,72 @@ test("i18n overlays, instance overrides and experiment overrides are personalise
   // href stays a machine value, inside i18n and inside an instance override.
   assert.ok(blob.includes("/es?q={{business.name}}"));
   assert.ok(blob.includes("/x?{{business.name}}"));
+});
+
+test("repeater field-binding tokens are not stripped as unknown placeholders", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "step",
+      kind: "heading",
+      props: {
+        text: "{{num}}",
+        level: 1,
+        fieldBindings: { text: "num" },
+      },
+    },
+  ];
+  const out = personaliseStarterBuilderTree(tree, CTX);
+  const heading = out[0];
+  assert.ok(heading?.kind === "heading");
+  assert.equal(heading.props.text, "{{num}}");
+});
+
+function collectBoundDisplayTokens(tree: BuilderNodeTree): string[] {
+  const found: string[] = [];
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const entry of value) walk(entry);
+      return;
+    }
+    if (value === null || typeof value !== "object") return;
+    const rec = value as Record<string, unknown>;
+    const bindings = rec.fieldBindings;
+    if (bindings && typeof bindings === "object" && !Array.isArray(bindings)) {
+      for (const key of Object.keys(bindings as Record<string, unknown>)) {
+        const sibling = rec[key];
+        if (typeof sibling === "string" && sibling.includes("{{")) {
+          found.push(sibling);
+        }
+      }
+    }
+    for (const child of Object.values(rec)) walk(child);
+  };
+  walk(tree);
+  return found;
+}
+
+test("a real repeater-bearing PAGE_DESIGN keeps every bound {{token}}", () => {
+  const designs = PAGE_DESIGNS.filter(
+    (design) => collectBoundDisplayTokens(design.tree).length > 0,
+  );
+  assert.ok(
+    designs.some((design) => design.id === "impronta"),
+    "impronta ({{num}}) must be in the fixture set — the old suite passed because no repeater design was used",
+  );
+  assert.ok(
+    designs.length >= 5,
+    "expected multiple repeater-bearing PAGE_DESIGNS; the suite used to pass because none were used",
+  );
+  for (const design of designs) {
+    const tokens = collectBoundDisplayTokens(design.tree);
+    const after = JSON.stringify(personaliseStarterBuilderTree(design.tree, CTX));
+    for (const token of tokens) {
+      assert.ok(
+        after.includes(token),
+        `${design.id} stripped bound repeater token ${token}`,
+      );
+    }
+  }
 });
 
 test("an empty tree and a non-array input are safe", () => {

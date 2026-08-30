@@ -82,6 +82,34 @@ test("INVARIANT proxy.ts: the strip-then-set contract is documented at the call 
   );
 });
 
+test("INVARIANT proxy.ts: /api/dev and /dev gates use a compile-time flag, never Host", () => {
+  assert.match(
+    PROXY_SRC,
+    /TULALA_ALLOW_DEV_SURFACES === "1"/,
+    "dev surfaces must be gated by the next.config compile-time flag",
+  );
+  const nextConfig = readFileSync(join(SRC_ROOT, "..", "next.config.ts"), "utf8");
+  assert.match(
+    nextConfig,
+    /TULALA_ALLOW_DEV_SURFACES/,
+    "next.config must inject TULALA_ALLOW_DEV_SURFACES so Edge can read it",
+  );
+  assert.doesNotMatch(
+    nextConfig,
+    /TULALA_ALLOW_DEV_SURFACES[\s\S]{0,200}host/i,
+    "the flag must not be derived from Host",
+  );
+  const gateSlice = PROXY_SRC.slice(
+    PROXY_SRC.indexOf("TULALA_ALLOW_DEV_SURFACES"),
+    PROXY_SRC.indexOf("TULALA_ALLOW_DEV_SURFACES") + 400,
+  );
+  assert.doesNotMatch(
+    gateSlice,
+    /isLocalhostHost/,
+    "the /api/dev gate must not trust a client-supplied Host header",
+  );
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Header / cookie constant contract. proxy.ts SETS these; scope.ts/host-context
 // READ them. If the names drift apart, isolation silently breaks (reader looks

@@ -285,8 +285,24 @@ function mapValue(
     const source = value as Record<string, unknown>;
     let changed = false;
     const next: Record<string, unknown> = {};
+    const bindings =
+      source.fieldBindings &&
+      typeof source.fieldBindings === "object" &&
+      !Array.isArray(source.fieldBindings)
+        ? (source.fieldBindings as Record<string, unknown>)
+        : null;
     for (const [childKey, childValue] of Object.entries(source)) {
       if (STARTER_OPAQUE_SUBTREE_KEYS.has(childKey)) {
+        next[childKey] = childValue;
+        continue;
+      }
+      // Repeater display tokens (`text: "{{num}}"` + `fieldBindings.text`)
+      // are not Wave 2a placeholders. Stripping them blanks bound steps.
+      if (
+        bindings &&
+        childKey in bindings &&
+        typeof childValue === "string"
+      ) {
         next[childKey] = childValue;
         continue;
       }
