@@ -1,5 +1,8 @@
 -- Wave 4A: per-offering "Require an account to book" (default off).
 -- Existing rows stay walk-in-friendly. No backfill.
+-- Timestamp is 20261225000000: remote already used 20261223000000
+-- (ai_tenant_controls_guest_caps) and 20261224000000 (guest_email_unsubscribe)
+-- from a sibling branch that is not on main.
 
 ALTER TABLE public.talent_offerings
   ADD COLUMN IF NOT EXISTS require_account_to_book boolean NOT NULL DEFAULT false;
@@ -11,6 +14,7 @@ COMMENT ON COLUMN public.talent_offerings.require_account_to_book IS
 -- but has no browser session. convert still needs auth.uid() == p_actor_user_id
 -- for a signed-in caller; service_role (the trusted engine client) may convert
 -- as that provisioned actor. Authenticated callers are unchanged.
+-- Body matches the live function; only the auth gate and service_role GRANT change.
 
 CREATE OR REPLACE FUNCTION public.engine_convert_to_booking(
   p_inquiry_id               UUID,
@@ -101,7 +105,15 @@ BEGIN
     coordinator_user_id_snapshot, owner_user_id_snapshot,
     event_timezone_snapshot,
     coordinator_response_time_ms, time_to_first_offer_ms, time_to_booking_ms,
-    created_with_override, override_reason
+    created_with_override, override_reason,
+    wardrobe_notes,
+    equipment_notes,
+    transport_notes,
+    lodging_notes,
+    meals_notes,
+    access_notes,
+    deadline_at,
+    timezone
   ) VALUES (
     p_inquiry_id,
     inq.client_user_id, inq.client_account_id, inq.client_contact_id,
@@ -115,7 +127,15 @@ BEGIN
     inq.event_timezone,
     NULL, NULL, NULL,
     v_override,
-    CASE WHEN v_override THEN trim(p_override_reason) ELSE NULL END
+    CASE WHEN v_override THEN trim(p_override_reason) ELSE NULL END,
+    inq.wardrobe_notes,
+    inq.equipment_notes,
+    inq.transport_notes,
+    inq.lodging_notes,
+    inq.meals_notes,
+    inq.access_notes,
+    inq.deadline_at,
+    inq.event_timezone
   ) RETURNING id INTO v_booking_id;
 
   INSERT INTO public.booking_talent (
