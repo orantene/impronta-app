@@ -25,6 +25,7 @@ import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { ProfileSlotPickerMount } from "@/components/public-booking/ProfileSlotPickerMount";
 import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
+import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
@@ -1935,7 +1936,12 @@ export async function TalentProfileView({
         },
       })
     : { mode: "inquire" as const, tenantId: null, tenantSlug: null };
-  const showSlotPicker = booking.mode !== "inquire";
+  const profileCtas = resolveProfileCtasFromOfferings({
+    bookingMode: booking.mode,
+    offerings: storefrontOfferings,
+    legacyEligible: instantBook.eligible && instantBook.fixedRateDollars != null,
+  });
+  const showSlotPicker = profileCtas.showSlotPicker;
   const slotTenantSlug = booking.tenantSlug ?? chatTenantSlug;
   const slotTenantId = booking.tenantId ?? chatTenantId;
   const chatBrandName =
@@ -2227,13 +2233,13 @@ export async function TalentProfileView({
   const inquireButtons = (btnClass: string) =>
     showSlotPicker ? null : (
       <>
-        {instantBook.eligible && instantBook.fixedRateDollars != null ? (
+        {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
             talentId={profile.id}
             displayName={name}
             tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
             sourcePage={profileSourcePage}
-            fixedRateDollars={instantBook.fixedRateDollars}
+            fixedRateDollars={instantBook.fixedRateDollars ?? 0}
             currencyCode={instantBook.currencyCode}
             locale={locale}
             className={btnClass}
