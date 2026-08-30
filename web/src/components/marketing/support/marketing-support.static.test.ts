@@ -57,6 +57,17 @@ test("new marketing support components have no inline style color/background", (
   }
 });
 
+test("guest AI fetch path is allow-listed on the marketing host", () => {
+  const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
+  assert.match(panel, /\/api\/ai\/guest-support-chat/);
+  const allow = readFileSync(
+    join(here, "../../../lib/saas/surface-allow-list.ts"),
+    "utf8",
+  );
+  assert.match(allow, /\/api\/ai\/guest-support-chat/);
+  assert.match(allow, /MARKETING_API_PREFIXES/);
+});
+
 test("guest support path never reads GUEST_CHAT_CAPTCHA_WIDGET_READY", () => {
   for (const file of files) {
     const src = readFileSync(file, "utf8");
