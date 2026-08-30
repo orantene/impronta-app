@@ -43,6 +43,11 @@ const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
 const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
 const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
 const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
+// Carried so a hybrid account's chosen home is the same on this fast path as in
+// middleware. Without it the account link would offer /talent while middleware
+// routes /admin — both valid for a hybrid, which makes the disagreement look
+// like a bug rather than a choice.
+const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
 
 /**
  * Build a minimal Supabase `User`-shaped object from the middleware-supplied
@@ -71,6 +76,7 @@ function profileFromHeaders(
   appRole: string | null,
   status: string | null,
   onboardedFlag: string | null,
+  homePreference: string | null,
 ): AccessProfileWithDisplayName | null {
   if (!appRole && !status) return null;
   return {
@@ -78,6 +84,7 @@ function profileFromHeaders(
     account_status:
       (status as AccessProfileWithDisplayName["account_status"]) ?? null,
     onboarding_completed_at: onboardedFlag === "1" ? "1" : null,
+    home_surface_preference: homePreference || null,
   };
 }
 
@@ -97,10 +104,11 @@ async function tryActorFromForwardedHeaders(
     const appRole = h.get(ACTOR_APP_ROLE_HEADER);
     const status = h.get(ACTOR_STATUS_HEADER);
     const onboarded = h.get(ACTOR_ONBOARDED_HEADER);
+    const homePref = h.get(ACTOR_HOME_PREF_HEADER);
     return {
       supabase,
       user: syntheticUserFromHeaders(actorId, email),
-      profile: profileFromHeaders(appRole, status, onboarded),
+      profile: profileFromHeaders(appRole, status, onboarded, homePref),
     };
   } catch {
     // `headers()` throws outside a request scope (e.g., during build).

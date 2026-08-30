@@ -6,15 +6,27 @@
  * Phase 5 (talent-surface launch plan) — toggle persistence + first-run tip.
  *
  * Table: public.user_prefs
- *   user_id UUID PK, preferred_surface TEXT, first_run_toggle_tip_seen BOOLEAN, updated_at TIMESTAMPTZ
+ *   user_id UUID PK, first_run_toggle_tip_seen BOOLEAN, updated_at TIMESTAMPTZ
  *
  * All writes are fire-and-forget from the client (no await needed). Errors
  * are logged server-side but never surface to the user — a pref write failure
  * is not critical and should not block the UI.
+ *
+ * EXCEPT `preferredSurface`, which lives on `profiles.home_surface_preference`.
+ * `user_prefs.preferred_surface` held the same value and drifted from routing:
+ * middleware resolves the landing surface from `profiles` (free, it already
+ * fetches the row) and never read `user_prefs`, so toggling to Workspace in the
+ * shell did not change where login put you. Reading and writing the profiles
+ * column keeps the toggle and the router on one answer. Deprecated mirror +
+ * backfill: migration 20261226000008.
  */
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  loadHomePreference,
+  saveHomePreference,
+} from "@/lib/tulala/structure-model.server";
 
 /** F.12 — Full channel matrix per event. Email + push remain primary
  * (canonical signals); inApp/sms/digest extend the matrix for adopters
@@ -107,11 +119,20 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const { data, error } = await supabase
-      .from("user_prefs")
-      .select("preferred_surface, first_run_toggle_tip_seen, talent_checklist_dismissed, notification_prefs, privacy_prefs")
-      .eq("user_id", userId)
-      .maybeSingle();
+    // Two reads because the surface preference lives on `profiles` (see the
+    // module header) and everything else lives on `user_prefs`. Parallel, so
+    // this costs one round-trip, and either side may be absent. The profiles
+    // read goes through the structure-model loader rather than a second raw
+    // `.from()` here: that module owns the column and already validates it.
+    const [prefsRes, storedHome] = await Promise.all([
+      supabase
+        .from("user_prefs")
+        .select("first_run_toggle_tip_seen, talent_checklist_dismissed, notification_prefs, privacy_prefs")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      loadHomePreference(userId),
+    ]);
+    const { data, error } = prefsRes;
 
     if (error) {
       // Swallow missing-table errors silently — user_prefs migration may not
@@ -122,10 +143,27 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
       return null;
     }
 
-    if (!data) return null;
+    // `client` is a valid home but not a shell surface, so it reads as "no
+    // toggle preference" here rather than being coerced into one.
+    const preferredSurface =
+      storedHome === "talent" || storedHome === "workspace" ? storedHome : null;
+
+    // A missing `user_prefs` row is not a missing preference: the surface
+    // choice now lives elsewhere, so returning null here would silently drop a
+    // real answer for any user who chose a home but never touched a toggle.
+    if (!data) {
+      return preferredSurface === null
+        ? null
+        : {
+            preferredSurface,
+            firstRunToggleTipSeen: false,
+            talentChecklistDismissed: false,
+            notificationPrefs: {},
+            privacyPrefs: DEFAULT_PRIVACY_PREFS,
+          };
+    }
 
     const row = data as {
-      preferred_surface: string | null;
       first_run_toggle_tip_seen: boolean;
       talent_checklist_dismissed: boolean | null;
       notification_prefs: Record<string, NotificationChannelPrefs> | null;
@@ -133,10 +171,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
     };
 
     return {
-      preferredSurface:
-        row.preferred_surface === "talent" || row.preferred_surface === "workspace"
-          ? row.preferred_surface
-          : null,
+      preferredSurface,
       firstRunToggleTipSeen: row.first_run_toggle_tip_seen ?? false,
       talentChecklistDismissed: row.talent_checklist_dismissed ?? false,
       notificationPrefs: row.notification_prefs ?? {},
@@ -151,6 +186,10 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
 /**
  * Persist the user's preferred surface. Fire-and-forget from the client.
  * Auth required — reads user from session cookie.
+ *
+ * Writes `profiles.home_surface_preference`, so flipping the in-shell toggle
+ * also moves where login lands. Writing `user_prefs.preferred_surface` instead
+ * is what made the toggle forget itself across sessions.
  */
 export async function setPreferredSurface(
   surface: "talent" | "workspace",
@@ -164,17 +203,9 @@ export async function setPreferredSurface(
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from("user_prefs").upsert(
-      {
-        user_id: user.id,
-        preferred_surface: surface,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-    if (error) {
-      logServerError("user-prefs.setPreferredSurface", error);
+    const saved = await saveHomePreference(user.id, surface);
+    if (!saved.ok) {
+      logServerError("user-prefs.setPreferredSurface", new Error(saved.error));
     }
   } catch (err) {
     logServerError("user-prefs.setPreferredSurface", err);

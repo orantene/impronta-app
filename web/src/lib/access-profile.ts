@@ -7,8 +7,11 @@ export type AccessProfileWithDisplayName = AccessProfile & {
   avatar_url?: string | null;
 };
 
+// `home_surface_preference` is what lets a hybrid account choose between
+// /admin and /talent. The RPC path returns `public.profiles` whole so it comes
+// along automatically; this fallback select has to name it.
 const ACCESS_PROFILE_SELECT =
-  "account_status, app_role, onboarding_completed_at, display_name, avatar_url";
+  "account_status, app_role, onboarding_completed_at, display_name, avatar_url, home_surface_preference";
 
 /** PostgREST: RPC not exposed or DB migration not applied (PGRST202). Fallback path handles it. */
 function isRpcMissingFromSchemaCache(err: {

@@ -214,7 +214,21 @@ export function resolveAuthRoutingDecision({
     };
   }
 
-  if (pathname.startsWith("/admin") && !isStaffRole(sessionProfile.app_role)) {
+  // `/admin` exactly is a thin resolver, not a surface: it looks up the caller's
+  // real workspace membership and redirects to /{slug}/admin, or to their own
+  // dashboard when they have none. Gating it on `app_role` locked workspace
+  // OWNERS out of their own workspace — provisioning never overwrites an
+  // existing role, so a talent who opens a workspace keeps `app_role='talent'`,
+  // failed `isStaffRole`, and was bounced back to /talent every time. Membership
+  // is the only correct authority here and middleware cannot read it without a
+  // per-request query, so let the resolver answer and keep the deeper
+  // `/admin/*` pages staff-only.
+  const isAdminResolverRoot = pathname === "/admin" || pathname === "/admin/";
+  if (
+    pathname.startsWith("/admin") &&
+    !isAdminResolverRoot &&
+    !isStaffRole(sessionProfile.app_role)
+  ) {
     return {
       redirectTo: hostSafeRedirect(dashboardDestination),
       loginNext: null,
