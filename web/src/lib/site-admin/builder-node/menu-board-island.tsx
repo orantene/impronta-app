@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import { submitMenuOrder } from "@/app/(public)/_menu/menu-order-actions";
+// Do NOT statically import menu-order-actions — that file is "use server" and
+// pulls server-only into render.tsx → fidelity/perf Node runners blow up with
+// MODULE_NOT_FOUND for `server-only`. Call via dynamic import on submit only.
 
 export type MenuBoardOffering = {
   id: string;
@@ -126,6 +128,9 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
     setIsPending(true);
     try {
       try {
+        const { submitMenuOrder } = await import(
+          "@/app/(public)/_menu/menu-order-actions"
+        );
         const result = await submitMenuOrder({
           tenantId,
           contactName: name,
