@@ -107,6 +107,14 @@ export async function proxy(request: NextRequest) {
   // these; resetting them here means even the short-circuit's
   // `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
+  // Compile-time flag (next.config) covers `next dev` where Edge inlines
+  // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
+  // `VERCEL_ENV=preview npx next start` after a production compile. Host
+  // is never a gate. Route handlers still 403 outside dev/preview.
+  const allowDevSurfaces =
+    process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
+    process.env.NODE_ENV === "development" ||
+    process.env.VERCEL_ENV === "preview";
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers
@@ -150,13 +158,8 @@ export async function proxy(request: NextRequest) {
     // talent_profile_id from the host header set by the talent_site block.
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/") ||
-    // Dev + preview only. Compile-time flag from next.config — Next 16 Edge
-    // inlines NODE_ENV=production under `next dev`. Host is not a gate.
-    // Route handlers still 403 outside dev/preview.
-    (process.env.TULALA_ALLOW_DEV_SURFACES === "1" &&
-      pathname.startsWith("/api/dev/")) ||
-    (process.env.TULALA_ALLOW_DEV_SURFACES === "1" &&
-      pathname.startsWith("/dev/"))
+    (allowDevSurfaces && pathname.startsWith("/api/dev/")) ||
+    (allowDevSurfaces && pathname.startsWith("/dev/"))
   ) {
     // Forward the sanitized headers so the `/_talent-site` short-circuit can
     // NEVER carry a client-forged `x-impronta-talent-profile` /
