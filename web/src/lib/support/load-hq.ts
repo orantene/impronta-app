@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "./support-from";
+import { hqQueueRequesterEmail } from "./support-hq-presentation";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -108,7 +109,7 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         tenantSlug: tenant?.slug ?? null,
         planTier: tenant?.plan_tier ?? null,
         requesterName: profile?.display_name ?? ticket.contactName ?? null,
-        requesterEmail: ticket.contactEmail,
+        requesterEmail: hqQueueRequesterEmail(ticket),
       };
     });
   } catch (err) {

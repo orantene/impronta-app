@@ -8,6 +8,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertHqAccess } from "../support-access";
 import { loadTicketById, supportEngine } from "../support-engine";
+import { insertEvent } from "../support-engine-db";
+import { shouldEmitGuestRequesterMail } from "../guest-notification-audience";
 import { supportFrom } from "../support-from";
 import { loadTicketFixLinks, loadTicketInsight } from "./load";
 import type { FixLinkKind, SupportFixLinkRow, SupportInsightRow } from "./types";
@@ -108,20 +110,51 @@ export async function hqAddFixLinkAction(raw: {
         body: parsed.data.note?.trim() || "The issue you reported is fixed",
         cardPayload: { kind: "issue-fixed", note: parsed.data.note ?? "" },
       });
-      await dispatchEventNotifications({
-        type: "support.ticket.fixed",
-        tenantId: ticket.tenantId,
-        eventId: card.ok ? card.data.message.id : crypto.randomUUID(),
-        userId: ticket.requesterUserId,
-        payload: {
+      const guestMail = shouldEmitGuestRequesterMail({
+        surface: ticket.surface,
+        requesterUserId: ticket.requesterUserId,
+        contactEmail: ticket.contactEmail,
+      });
+      if (guestMail) {
+        const guestEventId = await insertEvent(admin, {
           ticketId: ticket.id,
-          ticketNumber: ticket.ticketNumber,
-          subject: ticket.subject,
-          surface: ticket.surface,
-          note: parsed.data.note ?? "",
-          platformFrom: true,
-        },
-      }).catch(() => undefined);
+          tenantId: ticket.tenantId,
+          actorKind: "system",
+          actorUserId: hq.userId,
+          eventType: "insight_generated",
+          newValue: { audience: "guest", kind: "issue-fixed" },
+        });
+        await dispatchEventNotifications({
+          type: "support.ticket.fixed.guest",
+          tenantId: ticket.tenantId,
+          eventId: guestEventId ?? crypto.randomUUID(),
+          payload: {
+            ticketId: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            surface: ticket.surface,
+            note: parsed.data.note ?? "",
+            contactEmail: ticket.contactEmail,
+            contactName: ticket.contactName,
+            platformFrom: true,
+          },
+        }).catch(() => undefined);
+      } else {
+        await dispatchEventNotifications({
+          type: "support.ticket.fixed",
+          tenantId: ticket.tenantId,
+          eventId: card.ok ? card.data.message.id : crypto.randomUUID(),
+          userId: ticket.requesterUserId,
+          payload: {
+            ticketId: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            surface: ticket.surface,
+            note: parsed.data.note ?? "",
+            platformFrom: true,
+          },
+        }).catch(() => undefined);
+      }
     }
   }
   return { ok: true };

@@ -125,6 +125,12 @@ export async function channelsForRecipient(
   if (channels.includes("email")) {
     const suppressed = await isEmailSuppressed(ctx.admin, recipient.userId, recipient.email);
     if (suppressed) channels = channels.filter((c) => c !== "email");
+    if (recipient.userId === null && recipient.email) {
+      const { isGuestEmailUnsubscribed } = await import("./guest-unsubscribe");
+      if (await isGuestEmailUnsubscribed(ctx.admin, recipient.email)) {
+        channels = channels.filter((c) => c !== "email");
+      }
+    }
   }
 
   return channels;

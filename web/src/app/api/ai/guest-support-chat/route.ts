@@ -69,14 +69,13 @@ async function failOpen(ticketId: string): Promise<void> {
 
 export async function POST(request: Request) {
   try {
-    if (!guestCookieSigningEnabled()) {
-      return NextResponse.json({ error: "Support chat is temporarily unavailable." }, { status: 503 });
-    }
-    if (!isKvLimiterConfigured()) {
-      return NextResponse.json(
-        { error: "We'll get back to you by email. Chat answers are paused right now." },
-        { status: 503 },
-      );
+    const { guestAiAbuseFloor } = await import("@/lib/support/guest-ai-abuse-floor");
+    const floor = guestAiAbuseFloor({
+      signingEnabled: guestCookieSigningEnabled(),
+      kvConfigured: isKvLimiterConfigured(),
+    });
+    if (!floor.ok) {
+      return NextResponse.json({ error: floor.error }, { status: floor.status });
     }
 
     const flags = await getAiFeatureFlags();

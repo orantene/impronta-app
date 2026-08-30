@@ -13,7 +13,8 @@ const en = {
   emailLabel: "Email",
   nameLabel: "Name (optional)",
   saveEmail: "Save email",
-  emailConsent: "We'll use this only to continue this conversation. You can unsubscribe from any email.",
+  emailConsent:
+    "By leaving your email you agree we can send replies about this conversation. You can unsubscribe from any message. We delete unconverted chats after 90 days.",
   askHuman: "Talk to Oran",
   contactTitle: "Contact us",
   contactBody: "Write to the team. This goes to a person, not the chat bot.",
@@ -47,7 +48,8 @@ const es: MarketingSupportCopy = {
   emailLabel: "Email",
   nameLabel: "Nombre (opcional)",
   saveEmail: "Guardar email",
-  emailConsent: "Solo usamos esto para seguir esta conversacion. Puedes cancelar el email cuando quieras.",
+  emailConsent:
+    "Al dejar tu email aceptas que te enviemos respuestas sobre esta conversacion. Puedes cancelar el email cuando quieras. Borramos los chats no convertidos a los 90 dias.",
   askHuman: "Hablar con Oran",
   contactTitle: "Contacto",
   contactBody: "Escribe al equipo. Esto llega a una persona, no al chat.",

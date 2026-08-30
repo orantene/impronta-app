@@ -15,6 +15,8 @@ import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { supportFrom } from "@/lib/support/support-from";
 import { mapTicketRow } from "@/lib/support/support-types";
 import { loadTicketById, supportEngine } from "@/lib/support/support-engine";
+import { insertEvent } from "@/lib/support/support-engine-db";
+import { shouldEmitGuestRequesterMail } from "@/lib/support/guest-notification-audience";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,19 +87,49 @@ export async function GET(request: Request) {
           })
           .select("id")
           .single();
-        await dispatchEventNotifications({
-          type: "support.ticket.autoclose",
-          tenantId: ticket.tenantId,
-          eventId: ev?.id ?? crypto.randomUUID(),
-          userId: ticket.requesterUserId,
-          payload: {
+        const guestMail = shouldEmitGuestRequesterMail({
+          surface: ticket.surface,
+          requesterUserId: ticket.requesterUserId,
+          contactEmail: ticket.contactEmail,
+        });
+        if (guestMail) {
+          const guestEventId = await insertEvent(admin, {
             ticketId: ticket.id,
-            ticketNumber: ticket.ticketNumber,
-            subject: ticket.subject,
-            surface: ticket.surface,
-            platformFrom: true,
-          },
-        }).catch(() => undefined);
+            tenantId: ticket.tenantId,
+            actorKind: "system",
+            actorUserId: null,
+            eventType: "auto_close_warning",
+            newValue: { idleHours, audience: "guest" },
+          });
+          await dispatchEventNotifications({
+            type: "support.ticket.autoclose.guest",
+            tenantId: ticket.tenantId,
+            eventId: guestEventId ?? crypto.randomUUID(),
+            payload: {
+              ticketId: ticket.id,
+              ticketNumber: ticket.ticketNumber,
+              subject: ticket.subject,
+              surface: ticket.surface,
+              contactEmail: ticket.contactEmail,
+              contactName: ticket.contactName,
+              platformFrom: true,
+            },
+          }).catch(() => undefined);
+        } else {
+          await dispatchEventNotifications({
+            type: "support.ticket.autoclose",
+            tenantId: ticket.tenantId,
+            eventId: ev?.id ?? crypto.randomUUID(),
+            userId: ticket.requesterUserId,
+            payload: {
+              ticketId: ticket.id,
+              ticketNumber: ticket.ticketNumber,
+              subject: ticket.subject,
+              surface: ticket.surface,
+              platformFrom: true,
+            },
+          }).catch(() => undefined);
+        }
         await supportEngine.appendMessage({
           ticketId: ticket.id,
           authorKind: "system",

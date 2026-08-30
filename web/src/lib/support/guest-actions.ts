@@ -1,6 +1,7 @@
 "use server";
 
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
+import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
 import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -35,7 +36,7 @@ async function requireSignedGuest(): Promise<
     }
   | GuestSupportFail
 > {
-  if (!guestCookieSigningEnabled()) {
+  if (!guestSupportMayServe(guestCookieSigningEnabled())) {
     return { ok: false, error: "Support chat is temporarily unavailable." };
   }
   const admin = createServiceRoleClient();

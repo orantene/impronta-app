@@ -10,9 +10,14 @@ import type { SupportCannedReply } from "@/lib/platform/support-canned";
 import { SupportTicketHqDrawer } from "./SupportTicketHqDrawer";
 import { hqChangeStatusAction, hqClaimSelfAction } from "@/lib/support/hq-actions";
 import { useHqSupportRealtime } from "@/components/support/support-hooks";
+import {
+  HQ_GUEST_AUDIENCE_ID,
+  hqQueueSearchHaystack,
+  surfaceIcon as surfaceIconKind,
+} from "@/lib/support/support-hq-presentation";
 
 type FilterId = "needsYou" | "waitingThem" | "new" | "allOpen" | "resolved7d";
-type AudienceId = "all" | "workspace" | "talent" | "client" | "guest";
+type AudienceId = "all" | "workspace" | "talent" | "client" | typeof HQ_GUEST_AUDIENCE_ID;
 
 function hoursAgo(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 36e5;
@@ -31,11 +36,16 @@ function matchesFilter(row: HqQueueRow, filter: FilterId): boolean {
   return true;
 }
 
+const SURFACE_HQ_COLOR: Record<string, string> = {
+  purple: HQ.purple,
+  amber: HQ.amber,
+  green: HQ.green,
+  blue: HQ.blue,
+};
+
 function surfaceIcon(surface: string): { glyph: string; color: string } {
-  if (surface === "workspace") return { glyph: "◆", color: HQ.purple };
-  if (surface === "talent") return { glyph: "★", color: HQ.amber };
-  if (surface === "guest") return { glyph: "○", color: HQ.green };
-  return { glyph: "●", color: HQ.blue };
+  const { glyph, color } = surfaceIconKind(surface);
+  return { glyph, color: SURFACE_HQ_COLOR[color] ?? HQ.blue };
 }
 
 export function SupportQueueClient({
@@ -153,7 +163,7 @@ export function SupportQueueClient({
       if (!matchesFilter(row, filter)) return false;
       if (audience !== "all" && row.ticket.surface !== audience) return false;
       if (!query) return true;
-      const hay = `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""} ${row.ticket.contactEmail ?? ""} ${row.ticket.contactName ?? ""} ${row.requesterEmail ?? ""}`.toLowerCase();
+      const hay = hqQueueSearchHaystack(row);
       return hay.includes(query);
     });
   }, [queue, filter, audience, q]);
@@ -208,7 +218,7 @@ export function SupportQueueClient({
     { id: "workspace", label: t("dashboard.platform.support.audAdmins") },
     { id: "talent", label: t("dashboard.platform.support.audTalents") },
     { id: "client", label: t("dashboard.platform.support.audClients") },
-    { id: "guest", label: t("dashboard.platform.support.audGuests") },
+    { id: HQ_GUEST_AUDIENCE_ID, label: t("dashboard.platform.support.audGuests") },
   ];
 
   return (

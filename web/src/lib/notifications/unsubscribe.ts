@@ -5,6 +5,10 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { logServerError } from "@/lib/server/safe-error";
 import { NOTIFICATION_CATEGORIES } from "./categories";
 import type { NotificationCategory } from "./types";
+import {
+  applyGuestEmailUnsubscribe,
+  resolveGuestUnsubscribeRecipient,
+} from "./guest-unsubscribe";
 
 /**
  * One-click unsubscribe helpers (spec §8, decision D4).
@@ -127,7 +131,7 @@ async function emailForUser(
 export async function resolveUnsubscribeRecipient(
   admin: SupabaseClient,
   token: string,
-): Promise<{ userId: string; email: string | null } | null> {
+): Promise<{ userId: string | null; email: string | null } | null> {
   if (!token) return null;
   try {
     const { data, error } = await admin
@@ -135,9 +139,13 @@ export async function resolveUnsubscribeRecipient(
       .select("user_id")
       .eq("unsubscribe_token", token)
       .maybeSingle();
-    if (error || !data) return null;
-    const userId = (data as { user_id: string }).user_id;
-    return { userId, email: await emailForUser(admin, userId) };
+    if (!error && data) {
+      const userId = (data as { user_id: string }).user_id;
+      return { userId, email: await emailForUser(admin, userId) };
+    }
+    const guest = resolveGuestUnsubscribeRecipient(token);
+    if (guest) return { userId: null, email: guest.email };
+    return null;
   } catch (err) {
     logServerError(
       "notifications.unsubscribe.resolve",
@@ -176,7 +184,11 @@ export async function applyCategoryUnsubscribe(
       .select("user_id, notification_prefs")
       .eq("unsubscribe_token", token)
       .maybeSingle();
-    if (error || !data) return { ok: false, reason: "invalid_token" };
+    if (error || !data) {
+      const guest = await applyGuestEmailUnsubscribe(admin, token);
+      if (guest.ok) return { ok: true, email: guest.email, info };
+      return { ok: false, reason: guest.reason === "write_failed" ? "write_failed" : "invalid_token" };
+    }
 
     const row = data as { user_id: string; notification_prefs: unknown };
     const userId = row.user_id;

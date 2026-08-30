@@ -1,6 +1,7 @@
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
+import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { headers } from "next/headers";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
@@ -10,7 +11,7 @@ import { MarketingSupportLauncher } from "./MarketingSupportLauncher";
 export async function MarketingSupportLauncherMount() {
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "marketing") return null;
-  if (!guestCookieSigningEnabled()) return null;
+  if (!guestSupportMayServe(guestCookieSigningEnabled())) return null;
 
   const locale = await getRequestLocale();
   const actor = await getCachedActorSession();

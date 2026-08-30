@@ -9,7 +9,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
-import { claimGuestSupportTickets } from "@/lib/support/guest-claim";
+import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { verifiedEmailForGuestClaim } from "@/lib/support/guest-claim-email";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
@@ -113,11 +113,7 @@ export async function mergeGuestActivity(
   }
 
   try {
-    await claimGuestSupportTickets({
-      userId: user.id,
-      guestSessionId,
-      verifiedEmail: verifiedEmail || null,
-    });
+    await claimGuestSupportOnAuth(user.id);
   } catch (err) {
     logServerError("client/mergeGuestActivity/supportClaim", err);
   }

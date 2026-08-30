@@ -72,6 +72,9 @@
     "src/app/api/cron/reap-support-replays/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/reap-guest-support/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/support-insights/route.ts": {
       "maxDuration": 60
     },
@@ -169,6 +172,10 @@
     {
       "path": "/api/cron/reap-support-replays",
       "schedule": "50 3 * * 0"
+    },
+    {
+      "path": "/api/cron/reap-guest-support",
+      "schedule": "20 4 * * *"
     },
     {
       "path": "/api/cron/support-insights",

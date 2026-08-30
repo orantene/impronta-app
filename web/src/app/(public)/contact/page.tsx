@@ -4,6 +4,7 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { contactSurfaceForHostKind } from "@/lib/saas/contact-host";
 import { MarketingContactPage } from "@/components/marketing/support/MarketingContactPage";
 
 import { ContactInquiryForm } from "./ContactInquiryForm";
@@ -22,7 +23,7 @@ export default async function ContactPage({
   searchParams: Promise<{ t?: string }>;
 }) {
   const ctx = await getPublicHostContext();
-  if (ctx.kind === "marketing") {
+  if (contactSurfaceForHostKind(ctx.kind) === "marketing") {
     const params = await searchParams;
     return <MarketingContactPage token={typeof params.t === "string" ? params.t : undefined} />;
   }

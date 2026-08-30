@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportTicketRow } from "@/lib/support/support-types";
+import { guestHasNoReplyChannel } from "@/lib/support/support-hq-presentation";
 
 function waHref(phone: string): string | null {
   const digits = phone.replace(/[^\d+]/g, "");
@@ -68,9 +69,7 @@ export function TicketContextCard({
             {t("dashboard.platform.support.guestClaimed")}
           </div>
         ) : null}
-        {ticket.surface === "guest" &&
-        !ticket.contactEmail &&
-        (ticket.escalatedAt || ticket.handledBy === "human" || ticket.waitingOn === "support") ? (
+        {guestHasNoReplyChannel(ticket) ? (
           <div
             style={{
               marginTop: 8,
@@ -111,6 +110,9 @@ export function TicketContextCard({
         ) : (
           <div style={{ fontSize: 12, color: HQ.inkDim }}>{t("dashboard.platform.support.noPhone")}</div>
         )}
+        {ticket.contactEmail ? (
+          <div style={{ fontSize: 13, color: HQ.ink, marginTop: 6 }}>{ticket.contactEmail}</div>
+        ) : null}
         {ticket.callbackRequested ? (
           <div style={{ color: "#C26A45", fontSize: 12, marginTop: 8 }}>
             {t("dashboard.platform.support.callbackRequested")}
