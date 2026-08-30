@@ -9,10 +9,10 @@ import {
 import { isSlotEligibleOffering, pickBookableOffering } from "../../components/public-booking/pick-bookable-offering";
 import type { TalentOffering } from "../talent/offerings-types";
 
-test("host kind maps to workspace_site / own_page; hub is other (W2)", () => {
+test("host kind maps to workspace_site / own_page / hub; other kinds stay other", () => {
   assert.equal(bookingSurfaceFromHost("agency"), "workspace_site");
   assert.equal(bookingSurfaceFromHost("talent_site"), "own_page");
-  assert.equal(bookingSurfaceFromHost("hub"), "other");
+  assert.equal(bookingSurfaceFromHost("hub"), "hub");
   assert.equal(bookingSurfaceFromHost("platform"), "other");
   assert.equal(bookingSurfaceFromHost("marketing"), "other");
 });

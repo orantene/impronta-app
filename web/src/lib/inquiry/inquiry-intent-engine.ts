@@ -39,6 +39,31 @@ import {
 import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling/reservation-card";
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function hostFromAdapterContext(
+  ctx: IntentAdapterContext,
+  intent: InquiryIntent,
+): { kind: string; tenantId: string | null } {
+  const sc = isPlainObject(intent.source_context) ? intent.source_context : {};
+  const kind =
+    (typeof ctx.host_kind === "string" && ctx.host_kind) ||
+    (typeof sc.host_kind === "string" && sc.host_kind) ||
+    (intent.source === "hub_site" ? "hub" : null) ||
+    (intent.source === "public_talent_profile" ? "talent_site" : null) ||
+    "agency";
+  const tenantId =
+    (typeof ctx.host_tenant_id === "string" && ctx.host_tenant_id) ||
+    (typeof sc.host_tenant_id === "string" && sc.host_tenant_id) ||
+    ctx.source_workspace_id ||
+    ctx.tenant_id ||
+    null;
+  return { kind, tenantId };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One-shot path — no draft persistence.
@@ -101,6 +126,14 @@ export async function createInquiryFromIntent(
       .maybeSingle();
     if (!offering?.talent_profile_id) {
       return { ok: false, reason: "engine_error", error: "That service is not available." };
+    }
+    const gate = await assertTalentReservationAllowed(admin, {
+      talentProfileId: offering.talent_profile_id,
+      offeringId: incomingStamp.offering_id,
+      host: hostFromAdapterContext(ctx, intent),
+    });
+    if (!gate.ok) {
+      return { ok: false, reason: "forbidden", error: gate.error };
     }
     const hold = await placeReservationHold(admin, {
       talentProfileId: offering.talent_profile_id,

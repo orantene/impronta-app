@@ -112,7 +112,7 @@ type AgencyEmbed =
  * roster member, the agency is on an exclusive-tier plan, and the exclusivity
  * relationship hasn't been declined / isn't in its notice period.
  */
-function rowIsExclusive(
+export function rowIsExclusive(
   isPrimary: boolean,
   exclusivityStatus: string | null | undefined,
   agencies: AgencyEmbed,

@@ -90,6 +90,67 @@ function durationOrDefault(v: number | null | undefined): number {
   return Math.trunc(v);
 }
 
+export type BookingSurface = "workspace_site" | "own_page" | "hub";
+
+export type SurfaceGateInput = {
+  surface: BookingSurface;
+  tenantEnabled: boolean;
+  /** Tenant allowTalentDirectBooking OR roster.direct_booking_enabled. */
+  allowDirect: boolean;
+  talentOptIn: boolean;
+  isResource: boolean;
+  /** Confirmed exclusive primary (`rowIsExclusive`). */
+  isExclusive?: boolean | null;
+  /** This workspace_site IS the exclusive primary's own site. */
+  isExclusivePrimarySite?: boolean | null;
+  externalBookingReleased?: boolean | null;
+  /**
+   * Active + site_visible roster on this channel tenant.
+   * Undefined = not checked (keeps pre-W2 tests / callers identical).
+   */
+  rosterSiteVisible?: boolean | null;
+  /** Hub: active + hub_visibility_status=approved on the hub tenant. */
+  hubRosterOk?: boolean | null;
+  /** Result of hubMayListTalent. Undefined on hub fails closed. */
+  hubMayList?: boolean | null;
+};
+
+/**
+ * Surface-aware actor gate. `workspace_site` without the new exclusivity /
+ * roster flags reproduces the P1 actorAllowed AND-gate exactly.
+ */
+export function resolveSurfaceGate(input: SurfaceGateInput): { allowed: boolean } {
+  const labor = input.isResource || input.talentOptIn === true;
+  const exclusiveBlocksExternal =
+    input.isExclusive === true &&
+    input.isExclusivePrimarySite !== true &&
+    input.externalBookingReleased !== true;
+
+  switch (input.surface) {
+    case "workspace_site": {
+      if (!input.tenantEnabled) return { allowed: false };
+      if (!labor) return { allowed: false };
+      if (!input.isResource && !input.allowDirect) return { allowed: false };
+      if (input.rosterSiteVisible === false) return { allowed: false };
+      if (exclusiveBlocksExternal) return { allowed: false };
+      return { allowed: true };
+    }
+    case "own_page": {
+      if (!labor) return { allowed: false };
+      if (exclusiveBlocksExternal) return { allowed: false };
+      return { allowed: true };
+    }
+    case "hub": {
+      if (!input.tenantEnabled) return { allowed: false };
+      if (!labor) return { allowed: false };
+      if (input.hubRosterOk !== true) return { allowed: false };
+      if (input.hubMayList !== true) return { allowed: false };
+      if (exclusiveBlocksExternal) return { allowed: false };
+      return { allowed: true };
+    }
+  }
+}
+
 export function resolveAppointmentPolicy(input: {
   platform?: PlatformAppointmentDefaults | null;
   tenant: TenantAppointmentSettings | null;
@@ -99,6 +160,13 @@ export function resolveAppointmentPolicy(input: {
   planTier?: string | null;
   /** Per-roster-row agency gate. ORs with tenant.allowTalentDirectBooking. */
   rosterDirectBooking?: boolean | null;
+  surface?: BookingSurface | null;
+  isExclusive?: boolean | null;
+  isExclusivePrimarySite?: boolean | null;
+  externalBookingReleased?: boolean | null;
+  rosterSiteVisible?: boolean | null;
+  hubRosterOk?: boolean | null;
+  hubMayList?: boolean | null;
 }): ResolvedAppointmentPolicy {
   const platform = input.platform ?? PLATFORM_FALLBACK;
   const tenant = input.tenant;
@@ -148,8 +216,21 @@ export function resolveAppointmentPolicy(input: {
 
   // Resource profiles skip talent opt-in (no login). Person profiles need the
   // agency AND-gate (workspace fallback OR per-roster-row) and their own opt-in.
-  const actorAllowed = isResource || (allowDirect && talentOptIn);
-  const reallyEnabled = tenantEnabled && effectiveMode !== "off" && actorAllowed;
+  // Default surface is workspace_site so existing callers keep P1 behavior.
+  const actorAllowed = resolveSurfaceGate({
+    surface: input.surface ?? "workspace_site",
+    tenantEnabled,
+    allowDirect,
+    talentOptIn,
+    isResource,
+    isExclusive: input.isExclusive,
+    isExclusivePrimarySite: input.isExclusivePrimarySite,
+    externalBookingReleased: input.externalBookingReleased,
+    rosterSiteVisible: input.rosterSiteVisible,
+    hubRosterOk: input.hubRosterOk,
+    hubMayList: input.hubMayList,
+  }).allowed;
+  const reallyEnabled = actorAllowed && effectiveMode !== "off";
 
   return {
     enabled: reallyEnabled,

@@ -20,6 +20,7 @@ import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointments-settings-types";
 import { terminologyCopy } from "@/lib/scheduling/terminology";
+import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -102,6 +103,13 @@ export async function proposeReservationTimeAction(raw: {
     raw.talentProfileId ||
     (typeof offering?.talent_profile_id === "string" ? offering.talent_profile_id : null);
   if (!talentId) return { ok: false, error: "No staff member is tied to this service." };
+
+  const gate = await assertTalentReservationAllowed(admin, {
+    talentProfileId: talentId,
+    offeringId,
+    host: { kind: "agency", tenantId: staff.tenantId },
+  });
+  if (!gate.ok) return { ok: false, error: gate.error };
 
   const released = await releaseHoldsForInquiry(admin, raw.inquiryId);
   if (!released.ok) return { ok: false, error: released.error };

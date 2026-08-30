@@ -10,15 +10,15 @@ import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } fro
 import type { EngineResult } from "./inquiry-engine.types";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
-// Step 13 — post-submit notifications + auto-ack
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
 // inquiries and inquiry_participants filter on tenant_id. Inserts include
 // tenant_id so the Phase-1B triggers have no slack.
-
 async function inquiryInTenant(
   supabase: SupabaseClient,
   inquiryId: string,
@@ -243,7 +243,8 @@ export async function submitInquiry(
     if (!tenantRl.ok) {
       return { success: false, rateLimited: true, retryAfterMs: tenantRl.retryAfterMs, reason: "rate_limited" };
     }
-
+    const reservationGate = await refuseOfferingRequestIfPolicyOff(createServiceRoleClient() ?? supabase, input);
+    if (reservationGate) return { success: false, ...reservationGate };
     // Permission gate. Guest path (null actorUserId) skips the user-
     // based permission check by design — the public storefront IS
     // by-design accessible to anyone. Spam protection lives in the

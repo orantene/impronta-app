@@ -22,7 +22,7 @@ import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
@@ -262,11 +262,16 @@ export async function submitInquiryNowAction(
     guestActivation = provisioned.status;
   }
 
+  const host = await getPublicHostContext();
   const result = await createInquiryFromIntent(ctx.writeClient, intent, {
     tenant_id: ctx.tenantId,
     actor_user_id: ctx.actorUserId,
     client_user_id: clientUserId,
     guest_session_id: ctx.guestSessionId,
+    host_kind: host.kind,
+    host_tenant_id: host.tenantId,
+    origin_domain: host.hostname,
+    source_workspace_id: host.tenantId ?? ctx.tenantId,
   });
 
   // T4 — attachments NO LONGER ride this action's body.
