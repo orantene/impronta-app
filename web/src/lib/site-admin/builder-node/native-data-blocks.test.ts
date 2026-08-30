@@ -24,7 +24,7 @@ import {
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { validateBuilderNodeTree } from "./validate";
 import { SHIPPED_ELEMENT_INSERT_KINDS } from "./mvp-allow-list";
-import { collectNativeDataBlockNeeds } from "@/components/home/homepage-cms-data-sources";
+import { collectNativeDataBlockNeeds } from "./native-data-block-needs";
 import {
   deriveTalentDisciplines,
   deriveWorkspaceMenuOfferings,
