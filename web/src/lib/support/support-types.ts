@@ -64,7 +64,9 @@ export type SupportTicketRow = {
   escalationReason: SupportEscalationReason | null;
   assigneeUserId: string | null;
   contactEmail: string | null;
+  contactName: string | null;
   contactPhone: string | null;
+  guestLastReadAt: string | null;
   callbackRequested: boolean;
   callbackPref: SupportCallbackPref | null;
   lastMessageAt: string;
@@ -182,7 +184,9 @@ export function mapTicketRow(raw: unknown): SupportTicketRow | null {
     escalationReason: (str(row, "escalation_reason") as SupportEscalationReason | null) ?? null,
     assigneeUserId: str(row, "assignee_user_id"),
     contactEmail: str(row, "contact_email"),
+    contactName: str(row, "contact_name"),
     contactPhone: str(row, "contact_phone"),
+    guestLastReadAt: str(row, "guest_last_read_at"),
     callbackRequested: row.callback_requested === true,
     callbackPref: (str(row, "callback_pref") as SupportCallbackPref | null) ?? null,
     lastMessageAt: str(row, "last_message_at") ?? new Date().toISOString(),

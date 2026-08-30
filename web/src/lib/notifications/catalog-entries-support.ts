@@ -12,7 +12,8 @@ import FeatureRequestAlert from "../../../emails/support/FeatureRequestAlert";
 import FeatureRequestUpdate from "../../../emails/support/FeatureRequestUpdate";
 import WeeklyDigest from "../../../emails/support/WeeklyDigest";
 import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent } from "./types";
-import { eventUser, platformAdmins, str } from "./catalog-audiences";
+import { eventGuestContact, eventUser, platformAdmins, str } from "./catalog-audiences";
+import { supportRequesterReplyPath } from "@/lib/support/support-reply-path";
 import { appPageUrl, pageUrl } from "./catalog-render";
 
 const SUPPORT_TICKET_DRAWER = "support-ticket";
@@ -42,8 +43,10 @@ async function hydrateSupportLinks(
     tenantSlug = tenantSlug ?? data?.slug ?? null;
     tenantName = typeof data?.display_name === "string" ? data.display_name : null;
   }
-  let replyPath = `/talent?support=${ticketId}`;
-  if (surface === "client") {
+  let replyPath = supportRequesterReplyPath(surface, ticketId);
+  if (surface === "guest") {
+    replyPath = supportRequesterReplyPath("guest", ticketId);
+  } else if (surface === "client") {
     replyPath = tenantSlug ? `/${tenantSlug}/client?support=${ticketId}` : `/client?support=${ticketId}`;
   } else if (surface === "workspace") {
     replyPath = tenantSlug ? `/${tenantSlug}/admin?support=${ticketId}` : `/admin?support=${ticketId}`;
@@ -182,6 +185,30 @@ const AGENT_REPLY: CatalogEntry = {
   },
 };
 
+const AGENT_REPLY_GUEST: CatalogEntry = {
+  id: "support.message.agent.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.message.agent.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.message.agent",
+    subject: (event) =>
+      `Oran replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(AgentReply, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
 const TICKET_RESOLVED: CatalogEntry = {
   id: "support.ticket.resolved.requester",
   category: "messages",
@@ -207,6 +234,54 @@ const TICKET_RESOLVED: CatalogEntry = {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
         replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const TICKET_RESOLVED_GUEST: CatalogEntry = {
+  id: "support.ticket.resolved.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.ticket.resolved.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.ticket.resolved",
+    subject: (event) =>
+      `Resolved: ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(TicketResolved, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const GUEST_CONTACT_CONFIRM: CatalogEntry = {
+  id: "support.guest.contact.confirm",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.guest.contact.confirm"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.message.agent",
+    subject: (event) =>
+      `We saved your email for ticket #${num(event, "ticketNumber")}`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(AgentReply, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "your question",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -358,6 +433,54 @@ const WEEKLY_DIGEST: CatalogEntry = {
   },
 };
 
+const AUTOCLOSE_GUEST: CatalogEntry = {
+  id: "support.ticket.autoclose.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.ticket.autoclose.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.ticket.autoclose",
+    subject: (event) => `Still need help on #${num(event, "ticketNumber")}?`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(AutoCloseWarning, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const TICKET_FIXED_GUEST: CatalogEntry = {
+  id: "support.ticket.fixed.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.ticket.fixed.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.ticket.fixed",
+    subject: (event) =>
+      `The issue you reported is fixed [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(TicketFixed, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        note: str(event.payload.note) ?? undefined,
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
 const FEATURE_REQUEST_CREATED: CatalogEntry = {
   id: "support.feature_request.created.platform",
   category: "platform_alerts",
@@ -434,10 +557,15 @@ export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   TICKET_CREATED,
   TICKET_ESCALATED,
   AGENT_REPLY,
+  AGENT_REPLY_GUEST,
   TICKET_RESOLVED,
+  TICKET_RESOLVED_GUEST,
+  GUEST_CONTACT_CONFIRM,
   REQUESTER_REPLY_WATCH,
   AUTOCLOSE,
+  AUTOCLOSE_GUEST,
   PROPOSED_EXPIRED,
   TICKET_FIXED,
+  TICKET_FIXED_GUEST,
   WEEKLY_DIGEST,
 ];

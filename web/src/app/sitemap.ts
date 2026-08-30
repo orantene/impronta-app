@@ -148,6 +148,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/faq",
       // The human support promise page. One path, both locales.
       "/support",
+      // Platform contact form. Single slug; /contact and /es/contact both serve.
+      // Do not add to SPANISH_NAMED_MARKETING_PATHS.
+      "/contact",
       // Company page (who runs Tulala, how support works). Serves EN at /about
       // and Spanish at /es/about, like the rest of this list.
       "/about",

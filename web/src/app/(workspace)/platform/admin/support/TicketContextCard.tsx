@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportTicketRow } from "@/lib/support/support-types";
+import { guestHasNoReplyChannel } from "@/lib/support/support-hq-presentation";
 
 function waHref(phone: string): string | null {
   const digits = phone.replace(/[^\d+]/g, "");
@@ -63,6 +64,27 @@ export function TicketContextCard({
         <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 4 }}>
           {ticket.surface} {context.requesterEmail ? `· ${context.requesterEmail}` : ""}
         </div>
+        {ticket.surface === "guest" && ticket.requesterUserId ? (
+          <div style={{ fontSize: 11, color: HQ.green, marginTop: 4 }}>
+            {t("dashboard.platform.support.guestClaimed")}
+          </div>
+        ) : null}
+        {guestHasNoReplyChannel(ticket) ? (
+          <div
+            style={{
+              marginTop: 8,
+              padding: "6px 8px",
+              borderRadius: 6,
+              background: "rgba(194,106,69,0.18)",
+              color: "#C26A45",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+            }}
+          >
+            {t("dashboard.platform.support.noReplyChannel")}
+          </div>
+        ) : null}
         {context.requesterCreatedAt ? (
           <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4, fontFamily: HQ_F }}>
             {t("dashboard.platform.support.memberSince")} {context.requesterCreatedAt.slice(0, 10)}
@@ -88,10 +110,30 @@ export function TicketContextCard({
         ) : (
           <div style={{ fontSize: 12, color: HQ.inkDim }}>{t("dashboard.platform.support.noPhone")}</div>
         )}
+        {ticket.contactEmail ? (
+          <div style={{ fontSize: 13, color: HQ.ink, marginTop: 6 }}>{ticket.contactEmail}</div>
+        ) : null}
         {ticket.callbackRequested ? (
           <div style={{ color: "#C26A45", fontSize: 12, marginTop: 8 }}>
             {t("dashboard.platform.support.callbackRequested")}
             {ticket.callbackPref ? ` · ${ticket.callbackPref}` : ""}
+          </div>
+        ) : null}
+        {ticket.surface === "guest" ? (
+          <div style={{ marginTop: 10, fontSize: 12, color: HQ.inkMuted }}>
+            {ticket.originSurfaceSlug ? (
+              <div>
+                {t("dashboard.platform.support.guestOrigin")} {ticket.originSurfaceSlug}
+              </div>
+            ) : null}
+            {typeof ticket.metadata.locale === "string" ? (
+              <div>{t("dashboard.platform.support.locale")} {ticket.metadata.locale}</div>
+            ) : null}
+            {typeof ticket.metadata.lead_id === "string" ? (
+              <div>
+                {t("dashboard.platform.support.guestMatchedLead")} {ticket.metadata.lead_id}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>

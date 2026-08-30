@@ -67,6 +67,14 @@ export default async function UnsubscribePage({
 
   const masked = maskEmail(recipient.email);
   const label = info.label.toLowerCase();
+  const isGuest = recipient.userId === null;
+  const confirmBody = isGuest
+    ? masked
+      ? `We'll stop sending support emails to ${masked}. This does not affect emails about an account you create later.`
+      : `We'll stop sending support emails to this address. This does not affect emails about an account you create later.`
+    : masked
+      ? `We'll stop sending ${label} emails to ${masked}. You can turn them back on any time from your notification settings.`
+      : `We'll stop sending ${label} emails. You can turn them back on any time from your notification settings.`;
 
   return (
     <Shell>
@@ -74,11 +82,7 @@ export default async function UnsubscribePage({
         tone="neutral"
         glyph="✉"
         title={`Unsubscribe from ${label}?`}
-        body={
-          masked
-            ? `We'll stop sending ${label} emails to ${masked}. You can turn them back on any time from your notification settings.`
-            : `We'll stop sending ${label} emails. You can turn them back on any time from your notification settings.`
-        }
+        body={confirmBody}
       >
         <form action={confirmUnsubscribeAction} style={{ width: "100%" }}>
           <input type="hidden" name="token" value={token} />

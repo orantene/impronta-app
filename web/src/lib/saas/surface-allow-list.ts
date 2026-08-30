@@ -644,8 +644,12 @@ const MARKETING_PAGE_PREFIXES = [
   // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
   "/agencia-de-talento",
   // Brand entity + trust page — what Tulala is, what it believes, what it
-  // builds, who it's for. Also the only contact surface (no /contact page).
+  // builds, who it's for.
   "/about",
+  // Platform contact form. Host-dispatched inside (public)/contact — marketing
+  // hosts get the guest ticket form; agency/hub hosts keep the tenant form
+  // and must 404 this prefix here so they never reach the marketing action.
+  "/contact",
   // "Contratar modelos" landing page — Spanish-first demand-side hire page
   // for models, the one category the directory has real supply for today.
   // Single page, no sub-routes.

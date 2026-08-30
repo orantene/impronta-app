@@ -22,6 +22,7 @@ import {
   isSupabaseAuthCookie,
 } from "@/lib/supabase/cookie-domain";
 import { NextResponse } from "next/server";
+import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -75,6 +76,7 @@ export async function GET(request: Request) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (user) await claimGuestSupportOnAuth(user.id);
 
       // Talent-intent promotion for OAuth signups (e.g. Google via the talent
       // register modal). Email signups pass signup_intent in metadata and the

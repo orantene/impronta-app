@@ -9,6 +9,8 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
+import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
+import { verifiedEmailForGuestClaim } from "@/lib/support/guest-claim-email";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -75,24 +77,48 @@ export async function mergeGuestActivity(
   // matches `guest_sessions.session_key` (null when unsigned/forged). Degrades
   // to the raw value when GUEST_COOKIE_SECRET is unset (legacy behavior).
   const sessionKey = verifyGuestCookie(cookieStore.get(GUEST_COOKIE)?.value);
-  if (!sessionKey) {
-    return {
-      ok: true,
-      data: {
-        mergedSavedCount: 0,
-        mergedInquiryCount: 0,
-        mergedFavoritesCount,
-      },
-    };
+
+  // SECURITY (guest→account claim): relink inquiries ONLY when the inquiry's
+  // contact_email matches the AUTHENTICATED account's CONFIRMED email. We pass
+  // p_verified_email only when auth.email_confirmed_at is set; otherwise we pass
+  // '' so the RPC falls through to favorites-only (no inquiry relink). Under
+  // enable_confirmations=false signup auto-confirms, so this is a no-op today —
+  // but it future-proofs the gate for when confirmations get enabled, instead of
+  // trusting an unconfirmed account email. See migration
+  // 20261017091500_merge_guest_inquiries_email_gated.sql.
+  // Copied verbatim for support ticket Sweep B (guest-claim.ts).
+  let verifiedEmail = "";
+  const admin = createServiceRoleClient();
+  if (admin && user.email) {
+    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+    if (authErr) {
+      logServerError("client/mergeGuestActivity/emailConfirm", authErr);
+    } else {
+      verifiedEmail =
+        verifiedEmailForGuestClaim({
+          email: user.email,
+          emailConfirmedAt: authUser?.user?.email_confirmed_at,
+        }) ?? "";
+    }
   }
 
-  const { data: guestSession } = await supabase
-    .from("guest_sessions")
-    .select("id")
-    .eq("session_key", sessionKey)
-    .maybeSingle();
+  let guestSessionId: string | null = null;
+  if (sessionKey) {
+    const { data: guestSession } = await supabase
+      .from("guest_sessions")
+      .select("id")
+      .eq("session_key", sessionKey)
+      .maybeSingle();
+    guestSessionId = guestSession?.id ?? null;
+  }
 
-  if (!guestSession?.id) {
+  try {
+    await claimGuestSupportOnAuth(user.id);
+  } catch (err) {
+    logServerError("client/mergeGuestActivity/supportClaim", err);
+  }
+
+  if (!sessionKey || !guestSessionId) {
     return {
       ok: true,
       data: {
@@ -107,32 +133,13 @@ export async function mergeGuestActivity(
     supabase
       .from("saved_talent")
       .select("talent_profile_id", { count: "exact", head: true })
-      .eq("guest_session_id", guestSession.id),
+      .eq("guest_session_id", guestSessionId),
     supabase
       .from("inquiries")
       .select("id", { count: "exact", head: true })
-      .eq("guest_session_id", guestSession.id)
+      .eq("guest_session_id", guestSessionId)
       .is("client_user_id", null),
   ]);
-
-  // SECURITY (guest→account claim): relink inquiries ONLY when the inquiry's
-  // contact_email matches the AUTHENTICATED account's CONFIRMED email. We pass
-  // p_verified_email only when auth.email_confirmed_at is set; otherwise we pass
-  // '' so the RPC falls through to favorites-only (no inquiry relink). Under
-  // enable_confirmations=false signup auto-confirms, so this is a no-op today —
-  // but it future-proofs the gate for when confirmations get enabled, instead of
-  // trusting an unconfirmed account email. See migration
-  // 20261017091500_merge_guest_inquiries_email_gated.sql.
-  let verifiedEmail = "";
-  const admin = createServiceRoleClient();
-  if (admin && user.email) {
-    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
-    if (authErr) {
-      logServerError("client/mergeGuestActivity/emailConfirm", authErr);
-    } else if (authUser?.user?.email_confirmed_at) {
-      verifiedEmail = user.email;
-    }
-  }
   await supabase.rpc("merge_guest_session_to_client", {
     p_session_key: sessionKey,
     p_client_profile_id: user.id,

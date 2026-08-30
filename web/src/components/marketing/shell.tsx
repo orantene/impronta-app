@@ -10,6 +10,7 @@ import { MarketingHeader } from "./header";
 import type { MarketingAccount } from "./marketing-account-menu";
 import { MarketingFooter } from "./footer";
 import { MarketingModalHost } from "./marketing-modal-host";
+import { MarketingSupportLauncherMount } from "./support/MarketingSupportLauncherMount";
 
 /**
  * The outer layout for every platform marketing surface (homepage + sub-pages).
@@ -95,6 +96,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       />
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
+      <MarketingSupportLauncherMount />
       <MarketingModalHost locale={locale} />
     </div>
   );

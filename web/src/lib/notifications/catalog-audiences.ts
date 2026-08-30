@@ -535,6 +535,26 @@ export const eventUser =
   };
 
 /**
+ * Email-only guest on the event payload (contactEmail). Used by guest
+ * support so a ticket with requester_user_id = null still reaches inbox.
+ * Never add an in_app block on entries that use this resolver.
+ */
+export const eventGuestContact =
+  (role: AudienceMember["role"] = "guest") =>
+  async (event: NotificationEvent): Promise<AudienceMember[]> => {
+    const email = str(event.payload.contactEmail);
+    if (!email) return [];
+    return [
+      {
+        kind: "guest",
+        email,
+        displayName: str(event.payload.contactName),
+        role,
+      },
+    ];
+  };
+
+/**
  * Hydrate a one-line preview of the message behind a `message.new` event so the
  * digest summary reads as the actual message, not a generic "you have a new
  * message". The engine event only carries `{ threadType, messageId }`; we look

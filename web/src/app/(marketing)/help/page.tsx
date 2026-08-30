@@ -176,13 +176,13 @@ export default async function HelpIndexPage() {
               style={{ fontSize: "0.9375rem", lineHeight: 1.65, color: "var(--plt-ink-soft)" }}
             >
               <strong style={{ color: "var(--plt-ink)" }}>{t.humanTitle}</strong> {t.humanBody}{" "}
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
+              <Link
+                href={withLocaleHref("/contact", locale)}
                 className="underline underline-offset-2"
                 style={{ color: "var(--plt-forest)" }}
               >
                 {SUPPORT_EMAIL}
-              </a>
+              </Link>
               {t.humanTail}{" "}
               <Link
                 href={withLocaleHref("/support", locale)}

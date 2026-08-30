@@ -20,60 +20,17 @@ import {
   type SupportEscalationReason,
   type SupportMessageRow,
 } from "@/lib/support/support-types";
+import {
+  SUPPORT_CHAT_FAIL_OPEN_BODY,
+  SUPPORT_CHAT_REASONS,
+  SUPPORT_CHAT_SCHEMA,
+  parseSupportChatModel,
+} from "@/lib/support/support-chat-shared";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
-const SUPPORT_CHAT_SCHEMA = {
-  name: "support_first_responder",
-  strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "answer",
-      "confidence",
-      "suggested_subject",
-      "category",
-      "tags",
-      "sentiment",
-      "escalate",
-      "escalate_reason",
-    ],
-    properties: {
-      answer: { type: "string" },
-      confidence: { type: "number" },
-      suggested_subject: { type: "string" },
-      category: { type: "string" },
-      tags: { type: "array", items: { type: "string" } },
-      sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
-      escalate: { type: "boolean" },
-      escalate_reason: {
-        type: "string",
-        enum: [
-          "",
-          "user_requested",
-          "ai_low_confidence",
-          "ai_sentiment",
-          "ai_suggested",
-          "ai_unavailable",
-        ],
-      },
-    },
-  },
-} as const;
-
-// Reasons the MODEL may claim. staff_initiated / user_requested are
-// deliberately excluded — those are asserted by real actors, never by
-// model output (a loose provider response must not forge attribution).
-const REASONS = new Set<SupportEscalationReason>([
-  "ai_low_confidence",
-  "ai_sentiment",
-  "ai_suggested",
-  "ai_unavailable",
-]);
-
-const FAIL_OPEN_BODY =
-  "I'm having trouble right now. Want me to get Oran?";
+const REASONS = SUPPORT_CHAT_REASONS;
+const FAIL_OPEN_BODY = SUPPORT_CHAT_FAIL_OPEN_BODY;
 
 const SYSTEM_PROMPT = [
   "You are Tulala's in-app support assistant.",
@@ -85,38 +42,7 @@ const SYSTEM_PROMPT = [
   "Entries labeled past confirmed resolution are owner-confirmed prior fixes.",
 ].join(" ");
 
-type ModelOut = {
-  answer: string;
-  confidence: number;
-  suggested_subject: string;
-  category: string;
-  tags: string[];
-  sentiment: "positive" | "neutral" | "negative";
-  escalate: boolean;
-  escalate_reason: string;
-};
-
-function parseModel(text: string): ModelOut | null {
-  try {
-    const raw = JSON.parse(text) as Record<string, unknown>;
-    const sentiment = raw.sentiment;
-    if (sentiment !== "positive" && sentiment !== "neutral" && sentiment !== "negative") {
-      return null;
-    }
-    return {
-      answer: typeof raw.answer === "string" ? raw.answer : "",
-      confidence: typeof raw.confidence === "number" ? raw.confidence : 0,
-      suggested_subject: typeof raw.suggested_subject === "string" ? raw.suggested_subject : "",
-      category: typeof raw.category === "string" ? raw.category : "",
-      tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === "string") : [],
-      sentiment,
-      escalate: raw.escalate === true,
-      escalate_reason: typeof raw.escalate_reason === "string" ? raw.escalate_reason : "",
-    };
-  } catch {
-    return null;
-  }
-}
+const parseModel = parseSupportChatModel;
 
 async function failOpen(ticketId: string): Promise<void> {
   await supportEngine.appendMessage({

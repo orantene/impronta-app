@@ -12,6 +12,10 @@ import {
   getUnsubscribeToken,
 } from "../unsubscribe";
 import {
+  getGuestUnsubscribeToken,
+  isGuestEmailUnsubscribed,
+} from "../guest-unsubscribe";
+import {
   loadTemplateOverrides,
   getTemplateOverride,
   interpolateOverride,
@@ -65,6 +69,16 @@ export async function sendEmailNotification(
       unsubscribeUrl = buildUnsubscribeUrl(token, entry.category);
       // RFC 8058 one-click: the header points at the API POST endpoint while
       // the footer link (unsubscribeUrl) points at the confirm page.
+      headers = {
+        "List-Unsubscribe": `<${buildUnsubscribeApiUrl(token, entry.category)}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      };
+    }
+  } else if (!entry.required && !recipient.userId && recipient.email) {
+    if (await isGuestEmailUnsubscribed(ctx.admin, recipient.email)) return null;
+    const token = await getGuestUnsubscribeToken(ctx.admin, recipient.email);
+    if (token) {
+      unsubscribeUrl = buildUnsubscribeUrl(token, entry.category);
       headers = {
         "List-Unsubscribe": `<${buildUnsubscribeApiUrl(token, entry.category)}>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

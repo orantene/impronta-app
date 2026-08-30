@@ -357,6 +357,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/directory",
     "/agencia-de-talento",
     "/about",
+    "/contact",
     "/contratar-modelos",
     // Website-tier landing pair (EN + Spanish-first sibling).
     "/websites",
@@ -396,7 +397,6 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/talent",
     "/onboarding/role",
     "/models",
-    "/contact",
     "/api/directory",
     "/api/ai/search",
     "/api/admin/search",
@@ -436,6 +436,7 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
     "/funciones",
     "/funciones/citas-y-reservas",
     "/docs",
+    "/contact",
   ];
   for (const p of marketingPages) {
     assert.equal(isPathAllowedForHostKind("agency", p), false, `agency must 404 ${p}`);

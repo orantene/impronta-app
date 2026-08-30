@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "./support-from";
+import { hqQueueRequesterEmail } from "./support-hq-presentation";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -107,8 +108,8 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
         planTier: tenant?.plan_tier ?? null,
-        requesterName: profile?.display_name ?? null,
-        requesterEmail: null,
+        requesterName: profile?.display_name ?? ticket.contactName ?? null,
+        requesterEmail: hqQueueRequesterEmail(ticket),
       };
     });
   } catch (err) {
@@ -152,6 +153,13 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
     const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
 
     let pastTickets: SupportTicketSummary[] = [];
+    const pastById = new Map<string, SupportTicketRow>();
+    const ingestPast = (rows: unknown[] | null) => {
+      for (const raw of rows ?? []) {
+        const row = mapTicketRow(raw);
+        if (row && row.id !== ticket.id) pastById.set(row.id, row);
+      }
+    };
     if (ticket.requesterUserId) {
       const { data: past } = await supportFrom(admin, "support_tickets")
         .select("*")
@@ -159,7 +167,30 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         .neq("id", ticket.id)
         .order("last_message_at", { ascending: false })
         .limit(8);
-      pastTickets = ((past ?? []).map(mapTicketRow).filter(Boolean) as SupportTicketRow[]).map((row) => ({
+      ingestPast(past ?? []);
+    }
+    if (ticket.guestSessionId) {
+      const { data: past } = await supportFrom(admin, "support_tickets")
+        .select("*")
+        .eq("guest_session_id", ticket.guestSessionId)
+        .neq("id", ticket.id)
+        .order("last_message_at", { ascending: false })
+        .limit(8);
+      ingestPast(past ?? []);
+    }
+    if (ticket.contactEmail) {
+      const { data: past } = await supportFrom(admin, "support_tickets")
+        .select("*")
+        .ilike("contact_email", ticket.contactEmail)
+        .neq("id", ticket.id)
+        .order("last_message_at", { ascending: false })
+        .limit(8);
+      ingestPast(past ?? []);
+    }
+    pastTickets = [...pastById.values()]
+      .sort((a, b) => Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt))
+      .slice(0, 8)
+      .map((row) => ({
         id: row.id,
         ticketNumber: row.ticketNumber,
         subject: row.subject,
@@ -172,7 +203,6 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         requesterUserId: row.requesterUserId,
         surface: row.surface,
       }));
-    }
 
     let auditEvents: HqTicketContext["auditEvents"] = [];
     if (ticket.tenantId) {
@@ -205,8 +235,12 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
         planTier: tenant?.plan_tier ?? null,
-        requesterName: profile?.display_name ?? null,
-        requesterEmail: null,
+        requesterName: profile?.display_name ?? ticket.contactName ?? null,
+        requesterEmail:
+          ticket.contactEmail ??
+          (ticket.requesterUserId
+            ? ((await admin.auth.admin.getUserById(ticket.requesterUserId)).data.user?.email ?? null)
+            : null),
         requesterCreatedAt: profile?.created_at ?? null,
         pastTickets,
         auditEvents,
