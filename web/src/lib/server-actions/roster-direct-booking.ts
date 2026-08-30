@@ -14,8 +14,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { userHasCapability } from "@/lib/access";
 import { rowIsExclusive } from "@/lib/inquiry/owning-party-resolver";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { EXCLUSIVE_RELEASE_DENIED } from "@/lib/scheduling/exclusive-release-gate";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
@@ -62,6 +64,7 @@ type LoadResult =
       rosterRowId: string;
       exclusiveReleased: boolean;
       showExclusiveRelease: boolean;
+      canRelease: boolean;
     }
   | { ok: false; error: string };
 
@@ -92,12 +95,14 @@ export async function loadRosterDirectBooking(talentProfileId: string): Promise<
 
   const row = data as RosterGateRow;
   const planTier = await loadTenantPlanTier(auth.supabase, auth.tenantId);
+  const canRelease = await userHasCapability("manage_agency_settings", auth.tenantId);
   return {
     ok: true,
     enabled: row.direct_booking_enabled === true,
     rosterRowId: row.id,
     exclusiveReleased: row.external_booking_released === true,
     showExclusiveRelease: exclusivePrimary(row, planTier),
+    canRelease,
   };
 }
 
@@ -154,8 +159,10 @@ export async function setRosterExternalBookingReleased(
   talentProfileId: string,
   released: boolean,
 ): Promise<ReleaseResult> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
+  const auth = await requireWorkspaceStaffAction({
+    capability: "manage_agency_settings",
+  });
+  if (!auth.ok) return { ok: false, error: EXCLUSIVE_RELEASE_DENIED };
   const parsed = schema.safeParse({ talentProfileId, enabled: released });
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
