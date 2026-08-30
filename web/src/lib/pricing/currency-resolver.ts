@@ -5,8 +5,12 @@
  * Priority order (highest wins):
  *   1. ?currency=XXX URL param (transient explicit override)
  *   2. tulala-currency cookie  (sticky explicit override set by picker)
- *   3. x-vercel-ip-country header → COUNTRY_TO_CURRENCY map
- *   4. USD fallback
+ *   3. USD fallback
+ *
+ * IP-country is intentionally not a source. Guessing MXN from
+ * `x-vercel-ip-country` labeled the footer "Showing prices in MXN" while
+ * `get-active-prices` fell back to USD amounts. The chip lied. Marketing
+ * is USD unless the visitor picks otherwise.
  *
  * The cookie is set by the client-side CurrencyPicker when the user
  * picks an explicit currency; setting it from this resolver isn't
@@ -18,20 +22,9 @@
  */
 
 import "server-only";
-import { cookies, headers } from "next/headers";
-import {
-  normalizeDefaultCurrency,
-  type DefaultCurrencyCode,
-} from "@/lib/billing/currencies";
-import { currencyForCountry } from "./country-currency-map";
-
-/**
- * Public marketing default. The per-actor `DEFAULT_CURRENCY_FALLBACK`
- * (EUR) is for logged-in workspace settings, not anonymous visitors —
- * USD is the right fallback for unauthenticated marketing browsers and
- * also the only currency guaranteed to have a row in `product_prices`.
- */
-const MARKETING_FALLBACK: DefaultCurrencyCode = "USD";
+import { cookies } from "next/headers";
+import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
+import { pickMarketingCurrency } from "./pick-marketing-currency";
 
 /** Cookie name the picker sets. Read here and only here. */
 export const CURRENCY_COOKIE = "tulala-currency";
@@ -39,8 +32,7 @@ export const CURRENCY_COOKIE = "tulala-currency";
 export type CurrencyResolution = {
   currency: DefaultCurrencyCode;
   source: "url-param" | "cookie" | "ip-country" | "fallback";
-  /** Raw `x-vercel-ip-country` value, lowercased. Useful for debug + the
-   *  picker UI (so users see why they're getting MXN). */
+  /** Kept for the picker chip. Always null now that we do not guess from IP. */
   country: string | null;
 };
 
@@ -55,31 +47,12 @@ export type CurrencyResolution = {
 export async function resolveCurrency(
   searchParams: Record<string, string | string[] | undefined> | null,
 ): Promise<CurrencyResolution> {
-  // 1. URL param
   const urlRaw = searchParams?.["currency"];
   const urlString = Array.isArray(urlRaw) ? urlRaw[0] : urlRaw;
-  const urlCurrency = normalizeDefaultCurrency(urlString);
-  if (urlCurrency) {
-    return { currency: urlCurrency, source: "url-param", country: null };
-  }
-
-  // 2. Cookie
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(CURRENCY_COOKIE)?.value;
-  const cookieCurrency = normalizeDefaultCurrency(cookieValue);
-  if (cookieCurrency) {
-    return { currency: cookieCurrency, source: "cookie", country: null };
-  }
-
-  // 3. IP-country header (Vercel-provided in production; missing locally)
-  const headerStore = await headers();
-  const countryRaw = headerStore.get("x-vercel-ip-country");
-  const country = countryRaw ? countryRaw.toLowerCase() : null;
-  const ipCurrency = currencyForCountry(country);
-  if (ipCurrency) {
-    return { currency: ipCurrency, source: "ip-country", country };
-  }
-
-  // 4. Fallback
-  return { currency: MARKETING_FALLBACK, source: "fallback", country };
+  const picked = pickMarketingCurrency({
+    urlCurrency: urlString,
+    cookieCurrency: cookieStore.get(CURRENCY_COOKIE)?.value,
+  });
+  return { ...picked, country: null };
 }
