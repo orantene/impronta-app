@@ -99,8 +99,13 @@ export function MarketingSupportPanel({
 
   useEffect(() => {
     if (!ticketId || signedIn || ticket?.contactEmail) return;
-    const hasAi = messages.some((m) => m.authorKind === "ai");
-    if (hasAi && !askedRef.current) {
+    // Ask for email after the first machine reply — AI answer OR fail-open /
+    // escalation system cards. Otherwise a skipped model leaves the guest
+    // with Oran but no way to leave an inbox for the reply.
+    const hasMachineReply = messages.some(
+      (m) => m.authorKind === "ai" || m.authorKind === "system",
+    );
+    if (hasMachineReply && !askedRef.current) {
       askedRef.current = true;
       void appendGuestContactCardAction({ ticketId });
       void loadThread(ticketId);

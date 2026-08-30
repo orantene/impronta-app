@@ -68,6 +68,13 @@ test("guest AI fetch path is allow-listed on the marketing host", () => {
   assert.match(allow, /MARKETING_API_PREFIXES/);
 });
 
+test("contact card is offered after AI or system fail-open replies", () => {
+  const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
+  assert.match(panel, /hasMachineReply/);
+  assert.match(panel, /authorKind === "system"/);
+  assert.match(panel, /appendGuestContactCardAction/);
+});
+
 test("guest support path never reads GUEST_CHAT_CAPTCHA_WIDGET_READY", () => {
   for (const file of files) {
     const src = readFileSync(file, "utf8");
