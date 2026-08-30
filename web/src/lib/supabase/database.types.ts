@@ -15991,6 +15991,242 @@ export type Database = {
           },
         ]
       }
+      tulala_brief_facts: {
+        Row: {
+          brief_id: string
+          confidence: number
+          created_at: string
+          fact_key: string
+          fact_value: Json
+          id: string
+          question_id: string | null
+          question_version: number | null
+          source: string
+          source_excerpt: string | null
+          source_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brief_id: string
+          confidence?: number
+          created_at?: string
+          fact_key: string
+          fact_value: Json
+          id?: string
+          question_id?: string | null
+          question_version?: number | null
+          source: string
+          source_excerpt?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brief_id?: string
+          confidence?: number
+          created_at?: string
+          fact_key?: string
+          fact_value?: Json
+          id?: string
+          question_id?: string | null
+          question_version?: number | null
+          source?: string
+          source_excerpt?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tulala_brief_facts_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "tulala_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tulala_brief_upgrade_triggers: {
+        Row: {
+          brief_id: string
+          created_at: string
+          dismissed_at: string | null
+          fired_at: string | null
+          id: string
+          rationale: string | null
+          target_package: string
+          target_tier: string
+          trigger_key: string
+        }
+        Insert: {
+          brief_id: string
+          created_at?: string
+          dismissed_at?: string | null
+          fired_at?: string | null
+          id?: string
+          rationale?: string | null
+          target_package: string
+          target_tier: string
+          trigger_key: string
+        }
+        Update: {
+          brief_id?: string
+          created_at?: string
+          dismissed_at?: string | null
+          fired_at?: string | null
+          id?: string
+          rationale?: string | null
+          target_package?: string
+          target_tier?: string
+          trigger_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tulala_brief_upgrade_triggers_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "tulala_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tulala_brief_versions: {
+        Row: {
+          brief_id: string
+          created_at: string
+          created_by: string | null
+          engine_version: string | null
+          id: string
+          reason: string
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          brief_id: string
+          created_at?: string
+          created_by?: string | null
+          engine_version?: string | null
+          id?: string
+          reason?: string
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          brief_id?: string
+          created_at?: string
+          created_by?: string | null
+          engine_version?: string | null
+          id?: string
+          reason?: string
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tulala_brief_versions_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "tulala_briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_brief_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tulala_briefs: {
+        Row: {
+          created_at: string
+          current_version: number
+          engine_version: string | null
+          guest_session_id: string | null
+          id: string
+          locale: string
+          profile_id: string | null
+          signup_lead_id: string | null
+          status: string
+          talent_profile_id: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_version?: number
+          engine_version?: string | null
+          guest_session_id?: string | null
+          id?: string
+          locale?: string
+          profile_id?: string | null
+          signup_lead_id?: string | null
+          status?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_version?: number
+          engine_version?: string | null
+          guest_session_id?: string | null
+          id?: string
+          locale?: string
+          profile_id?: string | null
+          signup_lead_id?: string | null
+          status?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tulala_briefs_guest_session_id_fkey"
+            columns: ["guest_session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_briefs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_briefs_signup_lead_id_fkey"
+            columns: ["signup_lead_id"]
+            isOneToOne: false
+            referencedRelation: "saas_marketing_signups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_briefs_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_briefs_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tulala_briefs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_admin_notes: {
         Row: {
           author_user_id: string | null
@@ -17079,6 +17315,10 @@ export type Database = {
       claim_talent_profile: {
         Args: { p_email?: string; p_invitation_id: string }
         Returns: Json
+      }
+      claim_tulala_brief_for_user: {
+        Args: { p_profile_id: string; p_session_key: string }
+        Returns: string
       }
       cms_page_revisions_trim: {
         Args: { p_keep?: number; p_page_id: string; p_tenant_id: string }

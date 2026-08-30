@@ -21,6 +21,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
+import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
 
 export type AuthActionState = { error?: string; message?: string } | void;
@@ -166,6 +167,7 @@ export async function signInWithEmail(
 
   if (user) {
     await claimGuestSupportOnAuth(user.id);
+    await claimTulalaBriefOnAuth(supabase, user.id);
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({
@@ -238,6 +240,7 @@ export async function signInWithEmailModal(
 
   if (data.user) {
     await claimGuestSupportOnAuth(data.user.id);
+    await claimTulalaBriefOnAuth(supabase, data.user.id);
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({
@@ -297,7 +300,10 @@ export async function signUpWithEmail(
   }
 
   if (data.user) {
-    if (data.session) await claimGuestSupportOnAuth(data.user.id);
+    if (data.session) {
+      await claimGuestSupportOnAuth(data.user.id);
+      await claimTulalaBriefOnAuth(supabase, data.user.id);
+    }
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({
@@ -389,7 +395,10 @@ export async function signUpTalentInPlace(
   }
 
   if (data.user) {
-    if (data.session) await claimGuestSupportOnAuth(data.user.id);
+    if (data.session) {
+      await claimGuestSupportOnAuth(data.user.id);
+      await claimTulalaBriefOnAuth(supabase, data.user.id);
+    }
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({

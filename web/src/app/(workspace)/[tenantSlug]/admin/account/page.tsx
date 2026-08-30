@@ -22,6 +22,7 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import { BriefCard } from "./BriefCard";
 import { CurrencyPicker } from "./CurrencyPicker";
 import {
   createStaffPayoutAccountAction,
@@ -755,6 +756,14 @@ export default async function WorkspaceAccountPage({
             ) : null}
           </div>
         ) : null}
+      </section>
+
+      <section>
+        <SectionHead>{t("admin.account.briefSection")}</SectionHead>
+        <BriefCard
+          blurb={t("admin.account.briefBlurb")}
+          linkLabel={t("admin.account.briefLink")}
+        />
       </section>
     </div>
   );

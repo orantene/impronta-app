@@ -1,0 +1,67 @@
+/**
+ * Chrome for /account/brief.
+ *
+ * Scoped to `brief/` rather than to `/account`, because `/account/page.tsx` is a
+ * server redirect and wrapping it in a theme provider would be layout that never
+ * paints.
+ *
+ * `data-platform-surface="marketing"` is what activates `.plt-display` and
+ * `.plt-mono` — those utilities are surface-scoped in globals.css, so without
+ * this attribute the page renders in the default sans and looks like a different
+ * product.
+ */
+
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+  title: "Your brief",
+};
+
+export default function BriefLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="site-theme-platform flex min-h-full flex-1 flex-col"
+      data-platform-surface="marketing"
+      style={{ background: "var(--plt-bg)" }}
+    >
+      <header
+        className="sticky top-0 z-30 backdrop-blur-xl"
+        style={{
+          background: "color-mix(in srgb, var(--plt-bg) 88%, transparent)",
+          borderBottom: "1px solid var(--plt-hairline)",
+        }}
+      >
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-8">
+          <Link
+            href="/"
+            aria-label="Tulala home"
+            className="inline-flex items-baseline leading-none"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            <span
+              className="plt-display"
+              style={{ fontWeight: 700, letterSpacing: "-0.045em", fontSize: "1.375rem" }}
+            >
+              tulala
+            </span>
+            <span
+              style={{ color: "var(--plt-forest)", fontSize: "1.375rem", fontWeight: 700 }}
+            >
+              .
+            </span>
+          </Link>
+          <Link
+            href="/account"
+            className="text-[0.8125rem] font-medium leading-none transition-colors hover:text-[var(--plt-ink)]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            Back to account
+          </Link>
+        </div>
+      </header>
+      <main className="flex-1">{children}</main>
+    </div>
+  );
+}

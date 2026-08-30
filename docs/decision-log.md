@@ -4,6 +4,89 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-08-30 — Tulala Agent foundations: derived identity, and the Brief
+
+**L50 — Identity is derived from which objects exist. No permanent user-type field may be added.**
+
+- **The rule:** whether someone is talent, a business, or both is a
+  *computed view* over `talent_profiles`, `agency_memberships` and
+  `agency_talent_roster` — never a stored enum on the login. Hybrid is
+  the observable fact that a user owns both a Talent Profile and a
+  Workspace. Workspace-only is equally valid: a studio owner needs no
+  fake Talent Profile of his own. Encoded in
+  `web/src/lib/tulala/structure-model.ts` (`deriveStructure`).
+- **`app_role` is demoted, not deleted.** It appears in 70+ files and
+  removing it is a migration program, not a phase of this feature. The
+  demotion path: stop writing any *new* identity meaning into it, derive
+  all structure decisions from object existence, keep capability checks
+  on membership + capability per L10, and reduce its routing role to a
+  default that `profiles.home_surface_preference` overrides.
+- **`profiles.home_surface_preference`** is the one new column, and it is
+  a *preference*, not a type: it says which dashboard you want to land
+  on, and carries no authorization meaning. `user_prefs.preferred_surface`
+  was the same concept in a second place, so it is backfilled and
+  deprecated rather than left to drift.
+- **The `/admin` root is now a resolver, not a staff gate.** A talent who
+  owns a workspace has `app_role='talent'` and previously failed
+  `isStaffRole` at the middleware, locking her out of the workspace she
+  owns. The root path is now reachable by any authenticated actor and
+  redirects on actual membership; deeper `/admin/*` paths stay staff-gated.
+- **The laws** (a Talent is always a person; a logo never replaces a name;
+  employment never disqualifies talent; side work alone is not a business)
+  live in `web/src/lib/tulala/laws.ts` as a pure tested module, so they
+  cannot drift into prompt text where nothing enforces them.
+
+**L51 — The Tulala Brief is a first-class object with per-fact provenance. One giant JSON is rejected.**
+
+- **Four tables, not a blob:** `tulala_briefs` (container),
+  `tulala_brief_facts` (one row per fact, carrying `source`,
+  `confidence` and `status`), `tulala_brief_versions` (immutable
+  snapshots, following the `agency_business_identity_revisions`
+  precedent), `tulala_brief_upgrade_triggers` (the condition that would
+  make a paid plan genuinely correct later).
+- **Provenance is the point.** A fact the model guessed and a fact the
+  user stated must stay distinguishable forever, or "fill every field you
+  can" becomes "the AI quietly invented my business". A model may
+  propose; only a human confirms (L20). Enforced three ways: a CHECK
+  constraint, `resolveIncomingStatus`, and there being no write path that
+  skips both — all four tables REVOKE write from `anon` and
+  `authenticated`, so `brief-store.server.ts` is the only writer.
+- **`url_import` counts as inference, not testimony.** A heading scraped
+  off someone's homepage is a good guess about their business name, not a
+  statement they made to us, so it lands `needs_approval` like any other
+  guess.
+- **Conversation is evidence and is not persisted.** Only facts, their
+  provenance, and approved snapshots are stored, keeping
+  `docs/ai-data-retention.md` intact.
+- **The fact vocabulary is versioned data, not a DB enum.**
+  `fact_key` is unconstrained TEXT because the industry packs exist to
+  add keys and a CHECK would make "ask nail artists one more question" a
+  migration. `isKnownFactKey` is the mitigation and every writer calls it.
+- **Restore is not re-stating.** A guess that was pending approval in v2
+  is still pending approval after restoring v2, or "restore" would
+  launder every unapproved inference into a confirmed one.
+- **Settings surface at `/account/brief`,** not inside a workspace: a
+  brief belongs to a person, and a hybrid has one brief describing both
+  sides. "Reset AI understanding" is deliberately separate from "start
+  over" — a user who feels the AI has the wrong idea about her needs a
+  button that is obviously safe to press.
+
+**Paths:**
+`web/src/lib/tulala/{structure-model,laws,fact-keys,brief-store}.ts`,
+`web/src/lib/tulala/{structure-model,brief-store}.server.ts`,
+`web/src/app/account/brief/*`, `web/src/app/onboarding/home/*`,
+`web/src/lib/auth-flow.ts`, `web/src/lib/auth-routing.ts`,
+`supabase/migrations/20261226000007_home_surface_preference.sql`,
+`supabase/migrations/20261226000008_home_surface_preference_consolidate.sql`,
+`supabase/migrations/20261226000009_tulala_brief.sql`.
+
+**Backward compatible:** Yes. `app_role` routing is unchanged for anyone
+with no `home_surface_preference` set; the Brief tables are additive.
+
+**Migration:** `20261226000007`, `20261226000008`, `20261226000009`.
+
+---
+
 ## 2026-05-26 — Talent tax docs v1 (on-demand HTML income summary)
 
 **L47 — Tax docs v1 = on-demand HTML income summary from `loadTalentEarnings`, platform earnings only.**

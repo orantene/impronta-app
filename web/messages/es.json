@@ -12691,6 +12691,9 @@
     "account": {
       "title": "Cuenta y facturación",
       "workspaceSettings": "Configuración del espacio →",
+      "briefSection": "Tulala AI",
+      "briefBlurb": "Lo que Tulala entiende sobre tu trabajo y de dónde salió cada dato. Todo se puede editar, y lo que la IA deduzca por su cuenta queda como suposición hasta que lo confirmes.",
+      "briefLink": "Abrir tu brief",
       "planSection": "Plan",
       "currentPlan": "Plan actual",
       "billingStatus": "Estado de facturación",

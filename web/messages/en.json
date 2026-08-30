@@ -12691,6 +12691,9 @@
     "account": {
       "title": "Account & billing",
       "workspaceSettings": "Workspace settings →",
+      "briefSection": "Tulala AI",
+      "briefBlurb": "What Tulala understands about your work, and where each piece came from. Everything is editable, and anything the AI worked out itself stays a guess until you confirm it.",
+      "briefLink": "Open your brief",
       "planSection": "Plan",
       "currentPlan": "Current plan",
       "billingStatus": "Billing status",
