@@ -32,6 +32,7 @@ export type WorkspacePage =
   | "overview"
   | "messages"   // replaces inbox + absorbs work as a "By stage" view filter
   | "calendar"
+  | "menu"
   | "roster"     // replaces talent
   | "clients"
   | "operations" // WS-19/20: analytics + workflow automation

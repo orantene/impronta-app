@@ -97,6 +97,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     split: "layout",
     nav: "layout",
     social_links: "utility",
+    menu_board: "actions",
     carousel: "layout",
     masonry: "layout",
     accordion: "structure",
@@ -160,6 +161,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     icon: "svg symbol pictogram check star heart arrow sparkle",
     pricing_table: "pricing plans tiers packages features check marks conversion",
     rich_text: "body copy rich text bold italic inline links markdown",
+  menu_board: "menu orderable items quantities checkout restaurant catering workspace menu",
     form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
@@ -224,6 +226,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // rather than as bare pills in the generic element list, so they stay OUT of
     // MVP_ELEMENT_LIBRARY_KINDS and only need to survive the shipped filter.
     "hero_search",
+    "menu_board",
     "talent_type_grid",
   ]),
 ];

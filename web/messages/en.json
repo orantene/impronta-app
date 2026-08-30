@@ -4061,6 +4061,7 @@
       "viewDay": "Day",
       "holdLabel": "Hold",
       "bookingLabel": "Booking",
+      "orderLabel": "Orders",
       "noEventsDay": "Nothing scheduled this day."
     },
     "adminWork": {
@@ -12115,6 +12116,11 @@
       "ideaArea_billing": "Billing and payouts",
       "ideaArea_media": "Media and files",
       "ideaArea_reporting": "Reporting"
+    },
+    "adminMenu": {
+      "title": "Menu",
+      "subtitle": "Workspace-owned items customers can order from your site.",
+      "noTenant": "No active workspace."
     }
   },
   "admin": {

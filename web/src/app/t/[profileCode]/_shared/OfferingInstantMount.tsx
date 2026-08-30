@@ -130,6 +130,15 @@ export function OfferingInstantMount({
     setBusy(true);
     setError(null);
     try {
+      if (!d.talentProfileId) {
+        setError(
+          pickLocale(locale, {
+            en: "This item cannot be booked from a talent profile.",
+            es: "Este articulo no se puede reservar desde un perfil de talento.",
+          }),
+        );
+        return;
+      }
       const res = await createInstantBookingAction({
         talentProfileId: d.talentProfileId,
         tenantId,

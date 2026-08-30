@@ -1530,6 +1530,71 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  // ── menu_board (workspace-owned orderable menu) ───────────────────────────
+  if (node.kind === "menu_board") {
+    const menu = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="title"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={menu.title ?? ""}
+              ariaLabel="Menu title"
+              className={KIT.input}
+              placeholder="Menu"
+              onCommitBase={(next) =>
+                commitTextInput("title", menu.title ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Subtitle</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="subtitle"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={menu.subtitle ?? ""}
+              ariaLabel="Menu subtitle"
+              className={KIT.textarea}
+              placeholder="Order from our kitchen"
+              onCommitBase={(next) =>
+                commitTextInput("subtitle", menu.subtitle ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Empty message</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="emptyMessage"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={menu.emptyMessage ?? ""}
+              ariaLabel="Menu empty message"
+              className={KIT.textarea}
+              placeholder="No menu items published yet."
+              onCommitBase={(next) =>
+                commitTextInput("emptyMessage", menu.emptyMessage ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+        <p className="text-xs text-black/55 px-1">
+          Items come from the workspace Menu page (published, workspace-owned). Quantities and the order form render on the live site.
+        </p>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── talent_type_grid (WS7 Phase 0 native data block) ──────────────────────
   // Dynamic mode is the default and the point: the cards come from the tenant's
   // own roster taxonomy. Manual mode keeps the authored-card path available.
@@ -4676,6 +4741,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.statSource === "tenant_talent_count"
         ? "Search hero · live talent count"
         : "Search hero";
+    case "menu_board":
+      return "Menu · orderable items";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

@@ -31,6 +31,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   // discipline grid), so like `section_embed` they belong at the page root as
   // well as inside a layout shell.
   "hero_search",
+  "menu_board",
   "talent_type_grid",
 ]);
 

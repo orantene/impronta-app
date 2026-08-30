@@ -1,4 +1,5 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { makeId } from "@/lib/site-admin/builder-node/create";
 import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection } from "@/lib/site-admin/builder-node/featured-talent-freeform";
 import { buildLocationDiscoveryDecomposedSection } from "@/lib/site-admin/builder-node/location-discovery-freeform";
@@ -373,6 +374,61 @@ function buildServicesList(): BuilderNode {
   ]);
 }
 
+/** Decorative static menu — no menu_board, no live data. */
+function buildMenuDisplay(): BuilderNode {
+  const item = (
+    name: string,
+    price: string,
+    nameLabel: string,
+    priceLabel: string,
+  ): BuilderNode =>
+    tplContainer(
+      [
+        {
+          id: makeId("heading"),
+          kind: "heading",
+          props: {
+            text: name,
+            level: 3,
+            layerLabel: nameLabel,
+            style: { align: "left" },
+          },
+        },
+        tplLabeledParagraph(price, priceLabel, { align: "right" }),
+      ],
+      {
+        layerLabel: `${nameLabel} Row`,
+        layout: "row",
+        gap: "m",
+        align: "center",
+        style: { justifyContent: "space-between", width: "100%" },
+      },
+    );
+
+  return tplSection("Menu Display Section", [
+    tplContentColumnLeft([
+      tplTitle("Menu", 2, { align: "left" }),
+      tplDescription("A hand-set display of tonight's dishes.", "Description", {
+        align: "left",
+      }),
+      tplContainer(
+        [
+          item("Lamb shoulder a la braise", "$42", "Menu Item 1", "Item Price 1"),
+          item("Hand-rolled pasta, cacio e pepe", "$28", "Menu Item 2", "Item Price 2"),
+          item("Tuna crudo", "$24", "Menu Item 3", "Item Price 3"),
+          item("Bitter greens salad", "$18", "Menu Item 4", "Item Price 4"),
+        ],
+        {
+          layerLabel: "Menu List",
+          layout: "stack",
+          gap: "s",
+          align: "stretch",
+        },
+      ),
+    ]),
+  ]);
+}
+
 function buildGalleryGrid(): BuilderNode {
   return tplSection("Gallery Grid Section", [
     tplContentColumn([
@@ -640,6 +696,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "story-house": buildStoryHouse,
   services: buildServicesGrid,
   "services-list": buildServicesList,
+  "menu-display": buildMenuDisplay,
   gallery: buildGalleryGrid,
   "gallery-strip": buildGalleryStrip,
   "featured-talent-wrapper": buildFeaturedTalentWrapper,

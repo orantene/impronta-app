@@ -181,6 +181,19 @@ const DESIGN_KEYWORD_CUES: Record<string, ReadonlyArray<string>> = {
     "editions",
     "goods",
   ],
+  "store-orderable": [
+    "store",
+    "shop",
+    "retail",
+    "catalogue",
+    "catalog",
+    "order",
+    "orderable",
+    "menu board",
+    "products",
+    "goods",
+    "checkout",
+  ],
   // Live music + performance. DJ sets, concerts, bands, tours, nightlife — the
   // cinematic poster/lineup page. Musicians and singers route here (a single
   // performer page) rather than falling through to the business default.
@@ -280,6 +293,20 @@ const DESIGN_KEYWORD_CUES: Record<string, ReadonlyArray<string>> = {
     "patisserie",
     "sommelier",
     "wine",
+  ],
+  "restaurant-orderable": [
+    "restaurant",
+    "restaurants",
+    "menu",
+    "menus",
+    "order",
+    "orderable",
+    "menu board",
+    "food",
+    "dining",
+    "chef",
+    "catering",
+    "kitchen",
   ],
   conference: [
     "conference",

@@ -18,10 +18,12 @@ import { editorialDesign } from "./editorial";
 import { agencyDesign } from "./agency";
 import { saasDesign } from "./saas";
 import { storeDesign } from "./store";
+import { storeOrderableDesign } from "./store-orderable";
 import { festivalDesign } from "./festival";
 import { studioDesign } from "./studio";
 import { noirDesign } from "./noir";
 import { restaurantDesign } from "./restaurant";
+import { restaurantOrderableDesign } from "./restaurant-orderable";
 import { conferenceDesign } from "./conference";
 import { coachDesign } from "./coach";
 
@@ -40,10 +42,12 @@ export {
   agencyDesign,
   saasDesign,
   storeDesign,
+  storeOrderableDesign,
   festivalDesign,
   studioDesign,
   noirDesign,
   restaurantDesign,
+  restaurantOrderableDesign,
   conferenceDesign,
   coachDesign,
 };
@@ -55,10 +59,12 @@ export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
   agencyDesign,
   saasDesign,
   storeDesign,
+  storeOrderableDesign,
   festivalDesign,
   studioDesign,
   noirDesign,
   restaurantDesign,
+  restaurantOrderableDesign,
   conferenceDesign,
   coachDesign,
 ];

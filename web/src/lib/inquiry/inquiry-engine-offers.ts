@@ -194,6 +194,11 @@ async function ensureClientParticipant(
  * Previously the offer editor let you price a talent who wasn't on the lineup,
  * producing a silently un-bookable offer. This upserts each line-item talent as
  * an active talent participant (idempotent) so a priced offer is always bookable.
+ *
+ * Menu / house lane: also upserts one `role='house'` participant per distinct
+ * owner_tenant_id so engine_load_commission_context has a participant key.
+ * Do NOT early-return when there are zero talent ids — a pure menu offer still
+ * needs the house row.
  */
 async function ensureOfferTalentsOnLineup(
   supabase: SupabaseClient,
@@ -204,17 +209,24 @@ async function ensureOfferTalentsOnLineup(
 ): Promise<void> {
   const { data: lines } = await supabase
     .from("inquiry_offer_line_items")
-    .select("talent_profile_id")
+    .select("talent_profile_id, owner_tenant_id")
     .eq("offer_id", offerId)
     .eq("tenant_id", tenantId);
+  const typedLines = (lines ?? []) as {
+    talent_profile_id: string | null;
+    owner_tenant_id: string | null;
+  }[];
   const talentIds = [
     ...new Set(
-      ((lines ?? []) as { talent_profile_id: string | null }[])
-        .map((l) => l.talent_profile_id)
-        .filter((x): x is string => !!x),
+      typedLines.map((l) => l.talent_profile_id).filter((x): x is string => !!x),
     ),
   ];
-  if (talentIds.length === 0) return;
+  const houseOwnerIds = [
+    ...new Set(
+      typedLines.map((l) => l.owner_tenant_id).filter((x): x is string => !!x),
+    ),
+  ];
+  if (talentIds.length === 0 && houseOwnerIds.length === 0) return;
 
   // M5.6 flipped inquiry_participants.requirement_group_id to NOT NULL. Resolve
   // the inquiry's default group (first by sort_order, then created_at) and, if
@@ -283,6 +295,41 @@ async function ensureOfferTalentsOnLineup(
       requirement_group_id: requirementGroupId,
     });
     if (error) logServerError("inquiry-engine-offers.ensureOfferTalentsOnLineup", error);
+  }
+
+  for (const ownerTenantId of houseOwnerIds) {
+    const { data: existingHouse } = await supabase
+      .from("inquiry_participants")
+      .select("id")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .eq("role", "house")
+      .eq("owning_party_id", ownerTenantId)
+      .maybeSingle();
+    if (existingHouse) continue;
+    const { data: maxSort } = await supabase
+      .from("inquiry_participants")
+      .select("sort_order")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSort = ((maxSort?.sort_order as number | null) ?? -1) + 1;
+    const { error } = await supabase.from("inquiry_participants").insert({
+      inquiry_id: inquiryId,
+      tenant_id: tenantId,
+      user_id: null,
+      talent_profile_id: null,
+      role: "house",
+      status: "active",
+      sort_order: nextSort,
+      added_by_user_id: actorUserId,
+      requirement_group_id: requirementGroupId,
+      owning_party_type: "workspace",
+      owning_party_id: ownerTenantId,
+    });
+    if (error) logServerError("inquiry-engine-offers.ensureOfferHouseOnLineup", error);
   }
 }
 
@@ -722,6 +769,8 @@ const PRICING_UNITS = new Set([
 
 export type OfferLineDraft = {
   talent_profile_id: string | null;
+  /** Workspace payee for house/menu lines. XOR with talent_profile_id. */
+  owner_tenant_id?: string | null;
   label: string | null;
   pricing_unit:
     | "hour" | "day" | "week" | "event"
@@ -811,13 +860,27 @@ export async function updateOfferDraft(
       if (!PRICING_UNITS.has(line.pricing_unit)) {
         return { success: false, error: "invalid_pricing_unit" };
       }
-      // A3: every priced line must name a talent. A null/empty talent_profile_id
-      // orphans the line from the commission snapshot (resolved per participant)
-      // and from the lineup sync below, so the client would be charged for a line
-      // that pays no one. Reject at draft (DB CHECK backstops this — see
-      // 20261029000000_line_item_talent_required.sql).
-      if (!line.talent_profile_id || String(line.talent_profile_id).trim() === "") {
-        return { success: false, error: "line_item_talent_required" };
+      // Every priced line must name exactly one payee: talent XOR workspace.
+      // Both would double-count in the commission context; neither orphans the
+      // charge. DB CHECK inquiry_offer_line_items_owner_xor backstops this.
+      const talentId = line.talent_profile_id?.trim() || null;
+      const ownerTenantId = line.owner_tenant_id?.trim() || null;
+      const hasTalent = !!talentId;
+      const hasOwner = !!ownerTenantId;
+      if (hasTalent === hasOwner) {
+        // Both or neither.
+        return {
+          success: false,
+          error: hasTalent ? "line_item_owner_conflict" : "line_item_payee_required",
+        };
+      }
+      if (hasOwner && ownerTenantId !== ctx.tenantId) {
+        // Client-supplied foreign owner id in the money spine is a cross-tenant
+        // payout hole. Force the inquiry's tenant.
+        return { success: false, error: "line_item_owner_tenant_mismatch" };
+      }
+      if (hasOwner && Number(line.talent_cost) !== 0) {
+        return { success: false, error: "house_line_talent_cost_must_be_zero" };
       }
     }
 
@@ -828,16 +891,20 @@ export async function updateOfferDraft(
       .eq("tenant_id", ctx.tenantId);
 
     for (const line of ctx.lineItems) {
+      const talentId = line.talent_profile_id?.trim() || null;
+      const ownerTenantId = line.owner_tenant_id?.trim() || null;
       const { error: liErr } = await supabase.from("inquiry_offer_line_items").insert({
         offer_id: ctx.offerId,
         tenant_id: ctx.tenantId,
-        talent_profile_id: line.talent_profile_id,
+        talent_profile_id: talentId,
+        owner_tenant_id: ownerTenantId,
         label: line.label,
         pricing_unit: line.pricing_unit,
         units: line.units,
         unit_price: line.unit_price,
         total_price: line.total_price,
-        talent_cost: line.talent_cost,
+        // House lines: force 0 even if a caller slips a non-zero through.
+        talent_cost: ownerTenantId ? 0 : line.talent_cost,
         notes: line.notes,
         sort_order: line.sort_order,
         source_service_id: line.source_service_id ?? null, // S18 audit stamp

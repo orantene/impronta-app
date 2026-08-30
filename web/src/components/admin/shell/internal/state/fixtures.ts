@@ -24,6 +24,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
   "messages",
   "calendar",
+  "menu",
   "roster",
   "clients",
   "pitches",   // Phase 9 — pitch history surface.
@@ -254,6 +255,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   overview:  { label: "Overview",  icon: "home",     description: "Today's snapshot: unread, pending actions, recent activity" },
   messages:  { label: "Messages",  icon: "mail",     description: "All threads across active inquiries and bookings" },
   calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },
+  menu:      { label: "Menu",      icon: "layers",   description: "Workspace-owned items customers can order from your site" },
   roster:    { label: "Roster",    icon: "users",    description: "Your talent, availability, and performance" },
   clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
   operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },

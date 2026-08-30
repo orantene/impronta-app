@@ -27,6 +27,12 @@ import {
   importLegacyToOfferings,
   setOfferingImages,
 } from "@/lib/talent/offerings-actions";
+import {
+  loadWorkspaceMenuForEditor,
+  upsertWorkspaceMenuItem,
+  deleteWorkspaceMenuItem,
+  reorderWorkspaceMenuItems,
+} from "@/lib/talent/menu-offerings-actions";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
@@ -36,6 +42,7 @@ import {
   validateOffering,
   type TalentOffering,
   type OfferingKind,
+  type OfferingOwner,
   type OfferingReserveMode,
   type OfferingVariant,
   type OfferingAddOn,
@@ -172,6 +179,8 @@ function OfferingForm({
   saving: boolean;
   defaultCurrency: string;
   talentId: string;
+  /** When false, hide photo/options that require a talent profile id. */
+  allowTalentMedia?: boolean;
   onSaveDraft?: () => void;
   onCancelDraft?: () => void;
   /** Local-state updater after an image attach/remove (join rows, not the row). */
@@ -190,6 +199,11 @@ function OfferingForm({
   const assets = value.imageAssets ?? [];
   async function uploadPhoto(file: File) {
     if (!value.id) return; // drafts save first
+    const talentProfileId = value.talentProfileId;
+    if (!talentProfileId) {
+      setUploadError("Photos for workspace menu items are not available yet.");
+      return;
+    }
     setUploading(true);
     setUploadError(null);
     try {
@@ -202,7 +216,7 @@ function OfferingForm({
       const fast = await uploadTalentMedia({
         file,
         variantKind: "gallery",
-        talentProfileId: value.talentProfileId,
+        talentProfileId,
       });
       if (fast.ok) {
         up = { ok: true, data: { id: fast.id, publicUrl: fast.publicUrl } };
@@ -211,14 +225,14 @@ function OfferingForm({
       } else {
         const fd = new FormData();
         fd.set("file", file);
-        up = await actionUploadAndAssignMedia(fd, value.talentProfileId, "gallery");
+        up = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery");
       }
       if (!up.ok) {
         setUploadError(up.error);
         return;
       }
       const next = [...assets, { id: up.data.id, url: up.data.publicUrl }];
-      const res = await setOfferingImages(value.talentProfileId, value.id, next.map((a) => a.id));
+      const res = await setOfferingImages(talentProfileId, value.id, next.map((a) => a.id));
       if (!res.ok) {
         setUploadError(res.error ?? "Failed to attach the photo.");
         return;
@@ -230,11 +244,13 @@ function OfferingForm({
   }
   async function removePhoto(assetId: string) {
     if (!value.id) return;
+    const talentProfileId = value.talentProfileId;
+    if (!talentProfileId) return;
     setUploading(true);
     setUploadError(null);
     try {
       const next = assets.filter((a) => a.id !== assetId);
-      const res = await setOfferingImages(value.talentProfileId, value.id, next.map((a) => a.id));
+      const res = await setOfferingImages(talentProfileId, value.id, next.map((a) => a.id));
       if (!res.ok) {
         setUploadError(res.error ?? "Failed to remove the photo.");
         return;
@@ -668,7 +684,17 @@ function OfferingForm({
   );
 }
 
-export function TalentOfferingsManager({ talentId }: { talentId: string }) {
+export function TalentOfferingsManager(
+  props: { talentId: string; owner?: never } | { owner: OfferingOwner; talentId?: never },
+) {
+  const owner: OfferingOwner =
+    "owner" in props && props.owner
+      ? props.owner
+      : { kind: "talent", talentProfileId: (props as { talentId: string }).talentId };
+  const isWorkspace = owner.kind === "workspace";
+  const talentId = owner.kind === "talent" ? owner.talentProfileId : "";
+  const workspaceTenantId = owner.kind === "workspace" ? owner.tenantId : "";
+
   const [items, setItems] = useState<TalentOffering[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [legacyImportable, setLegacyImportable] = useState(false);
@@ -686,13 +712,16 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    loadTalentOfferingsForEditor(talentId)
+    const load = isWorkspace
+      ? loadWorkspaceMenuForEditor(workspaceTenantId)
+      : loadTalentOfferingsForEditor(talentId);
+    load
       .then((res) => {
         if (cancelled) return;
         if (res.ok) {
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
-          setLegacyImportable(res.legacyImportable);
+          setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
         } else {
           setError(res.error);
         }
@@ -704,9 +733,10 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [isWorkspace, talentId, workspaceTenantId]);
 
   useEffect(() => {
+    if (isWorkspace) return;
     let cancelled = false;
     loadTalentServicePerformance(talentId)
       .then((res) => {
@@ -716,11 +746,24 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [isWorkspace, talentId]);
 
   function flashSaved() {
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 1800);
+  }
+
+  async function upsertOne(next: TalentOffering) {
+    if (isWorkspace) return upsertWorkspaceMenuItem(workspaceTenantId, next);
+    return upsertTalentOffering(talentId, next);
+  }
+  async function deleteOne(id: string) {
+    if (isWorkspace) return deleteWorkspaceMenuItem(workspaceTenantId, id);
+    return deleteTalentOffering(talentId, id);
+  }
+  async function reorderAll(ids: string[]) {
+    if (isWorkspace) return reorderWorkspaceMenuItems(workspaceTenantId, ids);
+    return reorderTalentOfferings(talentId, ids);
   }
 
   /** Persist one item (existing id) with optimistic replace + rollback. */
@@ -730,7 +773,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     setSaving(true);
     setError(null);
     startTransition(async () => {
-      const res = await upsertTalentOffering(talentId, next);
+      const res = await upsertOne(next);
       setSaving(false);
       if (res.ok) {
         setItems((cur) => cur.map((it) => (it.id === res.item.id ? res.item : it)));
@@ -758,7 +801,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     setSaving(true);
     setError(null);
     startTransition(async () => {
-      const res = await upsertTalentOffering(talentId, draft);
+      const res = await upsertOne(draft);
       setSaving(false);
       if (res.ok) {
         setItems((cur) => [...cur, res.item]);
@@ -776,7 +819,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     setItems(items.filter((it) => it.id !== id));
     setSaving(true);
     startTransition(async () => {
-      const res = await deleteTalentOffering(talentId, id);
+      const res = await deleteOne(id);
       setSaving(false);
       if (!res.ok) {
         setItems(previous);
@@ -797,7 +840,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     setItems(reindexed);
     setSaving(true);
     startTransition(async () => {
-      const res = await reorderTalentOfferings(talentId, reindexed.map((it) => it.id));
+      const res = await reorderAll(reindexed.map((it) => it.id));
       setSaving(false);
       if (!res.ok) setError(res.error ?? "Failed to reorder.");
       else flashSaved();
@@ -807,7 +850,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
   function duplicate(it: TalentOffering) {
     setSaving(true);
     startTransition(async () => {
-      const res = await upsertTalentOffering(talentId, {
+      const res = await upsertOne({
         ...it,
         id: "",
         title: `${it.title} (copy)`,
@@ -824,7 +867,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
   }
 
   function startAdd(starter?: (typeof STARTERS)[number]) {
-    const b = blankOffering(talentId, defaultCurrency, items.length);
+    const b = blankOffering(owner, defaultCurrency, items.length);
     if (starter) {
       b.title = starter.title === "Custom quote" ? "" : starter.title;
       b.priceType = starter.priceType === "custom" ? "flat_package" : starter.priceType;
@@ -836,6 +879,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
   }
 
   function importLegacy() {
+    if (isWorkspace) return;
     setSaving(true);
     setError(null);
     startTransition(async () => {
@@ -860,9 +904,13 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 4 }}>
         <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Your services</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>
+            {isWorkspace ? "Menu" : "Your services"}
+          </div>
           <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 3, lineHeight: 1.5 }}>
-            What clients can book or buy from your page. You choose per service how they book — send an inquiry first, or reserve instantly.
+            {isWorkspace
+              ? "What customers can order from your site. Each item belongs to the workspace, not to a person on the roster."
+              : "What clients can book or buy from your page. You choose per service how they book — send an inquiry first, or reserve instantly."}
           </div>
         </div>
         {items.length > 0 && (
@@ -872,7 +920,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
             onClick={() => startAdd()}
             style={{ padding: "9px 14px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: "pointer", flexShrink: 0 }}
           >
-            + Add a service
+            {isWorkspace ? "+ Add a menu item" : "+ Add a service"}
           </button>
         )}
       </div>
@@ -880,9 +928,13 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
       {/* Empty state */}
       {items.length === 0 && !draft && (
         <div style={{ marginTop: 14, padding: "22px 18px", borderRadius: 12, background: C.surface, border: `1px dashed ${C.border}`, textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Show people what they can book</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>
+            {isWorkspace ? "Build your menu" : "Show people what they can book"}
+          </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted, margin: "6px auto 14px", maxWidth: 380, lineHeight: 1.5 }}>
-            Add your first service — it takes about twenty seconds. Nothing shows publicly until you save it.
+            {isWorkspace
+              ? "Add your first menu item. It will only appear on your site once you publish it."
+              : "Add your first service — it takes about twenty seconds. Nothing shows publicly until you save it."}
           </div>
           <button
             type="button"
@@ -890,7 +942,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
             onClick={() => startAdd()}
             style={{ padding: "10px 16px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
           >
-            + Add your first service
+            {isWorkspace ? "+ Add your first menu item" : "+ Add your first service"}
           </button>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 14 }}>
             {STARTERS.map((s) => (
@@ -899,7 +951,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
               </button>
             ))}
           </div>
-          {legacyImportable && (
+          {legacyImportable && !isWorkspace && (
             <div style={{ marginTop: 16 }}>
               <button
                 type="button"

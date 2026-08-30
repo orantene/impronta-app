@@ -40,7 +40,8 @@ import {
  *  `engine_load_commission_context`. */
 interface ParticipantContext {
   participant_id: string;
-  talent_profile_id: string;
+  /** Null for house (workspace menu) participants. */
+  talent_profile_id: string | null;
   owning_party_type: "agency" | "workspace" | "talent";
   owning_party_id: string;
   /** NULL when owning_party_type='talent' (independent). */

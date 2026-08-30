@@ -637,6 +637,7 @@ export type Database = {
           call_sheet_updated_at: string | null
           call_sheet_updated_by_user_id: string | null
           cancelled_reason: string | null
+          calendar_lane: string | null
           client_account_id: string | null
           client_account_name: string | null
           client_account_type: string | null
@@ -706,6 +707,7 @@ export type Database = {
           balance_collection_method?: string | null
           balance_due_at?: string | null
           booking_sub_type?: string
+          calendar_lane?: string | null
           call_sheet_payload?: Json | null
           call_sheet_updated_at?: string | null
           call_sheet_updated_by_user_id?: string | null
@@ -779,6 +781,7 @@ export type Database = {
           balance_collection_method?: string | null
           balance_due_at?: string | null
           booking_sub_type?: string
+          calendar_lane?: string | null
           call_sheet_payload?: Json | null
           call_sheet_updated_at?: string | null
           call_sheet_updated_by_user_id?: string | null
@@ -7071,6 +7074,7 @@ export type Database = {
           label: string | null
           notes: string | null
           offer_id: string
+          owner_tenant_id: string | null
           pricing_unit: Database["public"]["Enums"]["pricing_unit"]
           sort_order: number
           source_service_id: string | null
@@ -7087,6 +7091,7 @@ export type Database = {
           label?: string | null
           notes?: string | null
           offer_id: string
+          owner_tenant_id?: string | null
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
           sort_order?: number
           source_service_id?: string | null
@@ -7103,6 +7108,7 @@ export type Database = {
           label?: string | null
           notes?: string | null
           offer_id?: string
+          owner_tenant_id?: string | null
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
           sort_order?: number
           source_service_id?: string | null
@@ -7119,6 +7125,13 @@ export type Database = {
             columns: ["offer_id"]
             isOneToOne: false
             referencedRelation: "inquiry_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inquiry_offer_line_items_owner_tenant_id_fkey"
+            columns: ["owner_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
           {
@@ -12802,13 +12815,14 @@ export type Database = {
           is_featured: boolean
           kind: string
           moderation_state: string
+          owner_kind: string
           price_display: string
           price_type: string
           require_account_to_book: boolean
           reserve_mode: string
           sort_order: number
           status: string
-          talent_profile_id: string
+          talent_profile_id: string | null
           tenant_id: string | null
           title: string
           title_i18n: Json | null
@@ -12834,13 +12848,14 @@ export type Database = {
           is_featured?: boolean
           kind?: string
           moderation_state?: string
+          owner_kind?: string
           price_display?: string
           price_type?: string
           require_account_to_book?: boolean
           reserve_mode?: string
           sort_order?: number
           status?: string
-          talent_profile_id: string
+          talent_profile_id?: string | null
           tenant_id?: string | null
           title: string
           title_i18n?: Json | null
@@ -12866,13 +12881,14 @@ export type Database = {
           is_featured?: boolean
           kind?: string
           moderation_state?: string
+          owner_kind?: string
           price_display?: string
           price_type?: string
           require_account_to_book?: boolean
           reserve_mode?: string
           sort_order?: number
           status?: string
-          talent_profile_id?: string
+          talent_profile_id?: string | null
           tenant_id?: string | null
           title?: string
           title_i18n?: Json | null
@@ -17902,7 +17918,7 @@ export type Database = {
         | "superseded"
         | "invalidated"
         | "expired"
-      inquiry_participant_role: "client" | "coordinator" | "talent"
+      inquiry_participant_role: "client" | "coordinator" | "talent" | "house"
       inquiry_participant_status: "invited" | "active" | "declined" | "removed"
       inquiry_source_channel:
         | "directory_guest"
@@ -18238,7 +18254,7 @@ export const Constants = {
         "invalidated",
         "expired",
       ],
-      inquiry_participant_role: ["client", "coordinator", "talent"],
+      inquiry_participant_role: ["client", "coordinator", "talent", "house"],
       inquiry_participant_status: ["invited", "active", "declined", "removed"],
       inquiry_source_channel: [
         "directory_guest",

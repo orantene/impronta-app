@@ -22,6 +22,7 @@ import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-
 import {
   fetchTenantTalentCount,
   fetchTenantTalentDisciplines,
+  fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
 
 function collectBuilderDataBindingMax(
@@ -73,7 +74,7 @@ function hasBoundSocialLinksNode(nodes: ReadonlyArray<BuilderNode>): boolean {
 }
 
 /**
- * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `talent_type_grid`) are
+ * WS7 Phase 0 — the NATIVE data blocks (`hero_search`, `menu_board`, `talent_type_grid`) are
  * their own data source: they carry no `dataBinding`, they ARE the binding. This
  * walk answers two questions in one pass — does the tree contain a hero whose
  * stat line is roster-derived, and does it contain a discipline grid in dynamic
@@ -82,8 +83,9 @@ function hasBoundSocialLinksNode(nodes: ReadonlyArray<BuilderNode>): boolean {
  * Returning `null` for either means "nothing to fetch", which keeps the loader's
  * existing zero-round-trip fast path intact for every page that uses neither.
  */
-function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
+export function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
   needsTalentCount: boolean;
+  menuBoard: boolean;
   disciplines: {
     maxItems: number;
     parentCategoryMode: boolean;
@@ -91,6 +93,7 @@ function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
   } | null;
 } {
   let needsTalentCount = false;
+  let menuBoard = false;
   let disciplines: {
     maxItems: number;
     parentCategoryMode: boolean;
@@ -103,6 +106,9 @@ function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
       node.props.statSource === "tenant_talent_count"
     ) {
       needsTalentCount = true;
+    }
+    if (node.kind === "menu_board") {
+      menuBoard = true;
     }
     if (node.kind === "talent_type_grid" && node.props.mode === "dynamic") {
       // Several grids on one page: fetch ONE superset (the largest cap, the
@@ -135,7 +141,7 @@ function collectNativeDataBlockNeeds(nodes: ReadonlyArray<BuilderNode>): {
     }
   };
   for (const node of nodes) visit(node);
-  return { needsTalentCount, disciplines };
+  return { needsTalentCount, menuBoard, disciplines };
 }
 
 export async function loadBuilderNodeDataSources(
@@ -175,6 +181,7 @@ export async function loadBuilderNodeDataSources(
     !needsDirectoryShortcuts &&
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
+    !nativeNeeds.menuBoard &&
     nativeNeeds.disciplines == null &&
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
@@ -196,6 +203,7 @@ export async function loadBuilderNodeDataSources(
     socialContact,
     tenantTalentCount,
     talentDisciplines,
+    menuOfferings,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -241,6 +249,9 @@ export async function loadBuilderNodeDataSources(
           locale,
         })
       : Promise.resolve(undefined),
+    nativeNeeds.menuBoard
+      ? fetchWorkspaceMenuOfferings(dataTenantId)
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -259,6 +270,7 @@ export async function loadBuilderNodeDataSources(
     : undefined;
 
   return {
+    tenantId: dataTenantId,
     featuredTalentProfiles,
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,
@@ -267,5 +279,6 @@ export async function loadBuilderNodeDataSources(
     ...(socialLinks ? { socialLinks } : {}),
     ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
+    ...(menuOfferings === undefined ? {} : { menuOfferings }),
   };
 }

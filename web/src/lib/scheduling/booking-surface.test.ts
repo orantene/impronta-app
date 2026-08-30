@@ -58,6 +58,7 @@ test("workspace_site characterization: existing AND-gate still produces request"
 function fakeOffering(partial: Partial<TalentOffering> & Pick<TalentOffering, "id">): TalentOffering {
   return {
     talentProfileId: "t1",
+    ownerKind: "talent",
     tenantId: "agency-1",
     kind: "service",
     title: "Cut",

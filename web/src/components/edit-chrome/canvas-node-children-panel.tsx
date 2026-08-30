@@ -783,6 +783,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
     // WS7 Phase 0 — native data blocks; name the SOURCE, not the kind.
     case "hero_search":
       return "Search hero";
+    case "menu_board":
+      return "Menu · orderable items";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

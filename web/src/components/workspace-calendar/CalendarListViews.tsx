@@ -11,7 +11,7 @@ export type CalendarListEvent = {
   status: string;
   starts_at?: string | null;
   timezone?: string | null;
-  kind?: "inquiry" | "booking" | "hold";
+  kind?: "inquiry" | "booking" | "hold" | "order";
 };
 
 function eventDayKey(ev: CalendarListEvent): string {
@@ -88,6 +88,8 @@ export function CalendarListViews({
           const kindLabel =
             ev.kind === "hold"
               ? t("dashboard.adminCalendar.holdLabel")
+              : ev.kind === "order"
+                ? t("dashboard.adminCalendar.orderLabel")
               : ev.kind === "booking"
                 ? t("dashboard.adminCalendar.bookingLabel")
                 : ev.status;

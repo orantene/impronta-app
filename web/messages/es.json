@@ -4061,6 +4061,7 @@
       "viewDay": "Dia",
       "holdLabel": "Retencion",
       "bookingLabel": "Reserva",
+      "orderLabel": "Pedidos",
       "noEventsDay": "Nada agendado este dia."
     },
     "adminWork": {
@@ -12115,6 +12116,11 @@
       "ideaArea_billing": "Facturacion y pagos",
       "ideaArea_media": "Medios y archivos",
       "ideaArea_reporting": "Informes"
+    },
+    "adminMenu": {
+      "title": "Menú",
+      "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
+      "noTenant": "No hay un espacio de trabajo activo."
     }
   },
   "admin": {
