@@ -241,6 +241,10 @@ test("a template with no placeholders is served through the resolver unchanged",
 // ── the call sites must pass a REAL context, not an empty object ──────────
 
 const seedSrc = readFileSync(join(here, "onboard-starter-content.ts"), "utf8");
+const signupServeSrc = readFileSync(
+  join(here, "signup-ai-draft-serve.ts"),
+  "utf8",
+);
 const storefrontSrc = readFileSync(
   join(here, "..", "..", "..", "components", "home", "agency-home-storefront.tsx"),
   "utf8",
@@ -248,9 +252,9 @@ const storefrontSrc = readFileSync(
 
 test("the SEED passes the tenant's display name and signup audience", () => {
   const call = seedSrc.match(
-    /resolvePlatformDefaultStorefrontTree\(([\s\S]*?)\n {2}\);/,
+    /resolveSignupStarterTreeForOnboard\(([\s\S]*?)\n {2}\);/,
   );
-  assert.ok(call, "seed no longer calls resolvePlatformDefaultStorefrontTree");
+  assert.ok(call, "seed no longer calls resolveSignupStarterTreeForOnboard");
   const args = call[1]!;
   assert.match(
     args,
@@ -261,6 +265,11 @@ test("the SEED passes the tenant's display name and signup audience", () => {
     args,
     /audience:\s*params\.audience/,
     "the seed must hand the resolver the signup audience it was given",
+  );
+  assert.match(
+    signupServeSrc,
+    /resolvePlatformDefaultStorefrontTree\(\s*client,\s*personalisation/,
+    "AI-at-signup fallback must still stamp the Lab default through personalisation",
   );
 });
 
@@ -294,6 +303,7 @@ test("the resolver wires pruneStarterRosterForAudience after personalisation", (
 test("no call site opts out with an empty personalisation object", () => {
   for (const [name, src] of [
     ["seed", seedSrc],
+    ["signup-serve", signupServeSrc],
     ["storefront", storefrontSrc],
   ] as const) {
     assert.doesNotMatch(

@@ -12,6 +12,7 @@ import { Icon } from "../primitives";
 import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
+import { HomepageDesignSwap } from "./HomepageDesignSwap";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
 import { WebsiteAnalyticsPage } from "./WebsiteAnalyticsPage";
 import { WebsiteLaunchpad } from "./WebsiteLaunchpad";
@@ -335,6 +336,8 @@ export function WebsitePage() {
 
       {/* Server-computed findings: nothing on fixtures, one green line when well. */}
       <WebsiteHealthPanel report={w.health} />
+
+      <HomepageDesignSwap />
 
       {/* Site banners — only render if any are active (Maintenance + Announcement collapsed) */}
       {(w.maintenance.enabled || w.announcement.enabled) && (

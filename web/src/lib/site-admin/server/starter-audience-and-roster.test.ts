@@ -98,6 +98,16 @@ test("the signup blurb is selected, stamped, and threaded to the seed", () => {
     /persistSignupBusinessDescription\(client, \{/,
     "onboardStarterContent must park the blurb on the workspace",
   );
+  assert.match(
+    read("lib/site-admin/server/onboard-starter-content.ts"),
+    /resolveSignupStarterTreeForOnboard\(/,
+    "the seed must run AI-at-signup (select + adapt) before the Lab default",
+  );
+  assert.match(
+    read("lib/site-admin/server/onboard-starter-content.ts"),
+    /businessDescription: params\.businessDescription/,
+    "the signup blurb must reach the AI-at-signup resolver",
+  );
 });
 
 // ── FIX 4: a business workspace represents nobody ──────────────────────────
