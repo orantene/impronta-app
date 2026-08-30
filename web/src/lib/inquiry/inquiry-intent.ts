@@ -322,6 +322,10 @@ export type IntentAdapterContext = {
    * equals actor_user_id.
    */
   client_user_id?: string | null;
+  /** Public host kind (agency / talent_site / hub). Used by the reservation gate. */
+  host_kind?: string | null;
+  /** Host tenant id when the surface is workspace_site or hub. */
+  host_tenant_id?: string | null;
 };
 
 /**
@@ -372,10 +376,17 @@ export function intentToSubmitInquiryInput(
   // shortlist; the caller is responsible for resolving shortlist_id →
   // talent_ids before calling the adapter (cheaper than a join in here).
   const talent_profile_ids = intent.talent?.selected_ids ?? [];
-  const source_context =
+  let source_context: Record<string, unknown> | null =
     talent_profile_ids.length > 0
       ? { ...(intent.source_context ?? {}), talent_ids: talent_profile_ids }
       : intent.source_context ?? null;
+  if (ctx.host_kind || ctx.host_tenant_id) {
+    source_context = {
+      ...(source_context ?? {}),
+      ...(ctx.host_kind ? { host_kind: ctx.host_kind } : {}),
+      ...(ctx.host_tenant_id ? { host_tenant_id: ctx.host_tenant_id } : {}),
+    };
+  }
 
   return {
     tenant_id: ctx.tenant_id,

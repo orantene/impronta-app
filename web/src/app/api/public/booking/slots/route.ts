@@ -34,6 +34,8 @@ const OFFERING_ID_RE =
 
 const SLOTS_CACHE = "public, s-maxage=30, stale-while-revalidate=60";
 
+const SLOTS_VARY = "Host, x-impronta-host-name, x-impronta-host-context";
+
 function slotsJson(
   slots: string[],
   status = 200,
@@ -41,7 +43,13 @@ function slotsJson(
 ): NextResponse {
   return NextResponse.json(
     { slots, ...(extra?.timezone ? { timezone: extra.timezone } : {}) },
-    { status, headers: { "Cache-Control": SLOTS_CACHE } },
+    {
+      status,
+      headers: {
+        "Cache-Control": SLOTS_CACHE,
+        Vary: SLOTS_VARY,
+      },
+    },
   );
 }
 
@@ -83,7 +91,7 @@ export async function GET(request: Request) {
       ? reqHeaders.get(HOST_TALENT_PROFILE_HEADER)?.trim() || null
       : null;
 
-  if (host.kind !== "agency" && host.kind !== "talent_site") {
+  if (host.kind !== "agency" && host.kind !== "talent_site" && host.kind !== "hub") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   if (host.kind === "talent_site" && !talentSiteId) {
@@ -140,8 +148,10 @@ export async function GET(request: Request) {
       if (!offeringTenantId || offeringTenantId !== host.tenantId) {
         return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
-    } else if (talent.id !== talentSiteId) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    } else if (host.kind === "talent_site") {
+      if (talent.id !== talentSiteId) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
     }
 
     if (!offeringTenantId) {
@@ -153,7 +163,7 @@ export async function GET(request: Request) {
       offeringId: offering.id,
       host: {
         kind: host.kind,
-        tenantId: host.kind === "agency" ? host.tenantId : null,
+        tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
       },
     });
     if (mode === "inquire") return slotsJson([]);

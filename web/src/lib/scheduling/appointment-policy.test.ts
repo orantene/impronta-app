@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   parseTenantAppointmentSettings,
   resolveAppointmentPolicy,
+  resolveSurfaceGate,
 } from "./appointment-policy";
 import { getAppointmentsPlanPolicy } from "./appointments-plan-policy";
 import { resolveTerminology, terminologyCopy } from "./terminology";
@@ -123,6 +124,116 @@ test("terminology defaults to reservations/reservas and has no em dashes", () =>
       }
     }
   }
+});
+
+test("own_page: talent opt-in is enough; tenant enable is not required", () => {
+  const policy = resolveAppointmentPolicy({
+    tenant: { enabled: false, allowTalentDirectBooking: false },
+    talent: { profileKind: "person", directBookingOptIn: true },
+    planTier: "agency",
+    offering: { bookingMode: "request", durationMinutes: 30 },
+    surface: "own_page",
+  });
+  assert.equal(policy.enabled, true);
+  assert.equal(policy.effectiveMode, "request");
+});
+
+test("own_page exclusive without release is off; release turns it on", () => {
+  const base = {
+    tenant: { enabled: false, allowTalentDirectBooking: false },
+    talent: { profileKind: "person" as const, directBookingOptIn: true },
+    planTier: "agency",
+    offering: { bookingMode: "request" as const, durationMinutes: 30 },
+    surface: "own_page" as const,
+    isExclusive: true,
+    isExclusivePrimarySite: false,
+  };
+  assert.equal(
+    resolveAppointmentPolicy({ ...base, externalBookingReleased: false }).enabled,
+    false,
+  );
+  assert.equal(
+    resolveAppointmentPolicy({ ...base, externalBookingReleased: true }).enabled,
+    true,
+  );
+});
+
+test("resolveSurfaceGate workspace_site matches P1 actor AND-gate", () => {
+  const base = {
+    surface: "workspace_site" as const,
+    tenantEnabled: true,
+    allowDirect: true,
+    talentOptIn: true,
+    isResource: false,
+  };
+  assert.equal(resolveSurfaceGate(base).allowed, true);
+  assert.equal(resolveSurfaceGate({ ...base, tenantEnabled: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...base, talentOptIn: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...base, allowDirect: false }).allowed, false);
+  assert.equal(
+    resolveSurfaceGate({ ...base, allowDirect: false, isResource: true }).allowed,
+    true,
+  );
+  assert.equal(resolveSurfaceGate({ ...base, rosterSiteVisible: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...base, rosterSiteVisible: true }).allowed, true);
+});
+
+test("resolveSurfaceGate exclusive secondary workspace needs R; primary site does not", () => {
+  const secondary = {
+    surface: "workspace_site" as const,
+    tenantEnabled: true,
+    allowDirect: true,
+    talentOptIn: true,
+    isResource: false,
+    isExclusive: true,
+    isExclusivePrimarySite: false,
+    rosterSiteVisible: true,
+  };
+  assert.equal(resolveSurfaceGate({ ...secondary, externalBookingReleased: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...secondary, externalBookingReleased: true }).allowed, true);
+  assert.equal(
+    resolveSurfaceGate({
+      ...secondary,
+      isExclusivePrimarySite: true,
+      externalBookingReleased: false,
+    }).allowed,
+    true,
+  );
+});
+
+test("resolveSurfaceGate hub needs hub enable, approved roster, listing veto, and T", () => {
+  const hub = {
+    surface: "hub" as const,
+    tenantEnabled: true,
+    allowDirect: false,
+    talentOptIn: true,
+    isResource: false,
+    hubRosterOk: true,
+    hubMayList: true,
+  };
+  assert.equal(resolveSurfaceGate(hub).allowed, true);
+  assert.equal(resolveSurfaceGate({ ...hub, tenantEnabled: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...hub, hubRosterOk: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...hub, hubMayList: false }).allowed, false);
+  assert.equal(resolveSurfaceGate({ ...hub, talentOptIn: false }).allowed, false);
+  assert.equal(
+    resolveSurfaceGate({
+      ...hub,
+      isExclusive: true,
+      isExclusivePrimarySite: false,
+      externalBookingReleased: false,
+    }).allowed,
+    false,
+  );
+  assert.equal(
+    resolveSurfaceGate({
+      ...hub,
+      isExclusive: true,
+      isExclusivePrimarySite: false,
+      externalBookingReleased: true,
+    }).allowed,
+    true,
+  );
 });
 
 test("roster row can enable one talent when the workspace fallback is off", () => {

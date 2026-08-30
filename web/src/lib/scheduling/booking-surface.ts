@@ -4,28 +4,27 @@
  * resolveTalentBookingMode — the ONE server entry for "can this talent be
  * booked HERE, and in what mode."
  *
- * Wraps the existing pure resolveAppointmentPolicy. Display surfaces and the
- * slots API must agree; inquire-only talent must never be shown a slot picker.
- *
- * W1 surfaces: workspace_site (agency host) and own_page (talent_site host).
- * Hub / platform / marketing hosts return "inquire" — W2 owns that gate table.
- *
- * DEVIATION (W2 owns the real own_page gate): own_page still runs the existing
- * policy (tenant enable + labor opt-in + roster display). W2 will drop the
- * tenant-enable requirement so a talent's own page does not need the agency
- * master switch.
+ * Display surfaces and the slots API and the reservation submit path must
+ * agree. Hub veto lives HERE once (not a second guard on the slots route)
+ * so display and action cannot disagree.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { rowIsExclusive } from "@/lib/inquiry/owning-party-resolver";
+import {
+  hubMayListTalent,
+  mapTenantDiscoverExposure,
+} from "@/lib/saas/discover-exposure";
 import {
   parseTenantAppointmentSettings,
   resolveAppointmentPolicy,
+  type BookingSurface,
 } from "./appointment-policy";
 import type { AppointmentMode } from "./appointments-plan-policy";
 
 export type TalentBookingMode = "inquire" | "request" | "instant";
 
-export type BookingSurfaceKind = "workspace_site" | "own_page" | "other";
+export type BookingSurfaceKind = BookingSurface | "other";
 
 export type BookingSurfaceHost = {
   kind: string;
@@ -39,6 +38,26 @@ export type ResolvedTalentBooking = {
   tenantSlug: string | null;
 };
 
+type RosterRow = {
+  tenant_id: string;
+  is_primary: boolean;
+  exclusivity_status: string | null;
+  status: string;
+  agency_visibility: string;
+  hub_visibility_status: string;
+  direct_booking_enabled: boolean | null;
+  external_booking_released: boolean | null;
+};
+
+type AgencyRow = {
+  id: string;
+  settings: unknown;
+  plan_tier: string | null;
+  slug: string | null;
+  discover_exposure_enabled: boolean | null;
+  hub_exposure_tenant_ids: string[] | null;
+};
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -46,6 +65,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 export function bookingSurfaceFromHost(kind: string): BookingSurfaceKind {
   if (kind === "agency") return "workspace_site";
   if (kind === "talent_site") return "own_page";
+  if (kind === "hub") return "hub";
   return "other";
 }
 
@@ -56,6 +76,26 @@ export function talentBookingModeFromPolicy(policy: {
   if (!policy.enabled || policy.effectiveMode === "off") return "inquire";
   if (policy.effectiveMode === "request") return "request";
   return "instant";
+}
+
+/** Inquire-only talent must never place a reservation (closes the submit hole). */
+export function offeringRequestSubmitAllowed(mode: TalentBookingMode): boolean {
+  return mode !== "inquire";
+}
+
+export async function assertTalentReservationAllowed(
+  admin: SupabaseClient,
+  input: {
+    talentProfileId: string;
+    offeringId?: string | null;
+    host: BookingSurfaceHost;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const mode = await resolveTalentBookingMode(admin, input);
+  if (!offeringRequestSubmitAllowed(mode)) {
+    return { ok: false, error: "This time cannot be booked." };
+  }
+  return { ok: true };
 }
 
 export async function resolveTalentBookingMode(
@@ -123,13 +163,28 @@ export async function resolveTalentBooking(
     }
   }
 
-  const hostTenant =
-    surface === "workspace_site" && typeof input.host.tenantId === "string"
+  const channelTenant =
+    (surface === "workspace_site" || surface === "hub") &&
+    typeof input.host.tenantId === "string"
       ? input.host.tenantId
       : null;
+  const offeringTenantId =
+    typeof offering?.tenant_id === "string" && offering.tenant_id
+      ? offering.tenant_id
+      : null;
+
+  if (
+    surface === "workspace_site" &&
+    channelTenant &&
+    offeringTenantId &&
+    offeringTenantId !== channelTenant
+  ) {
+    return { mode: "inquire", surface, tenantId: channelTenant, tenantSlug: null };
+  }
+
   const sellerTenantId =
-    hostTenant ||
-    (typeof offering?.tenant_id === "string" && offering.tenant_id) ||
+    (surface === "workspace_site" && channelTenant) ||
+    offeringTenantId ||
     (typeof talent.created_by_agency_id === "string" && talent.created_by_agency_id) ||
     null;
 
@@ -137,31 +192,106 @@ export async function resolveTalentBooking(
     return { mode: "inquire", surface, tenantId: null, tenantSlug: null };
   }
 
-  if (surface === "workspace_site" && hostTenant && sellerTenantId !== hostTenant) {
-    return { mode: "inquire", surface, tenantId: hostTenant, tenantSlug: null };
+  if (surface === "hub" && !channelTenant) {
+    return { mode: "inquire", surface, tenantId: null, tenantSlug: null };
   }
 
-  const [{ data: agency }, { data: hoursRow }, { data: roster }] = await Promise.all([
-    admin.from("agencies").select("settings, plan_tier, slug").eq("id", sellerTenantId).maybeSingle(),
-    admin
-      .from("talent_booking_hours")
-      .select(
-        "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
-      )
-      .eq("talent_profile_id", talent.id)
-      .maybeSingle(),
-    admin
-      .from("agency_talent_roster")
-      .select("direct_booking_enabled, status, agency_visibility")
-      .eq("tenant_id", sellerTenantId)
-      .eq("talent_profile_id", talent.id)
-      .in("status", ["active", "pending"])
-      .maybeSingle(),
-  ]);
+  const { data: rosterData } = await admin
+    .from("agency_talent_roster")
+    .select(
+      "tenant_id, is_primary, exclusivity_status, status, agency_visibility, hub_visibility_status, direct_booking_enabled, external_booking_released",
+    )
+    .eq("talent_profile_id", talent.id)
+    .in("status", ["active", "pending"]);
+
+  const rosterRows = (Array.isArray(rosterData) ? rosterData : rosterData ? [rosterData] : []) as RosterRow[];
+
+  const agencyIds = new Set<string>();
+  agencyIds.add(sellerTenantId);
+  if (channelTenant) agencyIds.add(channelTenant);
+  for (const row of rosterRows) {
+    if (row.is_primary) agencyIds.add(row.tenant_id);
+  }
+
+  const { data: agencyData } = await admin
+    .from("agencies")
+    .select(
+      "id, settings, plan_tier, slug, discover_exposure_enabled, hub_exposure_tenant_ids",
+    )
+    .in("id", [...agencyIds]);
+
+  const agencies = (Array.isArray(agencyData) ? agencyData : agencyData ? [agencyData] : []) as AgencyRow[];
+  const agenciesById = new Map(agencies.map((a) => [a.id, a]));
+
+  const exclusiveRow =
+    rosterRows.find((row) =>
+      rowIsExclusive(row.is_primary, row.exclusivity_status, {
+        plan_tier: agenciesById.get(row.tenant_id)?.plan_tier ?? null,
+      }),
+    ) ?? null;
+
+  const isExclusive = exclusiveRow != null;
+  const isExclusivePrimarySite =
+    surface === "workspace_site" &&
+    exclusiveRow != null &&
+    exclusiveRow.tenant_id === channelTenant;
+  const externalBookingReleased = exclusiveRow?.external_booking_released === true;
+
+  const channelRoster =
+    channelTenant != null
+      ? rosterRows.find((row) => row.tenant_id === channelTenant) ?? null
+      : rosterRows.find((row) => row.tenant_id === sellerTenantId) ?? null;
+
+  const rosterSiteVisible =
+    surface === "workspace_site"
+      ? channelRoster?.status === "active" && channelRoster.agency_visibility === "site_visible"
+      : undefined;
+
+  const hubRosterOk =
+    surface === "hub"
+      ? rosterRows.some(
+          (row) =>
+            row.tenant_id === channelTenant &&
+            row.status === "active" &&
+            row.hub_visibility_status === "approved",
+        )
+      : undefined;
+
+  const primaryRow =
+    exclusiveRow ??
+    rosterRows.find((row) => row.is_primary && row.status === "active") ??
+    null;
+  const primaryAgency = primaryRow ? agenciesById.get(primaryRow.tenant_id) ?? null : null;
+  const hubMayList =
+    surface === "hub" && channelTenant
+      ? hubMayListTalent(
+          primaryAgency
+            ? mapTenantDiscoverExposure({
+                discover_exposure_enabled: primaryAgency.discover_exposure_enabled,
+                hub_exposure_tenant_ids: primaryAgency.hub_exposure_tenant_ids,
+              })
+            : null,
+          channelTenant,
+        )
+      : undefined;
+
+  const channelAgency =
+    surface === "hub" && channelTenant
+      ? agenciesById.get(channelTenant) ?? null
+      : agenciesById.get(sellerTenantId) ?? null;
+  const sellerAgency = agenciesById.get(sellerTenantId) ?? null;
+
+  const { data: hoursRow } = await admin
+    .from("talent_booking_hours")
+    .select(
+      "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
+    )
+    .eq("talent_profile_id", talent.id)
+    .maybeSingle();
 
   const bookingTerms = isPlainObject(talent.booking_terms) ? talent.booking_terms : null;
   const policy = resolveAppointmentPolicy({
-    tenant: parseTenantAppointmentSettings(agency?.settings ?? null),
+    tenant: parseTenantAppointmentSettings(channelAgency?.settings ?? null),
     talent: {
       profileKind: talent.profile_kind === "resource" ? "resource" : "person",
       directBookingOptIn: bookingTerms?.directBookingOptIn === true,
@@ -180,13 +310,21 @@ export async function resolveTalentBooking(
           durationMinutes: offering.duration_minutes,
         }
       : { bookingMode: "request", durationMinutes: 30 },
-    planTier: typeof agency?.plan_tier === "string" ? agency.plan_tier : null,
-    rosterDirectBooking:
-      (roster as { direct_booking_enabled?: boolean } | null)?.direct_booking_enabled === true,
+    planTier: typeof sellerAgency?.plan_tier === "string" ? sellerAgency.plan_tier : null,
+    rosterDirectBooking: channelRoster?.direct_booking_enabled === true,
+    surface,
+    isExclusive,
+    isExclusivePrimarySite,
+    externalBookingReleased,
+    rosterSiteVisible,
+    hubRosterOk,
+    hubMayList,
   });
 
   const slug =
-    typeof agency?.slug === "string" && agency.slug.trim() ? agency.slug.trim() : null;
+    typeof sellerAgency?.slug === "string" && sellerAgency.slug.trim()
+      ? sellerAgency.slug.trim()
+      : null;
 
   return {
     mode: talentBookingModeFromPolicy(policy),

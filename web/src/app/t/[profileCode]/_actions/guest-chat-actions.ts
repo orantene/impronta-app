@@ -913,6 +913,8 @@ export async function startGuestChatInquiry(
     guest_session_id: guestSessionId,
     source_workspace_id: tenantId,
     origin_domain: hostCtx.hostname ?? null,
+    host_kind: hostCtx.kind,
+    host_tenant_id: hostCtx.tenantId,
   });
 
   if (!created.ok) {
