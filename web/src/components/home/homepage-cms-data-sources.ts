@@ -189,7 +189,7 @@ export async function loadBuilderNodeDataSources(
         })
       : Promise.resolve(undefined),
     nativeNeeds.menuBoard
-      ? fetchWorkspaceMenuOfferings(dataTenantId)
+      ? fetchWorkspaceMenuOfferings(dataTenantId, locale)
       : Promise.resolve(undefined),
   ]);
 

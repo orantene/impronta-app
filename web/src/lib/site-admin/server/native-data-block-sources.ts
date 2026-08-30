@@ -284,6 +284,7 @@ export type WorkspaceMenuOffering = {
 export function deriveWorkspaceMenuOfferings(
   rows: ReadonlyArray<TalentOfferingRow>,
   tenantId: string,
+  locale = "en",
 ): WorkspaceMenuOffering[] {
   if (!tenantId) return [];
   const out: WorkspaceMenuOffering[] = [];
@@ -292,7 +293,7 @@ export function deriveWorkspaceMenuOfferings(
     if (row.owner_kind !== "workspace") continue;
     if (row.status !== "published") continue;
     if (row.moderation_state !== "approved") continue;
-    const offering = rowToOffering(row as TalentOfferingRow);
+    const offering = rowToOffering(row as TalentOfferingRow, locale);
     out.push({
       id: offering.id,
       title: offering.title,
@@ -307,7 +308,10 @@ export function deriveWorkspaceMenuOfferings(
   return out;
 }
 
-export async function fetchWorkspaceMenuOfferings(tenantId: string): Promise<WorkspaceMenuOffering[]> {
+export async function fetchWorkspaceMenuOfferings(
+  tenantId: string,
+  locale = "en",
+): Promise<WorkspaceMenuOffering[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase || !tenantId) return [];
   try {
@@ -323,7 +327,11 @@ export async function fetchWorkspaceMenuOfferings(tenantId: string): Promise<Wor
       logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
       return [];
     }
-    return deriveWorkspaceMenuOfferings((data ?? []) as TalentOfferingRow[], tenantId);
+    return deriveWorkspaceMenuOfferings(
+      (data ?? []) as TalentOfferingRow[],
+      tenantId,
+      locale,
+    );
   } catch (error) {
     logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
     return [];
