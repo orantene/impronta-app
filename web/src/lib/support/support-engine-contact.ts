@@ -11,10 +11,12 @@ type SupportEngineResult<T> =
 
 export async function updateContact(input: {
   ticketId: string;
+  contactEmail?: string | null;
+  contactName?: string | null;
   contactPhone?: string | null;
   callbackRequested?: boolean;
   callbackPref?: SupportCallbackPref | null;
-  actorUserId: string;
+  actorUserId: string | null;
 }): Promise<SupportEngineResult<SupportTicketRow>> {
   const { appendMessage, loadTicketById } = await import("./support-engine");
   const admin = createServiceRoleClient();
@@ -23,6 +25,8 @@ export async function updateContact(input: {
   if (!ticket) return { ok: false, error: "Ticket not found." };
 
   const patch: Record<string, unknown> = {};
+  if (input.contactEmail !== undefined) patch.contact_email = input.contactEmail;
+  if (input.contactName !== undefined) patch.contact_name = input.contactName;
   if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone;
   if (input.callbackRequested !== undefined) patch.callback_requested = input.callbackRequested;
   if (input.callbackPref !== undefined) patch.callback_pref = input.callbackPref;

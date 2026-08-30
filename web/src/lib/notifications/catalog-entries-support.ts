@@ -12,7 +12,8 @@ import FeatureRequestAlert from "../../../emails/support/FeatureRequestAlert";
 import FeatureRequestUpdate from "../../../emails/support/FeatureRequestUpdate";
 import WeeklyDigest from "../../../emails/support/WeeklyDigest";
 import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent } from "./types";
-import { eventUser, platformAdmins, str } from "./catalog-audiences";
+import { eventGuestContact, eventUser, platformAdmins, str } from "./catalog-audiences";
+import { guestResumePath } from "@/lib/support/guest-resume-token";
 import { appPageUrl, pageUrl } from "./catalog-render";
 
 const SUPPORT_TICKET_DRAWER = "support-ticket";
@@ -43,7 +44,9 @@ async function hydrateSupportLinks(
     tenantName = typeof data?.display_name === "string" ? data.display_name : null;
   }
   let replyPath = `/talent?support=${ticketId}`;
-  if (surface === "client") {
+  if (surface === "guest") {
+    replyPath = guestResumePath(ticketId);
+  } else if (surface === "client") {
     replyPath = tenantSlug ? `/${tenantSlug}/client?support=${ticketId}` : `/client?support=${ticketId}`;
   } else if (surface === "workspace") {
     replyPath = tenantSlug ? `/${tenantSlug}/admin?support=${ticketId}` : `/admin?support=${ticketId}`;
@@ -182,6 +185,30 @@ const AGENT_REPLY: CatalogEntry = {
   },
 };
 
+const AGENT_REPLY_GUEST: CatalogEntry = {
+  id: "support.message.agent.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.message.agent.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.message.agent",
+    subject: (event) =>
+      `Oran replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(AgentReply, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
 const TICKET_RESOLVED: CatalogEntry = {
   id: "support.ticket.resolved.requester",
   category: "messages",
@@ -207,6 +234,54 @@ const TICKET_RESOLVED: CatalogEntry = {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
         replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const TICKET_RESOLVED_GUEST: CatalogEntry = {
+  id: "support.ticket.resolved.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.ticket.resolved.guest"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.ticket.resolved",
+    subject: (event) =>
+      `Resolved: ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(TicketResolved, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+const GUEST_CONTACT_CONFIRM: CatalogEntry = {
+  id: "support.guest.contact.confirm",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["support.guest.contact.confirm"],
+  hydrate: hydrateSupportLinks,
+  resolveAudience: eventGuestContact("guest"),
+  email: {
+    templateId: "support.message.agent",
+    subject: (event) =>
+      `We saved your email for ticket #${num(event, "ticketNumber")}`,
+    render: ({ event, brand, unsubscribeUrl }) =>
+      React.createElement(AgentReply, {
+        ticketNumber: num(event, "ticketNumber"),
+        subject: str(event.payload.subject) ?? "your question",
+        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -434,7 +509,10 @@ export const SUPPORT_CATALOG_ENTRIES: CatalogEntry[] = [
   TICKET_CREATED,
   TICKET_ESCALATED,
   AGENT_REPLY,
+  AGENT_REPLY_GUEST,
   TICKET_RESOLVED,
+  TICKET_RESOLVED_GUEST,
+  GUEST_CONTACT_CONFIRM,
   REQUESTER_REPLY_WATCH,
   AUTOCLOSE,
   PROPOSED_EXPIRED,

@@ -213,6 +213,15 @@ async function attachLeadToTenant(params: {
     logServerError("workspace-signup.attachLeadToTenant", error);
   }
 
+  // Best-effort: guest tickets stamped with this lead inherit the new tenant.
+  const { error: ticketError } = await admin
+    .from("support_tickets")
+    .update({ tenant_id: params.tenantId })
+    .contains("metadata", { lead_id: params.leadId });
+  if (ticketError) {
+    logServerError("workspace-signup.backfillGuestTickets", ticketError);
+  }
+
   // Release any subdomain TTL reservation this lead was holding. The slug is
   // now claimed by a real agencies row, so the reservation is redundant. We
   // delete by lead_id rather than slug to defensively handle the edge case

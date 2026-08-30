@@ -566,6 +566,41 @@ async function check_auth_surface_matrix() {
   } catch (e) {
     fail(`${AGENCY_HOST}/get-started`, e.message);
   }
+
+  // Platform /contact — marketing hosts get the guest lead form; agency hosts
+  // keep their tenant storefront form at the same path. The allow-list entry
+  // is marketing-only, so a branded agency domain must 404 /contact as a
+  // *marketing* page (the tenant form is served under the agency allow-list
+  // as the public storefront route, not this prefix).
+  try {
+    const onMarketing = await get(MARKETING_HOST + "/contact");
+    if (onMarketing.status === 200) {
+      pass(`${MARKETING_HOST}/contact (200)`, "platform contact form on marketing host");
+    } else {
+      fail(
+        `${MARKETING_HOST}/contact`,
+        `expected 200 on the marketing host, got ${onMarketing.status}`,
+      );
+    }
+  } catch (e) {
+    fail(`${MARKETING_HOST}/contact`, e.message);
+  }
+  try {
+    const onAgency = await get(AGENCY_HOST + "/contact");
+    if (onAgency.status === 404) {
+      pass(
+        `${AGENCY_HOST}/contact (404)`,
+        "INTENTIONAL — platform contact is marketing-only; agency already 404s /contact",
+      );
+    } else {
+      fail(
+        `${AGENCY_HOST}/contact`,
+        `expected 404 on a branded agency host, got ${onAgency.status}`,
+      );
+    }
+  } catch (e) {
+    fail(`${AGENCY_HOST}/contact`, e.message);
+  }
 }
 
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { openMarketingSupport } from "@/lib/marketing/support-copy";
 import { HeaderPopover } from "./marketing-header-popover";
 
 // Support contact, deliberately NOT re-exported from here. A "use client"
@@ -12,14 +13,13 @@ import { HeaderPopover } from "./marketing-header-popover";
 // server components got a proxy that rendered as
 // `mailto:function(){throw Error(...` on the live support page. Import it
 // from @/lib/platform/support-contact instead.
-import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 const ROW =
-  "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]";
+  "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium text-[var(--plt-ink)] transition-colors hover:bg-[var(--plt-bg-raised)]";
 
 /** Desktop support control — a help icon that opens a small dropdown. Shown
- *  for every visitor (signed in or out); destinations are real (help center +
- *  contact email), never placeholders. */
+ *  for every visitor (signed in or out); destinations are real (chat + help
+ *  + contact form), never placeholders. */
 export function DesktopSupport({
   copy,
   locale = "en",
@@ -65,44 +65,39 @@ export function DesktopSupport({
 
       {open ? (
         <HeaderPopover label={copy.support} widthClass="lg:w-[15rem]" onClose={() => setOpen(false)}>
-          <p
-            className="px-3 pt-1 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide"
-            style={{ color: "var(--plt-muted)" }}
-          >
+          <p className="px-3 pt-1 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide text-[var(--plt-muted)]">
             {copy.support}
           </p>
-          {/* The promise page comes FIRST. Someone opening this menu is
-              usually already annoyed, and the thing they most want to know is
-              whether a person is on the other end. */}
-          <Link
-            href={withLocaleHref("/support", locale)}
+          <button
+            type="button"
             role="menuitem"
-            onClick={() => setOpen(false)}
-            className={ROW}
-            style={{ color: "var(--plt-ink)" }}
+            onClick={() => {
+              setOpen(false);
+              openMarketingSupport();
+            }}
+            className={`${ROW} w-full text-left`}
           >
             <PersonGlyph />
-            {copy.talkToPerson}
-          </Link>
+            {copy.askAQuestion}
+          </button>
           <Link
             href={withLocaleHref("/help", locale)}
             role="menuitem"
             onClick={() => setOpen(false)}
             className={ROW}
-            style={{ color: "var(--plt-ink)" }}
           >
             <LifeBuoyGlyph />
             {copy.helpCenter}
           </Link>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+          <Link
+            href={withLocaleHref("/contact", locale)}
             role="menuitem"
+            onClick={() => setOpen(false)}
             className={ROW}
-            style={{ color: "var(--plt-ink)" }}
           >
             <MailGlyph />
             {copy.contactSupport}
-          </a>
+          </Link>
         </HeaderPopover>
       ) : null}
     </div>
@@ -145,7 +140,7 @@ function HelpGlyph() {
 
 function LifeBuoyGlyph() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "var(--plt-forest)" }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-[var(--plt-forest)]">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
       <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M4.7 4.7l4.3 4.3M15 15l4.3 4.3M19.3 4.7L15 9M9 15l-4.3 4.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -155,7 +150,7 @@ function LifeBuoyGlyph() {
 
 function MailGlyph() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "var(--plt-forest)" }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-[var(--plt-forest)]">
       <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

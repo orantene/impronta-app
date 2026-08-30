@@ -10,6 +10,7 @@ import {
   loadRecentSignups,
   type PlatformLeadRow,
 } from "../../platform-data";
+import { loadRecentSupportLeads, mergeRecentLeads } from "@/lib/support/load-guest-leads";
 import { loadPlatformNotifications } from "../../platform-notifications";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -298,14 +299,16 @@ function Pill({ children, color }: { children: React.ReactNode; color: string })
 }
 
 export default async function PlatformTodayPage() {
-  const [stats, recentSignups, recentLeads, leadStats, orphanGhosts, hqAlerts] = await Promise.all([
+  const [stats, recentSignups, signupLeads, chatLeads, leadStats, orphanGhosts, hqAlerts] = await Promise.all([
     loadPlatformStats(),
     loadRecentSignups(5),
     loadRecentLeads(10),
+    loadRecentSupportLeads(10),
     loadLeadStats(),
     loadOrphanPaidFreeWorkspaces(25),
     loadPlatformNotifications(12),
   ]);
+  const recentLeads = mergeRecentLeads(signupLeads, chatLeads, 10);
 
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
@@ -512,9 +515,12 @@ export default async function PlatformTodayPage() {
               // TODO: lead detail — no drawer/detail view exists yet. When a
               // lead is claimed, link to the claimed profile; otherwise render
               // the row as non-interactive.
-              const href = l.claimedByProfileId
-                ? `/platform/admin/users?profile=${l.claimedByProfileId}`
-                : null;
+              const href =
+                l.source === "support_chat" && l.ticketId
+                  ? `/platform/admin/support?ticket=${l.ticketId}`
+                  : l.claimedByProfileId
+                    ? `/platform/admin/users?profile=${l.claimedByProfileId}`
+                    : null;
               const row = (
                 <div
                   style={{
@@ -552,9 +558,13 @@ export default async function PlatformTodayPage() {
                       {l.subdomainWanted ? ` · ${l.subdomainWanted}` : ""}
                     </div>
                   </div>
-                  <Pill color={tierTone(l.tierInterest)}>
-                    {tierLabel(l.tierInterest, t)}
-                  </Pill>
+                  {l.source === "support_chat" ? (
+                    <Pill color={HQ.green}>Chat</Pill>
+                  ) : (
+                    <Pill color={tierTone(l.tierInterest)}>
+                      {tierLabel(l.tierInterest, t)}
+                    </Pill>
+                  )}
                   <Pill color={statusTone(l.status)}>{statusLabel(l.status, t)}</Pill>
                   <span style={{ fontSize: 11.5, color: HQ.inkDim, minWidth: 56, textAlign: "right" }}>
                     {l.createdAt}

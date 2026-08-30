@@ -28,6 +28,12 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   marketing_section_viewed: "marketing_section_viewed",
   marketing_faq_opened: "marketing_faq_opened",
   marketing_audience_selected: "marketing_audience_selected",
+  marketing_support_opened: "marketing_support_opened",
+  marketing_support_question_sent: "marketing_support_question_sent",
+  marketing_support_answer_shown: "marketing_support_answer_shown",
+  marketing_support_email_captured: "marketing_support_email_captured",
+  marketing_support_human_requested: "marketing_support_human_requested",
+  marketing_contact_form_submitted: "marketing_contact_form_submitted",
 
   // ---------------------------------------------------------------------------
   // /get-started funnel — step instrumentation so we can find where the

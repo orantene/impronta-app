@@ -1,9 +1,9 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { updateContact, keepTicketOpen } from "./support-engine-contact";
+import { adminClient, claimIfUnassigned, insertEvent, loadTicketById } from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import {
@@ -18,7 +18,6 @@ import {
   type SupportMessageRow,
   type SupportPriority,
   type SupportSurface,
-  type SupportTicketEventType,
   type SupportTicketRow,
   type SupportWaitingOn,
 } from "./support-types";
@@ -27,62 +26,16 @@ export type SupportEngineResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-function adminClient(): SupabaseClient | null {
-  return createServiceRoleClient();
-}
+export { loadTicketById, claimIfUnassigned };
 
-async function insertEvent(
-  admin: SupabaseClient,
-  input: {
-    ticketId: string;
-    tenantId: string | null;
-    actorKind: SupportAuthorKind;
-    actorUserId: string | null;
-    eventType: SupportTicketEventType;
-    oldValue?: Record<string, unknown> | null;
-    newValue?: Record<string, unknown> | null;
-  },
-): Promise<string | null> {
-  const { data, error } = await supportFrom(admin, "support_ticket_events")
-    .insert({
-      ticket_id: input.ticketId,
-      tenant_id: input.tenantId,
-      actor_kind: input.actorKind,
-      actor_user_id: input.actorUserId,
-      event_type: input.eventType,
-      old_value: input.oldValue ?? null,
-      new_value: input.newValue ?? null,
-    })
-    .select("id")
-    .single();
-  if (error || !data?.id) {
-    logServerError("support.event.insert", error ?? "missing id");
-    return null;
-  }
-  return data.id as string;
-}
-
-export async function loadTicketById(
-  ticketId: string,
-  client?: SupabaseClient,
-): Promise<SupportTicketRow | null> {
-  const db = client ?? adminClient();
-  if (!db) return null;
-  const { data, error } = await supportFrom(db, "support_tickets")
-    .select("*")
-    .eq("id", ticketId)
-    .maybeSingle();
-  if (error) {
-    logServerError("support.loadTicket", error);
-    return null;
-  }
-  return mapTicketRow(data);
-}
+export type SupportRequesterIdentity =
+  | { kind: "user"; userId: string }
+  | { kind: "guest"; guestSessionId: string; userId?: string | null };
 
 export async function createTicket(input: {
   tenantId: string | null;
   surface: SupportSurface;
-  requesterUserId: string;
+  requester: SupportRequesterIdentity;
   talentProfileId?: string | null;
   clientProfileId?: string | null;
   subject?: string;
@@ -90,14 +43,23 @@ export async function createTicket(input: {
   category?: string | null;
   originSlug?: string | null;
   contactEmail?: string | null;
+  contactName?: string | null;
   contactPhone?: string | null;
   callbackRequested?: boolean;
   callbackPref?: SupportCallbackPref | null;
   handledBy?: SupportHandledBy;
   messageOranDirectly?: boolean;
+  metadata?: Record<string, unknown>;
 }): Promise<SupportEngineResult<{ ticket: SupportTicketRow; eventId: string }>> {
   const admin = adminClient();
   if (!admin) return { ok: false, error: "Not configured." };
+
+  const requesterUserId =
+    input.requester.kind === "user"
+      ? input.requester.userId
+      : (input.requester.userId ?? null);
+  const guestSessionId =
+    input.requester.kind === "guest" ? input.requester.guestSessionId : null;
 
   const handledBy: SupportHandledBy = input.messageOranDirectly
     ? "human"
@@ -110,7 +72,8 @@ export async function createTicket(input: {
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
     surface: input.surface,
-    requester_user_id: input.requesterUserId,
+    requester_user_id: requesterUserId,
+    guest_session_id: guestSessionId,
     talent_profile_id: input.talentProfileId ?? null,
     client_profile_id: input.clientProfileId ?? null,
     subject,
@@ -121,13 +84,14 @@ export async function createTicket(input: {
     priority: "normal",
     handled_by: handledBy,
     contact_email: input.contactEmail ?? null,
+    contact_name: input.contactName ?? null,
     contact_phone: input.contactPhone ?? null,
     callback_requested: input.callbackRequested === true,
     callback_pref: input.callbackPref ?? null,
     last_message_at: now,
     last_message_preview: input.body.trim().slice(0, 140),
     message_count: 0,
-    metadata: {},
+    metadata: input.metadata ?? {},
   };
   if (input.messageOranDirectly) {
     insertRow.escalated_at = now;
@@ -148,7 +112,7 @@ export async function createTicket(input: {
   const first = await appendMessage({
     ticketId: ticket.id,
     authorKind: "requester",
-    authorUserId: input.requesterUserId,
+    authorUserId: requesterUserId,
     body: input.body.trim(),
     skipNotify: true,
   });
@@ -158,7 +122,7 @@ export async function createTicket(input: {
     ticketId: ticket.id,
     tenantId: ticket.tenantId,
     actorKind: "requester",
-    actorUserId: input.requesterUserId,
+    actorUserId: requesterUserId,
     eventType: "created",
     newValue: { subject: ticket.subject, surface: ticket.surface },
   });
@@ -187,7 +151,7 @@ export async function createTicket(input: {
       ticketId: ticket.id,
       tenantId: ticket.tenantId,
       actorKind: "requester",
-      actorUserId: input.requesterUserId,
+      actorUserId: requesterUserId,
       eventType: "escalated",
       newValue: { reason: "user_requested" },
     });
@@ -212,7 +176,7 @@ export async function createTicket(input: {
     ticket.tenantId,
     "support.ticket.created",
     `Opened support ticket #${ticket.ticketNumber}`,
-    input.requesterUserId,
+    requesterUserId,
     ticket.id,
   );
 
@@ -292,20 +256,55 @@ export async function appendMessage(input: {
 
   if (!input.skipNotify && input.messageKind !== "note") {
     if (input.authorKind === "agent") {
-      notify({
-        type: "support.message.agent",
-        tenantId: working.tenantId,
-        eventId: eventId ?? crypto.randomUUID(),
-        userId: working.requesterUserId,
-        payload: {
-          ticketId: working.id,
-          ticketNumber: working.ticketNumber,
-          subject: working.subject,
-          preview: input.body.slice(0, 140),
+      const { shouldEmitGuestAgentReply } = await import("./guest-notification-audience");
+      if (
+        shouldEmitGuestAgentReply({
           surface: working.surface,
-          platformFrom: true,
-        },
-      });
+          requesterUserId: working.requesterUserId,
+          contactEmail: working.contactEmail,
+        })
+      ) {
+        // Distinct event row: sharing eventId with support.message.agent would
+        // silently suppress one of the two catalog entries (dedupe has no entry id).
+        const guestEventId = await insertEvent(admin, {
+          ticketId: working.id,
+          tenantId: working.tenantId,
+          actorKind: "agent",
+          actorUserId: input.authorUserId,
+          eventType: "message_sent",
+          newValue: { messageId: message.id, audience: "guest" },
+        });
+        notify({
+          type: "support.message.agent.guest",
+          tenantId: working.tenantId,
+          eventId: guestEventId ?? crypto.randomUUID(),
+          payload: {
+            ticketId: working.id,
+            ticketNumber: working.ticketNumber,
+            subject: working.subject,
+            preview: input.body.slice(0, 140),
+            surface: working.surface,
+            contactEmail: working.contactEmail,
+            contactName: working.contactName,
+            platformFrom: true,
+          },
+        });
+      } else {
+        notify({
+          type: "support.message.agent",
+          tenantId: working.tenantId,
+          eventId: eventId ?? crypto.randomUUID(),
+          userId: working.requesterUserId,
+          payload: {
+            ticketId: working.id,
+            ticketNumber: working.ticketNumber,
+            subject: working.subject,
+            preview: input.body.slice(0, 140),
+            surface: working.surface,
+            platformFrom: true,
+          },
+        });
+      }
     }
     if (input.authorKind === "requester" && working.handledBy === "human") {
       // tenantId MUST be null: this alerts platform admins, and the
@@ -405,19 +404,51 @@ export async function changeStatus(input: {
   }
 
   if (input.status === "resolved") {
-    notify({
-      type: "support.ticket.resolved",
-      tenantId: ticket.tenantId,
-      eventId: eventId ?? crypto.randomUUID(),
-      userId: ticket.requesterUserId,
-      payload: {
-        ticketId: ticket.id,
-        ticketNumber: ticket.ticketNumber,
-        subject: ticket.subject,
+    const { shouldEmitGuestAgentReply } = await import("./guest-notification-audience");
+    if (
+      shouldEmitGuestAgentReply({
         surface: ticket.surface,
-        platformFrom: true,
-      },
-    });
+        requesterUserId: ticket.requesterUserId,
+        contactEmail: ticket.contactEmail,
+      })
+    ) {
+      const guestEventId = await insertEvent(admin, {
+        ticketId: ticket.id,
+        tenantId: ticket.tenantId,
+        actorKind: input.actorKind,
+        actorUserId: input.actorUserId,
+        eventType: "status_changed",
+        newValue: { status: "resolved", audience: "guest" },
+      });
+      notify({
+        type: "support.ticket.resolved.guest",
+        tenantId: ticket.tenantId,
+        eventId: guestEventId ?? crypto.randomUUID(),
+        payload: {
+          ticketId: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          subject: ticket.subject,
+          surface: ticket.surface,
+          contactEmail: ticket.contactEmail,
+          contactName: ticket.contactName,
+          platformFrom: true,
+        },
+      });
+    } else {
+      notify({
+        type: "support.ticket.resolved",
+        tenantId: ticket.tenantId,
+        eventId: eventId ?? crypto.randomUUID(),
+        userId: ticket.requesterUserId,
+        payload: {
+          ticketId: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          subject: ticket.subject,
+          surface: ticket.surface,
+          platformFrom: true,
+        },
+      });
+    }
   }
 
   auditTenant(
@@ -718,18 +749,6 @@ export async function reopenTicket(input: {
     newValue: { status: "open" },
   });
   return { ok: true, data: updated };
-}
-
-export async function claimIfUnassigned(
-  ticketId: string,
-  actorUserId: string,
-): Promise<void> {
-  const admin = adminClient();
-  if (!admin) return;
-  await supportFrom(admin, "support_tickets")
-    .update({ assignee_user_id: actorUserId })
-    .eq("id", ticketId)
-    .is("assignee_user_id", null);
 }
 
 export const supportEngine = {

@@ -12,7 +12,7 @@ import { hqChangeStatusAction, hqClaimSelfAction } from "@/lib/support/hq-action
 import { useHqSupportRealtime } from "@/components/support/support-hooks";
 
 type FilterId = "needsYou" | "waitingThem" | "new" | "allOpen" | "resolved7d";
-type AudienceId = "all" | "workspace" | "talent" | "client";
+type AudienceId = "all" | "workspace" | "talent" | "client" | "guest";
 
 function hoursAgo(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 36e5;
@@ -34,6 +34,7 @@ function matchesFilter(row: HqQueueRow, filter: FilterId): boolean {
 function surfaceIcon(surface: string): { glyph: string; color: string } {
   if (surface === "workspace") return { glyph: "◆", color: HQ.purple };
   if (surface === "talent") return { glyph: "★", color: HQ.amber };
+  if (surface === "guest") return { glyph: "○", color: HQ.green };
   return { glyph: "●", color: HQ.blue };
 }
 
@@ -102,8 +103,8 @@ export function SupportQueueClient({
             tenantName: null,
             tenantSlug: null,
             planTier: null,
-            requesterName: null,
-            requesterEmail: null,
+            requesterName: ticket.contactName,
+            requesterEmail: ticket.contactEmail,
           },
           ...prev,
         ];
@@ -152,7 +153,7 @@ export function SupportQueueClient({
       if (!matchesFilter(row, filter)) return false;
       if (audience !== "all" && row.ticket.surface !== audience) return false;
       if (!query) return true;
-      const hay = `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""}`.toLowerCase();
+      const hay = `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""} ${row.ticket.contactEmail ?? ""} ${row.ticket.contactName ?? ""} ${row.requesterEmail ?? ""}`.toLowerCase();
       return hay.includes(query);
     });
   }, [queue, filter, audience, q]);
@@ -207,6 +208,7 @@ export function SupportQueueClient({
     { id: "workspace", label: t("dashboard.platform.support.audAdmins") },
     { id: "talent", label: t("dashboard.platform.support.audTalents") },
     { id: "client", label: t("dashboard.platform.support.audClients") },
+    { id: "guest", label: t("dashboard.platform.support.audGuests") },
   ];
 
   return (
@@ -288,7 +290,7 @@ export function SupportQueueClient({
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {row.requesterName ?? t("dashboard.platform.support.unknownRequester")}
+                      {row.requesterName ?? row.requesterEmail ?? t("dashboard.platform.support.unknownRequester")}
                     </span>
                     {row.planTier ? <PlanChip plan={row.planTier} /> : null}
                     {row.ticket.category ? (

@@ -104,7 +104,7 @@ export async function createSupportTicketAction(
   const result = await supportEngine.createTicket({
     tenantId: requester.tenantId,
     surface: requester.surface,
-    requesterUserId: requester.userId,
+    requester: { kind: "user", userId: requester.userId },
     talentProfileId: requester.talentProfileId,
     clientProfileId: requester.clientProfileId,
     subject: parsed.data.subject,

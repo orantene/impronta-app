@@ -24,6 +24,7 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import { isRetiredWorkspaceStatus } from "@/lib/saas/workspace-lifecycle";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { stampOpenGuestTicketsWithLeadId } from "@/lib/support/load-guest-leads";
 
 /**
  * Server action for /get-started signup capture.
@@ -378,6 +379,14 @@ export async function submitGetStartedSignup(
   }
 
   const leadId = inserted.id as string;
+
+  // Cross-stamp any open guest support tickets that already captured this
+  // email. Best-effort: never blocks signup.
+  try {
+    await stampOpenGuestTicketsWithLeadId(input.email, leadId);
+  } catch (err) {
+    logServerError("get-started/stampGuestTickets", err);
+  }
 
   // Reserve the subdomain for this lead so a parallel signup can't race
   // them to the same slug. Best-effort: a failed reservation does NOT block

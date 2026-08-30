@@ -26,7 +26,6 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
-import { headers } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -64,6 +63,7 @@ import {
   isReceiptVisibleStatus,
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
+import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
@@ -90,8 +90,9 @@ import type {
   StartGuestChatResult,
 } from "@/lib/inquiry/guest-chat-contract";
 
-const GUEST_HEADER = "x-impronta-guest";
 const MAX_BODY = 10_000;
+
+export { resolveClientIp, resolveGuestSessionId };
 
 // isSeedContact — the synthetic early-row contact seed detector (see
 // ensureGuestChatInquiry below). A row is "contact promoted" once it no longer
@@ -113,37 +114,6 @@ function fail(
   return { ok: false, code, message, ...extra };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Client IP — the TRUSTED hop. Vercel appends the real client IP to the RIGHT
-// of x-forwarded-for at the edge, so the rightmost entry is the platform-set,
-// non-spoofable value; the leftmost is attacker-controllable (a client can send
-// its own x-forwarded-for). Using split(',')[0] would key the rate-limit on a
-// value the abuser can rotate per request — defeating the IP dimension. Prefer
-// x-real-ip (single value, also platform-set) and fall back to the rightmost
-// x-forwarded-for hop. Returns null when unavailable.
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function resolveClientIp(): Promise<string | null> {
-  const h = await headers();
-  // x-real-ip is set by Vercel to the true client IP (not a chain) — trust it.
-  const real = h.get("x-real-ip")?.trim();
-  if (real) return real;
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) {
-    const hops = fwd.split(",").map((s) => s.trim()).filter(Boolean);
-    // Rightmost = the IP the platform appended (trusted); leftmost = spoofable.
-    const trusted = hops[hops.length - 1];
-    if (trusted) return trusted;
-  }
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Guest identity — resolve the guest_sessions.id from the cookie header.
-// The session key is read SERVER-SIDE only; never accepted from the client.
-// Returns { admin, guestSessionId } or a failure.
-// ─────────────────────────────────────────────────────────────────────────────
-
 type GuestContext = {
   admin: SupabaseClient;
   guestSessionId: string;
@@ -157,41 +127,12 @@ async function resolveGuestContext(): Promise<
     return { ok: false, failure: fail("db_unavailable", "Messaging is temporarily unavailable.") };
   }
 
-  const guestKey = (await headers()).get(GUEST_HEADER);
-  if (!guestKey) {
-    return { ok: false, failure: fail("forbidden", "We couldn't identify your session. Please refresh and try again.") };
-  }
-
-  // Ensure the guest_sessions row exists (idempotent) and read its id. The
-  // session key is the capability; the RPC is SECURITY DEFINER.
-  await admin.rpc("ensure_guest_session", { p_session_key: guestKey });
-  const { data: guestRow, error } = await admin
-    .from("guest_sessions")
-    .select("id")
-    .eq("session_key", guestKey)
-    .maybeSingle();
-
-  if (error) {
-    logServerError("guest-chat-actions.resolveGuestContext", error);
-    return { ok: false, failure: fail("engine_error", "Could not start a session. Please try again.") };
-  }
-  const guestSessionId = (guestRow?.id as string | undefined) ?? null;
+  const guestSessionId = await resolveGuestSessionId();
   if (!guestSessionId) {
     return { ok: false, failure: fail("forbidden", "We couldn't identify your session. Please refresh and try again.") };
   }
 
   return { ok: true, ctx: { admin, guestSessionId } };
-}
-
-/**
- * Public session-id-only resolver so sibling guest server actions (U2 thread
- * switcher, U4 detail chips) reuse the SAME cookie→guest_sessions.id path
- * without copy-pasting it. Returns the guest_sessions.id, or null when there is
- * no usable session (first-time visitor / missing header / db unavailable).
- */
-export async function resolveGuestSessionId(): Promise<string | null> {
-  const guest = await resolveGuestContext();
-  return guest.ok ? guest.ctx.guestSessionId : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
