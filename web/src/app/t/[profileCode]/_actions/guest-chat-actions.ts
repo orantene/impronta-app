@@ -92,7 +92,6 @@ import type {
 
 const MAX_BODY = 10_000;
 
-export { resolveClientIp, resolveGuestSessionId };
 
 // isSeedContact — the synthetic early-row contact seed detector (see
 // ensureGuestChatInquiry below). A row is "contact promoted" once it no longer
