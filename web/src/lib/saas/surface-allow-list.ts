@@ -21,7 +21,7 @@
  *                   `/api/analytics/events` (write-only allow-listed writer)
  *   auth          → `/login`, `/register`, `/forgot-password`,
  *                   `/join`, `/update-password`, `/auth` (OAuth/magic-link callback)
- *   storefront    → `/directory`, `/t`, `/p`, `/posts`, `/models`, `/contact`
+ *   storefront    → `/directory`, `/t`, `/p`, `/posts`, `/models`
  *   path-slug     → `/<tenantSlug>` and `/<tenantSlug>/{t,directory,p,posts,models,...}`.
  *                   Middleware resolves the first segment to a tenant and
  *                   strips it before calling this allow-list as an agency path.
@@ -656,9 +656,10 @@ const MARKETING_PAGE_PREFIXES = [
   // Brand entity + trust page — what Tulala is, what it believes, what it
   // builds, who it's for.
   "/about",
-  // Platform contact form. Host-dispatched inside (public)/contact — marketing
-  // hosts get the guest ticket form; agency/hub hosts keep the tenant form
-  // and must 404 this prefix here so they never reach the marketing action.
+  // Platform contact form at App Router (public)/contact. Marketing hosts
+  // serve it. Agency hosts do NOT allow this prefix — `/contact` there is a
+  // tenant-ownable CMS slug (clean-URL rewrite → /p/contact): 200 if the
+  // page exists, 404 if not, never this marketing form.
   "/contact",
   // "Contratar modelos" landing page — Spanish-first demand-side hire page
   // for models, the one category the directory has real supply for today.
