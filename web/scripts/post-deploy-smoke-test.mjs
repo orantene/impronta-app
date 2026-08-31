@@ -568,20 +568,23 @@ async function check_auth_surface_matrix() {
   }
 
   // Platform /contact — marketing hosts get the guest lead form at the App
-  // Router `(public)/contact` route. Agency hosts do NOT serve that route:
-  // `/contact` was removed from AGENCY_STOREFRONT_PREFIXES so tenants can own
-  // the slug as a CMS page (clean-URL rewrite → `/p/contact`). So agency
-  // `/contact` is either 200 (CMS page exists) or 404 (no such page) — never
-  // the marketing platform form. See reserved-routes.collisions.static.test.ts
+  // Router `(public)/contact` route (`x-matched-path: /contact`). Agency hosts
+  // do NOT serve that route: `/contact` was removed from AGENCY_STOREFRONT_PREFIXES
+  // so tenants can own the slug as a CMS page (clean-URL rewrite → `/p/contact`).
+  // Agency `/contact` is therefore 200 with `/p/` (CMS page exists) or 404
+  // (no such page) — never the marketing platform form. A 200 whose matched
+  // path is `/contact` (no `/p/`) is a leak of the platform form onto a
+  // branded host. See reserved-routes.collisions.static.test.ts
   // ("contact must stay tenant-ownable").
   try {
     const onMarketing = await get(MARKETING_HOST + "/contact");
-    if (onMarketing.status === 200) {
+    const mktMatched = String(onMarketing.headers["x-matched-path"] ?? "");
+    if (onMarketing.status === 200 && !mktMatched.includes("/p/")) {
       pass(`${MARKETING_HOST}/contact (200)`, "platform contact form on marketing host");
     } else {
       fail(
         `${MARKETING_HOST}/contact`,
-        `expected 200 on the marketing host, got ${onMarketing.status}`,
+        `expected 200 platform /contact, got ${onMarketing.status} matched=${mktMatched || "(none)"}`,
       );
     }
   } catch (e) {

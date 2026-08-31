@@ -461,6 +461,10 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
     "/funciones",
     "/funciones/citas-y-reservas",
     "/docs",
+    // Prefix gate only: agency does not allow the platform (public)/contact
+    // route. The public URL `/contact` can still 200 as a tenant CMS page
+    // via clean-URL rewrite → `/p/contact`. Do not copy this into an HTTP
+    // smoke that expects a 404 on a branded host that owns the slug.
     "/contact",
   ];
   for (const p of marketingPages) {
