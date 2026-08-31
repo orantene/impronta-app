@@ -643,6 +643,24 @@ export async function setBriefStatus(
   return { ok: true };
 }
 
+/** Stamp the engine that last classified this brief. See the replay harness. */
+export async function setBriefEngineVersion(
+  briefId: string,
+  engineVersion: string,
+): Promise<{ ok: boolean }> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false };
+  const { error } = await sb
+    .from("tulala_briefs")
+    .update({ engine_version: engineVersion })
+    .eq("id", briefId);
+  if (error) {
+    logServerError("tulala.setBriefEngineVersion", error);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
 /**
  * Point a brief at the objects the intake produced.
  *

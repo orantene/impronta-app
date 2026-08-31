@@ -85,6 +85,7 @@ export function submitCtaLabel(
   prices: GetStartedTierPrices | undefined,
   names?: GetStartedTierNames,
 ): string {
+  if (tier === "website") return `Continue to ${nameOf("website", names)} checkout`;
   if (tier === "studio") return `Continue to ${nameOf("studio", names)} checkout`;
   if (tier === "agency") return `Continue to ${nameOf("agency", names)} checkout`;
   if (tier === "network") {
@@ -99,10 +100,14 @@ export function submitCtaLabel(
   return "Create my free workspace";
 }
 
-export const PAID_TIER_PLAN_LABEL = { studio: "Studio", agency: "Agency" } as const;
+export const PAID_TIER_PLAN_LABEL = {
+  website: "Website",
+  studio: "Studio",
+  agency: "Agency",
+} as const;
 
-export function isPaidTier(tier?: TierKey): tier is "studio" | "agency" {
-  return tier === "studio" || tier === "agency";
+export function isPaidTier(tier?: TierKey): tier is "website" | "studio" | "agency" {
+  return tier === "website" || tier === "studio" || tier === "agency";
 }
 
 export function formFinePrint(
@@ -110,6 +115,11 @@ export function formFinePrint(
   prices: GetStartedTierPrices | undefined,
   names?: GetStartedTierNames,
 ): string {
+  if (tier === "website") {
+    return prices?.website
+      ? `${nameOf("website", names)} · ${prices.website}/mo · Cancel any time`
+      : `${nameOf("website", names)} · Cancel any time`;
+  }
   if (tier === "studio") {
     return `${nameOf("studio", names)} · ${prices?.studio ?? "$29"}/mo · Cancel any time`;
   }

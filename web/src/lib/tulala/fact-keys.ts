@@ -25,6 +25,8 @@
  * you can read the whole classifier's input in one file.
  */
 
+import { INDUSTRY_FACT_KEYS } from "./industry-fact-keys";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type FactValueType = "string" | "number" | "boolean" | "string_list";
@@ -40,7 +42,13 @@ export type FactCategory =
   | "presence"
   | "operations"
   | "brand"
-  | "goals";
+  | "goals"
+  /**
+   * Craft detail added by an industry pack. Held apart from the core categories
+   * because it obeys different rules — see `industry-fact-keys.ts` — and because
+   * the Settings surface shows it last, after the facts that decided anything.
+   */
+  | "industry";
 
 /**
  * How strongly a fact argues that this person needs a Talent Profile, a
@@ -98,6 +106,14 @@ export type FactKeyDef = {
  */
 export const FACT_VOCABULARY_VERSION = 1;
 
+/**
+ * Every key, core plus every industry pack's.
+ *
+ * Merged into ONE list on purpose: `isKnownFactKey` is the only thing standing
+ * between a typo and the database, so a second vocabulary that some writers
+ * check and others do not would defeat it. A pack adds keys by adding them to
+ * `industry-fact-keys.ts`; nothing else in the system needs to know packs exist.
+ */
 export const FACT_KEYS: readonly FactKeyDef[] = [
   // ── Identity ───────────────────────────────────────────────────────────────
   {
@@ -239,7 +255,21 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     key: "business.staff_count",
     type: "number",
     category: "business",
-    label: "How many people",
+    // "In total", not "as well as you". The engine turns this straight into a
+    // seat count, and off-by-one here is the difference between Free and
+    // Studio, so the label has to be unambiguous to whoever asks the question.
+    label: "How many people in total, including you",
+  },
+  {
+    key: "business.other_workers_arrangement",
+    type: "string",
+    category: "business",
+    label: "How the money works with them",
+    allowed: ["commission_split", "rent_chair", "salary", "unclear"],
+    // The third of the four operating questions, and the one that separates a
+    // roster from a staff rota. Not scored as a weight: the answer is not
+    // "more or less business", it is WHICH KIND, so the engine reads it
+    // directly when it picks the workspace shape and the plan floor.
   },
   {
     key: "business.represents_others",
@@ -401,6 +431,23 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     // not a reason to sell seats today.
     evidence: { workspace: 1 },
   },
+  {
+    key: "goals.focus_on_business",
+    type: "boolean",
+    category: "goals",
+    label: "You mainly run the business now",
+    // Post-signup signal for the Strategist: keep the Workspace, quiet the
+    // Talent Profile. No evidence weight — it does not change what they need
+    // at intake, only what they want to emphasise after they have it.
+  },
+  {
+    key: "goals.talent_still_active",
+    type: "boolean",
+    category: "goals",
+    label: "Your Talent Profile should stay active",
+  },
+  // ── Industry packs ─────────────────────────────────────────────────────────
+  ...INDUSTRY_FACT_KEYS,
 ] as const;
 
 // ─── Lookup ───────────────────────────────────────────────────────────────────
@@ -415,6 +462,17 @@ export function factKeyDef(key: string): FactKeyDef | null {
 
 export function isKnownFactKey(key: string): boolean {
   return BY_KEY.has(key);
+}
+
+/**
+ * The label to show a human for a fact key.
+ *
+ * Falls back to the raw key rather than throwing, so a fact stored under an old
+ * vocabulary version still renders. A restored snapshot from before a key was
+ * renamed must not blank out the review screen.
+ */
+export function factLabel(key: string): string {
+  return BY_KEY.get(key)?.label ?? key;
 }
 
 export function factKeysInCategory(category: FactCategory): FactKeyDef[] {

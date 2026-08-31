@@ -8236,6 +8236,8 @@
         "flagAiDraftDesc": "Asistentes de redacción con IA.",
         "flagAiSupportLabel": "IA como primer respondedor de soporte",
         "flagAiSupportDesc": "Respuestas de soporte en la app, con escalado a una persona. Desactivado por defecto.",
+        "flagAiTulalaAgentLabel": "Entrevista con el Agente Tulala",
+        "flagAiTulalaAgentDesc": "Registro conversacional en /get-started. La única superficie de IA que alcanza una visita anónima. Desactivado por defecto.",
         "flagSearchQualityV2Label": "Calidad de búsqueda v2",
         "flagSearchQualityV2Desc": "Combinación híbrida más potente (RRF) + cursor de continuación híbrido.",
         "flagRefineV2Label": "Refinamiento v2",

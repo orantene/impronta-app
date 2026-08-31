@@ -18,12 +18,22 @@ import { isRetiredWorkspaceStatus } from "./workspace-lifecycle";
  * workspace is allowed.
  */
 
+/**
+ * The tier a signup asked for, as stamped on the workspace and the lead.
+ *
+ * Named rather than inlined because it is the union `normalizeWorkspaceTierInterest`
+ * returns, and it is read in three places that must not drift from it. Adding
+ * `website` to the inline copies one at a time is how the compiler ends up being
+ * the only thing that knows they were ever meant to match.
+ */
+export type WorkspaceTierInterest = "free" | "website" | "studio" | "agency" | "network";
+
 export type OwnedFreeWorkspace = {
   tenantId: string;
   slug: string;
   displayName: string;
   /** `settings.signup_tier_interest` stamped at creation, normalized. */
-  signupTierInterest: "free" | "studio" | "agency" | "network" | null;
+  signupTierInterest: WorkspaceTierInterest | null;
   /** `settings.signup_lead_id` stamped at creation (null for legacy rows). */
   signupLeadId: string | null;
 };
@@ -43,10 +53,18 @@ type MembershipRow = {
 
 export function normalizeWorkspaceTierInterest(
   value: unknown,
-): "free" | "studio" | "agency" | "network" | null {
+): WorkspaceTierInterest | null {
   if (typeof value !== "string") return null;
   const v = value.trim().toLowerCase();
-  if (v === "free" || v === "studio" || v === "agency" || v === "network") return v;
+  if (
+    v === "free" ||
+    v === "website" ||
+    v === "studio" ||
+    v === "agency" ||
+    v === "network"
+  ) {
+    return v;
+  }
   return null;
 }
 

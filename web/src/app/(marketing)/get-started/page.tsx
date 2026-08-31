@@ -11,6 +11,9 @@ import { MarketingCta } from "@/components/marketing/cta-link";
 import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
+import { TulalaAgentInvite } from "@/components/marketing/tulala-agent-invite";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAppUrl } from "@/lib/auth-flow";
 import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
 import { DEFAULT_SIGNUP_AUDIENCE } from "@/lib/saas/workspace-signup";
@@ -193,7 +196,11 @@ export default async function GetStartedPage({
   const copy = HEADLINE_BY_TIER[tierKey];
   const initialAudience = mapAudience(resolved.audience ?? null, resolved.tier ?? null);
   const tier: TierKey | undefined =
-    tierKey === "free" || tierKey === "studio" || tierKey === "agency" || tierKey === "network"
+    tierKey === "free" ||
+    tierKey === "website" ||
+    tierKey === "studio" ||
+    tierKey === "agency" ||
+    tierKey === "network"
       ? (tierKey as TierKey)
       : undefined;
 
@@ -221,10 +228,21 @@ export default async function GetStartedPage({
 
   const appLoginUrl = `${getAppUrl()}/login`;
 
+  // The conversational intake is offered only when it can actually run. Flag
+  // off, or no model configured, and the invite is simply absent: the classic
+  // form below it still converts, so an AI outage must not become a signup
+  // outage.
+  const aiFlags = await getAiFeatureFlags();
+  const agentAvailable =
+    aiFlags.ai_master_enabled &&
+    aiFlags.ai_tulala_agent_enabled &&
+    (await isResolvedAiChatConfigured());
+
   return (
     <>
       <HeroSection
         locale={locale}
+        agentAvailable={agentAvailable}
         appLoginUrl={appLoginUrl}
         copy={copy}
         initialAudience={initialAudience}
@@ -278,6 +296,7 @@ function mapAudience(raw: string | null, rawTier?: string | null): AudienceKey {
 
 function HeroSection({
   locale,
+  agentAvailable,
   appLoginUrl,
   copy,
   initialAudience,
@@ -289,6 +308,7 @@ function HeroSection({
   appliedPromoCode,
 }: {
   locale: string;
+  agentAvailable: boolean;
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
   initialAudience: AudienceKey;
@@ -428,6 +448,9 @@ function HeroSection({
           </div>
 
           <div id="form" className="relative lg:sticky lg:top-24">
+            {agentAvailable ? (
+              <TulalaAgentInvite locale={locale === "es" ? "es" : "en"} />
+            ) : null}
             {appliedDiscountLabel && (
               <div
                 className="mb-4 rounded-2xl border px-4 py-3 text-[0.8125rem]"

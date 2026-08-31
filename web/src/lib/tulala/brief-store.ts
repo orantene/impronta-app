@@ -263,6 +263,10 @@ export function factsByCategory(
     "operations",
     "brand",
     "goals",
+    // Last, because it is craft detail rather than anything that decided the
+    // shape or the plan. Someone scanning this screen to check we understood
+    // them should hit the load-bearing facts first.
+    "industry",
   ];
   return order
     .map((category) => ({

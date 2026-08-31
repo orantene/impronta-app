@@ -60,7 +60,39 @@ export type ChatCompletionResult =
     }
   | { ok: false; code: string; message: string };
 
+/**
+ * A single beat of a streamed completion.
+ *
+ * `done` always carries the full accumulated text, so a caller that only needs
+ * the final answer can ignore every `text` event and still be correct. That
+ * matters because the fallback path (an adapter with no streaming) synthesises
+ * exactly one `done`, and no call site should have to special-case it.
+ */
+export type ChatStreamEvent =
+  | { type: "text"; delta: string }
+  | {
+      type: "done";
+      text: string;
+      usage?: AiUsage;
+      model?: string;
+      stopReason?: string | null;
+    }
+  | { type: "error"; code: string; message: string };
+
 export type AiProviderAdapter = {
   id: AiProviderId;
   chatCompletion(input: ChatCompletionInput): Promise<ChatCompletionResult>;
+  /**
+   * OPTIONAL. Streamed text for conversational surfaces, where a four-second
+   * silence reads as broken even when the answer is good.
+   *
+   * Optional rather than required so adding it did not force a rewrite of the
+   * disabled adapter or of OpenAI. Callers must handle absence — use
+   * `streamOrFallback` in `stream.ts` rather than testing for the method at
+   * every call site.
+   *
+   * Never use this for structured extraction. A half-streamed JSON object is
+   * unparseable, so schema'd calls stay on `chatCompletion`.
+   */
+  streamChatCompletion?(input: ChatCompletionInput): AsyncIterable<ChatStreamEvent>;
 };

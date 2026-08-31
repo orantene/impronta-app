@@ -144,6 +144,15 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
         control: { kind: "toggle" },
       },
       {
+        key: "ai_tulala_agent_enabled",
+        label: "Tulala Agent intake",
+        description:
+          "Conversational signup at /get-started. The only AI surface anonymous visitors reach. Off by default.",
+        labelKey: "dashboard.platform.operations.flagAiTulalaAgentLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiTulalaAgentDesc",
+        control: { kind: "toggle" },
+      },
+      {
         key: "ai_search_quality_v2",
         label: "Search quality v2",
         description: "Stronger hybrid merge (RRF) + hybrid continuation cursor.",

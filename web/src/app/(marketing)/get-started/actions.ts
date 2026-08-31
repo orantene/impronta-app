@@ -12,7 +12,10 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { findAuthUserIdByEmail } from "@/lib/saas/find-auth-user-by-email";
-import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
+import {
+  findOwnedFreeWorkspaceForUser,
+  type WorkspaceTierInterest,
+} from "@/lib/saas/owned-free-workspace";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
@@ -65,7 +68,7 @@ const SignupSchema = z.object({
     .optional()
     .or(z.literal("")),
   rosterSize: z.enum(["1-5", "6-20", "21-50", "50+"]),
-  tierInterest: z.enum(["free", "studio", "agency", "network"]).optional(),
+  tierInterest: z.enum(["free", "website", "studio", "agency", "network"]).optional(),
   utm_source: z.string().max(120).optional(),
   utm_medium: z.string().max(120).optional(),
   utm_campaign: z.string().max(120).optional(),
@@ -532,7 +535,7 @@ async function sendFounderDigest(params: {
   audience: "operator" | "agency" | "organization" | "business";
   rosterSize: string;
   subdomain: string | null;
-  tierInterest: "free" | "studio" | "agency" | "network" | null;
+  tierInterest: WorkspaceTierInterest | null;
   utmSource: string | null;
   referrer: string | null;
 }): Promise<void> {

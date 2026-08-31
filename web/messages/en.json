@@ -8236,6 +8236,8 @@
         "flagAiDraftDesc": "AI-assisted drafting helpers.",
         "flagAiSupportLabel": "AI support first-responder",
         "flagAiSupportDesc": "Grounded in-app support answers with escalation to a human. Off by default.",
+        "flagAiTulalaAgentLabel": "Tulala Agent intake",
+        "flagAiTulalaAgentDesc": "Conversational signup at /get-started. The only AI surface anonymous visitors reach. Off by default.",
         "flagSearchQualityV2Label": "Search quality v2",
         "flagSearchQualityV2Desc": "Stronger hybrid merge (RRF) + hybrid continuation cursor.",
         "flagRefineV2Label": "Refine v2",

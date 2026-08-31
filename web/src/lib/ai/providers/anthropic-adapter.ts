@@ -4,6 +4,7 @@ import type {
   AiProviderAdapter,
   ChatCompletionInput,
   ChatCompletionResult,
+  ChatStreamEvent,
 } from "@/lib/ai/provider";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -176,6 +177,89 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
             ? err.message.trim()
             : "Anthropic request failed.";
         return { ok: false, code: "api_error", message: line };
+      }
+    },
+
+    /**
+     * Streamed text, for conversational surfaces only.
+     *
+     * Reuses `buildAnthropicParams` so the model-family shaping (no sampling
+     * params on Sonnet 5+, adaptive thinking, effort, prompt caching) cannot
+     * drift between the streaming and non-streaming paths — that divergence
+     * would show up as a 400 on one path only, which is a miserable bug to find.
+     *
+     * Errors are YIELDED, not thrown: a stream that throws mid-flight after the
+     * client has already rendered half a sentence leaves the UI with no way to
+     * say what went wrong.
+     */
+    async *streamChatCompletion(
+      input: ChatCompletionInput,
+    ): AsyncIterable<ChatStreamEvent> {
+      const key = apiKey?.trim() || process.env.ANTHROPIC_API_KEY?.trim();
+      if (!key) {
+        yield { type: "error", code: "no_key", message: "Anthropic API key is not configured." };
+        return;
+      }
+
+      const model = modelId(input.model);
+      let accumulated = "";
+
+      try {
+        const client = new Anthropic({ apiKey: key });
+        const params = buildAnthropicParams(input, model, input.systemPrompt);
+        const stream = client.messages.stream({ ...params, stream: true });
+
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta" &&
+            event.delta.text
+          ) {
+            accumulated += event.delta.text;
+            yield { type: "text", delta: event.delta.text };
+          }
+        }
+
+        const final = await stream.finalMessage();
+        const served = final.model ?? "";
+        if (isModelDrift(model, served)) {
+          logServerError(
+            "anthropic-adapter/model-drift",
+            new Error(`requested "${model}" but served "${served}"`),
+          );
+        }
+
+        const text = accumulated.trim();
+        if (!text) {
+          yield {
+            type: "error",
+            code: final.stop_reason === "max_tokens" ? "truncated" : "empty_response",
+            message: "Claude returned no text.",
+          };
+          return;
+        }
+
+        yield {
+          type: "done",
+          text,
+          model: served || model,
+          stopReason: final.stop_reason,
+          usage: {
+            inputTokens: final.usage?.input_tokens ?? null,
+            outputTokens: final.usage?.output_tokens ?? null,
+          },
+        };
+      } catch (e: unknown) {
+        const err = e as { status?: number; message?: string };
+        const status = typeof err.status === "number" ? err.status : undefined;
+        yield {
+          type: "error",
+          code: status === 429 ? "quota" : "api_error",
+          message:
+            typeof err.message === "string" && err.message.trim()
+              ? err.message.trim()
+              : "Anthropic stream failed.",
+        };
       }
     },
   };

@@ -17,6 +17,7 @@
  */
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -43,6 +44,7 @@ const CATEGORY_LABELS: Record<FactCategory, string> = {
   operations: "How you operate",
   brand: "Brand direction",
   goals: "What you want",
+  industry: "Your craft",
 };
 
 const SOURCE_LABELS: Record<BriefFact["source"], string> = {
@@ -262,6 +264,15 @@ function Header({ updatedAt, version }: { updatedAt: string | null; version: num
         What Tulala understands about your work, and where each piece came from.
         Everything here is editable, and anything I worked out myself is marked as
         a guess until you confirm it.
+      </p>
+      <p className="mt-4">
+        <Link
+          href="/account/brief/agent"
+          className="inline-flex h-9 items-center rounded-full px-4 text-[0.8125rem] font-semibold"
+          style={{ background: "var(--plt-forest)", color: "#fff" }}
+        >
+          Talk to your account strategist
+        </Link>
       </p>
       {updatedAt ? (
         <p className="plt-mono mt-3 text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>
