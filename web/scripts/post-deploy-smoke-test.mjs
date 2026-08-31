@@ -567,11 +567,13 @@ async function check_auth_surface_matrix() {
     fail(`${AGENCY_HOST}/get-started`, e.message);
   }
 
-  // Platform /contact — marketing hosts get the guest lead form; agency hosts
-  // keep their tenant storefront form at the same path. The allow-list entry
-  // is marketing-only, so a branded agency domain must 404 /contact as a
-  // *marketing* page (the tenant form is served under the agency allow-list
-  // as the public storefront route, not this prefix).
+  // Platform /contact — marketing hosts get the guest lead form at the App
+  // Router `(public)/contact` route. Agency hosts do NOT serve that route:
+  // `/contact` was removed from AGENCY_STOREFRONT_PREFIXES so tenants can own
+  // the slug as a CMS page (clean-URL rewrite → `/p/contact`). So agency
+  // `/contact` is either 200 (CMS page exists) or 404 (no such page) — never
+  // the marketing platform form. See reserved-routes.collisions.static.test.ts
+  // ("contact must stay tenant-ownable").
   try {
     const onMarketing = await get(MARKETING_HOST + "/contact");
     if (onMarketing.status === 200) {
@@ -587,15 +589,21 @@ async function check_auth_surface_matrix() {
   }
   try {
     const onAgency = await get(AGENCY_HOST + "/contact");
+    const matched = String(onAgency.headers["x-matched-path"] ?? "");
     if (onAgency.status === 404) {
       pass(
         `${AGENCY_HOST}/contact (404)`,
-        "INTENTIONAL — platform contact is marketing-only; agency already 404s /contact",
+        "no CMS contact page — platform marketing form correctly unreachable",
+      );
+    } else if (onAgency.status === 200 && matched.includes("/p/")) {
+      pass(
+        `${AGENCY_HOST}/contact (200 CMS)`,
+        "tenant-owned CMS page via clean-URL rewrite — not the marketing form",
       );
     } else {
       fail(
         `${AGENCY_HOST}/contact`,
-        `expected 404 on a branded agency host, got ${onAgency.status}`,
+        `expected 404 or CMS 200 (/p/), got ${onAgency.status} matched=${matched || "(none)"}`,
       );
     }
   } catch (e) {
