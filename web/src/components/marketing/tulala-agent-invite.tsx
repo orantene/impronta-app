@@ -15,6 +15,8 @@
 
 import Link from "next/link";
 
+import { withLocaleHref } from "@/i18n/pathnames";
+
 export function TulalaAgentInvite({
   locale,
 }: {
@@ -68,7 +70,7 @@ export function TulalaAgentInvite({
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Link
-            href="/get-started/agent"
+            href={withLocaleHref("/get-started/agent", locale)}
             className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[0.875rem] font-semibold transition-opacity hover:opacity-90"
             style={{ background: "var(--plt-forest)", color: "#fff" }}
           >

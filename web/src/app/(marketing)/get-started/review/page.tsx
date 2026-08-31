@@ -24,6 +24,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { loadBrief } from "@/lib/tulala/brief-store.server";
@@ -111,7 +112,7 @@ export default async function ReviewPage() {
         }}
         footer={
           <Link
-            href="/get-started/agent"
+            href={withLocaleHref("/get-started/agent", locale)}
             className="text-[0.8125rem] font-medium underline decoration-dotted underline-offset-4"
             style={{ color: "var(--plt-muted)" }}
           >
