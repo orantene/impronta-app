@@ -1,8 +1,6 @@
 "use server";
 
-import { lookup as dnsLookup } from "node:dns/promises";
-import { isIP } from "node:net";
-
+import { assertPublicHttpUrl, readCappedText } from "@/lib/ssrf-guard";
 import type { LinkUnfurl } from "@/lib/messages/unfurl-types";
 
 /**
@@ -11,12 +9,9 @@ import type { LinkUnfurl } from "@/lib/messages/unfurl-types";
  * Shared CONTRACT (consumed by the message shells). Returns OpenGraph-ish
  * metadata for an http/https URL, or `{ ok:false, url }` on any failure.
  *
- * Safety posture:
- *   • http/https scheme allowlist only.
- *   • DNS-resolve the host and reject any private / loopback / link-local /
- *     unique-local range, plus the cloud metadata address (169.254.169.254).
- *   • 3s timeout, body read capped at ~512KB.
- *   • Only a small set of <title> / og:* tags are parsed; no HTML is executed.
+ * Safety posture: scheme allowlist, DNS range checks and the capped body read
+ * all live in `@/lib/ssrf-guard`, shared with the Tulala URL importer. Only a
+ * small set of <title> / og:* tags are parsed here; no HTML is executed.
  */
 
 const TIMEOUT_MS = 3000;
@@ -25,30 +20,9 @@ const MAX_BYTES = 512 * 1024;
 export async function unfurlLink(url: string): Promise<LinkUnfurl> {
   const fail: LinkUnfurl = { ok: false, url };
   try {
-    if (typeof url !== "string" || url.length === 0 || url.length > 2048) {
-      return fail;
-    }
-
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      return fail;
-    }
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return fail;
-    }
-
-    const host = parsed.hostname;
-    if (!host || isBlockedHostname(host)) {
-      return fail;
-    }
-
-    // Resolve to IPs and reject any private/reserved address — closes the
-    // DNS-rebinding / internal-name SSRF hole.
-    const safe = await isHostPubliclyRoutable(host);
-    if (!safe) return fail;
+    const checked = await assertPublicHttpUrl(url);
+    if (!checked.ok) return fail;
+    const parsed = checked.url;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -76,7 +50,7 @@ export async function unfurlLink(url: string): Promise<LinkUnfurl> {
       return fail;
     }
 
-    const html = await readCapped(res, MAX_BYTES);
+    const html = await readCappedText(res, MAX_BYTES);
     if (!html) return fail;
 
     const meta = parseMeta(html, parsed);
@@ -90,108 +64,8 @@ export async function unfurlLink(url: string): Promise<LinkUnfurl> {
 }
 
 // ---------------------------------------------------------------------------
-// SSRF guards
+// Tiny meta parser
 // ---------------------------------------------------------------------------
-
-function isBlockedHostname(host: string): boolean {
-  const h = host.toLowerCase().replace(/\.$/, "");
-  if (h === "localhost" || h.endsWith(".localhost")) return true;
-  if (h === "metadata" || h.endsWith(".internal") || h.endsWith(".local")) return true;
-  // Bare IP literals are validated by the range check below; block obvious ones early.
-  if (isIP(h) && isPrivateIp(h)) return true;
-  return false;
-}
-
-async function isHostPubliclyRoutable(host: string): Promise<boolean> {
-  // If the host is already an IP literal, just range-check it.
-  if (isIP(host)) return !isPrivateIp(host);
-  try {
-    const records = await dnsLookup(host, { all: true });
-    if (!records || records.length === 0) return false;
-    for (const r of records) {
-      if (isPrivateIp(r.address)) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isPrivateIp(ip: string): boolean {
-  const v = isIP(ip);
-  if (v === 4) return isPrivateIpv4(ip);
-  if (v === 6) return isPrivateIpv6(ip);
-  return true; // unknown shape → treat as unsafe
-}
-
-function isPrivateIpv4(ip: string): boolean {
-  const parts = ip.split(".").map((p) => Number.parseInt(p, 10));
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
-    return true;
-  }
-  const [a, b] = parts;
-  if (a === 0) return true; // 0.0.0.0/8
-  if (a === 10) return true; // 10/8
-  if (a === 127) return true; // loopback
-  if (a === 169 && b === 254) return true; // link-local + metadata
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
-  if (a === 192 && b === 168) return true; // 192.168/16
-  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
-  if (a >= 224) return true; // multicast + reserved
-  return false;
-}
-
-function isPrivateIpv6(ip: string): boolean {
-  const h = ip.toLowerCase();
-  if (h === "::" || h === "::1") return true; // unspecified + loopback
-  if (h.startsWith("fe80")) return true; // link-local
-  if (h.startsWith("fc") || h.startsWith("fd")) return true; // unique-local fc00::/7
-  // IPv4-mapped (::ffff:a.b.c.d) — range-check the embedded v4.
-  const mapped = /::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h);
-  if (mapped) return isPrivateIpv4(mapped[1]);
-  return false;
-}
-
-// ---------------------------------------------------------------------------
-// Body read (capped) + tiny meta parser
-// ---------------------------------------------------------------------------
-
-async function readCapped(res: Response, maxBytes: number): Promise<string | null> {
-  const body = res.body;
-  if (!body) {
-    // No stream — fall back to text() but still bound it.
-    const txt = await res.text();
-    return txt.slice(0, maxBytes * 2);
-  }
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        total += value.byteLength;
-        if (total >= maxBytes) break;
-      }
-    }
-  } finally {
-    try {
-      await reader.cancel();
-    } catch {
-      /* ignore */
-    }
-  }
-  if (total === 0) return null;
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    merged.set(c, offset);
-    offset += c.byteLength;
-  }
-  return new TextDecoder("utf-8", { fatal: false }).decode(merged);
-}
 
 function parseMeta(html: string, base: URL): Omit<LinkUnfurl, "ok" | "url"> {
   // Only scan the <head> region where meta lives — bounds the work.

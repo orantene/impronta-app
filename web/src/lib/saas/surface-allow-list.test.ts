@@ -198,6 +198,17 @@ test("QA guest-session reset: /api/dev/reset-guest allowed on every host kind (W
   }
 });
 
+test("Tulala Agent API is host-agnostic; /api/ai stays scoped", () => {
+  // Intake lives on marketing (/get-started/agent); Strategist on app
+  // (/account/brief/agent). Both POST /api/tulala/*. Must not open /api/ai.
+  for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/api/tulala/turn"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/api/tulala/import"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/api/tulala/strategist"), true, kind);
+  }
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/ai/search"), false);
+});
+
 test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   const allowed = [
     "/",

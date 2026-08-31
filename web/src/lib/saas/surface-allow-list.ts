@@ -156,6 +156,11 @@ const SHARED_API_PREFIXES = [
   // the fetch gets the branded HTML 404, and the picker renders no times at
   // all on every host.
   "/api/public/booking",
+  // Tulala Agent intake + Account Strategist. Anonymous-first on marketing
+  // (/get-started/agent) and authenticated on app (/account/brief/agent). Own
+  // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`
+  // because that prefix would also open directory search on the marketing host.
+  "/api/tulala",
 ] as const;
 
 /**

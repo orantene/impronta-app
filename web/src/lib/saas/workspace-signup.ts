@@ -127,16 +127,31 @@ export function isSelfServeWorkspaceLeadEligible(
 ): boolean {
   if (!tierInterest || tierInterest === "free") return true;
   return (
+    tierInterest === "website" ||
     tierInterest === "studio" ||
     tierInterest === "agency" ||
     tierInterest === "network"
   );
 }
 
+/**
+ * Tiers that get a Stripe checkout immediately after provisioning.
+ *
+ * `website` was added when the Tulala engine started recommending it. It is the
+ * correct answer for a large real population — a local business with staff whom
+ * clients do not choose between, which is most spas, most clinics, most
+ * restaurants — and the engine could name it while signup could not sell it.
+ * That gap meant the recommendation screen had to either lie or route the
+ * visitor to Free and hope they upgraded.
+ */
 export function isPaidWorkspaceTierInterest(
   tierInterest: string | null | undefined,
-): tierInterest is "studio" | "agency" {
-  return tierInterest === "studio" || tierInterest === "agency";
+): tierInterest is "website" | "studio" | "agency" {
+  return (
+    tierInterest === "website" ||
+    tierInterest === "studio" ||
+    tierInterest === "agency"
+  );
 }
 
 export function isNetworkWorkspaceTierInterest(

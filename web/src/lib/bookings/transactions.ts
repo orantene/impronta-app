@@ -15,7 +15,8 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { calculateTransactionAmounts } from "@/lib/bookings/commission";
+import { calculateTransactionAmountsForBasisPoints } from "@/lib/bookings/commission";
+import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { applyBookingPaymentSync } from "@/lib/bookings/booking-payment-sync";
 import {
   describeTransactionTransitionEvent,
@@ -419,8 +420,12 @@ export async function createBookingTransaction(opts: {
       }
     }
 
-    // #4: prefer the commission-snapshot platform fee (the true split) over the
-    // flat FEE_TABLE %, so the admin's displayed fee/net agree with the payouts.
+    // #4: prefer the commission-snapshot platform fee (the true split) so the
+    // admin's displayed fee/net agree with the payouts. When there is no
+    // snapshot fee to pro-rate we fall back to the plan-tier rate read from
+    // `platform_commission_config` — the same config the canonical resolver
+    // reads. Before 2026-08-30 this fallback used a divergent local table and
+    // billed Free at 0% and Agency at 17.5% against a ratified 6%.
     const override = opts.platformFeeCentsOverride;
     const amounts =
       override != null && override >= 0 && override <= grossAmountCents && grossAmountCents > 0
@@ -430,7 +435,10 @@ export async function createBookingTransaction(opts: {
             netCents: grossAmountCents - override,
             feeBasisPoints: Math.round((override / grossAmountCents) * 10_000),
           }
-        : calculateTransactionAmounts(grossAmountCents, opts.planTier);
+        : calculateTransactionAmountsForBasisPoints(
+            grossAmountCents,
+            await loadPlatformTakeBps(opts.planTier),
+          );
 
     const { data, error } = await sb
       .from("booking_transactions")

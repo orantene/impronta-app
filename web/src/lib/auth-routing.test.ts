@@ -88,21 +88,138 @@ test("post-auth preserves branded portal next for onboarding users", () => {
   );
 });
 
-test("talent users resolve to /talent and are redirected away from /admin", () => {
+test("talent users resolve to /talent and are redirected away from admin SURFACES", () => {
   assert.equal(resolveAuthenticatedDestination(activeTalent), "/talent");
   assert.deepEqual(resolveAccountHref(true, activeTalent), {
     href: "/talent",
     label: "Profile",
   });
+  for (const path of ["/admin/site", "/admin/site-settings"]) {
+    assert.equal(
+      resolveAuthRoutingDecision({
+        pathname: path,
+        userId: "user-3",
+        sessionProfile: activeTalent,
+        routingProfile: activeTalent,
+        isImpersonating: false,
+      }).redirectTo,
+      "/talent",
+      `${path} is a staff surface and must stay gated`,
+    );
+  }
+});
+
+// ── /admin root is a membership resolver, not a surface ───────────────────────
+// Workspace provisioning never overwrites an existing app_role, so a talent who
+// opens a workspace keeps app_role='talent'. Gating /admin on isStaffRole locked
+// them out of the workspace they own, with no route to it anywhere in the shell.
+// Membership is the only correct authority and middleware cannot read it without
+// a per-request query, so /admin exactly is allowed through to the resolver at
+// web/src/app/admin/page.tsx, which redirects to /{slug}/admin or back out.
+
+test("/admin root is reachable by non-staff so workspace owners can reach their workspace", () => {
+  for (const profile of [activeTalent, activeClient]) {
+    for (const pathname of ["/admin", "/admin/"]) {
+      assert.equal(
+        resolveAuthRoutingDecision({
+          pathname,
+          userId: "owner-1",
+          sessionProfile: profile,
+          routingProfile: profile,
+          isImpersonating: false,
+        }).redirectTo,
+        null,
+        `${profile.app_role} must reach ${pathname} so the resolver can check membership`,
+      );
+    }
+  }
+});
+
+test("letting /admin root through does not open any deeper admin path", () => {
+  // The exemption is exactly two pathnames (`/admin` and `/admin/`). Everything
+  // below stays staff-only. Sibling prefixes like `/adminsecret` are not tested
+  // here because they never reach this branch: `isDashboardPath` splits on "/"
+  // so only the exact `admin` segment counts, and a non-route 404s upstream.
+  for (const pathname of [
+    "/admin/site",
+    "/admin/site-settings",
+    "/admin/roster",
+  ]) {
+    assert.equal(
+      resolveAuthRoutingDecision({
+        pathname,
+        userId: "client-2",
+        sessionProfile: activeClient,
+        routingProfile: activeClient,
+        isImpersonating: false,
+      }).redirectTo,
+      "/client",
+      `${pathname} must remain staff-gated`,
+    );
+  }
+});
+
+// ── home_surface_preference: the hybrid's chosen home ─────────────────────────
+
+test("a stored home preference outranks app_role for hybrid accounts", () => {
+  // The bug this fixes: a talent who owns a workspace was routed to /talent
+  // forever, because app_role holds one value and they legitimately have two
+  // homes.
   assert.equal(
-    resolveAuthRoutingDecision({
-      pathname: "/admin",
-      userId: "user-3",
-      sessionProfile: activeTalent,
-      routingProfile: activeTalent,
-      isImpersonating: false,
-    }).redirectTo,
+    resolveAuthenticatedDestination({
+      ...activeTalent,
+      home_surface_preference: "workspace",
+    }),
+    "/admin",
+  );
+  assert.equal(
+    resolveAuthenticatedDestination({
+      ...activeAdmin,
+      home_surface_preference: "talent",
+    }),
     "/talent",
+  );
+});
+
+test("an absent, empty, or unrecognized home preference changes nothing", () => {
+  for (const preference of [null, undefined, "", "workspac", "/admin", "admin"]) {
+    assert.equal(
+      resolveAuthenticatedDestination({
+        ...activeTalent,
+        home_surface_preference: preference,
+      }),
+      "/talent",
+      `preference ${JSON.stringify(preference)} must fall back to app_role routing`,
+    );
+  }
+});
+
+test("a home preference never rescues an account that is not active yet", () => {
+  // Preference is a UI choice, not an entitlement: it must not skip onboarding
+  // or revive a suspended account.
+  assert.equal(
+    resolveAuthenticatedDestination({
+      app_role: "talent",
+      account_status: "onboarding",
+      home_surface_preference: "workspace",
+    }),
+    "/onboarding/role",
+  );
+  assert.equal(
+    resolveAuthenticatedDestination({
+      app_role: "talent",
+      account_status: "suspended",
+      home_surface_preference: "workspace",
+    }),
+    "/",
+  );
+  assert.equal(
+    resolveAuthenticatedDestination({
+      app_role: null,
+      account_status: "active",
+      home_surface_preference: "workspace",
+    }),
+    "/onboarding/role",
   );
 });
 
@@ -138,15 +255,19 @@ test("hybrid staff (super_admin / agency_staff) are NOT bounced off /talent", ()
   );
 });
 
-test("client users resolve to /client and are redirected away from /admin", () => {
+test("client users resolve to /client and are redirected away from admin surfaces", () => {
   assert.equal(resolveAuthenticatedDestination(activeClient), "/client");
   assert.deepEqual(resolveAccountHref(true, activeClient), {
     href: "/client",
     label: "Dashboard",
   });
+  // `/admin` exactly is no longer decided here — see the /admin-root tests
+  // above. A client reaching the resolver has no membership and is sent to
+  // /client by web/src/app/admin/page.tsx, so the destination is unchanged;
+  // only the layer that decides it moved to the one that can check membership.
   assert.equal(
     resolveAuthRoutingDecision({
-      pathname: "/admin",
+      pathname: "/admin/site",
       userId: "user-4",
       sessionProfile: activeClient,
       routingProfile: activeClient,

@@ -178,6 +178,69 @@ export const PRODUCT_ANALYTICS_EVENTS = {
 
   /** The guest views an offer on the thread. Payload: standard. */
   offer_viewed: "offer_viewed",
+
+  // ---------------------------------------------------------------------------
+  // Tulala Agent intake — the learning loop.
+  //
+  // Scope decision: INSTRUMENT ONLY. Log from day one, analyse by hand until
+  // volume justifies more. Data not captured cannot be recovered, but a
+  // dashboard over a dozen signups is theatre.
+  //
+  // Every event is keyed on a versioned question id, never on question text.
+  // No transcripts: a question id plus an outcome is enough for all four
+  // signals, which keeps docs/ai-data-retention.md intact.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * A question was put to the user. The baseline every other rate divides by.
+   * Payload: { question_id, question_version, bank_version, stage, ask_index, open, decisive }
+   */
+  tulala_question_asked: "tulala_question_asked",
+
+  /**
+   * SIGNAL 1 — abandonment point. The question on screen when a session went
+   * cold. The strongest evidence that a question is bad, and it costs one event.
+   * Payload: { question_id, question_version, stage, turns, facts_known }
+   */
+  tulala_intake_abandoned: "tulala_intake_abandoned",
+
+  /**
+   * SIGNAL 2 — yield per question. Facts produced, at what confidence, and
+   * whether this was a re-ask. A high re-ask rate is a badly worded question,
+   * measured rather than guessed. Also how the open-versus-closed phrasing
+   * argument gets settled: open phrasings should show higher facts-per-turn AND
+   * a higher re-ask rate, making the tradeoff visible.
+   * Payload: { question_id, question_version, facts_yielded, fact_keys, mean_confidence, re_ask, open }
+   */
+  tulala_question_yield: "tulala_question_yield",
+
+  /**
+   * SIGNAL 3 — recommendation override. The user changed the structure or the
+   * plan on the approval screen. A free ground-truth label on the engine being
+   * wrong, volunteered by the only person who knows, and the highest-quality
+   * signal in the system. Exists purely because approval is a step rather than
+   * an automatic provision.
+   * Payload: { engine_version, field, recommended, chosen, talent_confidence, workspace_confidence }
+   */
+  tulala_recommendation_overridden: "tulala_recommendation_overridden",
+
+  /** The user accepted the recommendation as-is. The control arm for the above. */
+  tulala_recommendation_accepted: "tulala_recommendation_accepted",
+
+  /**
+   * SIGNAL 4a — the user could not answer. The question is wrong for their
+   * industry and belongs in a Phase 6 pack, or does not belong at all.
+   * Payload: { question_id, question_version, stage, industry }
+   */
+  tulala_question_unanswerable: "tulala_question_unanswerable",
+
+  /**
+   * SIGNAL 4b — the ENGINE could not classify. A business shape the laws do not
+   * cover. Deliberately a separate event from 4a: this one is a product gap and
+   * must reach a human, not a metrics table.
+   * Payload: { engine_version, kind, note, missing_fact_keys, talent_score, workspace_score }
+   */
+  tulala_unclassifiable: "tulala_unclassifiable",
 } as const;
 
 export type ProductAnalyticsEventName =

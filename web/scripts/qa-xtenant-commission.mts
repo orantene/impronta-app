@@ -29,10 +29,12 @@ const LINE_ITEMS = [
   { units: 1, unit_price_cents: 100_000, talent_cost_cents: 70_000 },
 ];
 
-// The LIVE platform config, read from production 2026-05-22:
-//   default_take_bps 500 (5%), default_take_floor_cents 0, plan_tier_bps {}.
+// The LIVE platform config. `default_take_bps` moved 500 → 600 in migration
+// 20261007000000_commission_talent_protected_split.sql, which also set
+// client_surcharge_bps 300. `plan_tier_bps` is still {} — no migration has ever
+// written a per-tier key, which is why Free pays the same rate as Agency.
 const LIVE_CONFIG: PlatformCommissionConfig = {
-  default_take_bps: 500,
+  default_take_bps: 600,
   default_take_floor_cents: 0,
   plan_tier_bps: {},
 };
@@ -40,7 +42,7 @@ const LIVE_CONFIG: PlatformCommissionConfig = {
 // A HYPOTHETICAL tier-differentiated config (NOT what's live) — used only to
 // prove the resolver supports per-tier rates when plan_tier_bps is populated.
 const TIERED_CONFIG: PlatformCommissionConfig = {
-  default_take_bps: 500,
+  default_take_bps: 600,
   default_take_floor_cents: 0,
   plan_tier_bps: { free: 0, studio: 1000, agency: 1500, network: 2000 },
 };
@@ -75,12 +77,12 @@ function resolve(
 
 // ── Item 2 + 3: precedence + 3-lane split ─────────────────────────────────────
 
-console.log("\n── LIVE config (default 5%, plan_tier_bps {}) ─────────────────");
+console.log("\n── LIVE config (default 6%, plan_tier_bps {}) ─────────────────");
 resolve("free tier", "free", LIVE_CONFIG);
 resolve("agency tier", "agency", LIVE_CONFIG);
 console.log(
-  "  → both tiers take the SAME 5% platform_default. Free is NOT 0%.\n" +
-    "    plan_tier_bps {} = ratified flat-5%-v1 (migration 20260513075149).",
+  "  → both tiers take the SAME 6% platform_default. Free is NOT 0%.\n" +
+    "    plan_tier_bps {} = ratified flat-6% (migration 20261007000000).",
 );
 
 console.log("\n── HYPOTHETICAL tiered config (proves resolver capability) ────");

@@ -8,6 +8,18 @@ export type AccessProfile = {
   account_status: string | null;
   app_role: string | null;
   onboarding_completed_at?: string | null;
+  /**
+   * Which dashboard this account wants to land on when more than one is valid.
+   * `workspace | talent | client`, or null for "never asked".
+   *
+   * A UI preference, never a capability. It exists because `app_role` holds one
+   * value and a hybrid account legitimately has two homes: a talent who opens a
+   * workspace keeps `app_role = 'talent'` (workspace provisioning deliberately
+   * never overwrites an existing role), so routing sent them to `/talent`
+   * forever with no way to say otherwise. Honoring a stale preference is safe —
+   * `/admin` resolves real membership and bounces anyone without one.
+   */
+  home_surface_preference?: string | null;
 };
 
 export function normalizeNextPath(
@@ -213,6 +225,20 @@ export function resolveAccountHref(
   };
 }
 
+/**
+ * The dashboard a stored `home_surface_preference` names, or null when unset or
+ * unrecognized. Kept next to `dashboardPathForRole` so both mappings to the
+ * three dashboard paths live in one place.
+ */
+export function dashboardPathForHomePreference(
+  preference: string | null | undefined,
+): "/admin" | "/talent" | "/client" | null {
+  if (preference === "workspace") return "/admin";
+  if (preference === "talent") return "/talent";
+  if (preference === "client") return "/client";
+  return null;
+}
+
 export function resolveAuthenticatedDestination(
   profile: AccessProfile | null | undefined,
 ): "/admin" | "/talent" | "/client" | "/onboarding/role" | "/" {
@@ -227,6 +253,11 @@ export function resolveAuthenticatedDestination(
   if (profile.account_status !== "active") {
     return "/";
   }
+
+  // An explicit choice outranks the inferred one. Only reached for accounts
+  // that were actually asked, so single-home users are unaffected.
+  const preferred = dashboardPathForHomePreference(profile.home_surface_preference);
+  if (preferred) return preferred;
 
   return dashboardPathForRole(profile.app_role);
 }

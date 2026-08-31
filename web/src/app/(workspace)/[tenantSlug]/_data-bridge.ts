@@ -11,7 +11,8 @@ import {
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
 import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
 import { loadTalentSubscriptionState, type TalentSubscriptionState } from "@/lib/stripe/talent-billing";
-import { getFeeBasisPoints, feePercent } from "@/lib/bookings/commission";
+import { feePercent } from "@/lib/bookings/commission";
+import { loadPlatformTakeBps, PLATFORM_DEFAULT_TAKE_BPS } from "@/lib/billing/platform-take-rate";
 import { loadTransactionsForTenant } from "@/lib/bookings/transactions";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
@@ -264,9 +265,18 @@ export type CommissionContext = {
  * Used by the bookings page to display the fee rate and by transaction creation.
  */
 export async function loadCommissionContext(tenantId: string): Promise<CommissionContext> {
+  // The rate comes from `platform_commission_config`, the same config the
+  // canonical booking resolver reads. It used to come from a local table that
+  // reported 0% for Free and 17.5% for Agency against a ratified 6%, so this
+  // surface was telling workspace owners a fee they would not actually be
+  // charged. On any failure we surface the ratified default rather than 0%,
+  // because "0%" is a specific and wrong promise.
+  const fallbackBps = PLATFORM_DEFAULT_TAKE_BPS;
   try {
     const supabase = await createSupabaseServerClient();
-    if (!supabase) return { planTier: "free", feeBasisPoints: 0, feePercent: "0%" };
+    if (!supabase) {
+      return { planTier: "free", feeBasisPoints: fallbackBps, feePercent: feePercent(fallbackBps) };
+    }
 
     const { data } = await supabase
       .from("agencies")
@@ -275,11 +285,11 @@ export async function loadCommissionContext(tenantId: string): Promise<Commissio
       .maybeSingle();
 
     const planTier = (data as { plan_tier?: string } | null)?.plan_tier ?? "free";
-    const bps = getFeeBasisPoints(planTier);
+    const bps = await loadPlatformTakeBps(planTier);
     return { planTier, feeBasisPoints: bps, feePercent: feePercent(bps) };
   } catch (err) {
     logServerError("workspace.loadCommissionContext", err);
-    return { planTier: "free", feeBasisPoints: 0, feePercent: "0%" };
+    return { planTier: "free", feeBasisPoints: fallbackBps, feePercent: feePercent(fallbackBps) };
   }
 }
 

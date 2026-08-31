@@ -7,6 +7,7 @@ import {
   resolveAuthRoutingDecision,
   shouldAttachAuthDebug,
 } from "@/lib/auth-routing";
+import type { AccessProfile } from "@/lib/auth-flow";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import { signGuestCookie, verifyGuestCookie } from "@/lib/guest-cookie";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
@@ -45,6 +46,8 @@ const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
 const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
 const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
 const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
+/** Hybrid accounts' chosen home, so the fast path routes like middleware does. */
+const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
 
 const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ID_HEADER,
@@ -52,6 +55,7 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_APP_ROLE_HEADER,
   ACTOR_STATUS_HEADER,
   ACTOR_ONBOARDED_HEADER,
+  ACTOR_HOME_PREF_HEADER,
 ];
 
 
@@ -273,11 +277,10 @@ export async function updateSession(
 
   const pathname = pathnameForAuth;
 
-  let sessionProfile: {
-    account_status: string | null;
-    app_role: string | null;
-    onboarding_completed_at?: string | null;
-  } | null = null;
+  // The real type, not a hand-copied subset: this shape is passed straight to
+  // `resolveAuthRoutingDecision`, so a field the router reads (like
+  // `home_surface_preference`) must not be silently dropped here.
+  let sessionProfile: AccessProfile | null = null;
 
   if (user) {
     sessionProfile = await loadAccessProfile(supabase, user.id);
@@ -307,6 +310,12 @@ export async function updateSession(
       ACTOR_ONBOARDED_HEADER,
       sessionProfile?.onboarding_completed_at ? "1" : "0",
     );
+    if (sessionProfile?.home_surface_preference) {
+      forwardedHeaders.set(
+        ACTOR_HOME_PREF_HEADER,
+        sessionProfile.home_surface_preference,
+      );
+    }
 
     const fresh = nextPreservingUrl();
     for (const c of supabaseResponse.cookies.getAll()) {

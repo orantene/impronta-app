@@ -178,7 +178,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         },
         {
           q: "Does Tulala take a commission?",
-          a: "The free workspace plan takes no commission on bookings. See the pricing page for what each plan includes.",
+          a: "Six percent on a paid booking, the same on every plan including the free one — three percent added to what the client pays, three percent from the seller. Nothing is charged on an unpaid enquiry. What changes between plans is roster seats and tooling, not the rate.",
         },
       ],
     },
@@ -234,7 +234,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         },
         {
           q: "¿Tulala cobra comisión?",
-          a: "El plan gratuito de workspace no cobra comisión sobre las reservas. Revisa la página de precios para ver qué incluye cada plan.",
+          a: "Seis por ciento sobre una reserva pagada, igual en todos los planes incluido el gratuito: tres por ciento se suma a lo que paga el cliente y tres por ciento sale del vendedor. No se cobra nada por una consulta sin pagar. Entre planes cambian los cupos de la lista y las herramientas, no la tarifa.",
         },
       ],
     },

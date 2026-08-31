@@ -12,7 +12,10 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { findAuthUserIdByEmail } from "@/lib/saas/find-auth-user-by-email";
-import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
+import {
+  findOwnedFreeWorkspaceForUser,
+  type WorkspaceTierInterest,
+} from "@/lib/saas/owned-free-workspace";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
@@ -25,6 +28,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { isRetiredWorkspaceStatus } from "@/lib/saas/workspace-lifecycle";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { stampOpenGuestTicketsWithLeadId } from "@/lib/support/load-guest-leads";
+import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { writeSignupBrief } from "@/lib/tulala/brief-from-signup";
+import type { BriefOwner } from "@/lib/tulala/brief-store.server";
 
 /**
  * Server action for /get-started signup capture.
@@ -62,7 +68,7 @@ const SignupSchema = z.object({
     .optional()
     .or(z.literal("")),
   rosterSize: z.enum(["1-5", "6-20", "21-50", "50+"]),
-  tierInterest: z.enum(["free", "studio", "agency", "network"]).optional(),
+  tierInterest: z.enum(["free", "website", "studio", "agency", "network"]).optional(),
   utm_source: z.string().max(120).optional(),
   utm_medium: z.string().max(120).optional(),
   utm_campaign: z.string().max(120).optional(),
@@ -388,6 +394,34 @@ export async function submitGetStartedSignup(
     logServerError("get-started/stampGuestTickets", err);
   }
 
+  // Write what they just told us into a Tulala Brief, so the understanding
+  // layer has real rows in it before the Agent conversation exists. Owned by
+  // the profile when they are signed in, otherwise by the signed guest cookie,
+  // which the post-signup claim then attaches to their new account.
+  //
+  // Best-effort by contract: a brief is an enrichment, and signup must not
+  // fail because one could not be written.
+  try {
+    const briefOwner: BriefOwner | null = actorUserId
+      ? { kind: "profile", profileId: actorUserId }
+      : await (async () => {
+          const guestSessionId = await resolveGuestSessionId();
+          return guestSessionId ? { kind: "guest" as const, guestSessionId } : null;
+        })();
+    if (briefOwner) {
+      await writeSignupBrief(briefOwner, {
+        contactName: input.name,
+        businessName: input.businessName,
+        businessDescription: input.businessDescription ?? null,
+        audience: input.audience,
+        rosterSize: input.rosterSize,
+        signupLeadId: leadId,
+      });
+    }
+  } catch (err) {
+    logServerError("get-started/writeSignupBrief", err);
+  }
+
   // Reserve the subdomain for this lead so a parallel signup can't race
   // them to the same slug. Best-effort: a failed reservation does NOT block
   // signup; the lead still has subdomain_wanted set, and the provisioner
@@ -501,7 +535,7 @@ async function sendFounderDigest(params: {
   audience: "operator" | "agency" | "organization" | "business";
   rosterSize: string;
   subdomain: string | null;
-  tierInterest: "free" | "studio" | "agency" | "network" | null;
+  tierInterest: WorkspaceTierInterest | null;
   utmSource: string | null;
   referrer: string | null;
 }): Promise<void> {

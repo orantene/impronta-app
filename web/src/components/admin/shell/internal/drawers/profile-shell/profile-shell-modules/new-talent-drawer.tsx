@@ -42,8 +42,19 @@ import {
 import { buildNewTalentPickerTaxonomy } from "./new-talent-taxonomy";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 
-// ── F14/F15 — Publish checklist ────────────────────────────────────────────────
-function PublishChecklist({
+// ── F14/F15 — Quick-add checklist ─────────────────────────────────────────────
+//
+// This is NOT the publish gate, and it used to claim it was. The checklist
+// completes at ONE photo and said "Ready to publish"; the real gate
+// (`buildCorePublishRequirements`) needs three photos plus a 30-character bio
+// plus a language, and the button below never published anything — it hands off
+// to the full editor where those blockers are waiting. So an admin was told they
+// were finished, clicked Publish, and landed in an editor listing three things
+// they still had to do.
+//
+// The handoff is right; only the promise was wrong. This is the minimum needed
+// to CREATE the draft, and it says so.
+function QuickAddChecklist({
   hasName, hasPrimaryType, hasHomeBase, hasPhoto,
   saveState, draftId, onDiscard,
 }: {
@@ -58,7 +69,7 @@ function PublishChecklist({
     { label: tt("Name"),                done: hasName },
     { label: tt("Primary talent type"), done: hasPrimaryType },
     { label: tt("Home base"),           done: hasHomeBase },
-    { label: tt("At least one photo"),  done: hasPhoto },
+    { label: tt("A first photo"),       done: hasPhoto },
   ];
   const allDone = items.every(i => i.done);
   const anyStarted = items.some(i => i.done);
@@ -74,7 +85,7 @@ function PublishChecklist({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}
           className={allDone ? "text-admin-accent-deep" : "text-admin-ink-muted"}>
-          {allDone ? tt("Ready to publish") : tt("Before publishing")}
+          {allDone ? tt("Ready to continue") : tt("To create the profile")}
         </span>
         <span style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
           {saveState === "saving" && tt("Saving…")}
@@ -364,9 +375,9 @@ export function NewTalentDrawer() {
     });
   };
 
-  // F14/F15 — Footer semantics: "Save draft & exit" (always) + "Publish"
-  // (gated on the checklist). The legacy method-based primary CTA is
-  // demoted to a hint inside the Management section.
+  // F14/F15 — Footer semantics: "Save draft & exit" (always) + continue to the
+  // full profile (gated on the quick-add checklist). The legacy method-based
+  // primary CTA is demoted to a hint inside the Management section.
   const allChecklistDone =
     !!(firstName.trim() || lastName.trim() || displayName.trim()) &&
     !!primaryType &&
@@ -389,7 +400,11 @@ export function NewTalentDrawer() {
     closeDrawer();
   };
 
-  const publish = () => {
+  // Creates the draft (or reuses the autosaved one) and opens the full profile
+  // editor. Named for what it does: this never publishes, and calling it
+  // `publish` is how the drawer ended up advertising a publish it could not
+  // perform.
+  const continueToFullProfile = () => {
     if (!allChecklistDone) return;
     // Live mode + draft already exists → hand off to the canonical catalog
     // edit drawer at the existing draftId. No duplicate row. The standalone
@@ -508,14 +523,14 @@ export function NewTalentDrawer() {
             </SecondaryButton>
           )}
           <span
-            title={!allChecklistDone && !isPending ? tt("Complete the checklist above to publish") : undefined}
+            title={!allChecklistDone && !isPending ? tt("Complete the checklist above to continue") : undefined}
             style={{ display: "inline-flex" }}
           >
             <PrimaryButton
-              onClick={publish}
+              onClick={continueToFullProfile}
               disabled={!allChecklistDone || isPending}
             >
-              {isPending ? tt("Publishing…") : tt("Publish")}
+              {isPending ? tt("Creating…") : tt("Create and open profile")}
             </PrimaryButton>
           </span>
         </>
@@ -992,9 +1007,9 @@ export function NewTalentDrawer() {
         </>
       )}
 
-      {/* F14/F15 — Publish checklist (replaces cascade one-at-a-time errors) */}
+      {/* F14/F15 — Quick-add checklist (replaces cascade one-at-a-time errors) */}
       {addMode === "single" && (
-        <PublishChecklist
+        <QuickAddChecklist
           hasName={!!(firstName.trim() || lastName.trim() || displayName.trim())}
           hasPrimaryType={!!primaryType}
           hasHomeBase={!!homeBase.trim()}

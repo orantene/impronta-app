@@ -2239,6 +2239,15 @@ const ES_TEXT: Record<string, string> = {
   // ── New talent (Add talent) drawer ──────────────────────────────────────────
   "Primary talent type": "Talent Type principal",
   "At least one photo": "Al menos una foto",
+  // The quick-add drawer creates a draft and opens the full editor; it never
+  // publishes. Its old copy promised publish-readiness at one photo while the
+  // real gate needs three plus a bio plus a language.
+  "A first photo": "Una primera foto",
+  "Ready to continue": "Listo para continuar",
+  "To create the profile": "Para crear el perfil",
+  "Create and open profile": "Crear y abrir el perfil",
+  "Complete the checklist above to continue": "Completa la lista de arriba para continuar",
+  // "Creating…" is already translated above — this dictionary is one flat object.
   "Ready to publish": "Listo para publicar",
   "Before publishing": "Antes de publicar",
   "Draft saved": "Borrador guardado",
