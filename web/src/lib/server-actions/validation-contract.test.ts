@@ -179,7 +179,7 @@ describe("client-location enum invariants", () => {
 });
 
 describe("INQUIRY_SOURCE_CHANNEL_VALUES (mirrors the PG enum)", () => {
-  it("18 values: 8 legacy/operational + 10 Plan §7 provenance", () => {
+  it("20 values: 8 legacy/operational + 12 provenance (incl. instant_book + menu_order)", () => {
     const legacyOps = [
       "directory_guest",
       "directory_client",
@@ -200,13 +200,15 @@ describe("INQUIRY_SOURCE_CHANNEL_VALUES (mirrors the PG enum)", () => {
       "hub_site",
       "admin_created",
       "book_again",
+      "instant_book",
       "offering_request",
+      "menu_order",
     ];
     assert.deepEqual(
       [...INQUIRY_SOURCE_CHANNEL_VALUES],
       [...legacyOps, ...plan],
     );
-    assert.equal(INQUIRY_SOURCE_CHANNEL_VALUES.length, 18);
+    assert.equal(INQUIRY_SOURCE_CHANNEL_VALUES.length, 20);
   });
 });
 

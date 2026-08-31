@@ -17,9 +17,8 @@ export async function refuseOfferingRequestIfPolicyOff(
   },
 ): Promise<{ forbidden: true; error: string } | null> {
   if (input.source_channel !== "offering_request") return null;
-  // Workspace menu orders stamp offering_request (until menu_order is in the
-  // enum) with an empty talent list + source_context.menu_order. They are not
-  // talent reservations — skip the appointment policy gate.
+  // Transitional: older menu orders stamped offering_request + menu_order
+  // context before the menu_order enum existed. Still not a talent reservation.
   const ctx = input.source_context;
   if (ctx && typeof ctx === "object" && ctx.menu_order != null) return null;
   const talentId = input.talent_profile_ids[0];

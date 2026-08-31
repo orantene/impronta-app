@@ -18454,6 +18454,7 @@ export type Database = {
         | "book_again"
         | "instant_book"
         | "offering_request"
+        | "menu_order"
       inquiry_status:
         | "new"
         | "reviewing"
