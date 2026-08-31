@@ -196,6 +196,26 @@ export async function createMenuOrder(
     }
     const inquiryId = (inq as { data: { inquiryId: string } }).data.inquiryId;
 
+    // Seed the client thread with the order itself — inquiries.message alone
+    // never becomes a chat bubble, so staff opening Messages only saw auto-ack
+    // / offer / payment events with no line items.
+    const orderBody = [
+      "Menu order:",
+      ...seeds.map((s) => `• ${s.units}× ${s.label}`),
+    ].join("\n");
+    const { error: orderMsgErr } = await admin.from("inquiry_messages").insert({
+      inquiry_id: inquiryId,
+      tenant_id: input.tenantId,
+      thread_type: "private",
+      sender_user_id: input.clientUserId,
+      body: orderBody,
+      message_kind: "text",
+      metadata: { menu_order: true, source: "menu_board" },
+    });
+    if (orderMsgErr) {
+      logServerError("menuOrder.orderMessage", orderMsgErr);
+    }
+
     // 3. Offer with house lines.
     const off = await createOffer(admin, {
       inquiryId,
