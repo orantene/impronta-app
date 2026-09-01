@@ -33,6 +33,7 @@ import {
   resolveWorkspaceOwnerAppRole,
   preferredWorkspaceSlugFromLead,
 } from "./workspace-signup";
+import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
 
 type MarketingLeadRow = {
   id: string;
@@ -406,6 +407,14 @@ async function finalizeProvisionResult(params: {
       reusedExisting: params.reusedExisting,
     };
   }
+
+  // Conversion event. Best effort and deliberately not awaited into the
+  // result: a failed analytics insert must never fail a signup.
+  void trackSignupCompleted({
+    tenantId: params.agency.id,
+    tenantSlug: params.agency.slug,
+    reusedExisting: params.reusedExisting,
+  });
 
   return {
     ok: true,
