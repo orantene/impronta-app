@@ -18,7 +18,7 @@ import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeGuestAiOutput } from "@/lib/support/support-ai-guardrails";
 import { supportFrom } from "@/lib/support/support-from";
 import {
-  SUPPORT_CHAT_FAIL_OPEN_BODY,
+  SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
@@ -56,7 +56,7 @@ async function failOpen(ticketId: string): Promise<void> {
     ticketId,
     authorKind: "system",
     authorUserId: null,
-    body: SUPPORT_CHAT_FAIL_OPEN_BODY,
+    body: SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY,
     messageKind: "system",
     skipNotify: true,
   });
