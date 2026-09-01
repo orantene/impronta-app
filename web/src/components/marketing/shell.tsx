@@ -9,6 +9,7 @@ import { signOut } from "@/app/auth/actions";
 import { MarketingHeader } from "./header";
 import type { MarketingAccount } from "./marketing-account-menu";
 import { MarketingFooter } from "./footer";
+import { AttributionCapture } from "./attribution-capture";
 import { MarketingModalHost } from "./marketing-modal-host";
 import { MarketingSupportLauncherMount } from "./support/MarketingSupportLauncherMount";
 
@@ -94,6 +95,9 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
         account={account}
         signOutAction={signOut}
       />
+      {/* Records the campaign that earned this visit, once, before the
+          visitor navigates deeper and the query string disappears. */}
+      <AttributionCapture />
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
       <MarketingSupportLauncherMount />

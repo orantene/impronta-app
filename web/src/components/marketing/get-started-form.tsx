@@ -63,6 +63,7 @@ import {
 } from "./get-started-form-tier-copy";
 import { getAudienceOptions, getFormCopy } from "./get-started-form-copy";
 import { GetStartedSignedInNotice } from "./get-started-signed-in-notice";
+import { resolveSignupAttribution } from "@/lib/marketing/first-touch-attribution";
 
 type Props = {
   locale?: string;
@@ -173,15 +174,10 @@ export function GetStartedForm({
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const p = new URLSearchParams(window.location.search);
-      attributionRef.current = {
-        utm_source: p.get("utm_source") || undefined,
-        utm_medium: p.get("utm_medium") || undefined,
-        utm_campaign: p.get("utm_campaign") || undefined,
-        utm_term: p.get("utm_term") || undefined,
-        utm_content: p.get("utm_content") || undefined,
-        referrer: document.referrer || undefined,
-      };
+      attributionRef.current = resolveSignupAttribution(
+        window.location.search,
+        document.referrer,
+      );
     } catch {
       /* no-op */
     }
