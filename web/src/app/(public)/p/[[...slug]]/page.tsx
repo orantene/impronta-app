@@ -27,7 +27,6 @@ import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
-import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-canvas";
 import { StorefrontBodyServerMarker } from "@/components/edit-chrome/storefront-body-server-marker";
@@ -456,8 +455,8 @@ export default async function CmsPublicPage({
         surface: "adminWorkspace",
       });
 
-      // Wave-2 cms-page canvas — while edit mode is active (and the client-canvas
-      // flag is on, same gate as the homepage at homepage-cms-sections.tsx), the
+      // Wave-2 cms-page canvas — while edit mode is active (same gate as the
+      // homepage at homepage-cms-sections.tsx), the
       // page body mounts `<StorefrontBodyCanvas>` → `<ClientBuilderCanvas>`: the
       // canvas that subscribes to the live tree the editor publishes, so every
       // mutation (insert / duplicate / style edit) repaints IN PLACE instead of
@@ -473,32 +472,22 @@ export default async function CmsPublicPage({
       // editor via the same membership capability the draft gate uses. The edit
       // cookie alone is forgeable and must not decide anything; the capability
       // (or the signed preview JWT that set draftReaderActive) is the proof.
-      let mountBodyCanvas =
-        editModeActive && isBuilderClientCanvasEnabled() && draftReaderActive;
-      if (
-        !mountBodyCanvas &&
-        editModeActive &&
-        isBuilderClientCanvasEnabled()
-      ) {
+      let mountBodyCanvas = editModeActive && draftReaderActive;
+      if (!mountBodyCanvas && editModeActive) {
         mountBodyCanvas = await userHasCapability(
           "agency.site_admin.pages.edit",
           publicScope.tenantId,
         );
       }
-      // Is an AUTHORIZED editor looking at this page right now? Same proof as
-      // the canvas gate above (capability, or the signed preview JWT that set
-      // `draftReaderActive`) but without the client-canvas flag, because the
-      // untranslated cue belongs on the server-rendered editor body too — which
-      // is the only body that renders while that flag is off. Drives
-      // `editorPreview` only; it grants no data access of its own.
-      const editorViewing =
-        editModeActive &&
-        (draftReaderActive ||
-          mountBodyCanvas ||
-          (await userHasCapability(
-            "agency.site_admin.pages.edit",
-            publicScope.tenantId,
-          )));
+      // Is an AUTHORIZED editor looking at this page right now? Exactly the same
+      // proof as the canvas gate above (capability, or the signed preview JWT
+      // that set `draftReaderActive`). Before the client-canvas flag was deleted
+      // this repeated the capability query so the untranslated cue would also
+      // reach the flag-off server-rendered body; with one canvas path the two
+      // conditions are the same predicate, so it reuses the answer instead of
+      // paying a second capability round-trip. Drives `editorPreview` only; it
+      // grants no data access of its own.
+      const editorViewing = mountBodyCanvas;
       const editCanvasRenderData = mountBodyCanvas
         ? await buildInEditorCanvasRenderData({
             tree: blocks,

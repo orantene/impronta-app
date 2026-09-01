@@ -14,9 +14,9 @@
  * deliberately tiny slice of the Sub-step E selector store — scoped to exactly
  * the one value the client canvas needs.
  *
- * SAFETY: both the publish (EditProvider) and the subscribe (ClientBuilderCanvas)
- * are gated behind `isBuilderClientCanvasEnabled()`. With the flag OFF nothing
- * touches this store and the legacy server-render path is byte-identical.
+ * The publish (EditProvider) and the subscribe (ClientBuilderCanvas) both run
+ * only inside edit mode; a published read never mounts either side, so this
+ * store is untouched on the visitor path.
  */
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
@@ -52,11 +52,10 @@ export function getBuilderCanvasTreeSnapshot(): BuilderNodeTree | null {
 
 // ── Canvas-mounted signal (builder-perf-2026, reload fix) ──────────────────
 // `<ClientBuilderCanvas>` mounts ONLY in the freeform full-page branch of
-// `homepage-cms-sections.tsx` (and only when edit mode + the flag are on). The
-// per-edit refresh-skip in `edit-context` must therefore gate on whether a canvas
-// is ACTUALLY mounted for THIS page — not merely on the build flag. On a
-// curated-slot page the flag can be on yet NO canvas is mounted; skipping the
-// refresh there (the old `isBuilderClientCanvasEnabled()`-only gate) would leave
+// `homepage-cms-sections.tsx` (and only in edit mode). The per-edit refresh-skip
+// in `edit-context` must therefore gate on whether a canvas is ACTUALLY mounted
+// for THIS page. On a curated-slot page edit mode is on yet NO canvas is
+// mounted; skipping the refresh there (the old build-flag-only gate) would leave
 // the server-rendered canvas stale with nothing to repaint it. A reference count
 // (not a bool) tolerates a transient mount/unmount overlap during a re-render.
 let mountedCanvasCount = 0;

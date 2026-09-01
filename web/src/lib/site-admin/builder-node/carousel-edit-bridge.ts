@@ -116,14 +116,15 @@ function syncEditing(): void {
  * WHO CALLS THIS, AND THE GAP THAT MADE IT MATTER (2026-08-17)
  * ────────────────────────────────────────────────────────────
  * #1203 registered from `ClientBuilderCanvas` and `ClientSectionChildren`
- * only. Both are behind `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS`, which
- * `client-canvas-flag.ts` documents as DEFAULT OFF: with the flag unset the
- * editor renders the freeform tree SERVER-side, no client canvas mounts,
- * nothing ever calls this, and the hero carousel autoplayed under the
+ * only. Both sat behind the since-deleted `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS`
+ * flag, which was DEFAULT OFF: with the flag unset the
+ * editor rendered the freeform tree SERVER-side, no client canvas mounted,
+ * nothing ever called this, and the hero carousel autoplayed under the
  * operator's pointer exactly as it did before the fix. The carousel itself is
  * a client component either way, so it was hydrated and subscribed — it was
  * simply never told. `CarouselEditModeBinding`, mounted by `EditShell`, closes
- * that: EditShell is present whenever the operator is editing, flag or no flag.
+ * that: EditShell is present whenever the operator is editing, on every surface
+ * including the ones that mount no client canvas at all.
  */
 export function registerCarouselEditMode(): () => void {
   editModeRefCount += 1;

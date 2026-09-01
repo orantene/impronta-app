@@ -6,9 +6,9 @@
  * ──────────────────────────────
  * #1203 fixed the owner's "one slide pass i cant catch the second or third
  * one" by registering edit mode from `ClientBuilderCanvas` and
- * `ClientSectionChildren`. Both mount only behind
- * `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS`, which `client-canvas-flag.ts` states is
- * DEFAULT OFF. On the server-rendered editing path — the default —
+ * `ClientSectionChildren`. Both mounted only behind the since-deleted
+ * `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS` flag, which was DEFAULT OFF. On the
+ * server-rendered editing path — the default at the time —
  * `registerCarouselEditMode()` was therefore never called, `editing` stayed
  * false, and the hero carousel kept autoplaying under the operator's pointer.
  * The unit tests passed the whole time, because the bridge itself was correct;
@@ -16,10 +16,10 @@
  *
  * So this guard is deliberately about wiring, not behaviour: the behaviour is
  * covered by `carousel-edit-bridge.test.ts`. It asserts that the registration
- * hangs off `EditShell` (present on BOTH editing paths), that the two
- * flag-gated registrations are still there (a belt the refcount makes free —
- * never delete a guard), and that the two rotation timers still consult the
- * edit flag before starting.
+ * hangs off `EditShell` (present on EVERY editing surface, including the ones
+ * that mount no client canvas), that the two canvas-side registrations are
+ * still there (a belt the refcount makes free — never delete a guard), and that
+ * the two rotation timers still consult the edit flag before starting.
  *
  * A static read is the honest tool here. These are React components with no
  * DOM in this lane, and the property worth pinning is "the call site exists",
@@ -52,8 +52,8 @@ test("EditShell mounts the carousel edit-mode binding", () => {
   assert.match(
     src,
     /<CarouselEditModeBinding\b/,
-    "EditShell must RENDER the binding. Without it the pause only works when " +
-      "NEXT_PUBLIC_BUILDER_CLIENT_CANVAS is on, which it is not by default.",
+    "EditShell must RENDER the binding. Without it the pause only works on " +
+      "surfaces that mount a client canvas, and a curated-slot page mounts none.",
   );
 });
 

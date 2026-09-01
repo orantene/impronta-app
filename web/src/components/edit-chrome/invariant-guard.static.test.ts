@@ -184,14 +184,18 @@ const ALLOW_LIST: AllowEntry[] = [
   {
     file: "components/edit-chrome/edit-context.tsx",
     literal: "homepage",
-    count: 2,
+    count: 1,
     reason:
-      "Mount/gating: (1) the in-editor ClientBuilderCanvas bridge short-circuits its " +
-      "publish for the homepage (which paints via its server-rendered storefront body); " +
-      "(2) applyPageDesignWithUndo routes the homepage through its authoritative server " +
-      "action (Free-plan curated on-ramp + empty-slot composition) while every other " +
-      "surface bakes + persists through its own adapter. Both are surface MOUNT facts, " +
-      "not forked editor behaviour.",
+      "Gating: applyPageDesignWithUndo routes the homepage through its authoritative " +
+      "server action (Free-plan curated on-ramp + empty-slot composition) while every " +
+      "other surface bakes + persists through its own adapter. A surface MOUNT fact, " +
+      "not forked editor behaviour. " +
+      "RATCHETED DOWN 2 -> 1 (builder-2027 P1 / 1A): the second branch " +
+      "short-circuited the ClientBuilderCanvas bridge publish for the homepage, which " +
+      "only made sense while NEXT_PUBLIC_BUILDER_CLIENT_CANVAS could be off and the " +
+      "homepage body server-rendered its canvas. With that flag deleted the homepage " +
+      "body subscribes to the bridge like every other surface, so the carve-out is " +
+      "gone and every surface publishes.",
   },
   {
     file: "components/edit-chrome/edit-shell.tsx",
