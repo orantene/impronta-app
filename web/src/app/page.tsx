@@ -171,12 +171,18 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   if (ctx.kind === "marketing") {
-    // Brand first, then the positioning line in the reader's language. The
-    // English string stays byte-identical to what shipped; `/es` used to serve
-    // the English title, which is the one meta tag a Spanish searcher sees
-    // before deciding to click. The descriptor comes from the marketing copy
-    // module so the tagline has a single source per locale.
-    const title = `${PLATFORM_BRAND.name} · ${getMarketingCopy(locale).brand.descriptor}`;
+    // The positioning line in the reader's language, and NOT the brand name.
+    //
+    // The root layout's title template is `%s · Tulala`, so anything returned
+    // here gets the brand appended. Returning "Tulala · <descriptor>" produced
+    // `Tulala · Sell what you do, not what you ship · Tulala` on the live
+    // homepage: the brand printed twice, on the highest-authority page we own,
+    // in the 60 characters search results actually show.
+    //
+    // The descriptor comes from the marketing copy module so the tagline has a
+    // single source per locale; `/es` gets the Spanish line, which is the one
+    // meta tag a Spanish searcher reads before deciding to click.
+    const title = getMarketingCopy(locale).brand.descriptor;
     const description = pickLocale(locale, {
       en: PLATFORM_BRAND.description,
       es: "Tulala es la plataforma de comercio para el talento: una tienda con tu marca, un pipeline de reservas estructurado y la red de descubrimiento compartida que te trae trabajo nuevo.",
@@ -187,14 +193,17 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       ...marketingAlt,
       openGraph: {
-        title,
+        // Social cards do not go through the title template, so the brand has
+        // to be present here or the card reads as an unattributed slogan.
+        title: `${PLATFORM_BRAND.name} · ${title}`,
         description,
         siteName: PLATFORM_BRAND.name,
         url: `https://${PLATFORM_BRAND.domain}/`,
       },
       twitter: {
         card: "summary_large_image",
-        title,
+        // Same reason as openGraph: no template runs on a social card.
+        title: `${PLATFORM_BRAND.name} · ${title}`,
         description,
       },
     };

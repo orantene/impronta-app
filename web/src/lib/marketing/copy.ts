@@ -112,11 +112,17 @@ const en = {
   },
 
   hero: {
-    eyebrow: "Sell your work. Run the business.",
-    titleLine1: "Your Business. Your Brand. Your Bookings.",
-    titleLine2: "All in one place.",
+    // The H1 IS the positioning line. It used to be "Your Business. Your
+    // Brand. Your Bookings. All in one place.", a claim any competitor could
+    // run word for word, while the line that actually names our category sat
+    // in the title tag where nobody reads it. Three different positioning
+    // statements were live at once and visitors assembled their own idea of
+    // what we are. This is the one claim everything else now ladders from.
+    eyebrow: "For people who sell time, skill and craft",
+    titleLine1: "Sell what you do,",
+    titleLine2: "not what you ship.",
     subhead:
-      "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click, and take bookings and payments right inside the chat.",
+      "Store builders were made for boxes. You sell haircuts, dinners, shoots and clean houses. Open a free page, take real bookings and get paid, all in one place built for the way you actually work.",
     ctaTalent: "Sell your work · free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
@@ -493,11 +499,14 @@ const es: MarketingCopy = {
   },
 
   hero: {
-    eyebrow: "Vende tu trabajo. Lleva tu negocio.",
-    titleLine1: "Tu Negocio. Tu Marca. Tus Reservas.",
-    titleLine2: "Todo en un solo lugar.",
+    // Same claim, written natively rather than translated. "no lo que envías"
+    // is the existing Spanish tagline from `brand.descriptor`, so the H1 and
+    // the logo lockup now say the same thing in both languages.
+    eyebrow: "Para quienes venden tiempo, talento y oficio",
+    titleLine1: "Vende lo que haces,",
+    titleLine2: "no lo que envías.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic, y cobra reservas y pagos desde el mismo chat.",
+      "Las tiendas en línea se hicieron para cajas. Tú vendes cortes, cenas, sesiones y casas limpias. Abre una página gratis, recibe reservas de verdad y cobra, todo en un solo lugar hecho para como trabajas.",
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
