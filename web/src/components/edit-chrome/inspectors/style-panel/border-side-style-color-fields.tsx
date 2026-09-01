@@ -14,6 +14,7 @@
 import { useState } from "react";
 
 import { CHROME } from "../../kit/tokens";
+import { ColorSwatchButton } from "../color-swatch-button";
 import { useInspectorT } from "../kit/use-inspector-t";
 import {
   BUILDER_BORDER_STYLE_KEYWORDS,
@@ -273,21 +274,17 @@ export function BorderColorSidesField({
                   <span className="text-[10px] font-semibold" style={{ color: CHROME.muted }}>
                     {short}
                   </span>
-                  <input
-                    type="color"
-                    data-builder-border-color-side={key}
-                    value={/^#[0-9a-fA-F]{6}$/.test(sides[key]) ? sides[key] : "#111111"}
-                    onChange={(e) => setSide(key, e.target.value)}
-                    style={{
-                      height: 28,
-                      width: "100%",
-                      padding: 0,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      background: CHROME.surface2,
-                      cursor: "pointer",
-                    }}
-                    aria-label={`${short} border color`}
+                  {/* builder-2027 1I — ONE colour surface. Was an OS
+                      `<input type="color">`; per-side border colours are a
+                      compare-as-you-go gesture, and the OS picker covers the
+                      canvas you are comparing against. */}
+                  <ColorSwatchButton
+                    color={
+                      /^#[0-9a-fA-F]{6}$/.test(sides[key]) ? sides[key] : "#111111"
+                    }
+                    dataAttr={["data-builder-border-color-side", key]}
+                    onChange={(next) => setSide(key, next)}
+                    ariaLabel={`${short} border color`}
                   />
                 </label>
               ))}

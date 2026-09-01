@@ -20,6 +20,7 @@ import { useState, type ReactNode } from "react";
 
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { menuShouldOpenUp } from "./canvas-toolbar-anchor";
+import { ColorSwatchButton } from "./inspectors/color-swatch-button";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import { CHROME, CHROME_RADII, Z_INDEX } from "./kit/tokens";
 import { PortaledOverlay } from "./kit/portaled-overlay";
@@ -568,25 +569,21 @@ function BulkStyleRow({
       <span style={{ flex: "1 1 auto", minWidth: 0 }}>{label}</span>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto" }}>
         {kind === "color" ? (
-          <input
-            type="color"
-            disabled={disabled}
-            aria-label={t("{label} for all selected").replace("{label}", label)}
-            value={value || "#000000"}
-            onChange={(e) => {
-              setValue(e.target.value);
-              commit(e.target.value);
-            }}
-            style={{
-              width: 28,
-              height: 22,
-              padding: 0,
-              border: `1px solid ${CHROME.line}`,
-              borderRadius: 5,
-              background: "transparent",
-              cursor: disabled ? "not-allowed" : "pointer",
-            }}
-          />
+          // builder-2027 1I — ONE colour surface. Was an OS
+          // `<input type="color">`. This toolbar floats over the canvas, so the
+          // OS picker opened on top of the very blocks being recoloured.
+          <span
+            style={disabled ? { opacity: 0.45, pointerEvents: "none" } : undefined}
+          >
+            <ColorSwatchButton
+              color={value || "#000000"}
+              ariaLabel={t("{label} for all selected").replace("{label}", label)}
+              onChange={(next) => {
+                setValue(next);
+                commit(next);
+              }}
+            />
+          </span>
         ) : (
           <input
             type="number"
