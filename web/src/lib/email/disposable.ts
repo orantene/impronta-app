@@ -691,9 +691,34 @@ function extractDomain(email: string): string | null {
  *
  * Does NOT do network I/O — purely set membership.
  */
+/**
+ * Domains this guard lets through when QA_EMAIL_DOMAIN is set.
+ *
+ * Why this exists: the guard has no legitimate deliverable target, so QA that
+ * needs a real inbox invents addresses at a real provider instead. That is what
+ * happened during guest-support QA — mailinator was rejected, so QA moved to
+ * fabricated `…@gmail.com` addresses, and 5 of 9 sends HARD BOUNCED. The one
+ * mailinator send delivered fine.
+ *
+ * Bounces are far more damaging than a throwaway signup: Gmail's hard-bounce
+ * threshold is well under 1%, and sustained bounces throttle the whole sending
+ * domain, degrading password resets and booking confirmations too. So give QA a
+ * deliverable address it is allowed to use.
+ *
+ * Set QA_EMAIL_DOMAIN (e.g. "mailinator.com") in preview/staging only. Unset in
+ * production, where this is a no-op and the denylist behaves exactly as before.
+ */
+function qaAllowedDomain(): string | null {
+  const raw = process.env.QA_EMAIL_DOMAIN?.trim().toLowerCase();
+  return raw && raw.length > 0 ? raw : null;
+}
+
 export function isDisposableEmail(email: string): boolean {
   const domain = extractDomain(email);
   if (!domain) return false;
+
+  const qa = qaAllowedDomain();
+  if (qa && (domain === qa || domain.endsWith(`.${qa}`))) return false;
 
   const parts = domain.split(".");
   // Check the full domain and every shorter suffix down to the 2-label

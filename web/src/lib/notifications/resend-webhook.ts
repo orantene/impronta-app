@@ -191,19 +191,22 @@ export async function applyResendEvent(
     return { status: "stamped", detail: `${event.type}:${emailId ?? "no-id"}` };
   }
 
-  // Suppression needs a user_id (table column is NOT NULL). Prefer the matched
-  // row; otherwise resolve the address → most-recent emailed user.
+  // The address is the real grain. A user id is preferred (a user who changed
+  // email should get a fresh slate on the new address), but it is NOT required:
+  // guest support and invitees are mailed with no account at all, and requiring
+  // a user here meant their hard bounces suppressed nothing and the dead address
+  // kept being mailed. Only a missing ADDRESS is unworkable.
   let userId = matchedUserId;
   if (!userId && address) {
     userId = await resolveUserIdByEmail(admin, address);
   }
-  if (!userId || !address) {
-    return {
-      status: "unmatched",
-      detail: `${event.type}:${address ?? "no-address"}:no-user`,
-    };
+  if (!address) {
+    return { status: "unmatched", detail: `${event.type}:no-address` };
   }
 
+  // Two conflict targets: the (user_id, email_address) constraint cannot dedupe
+  // user-less rows because NULLs compare as distinct, so those go through the
+  // partial unique index on lower(email_address) WHERE user_id IS NULL.
   const { error: supErr } = await admin.from("email_suppressions").upsert(
     {
       user_id: userId,
@@ -211,7 +214,10 @@ export async function applyResendEvent(
       reason,
       source: emailId,
     },
-    { onConflict: "user_id,email_address", ignoreDuplicates: true },
+    {
+      onConflict: userId ? "user_id,email_address" : "email_address",
+      ignoreDuplicates: true,
+    },
   );
   if (supErr) {
     logServerError("notifications.webhook.suppress", supErr);

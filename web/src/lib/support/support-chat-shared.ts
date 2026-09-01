@@ -49,6 +49,23 @@ export const SUPPORT_CHAT_REASONS = new Set<SupportEscalationReason>([
 export const SUPPORT_CHAT_FAIL_OPEN_BODY =
   "I'm having trouble right now. Want me to get Oran?";
 
+/**
+ * Fail-open copy for the GUEST (marketing) surface.
+ *
+ * Deliberately different from the signed-in string above. A customer already
+ * inside the product can be told a subsystem is misbehaving; a prospect on
+ * tulala.digital cannot. The shared string reads as "the thing you are
+ * evaluating is broken", and it is what a real visitor got in production after
+ * asking whether Tulala has AI support (ticket #11) — the worst possible answer
+ * to that question, on the page whose job is to sell.
+ *
+ * So this one never mentions a fault. It states what is true and always true
+ * (Oran answers these himself) and moves straight to the thing we want anyway:
+ * the email. Same escalation path underneath, same ai_unavailable reason.
+ */
+export const SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY =
+  "Oran answers these himself. Leave your email and he'll come back to you, usually the same day.";
+
 export type SupportChatModelOut = {
   answer: string;
   confidence: number;
