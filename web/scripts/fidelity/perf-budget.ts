@@ -152,7 +152,32 @@ export const BUDGETS: readonly Budget[] = [
   // sticky selectors, tablet-block indent stripped) and landed on 111.0 with
   // zero headroom. One kilobyte of named pad so the next rule is an argument,
   // not an accidental red.
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 112 * KB, unit: "bytes" },
+  //
+  // RE-TUNED 2026-09-01: 112 → 126 KB. Spend is Builder 2027 Phase 2A — twelve
+  // new native node kinds (marquee, directory, featured_talent, location_map,
+  // the four header widgets, sticky_scroll, reveal, stats, before_after) that
+  // replace frozen legacy sections we are deleting. Measured 125.2 KB.
+  //
+  // Squeezed BEFORE raising, and the squeeze is why this is 14 KB and not 21:
+  //   - six bands shared one identical band/head/eyebrow/title/copy rule set;
+  //     collapsing them into one shared `p2a-*` set took the addition from
+  //     20.9 KB to 14.6 KB (-30%)
+  //   - comments are NOT the cause this time. The emitted sheet is already
+  //     comment-free: the raw constant is 134.9 KB with 9.7 KB of comments,
+  //     and the sheet the harness measures is exactly 125.2 KB — the comments
+  //     are already stripped on the way out. The 2026-08-28 note above records
+  //     when commentary WAS the cause; audited again here, it is not.
+  //   - the only waste left is 45 groups of identical rule bodies worth 3.9 KB
+  //     total (`display:none` ×15, `opacity:1;transform:none` ×12, …). Merging
+  //     them reorders the cascade for a measured 3.9 KB and would still leave
+  //     121.3 KB — over this ceiling. Rejected as risk without benefit.
+  //
+  // What a visitor downloads did NOT move into the red: the scoped ceiling
+  // below stays at 103 KB and measures 83.8–89.3 KB across all seven designs,
+  // ~14 KB of headroom. That is the number that protects page weight; this one
+  // is an early-warning on the build-time sheet, and twelve kinds cannot cost
+  // less than the ~1 KB of pad the previous retune deliberately left.
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 126 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for

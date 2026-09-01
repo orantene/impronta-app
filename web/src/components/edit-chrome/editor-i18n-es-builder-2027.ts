@@ -22,9 +22,6 @@
 
 export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   // ── Group titles ─────────────────────────────────────────────────────────
-  Motion: "Movimiento",
-  "Who appears": "Quién aparece",
-  Controls: "Controles",
   "When nobody matches": "Cuando no hay coincidencias",
   "The map": "El mapa",
   "The panel over the map": "El panel sobre el mapa",
@@ -49,6 +46,7 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "People per page": "Personas por página",
   "Show the search box": "Mostrar el buscador",
   "Search box wording": "Texto del buscador",
+  "Search…": "Buscar…",
   "Search button": "Botón de búsqueda",
   "Show the result count": "Mostrar el número de resultados",
   "Show the sort control": "Mostrar el control de orden",
@@ -130,10 +128,8 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "The roster": "El elenco",
   "Search by role, location or fit": "Busca por rol, ubicación o perfil",
   "No matches yet": "Todavía no hay coincidencias",
-  "Featured talent": "Talento destacado",
   "Where we work": "Dónde trabajamos",
   "How it works": "Cómo funciona",
-  Search: "Buscar",
   "Search talent": "Buscar talento",
   "Sign in": "Iniciar sesión",
   Account: "Cuenta",

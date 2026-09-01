@@ -108,7 +108,7 @@ const HEADER_WIDGET_SHARED: ReadonlyArray<Builder2027Field> = [
     control: "text",
     prop: "label",
     label: "Label",
-    placeholder: "Search",
+    placeholder: "Search…",
     localizable: true,
   },
   {
@@ -349,7 +349,7 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
           control: "text",
           prop: "filterSubmitLabel",
           label: "Search button",
-          placeholder: "Search",
+          placeholder: "Search…",
           localizable: true,
         },
         {
