@@ -250,7 +250,14 @@ const BUDGETS: Record<string, number> = {
   //   `talent_type_grid`) each need an arm or the file does not type-check.
   //   Kept to the shortest form that still names the data SOURCE, which is the
   //   one thing this label exists to say.
-  "canvas-node-children-panel.tsx": 798,
+  // -72 (BUILDER 2027 P2A): `canvasChildSecondaryLabel` MOVED to
+  //   `canvas-node-child-secondary-label.ts`. Adding twelve more native kinds to
+  //   its exhaustive switch would have pushed this file past the 800-line cap,
+  //   so the switch was extracted rather than the budget raised. Pure move: the
+  //   switch is byte-identical and the panel is still its only caller.
+  //   `canvasChildPrimaryLabel` + `truncateNodeLabel` stayed put because
+  //   `selection-layer.tsx` imports them from here.
+  "canvas-node-children-panel.tsx": 726,
 };
 
 function lineCount(relativePath: string): number {
