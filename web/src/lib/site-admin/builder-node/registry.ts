@@ -63,6 +63,21 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // exactly like `section_embed`: droppable inside a layout shell or at the root.
   "hero_search",
   "talent_type_grid",
+  // BUILDER 2027 · P2A — the native kinds are ordinary leaves for drop purposes
+  // too, except `reveal`, which is itself a wrapper (it accepts any child) and
+  // is therefore droppable anywhere a layout shell is.
+  "marquee",
+  "directory",
+  "featured_talent",
+  "location_map",
+  "header_search",
+  "header_account",
+  "header_inquiry",
+  "header_language",
+  "sticky_scroll",
+  "reveal",
+  "stats",
+  "before_after",
   // Tulala components (curated dynamic sections) are droppable inside generic
   // layout shells as well as at the page root.
   "section_embed",
@@ -1026,6 +1041,326 @@ const talentTypeGridPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * BUILDER 2027 · P2A — prop schemas for the twelve native kinds.
+ *
+ * Every field is OPTIONAL, including the item arrays. A schema that requires
+ * content at insert time silently breaks insertion (see the socialFeed note
+ * above), and several of these blocks legitimately carry no authored content at
+ * all — a dynamic directory, a roster-sourced map, a reveal wrapper.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+const marqueePropsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        text: z.string().min(1).max(140),
+        href: z.string().max(500).optional(),
+      }),
+    )
+    .max(40)
+    .optional(),
+  speed: z.enum(["slow", "medium", "fast"]).optional(),
+  direction: z.enum(["left", "right"]).optional(),
+  separator: z.enum(["dot", "slash", "diamond", "none"]).optional(),
+  variant: z.enum(["text", "tags"]).optional(),
+  pauseOnHover: z.boolean().optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+/** Profile-code / key list shared by the directory + featured-talent scopes. */
+const shortKeyListSchema = (max: number) =>
+  z.array(z.string().min(1).max(80)).max(max).optional();
+
+const directoryPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  copy: z.string().max(400).optional(),
+  headerAlign: z.enum(["center", "left", "split"]).optional(),
+  showHeading: z.boolean().optional(),
+  entityLabel: z
+    .enum(["talent", "people", "members", "professionals", "providers", "team"])
+    .optional(),
+  scope: z.enum(["all", "by_talent_type", "by_tag", "manual"]).optional(),
+  talentTypeKeys: shortKeyListSchema(40),
+  tagKeys: shortKeyListSchema(40),
+  manualProfileCodes: shortKeyListSchema(200),
+  pinnedProfileCodes: shortKeyListSchema(50),
+  excludedProfileCodes: shortKeyListSchema(200),
+  requirePhoto: z.boolean().optional(),
+  excludeUnavailable: z.boolean().optional(),
+  minTrustTier: z
+    .enum(["any", "basic", "verified", "silver", "gold"])
+    .optional(),
+  defaultSort: z
+    .enum(["recommended", "newest", "az", "availability", "curated"])
+    .optional(),
+  pagination: z.enum(["load_more", "infinite", "paged"]).optional(),
+  pageSize: z.number().int().min(6).max(60).optional(),
+  columnsDesktop: z.number().int().min(1).max(6).optional(),
+  columnsTablet: z.number().int().min(1).max(4).optional(),
+  columnsMobile: z.number().int().min(1).max(2).optional(),
+  density: z.enum(["comfortable", "compact"]).optional(),
+  containerWidth: z.enum(["boxed", "full"]).optional(),
+  cardStyle: z
+    .enum([
+      "portrait",
+      "editorial",
+      "portfolio",
+      "profile",
+      "stat",
+      "service",
+      "minimal",
+    ])
+    .optional(),
+  cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).optional(),
+  showName: z.boolean().optional(),
+  showTalentType: z.boolean().optional(),
+  showLocation: z.boolean().optional(),
+  showAvailability: z.boolean().optional(),
+  showBadges: z.boolean().optional(),
+  showSave: z.boolean().optional(),
+  showAddToInquiry: z.boolean().optional(),
+  showQuickView: z.boolean().optional(),
+  cardClickAction: z.enum(["modal", "page"]).optional(),
+  filterSearchBox: z.boolean().optional(),
+  filterPlaceholder: z.string().max(160).optional(),
+  filterSubmitLabel: z.string().max(40).optional(),
+  searchActionHref: z.string().max(500).optional(),
+  topBarMode: z.enum(["none", "talent_type", "field"]).optional(),
+  sortControlShow: z.boolean().optional(),
+  showResultCount: z.boolean().optional(),
+  sidebarShow: z.boolean().optional(),
+  sidebarPosition: z.enum(["left", "right"]).optional(),
+  emptyStateTitle: z.string().max(120).optional(),
+  emptyStateText: z.string().max(240).optional(),
+  emptyStateCtaLabel: z.string().max(60).optional(),
+  emptyStateCtaHref: z.string().max(500).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+const featuredTalentPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  copy: z.string().max(400).optional(),
+  sourceMode: z
+    .enum([
+      "manual_pick",
+      "auto_featured_flag",
+      "auto_by_service",
+      "auto_by_destination",
+      "auto_recent",
+    ])
+    .optional(),
+  manualProfileCodes: shortKeyListSchema(15),
+  filterServiceSlug: z.string().max(120).optional(),
+  filterDestinationSlug: z.string().max(120).optional(),
+  limit: z.number().int().min(1).max(15).optional(),
+  columnsDesktop: z.number().int().min(2).max(4).optional(),
+  variant: z.enum(["grid", "carousel"]).optional(),
+  headerAlign: z.enum(["split", "left", "center"]).optional(),
+  cardVariant: z
+    .enum(["editorial", "compact", "minimal", "profile"])
+    .optional(),
+  showName: z.boolean().optional(),
+  showPrimaryType: z.boolean().optional(),
+  showSecondaryType: z.boolean().optional(),
+  showCity: z.boolean().optional(),
+  showLanguages: z.boolean().optional(),
+  showAvailability: z.boolean().optional(),
+  showBadge: z.boolean().optional(),
+  parentCategoryDisplay: z.boolean().optional(),
+  ctaLabel: z.string().max(60).optional(),
+  ctaHref: z.string().max(500).optional(),
+  footerCtaLabel: z.string().max(60).optional(),
+  footerCtaHref: z.string().max(500).optional(),
+  emptyStateText: z.string().max(240).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+/**
+ * `mapEmbedUrl` keeps the frozen `map_overlay` allow-list: an embed URL is
+ * dropped into an iframe, so the host set is the security boundary and a
+ * hostname typo must fail at authoring time rather than render an arbitrary
+ * third-party frame on a tenant page.
+ */
+const MAP_EMBED_HOSTS = [
+  "www.google.com",
+  "maps.google.com",
+  "www.bing.com",
+] as const;
+
+function isAllowedMapEmbedUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    if (u.protocol !== "https:") return false;
+    return (
+      (MAP_EMBED_HOSTS as ReadonlyArray<string>).includes(u.hostname) ||
+      u.hostname.endsWith(".google.com") ||
+      u.hostname.endsWith(".openstreetmap.org")
+    );
+  } catch {
+    return false;
+  }
+}
+
+const locationMapPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  subheadline: z.string().max(320).optional(),
+  source: z.enum(["manual", "roster_cities"]).optional(),
+  items: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(80),
+        region: z.string().max(80).optional(),
+        href: z.string().max(500).optional(),
+        count: z.number().int().min(0).max(100000).optional(),
+        featured: z.boolean().optional(),
+        status: z.enum(["active", "coming_soon"]).optional(),
+      }),
+    )
+    .max(24)
+    .optional(),
+  maxItems: z.number().int().min(1).max(24).optional(),
+  showCount: z.boolean().optional(),
+  showMap: z.boolean().optional(),
+  mapStyle: z.enum(["editorial", "embed"]).optional(),
+  mapEmbedUrl: z
+    .string()
+    .max(2048)
+    .refine(
+      (v) => v.length === 0 || isAllowedMapEmbedUrl(v),
+      "URL must be a Google Maps / OpenStreetMap embed",
+    )
+    .optional(),
+  overlayTitle: z.string().max(160).optional(),
+  overlayBody: z.string().max(800).optional(),
+  overlayAddress: z.string().max(280).optional(),
+  overlayHours: z.string().max(280).optional(),
+  overlaySide: z.enum(["card-left", "card-right", "card-bottom"]).optional(),
+  ratio: z.enum(["16/9", "4/3", "1/1", "21/9"]).optional(),
+  layout: z.enum(["grid", "list", "compact"]).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(500).optional(),
+  emptyStateText: z.string().max(240).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+/** The shared authoring surface of the four native shell widgets. */
+const headerWidgetBaseShape = {
+  label: z.string().max(80).optional(),
+  showLabel: z.boolean().optional(),
+  icon: z.enum(BUILDER_ICON_NAMES).optional(),
+  href: z.string().max(500).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+};
+
+const headerSearchPropsSchema = z.object({
+  ...headerWidgetBaseShape,
+  inlineField: z.boolean().optional(),
+  placeholder: z.string().max(120).optional(),
+});
+
+const headerAccountPropsSchema = z.object({
+  ...headerWidgetBaseShape,
+  signedOutLabel: z.string().max(60).optional(),
+  signedInLabel: z.string().max(60).optional(),
+});
+
+const headerInquiryPropsSchema = z.object({
+  ...headerWidgetBaseShape,
+  showCount: z.boolean().optional(),
+});
+
+const headerLanguagePropsSchema = z.object({
+  ...headerWidgetBaseShape,
+  display: z.enum(["code", "name"]).optional(),
+  separator: z.string().max(4).optional(),
+});
+
+const stickyScrollPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  imageUrl: z.string().max(2048).optional(),
+  imageAlt: z.string().max(200).optional(),
+  blocks: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(160),
+        body: z.string().max(800).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
+  side: z.enum(["media-left", "media-right"]).optional(),
+  variant: z.enum(["bordered", "minimal"]).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+const revealPropsSchema = z.object({
+  effect: z
+    .enum(["fade", "rise", "scale", "blur", "mask-up", "none"])
+    .optional(),
+  direction: z.enum(["up", "down", "left", "right"]).optional(),
+  distance: z.number().int().min(0).max(400).optional(),
+  durationMs: z.number().int().min(0).max(4000).optional(),
+  delayMs: z.number().int().min(0).max(4000).optional(),
+  staggerMs: z.number().int().min(0).max(1000).optional(),
+  threshold: z.number().min(0).max(1).optional(),
+  once: z.boolean().optional(),
+  easing: z.enum(["linear", "ease", "ease-out", "ease-in-out"]).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+const statsPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  items: z
+    .array(
+      z.object({
+        value: z.string().min(1).max(20),
+        label: z.string().min(1).max(80),
+        caption: z.string().max(140).optional(),
+        prefix: z.string().max(8).optional(),
+        suffix: z.string().max(8).optional(),
+      }),
+    )
+    .max(6)
+    .optional(),
+  variant: z.enum(["row", "grid", "split"]).optional(),
+  align: z.enum(["start", "center"]).optional(),
+  columns: z.number().int().min(1).max(6).optional(),
+  animate: z.boolean().optional(),
+  durationMs: z.number().int().min(0).max(6000).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
+const beforeAfterPropsSchema = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  beforeUrl: z.string().max(2048).optional(),
+  afterUrl: z.string().max(2048).optional(),
+  beforeAlt: z.string().max(200).optional(),
+  afterAlt: z.string().max(200).optional(),
+  beforeLabel: z.string().max(40).optional(),
+  afterLabel: z.string().max(40).optional(),
+  initialPosition: z.number().int().min(0).max(100).optional(),
+  ratio: z.enum(["16/9", "4/3", "1/1", "5/4"]).optional(),
+  orientation: z.enum(["horizontal", "vertical"]).optional(),
+  sliderLabel: z.string().max(80).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
 const iconPropsSchema = z.object({
   icon: z.enum(BUILDER_ICON_NAMES),
   label: z.string().max(160).optional(),
@@ -1541,6 +1876,104 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Discipline cards derived from your own roster's taxonomy, or authored by hand. Each card links into the directory.",
       children: { type: "none" },
       propsSchema: talentTypeGridPropsSchema,
+    },
+    // BUILDER 2027 · P2A — the twelve native kinds. All structural leaves except
+    // `reveal`, which is a wrapper primitive and accepts any child.
+    marquee: {
+      kind: "marquee",
+      label: "Marquee",
+      description:
+        "A continuously scrolling strip of text or tags. Used for press lines, partner names and value statements.",
+      children: { type: "none" },
+      propsSchema: marqueePropsSchema,
+    },
+    directory: {
+      kind: "directory",
+      label: "Directory",
+      description:
+        "Your roster as a filterable grid, scoped per instance by talent type, tag or a hand-picked list. Renders from live workspace data.",
+      children: { type: "none" },
+      propsSchema: directoryPropsSchema,
+    },
+    featured_talent: {
+      kind: "featured_talent",
+      label: "Featured talent",
+      description:
+        "A curated showcase of talent cards, picked by hand or filled automatically from your roster.",
+      children: { type: "none" },
+      propsSchema: featuredTalentPropsSchema,
+    },
+    location_map: {
+      kind: "location_map",
+      label: "Location map",
+      description:
+        "A map with a copy panel over it and a pin for every city, sourced by hand or from where your roster lives.",
+      children: { type: "none" },
+      propsSchema: locationMapPropsSchema,
+    },
+    header_search: {
+      kind: "header_search",
+      label: "Header search",
+      description:
+        "The header's search control: an icon linking to your directory, or an inline search field.",
+      children: { type: "none" },
+      propsSchema: headerSearchPropsSchema,
+    },
+    header_account: {
+      kind: "header_account",
+      label: "Header account",
+      description:
+        "The header's account control. Signed-out visitors see a sign-in link; signed-in visitors get their account menu.",
+      children: { type: "none" },
+      propsSchema: headerAccountPropsSchema,
+    },
+    header_inquiry: {
+      kind: "header_inquiry",
+      label: "Header inquiry",
+      description:
+        "The header's inquiry control, with a live count of what a visitor has saved.",
+      children: { type: "none" },
+      propsSchema: headerInquiryPropsSchema,
+    },
+    header_language: {
+      kind: "header_language",
+      label: "Header language",
+      description:
+        "The header's language switcher. It hides itself on a single-language site rather than showing a dead toggle.",
+      children: { type: "none" },
+      propsSchema: headerLanguagePropsSchema,
+    },
+    sticky_scroll: {
+      kind: "sticky_scroll",
+      label: "Sticky scroll",
+      description:
+        "A picture that stays pinned while the copy blocks beside it scroll past.",
+      children: { type: "none" },
+      propsSchema: stickyScrollPropsSchema,
+    },
+    reveal: {
+      kind: "reveal",
+      label: "Reveal",
+      description:
+        "Wrap any blocks so they animate into view as the visitor scrolls. Content stays visible if animation is off.",
+      children: { type: "allow_list", kinds: COMPOSABLE_LAYOUT_CHILD_KINDS },
+      propsSchema: revealPropsSchema,
+    },
+    stats: {
+      kind: "stats",
+      label: "Stats",
+      description:
+        "Oversized numbers with labels, counting up as they scroll into view.",
+      children: { type: "none" },
+      propsSchema: statsPropsSchema,
+    },
+    before_after: {
+      kind: "before_after",
+      label: "Before and after",
+      description:
+        "Two images with a slider between them, so a visitor can drag to compare.",
+      children: { type: "none" },
+      propsSchema: beforeAfterPropsSchema,
     },
     icon: {
       kind: "icon",

@@ -30,6 +30,14 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "form",
   "divider",
   "spacer",
+  // BUILDER 2027 · P2A — the anchor-design primitives ARE ordinary authoring
+  // elements (no data source, no shell context), so they belong in the generic
+  // element library rather than behind the CONNECTED tab.
+  "marquee",
+  "sticky_scroll",
+  "reveal",
+  "stats",
+  "before_after",
 ];
 
 /**
@@ -125,6 +133,23 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     // fallback, same as section_embed above.
     hero_search: "layout",
     talent_type_grid: "layout",
+    // BUILDER 2027 · P2A. The roster-driven bands are reached through the Add
+    // Gallery's CONNECTED tab (same as the WS7 blocks above), so "layout" is
+    // just the non-grouped fallback for them. The four `header_*` widgets are
+    // shell chrome; the anchor primitives are ordinary design elements and DO
+    // appear in the generic library.
+    marquee: "structure",
+    directory: "layout",
+    featured_talent: "layout",
+    location_map: "layout",
+    header_search: "utility",
+    header_account: "utility",
+    header_inquiry: "utility",
+    header_language: "utility",
+    sticky_scroll: "layout",
+    reveal: "utility",
+    stats: "structure",
+    before_after: "media",
   };
 
 export function elementLibraryCategoryForKind(
@@ -170,6 +195,19 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     tabs: "tabbed panels",
     carousel: "slider slides",
     masonry: "pinterest grid gallery",
+    // BUILDER 2027 · P2A
+    marquee: "marquee ticker scrolling strip press partners logos loop kinetic",
+    directory: "directory roster grid talent filter search browse people team",
+    featured_talent: "featured talent showcase cards roster spotlight curated",
+    location_map: "map location cities pins where we work markets territory",
+    header_search: "header search magnifier directory find",
+    header_account: "header account sign in login profile menu avatar",
+    header_inquiry: "header inquiry cart saved shortlist basket send",
+    header_language: "header language locale switcher translate english spanish",
+    sticky_scroll: "sticky scroll pinned image steps how it works process",
+    reveal: "reveal animate scroll fade rise entrance motion wrapper",
+    stats: "stats numbers counter metrics figures credibility count up",
+    before_after: "before after slider compare drag reveal transformation",
   };
   return extras[kind] ?? "";
 }
@@ -228,6 +266,22 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "hero_search",
     "menu_board",
     "talent_type_grid",
+    // BUILDER 2027 · P2A — all twelve are shipped + droppable. The four roster
+    // bands reach the picker through the CONNECTED tab and the four `header_*`
+    // widgets through the shell builder, so they stay OUT of
+    // MVP_ELEMENT_LIBRARY_KINDS and only need to survive the shipped filter.
+    "marquee",
+    "directory",
+    "featured_talent",
+    "location_map",
+    "header_search",
+    "header_account",
+    "header_inquiry",
+    "header_language",
+    "sticky_scroll",
+    "reveal",
+    "stats",
+    "before_after",
   ]),
 ];
 
