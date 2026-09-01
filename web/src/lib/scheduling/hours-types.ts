@@ -143,14 +143,48 @@ export function windowsForDate(
  * Parse a talent_booking_hours row (or a partial settings blob). Missing
  * numeric fields take the table defaults. Garbage weekly/exceptions → null.
  */
+/**
+ * Dev-only signal for a rejected hours row.
+ *
+ * These parsers fail CLOSED: a malformed row yields no slots rather than an
+ * error, which is the right behavior and an undiagnosable symptom. A public
+ * booking page simply shows no times, and nothing anywhere says why. That cost
+ * an hour once, chasing an empty slot list whose only cause was a `weekly`
+ * blob written with `start`/`end` instead of `startMin`/`endMin`.
+ *
+ * Production behavior is unchanged — this only speaks in development.
+ */
+function warnRejectedHours(reason: string): void {
+  if (process.env.NODE_ENV === "production") return;
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[scheduling] booking hours rejected: ${reason}. ` +
+      `Expected weekly keyed by weekday index 0-6 with { startMin, endMin } ` +
+      `minute offsets, and exceptions as an array. No slots will be offered.`,
+  );
+}
+
 export function parseBookingHours(raw: unknown): BookingHours | null {
-  if (!isPlainObject(raw)) return null;
+  if (!isPlainObject(raw)) {
+    if (raw != null) warnRejectedHours("row is not an object");
+    return null;
+  }
   const timezone = typeof raw.timezone === "string" ? raw.timezone.trim() : "";
-  if (!timezone) return null;
+  if (!timezone) {
+    warnRejectedHours("missing timezone");
+    return null;
+  }
 
   const weekly = parseWeeklyHours(raw.weekly);
   const exceptions = parseHoursExceptions(raw.exceptions);
-  if (!weekly || !exceptions) return null;
+  if (!weekly) {
+    warnRejectedHours("weekly windows malformed");
+    return null;
+  }
+  if (!exceptions) {
+    warnRejectedHours("exceptions malformed");
+    return null;
+  }
 
   return {
     timezone,
