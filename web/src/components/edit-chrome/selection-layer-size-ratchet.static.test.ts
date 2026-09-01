@@ -226,7 +226,13 @@ const BUDGETS: Record<string, number> = {
   //   resolveMovePlacement, commitSelectedNodePlace, onCommitPlace, and
   //   clearing inset previews on layout reset. Translate commit clamp moved
   //   into the helper so this file does not grow by the full feature.
-  "selection-layer.tsx": 7755,
+  // MINUS 98 (builder-2027 P1 / 1C): `collectCanvasDropCandidates` and
+  //   `buildBuilderNodeMap` moved to canvas-drop-candidates.ts, where the drag
+  //   hot path can be instrumented and unit-tested on its own
+  //   (canvas-drop-candidates.perf.test.ts asserts the DOM-op counts). The
+  //   rAF-coalesced scroll refresher added back a few wiring lines here. Net
+  //   down, which is the direction this ratchet exists to encourage.
+  "selection-layer.tsx": 7657,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

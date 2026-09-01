@@ -572,12 +572,10 @@ export function InspectorDock() {
         // Pure-render curated sections already repaint on the client canvas
         // after syncBuilderNodeChildrenForSection; skip the server round-trip
         // unless the section type loads live data (roster/catalog islands).
-        // NOTE: edit-context's equivalent guard consults
-        // `isClientBuilderCanvasMounted()` (the refcount) rather than assuming a
-        // canvas exists. This site never did — it only read the build flag,
-        // which has been `1` in production since it shipped — so it is left
-        // exactly as it behaves in production. Aligning the two guards is a
-        // behaviour change and belongs in its own change with live QA.
+        // NOTE: edit-context's equivalent guard consults the canvas-mount
+        // refcount; this site only ever read the build flag, which has been on
+        // in production since it shipped, so it is left behaving exactly as it
+        // does there. Aligning the two needs its own change plus live QA.
         if (sectionTypeHasLiveData(loaded.sectionTypeKey)) {
           startRefreshTransition(() => {
             void queueRouterRefresh();
