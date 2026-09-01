@@ -37,6 +37,7 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { trackPlanChanged } from "@/lib/analytics/conversion-events";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -244,6 +245,15 @@ export async function commitPlanDowngrade(input: {
     logServerError("admin-plan-downgrade.commit.plan", planErr);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  // Churn is half of what a funnel means. Counting only upgrades produces a
+  // number that always looks like growth.
+  void trackPlanChanged({
+    direction: "down",
+    tenantId,
+    toPlan: v.target_tier,
+    source: "admin_downgrade",
+  });
 
   revalidatePath("/", "layout");
   return {

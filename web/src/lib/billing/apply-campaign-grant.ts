@@ -21,6 +21,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveCampaignGrant, type CampaignRow } from "./campaign-grant";
+import { trackPlanChanged } from "@/lib/analytics/conversion-events";
 
 export type CampaignGrantOutcome =
   | { applied: true; planTier: string; expiresAt: string }
@@ -101,6 +102,16 @@ export async function applyCampaignGrantForDiscount(params: {
       .update({ plan_tier: grant.planTier })
       .eq("id", params.tenantId);
     if (mirrorError) logServerError("campaign-grant.mirror", mirrorError);
+
+    // A grant IS an upgrade for funnel purposes: the workspace moved onto a
+    // paid tier. `source: "campaign_grant"` keeps it separable from a
+    // self-serve purchase so neither number quietly flatters the other.
+    void trackPlanChanged({
+      direction: "up",
+      tenantId: params.tenantId,
+      toPlan: grant.planTier,
+      source: "campaign_grant",
+    });
 
     return { applied: true, planTier: grant.planTier, expiresAt: grant.expiresAt };
   } catch (err) {

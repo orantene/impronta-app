@@ -33,6 +33,7 @@ import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
+import { trackWorkspaceActivated } from "@/lib/analytics/conversion-events";
 
 /**
  * Untyped write surface for talent_offerings (+ media join). The tables ARE in
@@ -238,12 +239,31 @@ export async function upsertTalentOffering(
       }
       saved = data as TalentOfferingRow | null;
     } else {
+      // Count BEFORE the insert so a zero here means this row is the first
+      // offering this profile has ever had. Counting afterwards would race
+      // with a concurrent save and could fire activation twice.
+      const { count: existingBefore } = await offeringsTable(admin)
+        .select("id", { count: "exact", head: true })
+        .eq("talent_profile_id", talentProfileId);
+
       const { data, error } = await offeringsTable(admin).insert(patch).select("*").maybeSingle();
       if (error) {
         logServerError("talent.offerings.insert", error);
         return { ok: false, error: "Failed to save." };
       }
       saved = data as TalentOfferingRow | null;
+
+      // ACTIVATION. The 0 to 1 transition only: the first time this workspace
+      // has something on a real page a stranger could pay for. Fired here
+      // rather than on registration because registering proves intent and
+      // publishing proves the product actually worked for them.
+      if (saved && (existingBefore ?? 0) === 0) {
+        void trackWorkspaceActivated({
+          tenantId: auth.tenantId,
+          talentId: talentProfileId,
+          offeringId: saved.id,
+        });
+      }
     }
     if (!saved) return { ok: false, error: "Failed to save." };
 
