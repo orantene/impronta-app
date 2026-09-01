@@ -243,6 +243,7 @@ const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
   "src/components/edit-chrome/editor-i18n-es-registry.ts",
   "src/components/edit-chrome/editor-i18n-es-shortcuts.ts",
+  "src/components/edit-chrome/editor-i18n-es-builder-2027.ts",
 ];
 
 /**

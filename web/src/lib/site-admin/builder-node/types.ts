@@ -45,6 +45,23 @@ export type BuilderNodeKind =
   | "hero_search"
   | "menu_board"
   | "talent_type_grid"
+  // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
+  // registry Impronta's live pages reach through `section_embed` bridges.
+  // Group 1 (bridge-critical) renders the roster/marketing bands; the four
+  // `header_*` widgets replace the frozen shell widgets embedded as children of
+  // the `site_header` landmark. Group 2 are the anchor-design primitives.
+  | "marquee"
+  | "directory"
+  | "featured_talent"
+  | "location_map"
+  | "header_search"
+  | "header_account"
+  | "header_inquiry"
+  | "header_language"
+  | "sticky_scroll"
+  | "reveal"
+  | "stats"
+  | "before_after"
   | "section_embed";
 
 export interface BuilderNodeBase {
@@ -1339,6 +1356,423 @@ export interface BuilderNavLink {
  * data-aware nodes; curated sections fetch their own data from tenant context,
  * so it is currently advisory.
  */
+/* ────────────────────────────────────────────────────────────────────────────
+ * BUILDER 2027 · P2A — native kinds.
+ *
+ * Each of the twelve interfaces below is the native replacement for a FROZEN
+ * curated section of the same name, so its props are that section's authoring
+ * surface flattened into builder-node prop shape: no `presentation` /
+ * `nodePresentation` envelopes (the builder's own style system owns those), no
+ * LinkRef objects (builder nodes carry plain hrefs, prefixed at render), and
+ * everything OPTIONAL so a freshly-inserted node is always schema-valid (a
+ * required field at insert time silently breaks insertion — see the
+ * `socialFeed` note in registry.ts).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * NATIVE `marquee` — the full-bleed scrolling ticker strip. Behavioural spec =
+ * the frozen `marquee` curated section: a doubled item track translated
+ * 0 → -50% so the loop is seamless, an optional separator glyph between items,
+ * and a `tags` variant that renders each item as a pill instead of plain text.
+ *
+ * Beyond the legacy section: `pauseOnHover` and a real `prefers-reduced-motion`
+ * stop (the legacy strip scrolled regardless).
+ */
+export interface BuilderMarqueeNode extends BuilderNodeBase {
+  kind: "marquee";
+  props: {
+    items?: Array<{ text: string; href?: string }>;
+    speed?: "slow" | "medium" | "fast";
+    direction?: "left" | "right";
+    separator?: "dot" | "slash" | "diamond" | "none";
+    variant?: "text" | "tags";
+    /** Freeze the loop while the pointer is over the strip. */
+    pauseOnHover?: boolean;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `directory` — the tenant-scoped, filterable roster grid. Behavioural
+ * spec = the frozen `directory` curated section, which renders on SEVEN Impronta
+ * pages plus every tenant's `__directory__` system page.
+ *
+ * TENANT SCOPING: the renderer never queries. Cards come from
+ * `dataSources.directoryProfiles`, which the SERVER caller resolves through the
+ * same visible-roster gate the curated section honoured, and the filter chips
+ * from `dataSources.directoryShortcuts`. Absent ⇒ the node renders its heading,
+ * its real GET filter form and its empty state — never another tenant's roster.
+ *
+ * The reactive client engine (live re-query on keystroke, AI interpret, map
+ * view, faceted sidebar) is NOT reimplemented here: when the server caller
+ * injects `renderNativeLiveBlock`, this node delegates to it and gets the full
+ * engine; without it the native GET-form grid is the fallback, so the node is
+ * never dead on the canvas or in a tenant-less preview.
+ */
+export interface BuilderDirectoryNode extends BuilderNodeBase {
+  kind: "directory";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    copy?: string;
+    headerAlign?: "center" | "left" | "split";
+    showHeading?: boolean;
+    /** The noun this instance uses for its people ("Our Chefs" pages). */
+    entityLabel?:
+      | "talent"
+      | "people"
+      | "members"
+      | "professionals"
+      | "providers"
+      | "team";
+    scope?: "all" | "by_talent_type" | "by_tag" | "manual";
+    talentTypeKeys?: string[];
+    tagKeys?: string[];
+    manualProfileCodes?: string[];
+    /** Pinned to the front, in order. */
+    pinnedProfileCodes?: string[];
+    excludedProfileCodes?: string[];
+    requirePhoto?: boolean;
+    excludeUnavailable?: boolean;
+    minTrustTier?: "any" | "basic" | "verified" | "silver" | "gold";
+    defaultSort?: "recommended" | "newest" | "az" | "availability" | "curated";
+    pagination?: "load_more" | "infinite" | "paged";
+    pageSize?: number;
+    columnsDesktop?: number;
+    columnsTablet?: number;
+    columnsMobile?: number;
+    density?: "comfortable" | "compact";
+    containerWidth?: "boxed" | "full";
+    cardStyle?:
+      | "portrait"
+      | "editorial"
+      | "portfolio"
+      | "profile"
+      | "stat"
+      | "service"
+      | "minimal";
+    cardAspect?: "4:5" | "1:1" | "3:4" | "16:9";
+    showName?: boolean;
+    showTalentType?: boolean;
+    showLocation?: boolean;
+    showAvailability?: boolean;
+    showBadges?: boolean;
+    showSave?: boolean;
+    showAddToInquiry?: boolean;
+    showQuickView?: boolean;
+    cardClickAction?: "modal" | "page";
+    /** Render the search box above the grid (submits as a real GET). */
+    filterSearchBox?: boolean;
+    filterPlaceholder?: string;
+    filterSubmitLabel?: string;
+    /** Where the filter form posts; defaults to the tenant-prefixed `/directory`. */
+    searchActionHref?: string;
+    topBarMode?: "none" | "talent_type" | "field";
+    sortControlShow?: boolean;
+    showResultCount?: boolean;
+    sidebarShow?: boolean;
+    sidebarPosition?: "left" | "right";
+    emptyStateTitle?: string;
+    emptyStateText?: string;
+    emptyStateCtaLabel?: string;
+    emptyStateCtaHref?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `featured_talent` — the curated talent showcase. Behavioural spec =
+ * the frozen `featured_talent` curated section (and the `section_embed` inside
+ * `featured-talent-freeform.ts`).
+ *
+ * Cards come from `dataSources.featuredTalentProfiles` — already resolved,
+ * tenant-scoped, by the server caller — and render through the SAME
+ * `FeaturedTalentCard` the bound-container path uses, so a native block and a
+ * bound container are pixel-identical. Absent ⇒ the authored heading plus the
+ * empty state; never a blank band.
+ */
+export interface BuilderFeaturedTalentNode extends BuilderNodeBase {
+  kind: "featured_talent";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    copy?: string;
+    sourceMode?:
+      | "manual_pick"
+      | "auto_featured_flag"
+      | "auto_by_service"
+      | "auto_by_destination"
+      | "auto_recent";
+    manualProfileCodes?: string[];
+    filterServiceSlug?: string;
+    filterDestinationSlug?: string;
+    limit?: number;
+    columnsDesktop?: number;
+    variant?: "grid" | "carousel";
+    headerAlign?: "split" | "left" | "center";
+    cardVariant?: "editorial" | "compact" | "minimal" | "profile";
+    showName?: boolean;
+    showPrimaryType?: boolean;
+    showSecondaryType?: boolean;
+    showCity?: boolean;
+    showLanguages?: boolean;
+    showAvailability?: boolean;
+    showBadge?: boolean;
+    /** Show the parent category instead of the leaf talent type. */
+    parentCategoryDisplay?: boolean;
+    ctaLabel?: string;
+    ctaHref?: string;
+    footerCtaLabel?: string;
+    footerCtaHref?: string;
+    emptyStateText?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `location_map` — a map with a content overlay card and city pins.
+ * Behavioural spec = the frozen `location_discovery` section (city cards +
+ * editorial pin map, sourced manually or from THIS tenant's roster cities)
+ * UNIONED with `map_overlay`'s embedded map + copy card, which is the shape the
+ * `section_embed` inside `location-discovery-freeform.ts` actually renders.
+ *
+ * Roster mode reads `dataSources.talentLocations` — server-resolved and
+ * tenant-scoped, the same contract as `talentDisciplines`; absent ⇒ it falls
+ * back to the authored `items` and never blanks out.
+ */
+export interface BuilderLocationMapNode extends BuilderNodeBase {
+  kind: "location_map";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    subheadline?: string;
+    /** `roster_cities` derives pins from the tenant roster; `manual` uses `items`. */
+    source?: "manual" | "roster_cities";
+    items?: Array<{
+      label: string;
+      region?: string;
+      href?: string;
+      count?: number;
+      featured?: boolean;
+      status?: "active" | "coming_soon";
+    }>;
+    maxItems?: number;
+    showCount?: boolean;
+    /** Draw the map panel at all. Off renders the plain city-card grid. */
+    showMap?: boolean;
+    /** `editorial` = the token-driven pin map (no external dep); `embed` = an iframe. */
+    mapStyle?: "editorial" | "embed";
+    /** Google Maps / OpenStreetMap embed URL, used when `mapStyle` is `embed`. */
+    mapEmbedUrl?: string;
+    /** The copy block laid over the map. */
+    overlayTitle?: string;
+    overlayBody?: string;
+    overlayAddress?: string;
+    overlayHours?: string;
+    overlaySide?: "card-left" | "card-right" | "card-bottom";
+    ratio?: "16/9" | "4/3" | "1/1" | "21/9";
+    layout?: "grid" | "list" | "compact";
+    ctaLabel?: string;
+    ctaHref?: string;
+    emptyStateText?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * The four NATIVE shell widgets share one prop shape. Behavioural spec = the
+ * frozen `header_search` / `header_account` / `header_inquiry` /
+ * `header_language` curated sections, which today are embedded as children of
+ * the `site_header` landmark through `section_embed`.
+ *
+ * WHY THE SHAPE IS SHARED: each legacy section carried the same all-optional
+ * `headerWidgetSchemaV1` (an operator note plus an icon override) because the
+ * widget owned its own markup. The native kinds keep that surface and ADD the
+ * per-widget authoring the frozen sections never had — a visible label, an
+ * href, a count toggle — so a tenant can finally rename or relabel a header
+ * control.
+ *
+ * LIVE vs STATIC: `header_search` and `header_language` are fully native (a
+ * link, and the locale row the shell already threads on
+ * `options.availableLocales`). `header_account` and `header_inquiry` need the
+ * visitor session, which the shared renderer must never read — so they render
+ * their own real link markup by default and DELEGATE to
+ * `options.renderNativeLiveBlock` when the server shell injects it. Neither
+ * branch can ever be a dead chip.
+ */
+// A `type` alias, not an `interface`: an interface has no implicit index
+// signature, so `interface & {…}` is not assignable to `Record<string, unknown>`
+// and every generic prop-bag consumer in the editor chrome (multi-selection
+// style panel, quick-style popover) rejects the node. Object-literal type
+// aliases keep the implicit signature through the intersection.
+export type BuilderHeaderWidgetPropsBase = {
+  /** Visible label next to the glyph, and the control's accessible name. */
+  label?: string;
+  /** Show the label as text; off keeps the icon-only header affordance. */
+  showLabel?: boolean;
+  /** Operator glyph override; absent keeps the widget's own icon. */
+  icon?: BuilderIconName;
+  /** Where the control leads. Absent uses the widget's own default route. */
+  href?: string;
+  layerLabel?: string;
+  style?: BuilderNodeStyle;
+};
+
+export interface BuilderHeaderSearchNode extends BuilderNodeBase {
+  kind: "header_search";
+  props: BuilderHeaderWidgetPropsBase & {
+    /** Render an inline search input instead of a link to the directory. */
+    inlineField?: boolean;
+    placeholder?: string;
+  };
+}
+
+export interface BuilderHeaderAccountNode extends BuilderNodeBase {
+  kind: "header_account";
+  props: BuilderHeaderWidgetPropsBase & {
+    signedOutLabel?: string;
+    signedInLabel?: string;
+  };
+}
+
+export interface BuilderHeaderInquiryNode extends BuilderNodeBase {
+  kind: "header_inquiry";
+  props: BuilderHeaderWidgetPropsBase & {
+    /** Show the saved-item badge on the trigger. */
+    showCount?: boolean;
+  };
+}
+
+export interface BuilderHeaderLanguageNode extends BuilderNodeBase {
+  kind: "header_language";
+  props: BuilderHeaderWidgetPropsBase & {
+    /** `code` renders EN | ES; `name` renders English | Espanol. */
+    display?: "code" | "name";
+    /** Glyph drawn between locales. */
+    separator?: string;
+  };
+}
+
+/**
+ * NATIVE `sticky_scroll` — a media column that stays pinned while the copy
+ * blocks beside it scroll past. Behavioural spec = the frozen `sticky_scroll`
+ * curated section, including its `\n\n` paragraph splitting inside each block.
+ */
+export interface BuilderStickyScrollNode extends BuilderNodeBase {
+  kind: "sticky_scroll";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    imageUrl?: string;
+    imageAlt?: string;
+    blocks?: Array<{ title: string; body?: string }>;
+    side?: "media-left" | "media-right";
+    variant?: "bordered" | "minimal";
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `reveal` — a WRAPPER primitive (children: any) that animates whatever
+ * is dropped inside it as it scrolls into view. New; there is no frozen section
+ * counterpart.
+ *
+ * FAILURE MODE THIS DESIGN RULES OUT: the previous `revealOnView` shipped dead
+ * on every published page because it hid its content in CSS and armed the
+ * reveal from a runtime that a published page never injected. Here the content
+ * is VISIBLE by default and the node emits its own arming script inline, next
+ * to the markup it animates. With JavaScript off — or if the script never runs
+ * for any reason — nothing is ever hidden.
+ */
+export interface BuilderRevealNode extends BuilderNodeBase {
+  kind: "reveal";
+  children: BuilderNode[];
+  props: {
+    effect?: "fade" | "rise" | "scale" | "blur" | "mask-up" | "none";
+    direction?: "up" | "down" | "left" | "right";
+    /** Travel distance in px for `rise` / directional effects. */
+    distance?: number;
+    durationMs?: number;
+    delayMs?: number;
+    /** Per-child delay in ms, so a grid reveals in sequence. */
+    staggerMs?: number;
+    /** Intersection ratio that triggers the reveal (0..1). */
+    threshold?: number;
+    /** Reveal once and stay revealed (default) vs re-run on every entry. */
+    once?: boolean;
+    easing?: "linear" | "ease" | "ease-out" | "ease-in-out";
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `stats` — the oversized-numeral credibility band. Behavioural spec =
+ * the frozen `stats` curated section (value / label / caption rows in a row,
+ * grid, or split layout).
+ *
+ * Beyond the legacy section: an ANIMATED COUNT-UP. The server renders the FINAL
+ * value, so a no-JS visitor and every crawler see the real number; the inline
+ * script only counts up to a value that is already in the DOM.
+ */
+export interface BuilderStatsNode extends BuilderNodeBase {
+  kind: "stats";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    items?: Array<{
+      value: string;
+      label: string;
+      caption?: string;
+      prefix?: string;
+      suffix?: string;
+    }>;
+    variant?: "row" | "grid" | "split";
+    align?: "start" | "center";
+    columns?: number;
+    /** Count up from zero when the band scrolls into view. */
+    animate?: boolean;
+    durationMs?: number;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * NATIVE `before_after` — the drag-to-compare slider. Behavioural spec = the
+ * frozen `before_after` curated section: two stacked images, the top one
+ * clip-pathed by a CSS custom property that a native `<input type="range">`
+ * drives, so it is keyboard-operable and needs no hydration.
+ *
+ * Beyond the legacy section: a `vertical` orientation.
+ */
+export interface BuilderBeforeAfterNode extends BuilderNodeBase {
+  kind: "before_after";
+  props: {
+    eyebrow?: string;
+    headline?: string;
+    beforeUrl?: string;
+    afterUrl?: string;
+    beforeAlt?: string;
+    afterAlt?: string;
+    beforeLabel?: string;
+    afterLabel?: string;
+    /** Initial divider position, percent from the left (or top). */
+    initialPosition?: number;
+    ratio?: "16/9" | "4/3" | "1/1" | "5/4";
+    orientation?: "horizontal" | "vertical";
+    /** Accessible name for the range control. */
+    sliderLabel?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSectionEmbedNode extends BuilderNodeBase {
   kind: "section_embed";
   props: {
@@ -1613,6 +2047,19 @@ export type BuilderNode =
   | BuilderNavNode
   | BuilderSocialLinksNode
   | BuilderFormNode
+  // BUILDER 2027 · P2A
+  | BuilderMarqueeNode
+  | BuilderDirectoryNode
+  | BuilderFeaturedTalentNode
+  | BuilderLocationMapNode
+  | BuilderHeaderSearchNode
+  | BuilderHeaderAccountNode
+  | BuilderHeaderInquiryNode
+  | BuilderHeaderLanguageNode
+  | BuilderStickyScrollNode
+  | BuilderRevealNode
+  | BuilderStatsNode
+  | BuilderBeforeAfterNode
   | BuilderSectionEmbedNode;
 
 export type BuilderNodeTree = BuilderNode[];

@@ -27,9 +27,8 @@
  * this only flips the SECTION-CHILDREN signal, which lets builder-node edits skip
  * the refresh while leaving curated-prop edits on the server path.
  *
- * Mounted behind the same gate as `ClientBuilderCanvas`: editMode &&
- * NEXT_PUBLIC_BUILDER_CLIENT_CANVAS. Flag off → the server children render exactly
- * as today.
+ * Mounted behind the same gate as `ClientBuilderCanvas`: edit mode. Published
+ * and preview reads take the server render instead.
  */
 import { memo, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";

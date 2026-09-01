@@ -33,6 +33,20 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "hero_search",
   "menu_board",
   "talent_type_grid",
+  // BUILDER 2027 · P2A — the native page bands (marquee strip, directory grid,
+  // featured showcase, location map, sticky scroll, stats, before/after) and the
+  // `reveal` wrapper all belong at the page root as well as inside a layout
+  // shell. The four `header_*` widgets are deliberately ABSENT: they are shell
+  // chrome that lives inside the `site_header` landmark, and a bare account
+  // menu dropped at a page root is a bug, not a layout.
+  "marquee",
+  "directory",
+  "featured_talent",
+  "location_map",
+  "sticky_scroll",
+  "reveal",
+  "stats",
+  "before_after",
 ]);
 
 export function builderNodeKindAllowedAtRoot(kind: BuilderNodeKind): boolean {

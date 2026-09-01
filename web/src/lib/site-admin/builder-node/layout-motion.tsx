@@ -36,6 +36,28 @@ const MOVE_MS = 220;
 const EXIT_MS = 180;
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
+/**
+ * builder-2027 1H — how long the newly-inserted block stays ringed.
+ *
+ * The fade+rise says "something arrived"; it does not say WHERE, and on a long
+ * page an insert below the fold, or into a dense stack, lands with nothing to
+ * catch the eye. The ring is the answer to "what did I just add?".
+ *
+ * Deliberately longer than ENTER_MS: the motion should be over before the
+ * operator starts looking for the result, and the marker should still be there
+ * when they do. Short enough that it is gone before it becomes chrome.
+ */
+const HIGHLIGHT_MS = 900;
+
+/**
+ * `outline` rather than `border` or `box-shadow`: outline is drawn outside the
+ * box and never participates in layout, so ringing a block cannot shift the
+ * blocks around it, and it cannot collide with a border the operator has styled.
+ * The colour is themeable by the editor chrome through the custom property; the
+ * fallback is the editor's own accent blue.
+ */
+const HIGHLIGHT_OUTLINE = "2px solid var(--builder-insert-ring, #3a7bff)";
+
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -69,6 +91,54 @@ function measureChildren(container: HTMLElement): Map<Element, Rect> {
   return out;
 }
 
+/**
+ * builder-2027 1H — ring the block that just arrived, then let the ring go.
+ *
+ * Exported (rather than living in the effect closure) so the behaviour can be
+ * driven directly in a test. The failure mode worth guarding is "the handler
+ * runs and nothing happens", and only executing this function can catch that.
+ *
+ * Restoring the PREVIOUS inline outline rather than clearing it is load-bearing:
+ * the selection chrome writes an outline on the selected block, and an insert
+ * that selects its own result would otherwise strip the selection ring the
+ * moment the highlight finished. Reading it before we write and putting it back
+ * after is the whole fix.
+ *
+ * Best-effort throughout. Callers gate on `canAnimate()`; if `Element.animate`
+ * is somehow absent the outline is written and immediately restored rather than
+ * left on the element forever. The restore runs on BOTH finish and cancel so an
+ * interrupted animation cannot leave a permanent ring behind.
+ */
+export function applyInsertHighlight(el: HTMLElement): void {
+  const previousOutline = el.style.outline;
+  const previousOffset = el.style.outlineOffset;
+  const restore = () => {
+    el.style.outline = previousOutline;
+    el.style.outlineOffset = previousOffset;
+  };
+  el.style.outline = HIGHLIGHT_OUTLINE;
+  el.style.outlineOffset = "2px";
+  if (typeof el.animate !== "function") {
+    restore();
+    return;
+  }
+  // Animate outlineWidth, not outlineColor: the colour is a `var()` and WAAPI
+  // keyframes do not resolve custom properties, so a colour keyframe would
+  // silently animate to the wrong value (or to nothing at all). Width holds full
+  // for most of the beat, then closes. Outline never participates in layout, so
+  // nothing on the page moves while it does.
+  const anim = el.animate(
+    [
+      { outlineWidth: "2px", offset: 0 },
+      { outlineWidth: "2px", offset: 0.65 },
+      { outlineWidth: "0px", offset: 1 },
+    ],
+    { duration: HIGHLIGHT_MS, easing: "ease-out", fill: "none" },
+  );
+  anim.addEventListener("finish", restore);
+  anim.addEventListener("cancel", restore);
+}
+
 export interface BuilderNodeLayoutMotionProps {
   children: ReactNode;
 }
@@ -99,6 +169,7 @@ export function BuilderNodeLayoutMotion({
         ],
         { duration: ENTER_MS, easing: EASE, fill: "none" },
       );
+      applyInsertHighlight(el);
     };
 
     const settle = (el: HTMLElement, prev: Rect) => {

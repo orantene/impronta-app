@@ -214,7 +214,14 @@ const BUDGETS: Record<string, number> = {
   // carousel-edit-mode-binding.tsx; this file only says where it hangs. It has
   // to hang here because EditShell is the one component present on BOTH the
   // client-canvas and the server-rendered editing paths.
-  "src/components/edit-chrome/edit-shell.tsx": 2395,
+  // MINUS 33 (builder-2027 P1 / 1K): the 13 `next/dynamic` declarations moved
+  // to edit-shell-lazy-panels.tsx. 1K enrolled three more panels (add gallery,
+  // all pages, design) that had been imported eagerly and mounted closed, which
+  // would have pushed this file 32 lines OVER its budget; extracting the whole
+  // declaration block instead put it under, and this file is no longer where
+  // the list grows each time another panel earns its own chunk. Re-baselined to
+  // the measured value, per this guard's own procedure.
+  "src/components/edit-chrome/edit-shell.tsx": 2362,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The

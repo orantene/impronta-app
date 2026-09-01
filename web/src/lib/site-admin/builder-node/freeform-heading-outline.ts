@@ -131,6 +131,43 @@ export function buildHeadingOutlineFromBuilderTree(
       if (text) {
         out.push({ level: 2, text, sectionId: node.id, sectionTypeKey: "talent_type_grid" });
       }
+    } else if (
+      // BUILDER 2027 · P2A — every one of these native kinds renders its
+      // headline as a real `<h2>` (see render.tsx). Omitting them would make the
+      // outline (and the a11y lint + AI eval scorecard that read it) report a
+      // heading GAP on a page whose headings are perfectly nested, which is the
+      // failure `hero_search` hit above. `sticky_scroll` additionally emits an
+      // `<h3>` per block; those are reported too so a jump from h2 to h4 in a
+      // later section is still caught.
+      node.kind === "directory" ||
+      node.kind === "featured_talent" ||
+      node.kind === "location_map" ||
+      node.kind === "sticky_scroll" ||
+      node.kind === "stats" ||
+      node.kind === "before_after"
+    ) {
+      const text = node.props.headline?.trim();
+      if (text) {
+        out.push({
+          level: 2,
+          text,
+          sectionId: node.id,
+          sectionTypeKey: node.kind,
+        });
+      }
+      if (node.kind === "sticky_scroll") {
+        for (const block of node.props.blocks ?? []) {
+          const title = block.title.trim();
+          if (title) {
+            out.push({
+              level: 3,
+              text: title,
+              sectionId: node.id,
+              sectionTypeKey: node.kind,
+            });
+          }
+        }
+      }
     } else if (node.kind === "heading") {
       const text = node.props.text.trim();
       if (text) {

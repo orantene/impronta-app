@@ -52,6 +52,7 @@ import {
   type ResolvedMultiSelectionField,
 } from "@/lib/site-admin/builder-node/multi-selection-style";
 import type { LengthUnit } from "../kit/number-unit";
+import { ColorSwatchButton } from "./color-swatch-button";
 import { LockBadge } from "./kit";
 import { useInspectorT } from "./kit/use-inspector-t";
 import {
@@ -313,25 +314,23 @@ function MultiSelectionStyleRow({
       dataControl={`multi-selection-${field}`}
     >
       {kind === "color" ? (
-        <input
-          type="color"
-          disabled={inert}
-          aria-label={`${label}${mixed ? " (mixed)" : ""} for all selected`}
-          value={draft || "#000000"}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            commit(e.target.value);
-          }}
-          style={{
-            width: 30,
-            height: FIELD_KIT.size.control,
-            padding: 0,
-            border: `1px solid ${FIELD_KIT.border}`,
-            borderRadius: FIELD_KIT.radius.chip,
-            background: mixed ? FIELD_KIT.surfaceRecessed : "transparent",
-            cursor: inert ? "not-allowed" : "pointer",
-          }}
-        />
+        // builder-2027 1I — ONE colour surface. This was an OS
+        // `<input type="color">`, which drops the operator out of the branded
+        // editor into the platform's own picker mid-gesture. `ColorSwatchButton`
+        // opens the same in-app HSV popover every other colour control uses.
+        // `inert` renders a dead swatch rather than a disabled OS input: there is
+        // nothing to disable once the control is a button that opens a popover.
+        <span style={inert ? { opacity: 0.45, pointerEvents: "none" } : undefined}>
+          <ColorSwatchButton
+            color={draft || "#000000"}
+            ariaLabel={`${label}${mixed ? " (mixed)" : ""} for all selected`}
+            dataAttr={["data-multi-selection-color", field]}
+            onChange={(next) => {
+              setDraft(next);
+              commit(next);
+            }}
+          />
+        </span>
       ) : (
         <input
           type="number"

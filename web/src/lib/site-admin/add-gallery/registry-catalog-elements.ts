@@ -1,5 +1,6 @@
 import type { AddGalleryItem } from "./types";
 import { el, roadmap } from "./registry-helpers";
+import { ADD_GALLERY_BUILDER_2027_ITEMS } from "./registry-catalog-elements-2027";
 
 export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Elements / Text ─────────────────────────────────────────────────────
@@ -621,4 +622,8 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     sourceType: "section-embed",
     searchTerms: ["language", "locale", "translate", "spanish", "english", "en es", "header widget"],
   }),
+  // BUILDER 2027 · P2A — the four native header widgets and the four anchor
+  // primitives live in a sibling file for the 800-line cap; they are ordinary
+  // entries in this same list.
+  ...ADD_GALLERY_BUILDER_2027_ITEMS,
 ];

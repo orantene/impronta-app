@@ -251,6 +251,11 @@ import {
   isStructuralOrSelfLocked,
 } from "./selection-layer-node-caps";
 import {
+  buildBuilderNodeMap,
+  collectCanvasDropCandidates,
+  createCanvasDropIndexRefresher,
+} from "./canvas-drop-candidates";
+import {
   SECTION_UNLOCK_EMPTY_HINT,
   SECTION_UNLOCK_EMPTY_LABEL,
   unlockSectionBeforeInsert,
@@ -497,96 +502,6 @@ type CanvasNodeDragState =
       cursorY: number;
     };
 
-/**
- * P3-DRAG — walk the live DOM to build the drop-candidate list for
- * `resolveCanvasNodeDrop`. Every rendered `[data-builder-node-id]` whose node
- * accepts children becomes a candidate; depth = ancestor-candidate count;
- * `locked` covers role-bound / curated nodes (which own their structure) and
- * the explicit `node.locked` flag. Child rows are the candidate's DIRECT
- * builder-node children (by id), in document order, with their vertical bands.
- */
-function collectCanvasDropCandidates(
-  tree: BuilderNodeTree,
-  ctx: NodeCapabilityContext,
-): CanvasDropCandidate[] {
-  if (typeof document === "undefined") return [];
-  const elements = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
-  );
-  const idToEl = new Map<string, HTMLElement>();
-  for (const el of elements) {
-    const id = el.getAttribute("data-builder-node-id");
-    if (id && !idToEl.has(id)) idToEl.set(id, el);
-  }
-  // W2-T6(b) — one id→node Map instead of a per-element findBuilderNodeById walk.
-  const nodeById = buildBuilderNodeMap(tree);
-
-  // W2-T6(a) — FIRST pass: resolve only the CONTAINER elements (a drop parent
-  // must have children.type ≠ "none" and a non-zero box). The depth loop then
-  // iterates THIS small container set, not every [data-builder-node-id] element
-  // — turning the old O(N²-over-all-nodes) containment scan into
-  // O(containers²), which is what the comment always claimed it was.
-  const containerEls: {
-    el: HTMLElement;
-    id: string;
-    node: BuilderNode;
-    rect: DOMRect;
-  }[] = [];
-  for (const el of elements) {
-    const id = el.getAttribute("data-builder-node-id");
-    if (!id) continue;
-    const node = nodeById.get(id);
-    if (!node) continue;
-    // Guard an unknown/corrupt node.kind (registry entry missing): treat it as a
-    // non-container so it's never offered as a drop target, instead of crashing.
-    const childrenPolicy = BUILDER_NODE_REGISTRY[node.kind]?.children;
-    if (!childrenPolicy || childrenPolicy.type === "none") continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) continue;
-    containerEls.push({ el, id, node, rect });
-  }
-
-  const candidates: CanvasDropCandidate[] = [];
-  for (const { el, id, node, rect } of containerEls) {
-    // Depth = how many OTHER CONTAINER candidates contain this one. O(containers²)
-    // over the (small) container set; mirrors the marquee containment filter.
-    let depth = 0;
-    for (const other of containerEls) {
-      if (other.el === el) continue;
-      if (other.el.contains(el)) depth += 1;
-    }
-
-    const locked = isStructuralOrSelfLocked(node, ctx);
-
-    const childRows =
-      "children" in node && Array.isArray(node.children)
-        ? node.children.flatMap((child) => {
-            const childEl = idToEl.get(child.id);
-            if (!childEl) return [];
-            const childRect = childEl.getBoundingClientRect();
-            return [
-              { nodeId: child.id, top: childRect.top, bottom: childRect.bottom },
-            ];
-          })
-        : [];
-
-    candidates.push({
-      nodeId: id,
-      kind: node.kind,
-      rect: {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      },
-      depth,
-      locked,
-      children: childRows,
-    });
-  }
-  return candidates;
-}
-
 interface NodeInsertTarget {
   nodeId: string;
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
@@ -619,26 +534,6 @@ function findBuilderNodeById(
   return null;
 }
 
-/**
- * W2-T6 — flatten the tree into an id→node Map ONCE. The hot DOM-measure loops
- * (collectCanvasDropCandidates, buildMarqueeIndex) used to call
- * `findBuilderNodeById` (a full tree walk) per element — O(N·tree) per scan, and
- * collectCanvasDropCandidates did it again per OTHER element in its depth loop
- * (O(N²·tree)). One Map turns each lookup into O(1).
- */
-function buildBuilderNodeMap(tree: BuilderNodeTree): Map<string, BuilderNode> {
-  const map = new Map<string, BuilderNode>();
-  const stack = [...tree];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-    map.set(current.id, current);
-    if ("children" in current && Array.isArray(current.children)) {
-      for (const child of current.children) stack.push(child);
-    }
-  }
-  return map;
-}
 
 /**
  * W3-T3 — flatten the tree into DOCUMENT-ORDER node ids (parent, then its
@@ -2510,13 +2405,20 @@ export function SelectionLayer() {
       return undefined;
     }
     rebuildCanvasDropIndex();
-    const onScrollOrResize = () => rebuildCanvasDropIndex();
+    // builder-2027 1C — coalesce the refresh to one per animation frame. A drag
+    // near the viewport edge runs an autoscroll rAF loop, and browsers can emit
+    // several `scroll` events between two paints; each one used to pay a full
+    // rescan (a getBoundingClientRect per container + per child row, each a
+    // possible layout flush) whose result the next event threw away unread.
+    const refresher = createCanvasDropIndexRefresher(rebuildCanvasDropIndex);
+    const onScrollOrResize = () => refresher.request();
     window.addEventListener("scroll", onScrollOrResize, {
       passive: true,
       capture: true,
     });
     window.addEventListener("resize", onScrollOrResize);
     return () => {
+      refresher.cancel();
       window.removeEventListener("scroll", onScrollOrResize, {
         capture: true,
       } as EventListenerOptions);

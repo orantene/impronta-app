@@ -45,7 +45,6 @@ import {
   collectBuilderSectionEmbedNodes,
   makeSectionEmbedRenderer,
 } from "@/lib/site-admin/builder-node/section-embed-renderer";
-import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
 import { ClientSectionChildren } from "@/components/edit-chrome/client-section-children";
 import { loadBuilderNodeDataSources } from "./homepage-cms-data-sources";
@@ -372,14 +371,14 @@ export async function HomepageCmsSections({
           <BuilderNodeRendererStyles kinds={freeformScopedKinds} nodes={freeform.tree} />
         ) : null;
 
-      // W3 Sub-step B — CLIENT-RENDERED CANVAS (default OFF; flag-gated).
-      // Only when edit mode is active AND NEXT_PUBLIC_BUILDER_CLIENT_CANVAS is
-      // on do we paint the freeform tree client-side. The `section_embed`
-      // server islands are pre-rendered here (same renderer, same wrapper +
-      // `data-*`) and handed to the client canvas by node id; everything else
-      // renders client-side against the SERIALIZED `freeformDataSources`. The
-      // head styles still emit server-side so the head matches the server path.
-      if (editMode && isBuilderClientCanvasEnabled()) {
+      // CLIENT-RENDERED CANVAS. In edit mode we paint the freeform tree
+      // client-side. The `section_embed` server islands are pre-rendered here
+      // (same renderer, same wrapper + `data-*`) and handed to the client canvas
+      // by node id; everything else renders client-side against the SERIALIZED
+      // `freeformDataSources`. The head styles still emit server-side so the
+      // head matches the server path. Anonymous / published reads never take
+      // this branch and ship no editor chunk.
+      if (editMode) {
         const sectionEmbedIslands: Record<string, ReactNode> = {};
         for (const embed of collectBuilderSectionEmbedNodes(freeform.tree)) {
           sectionEmbedIslands[embed.id] = freeformSectionEmbedRenderer(embed);
@@ -657,12 +656,12 @@ export async function HomepageCmsSections({
         const rootBlockIndex = builderNodeId
           ? builderTreeResolution.tree.findIndex((node) => node.id === builderNodeId)
           : -1;
-        // builder-perf-2026 — curated-slot instant editing. In edit mode with the
-        // client-canvas flag on, render this section's builder CHILDREN client-side
-        // (<ClientSectionChildren>) so a child edit repaints instantly instead of
-        // triggering the per-edit server `router.refresh()`. The curated <Component>
-        // above stays server-rendered (its prop edits keep the refresh). Flag off /
-        // published / preview → the byte-identical server render below.
+        // builder-perf-2026 — curated-slot instant editing. In edit mode, render
+        // this section's builder CHILDREN client-side (<ClientSectionChildren>)
+        // so a child edit repaints instantly instead of triggering the per-edit
+        // server `router.refresh()`. The curated <Component> above stays
+        // server-rendered (its prop edits keep the refresh). Published / preview
+        // → the byte-identical server render below.
         const sectionEmbedRendererForChildren = makeSectionEmbedRenderer({
           tenantId,
           locale,
@@ -670,7 +669,7 @@ export async function HomepageCmsSections({
         });
         let builderChildrenNode: ReactNode = null;
         if (builderSectionChildren.length > 0) {
-          if (editMode && isBuilderClientCanvasEnabled() && builderNodeId) {
+          if (editMode && builderNodeId) {
             const childEmbedIslands: Record<string, ReactNode> = {};
             for (const embed of collectBuilderSectionEmbedNodes(
               builderSectionChildren,

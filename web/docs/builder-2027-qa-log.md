@@ -72,6 +72,27 @@ Severity: **P0** blocks the program or a live surface · **P1** must fix before 
 
 ---
 
+## Browser QA — Phase 2A kinds (2026-09-01, Chrome, PR #1475 preview)
+
+Done on the PR's Vercel preview aliased to `staging-impronta.tulala.digital` (raw `*.vercel.app` is SSO-gated in a browser and not in `agency_domains`; the alias was restored to the production deployment afterwards). Impronta's draft was **not** mutated — the gallery was opened and searched, nothing inserted or published.
+
+**Verified live in the operator's Add Gallery — 8 of 12:**
+
+| Kind | Tab | What the operator sees |
+|---|---|---|
+| `marquee` | Blocks | "Marquee — A continuously scrolling strip of text or tags. Used for press lines, partner names and value statements." |
+| `stats` | Blocks | "Stats — Oversized numbers with labels, counting up as they scroll into view." |
+| `before_after` | Blocks | "Before and After — Two images with a slider between them, so a visitor can drag to compare." |
+| `sticky_scroll` | Blocks | "Sticky Scroll" |
+| `reveal` | Blocks | "Reveal — Wrap any blocks so they animate into view as the visitor scrolls" |
+| `directory` | Data | listed as "Directory" |
+| `featured_talent` | Data | listed as "Featured Talent" |
+| `location_map` | Data | "Location Map", marked **Connected · Source: Talent Directory** |
+
+The Data tab enumerates: Talent Grid, Featured Talent, Search Hero, Talent by Discipline, Directory, Location Map, Talent Search Bar, Talent Directory Grid.
+
+**NOT verified — 4 of 12:** `header_search`, `header_account`, `header_inquiry`, `header_language`. They are shell-scoped and this page surface exposes only Blocks / Designs / Data — there is no Shell tab here, so searching "account" and "language" correctly returns no matches. Confirming them needs the site-shell editor, which is where 8B-6 uses them. **Do not treat these four as verified.**
+
 ## Persona QA — Personas A–E
 
 Source: [`builder-human-qa-plan-2026.md`](./builder-human-qa-plan-2026.md). A = non-technical agency owner · B = talent coordinator · C = designer/creative operator · D = mobile-first · E = support/admin.

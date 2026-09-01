@@ -120,7 +120,6 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { bakePageDesignTreeAction } from "@/lib/site-admin/edit-mode/page-design-bake-action";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
-import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import {
   publishBuilderCanvasTree,
@@ -959,28 +958,17 @@ export function EditProvider({
     draftBeaconMetaRef.current = { locale, pageId: pageSlug ? pageId : null };
   }, [locale, pageSlug, pageId]);
 
-  // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
-  // client canvas (mounted in the storefront body, OUTSIDE this provider) can
-  // read it. Flag-gated: with NEXT_PUBLIC_BUILDER_CLIENT_CANVAS off this is a
-  // no-op and the legacy server-render path is untouched. Cleared on unmount so
-  // a stale tree can't outlive the editor.
+  // Publish the live tree to the cross-subtree bridge so the client canvas
+  // (mounted in the storefront body, OUTSIDE this provider) can read it. Every
+  // surface publishes: the homepage body and the non-homepage in-editor canvas
+  // both subscribe here. Cleared on unmount so a stale tree can't outlive the
+  // editor.
   useEffect(() => {
-    // Homepage stays flag-gated (byte-identical: with the flag off the storefront
-    // body server-renders the canvas). The NON-homepage surfaces have no
-    // server-rendered body — they mount an in-editor ClientBuilderCanvas that
-    // reads this bridge — so they MUST always publish the live tree regardless of
-    // the env flag, or their canvas would never paint.
-    if (
-      !isBuilderClientCanvasEnabled() &&
-      resolvedSurfaceConfig.surface.kind === "homepage"
-    ) {
-      return;
-    }
     publishBuilderCanvasTree(builderTree);
     return () => {
       publishBuilderCanvasTree(null);
     };
-  }, [builderTree, resolvedSurfaceConfig]);
+  }, [builderTree]);
 
   // W1-T2(c) — publish the page's linked-style-class registry to the
   // cross-subtree bridge so the client canvas (a sibling subtree that can't

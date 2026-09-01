@@ -260,6 +260,210 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           seeAllHref: "/directory",
         },
       };
+    // ── BUILDER 2027 · P2A — the twelve native kinds ────────────────────────
+    // Every one seeds with real, editable copy and its LIVE source already
+    // selected, for the same reason the WS7 blocks above do: an operator who has
+    // to configure a data source before seeing anything has been handed a
+    // placeholder, not a block.
+    case "marquee":
+      return {
+        id: makeId("marquee"),
+        kind: "marquee",
+        props: {
+          items: [
+            { text: "Represented worldwide" },
+            { text: "Editorial and commercial" },
+            { text: "Booked in 40 cities" },
+          ],
+          speed: "medium",
+          direction: "left",
+          separator: "dot",
+          variant: "text",
+          pauseOnHover: true,
+        },
+      };
+    case "directory":
+      return {
+        id: makeId("directory"),
+        kind: "directory",
+        props: {
+          headline: "The roster",
+          copy: "",
+          headerAlign: "center",
+          showHeading: true,
+          entityLabel: "talent",
+          scope: "all",
+          defaultSort: "recommended",
+          pagination: "infinite",
+          pageSize: 24,
+          columnsDesktop: 4,
+          columnsTablet: 3,
+          columnsMobile: 1,
+          containerWidth: "boxed",
+          cardClickAction: "modal",
+          filterSearchBox: true,
+          filterPlaceholder: "Search by role, location or fit",
+          filterSubmitLabel: "Search",
+          topBarMode: "talent_type",
+          sortControlShow: true,
+          showResultCount: true,
+          showSave: true,
+          showAddToInquiry: true,
+          showQuickView: true,
+          emptyStateTitle: "No matches yet",
+          emptyStateText:
+            "Nobody on the roster matches these filters. Clear a filter to see more.",
+        },
+      };
+    case "featured_talent":
+      return {
+        id: makeId("featured_talent"),
+        kind: "featured_talent",
+        props: {
+          headline: "Featured talent",
+          copy: "",
+          sourceMode: "auto_featured_flag",
+          limit: 6,
+          columnsDesktop: 3,
+          variant: "grid",
+          headerAlign: "center",
+          emptyStateText:
+            "Feature talent from your roster and they appear here.",
+        },
+      };
+    case "location_map":
+      return {
+        id: makeId("location_map"),
+        kind: "location_map",
+        props: {
+          headline: "Where we work",
+          subheadline: "",
+          source: "roster_cities",
+          items: [],
+          maxItems: 8,
+          showCount: true,
+          showMap: true,
+          mapStyle: "editorial",
+          overlayTitle: "Local faces, international reach",
+          overlaySide: "card-left",
+          ratio: "16/9",
+          layout: "grid",
+          emptyStateText:
+            "Cities appear here as soon as talent on your roster list one.",
+        },
+      };
+    case "header_search":
+      return {
+        id: makeId("header_search"),
+        kind: "header_search",
+        props: {
+          label: "Search",
+          showLabel: false,
+          inlineField: false,
+          placeholder: "Search talent",
+        },
+      };
+    case "header_account":
+      return {
+        id: makeId("header_account"),
+        kind: "header_account",
+        props: {
+          label: "Account",
+          showLabel: false,
+          signedOutLabel: "Sign in",
+          signedInLabel: "Account",
+        },
+      };
+    case "header_inquiry":
+      return {
+        id: makeId("header_inquiry"),
+        kind: "header_inquiry",
+        props: { label: "Inquiry", showLabel: false, showCount: true },
+      };
+    case "header_language":
+      return {
+        id: makeId("header_language"),
+        kind: "header_language",
+        props: {
+          label: "Language",
+          showLabel: true,
+          display: "code",
+          separator: "/",
+        },
+      };
+    case "sticky_scroll":
+      return {
+        id: makeId("sticky_scroll"),
+        kind: "sticky_scroll",
+        props: {
+          headline: "How it works",
+          imageUrl: SAMPLE_IMAGES[0].src,
+          imageAlt: SAMPLE_IMAGES[0].alt,
+          blocks: [
+            { title: "Tell us the brief", body: "Share the role, the dates and the budget." },
+            { title: "We shortlist", body: "You get a hand-picked selection, not a database dump." },
+            { title: "Book and shoot", body: "Contracts, call sheets and payment run through one place." },
+          ],
+          side: "media-left",
+          variant: "minimal",
+        },
+      };
+    case "reveal":
+      // Seeded EMPTY with the gentlest preset: a reveal wrapper is something an
+      // operator drops AROUND blocks they already have, so pre-filling it with
+      // sample children would only be something to delete.
+      return {
+        id: makeId("reveal"),
+        kind: "reveal",
+        children: [],
+        props: {
+          effect: "rise",
+          direction: "up",
+          distance: 24,
+          durationMs: 600,
+          delayMs: 0,
+          staggerMs: 80,
+          threshold: 0.2,
+          once: true,
+          easing: "ease-out",
+        },
+      };
+    case "stats":
+      return {
+        id: makeId("stats"),
+        kind: "stats",
+        props: {
+          headline: "",
+          items: [
+            { value: "120", label: "Talent represented", suffix: "+" },
+            { value: "40", label: "Cities" },
+            { value: "15", label: "Years" },
+          ],
+          variant: "row",
+          align: "center",
+          columns: 3,
+          animate: true,
+          durationMs: 1200,
+        },
+      };
+    case "before_after":
+      return {
+        id: makeId("before_after"),
+        kind: "before_after",
+        props: {
+          headline: "",
+          beforeUrl: SAMPLE_IMAGES[1].src,
+          afterUrl: SAMPLE_IMAGES[2].src,
+          beforeAlt: SAMPLE_IMAGES[1].alt,
+          afterAlt: SAMPLE_IMAGES[2].alt,
+          beforeLabel: "Before",
+          afterLabel: "After",
+          initialPosition: 50,
+          ratio: "16/9",
+          orientation: "horizontal",
+          sliderLabel: "Reveal slider",
+        },
+      };
     case "social_post":
       // Seeded EMPTY on purpose: a placeholder post URL would render someone
       // else's content on the operator's page until they noticed. The inspector

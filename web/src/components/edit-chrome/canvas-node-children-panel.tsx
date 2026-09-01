@@ -14,6 +14,7 @@
  * for the chip and breadcrumb, so they are exported rather than duplicated.
  */
 
+import { canvasChildSecondaryLabel } from "./canvas-node-child-secondary-label";
 import { useState, type DragEvent } from "react";
 import {
   ArrowDown, ArrowUp, ClipboardPaste, Copy, CornerLeftUp, Files, FolderTree,
@@ -716,79 +717,6 @@ export function canvasChildPrimaryLabel(node: BuilderNode): string {
       return resolveLayerDisplayName(node);
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
-  }
-}
-
-function canvasChildSecondaryLabel(node: BuilderNode): string {
-  switch (node.kind) {
-    case "social_post":
-      // Name the network, not the generic kind: a page can carry several of
-      // these and "Social post" three times over tells the operator nothing.
-      return node.props.provider === "tiktok"
-        ? "TikTok post"
-        : "Instagram post";
-    case "social_feed":
-      // Same reasoning as social_post: name the network the feed pulls from.
-      return node.props.provider === "tiktok"
-        ? "TikTok feed"
-        : "Instagram feed";
-    case "heading":
-      return `Heading · H${node.props.level}`;
-    case "paragraph":
-      return "Paragraph block";
-    case "rich_text":
-      return "Rich text block";
-    case "button":
-      return node.props.href || "Button link";
-    case "image":
-      return "Image block";
-    case "video":
-      return "Video block";
-    case "embed":
-      return "Embed block";
-    case "icon":
-      return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
-    case "pricing_table":
-      return `${node.props.tiers.length} pricing tier${node.props.tiers.length === 1 ? "" : "s"}`;
-    case "code":
-      return "Raw HTML (sandboxed)";
-    case "accordion_item":
-    case "tab_panel":
-      return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
-    case "container":
-    case "card":
-    case "cta_group":
-    case "split":
-    case "accordion":
-    case "tabs":
-    case "carousel":
-    case "masonry":
-      return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
-    case "divider":
-      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
-    case "spacer":
-      return `Spacer · ${node.props.size.toUpperCase()}`;
-    case "nav":
-      return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
-    case "social_links":
-      return node.props.dataBinding?.sourceKey === "workspace_social_links"
-        ? "Social links · synced"
-        : `Social links · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
-    case "form":
-      return `Form · ${node.props.fields.length} field${node.props.fields.length === 1 ? "" : "s"}`;
-    case "section":
-      return BUILDER_NODE_REGISTRY[node.kind].description;
-    case "section_embed":
-      return `Tulala component · ${node.props.sectionTypeKey}`;
-    // WS7 Phase 0 — native data blocks; name the SOURCE, not the kind.
-    case "hero_search":
-      return "Search hero";
-    case "menu_board":
-      return "Menu · orderable items";
-    case "talent_type_grid":
-      return node.props.mode === "dynamic"
-        ? "Disciplines · from your roster"
-        : "Disciplines · hand-authored";
   }
 }
 

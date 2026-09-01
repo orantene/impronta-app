@@ -226,7 +226,13 @@ const BUDGETS: Record<string, number> = {
   //   resolveMovePlacement, commitSelectedNodePlace, onCommitPlace, and
   //   clearing inset previews on layout reset. Translate commit clamp moved
   //   into the helper so this file does not grow by the full feature.
-  "selection-layer.tsx": 7755,
+  // MINUS 98 (builder-2027 P1 / 1C): `collectCanvasDropCandidates` and
+  //   `buildBuilderNodeMap` moved to canvas-drop-candidates.ts, where the drag
+  //   hot path can be instrumented and unit-tested on its own
+  //   (canvas-drop-candidates.perf.test.ts asserts the DOM-op counts). The
+  //   rAF-coalesced scroll refresher added back a few wiring lines here. Net
+  //   down, which is the direction this ratchet exists to encourage.
+  "selection-layer.tsx": 7657,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
@@ -244,7 +250,14 @@ const BUDGETS: Record<string, number> = {
   //   `talent_type_grid`) each need an arm or the file does not type-check.
   //   Kept to the shortest form that still names the data SOURCE, which is the
   //   one thing this label exists to say.
-  "canvas-node-children-panel.tsx": 798,
+  // -72 (BUILDER 2027 P2A): `canvasChildSecondaryLabel` MOVED to
+  //   `canvas-node-child-secondary-label.ts`. Adding twelve more native kinds to
+  //   its exhaustive switch would have pushed this file past the 800-line cap,
+  //   so the switch was extracted rather than the budget raised. Pure move: the
+  //   switch is byte-identical and the panel is still its only caller.
+  //   `canvasChildPrimaryLabel` + `truncateNodeLabel` stayed put because
+  //   `selection-layer.tsx` imports them from here.
+  "canvas-node-children-panel.tsx": 726,
 };
 
 function lineCount(relativePath: string): number {

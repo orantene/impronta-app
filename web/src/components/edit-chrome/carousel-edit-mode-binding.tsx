@@ -5,14 +5,13 @@
  *
  * WHAT THIS FIXES (2026-08-17)
  * ────────────────────────────
- * #1203 shipped the pause and it works — but only on a code path that is off
- * by default. `registerCarouselEditMode()` was called from
- * `ClientBuilderCanvas` and `ClientSectionChildren`, and both of those mount
- * only when `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS` is enabled
- * (`client-canvas-flag.ts`: "DEFAULT OFF. When unset ... the storefront body
- * renders EXACTLY as it does today (server-rendered canvas)"). With the flag
- * unset the operator edits a server-rendered body: no client canvas mounts, so
- * nothing registers, so `editing` stays false, so the hero carousel and every
+ * #1203 shipped the pause and it worked — but only on a code path that was off
+ * by default at the time. `registerCarouselEditMode()` was called from
+ * `ClientBuilderCanvas` and `ClientSectionChildren`, and both of those mounted
+ * only when the since-deleted `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS` flag was
+ * enabled, which it was not by default. With the flag unset the operator
+ * edited a server-rendered body: no client canvas mounted, so
+ * nothing registered, so `editing` stayed false, so the hero carousel and every
  * container background slideshow keep rotating under the pointer. The pin from
  * the inspector's slide list still worked (the carousel is a client component
  * either way, and it subscribes on hydration) — which makes the failure worse,
@@ -20,12 +19,14 @@
  * moves on a beat later.
  *
  * This component is mounted by `EditShell`, which exists whenever the operator
- * is editing, on both paths. The registration is refcounted, so on the
- * flag-on path this simply sits alongside the canvas's own registration.
+ * is editing, on every path. The registration is refcounted, so it simply sits
+ * alongside the canvas's own registration. Keep it even though the flag is
+ * gone: EditShell is the one mount point that covers surfaces where no client
+ * canvas is present at all.
  *
  * It also carries the slide-follow (`useCarouselSlideFollow`) for the same
- * reason: that hook lived in `ClientBuilderCanvas` too, so with the flag off,
- * selecting a node inside slide 3 did not bring slide 3 into view. It reads
+ * reason: that hook lived in `ClientBuilderCanvas` too, so on the server-render
+ * path selecting a node inside slide 3 did not bring slide 3 into view. It reads
  * the live tree from `builder-tree-bridge`, which EditProvider publishes on
  * every mutation — the same tree the canvas holds.
  *

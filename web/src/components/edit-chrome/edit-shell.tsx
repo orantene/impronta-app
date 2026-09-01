@@ -17,7 +17,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
@@ -72,9 +71,6 @@ import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavSubmenuPin } from "./nav-submenu-pin";
 import { HeaderQuickPanelMount } from "./header-quick-panel-mount";
 import { NavigatorPanel } from "./navigator-panel";
-import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
-import { AllPagesPanel } from "./all-pages-panel";
-import { DesignPanel } from "./design-panel";
 import { CommandDock } from "./command-dock";
 import { InspectorCommandRail } from "./inspector-command-rail";
 import { ShortcutOverlay } from "./shortcut-overlay";
@@ -104,68 +100,26 @@ import {
 import { useEditorLocale } from "./use-editor-locale";
 import { editorT, type EditorLocale } from "./editor-i18n";
 
-// ---------------------------------------------------------------------------
-// Heavy drawers — lazy-loaded via next/dynamic so their JS chunks are
-// deferred until the drawer is first opened, reducing initial editor TTI.
-// Each is gated in EditShellInner by an "ever opened" boolean so the
-// component does not mount (and the chunk does not download) until the
-// operator first opens it. After that first mount the component stays in
-// the tree across open/close cycles so the drawer's own internal state
-// (scroll position, form state, etc.) is preserved.
-// ---------------------------------------------------------------------------
-const PublishDrawer = dynamic(
-  () => import("./publish-drawer").then((m) => ({ default: m.PublishDrawer })),
-  { ssr: false, loading: () => null },
-);
-const PageSettingsDrawer = dynamic(
-  () =>
-    import("./page-settings-drawer").then((m) => ({
-      default: m.PageSettingsDrawer,
-    })),
-  { ssr: false, loading: () => null },
-);
-const RevisionsDrawer = dynamic(
-  () =>
-    import("./revisions-drawer").then((m) => ({ default: m.RevisionsDrawer })),
-  { ssr: false, loading: () => null },
-);
-const ThemeDrawer = dynamic(
-  () => import("./theme-drawer").then((m) => ({ default: m.ThemeDrawer })),
-  { ssr: false, loading: () => null },
-);
-const AssetsDrawer = dynamic(
-  () => import("./assets-library-drawer").then((m) => ({ default: m.AssetsLibraryDrawer })),
-  { ssr: false, loading: () => null },
-);
-const CollectionsDrawer = dynamic(
-  () =>
-    import("./collections-drawer").then((m) => ({
-      default: m.CollectionsDrawer,
-    })),
-  { ssr: false, loading: () => null },
-);
-const CommandPalette = dynamic(
-  () =>
-    import("./command-palette").then((m) => ({ default: m.CommandPalette })),
-  { ssr: false, loading: () => null },
-);
-const ScheduleDrawer = dynamic(
-  () =>
-    import("./schedule-drawer").then((m) => ({ default: m.ScheduleDrawer })),
-  { ssr: false, loading: () => null },
-);
-const CommentsDrawer = dynamic(
-  () =>
-    import("./comments-drawer").then((m) => ({ default: m.CommentsDrawer })),
-  { ssr: false, loading: () => null },
-);
-const BuilderFindReplaceOverlay = dynamic(
-  () =>
-    import("./builder-find-replace-overlay").then((m) => ({
-      default: m.BuilderFindReplaceOverlay,
-    })),
-  { ssr: false, loading: () => null },
-);
+// Deferred overlays. Every one of these is a large panel that starts closed;
+// their `next/dynamic` declarations live in one module so this file is not the
+// place that grows each time another panel earns its own chunk. Each MUST stay
+// gated on its `everOpened*` flag below — a dynamic component mounted
+// unconditionally downloads its chunk anyway.
+import {
+  AddGalleryPanel,
+  AllPagesPanel,
+  AssetsDrawer,
+  BuilderFindReplaceOverlay,
+  CollectionsDrawer,
+  CommandPalette,
+  CommentsDrawer,
+  DesignPanel,
+  PageSettingsDrawer,
+  PublishDrawer,
+  RevisionsDrawer,
+  ScheduleDrawer,
+  ThemeDrawer,
+} from "./edit-shell-lazy-panels";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
@@ -597,6 +551,10 @@ function EditShellInner({
   const [everOpenedPalette, setEverOpenedPalette] = useState(false);
   const [everOpenedSchedule, setEverOpenedSchedule] = useState(false);
   const [everOpenedComments, setEverOpenedComments] = useState(false);
+  // builder-2027 1K — same gate for the three panels that were mounted eagerly.
+  const [everOpenedAddGallery, setEverOpenedAddGallery] = useState(false);
+  const [everOpenedAllPages, setEverOpenedAllPages] = useState(false);
+  const [everOpenedDesignPanel, setEverOpenedDesignPanel] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
 
   useEffect(() => {
@@ -626,6 +584,15 @@ function EditShellInner({
   useEffect(() => {
     if (commentsOpen) setEverOpenedComments(true);
   }, [commentsOpen]);
+  useEffect(() => {
+    if (addMenuOpen) setEverOpenedAddGallery(true);
+  }, [addMenuOpen]);
+  useEffect(() => {
+    if (allPagesPanelOpen) setEverOpenedAllPages(true);
+  }, [allPagesPanelOpen]);
+  useEffect(() => {
+    if (brandPanelOpen) setEverOpenedDesignPanel(true);
+  }, [brandPanelOpen]);
 
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
@@ -1197,13 +1164,13 @@ function EditShellInner({
             visitor view. */}
         {!previewing ? <CommandDock /> : null}
         {!previewing ? <InspectorCommandRail /> : null}
-        {!previewing ? (
+        {!previewing && everOpenedAddGallery ? (
           <AddGalleryPanel open={addMenuOpen} onClose={closeAddMenu} />
         ) : null}
-        {!previewing ? (
+        {!previewing && everOpenedAllPages ? (
           <AllPagesPanel open={allPagesPanelOpen} onClose={closeAllPagesPanel} />
         ) : null}
-        {!previewing ? (
+        {!previewing && everOpenedDesignPanel ? (
           <DesignPanel open={brandPanelOpen} onClose={closeBrandPanel} />
         ) : null}
         <InlineEditor />

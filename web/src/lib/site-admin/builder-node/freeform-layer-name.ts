@@ -253,6 +253,43 @@ export function resolveLayerDisplayName(
       const friendly = sectionEmbedLabel?.(key) ?? humanizeKey(key);
       return friendly || kindLabel(node.kind);
     }
+    // BUILDER 2027 · P2A — a native band names itself by its OWN headline, the
+    // same way a `container` borrows the heading it wraps. Falling through to
+    // the registry label would put four identical "Directory" rows in the
+    // navigator of a page that has four scoped directories, which is exactly the
+    // wall-of-identical-rows problem this resolver exists to fix.
+    case "directory":
+    case "featured_talent":
+    case "location_map":
+    case "sticky_scroll":
+    case "stats":
+    case "before_after": {
+      const headline = node.props.headline?.trim();
+      if (headline) return truncate(stripInlineMarkers(headline), LAYER_NAME_MAX);
+      return kindLabel(node.kind);
+    }
+    case "marquee": {
+      const first = node.props.items?.[0]?.text?.trim();
+      if (first) return truncate(stripInlineMarkers(first), LAYER_NAME_MAX);
+      return kindLabel(node.kind);
+    }
+    case "header_search":
+    case "header_account":
+    case "header_inquiry":
+    case "header_language": {
+      // An operator-set label is the point of these widgets — it is what the
+      // visitor reads in the header, so it is what the navigator should show.
+      const label = node.props.label?.trim();
+      if (label) return truncate(stripInlineMarkers(label), LAYER_NAME_MAX);
+      return kindLabel(node.kind);
+    }
+    case "reveal": {
+      // A reveal wrapper is invisible by design, so name it by what it wraps —
+      // otherwise every reveal on the page reads "Reveal".
+      const heading = findFirstHeadingText(node.children, HEADING_SCAN_DEPTH);
+      if (heading) return `Reveal · ${truncate(heading, LAYER_NAME_MAX - 9)}`;
+      return kindLabel(node.kind);
+    }
     case "container": {
       // Borrow the heading the container wraps so the row reads as its section
       // ("Find the right talent") instead of the generic "Container"; else fall

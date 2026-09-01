@@ -146,7 +146,6 @@ import {
   normalizeBuilderDataBinding,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
-import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 
@@ -573,10 +572,11 @@ export function InspectorDock() {
         // Pure-render curated sections already repaint on the client canvas
         // after syncBuilderNodeChildrenForSection; skip the server round-trip
         // unless the section type loads live data (roster/catalog islands).
-        if (
-          !isBuilderClientCanvasEnabled() ||
-          sectionTypeHasLiveData(loaded.sectionTypeKey)
-        ) {
+        // NOTE: edit-context's equivalent guard consults the canvas-mount
+        // refcount; this site only ever read the build flag, which has been on
+        // in production since it shipped, so it is left behaving exactly as it
+        // does there. Aligning the two needs its own change plus live QA.
+        if (sectionTypeHasLiveData(loaded.sectionTypeKey)) {
           startRefreshTransition(() => {
             void queueRouterRefresh();
           });

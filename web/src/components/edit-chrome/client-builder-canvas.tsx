@@ -8,9 +8,9 @@
  * foundation for instant in-place repaints (Sub-step C wires mutations to it;
  * Sub-step D removes the per-edit `router.refresh()`).
  *
- * MOUNTED BEHIND A FLAG. The server (`homepage-cms-sections.tsx`) only mounts
- * this when `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS` is on AND edit mode is active.
- * With the flag off the body renders 100% server-side — byte-identical to today.
+ * MOUNTED IN EDIT MODE ONLY. The server (`homepage-cms-sections.tsx`) mounts
+ * this when edit mode is active. Published and preview reads render 100%
+ * server-side and ship no editor chunk.
  *
  * Byte-identical contract (why it can swap in without breaking overlays /
  * hydration):

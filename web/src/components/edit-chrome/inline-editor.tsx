@@ -395,18 +395,40 @@ export function InlineEditor() {
         } else {
           applied = commitText(activeEdit.original, next);
         }
-        // W1-L3 — OPTIMISTIC REPAINT. On the default (flag-off) freeform surface
-        // the visible canvas is SERVER-rendered and reads neither the live client
-        // tree nor the canvas bridge, so a committed edit would show stale text
-        // until the deferred save-time `router.refresh()` (the "edit vanished"
-        // report). When no client canvas is mounted, write the committed value
-        // into the target element we already hold; the later refresh reconciles
-        // the identical text (the element carries `suppressHydrationWarning`). A
-        // client-canvas-mounted surface repaints via the tree bridge, so we skip
-        // the manual write there to avoid fighting React.
-        if (applied && !isAnyBuilderNodeCanvasMounted()) {
+        // W1-L3 — OPTIMISTIC REPAINT. Where the visible canvas is SERVER DOM it
+        // reads neither the live client tree nor the canvas bridge, so a
+        // committed edit shows stale text until the deferred save-time
+        // `router.refresh()` (the "edit vanished" report). In those cases we
+        // write the committed value into the target element we already hold; the
+        // later refresh reconciles the identical text (the element carries
+        // `suppressHydrationWarning`), so this is a true optimistic update and
+        // not a forced reload. Where the canvas owns the DOM we skip the manual
+        // write rather than fight React.
+        //
+        // 1J (builder-2027) — SECTION_EMBED IS ALWAYS SERVER DOM, canvas or no
+        // canvas. `ClientBuilderCanvas.renderSectionEmbed` returns the
+        // pre-rendered island for the node verbatim: the canvas re-renders
+        // around it and hands back the same server markup, so a curated block's
+        // text edit stayed stale on a surface where every freeform sibling
+        // repainted instantly. That is the whole "curated blocks feel slower
+        // than freeform" gap. Gating on the TARGET rather than only on whether a
+        // canvas is mounted closes it.
+        //
+        // BRIDGE-ERA STOPGAP, DELETE WHEN THE ISLANDS GO. This exists only
+        // because curated sections render on the server. When section_embed
+        // renders client-side from the live tree like every other node, this
+        // whole branch (and `inline-editor-repaint.ts` with it) should be
+        // deleted rather than maintained — it is a second, weaker paint path,
+        // and two paint paths is how a canvas starts lying.
+        const targetIsServerIsland = Boolean(
+          activeEdit.builderNode?.sectionEmbedConfigKey,
+        );
+        if (
+          applied &&
+          (targetIsServerIsland || !isAnyBuilderNodeCanvasMounted())
+        ) {
           applyOptimisticInlineRepaint(activeEdit.el, next, {
-            rich: !activeEdit.builderNode?.sectionEmbedConfigKey,
+            rich: !targetIsServerIsland,
           });
         }
       }

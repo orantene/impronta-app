@@ -130,6 +130,93 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   "talent-type-card-title": "talent_type_grid",
   "talent-type-card-desc": "talent_type_grid",
   "talent-type-card-count": "talent_type_grid",
+  // ── BUILDER 2027 · P2A — the twelve native kinds ─────────────────────────
+  // Every KIND-SPECIFIC `.site-builder-node--<token>` these kinds emit is
+  // mapped, so its rule block is DROPPED from the scoped sheet on a page that
+  // does not use the kind rather than being misread as always-emit base CSS.
+  //
+  // The `p2a-*` tokens (`p2a`, `p2a-head`, `p2a-eyebrow`, `p2a-title`,
+  // `p2a-copy`, `p2a-empty`, `p2a-sr`, `p2a-ratio`) are deliberately ABSENT.
+  // Six bands shared one identical band/head/eyebrow/title/copy rule set, and
+  // six copies of it put the FULL sheet ~19 KB over its ceiling. They are one
+  // shared set now, which means they belong to no single kind — and an unmapped
+  // token is treated as base and always kept, which is exactly right for them
+  // (~0.9 KB on every page, against ~13 KB saved on the full sheet). Do not
+  // "complete" this map by assigning them a kind: that would drop the shared
+  // rules on a page whose only P2A band is a different kind.
+  //
+  // The shared `header-widget-*` chrome DOES map, to `header_search`, because
+  // it belongs to the four header widgets and nothing else;
+  // `collectPresentNodeKinds` adds that kind whenever any of them is present.
+  "before-after": "before_after",
+  "before-after-frame": "before_after",
+  "before-after-img": "before_after",
+  "before-after-img-after": "before_after",
+  "before-after-label": "before_after",
+  "before-after-label-after": "before_after",
+  "before-after-label-before": "before_after",
+  "before-after-range": "before_after",
+  "directory": "directory",
+  "directory-chip": "directory",
+  "directory-chips": "directory",
+  "directory-count": "directory",
+  "directory-empty": "directory",
+  "directory-empty-title": "directory",
+  "directory-filter-input": "directory",
+  "directory-filters": "directory",
+  "directory-grid": "directory",
+  "featured-talent": "featured_talent",
+  "featured-talent-footer": "featured_talent",
+  "featured-talent-grid": "featured_talent",
+  "header-language": "header_language",
+  "header-language-link": "header_language",
+  "header-language-row": "header_language",
+  "header-language-sep": "header_language",
+  "header-search-input": "header_search",
+  "header-widget": "header_search",
+  "header-widget-badge": "header_search",
+  "header-widget-glyph": "header_search",
+  "header-widget-label": "header_search",
+  "header-widget-link": "header_search",
+  "header-widget-submit": "header_search",
+  "location-map": "location_map",
+  "location-map-canvas": "location_map",
+  "location-map-card": "location_map",
+  "location-map-card-address": "location_map",
+  "location-map-card-title": "location_map",
+  "location-map-cities": "location_map",
+  "location-map-city-count": "location_map",
+  "location-map-city-link": "location_map",
+  "location-map-city-name": "location_map",
+  "location-map-city-region": "location_map",
+  "location-map-city-soon": "location_map",
+  "location-map-embed": "location_map",
+  "location-map-frame": "location_map",
+  "location-map-pin": "location_map",
+  "marquee": "marquee",
+  "marquee-item": "marquee",
+  "marquee-link": "marquee",
+  "marquee-run": "marquee",
+  "marquee-sep": "marquee",
+  "marquee-tag": "marquee",
+  "marquee-track": "marquee",
+  "reveal": "reveal",
+  "stats": "stats",
+  "stats-affix": "stats",
+  "stats-caption": "stats",
+  "stats-grid": "stats",
+  "stats-item": "stats",
+  "stats-label": "stats",
+  "stats-value": "stats",
+  "sticky-scroll": "sticky_scroll",
+  "sticky-scroll-block": "sticky_scroll",
+  "sticky-scroll-block-body": "sticky_scroll",
+  "sticky-scroll-block-title": "sticky_scroll",
+  "sticky-scroll-blocks": "sticky_scroll",
+  "sticky-scroll-grid": "sticky_scroll",
+  "sticky-scroll-image": "sticky_scroll",
+  "sticky-scroll-image-empty": "sticky_scroll",
+  "sticky-scroll-media": "sticky_scroll",
   // Social links + every sub-element token.
   social: "social_links",
   "social-link": "social_links",
@@ -201,6 +288,31 @@ export function collectPresentNodeKinds(
     // anywhere on the page. Same reason as the directory-search container above.
     if (kind === "hero_search" || kind === "talent_type_grid") {
       present.add("button");
+    }
+
+    // BUILDER 2027 · P2A — same two carve-outs for the native kinds.
+    //
+    // (1) `--button`: the directory's search submit and empty-state CTA, the
+    //     featured-talent footer CTA, and the location map's CTA are all
+    //     `--button` elements the renderer emits itself, with no authored
+    //     button node on the page.
+    // (2) The four `header_*` widgets share one family of `header-widget-*`
+    //     tokens, which the map above assigns to `header_search`. Without this,
+    //     a shell carrying only `header_account` would have every shared chrome
+    //     rule dropped and the widget would render unstyled.
+    if (
+      kind === "directory" ||
+      kind === "featured_talent" ||
+      kind === "location_map"
+    ) {
+      present.add("button");
+    }
+    if (
+      kind === "header_account" ||
+      kind === "header_inquiry" ||
+      kind === "header_language"
+    ) {
+      present.add("header_search");
     }
 
     // Live-resolved instance children: a linked instance renders its master's
