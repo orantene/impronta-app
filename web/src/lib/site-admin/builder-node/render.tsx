@@ -42,6 +42,17 @@ import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
 import { BuilderNodeLayoutMotion } from "./layout-motion";
 import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
+
+/**
+ * BUILDER 2027 · P2A — the injected live-engine renderer (see
+ * `BuilderNodeRenderOptions.renderNativeLiveBlock`). Given one of the three
+ * session/engine-dependent native nodes it returns the live widget; returning
+ * `null` hands the node back to its own native fallback markup, so a caller can
+ * inject the hook and still opt out per node.
+ */
+export type BuilderNativeLiveBlockRenderer = (
+  node: BuilderNode,
+) => ReactNode | null;
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -164,6 +175,36 @@ export interface BuilderNodeRenderDataSources {
     label: string;
     count: number;
   }>;
+  /**
+   * BUILDER 2027 · P2A — the cards a NATIVE `directory` node renders. Same
+   * contract as `featuredTalentProfiles`: the SERVER caller resolves them
+   * through the visible-roster / public-listing gate and hands them over
+   * already scoped, so this renderer can never read another tenant's roster.
+   * Absent ⇒ the directory node renders its heading, its real GET filter form
+   * and its empty state rather than a blank band.
+   */
+  directoryProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
+  /**
+   * BUILDER 2027 · P2A — the visitor-scoped state the two SESSION-dependent
+   * header widgets need. The shared renderer must never read a session (it is
+   * imported by the client edit-chrome), so the shell resolves this and passes
+   * it down, exactly as `HeaderAuthArea` resolves it for the legacy header.
+   * Absent ⇒ each widget renders its signed-out / zero-count affordance, which
+   * is a real link, never a dead chip.
+   */
+  headerWidgets?: {
+    account?: {
+      signedIn?: boolean;
+      /** Where the control leads for THIS visitor (account home vs sign-in). */
+      href?: string;
+      displayName?: string;
+    };
+    inquiry?: {
+      /** Items the visitor has added to their inquiry. */
+      count?: number;
+      href?: string;
+    };
+  };
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -242,6 +283,24 @@ export interface BuilderNodeRenderOptions {
   // tenant-scoped data) or a labeled placeholder. Absent in lighter render
   // contexts (tests, tenant-less previews) → the case renders nothing.
   renderSectionEmbed?: BuilderSectionEmbedRenderer | null;
+  /**
+   * BUILDER 2027 · P2A — OPTIONAL live-engine escape hatch for the three native
+   * kinds whose full behaviour needs something this module must never import:
+   * `directory` (the reactive client engine — live re-query, faceted sidebar,
+   * map view, AI interpret), `header_account` (the auth-area island) and
+   * `header_inquiry` (the discovery-tools island).
+   *
+   * INJECTED by the server caller for the same reason `renderSectionEmbed` is:
+   * statically importing those would pull auth, Supabase and the section
+   * registry into the client edit-chrome bundle that imports this file.
+   *
+   * Returning `null` (or omitting the option entirely) is a first-class case,
+   * not a failure: each of those three kinds renders its own self-contained
+   * native markup — a real GET-form grid, a real sign-in link, a real inquiry
+   * link — so a node is NEVER a dead placeholder on the canvas, in a
+   * tenant-less preview, or in a test.
+   */
+  renderNativeLiveBlock?: BuilderNativeLiveBlockRenderer | null;
   // Server-resolved captcha for this tenant (`resolveTenantCaptcha`). The
   // `form` node MUST render the widget whenever the tenant has an active
   // provider, because /api/cms/forms/submit enforces captcha at TENANT level:
@@ -338,11 +397,15 @@ type NormalizedBuilderNodeRenderOptions = Required<
     // and get no aria-current, rather than a wrong one.
     | "currentPath"
     | "availableLocales"
+    | "renderNativeLiveBlock"
   >
 > & {
   currentPath?: string;
   availableLocales?: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
+  // BUILDER 2027 · P2A — null when no server caller injected a live engine;
+  // the three delegating kinds then render their self-contained native markup.
+  renderNativeLiveBlock: BuilderNativeLiveBlockRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
   experimentTenantId: string | null | undefined;
@@ -842,7 +905,174 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
  * clip (not hidden) so it creates no scroll container and cannot trap the
  * sticky header or the menu drawer.
  */
-const BUILDER_NODE_RENDERER_CSS = `
+/* ────────────────────────────────────────────────────────────────────────────
+ * BUILDER 2027 · P2A — shared helpers for the twelve native kinds.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** The frozen `marquee` section's separator glyphs, preserved verbatim. */
+const MARQUEE_SEPARATOR_GLYPH: Readonly<
+  Record<"dot" | "slash" | "diamond" | "none", string>
+> = {
+  dot: "·",
+  slash: "/",
+  diamond: "◆",
+  none: "",
+};
+
+/**
+ * Fixed pin positions for the editorial location map. Deliberately a constant
+ * table rather than a hash of the city name: the map must render IDENTICALLY on
+ * the server and on the client canvas (a mismatch is a hydration error), and it
+ * must not move when an operator renames a city.
+ */
+const LOCATION_PIN_LAYOUT: ReadonlyArray<{ x: number; y: number }> = [
+  { x: 22, y: 34 },
+  { x: 48, y: 22 },
+  { x: 68, y: 41 },
+  { x: 34, y: 62 },
+  { x: 79, y: 68 },
+  { x: 12, y: 55 },
+  { x: 57, y: 74 },
+  { x: 88, y: 29 },
+  { x: 40, y: 45 },
+  { x: 64, y: 57 },
+];
+
+/** Locale display names for the native language switcher's `name` mode. */
+const LOCALE_DISPLAY_NAME: Readonly<Record<string, string>> = {
+  en: "English",
+  es: "Espanol",
+  fr: "Francais",
+  it: "Italiano",
+  pt: "Portugues",
+  de: "Deutsch",
+};
+
+/**
+ * The header widgets' fallback glyphs. Inline SVG rather than an icon-library
+ * import so this module stays free of client-component dependencies; an
+ * operator `icon` override is drawn by the shared `BuilderIconSvg`.
+ */
+const HEADER_WIDGET_GLYPH_PATHS: Readonly<
+  Record<"search" | "account" | "inquiry" | "language", ReactNode>
+> = {
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </>
+  ),
+  account: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+    </>
+  ),
+  inquiry: (
+    <>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </>
+  ),
+  language: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z" />
+    </>
+  ),
+};
+
+function HeaderWidgetGlyph({
+  icon,
+  fallback,
+}: {
+  icon?: BuilderIconName;
+  fallback: "search" | "account" | "inquiry" | "language";
+}): ReactNode {
+  if (icon) return <BuilderIconSvg name={icon} />;
+  return (
+    <svg
+      className="site-builder-node--header-widget-glyph"
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+    >
+      {HEADER_WIDGET_GLYPH_PATHS[fallback]}
+    </svg>
+  );
+}
+
+/**
+ * The `reveal` arming script.
+ *
+ * WHY IT IS INLINE AND SELF-CONTAINED: the previous `revealOnView` shipped dead
+ * on every published page because the markup relied on a runtime the published
+ * page never injected. This script travels WITH the node it animates, so the
+ * two can never be separated. It also only ever ARMS — it adds the class that
+ * turns on the hidden start state — so if it never runs (no JavaScript, a CSP
+ * that blocks it, React's `dangerouslySetInnerHTML` on the client canvas, which
+ * does not execute scripts) the content stays exactly as the server rendered
+ * it: visible.
+ *
+ * `prefers-reduced-motion` is honoured by bailing out before arming, which
+ * again leaves the content visible rather than animating it into place.
+ */
+function buildRevealArmingScript(config: {
+  threshold: number;
+  staggerMs: number;
+  once: boolean;
+}): string {
+  const threshold = Number.isFinite(config.threshold)
+    ? Math.min(1, Math.max(0, config.threshold))
+    : 0.2;
+  const stagger = Number.isFinite(config.staggerMs)
+    ? Math.min(1000, Math.max(0, Math.round(config.staggerMs)))
+    : 80;
+  const once = config.once ? "1" : "0";
+  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var kids=[];for(var i=0;i<r.children.length;i++){var c=r.children[i];if(c!==s)kids.push(c);}if(!kids.length)return;for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}r.setAttribute('data-bn-reveal-armed','1');var once=${once}===1;var io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){r.setAttribute('data-bn-reveal-in','1');if(once){io.disconnect();return;}}else if(!once){r.removeAttribute('data-bn-reveal-in');}}},{threshold:${threshold}});io.observe(r);})();`;
+}
+
+/**
+ * The `stats` count-up script.
+ *
+ * The server already rendered the FINAL number, so this only animates DOWN to
+ * zero and back up to a value that is already on the page. A crawler, a
+ * no-JavaScript visitor, and a reduced-motion visitor all read the real figure.
+ * It preserves any non-numeric characters an operator typed (thousands
+ * separators, a decimal point) by formatting each frame against the original
+ * string's shape.
+ */
+function buildStatsCountUpScript(durationMs: number): string {
+  const duration = Number.isFinite(durationMs)
+    ? Math.min(6000, Math.max(0, Math.round(durationMs)))
+    : 1200;
+  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var ns=r.querySelectorAll('[data-bn-stat-to]');if(!ns.length)return;var io=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){if(!es[i].isIntersecting)continue;io.disconnect();for(var j=0;j<ns.length;j++){(function(el){var raw=el.getAttribute('data-bn-stat-to')||'';var target=parseFloat(raw.replace(/[^0-9.\\-]/g,''));if(!isFinite(target))return;var dec=(raw.split('.')[1]||'').replace(/[^0-9]/g,'').length;var t0=0;var step=function(ts){if(!t0)t0=ts;var p=Math.min(1,(ts-t0)/${duration || 1});var eased=1-Math.pow(1-p,3);var v=(target*eased).toFixed(dec);el.textContent=raw.replace(/[0-9][0-9.,]*/,v);if(p<1)requestAnimationFrame(step);else el.textContent=raw;};el.textContent=raw.replace(/[0-9][0-9.,]*/,(0).toFixed(dec));requestAnimationFrame(step);})(ns[j]);}return;}},{threshold:0.35});io.observe(r);})();`;
+}
+
+/**
+ * The `before_after` slider script — the frozen section's six-liner, hardened.
+ *
+ * The slider WORKS without it: the range input carries the value, and CSS reads
+ * `--bn-ba-pos` for the initial clip. The script only keeps the clip in sync as
+ * the visitor drags, so a failure degrades to a static comparison rather than a
+ * broken control.
+ */
+const BEFORE_AFTER_SCRIPT = `(function(){var s=document.currentScript;if(!s)return;var root=s.parentElement;if(!root)return;var r=root.querySelector('.site-builder-node--before-after-range');if(!r)return;var sync=function(){root.style.setProperty('--bn-ba-pos',r.value+'%');};r.addEventListener('input',sync);r.addEventListener('change',sync);})();`;
+
+/**
+ * Exported so `renderer-css-scope`'s consumers and the per-kind tests can assert
+ * against the SAME sheet that ships, rather than a copy that can drift. Read-only
+ * by convention: it is a template literal, never mutated.
+ */
+export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--form .bn-ff{width:100%;font:inherit;font-size:0.95rem;line-height:1.5;color:var(--token-color-ink,inherit);background:var(--bn-form-field-bg,color-mix(in srgb,var(--token-color-ink,#111) 6%,transparent));border:1px solid var(--bn-form-field-border,color-mix(in srgb,var(--token-color-ink,#111) 45%,transparent));border-radius:var(--bn-form-field-radius,3px);padding:0.72rem 0.85rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease;-webkit-appearance:none;appearance:none}
 .site-builder-node--form textarea.bn-ff{min-height:8.5rem;resize:vertical}
 .site-builder-node--form select.bn-ff{cursor:pointer}
@@ -959,6 +1189,114 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--talent-type-card-desc{font-size:0.85rem;line-height:1.4;color:rgba(18,18,18,0.62)}
 .site-builder-node--talent-type-card-count{font-size:0.8rem;color:rgba(18,18,18,0.5)}
 .site-builder-node--talent-type-grid-empty{width:100%;padding:1.5rem;text-align:center;color:rgba(18,18,18,0.58);border:1px dashed rgba(18,18,18,0.22)}
+.site-builder-node--p2a{display:flex;flex-direction:column;gap:1.5rem;width:100%;max-width:1120px;margin:0 auto;padding:clamp(2.5rem,5vw,4rem) 1.5rem;box-sizing:border-box}
+.site-builder-node--p2a-head{display:flex;flex-direction:column;gap:0.6rem;width:100%}
+.site-builder-node--p2a-head[data-bn-align="center"]{text-align:center;align-items:center}
+.site-builder-node--p2a-head[data-bn-align="split"]{flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:baseline}
+.site-builder-node--p2a-eyebrow{margin:0;font-size:0.75rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(18,18,18,0.58)}
+.site-builder-node--p2a-title{margin:0;font:700 clamp(1.7rem,3.4vw,2.6rem)/1.15 var(--site-heading-font,inherit);color:var(--token-color-ink,#111)}
+.site-builder-node--p2a-copy{margin:0;max-width:60ch;color:rgba(18,18,18,0.68);line-height:1.5}
+.site-builder-node--p2a-empty{margin:0;width:100%;padding:1.5rem;text-align:center;color:rgba(18,18,18,0.58);border:1px dashed rgba(18,18,18,0.22)}
+.site-builder-node--p2a-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.site-builder-node--p2a-ratio{aspect-ratio:var(--bn-p2a-ratio,16/9)}
+.site-builder-node--marquee{display:block;width:100%;overflow:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
+.site-builder-node--marquee-track{display:flex;width:max-content;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
+.site-builder-node--marquee[data-bn-marquee-speed="slow"]{--bn-marquee-duration:52s}
+.site-builder-node--marquee[data-bn-marquee-speed="fast"]{--bn-marquee-duration:18s}
+.site-builder-node--marquee[data-bn-marquee-direction="right"] .site-builder-node--marquee-track{animation-direction:reverse}
+.site-builder-node--marquee[data-bn-marquee-pause="hover"]:hover .site-builder-node--marquee-track{animation-play-state:paused}
+.site-builder-node--marquee-run{display:flex;align-items:center;flex:0 0 auto}
+.site-builder-node--marquee-item{display:inline-flex;align-items:center;gap:0.9rem;padding-right:0.9rem;white-space:nowrap;font-size:clamp(0.95rem,1.6vw,1.15rem);color:var(--token-color-ink,#111)}
+.site-builder-node--marquee-link{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
+.site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid rgba(18,18,18,0.2);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
+.site-builder-node--marquee-sep{opacity:0.45}
+@keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
+.site-builder-node--directory[data-bn-directory-width="full"]{max-width:none}
+.site-builder-node--directory-filters{display:flex;flex-wrap:wrap;align-items:center;gap:0.6rem;width:100%}
+.site-builder-node--directory-filter-input{flex:1 1 16rem;min-width:0;padding:0.8rem 1rem;border:1px solid rgba(18,18,18,0.2);border-radius:999px;font:inherit;color:inherit;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--directory-chips{display:flex;flex-wrap:wrap;gap:0.5rem;width:100%}
+.site-builder-node--directory-chip{display:inline-flex;align-items:center;padding:0.4rem 0.9rem;border:1px solid rgba(18,18,18,0.18);border-radius:999px;font-size:0.82rem;color:inherit;text-decoration:none}
+.site-builder-node--directory-count{margin:0;font-size:0.85rem;color:rgba(18,18,18,0.55)}
+.site-builder-node--directory-grid{display:grid;grid-template-columns:repeat(var(--bn-directory-columns,4),minmax(0,1fr));gap:1.25rem;width:100%}
+.site-builder-node--directory[data-bn-directory-density="compact"] .site-builder-node--directory-grid{gap:0.75rem}
+.site-builder-node--directory-empty{display:flex;flex-direction:column;align-items:center;gap:0.6rem;width:100%;padding:2rem 1.5rem;text-align:center;border:1px dashed rgba(18,18,18,0.22)}
+.site-builder-node--directory-empty-title{margin:0;font-weight:700;font-size:1.05rem;color:var(--token-color-ink,#111)}
+.site-builder-node--featured-talent-grid{display:grid;grid-template-columns:repeat(var(--bn-featured-columns,3),minmax(0,1fr));gap:1.25rem;width:100%}
+.site-builder-node--featured-talent[data-bn-featured-variant="carousel"] .site-builder-node--featured-talent-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.site-builder-node--featured-talent[data-bn-featured-variant="carousel"] .site-builder-node--featured-talent-grid>*{flex:0 0 min(78vw,320px);scroll-snap-align:start}
+.site-builder-node--featured-talent-footer{display:flex;justify-content:center;width:100%}
+.site-builder-node--location-map-frame{position:relative;width:100%;display:grid;align-items:end}
+.site-builder-node--location-map-embed,.site-builder-node--location-map-canvas{grid-area:1/1;width:100%;border:0;display:block}
+.site-builder-node--location-map-canvas{position:relative;background:radial-gradient(circle at 1px 1px,rgba(18,18,18,0.16) 1px,transparent 0) 0 0/18px 18px,var(--token-color-surface,#f6f5f3)}
+.site-builder-node--location-map-pin{position:absolute;left:var(--bn-map-pin-x,50%);top:var(--bn-map-pin-y,50%);width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:999px;background:var(--token-color-primary,var(--token-color-ink,#111))}
+.site-builder-node--location-map-pin[data-bn-map-pin-status="coming_soon"]{background:transparent;border:2px solid var(--token-color-primary,var(--token-color-ink,#111))}
+.site-builder-node--location-map-pin[data-bn-map-pin-featured="true"]{width:16px;height:16px;margin:-8px 0 0 -8px;box-shadow:0 0 0 6px color-mix(in oklab,var(--token-color-primary,#111) 18%,transparent)}
+.site-builder-node--location-map-card{grid-area:1/1;position:relative;z-index:1;justify-self:start;align-self:end;max-width:min(28rem,90%);margin:1.25rem;padding:1.25rem 1.4rem;background:var(--token-color-surface-raised,#fff);border:1px solid rgba(18,18,18,0.12);display:flex;flex-direction:column;gap:0.4rem}
+.site-builder-node--location-map[data-bn-map-side="card-right"] .site-builder-node--location-map-card{justify-self:end}
+.site-builder-node--location-map[data-bn-map-side="card-bottom"] .site-builder-node--location-map-card{justify-self:center;max-width:min(40rem,94%)}
+.site-builder-node--location-map-card-title{margin:0;font-weight:700;font-size:1.05rem;color:var(--token-color-ink,#111)}
+.site-builder-node--location-map-card-address{font-style:normal}
+.site-builder-node--location-map-cities{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:0.75rem;width:100%}
+.site-builder-node--location-map[data-bn-map-layout="list"] .site-builder-node--location-map-cities{grid-template-columns:1fr}
+.site-builder-node--location-map[data-bn-map-layout="compact"] .site-builder-node--location-map-cities{display:flex;flex-wrap:wrap}
+.site-builder-node--location-map-city-link{display:flex;flex-direction:column;gap:0.15rem;padding:0.75rem 0.9rem;border:1px solid rgba(18,18,18,0.14);color:inherit;text-decoration:none}
+.site-builder-node--location-map-city-name{font-weight:600}
+.site-builder-node--location-map-city-region,.site-builder-node--location-map-city-count{font-size:0.82rem;color:rgba(18,18,18,0.55)}
+.site-builder-node--location-map-city-soon{font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(18,18,18,0.45)}
+.site-builder-node--header-widget{display:inline-flex;align-items:center;gap:0.4rem;color:inherit;text-decoration:none;font-size:0.85rem;line-height:1}
+.site-builder-node--header-widget-link,.site-builder-node--header-widget-submit{display:inline-flex;align-items:center;gap:0.4rem;position:relative;padding:0.35rem;color:inherit;text-decoration:none}
+.site-builder-node--header-widget-submit{justify-content:center;border:0;background:transparent;cursor:pointer}
+.site-builder-node--header-widget-label{white-space:nowrap}
+.site-builder-node--header-widget-glyph{display:block;flex:0 0 auto}
+.site-builder-node--header-widget-badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:var(--token-color-primary,var(--token-color-ink,#111));color:var(--token-color-surface-raised,#fff);font-size:0.68rem;font-weight:700}
+.site-builder-node--header-search-input{min-width:0;width:100%;max-width:16rem;padding:0.45rem 0.75rem;border:1px solid rgba(18,18,18,0.2);border-radius:999px;font:inherit;color:inherit;background:transparent}
+.site-builder-node--header-language{gap:0.3rem}
+.site-builder-node--header-language-row{display:inline-flex;align-items:center;gap:0.3rem}
+.site-builder-node--header-language-link{color:inherit;text-decoration:none;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.62}
+.site-builder-node--header-language-link[aria-current="true"],.site-builder-node--header-language-link[data-bn-current="true"]{opacity:1;font-weight:700}
+.site-builder-node--header-language-sep{opacity:0.4}
+.site-builder-node--sticky-scroll-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(1.5rem,4vw,3rem);width:100%;align-items:start}
+.site-builder-node--sticky-scroll[data-bn-sticky-side="media-right"] .site-builder-node--sticky-scroll-media{order:2}
+.site-builder-node--sticky-scroll-media{position:sticky;top:clamp(1.5rem,10vh,6rem);align-self:start}
+.site-builder-node--sticky-scroll-image{width:100%;height:auto;display:block;object-fit:cover}
+.site-builder-node--sticky-scroll-image-empty{width:100%;aspect-ratio:4/5;background:var(--token-color-surface,#f2f1ef);border:1px dashed rgba(18,18,18,0.2)}
+.site-builder-node--sticky-scroll-blocks{display:flex;flex-direction:column;gap:clamp(2rem,6vh,4.5rem)}
+.site-builder-node--sticky-scroll[data-bn-sticky-variant="bordered"] .site-builder-node--sticky-scroll-block{border-left:2px solid rgba(18,18,18,0.14);padding-left:1.25rem}
+.site-builder-node--sticky-scroll-block-title{margin:0 0 0.5rem;font:700 clamp(1.15rem,2.2vw,1.5rem)/1.25 var(--site-heading-font,inherit);color:var(--token-color-ink,#111)}
+.site-builder-node--sticky-scroll-block-body p{margin:0 0 0.75rem;color:rgba(18,18,18,0.68);line-height:1.6}
+.site-builder-node--reveal{display:block;width:100%}
+.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){transition:opacity var(--bn-rv-t),transform var(--bn-rv-t),filter var(--bn-rv-t),clip-path var(--bn-rv-t);--bn-rv-t:var(--bn-reveal-duration,600ms) var(--bn-reveal-easing,ease-out) calc(var(--bn-reveal-delay,0ms) + var(--bn-reveal-stagger,0ms));opacity:0}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="rise"][data-bn-reveal-direction="up"]>:not(script){transform:translateY(var(--bn-reveal-distance,24px))}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="rise"][data-bn-reveal-direction="down"]>:not(script){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="rise"][data-bn-reveal-direction="left"]>:not(script){transform:translateX(var(--bn-reveal-distance,24px))}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="rise"][data-bn-reveal-direction="right"]>:not(script){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="scale"]>:not(script){transform:scale(0.94)}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="blur"]>:not(script){filter:blur(10px)}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="mask-up"]>:not(script){opacity:1;clip-path:inset(100% 0 0 0)}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="none"]>:not(script){opacity:1}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-in="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:none;transition:none}}
+.site-builder-node--stats[data-bn-stats-align="center"]{text-align:center}
+.site-builder-node--stats-grid{display:grid;grid-template-columns:repeat(var(--bn-stats-columns,3),minmax(0,1fr));gap:clamp(1.25rem,3vw,2.5rem);margin:0;width:100%}
+.site-builder-node--stats[data-bn-stats-variant="split"] .site-builder-node--stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.site-builder-node--stats-item{display:flex;flex-direction:column;gap:0.35rem;min-width:0}
+.site-builder-node--stats-value{margin:0;display:flex;align-items:baseline;justify-content:inherit;gap:0.1rem;font:700 clamp(2.4rem,6vw,4.25rem)/1 var(--site-heading-font,inherit);color:var(--token-color-ink,#111);font-variant-numeric:tabular-nums}
+.site-builder-node--stats[data-bn-stats-align="center"] .site-builder-node--stats-value{justify-content:center}
+.site-builder-node--stats-affix{font-size:0.55em}
+.site-builder-node--stats-label{margin:0;font-size:0.9rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(18,18,18,0.6)}
+.site-builder-node--stats-caption{margin:0;font-size:0.85rem;color:rgba(18,18,18,0.52);line-height:1.45}
+.site-builder-node--before-after{max-width:960px}
+.site-builder-node--before-after-frame{position:relative;width:100%;overflow:hidden;isolation:isolate}
+.site-builder-node--before-after-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.site-builder-node--before-after-img-after{clip-path:inset(0 0 0 var(--bn-ba-pos,50%))}
+.site-builder-node--before-after[data-bn-ba-orientation="vertical"] .site-builder-node--before-after-img-after{clip-path:inset(var(--bn-ba-pos,50%) 0 0 0)}
+.site-builder-node--before-after-label{position:absolute;top:0.75rem;padding:0.25rem 0.6rem;background:rgba(0,0,0,0.62);color:#fff;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;pointer-events:none}
+.site-builder-node--before-after-label-before{left:0.75rem}
+.site-builder-node--before-after-label-after{right:0.75rem}
+.site-builder-node--before-after-range{position:absolute;left:0;bottom:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;appearance:none;background:transparent}
+.site-builder-node--before-after-range:focus-visible{opacity:1;outline:2px solid var(--token-color-primary,#111);outline-offset:2px}
+.site-builder-node--before-after[data-bn-ba-orientation="vertical"] .site-builder-node--before-after-range{cursor:ns-resize}
 .site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.85rem 1.6rem;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .2s ease}
 .site-builder-node--button:hover{transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
@@ -6326,6 +6664,1096 @@ function renderBuilderNodeElement(
         </ul>
       );
     }
+    // ── BUILDER 2027 · P2A — the twelve native kinds ────────────────────────
+    // Shared contract with the WS7 blocks above: no case FETCHES. Every roster
+    // number and every card comes from `options.dataSources`, which the SERVER
+    // caller resolved tenant-scoped, so no branch here can reach another
+    // tenant's data. Every case also renders SOMETHING for an empty/absent data
+    // source, because a block that silently disappears reads to an operator as
+    // a broken editor rather than an empty roster.
+    case "marquee": {
+      const p = node.props;
+      const items = p.items ?? [];
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const sep = MARQUEE_SEPARATOR_GLYPH[p.separator ?? "dot"];
+      // Duplicate the list so the keyframe translate(0 → -50%) wraps seamlessly
+      // — the same trick the frozen section used. The clone is aria-hidden so a
+      // screen reader reads each item exactly once.
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-marquee-speed={p.speed ?? "medium"}
+          data-bn-marquee-direction={p.direction ?? "left"}
+          data-bn-marquee-variant={p.variant ?? "text"}
+          data-bn-marquee-pause={p.pauseOnHover === false ? undefined : "hover"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--marquee"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          {items.length === 0 ? (
+            <p className="site-builder-node--p2a-empty">
+              Add a line of text and it scrolls across here.
+            </p>
+          ) : (
+            <div className="site-builder-node--marquee-track">
+              {[0, 1].map((pass) => (
+                <div
+                  key={pass}
+                  className="site-builder-node--marquee-run"
+                  aria-hidden={pass === 1 ? true : undefined}
+                >
+                  {items.map((item, i) => {
+                    // NESTED copy (items[].text) is translated upstream by
+                    // `applyNestedI18nOverlay`, which rewrites the dotted overlay
+                    // keys into props before this renderer ever sees them — so
+                    // reading the prop directly IS reading the translation.
+                    const label = item.text;
+                    const body =
+                      p.variant === "tags" ? (
+                        <span className="site-builder-node--marquee-tag">{label}</span>
+                      ) : item.href ? (
+                        <a
+                          className="site-builder-node--marquee-link"
+                          href={prefixPublicHref(item.href, options.publicPathPrefix)}
+                        >
+                          {label}
+                        </a>
+                      ) : (
+                        <span>{label}</span>
+                      );
+                    return (
+                      <span
+                        key={`${pass}-${i}`}
+                        className="site-builder-node--marquee-item"
+                      >
+                        {body}
+                        {sep ? (
+                          <span aria-hidden className="site-builder-node--marquee-sep">
+                            {sep}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    }
+    // The DIRECTORY is the highest-value native kind: it replaces the curated
+    // embed on seven Impronta pages plus every tenant's `__directory__` system
+    // page. When the server caller injects the reactive engine we hand the node
+    // to it; otherwise this renders a REAL filterable grid — a GET form that
+    // actually submits, live shortcut chips, live cards — never a placeholder.
+    case "directory": {
+      const p = node.props;
+      const live = options.renderNativeLiveBlock?.(node);
+      if (live) {
+        return (
+          <div
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-bn-directory-mode="live"
+            {...builderNodeStyleAttrs(p.style)}
+            className="site-builder-node site-builder-node--p2a site-builder-node--directory"
+            style={inlineNodeStyle(p.style, undefined)}
+          >
+            {live}
+          </div>
+        );
+      }
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const copy = text("copy", p.copy);
+      const showHeading = p.showHeading !== false;
+      const action = prefixPublicHref(
+        p.searchActionHref?.trim() || "/directory",
+        options.publicPathPrefix,
+      );
+      const cards = (options.dataSources.directoryProfiles ?? []).slice(
+        0,
+        p.pageSize ?? 24,
+      );
+      const chips =
+        p.topBarMode === "none"
+          ? []
+          : (options.dataSources.directoryShortcuts ?? []).slice(0, 8);
+      const filterLabel =
+        text("filterPlaceholder", p.filterPlaceholder) ||
+        "Search by role, location or fit";
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-directory-scope={p.scope ?? "all"}
+          data-bn-directory-width={p.containerWidth ?? "boxed"}
+          data-bn-directory-density={p.density ?? "comfortable"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--directory"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-directory-columns": p.columnsDesktop ?? 4,
+              "--bn-directory-columns-tablet": p.columnsTablet ?? 3,
+              "--bn-directory-columns-mobile": p.columnsMobile ?? 1,
+            }),
+          )}
+        >
+          {showHeading && (eyebrow || headline || copy) ? (
+            <header
+              className="site-builder-node--p2a-head site-builder-node--directory-head"
+              data-bn-align={p.headerAlign ?? "center"}
+            >
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+              {copy ? (
+                <p className="site-builder-node--p2a-copy">{copy}</p>
+              ) : null}
+            </header>
+          ) : null}
+          {p.filterSearchBox === false ? null : (
+            // A REAL GET form. It submits to the directory route with the
+            // operator's own sort carried along, so the control works with
+            // JavaScript disabled and before any engine hydrates.
+            <form
+              className="site-builder-node--directory-filters"
+              action={action}
+              method="get"
+              role="search"
+            >
+              <label
+                className="site-builder-node--p2a-sr"
+                htmlFor={`${node.id}-q`}
+              >
+                {filterLabel}
+              </label>
+              <input
+                id={`${node.id}-q`}
+                className="site-builder-node--directory-filter-input"
+                type="search"
+                name="q"
+                placeholder={filterLabel}
+              />
+              {p.defaultSort && p.defaultSort !== "recommended" ? (
+                <input type="hidden" name="sort" value={p.defaultSort} />
+              ) : null}
+              <button
+                type="submit"
+                className="site-builder-node site-builder-node--button"
+                data-builder-button-tone="primary"
+              >
+                {text("filterSubmitLabel", p.filterSubmitLabel) || "Search"}
+              </button>
+            </form>
+          )}
+          {chips.length > 0 ? (
+            <nav
+              className="site-builder-node--directory-chips"
+              aria-label="Filter by category"
+              data-builder-live-data-grid="directory_shortcuts"
+            >
+              {chips.map((shortcut) => (
+                <a
+                  key={shortcut.id}
+                  className="site-builder-node--directory-chip"
+                  href={prefixPublicHref(
+                    `/directory?category=${encodeURIComponent(shortcut.slug)}`,
+                    options.publicPathPrefix,
+                  )}
+                >
+                  {shortcut.name}
+                </a>
+              ))}
+            </nav>
+          ) : null}
+          {p.showResultCount !== false && cards.length > 0 ? (
+            <p className="site-builder-node--directory-count">
+              {cards.length} {cards.length === 1 ? "result" : "results"}
+            </p>
+          ) : null}
+          {cards.length === 0 ? (
+            <div className="site-builder-node--directory-empty">
+              <p className="site-builder-node--directory-empty-title">
+                {text("emptyStateTitle", p.emptyStateTitle) || "No matches yet"}
+              </p>
+              <p className="site-builder-node--p2a-copy">
+                {text("emptyStateText", p.emptyStateText) ||
+                  "Nobody on the roster matches these filters. Clear a filter to see more."}
+              </p>
+              {p.emptyStateCtaLabel ? (
+                <a
+                  className="site-builder-node site-builder-node--button"
+                  data-builder-button-tone="secondary"
+                  href={prefixPublicHref(
+                    p.emptyStateCtaHref?.trim() || "/directory",
+                    options.publicPathPrefix,
+                  )}
+                >
+                  {text("emptyStateCtaLabel", p.emptyStateCtaLabel)}
+                </a>
+              ) : null}
+            </div>
+          ) : (
+            <div
+              className="site-builder-node--directory-grid"
+              data-builder-live-data-grid="directory_profiles"
+            >
+              {cards.map((card, index) => (
+                <FeaturedTalentCard
+                  key={card.id}
+                  card={card}
+                  priority={index < 4}
+                  publicPathPrefix={options.publicPathPrefix}
+                  locale={options.contentLocale?.locale ?? options.visitorLocale}
+                  localeSettings={
+                    options.contentLocale
+                      ? localeUrlSettings(options.contentLocale.defaultLocale, [
+                          options.contentLocale.defaultLocale,
+                          ...options.contentLocale.chain,
+                        ])
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    }
+    case "featured_talent": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const limit = p.limit ?? 6;
+      const cards = (options.dataSources.featuredTalentProfiles ?? []).slice(0, limit);
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const copy = text("copy", p.copy);
+      const footerLabel = text("footerCtaLabel", p.footerCtaLabel);
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-featured-variant={p.variant ?? "grid"}
+          data-bn-featured-source={p.sourceMode ?? "auto_featured_flag"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--featured-talent"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-featured-columns": p.columnsDesktop ?? 3,
+            }),
+          )}
+        >
+          {eyebrow || headline || copy ? (
+            <header
+              className="site-builder-node--p2a-head site-builder-node--featured-talent-head"
+              data-bn-align={p.headerAlign ?? "center"}
+            >
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+              {copy ? (
+                <p className="site-builder-node--p2a-copy">{copy}</p>
+              ) : null}
+            </header>
+          ) : null}
+          {cards.length === 0 ? (
+            <p className="site-builder-node--p2a-empty">
+              {text("emptyStateText", p.emptyStateText) ||
+                "Feature talent from your roster and they appear here."}
+            </p>
+          ) : (
+            <div
+              className="site-builder-node--featured-talent-grid"
+              data-builder-live-data-grid="featured_talent_profiles"
+            >
+              {cards.map((card, index) => (
+                <FeaturedTalentCard
+                  key={card.id}
+                  card={card}
+                  priority={index < 2}
+                  publicPathPrefix={options.publicPathPrefix}
+                  locale={options.contentLocale?.locale ?? options.visitorLocale}
+                  localeSettings={
+                    options.contentLocale
+                      ? localeUrlSettings(options.contentLocale.defaultLocale, [
+                          options.contentLocale.defaultLocale,
+                          ...options.contentLocale.chain,
+                        ])
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+          {footerLabel ? (
+            <div className="site-builder-node--featured-talent-footer">
+              <a
+                className="site-builder-node site-builder-node--button"
+                data-builder-button-tone="secondary"
+                href={prefixPublicHref(
+                  p.footerCtaHref?.trim() || "/directory",
+                  options.publicPathPrefix,
+                )}
+              >
+                {footerLabel}
+              </a>
+            </div>
+          ) : null}
+        </section>
+      );
+    }
+    case "location_map": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const maxItems = p.maxItems ?? 8;
+      const roster = p.source === "roster_cities";
+      const derived = (options.dataSources.talentLocations ?? [])
+        .slice(0, maxItems)
+        .map((location) => ({
+          key: location.id,
+          label: location.displayName,
+          region: undefined as string | undefined,
+          count: location.talentCount as number | undefined,
+          href: `/directory?location=${encodeURIComponent(location.citySlug)}`,
+          featured: false,
+          status: "active" as "active" | "coming_soon",
+        }));
+      const manual = (p.items ?? []).slice(0, maxItems).map((item, index) => ({
+        key: `${node.id}-city-${index}`,
+        label: item.label,
+        region: item.region,
+        count: item.count,
+        href: item.href?.trim() || "/directory",
+        featured: item.featured === true,
+        status: (item.status ?? "active") as "active" | "coming_soon",
+      }));
+      // Roster mode falls back to the authored cities when the data source is
+      // absent (editor canvas / tenant-less preview) so the block never blanks
+      // out — the same contract talent_type_grid follows.
+      const cities = roster && derived.length > 0 ? derived : manual;
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const subheadline = text("subheadline", p.subheadline);
+      const overlayTitle = text("overlayTitle", p.overlayTitle);
+      const overlayBody = text("overlayBody", p.overlayBody);
+      const ctaLabel = text("ctaLabel", p.ctaLabel);
+      const showMap = p.showMap !== false;
+      const embed =
+        p.mapStyle === "embed" && (p.mapEmbedUrl ?? "").trim().length > 0;
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-map-side={p.overlaySide ?? "card-left"}
+          data-bn-map-ratio={p.ratio ?? "16/9"}
+          data-bn-map-layout={p.layout ?? "grid"}
+          data-bn-map-source={roster ? "roster" : "manual"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--location-map"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-p2a-ratio": (p.ratio ?? "16/9").replace("/", " / "),
+            }),
+          )}
+        >
+          {eyebrow || headline || subheadline ? (
+            <header className="site-builder-node--p2a-head">
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+              {subheadline ? (
+                <p className="site-builder-node--p2a-copy">{subheadline}</p>
+              ) : null}
+            </header>
+          ) : null}
+          {showMap ? (
+            <div className="site-builder-node--location-map-frame">
+              {embed ? (
+                <iframe
+                  className="site-builder-node--p2a-ratio site-builder-node--location-map-embed"
+                  src={p.mapEmbedUrl}
+                  title={overlayTitle || headline || "Map"}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                // The EDITORIAL map: a token-driven pin field, no external map
+                // dependency and no API key. Decorative, so it is hidden from
+                // assistive tech — the city list below carries the real content.
+                <div
+                  className="site-builder-node--p2a-ratio site-builder-node--location-map-canvas"
+                  aria-hidden
+                  data-bn-map-pins={cities.length}
+                >
+                  {cities.map((city, index) => (
+                    <span
+                      key={city.key}
+                      className="site-builder-node--location-map-pin"
+                      data-bn-map-pin-status={city.status}
+                      data-bn-map-pin-featured={city.featured ? "true" : undefined}
+                      style={builderNodeStyleVars({
+                        "--bn-map-pin-x": `${LOCATION_PIN_LAYOUT[index % LOCATION_PIN_LAYOUT.length].x}%`,
+                        "--bn-map-pin-y": `${LOCATION_PIN_LAYOUT[index % LOCATION_PIN_LAYOUT.length].y}%`,
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
+              {overlayTitle || overlayBody || p.overlayAddress || p.overlayHours ? (
+                <div className="site-builder-node--location-map-card">
+                  {overlayTitle ? (
+                    <p className="site-builder-node--location-map-card-title">
+                      {overlayTitle}
+                    </p>
+                  ) : null}
+                  {overlayBody ? (
+                    <p className="site-builder-node--p2a-copy">
+                      {overlayBody}
+                    </p>
+                  ) : null}
+                  {p.overlayAddress ? (
+                    <address className="site-builder-node--location-map-card-address">
+                      {text("overlayAddress", p.overlayAddress)}
+                    </address>
+                  ) : null}
+                  {p.overlayHours ? (
+                    <p className="site-builder-node--location-map-card-hours">
+                      {text("overlayHours", p.overlayHours)}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {cities.length === 0 ? (
+            <p className="site-builder-node--p2a-empty">
+              {text("emptyStateText", p.emptyStateText) ||
+                "Cities appear here as soon as talent on your roster list one."}
+            </p>
+          ) : (
+            <ul
+              className="site-builder-node--location-map-cities"
+              data-builder-live-data-grid={
+                roster && derived.length > 0 ? "talent_locations" : undefined
+              }
+            >
+              {cities.map((city) => (
+                <li key={city.key} className="site-builder-node--location-map-city">
+                  <a
+                    className="site-builder-node--location-map-city-link"
+                    href={prefixPublicHref(city.href, options.publicPathPrefix)}
+                  >
+                    <span className="site-builder-node--location-map-city-name">
+                      {city.label}
+                    </span>
+                    {city.region ? (
+                      <span className="site-builder-node--location-map-city-region">
+                        {city.region}
+                      </span>
+                    ) : null}
+                    {p.showCount !== false && typeof city.count === "number" ? (
+                      <span className="site-builder-node--location-map-city-count">
+                        {city.count}
+                      </span>
+                    ) : null}
+                    {city.status === "coming_soon" ? (
+                      <span className="site-builder-node--location-map-city-soon">
+                        Coming soon
+                      </span>
+                    ) : null}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {ctaLabel ? (
+            <div className="site-builder-node--location-map-footer">
+              <a
+                className="site-builder-node site-builder-node--button"
+                data-builder-button-tone="secondary"
+                href={prefixPublicHref(
+                  p.ctaHref?.trim() || "/directory",
+                  options.publicPathPrefix,
+                )}
+              >
+                {ctaLabel}
+              </a>
+            </div>
+          ) : null}
+        </section>
+      );
+    }
+    // ── The four shell widgets ──────────────────────────────────────────────
+    // `header_search` and `header_language` are FULLY native: a link, and the
+    // locale row the shell already threads on `options.availableLocales`.
+    case "header_search": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const label = text("label", p.label) || "Search";
+      const href = prefixPublicHref(
+        p.href?.trim() || "/directory",
+        options.publicPathPrefix,
+      );
+      if (p.inlineField) {
+        return (
+          <form
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-header-widget="header_search"
+            {...builderNodeStyleAttrs(p.style)}
+            className="site-builder-node site-builder-node--header-widget site-builder-node--header-search"
+            style={inlineNodeStyle(p.style, undefined)}
+            action={href}
+            method="get"
+            role="search"
+          >
+            <label
+              className="site-builder-node--p2a-sr"
+              htmlFor={`${node.id}-hq`}
+            >
+              {label}
+            </label>
+            <input
+              id={`${node.id}-hq`}
+              className="site-builder-node--header-search-input"
+              type="search"
+              name="q"
+              placeholder={text("placeholder", p.placeholder) || "Search talent"}
+            />
+            <button type="submit" className="site-builder-node--header-widget-submit">
+              <HeaderWidgetGlyph icon={p.icon} fallback="search" />
+              <span className="site-builder-node--p2a-sr">{label}</span>
+            </button>
+          </form>
+        );
+      }
+      return (
+        <a
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-header-widget="header_search"
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--header-widget site-builder-node--header-search"
+          style={inlineNodeStyle(p.style, undefined)}
+          href={href}
+          aria-label={p.showLabel ? undefined : label}
+        >
+          <HeaderWidgetGlyph icon={p.icon} fallback="search" />
+          {p.showLabel ? (
+            <span className="site-builder-node--header-widget-label">{label}</span>
+          ) : null}
+        </a>
+      );
+    }
+    // `header_account` needs the VISITOR SESSION, which this shared module must
+    // never read. It delegates to the injected engine when the shell provides
+    // one; otherwise it renders the real affordance resolved from
+    // `dataSources.headerWidgets.account`. Both branches are a working link.
+    case "header_account": {
+      const p = node.props;
+      const live = options.renderNativeLiveBlock?.(node);
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const account = options.dataSources.headerWidgets?.account;
+      const signedIn = account?.signedIn === true;
+      const label =
+        (signedIn
+          ? text("signedInLabel", p.signedInLabel) || account?.displayName
+          : text("signedOutLabel", p.signedOutLabel)) ||
+        text("label", p.label) ||
+        (signedIn ? "Account" : "Sign in");
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-header-widget="header_account"
+          data-header-widget-mode={live ? "live" : "native"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--header-widget site-builder-node--header-account"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          {live ?? (
+            <a
+              className="site-builder-node--header-widget-link"
+              href={prefixPublicHref(
+                p.href?.trim() ||
+                  account?.href?.trim() ||
+                  (signedIn ? "/account" : "/login"),
+                options.publicPathPrefix,
+              )}
+              aria-label={p.showLabel ? undefined : label}
+            >
+              <HeaderWidgetGlyph icon={p.icon} fallback="account" />
+              {p.showLabel ? (
+                <span className="site-builder-node--header-widget-label">{label}</span>
+              ) : null}
+            </a>
+          )}
+        </div>
+      );
+    }
+    case "header_inquiry": {
+      const p = node.props;
+      const live = options.renderNativeLiveBlock?.(node);
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const inquiry = options.dataSources.headerWidgets?.inquiry;
+      const count = inquiry?.count ?? 0;
+      const label = text("label", p.label) || "Inquiry";
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-header-widget="header_inquiry"
+          data-header-widget-mode={live ? "live" : "native"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--header-widget site-builder-node--header-inquiry"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          {live ?? (
+            <a
+              className="site-builder-node--header-widget-link"
+              href={prefixPublicHref(
+                p.href?.trim() || inquiry?.href?.trim() || "/inquiry",
+                options.publicPathPrefix,
+              )}
+              aria-label={p.showLabel ? undefined : label}
+            >
+              <HeaderWidgetGlyph icon={p.icon} fallback="inquiry" />
+              {p.showLabel ? (
+                <span className="site-builder-node--header-widget-label">{label}</span>
+              ) : null}
+              {p.showCount !== false && count > 0 ? (
+                <span className="site-builder-node--header-widget-badge">{count}</span>
+              ) : null}
+            </a>
+          )}
+        </div>
+      );
+    }
+    case "header_language": {
+      const p = node.props;
+      const locales = options.availableLocales;
+      // SELF-HIDE only on a REAL signal. A single-locale tenant must not get a
+      // dead one-item switch (the frozen widget's rule) — but "no locales
+      // supplied" is the editor canvas, not a single-language site, and hiding
+      // there would make the control impossible to select or style.
+      if (locales && locales.length <= 1) return null;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const label = text("label", p.label) || "Language";
+      const separator = p.separator ?? "/";
+      const rows =
+        locales && locales.length > 1
+          ? locales
+          : // No shell context (canvas / test): show the page's own locale so the
+            // operator can see and select the control instead of an empty span.
+            [
+              {
+                code: options.contentLocale?.locale ?? options.visitorLocale ?? "en",
+                href: "",
+                current: true,
+              },
+            ];
+      const localeText = (code: string) =>
+        p.display === "name"
+          ? (LOCALE_DISPLAY_NAME[code] ?? code.toUpperCase())
+          : code.toUpperCase();
+      return (
+        <nav
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-header-widget="header_language"
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--header-widget site-builder-node--header-language"
+          style={inlineNodeStyle(p.style, undefined)}
+          aria-label={label}
+        >
+          {rows.map((row, index) => (
+            <span key={row.code} className="site-builder-node--header-language-row">
+              {index > 0 ? (
+                <span aria-hidden className="site-builder-node--header-language-sep">
+                  {separator}
+                </span>
+              ) : null}
+              {row.href ? (
+                <a
+                  className="site-builder-node--header-language-link"
+                  href={row.href}
+                  aria-current={row.current ? "true" : undefined}
+                  lang={row.code}
+                >
+                  {localeText(row.code)}
+                </a>
+              ) : (
+                <span
+                  className="site-builder-node--header-language-link"
+                  data-bn-current="true"
+                  lang={row.code}
+                >
+                  {localeText(row.code)}
+                </span>
+              )}
+            </span>
+          ))}
+        </nav>
+      );
+    }
+    case "sticky_scroll": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const blocks = p.blocks ?? [];
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-sticky-side={p.side ?? "media-left"}
+          data-bn-sticky-variant={p.variant ?? "minimal"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--sticky-scroll"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          {eyebrow || headline ? (
+            <header className="site-builder-node--p2a-head">
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+            </header>
+          ) : null}
+          <div className="site-builder-node--sticky-scroll-grid">
+            <div className="site-builder-node--sticky-scroll-media">
+              {p.imageUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- shared
+                   renderer: every image-bearing node here emits a plain <img>
+                   because this module is used by the server render AND the
+                   client canvas. */
+                <img
+                  className="site-builder-node--sticky-scroll-image"
+                  src={p.imageUrl}
+                  alt={p.imageAlt ?? ""}
+                  aria-hidden={p.imageAlt ? undefined : true}
+                  loading="lazy"
+                />
+              ) : (
+                <div
+                  className="site-builder-node--sticky-scroll-image-empty"
+                  aria-hidden
+                />
+              )}
+            </div>
+            <div className="site-builder-node--sticky-scroll-blocks">
+              {blocks.length === 0 ? (
+                <p className="site-builder-node--p2a-empty">
+                  Add a step and it appears beside the picture.
+                </p>
+              ) : (
+                blocks.map((block, i) => (
+                  <article
+                    key={`${node.id}-block-${i}`}
+                    className="site-builder-node--sticky-scroll-block"
+                  >
+                    <h3 className="site-builder-node--sticky-scroll-block-title">
+                      {/* Nested copy — already translated upstream, see marquee. */}
+                      {block.title}
+                    </h3>
+                    {block.body ? (
+                      <div className="site-builder-node--sticky-scroll-block-body">
+                        {block.body
+                          .split("\n\n")
+                          .map((para, k) => (
+                            <p key={k}>{para}</p>
+                          ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+      );
+    }
+    // REVEAL — the wrapper primitive. Content is VISIBLE by default and the
+    // arming script ships INSIDE the node's own markup, so the failure that
+    // killed the previous `revealOnView` (hidden in CSS, armed by a runtime the
+    // published page never injected) cannot recur: with no JS, nothing hides.
+    case "reveal": {
+      const p = node.props;
+      const kids = nodeChildren(node).filter((child) =>
+        shouldRenderNode(child, options),
+      );
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-reveal-effect={p.effect ?? "rise"}
+          data-bn-reveal-direction={p.direction ?? "up"}
+          data-bn-reveal-once={p.once === false ? "false" : "true"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--reveal"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-reveal-distance": `${p.distance ?? 24}px`,
+              "--bn-reveal-duration": `${p.durationMs ?? 600}ms`,
+              "--bn-reveal-delay": `${p.delayMs ?? 0}ms`,
+              "--bn-reveal-easing": p.easing ?? "ease-out",
+            }),
+          )}
+        >
+          {kids.map((child) => (
+            <BuilderNodeView key={child.id} node={child} options={options} />
+          ))}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: buildRevealArmingScript({
+                threshold: p.threshold ?? 0.2,
+                staggerMs: p.staggerMs ?? 80,
+                once: p.once !== false,
+              }),
+            }}
+          />
+        </div>
+      );
+    }
+    case "stats": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const items = p.items ?? [];
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const animate = p.animate !== false;
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-stats-variant={p.variant ?? "row"}
+          data-bn-stats-align={p.align ?? "center"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--stats"
+          style={inlineNodeStyle(
+            p.style,
+            builderNodeStyleVars({
+              "--bn-stats-columns": p.columns ?? Math.max(1, items.length || 3),
+            }),
+          )}
+        >
+          {eyebrow || headline ? (
+            <header className="site-builder-node--p2a-head">
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+            </header>
+          ) : null}
+          {items.length === 0 ? (
+            <p className="site-builder-node--p2a-empty">
+              Add a figure and it appears here.
+            </p>
+          ) : (
+            <dl className="site-builder-node--stats-grid">
+              {items.map((item, i) => (
+                <div
+                  key={`${node.id}-stat-${i}`}
+                  className="site-builder-node--stats-item"
+                >
+                  {/* The FINAL value is what the server renders, so a visitor
+                      with JavaScript off and every crawler read the real number.
+                      The count-up below only animates up to what is already in
+                      the DOM. */}
+                  <dt className="site-builder-node--stats-value">
+                    {item.prefix ? (
+                      <span className="site-builder-node--stats-affix">
+                        {item.prefix}
+                      </span>
+                    ) : null}
+                    <span
+                      className="site-builder-node--stats-number"
+                      data-bn-stat-to={animate ? item.value : undefined}
+                    >
+                      {item.value}
+                    </span>
+                    {item.suffix ? (
+                      <span className="site-builder-node--stats-affix">
+                        {item.suffix}
+                      </span>
+                    ) : null}
+                  </dt>
+                  <dd className="site-builder-node--stats-label">
+                    {item.label}
+                  </dd>
+                  {item.caption ? (
+                    <p className="site-builder-node--stats-caption">
+                      {item.caption}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </dl>
+          )}
+          {animate && items.length > 0 ? (
+            <script
+              dangerouslySetInnerHTML={{
+                __html: buildStatsCountUpScript(p.durationMs ?? 1200),
+              }}
+            />
+          ) : null}
+        </section>
+      );
+    }
+    case "before_after": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const headline = text("headline", p.headline);
+      const position = Math.min(100, Math.max(0, p.initialPosition ?? 50));
+      const beforeLabel = text("beforeLabel", p.beforeLabel) || "Before";
+      const afterLabel = text("afterLabel", p.afterLabel) || "After";
+      const hasImages = Boolean(p.beforeUrl && p.afterUrl);
+      return (
+        <section
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-bn-ba-ratio={p.ratio ?? "16/9"}
+          data-bn-ba-orientation={p.orientation ?? "horizontal"}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--p2a site-builder-node--before-after"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          {eyebrow || headline ? (
+            <header className="site-builder-node--p2a-head" data-bn-align="center">
+              {eyebrow ? (
+                <p className="site-builder-node--p2a-eyebrow">{eyebrow}</p>
+              ) : null}
+              {headline ? (
+                <h2 className="site-builder-node--p2a-title">{headline}</h2>
+              ) : null}
+            </header>
+          ) : null}
+          {hasImages ? (
+            <div
+              className="site-builder-node--p2a-ratio site-builder-node--before-after-frame"
+              style={builderNodeStyleVars({
+                "--bn-ba-pos": `${position}%`,
+                "--bn-p2a-ratio": (p.ratio ?? "16/9").replace("/", " / "),
+              })}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- see the
+                  shared-renderer note on sticky_scroll above. */}
+              <img
+                className="site-builder-node--before-after-img site-builder-node--before-after-img-before"
+                src={p.beforeUrl}
+                alt={p.beforeAlt ?? ""}
+                aria-hidden={p.beforeAlt ? undefined : true}
+                loading="lazy"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element -- ditto. */}
+              <img
+                className="site-builder-node--before-after-img site-builder-node--before-after-img-after"
+                src={p.afterUrl}
+                alt={p.afterAlt ?? ""}
+                aria-hidden={p.afterAlt ? undefined : true}
+                loading="lazy"
+              />
+              <span
+                className="site-builder-node--before-after-label site-builder-node--before-after-label-before"
+                aria-hidden
+              >
+                {beforeLabel}
+              </span>
+              <span
+                className="site-builder-node--before-after-label site-builder-node--before-after-label-after"
+                aria-hidden
+              >
+                {afterLabel}
+              </span>
+              {/* A native range input: keyboard-operable and announced by every
+                  screen reader without a line of hydration. */}
+              <input
+                type="range"
+                min={0}
+                max={100}
+                defaultValue={position}
+                aria-label={text("sliderLabel", p.sliderLabel) || "Reveal slider"}
+                className="site-builder-node--before-after-range"
+              />
+              <script dangerouslySetInnerHTML={{ __html: BEFORE_AFTER_SCRIPT }} />
+            </div>
+          ) : (
+            <p className="site-builder-node--p2a-empty">
+              Add a before image and an after image to enable the slider.
+            </p>
+          )}
+        </section>
+      );
+    }
     default:
       return null;
   }
@@ -6419,6 +7847,7 @@ function normalizeBuilderNodeRenderOptions(
     styleClasses: options.styleClasses ?? {},
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
+    renderNativeLiveBlock: options.renderNativeLiveBlock ?? null,
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,

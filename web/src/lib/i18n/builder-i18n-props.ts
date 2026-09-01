@@ -62,6 +62,56 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
     "seeAllLabel",
     "emptyStateText",
   ],
+  // BUILDER 2027 · P2A. Same rule as the WS7 blocks above: the visible copy is
+  // authored on TOP-LEVEL props that the renderer resolves through
+  // `resolveNodeLocalizedText`, so every one needs a line here or a stored
+  // translation would never appear on the page. Hrefs, image URLs, embed URLs
+  // and derived numbers are deliberately absent — a link is the same resource in
+  // every language and a roster count is a number.
+  marquee: [],
+  directory: [
+    "eyebrow",
+    "headline",
+    "copy",
+    "filterPlaceholder",
+    "filterSubmitLabel",
+    "emptyStateTitle",
+    "emptyStateText",
+    "emptyStateCtaLabel",
+  ],
+  featured_talent: [
+    "eyebrow",
+    "headline",
+    "copy",
+    "ctaLabel",
+    "footerCtaLabel",
+    "emptyStateText",
+  ],
+  location_map: [
+    "eyebrow",
+    "headline",
+    "subheadline",
+    "overlayTitle",
+    "overlayBody",
+    "overlayAddress",
+    "overlayHours",
+    "ctaLabel",
+    "emptyStateText",
+  ],
+  header_search: ["label", "placeholder"],
+  header_account: ["label", "signedOutLabel", "signedInLabel"],
+  header_inquiry: ["label"],
+  header_language: ["label"],
+  sticky_scroll: ["eyebrow", "headline"],
+  reveal: [],
+  stats: ["eyebrow", "headline"],
+  before_after: [
+    "eyebrow",
+    "headline",
+    "beforeLabel",
+    "afterLabel",
+    "sliderLabel",
+  ],
 };
 
 /** The localizable props for a node kind (empty when the kind has none). */
