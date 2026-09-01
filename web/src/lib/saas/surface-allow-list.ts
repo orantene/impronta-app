@@ -161,6 +161,20 @@ const SHARED_API_PREFIXES = [
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`
   // because that prefix would also open directory search on the marketing host.
   "/api/tulala",
+  // Social connection OAuth. The provider redirects the operator back to the
+  // callback on whatever host the app registered, and `start` is opened from
+  // whichever surface the operator was on. Each route resolves its own tenant
+  // and session; this entry only lets the request reach that gate.
+  "/api/connections/oauth",
+  // Signed-in document downloads, linked from emails and from either admin
+  // surface. Both answer 401 to an unauthenticated caller, so the handler is
+  // the gate and this entry only lets the request arrive.
+  "/api/receipt",
+  "/api/payout-statement",
+  // Builder autosave beacon. Fires from `navigator.sendBeacon` as the editor
+  // page unloads, on any host the editor runs on, and is gated inside the
+  // handler by `requireStaffApi`.
+  "/api/site-admin/homepage-draft-beacon",
 ] as const;
 
 /**

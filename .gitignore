@@ -61,3 +61,4 @@ tmp-*
 # Claude Code & related agent runtime artifacts (never commit)
 .claude/
 .codex-artifacts/
+.worktree-owner
