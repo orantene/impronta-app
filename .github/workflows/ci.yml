@@ -420,6 +420,27 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run verify:ui-messages
 
+      # ── Builder 2027 ship-gate integrity ─────────────────────────────
+      # `qa:builder-2027-ship` is the Builder 2027 program's pre-merge gate. It
+      # CANNOT run here: it chains Playwright `qa:impronta-*` lanes needing a dev
+      # server, seeded tenant data and live Supabase credentials this workflow
+      # does not carry. So it is a LOCAL gate — and a local gate rots silently,
+      # which is exactly how `check:field-catalog-frozen` sat unrun for months.
+      # Lane parity above cannot see it either: that guard matches
+      # `test|check|verify|eval:*` and this is a `qa:*` meta-script.
+      #
+      # This step closes the blind spot from the other side. CI cannot RUN the
+      # gate, but it can prove the gate still references every lane it claims,
+      # that no lane was renamed into a silent no-op, and that each phase's new
+      # verification (`verify:no-embed-bridges`, `check:no-legacy-pages`, the
+      # anchor smoke) is wired in the moment that script exists. The selftest
+      # runs first so the guard itself cannot rot into a no-op.
+      - name: verify — Builder 2027 ship gate is well-formed
+        if: ${{ !cancelled() }}
+        run: |
+          npm run check:builder-2027-gate-selftest
+          npm run check:builder-2027-gate
+
       # ── Gate 6: Production build (catch-all bundle gate) ─────────────
       # The ONLY step that exercises the real SWC bundle the way Vercel does, so
       # `main` refuses bundle-time breakers tsc/tsx never see. Runs `next build`
