@@ -344,6 +344,81 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
 
+  // ── BUILDER 2027 · P2A — NATIVE roster bands ────────────────────────────
+  // The three cards here insert a real BuilderNode kind, not a `section_embed`
+  // bridge into the frozen curated section of the same name. They sit beside
+  // the existing `conn-directory-grid` / `conn-talent-search` embed cards for
+  // the same reason the WS7 native cards sat beside the curated hero: existing
+  // pages keep working, new pages get the native kind, and the bridge can be
+  // deleted later without a data migration.
+  connected({
+    id: "conn-directory-native",
+    label: "Directory",
+    description:
+      "Your roster as a filterable grid, scoped by talent type, tag or a hand-picked list.",
+    category: "directory",
+    icon: "directory-grid",
+    insertMethod: "nativeNode",
+    nativeKind: "directory",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "directory",
+      "roster",
+      "grid",
+      "talent",
+      "filter",
+      "search",
+      "browse",
+      "people",
+      "team",
+      "native",
+    ],
+  }),
+  connected({
+    id: "conn-featured-talent-native",
+    label: "Featured Talent",
+    description:
+      "A curated showcase of talent cards, picked by hand or filled automatically from your roster.",
+    category: "talent",
+    icon: "profile-card",
+    insertMethod: "nativeNode",
+    nativeKind: "featured_talent",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "featured_talent",
+      "featured",
+      "showcase",
+      "spotlight",
+      "cards",
+      "curated",
+      "native",
+    ],
+  }),
+  connected({
+    id: "conn-location-map-native",
+    label: "Location Map",
+    description:
+      "A map with a copy panel over it and a pin for every city, sourced by hand or from where your roster lives.",
+    category: "directory",
+    icon: "globe",
+    insertMethod: "nativeNode",
+    nativeKind: "location_map",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "location_map",
+      "map",
+      "cities",
+      "pins",
+      "where we work",
+      "markets",
+      "territory",
+      "native",
+    ],
+  }),
+
   // ── Connected / Agency ──────────────────────────────────────────────────
   connected({
     id: "conn-agency-logo",

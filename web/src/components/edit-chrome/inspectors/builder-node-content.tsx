@@ -66,6 +66,12 @@ import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
+import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
+import {
+  Builder2027ContentInspector,
+  isBuilder2027InspectorKind,
+  type Builder2027Node,
+} from "./builder-2027-node-content";
 import { LocaleFieldTabs } from "./locale-field-tabs";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import {
@@ -1315,6 +1321,20 @@ function BuilderNodeContentInspectorBody({
   // whole reason this block is not a plain hero: it reads the tenant's own
   // visible roster, resolved server-side, so the operator sets a label and the
   // number takes care of itself.
+  // BUILDER 2027 · P2A — the twelve native kinds are driven by ONE schema-based
+  // inspector (see builder-2027-fields.ts for why). Dispatched here rather than
+  // inlined so this already-5,000-line file grows by a dozen lines instead of
+  // two thousand, and so the field schema stays unit-testable.
+  if (isBuilder2027InspectorKind(node.kind)) {
+    return (
+      <Builder2027ContentInspector
+        node={node as Builder2027Node}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
+  }
+
   if (node.kind === "hero_search") {
     const hero = node.props;
     return (
@@ -4749,6 +4769,25 @@ function childSecondaryLabel(node: BuilderNode): string {
         : `Disciplines · ${node.props.items?.length ?? 0} card${
             (node.props.items?.length ?? 0) === 1 ? "" : "s"
           }`;
+    // BUILDER 2027 P2A - the subtitle for these twelve is shared with the OTHER
+    // surface that renders this row, so the two can never drift apart. Listed as
+    // explicit cases rather than a default so the switch stays exhaustive and a
+    // thirteenth kind still fails to compile until it is named here.
+    case "marquee":
+    case "directory":
+    case "featured_talent":
+    case "location_map":
+    case "header_search":
+    case "header_account":
+    case "header_inquiry":
+    case "header_language":
+    case "sticky_scroll":
+    case "reveal":
+    case "stats":
+    case "before_after":
+      return (
+        builder2027SecondaryLabel(node) ?? BUILDER_NODE_REGISTRY[node.kind].label
+      );
   }
 }
 
@@ -4814,7 +4853,14 @@ function BuilderNodeRichTextField({
 
 type LocalizableFieldKind = "rich-single" | "rich-multi" | "input" | "textarea";
 
-function BuilderNodeLocalizableTextField({
+/**
+ * Exported for the BUILDER 2027 · P2A inspector, which drives twelve kinds from
+ * one schema rather than twelve hand-written panels. It is INJECTED there as a
+ * prop rather than imported, so the two modules never form a cycle;
+ * re-implementing the per-locale overlay plumbing would fork the one place
+ * translation writes are handled, which is how a Spanish form ships in English.
+ */
+export function BuilderNodeLocalizableTextField({
   node,
   prop,
   tenantId,
