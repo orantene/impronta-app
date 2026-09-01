@@ -80,6 +80,7 @@ export type MenuOrderResult =
       reason:
         | "engine_error"
         | "offering_unresolvable"
+        | "sold_out"
         | "empty_order"
         | "not_authenticated"
         | "commission_snapshot_failed";
@@ -102,9 +103,24 @@ export async function createMenuOrder(
     return { ok: false, reason: "engine_error", error: "Too many distinct lines." };
   }
 
+  // Hoisted above the try: the catch must be able to compensate a reservation
+  // taken further down, and a helper declared inside the try is not in scope there.
+  const reserved: Array<{ offeringId: string; qty: number }> = [];
+  const releaseReserved = async () => {
+    const pending = reserved.splice(0, reserved.length);
+    for (const r of pending) {
+      const { error } = await admin.rpc("release_offering_stock", {
+        p_offering_id: r.offeringId,
+        p_qty: r.qty,
+      });
+      if (error) logServerError("menuOrder.releaseStock", error);
+    }
+  };
+
   try {
     // 1. Re-resolve every offering server-side (ids + quantities only from client).
     const resolvedInputs: MenuOrderItemInput[] = [];
+    const stockNeeds: Array<{ offeringId: string; qty: number }> = [];
     for (const line of input.lines) {
       const qty = Math.max(1, Math.min(99, Math.round(line.quantity)));
       const { data: row, error } = await admin
@@ -140,6 +156,13 @@ export async function createMenuOrder(
         amountCents: offering.amountCents,
         quantity: qty,
       });
+      // Stock is gated on inventoryQty ALONE, deliberately NOT on kind === "product"
+      // the way instant-book does. A seat-limited class ships as kind 'package'
+      // (the live "Posing course - 12 spots" is one), so a kind gate would leave
+      // exactly the offering that needs enforcement unenforced.
+      if (offering.inventoryQty != null) {
+        stockNeeds.push({ offeringId: offering.id, qty });
+      }
     }
 
     const seeds = menuOrderToOfferLineSeeds(resolvedInputs, input.tenantId);
@@ -156,6 +179,26 @@ export async function createMenuOrder(
     const staffActor = await resolveTenantStaffActor(admin, input.tenantId);
     if (!staffActor) {
       return { ok: false, reason: "engine_error", error: "No staff actor for tenant." };
+    }
+
+    // Atomically reserve inventory BEFORE any inquiry/offer/charge exists, so a
+    // sold-out item refuses cleanly and leaves no orphan thread. Released on every
+    // later failure path in this call, including the catch.
+    for (const need of stockNeeds) {
+      const { data: got, error: stockErr } = await admin.rpc("reserve_offering_stock", {
+        p_offering_id: need.offeringId,
+        p_qty: need.qty,
+      });
+      if (stockErr || got !== true) {
+        await releaseReserved();
+        return {
+          ok: false,
+          reason: "sold_out",
+          offeringId: need.offeringId,
+          error: `Menu item ${need.offeringId} does not have ${need.qty} left.`,
+        };
+      }
+      reserved.push(need);
     }
 
     // 2. Create inquiry with empty talent list + menu_order source context.
@@ -190,6 +233,7 @@ export async function createMenuOrder(
       message: `Menu order: ${seeds.map((s) => `${s.units}× ${s.label}`).join(", ")}`,
     });
     if (!(inq as { success?: boolean }).success) {
+      await releaseReserved();
       return { ok: false, reason: "engine_error", error: "submit:" + JSON.stringify(inq) };
     }
     const inquiryId = (inq as { data: { inquiryId: string } }).data.inquiryId;
@@ -223,6 +267,7 @@ export async function createMenuOrder(
       currencyCode: "USD",
     });
     if (!(off as { success?: boolean }).success) {
+      await releaseReserved();
       return { ok: false, reason: "engine_error", error: "createOffer:" + JSON.stringify(off) };
     }
     const offerId = (off as { data: { offerId: string } }).data.offerId;
@@ -255,6 +300,7 @@ export async function createMenuOrder(
       })),
     });
     if (!(upd as { success?: boolean }).success) {
+      await releaseReserved();
       return { ok: false, reason: "engine_error", error: "updateOfferDraft:" + JSON.stringify(upd) };
     }
 
@@ -270,6 +316,7 @@ export async function createMenuOrder(
       offerExpectedVersion: Number((offV2.data as { version: number } | null)?.version ?? 2),
     });
     if (!(sent as { success?: boolean }).success) {
+      await releaseReserved();
       return { ok: false, reason: "engine_error", error: "sendOffer:" + JSON.stringify(sent) };
     }
 
@@ -318,6 +365,7 @@ export async function createMenuOrder(
       p_override_reason: null,
     });
     if (convErr || !bookingId) {
+      await releaseReserved();
       return {
         ok: false,
         reason: "engine_error",
@@ -349,6 +397,7 @@ export async function createMenuOrder(
     if (!snap.ok) {
       logServerError("menuOrder.commission_snapshot", new Error(snap.reason));
       await admin.from("agency_bookings").delete().eq("id", bookingId);
+      await releaseReserved();
       return {
         ok: false,
         reason: "commission_snapshot_failed",
@@ -386,6 +435,7 @@ export async function createMenuOrder(
     };
   } catch (err) {
     logServerError("menuOrder", err);
+    await releaseReserved();
     return {
       ok: false,
       reason: "engine_error",
