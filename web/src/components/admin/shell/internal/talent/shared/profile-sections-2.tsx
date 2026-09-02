@@ -31,9 +31,9 @@ export function PersonalPageBand() {
     return (
       <PrimaryCard
         title={copy.t("Your personal Tulala page")}
-        description={copy.t("Manage your templates, media embeds, press band, media kit and custom domain on My pages.")}
+        description={copy.t("Manage your templates, media embeds, press band, media kit and custom domain on Public page.")}
         icon={<Icon name="globe" size={14} stroke={1.7} />}
-        affordance={copy.t("Open My pages")}
+        affordance={copy.t("Open Public page")}
         onClick={() => setTalentPage("public-page")}
       />
     );

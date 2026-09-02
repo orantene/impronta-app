@@ -4244,7 +4244,7 @@ export function TalentProfileShellDrawer() {
 
             {/* RATES accordion RETIRED (W3-9): the legacy per-type rate cards +
                 package bundles (0 production adoption, never publicly rendered)
-                are superseded by the Catalog & Pricing tab (talent_offerings).
+                are superseded by the Services tab (talent_offerings).
                 State/persist paths remain for legacy data import. */}
 
             {/* BOOKING TERMS — talent commercial preferences (deposit % /

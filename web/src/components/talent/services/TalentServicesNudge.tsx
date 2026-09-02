@@ -6,7 +6,7 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
  * TalentServicesNudge — "Add your first service" onboarding card (Lane E).
  *
  * Shown on the talent Today page ONLY when the talent has zero offerings
- * (drafts included). One tap routes to the Catalog & Pricing tab. Renders
+ * (drafts included). One tap routes to the Services tab. Renders
  * nothing while loading, on auth failure, or once the talent has any offering,
  * so it can never become wallpaper. Session-dismissible.
  *
