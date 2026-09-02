@@ -49,6 +49,10 @@ import {
   identityFormSchema,
 } from "@/lib/site-admin";
 import { saveSectionDraftAction } from "@/lib/site-admin/edit-mode/section-actions";
+import {
+  mirrorShellLandmarkSectionProps,
+  readShellLandmarkOwnedProps,
+} from "@/lib/site-admin/edit-mode/shell-landmark-props-persist";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
 import {
   HEADER_REGIONS_PLAN_DENIED_REASON,
@@ -103,6 +107,12 @@ interface HeaderSectionFacts {
   version: number;
   locale: string;
   props: Record<string, unknown>;
+  /**
+   * The shell `cms_pages` row. `props` above may have come from the landmark
+   * node ON this row rather than from `cms_sections.props_jsonb`, and the save
+   * mirrors back to it. See `shell-landmark-props-persist.ts`.
+   */
+  shellPageId: string;
 }
 
 /** The tenant's primary content locale, or "en" when identity is unset. */
@@ -175,6 +185,19 @@ async function resolveHeaderSection(
     }>();
   if (!sec) return null;
 
+  // NODE-FIRST, matching the renderer. `resolveShellLandmarkSectionProps` makes
+  // a landmark's inline `props.sectionProps` beat the slot row on both render
+  // paths, so once the landmark owns its config the ROW is no longer what the
+  // site shows. Reading the row here would display a stale header to the
+  // operator and then save it back over the node on the next autosave.
+  // Slot-owned landmarks (every shell alive today) return null and fall through
+  // to `props_jsonb`, the exact expression this replaced.
+  const owned = await readShellLandmarkOwnedProps(supabase, {
+    tenantId,
+    shellPageId: shell.id,
+    side: "header",
+  });
+
   return {
     sectionId: sec.id,
     sectionTypeKey: sec.section_type_key,
@@ -182,7 +205,8 @@ async function resolveHeaderSection(
     name: sec.name,
     version: sec.version,
     locale: shell.locale ?? "en",
-    props: sec.props_jsonb ?? {},
+    props: owned ?? sec.props_jsonb ?? {},
+    shellPageId: shell.id,
   };
 }
 
@@ -325,6 +349,22 @@ export async function saveHeaderSectionAction(input: {
       currentVersion: res.currentVersion,
     };
   }
+
+  // MIRROR onto the landmark node when it owns its config inline. Without this
+  // the row above is written, the operator is told "saved", and the live site
+  // keeps rendering the old header forever — `resolveShellLandmarkSectionProps`
+  // makes the node win. A no-op (and no `cms_pages` write at all) on every
+  // slot-owned shell, which is all of them until Phase 8B seeds inline props.
+  //
+  // Ordered BEFORE the republish on purpose: the republish bakes
+  // `cms_pages.blocks` into the snapshot the renderer reads.
+  const mirror = await mirrorShellLandmarkSectionProps(auth.supabase, {
+    tenantId: scope.tenantId,
+    shellPageId: f.shellPageId,
+    side: "header",
+    nextProps,
+  });
+  if (!mirror.ok) return { ok: false, error: mirror.error };
 
   // Re-bake the published shell snapshot so the storefront/edit canvas
   // reflects the new variant/density (the renderer reads the snapshot,

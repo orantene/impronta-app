@@ -26,6 +26,21 @@
  * path ever calls out to something that writes `blocks`, this guard is blind to
  * it. That is the same limit every static guard in this repo carries, and the
  * reason the brief also requires a live round-trip check.
+ *
+ * 2026-09-02 — THAT LIMIT IS NOW EXERCISED, DELIBERATELY. The save path calls
+ * `mirrorShellLandmarkSectionProps`, which DOES update `cms_pages.blocks`. It
+ * has to: `resolveShellLandmarkSectionProps` makes a landmark's inline
+ * `props.sectionProps` beat the slot row, so after Phase 8B a footer inspector
+ * save that only touched `cms_sections` would never reach the live site.
+ *
+ * The property this file guards is unchanged and still holds — the mirror
+ * rewrites exactly one node's `props.sectionProps` and carries `children`
+ * through by reference. Because that write is invisible here, it is covered
+ * BEHAVIOURALLY instead, in
+ * `site-header/shell-inspector-writes-node.test.ts` [N8], which asserts the
+ * landmark's children and its sibling roots survive the save by object
+ * identity. Do not "fix" the blindness by relaxing [FF1]: a RAW `cms_pages`
+ * update in this file is still wrong, for exactly the reason stated above.
  */
 
 import assert from "node:assert/strict";

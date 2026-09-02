@@ -205,13 +205,19 @@ export function splitShellTree(tree: BuilderNodeTree): {
  * the rows are still there to roll back to, which is the whole point of
  * seeding before deleting.
  *
- * THE COST, STATED PLAINLY: for a landmark that HAS inline `sectionProps`, a
- * later edit to `cms_sections.props_jsonb` (the SiteHeaderInspector autosave
- * path) no longer reaches the live site — the tree is authoritative for that
- * landmark. That is the deliberate trade, and it is inert for every shell
- * alive today because none of them carry inline `sectionProps`: with the field
- * absent this function returns `slot.props`, the exact expression it replaced.
- * A tenant opts into the new ownership by authoring the field, and only then.
+ * THE COST, AND HOW IT IS PAID (updated 2026-09-02): for a landmark that HAS
+ * inline `sectionProps`, an edit to `cms_sections.props_jsonb` alone no longer
+ * reaches the live site — the tree is authoritative for that landmark. That
+ * used to make the SiteHeaderInspector / SiteFooterInspector autosave silently
+ * dead on any node-owned landmark. It no longer does: those actions now MIRROR
+ * the same props onto the landmark node via
+ * `applyShellLandmarkSectionProps` (below) / `mirrorShellLandmarkSectionProps`,
+ * so the store the inspector writes is the store this function reads.
+ *
+ * The precedence is still inert for every shell alive today because none carry
+ * inline `sectionProps`: with the field absent this function returns
+ * `slot.props`, the exact expression it replaced. A tenant opts into the new
+ * ownership by authoring the field, and only then.
  *
  * Non-object inline values (a stray `null`, a string) fall through to the slot
  * rather than being handed to a bespoke component that expects a record.
@@ -248,10 +254,10 @@ export function resolveShellLandmarkSectionProps(
  * `resolveShellLandmarkSectionProps` those inline props are what the renderer
  * uses. Applied when the snapshot is LOADED, never at publish: baking a copy of
  * the slot props into the PERSISTED tree would silently promote every existing
- * slot-sourced landmark to tree-owned, and a later `cms_sections.props_jsonb`
- * edit (the SiteHeaderInspector autosave path) would stop taking effect on the
- * live site without anyone asking for that. Ownership must be opted into by
- * authoring the field, not acquired by passing through a publish.
+ * slot-sourced landmark to tree-owned, moving a tenant's shell to a different
+ * ownership model without anyone asking for that. Ownership must be opted into
+ * by authoring the field, not acquired by passing through a publish — the same
+ * rule `applyShellLandmarkSectionProps` applies on the write side.
  *
  * With ZERO slots there is nothing to source from, so the tree comes back as-is
  * — which is exactly right for a Phase 8B shell whose anchors are gone: its
@@ -428,4 +434,96 @@ export function shellLandmarkWrapper(input: {
     return { element: "footer", role: "contentinfo" };
   }
   return { element: "div" };
+
+* THE WRITE COUNTERPART to `resolveShellLandmarkSectionProps`.
+ *
+ * It lives in THIS module, immediately below the read precedence it mirrors,
+ * for one reason: the two must never drift. `resolveShellLandmarkSectionProps`
+ * decides which store the RENDERER reads a landmark's config from; this decides
+ * which store the SiteHeaderInspector / SiteFooterInspector autosave WRITES it
+ * to. When those two answers disagree the operator edits header configuration,
+ * gets a success state, and the live site does not change — the exact silent
+ * failure this repo keeps re-shipping.
+ *
+ * FOLLOW OWNERSHIP; NEVER CREATE IT
+ * ---------------------------------
+ * A landmark that already carries an inline `props.sectionProps` OBJECT is
+ * node-owned: the renderer reads the node, so the inspector must write the
+ * node. A landmark WITHOUT the field is slot-owned: the renderer reads
+ * `cms_sections.props_jsonb` through the snapshot slot, so the inspector's
+ * existing row write already reaches the live site and the tree must be left
+ * strictly alone.
+ *
+ * Promotion — writing the field onto a landmark that lacks it — is deliberately
+ * NOT done here. `hydrateShellLandmarkSectionProps` refuses to promote at
+ * publish for a stated reason: ownership is opted into by authoring the field,
+ * never acquired by passing through some unrelated code path. An inspector that
+ * promoted on first edit would make a tenant's migration state depend on the
+ * order an operator happened to click their tabs in. Phase 8B's seed is the one
+ * deliberate, auditable promotion step; this function is what keeps the
+ * inspector alive on either side of it — including on a HALF-MIGRATED shell
+ * whose header is node-owned while its footer is still slot-owned, because each
+ * landmark is decided independently, exactly as the renderer decides it.
+ *
+ * CONSEQUENCE, STATED PLAINLY: no shell alive today has a landmark carrying
+ * inline `sectionProps`, so this returns `changed: false` and the SAME tree
+ * reference, and its caller performs no `cms_pages` write at all. Today's
+ * behaviour is byte-identical to before this function existed.
+ *
+ * The node is copied shallowly with `children` intact — a landmark's
+ * operator-added freeform children are not part of `sectionProps` and must
+ * survive an inspector save untouched.
+ */
+export function applyShellLandmarkSectionProps(
+  tree: BuilderNodeTree,
+  side: ShellSideKey,
+  nextProps: Record<string, unknown>,
+): { tree: BuilderNodeTree; changed: boolean } {
+  if (!Array.isArray(tree) || tree.length === 0) {
+    return { tree, changed: false };
+  }
+  const typeKey = SHELL_LANDMARK_SECTION_TYPE[side];
+  let changed = false;
+  const next = tree.map((node) => {
+    if (!isShellLandmarkNode(node)) return node;
+    if (node.props.sectionTypeKey !== typeKey) return node;
+    const inline = node.props.sectionProps;
+    // Slot-owned landmark: the row write already reaches the renderer. Leave it.
+    if (!inline || typeof inline !== "object" || Array.isArray(inline)) {
+      return node;
+    }
+    changed = true;
+    return {
+      ...node,
+      props: { ...node.props, sectionProps: nextProps },
+    } satisfies BuilderNode;
+  });
+  return changed ? { tree: next, changed: true } : { tree, changed: false };
+}
+
+/**
+ * The READ half of the same rule: the inline `sectionProps` record when this
+ * side's landmark owns its config, `null` when it is slot-owned or absent.
+ *
+ * An inspector that WRITES the node but still DISPLAYS
+ * `cms_sections.props_jsonb` shows the operator a stale value and then saves it
+ * back over the node — the same silent failure wearing the other face. This
+ * matters even before Phase 8B, because a shell template applied on the
+ * freeform surface can carry inline `sectionProps` the section row never saw.
+ */
+export function readShellLandmarkInlineSectionProps(
+  tree: BuilderNodeTree,
+  side: ShellSideKey,
+): Record<string, unknown> | null {
+  if (!Array.isArray(tree)) return null;
+  const typeKey = SHELL_LANDMARK_SECTION_TYPE[side];
+  for (const node of tree) {
+    if (!isShellLandmarkNode(node)) continue;
+    if (node.props.sectionTypeKey !== typeKey) continue;
+    const inline = node.props.sectionProps;
+    if (inline && typeof inline === "object" && !Array.isArray(inline)) {
+      return inline as Record<string, unknown>;
+    }
+  }
+  return null;
 }
