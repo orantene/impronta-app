@@ -11,7 +11,12 @@ function formatDuration(ms: number | null): string {
   const minutes = Math.round(ms / 60000);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.round(minutes / 60);
-  return `${hours}h`;
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
+}
+
+function formatPct(share: number | null): string {
+  return share == null ? "-" : `${Math.round(share * 100)}%`;
 }
 
 const card: CSSProperties = {
@@ -76,9 +81,65 @@ export function SupportInsightsView({ data }: { data: HqInsightsDashboard }) {
             {data.aiResolvedShare == null
               ? t("dashboard.platform.support.insightsPending")
               : interpolate(t("dashboard.platform.support.statAiResolvedHint"), {
+                  // Must be the SAME denominator the percentage above divides
+                  // by. This read resolvedThisWeek while the share was computed
+                  // over insight rows, so the tile disagreed with itself.
                   n: data.aiResolvedCount,
-                  total: data.resolvedThisWeek,
+                  total: data.aiResolvedTotal,
                 })}
+          </div>
+        </div>
+      </div>
+
+      {/*
+        Second row: every one of these is computed from columns the engine has
+        always written and which nothing read. Resolution time, backlog age,
+        reopen rate and escalation rate were all absent from the dashboard, not
+        from the database.
+      */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+        <div style={card}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: HQ.inkDim }}>
+            {t("dashboard.platform.support.statMedianResolve")}
+          </div>
+          <div style={{ fontFamily: HQ_FD, fontSize: 26, fontWeight: 600, color: HQ.ink, marginTop: 6 }}>
+            {formatDuration(data.medianResolveMs)}
+          </div>
+          <div style={{ fontSize: 11, color: HQ.inkMuted, marginTop: 4 }}>
+            {t("dashboard.platform.support.statMedianResolveHint")}
+          </div>
+        </div>
+        <div style={card}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: HQ.inkDim }}>
+            {t("dashboard.platform.support.statBacklogAge")}
+          </div>
+          <div style={{ fontFamily: HQ_FD, fontSize: 26, fontWeight: 600, color: HQ.ink, marginTop: 6 }}>
+            {formatDuration(data.backlogAgeMs)}
+          </div>
+          <div style={{ fontSize: 11, color: HQ.inkMuted, marginTop: 4 }}>
+            {t("dashboard.platform.support.statBacklogAgeHint")}
+          </div>
+        </div>
+        <div style={card}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: HQ.inkDim }}>
+            {t("dashboard.platform.support.statReopenRate")}
+          </div>
+          <div style={{ fontFamily: HQ_FD, fontSize: 26, fontWeight: 600, color: HQ.ink, marginTop: 6 }}>
+            {formatPct(data.reopenRate)}
+          </div>
+          <div style={{ fontSize: 11, color: HQ.inkMuted, marginTop: 4 }}>
+            {interpolate(t("dashboard.platform.support.statReopenRateHint"), { n: data.reopenedTickets })}
+          </div>
+        </div>
+        <div style={card}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: HQ.inkDim }}>
+            {t("dashboard.platform.support.statEscalationRate")}
+          </div>
+          <div style={{ fontFamily: HQ_FD, fontSize: 26, fontWeight: 600, color: HQ.ink, marginTop: 6 }}>
+            {formatPct(data.escalationRate)}
+          </div>
+          <div style={{ fontSize: 11, color: HQ.inkMuted, marginTop: 4 }}>
+            {interpolate(t("dashboard.platform.support.statEscalationRateHint"), { n: data.escalatedCount })}
           </div>
         </div>
       </div>

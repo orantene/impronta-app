@@ -53,3 +53,32 @@ test("guest fail-open copy asks for the email and is distinct from the signed-in
 test("no em dashes in guest-facing support copy", () => {
   assert.equal(SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY.includes("—"), false);
 });
+
+// ─── Locale integrity of the corpus ─────────────────────────────────────────
+//
+// The retriever is bag-of-words over entry text, so English source material in a
+// Spanish corpus is not merely useless — it scores ~0 for Spanish tokens while
+// still reaching the prompt, inviting an answer the reader cannot verify.
+
+test("Spanish corpus contains no English-only help guides", () => {
+  const es = buildGuestCorpus("es");
+  const guideSlugs = es.filter((e) => e.slug.startsWith("help:"));
+  assert.equal(
+    guideSlugs.length,
+    0,
+    `ES corpus leaked English-only help guides: ${guideSlugs.map((e) => e.slug).join(", ")}`,
+  );
+});
+
+test("English corpus still carries the help guides", () => {
+  const en = buildGuestCorpus("en");
+  assert.ok(
+    en.some((e) => e.slug.startsWith("help:")),
+    "EN corpus lost its help guides",
+  );
+});
+
+test("Spanish corpus is still usefully populated without them", () => {
+  const es = buildGuestCorpus("es");
+  assert.ok(es.length > 10, `ES corpus too thin: ${es.length} entries`);
+});

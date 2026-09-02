@@ -4218,10 +4218,8 @@
       "shortcutNavigate": "Navegar por las filas",
       "shortcutOpenRow": "Abrir la fila seleccionada",
       "getHelp": "Obtener ayuda",
-      "comingSoon": "Próximamente",
       "readDocs": "Leer la documentación →",
       "chatSupport": "Chatear con soporte →",
-      "bookOnboarding": "Reservar llamada de incorporación →",
       "activationHeading": "Prepara tu espacio de trabajo",
       "activationStepsComplete": "{done} de {total} pasos completados",
       "activationRemindLater": "Recordármelo más tarde",
@@ -8512,7 +8510,7 @@
         "statAvgRating": "valoracion media {n} de 5",
         "statNoRatings": "sin valoraciones aun",
         "statAiResolved": "Resueltos solo por IA",
-        "statAiResolvedHint": "{n} de {total}, sin humano",
+        "statAiResolvedHint": "{n} de {total} revisados, sin humano",
         "frictionTitle": "Donde esta la friccion",
         "frictionEmpty": "Aun no hay tickets resueltos esta semana.",
         "trendTitle": "Tickets por semana",
@@ -8547,7 +8545,16 @@
         "ideasSaved": "Guardado",
         "ideasCall": "Llamar",
         "ideasWhatsapp": "WhatsApp",
-        "pageSubtitleOne": "1 ticket abierto"
+        "pageSubtitleOne": "1 ticket abierto",
+        "statMedianResolve": "Resolución media",
+        "statMedianResolveHint": "De creado a resuelto, esta semana",
+        "statBacklogAge": "El más antiguo",
+        "statBacklogAgeHint": "Desde su último mensaje",
+        "statReopenRate": "Tasa de reapertura",
+        "statReopenRateHint": "{n} reabiertos en 4 semanas",
+        "statEscalationRate": "Tasa de escalado",
+        "statEscalationRateHint": "{n} llegaron a una persona",
+        "contextBookings": "Reservas recientes"
       }
     },
     "clientBookings": {
@@ -10588,11 +10595,10 @@
           "b2": "Sigue los enlaces a artículos con más detalle"
         },
         "help": {
-          "purpose": "El centro de ayuda: busca artículos, explora por tema, contacta a soporte y abre un ticket.",
-          "b0": "Busca en la documentación",
-          "b1": "Explora artículos por vista (administración, talento, cliente)",
-          "b2": "Abre un chat con soporte",
-          "b3": "Abre un ticket para los casos que necesitan a una persona"
+          "purpose": "Atajos de teclado, el centro de ayuda y una forma de contactar a soporte.",
+          "b0": "Consulta los atajos de teclado de este espacio",
+          "b1": "Abre el centro de ayuda en una pestaña nueva",
+          "b2": "Abre un ticket de soporte cuando necesites a una persona"
         },
         "payments-setup": {
           "purpose": "Conecta tu espacio con un procesador de pagos (Stripe, Wise, Mercury) para poder recibir pagos de clientes.",

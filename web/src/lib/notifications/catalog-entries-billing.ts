@@ -21,6 +21,7 @@ import {
   payoutReceiverTalent,
   payoutReversedTalent,
   refundedClient,
+  platformAdmins,
   str,
   transactionPayer,
   workspaceAdmins,
@@ -312,6 +313,37 @@ const PAYMENT_PAYOUT_SETTLED_TALENT: CatalogEntry = {
         unsubscribeUrl,
         categoryLabel: "payments",
       }),
+  },
+};
+
+/**
+ * payment.dispute.opened → platform admins, the moment a chargeback is filed.
+ *
+ * Previously this path wrote a server error log and nothing else: a dispute
+ * opened, an external deadline started running, and no human was told unless
+ * somebody happened to be reading logs. Dispute CLOSED already notified (the
+ * payout reversal), which made the silence on OPEN easy to miss — the noisy
+ * half was covered and the time-critical half was not.
+ *
+ * In-app only for now. Email would need its own template, and shipping the bell
+ * alert today beats waiting for one; the deadline is in the body so the alert is
+ * actionable on its own.
+ */
+const PAYMENT_DISPUTE_OPENED_PLATFORM: CatalogEntry = {
+  id: "payment.dispute.opened.platform",
+  category: "platform_alerts",
+  defaultChannels: ["in_app"],
+  required: false,
+  triggers: ["payment.dispute.opened"],
+  resolveAudience: platformAdmins,
+  in_app: {
+    kind: "ticket",
+    surface: "workspace",
+    title: () => "A payment was disputed",
+    body: (event) =>
+      `${formatMoneyCents(num(event.payload.amountCents), str(event.payload.currency))} disputed (${
+        str(event.payload.reason) || "no reason given"
+      }). Stripe needs evidence before the deadline.`,
   },
 };
 
@@ -735,6 +767,7 @@ const TALENT_TRIAL_STARTED: CatalogEntry = {
 
 /** The Stripe payment + billing entries, in catalog order. */
 export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
+  PAYMENT_DISPUTE_OPENED_PLATFORM,
   PAYMENT_RECEIVED_CLIENT,
   PAYMENT_RECEIVED_WORKSPACE,
   PAYMENT_INVOICE_ISSUED_CLIENT,

@@ -3,6 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/server/action-guards";
+import { logServerError } from "@/lib/server/safe-error";
+import { auditHq } from "@/lib/support/support-engine-emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { supportFrom } from "@/lib/support/support-from";
 import { loadHqTicketDetail } from "@/lib/support/load-hq";
@@ -20,21 +22,57 @@ function tokenMatches(token: string, bearer: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-async function authorized(request: Request): Promise<boolean> {
+/**
+ * Returns WHO authorized, not just whether. This export hands over a customer's
+ * whole ticket, their diagnostics and their thread, and it was previously
+ * unaudited in both branches — the boolean discarded the one piece of
+ * information an audit row needs.
+ *
+ * The shared-token branch remains structurally unattributable: the token is a
+ * machine credential with no user behind it, so it can be logged but never
+ * attributed. It is recorded as such rather than quietly treated the same as a
+ * named admin.
+ */
+type Authorization =
+  | { ok: false }
+  | { ok: true; via: "admin"; actorUserId: string }
+  | { ok: true; via: "shared_token"; actorUserId: null };
+
+async function authorized(request: Request): Promise<Authorization> {
   const token = process.env.SUPPORT_INVESTIGATION_TOKEN?.trim();
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (token && bearer && tokenMatches(token, bearer)) return true;
+  if (token && bearer && tokenMatches(token, bearer)) {
+    return { ok: true, via: "shared_token", actorUserId: null };
+  }
   const admin = await requireAdmin();
-  return admin.ok;
+  if (!admin.ok) return { ok: false };
+  return { ok: true, via: "admin", actorUserId: admin.user.id };
 }
 
 export async function GET(request: Request, ctx: Ctx) {
-  if (!(await authorized(request))) {
+  const auth = await authorized(request);
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await ctx.params;
   const detail = await loadHqTicketDetail(id);
   if (!detail) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Audit the export. A named admin gets a real platform_audit_log row; the
+  // shared-token path has no actor to attribute, so it is logged to the server
+  // channel instead of silently passing. Both were previously invisible.
+  if (auth.via === "admin") {
+    await auditHq(auth.actorUserId, id, "support.investigation_bundle.exported", {
+      via: "admin",
+      surface: detail.ticket.surface,
+      tenantId: detail.ticket.tenantId,
+    });
+  } else {
+    logServerError(
+      "support.investigation_bundle.exported",
+      `shared-token export of ticket ${id} (no attributable actor)`,
+    );
+  }
 
   const admin = createServiceRoleClient();
   let diagnostics: Record<string, unknown> | null = null;

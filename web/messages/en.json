@@ -4218,10 +4218,8 @@
       "shortcutNavigate": "Navigate list rows",
       "shortcutOpenRow": "Open selected row",
       "getHelp": "Get help",
-      "comingSoon": "Coming soon",
       "readDocs": "Read the docs →",
       "chatSupport": "Chat with support →",
-      "bookOnboarding": "Book onboarding call →",
       "activationHeading": "Get your workspace ready",
       "activationStepsComplete": "{done} of {total} steps complete",
       "activationRemindLater": "Remind me later",
@@ -8512,7 +8510,7 @@
         "statAvgRating": "avg rating {n} of 5",
         "statNoRatings": "no ratings yet",
         "statAiResolved": "AI resolved alone",
-        "statAiResolvedHint": "{n} of {total}, no human needed",
+        "statAiResolvedHint": "{n} of {total} reviewed, no human needed",
         "frictionTitle": "Where the friction is",
         "frictionEmpty": "No resolved tickets this week yet.",
         "trendTitle": "Tickets per week",
@@ -8547,7 +8545,16 @@
         "ideasSaved": "Saved",
         "ideasCall": "Call",
         "ideasWhatsapp": "WhatsApp",
-        "pageSubtitleOne": "1 open ticket"
+        "pageSubtitleOne": "1 open ticket",
+        "statMedianResolve": "Median resolve",
+        "statMedianResolveHint": "Created to resolved, this week",
+        "statBacklogAge": "Oldest open",
+        "statBacklogAgeHint": "Since its last message",
+        "statReopenRate": "Reopen rate",
+        "statReopenRateHint": "{n} reopened in 4 weeks",
+        "statEscalationRate": "Escalation rate",
+        "statEscalationRateHint": "{n} reached a human",
+        "contextBookings": "Recent bookings"
       }
     },
     "clientBookings": {
@@ -10588,11 +10595,10 @@
           "b2": "Follow links to deep-dive articles"
         },
         "help": {
-          "purpose": "The help hub: search articles, browse by topic, contact support, submit a ticket.",
-          "b0": "Search the documentation",
-          "b1": "Browse articles by surface (admin, talent, client)",
-          "b2": "Open a chat with support",
-          "b3": "Submit a ticket for issues that need a human"
+          "purpose": "Keyboard shortcuts, the help centre, and a way to reach support.",
+          "b0": "See the keyboard shortcuts for this workspace",
+          "b1": "Open the help centre in a new tab",
+          "b2": "Start a support ticket when you need a person"
         },
         "payments-setup": {
           "purpose": "Connect your workspace to a payments processor (Stripe, Wise, Mercury) so you can receive client payments.",

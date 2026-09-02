@@ -48,6 +48,27 @@ export type HqInsightsDashboard = {
   avgRating: number | null;
   aiResolvedShare: number | null;
   aiResolvedCount: number;
+  /**
+   * Denominator behind aiResolvedShare: tickets that produced an INSIGHT this
+   * week, not all tickets resolved this week. The tile used to render the share
+   * from this number while captioning it with resolvedThisWeek, so the
+   * percentage and the fraction underneath disagreed. Carry it explicitly.
+   */
+  aiResolvedTotal: number;
+  /** Median created → resolved, over the same set as medianFirstReplyMs. */
+  medianResolveMs: number | null;
+  /** Age of the OLDEST open ticket by last message. Max, not median — a median hides the forgotten one. */
+  backlogAgeMs: number | null;
+  /** Rated ÷ resolved this week. An average rating is meaningless without it. */
+  csatResponseRate: number | null;
+  /** Share of tickets in the window with reopened_count > 0, and the raw count. */
+  reopenRate: number | null;
+  reopenedTickets: number;
+  /** Share of tickets in the window that were escalated to a human, and the raw count. */
+  escalationRate: number | null;
+  escalatedCount: number;
+  /** Top tenants by ticket volume in the window. tenantId null = guest/platform-scoped. */
+  volumeByTenant: Array<{ tenantId: string | null; count: number }>;
   friction: Array<{ area: string; count: number }>;
   weeklyVolume: Array<{ weekLabel: string; count: number }>;
   digest: WeeklyDigestSnapshot | null;

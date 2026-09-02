@@ -36,6 +36,8 @@ import { Fragment, useEffect, useState } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 import { COLORS, FONTS, useAdminShell, type DrawerId } from "./state";
 import {
@@ -215,7 +217,16 @@ export function setHelpFeedback(id: DrawerId, value: HelpFeedback): void {
       window.localStorage.setItem(HELP_FEEDBACK_STORAGE_KEY, JSON.stringify(map));
     } catch {}
   }
-  // Future hook: POST {drawerId, value} to /api/help-feedback
+  // localStorage keeps the button state for THIS reader; the event is what makes
+  // the vote visible to Support. It rides the existing analytics pipeline into
+  // `analytics_events` rather than a bespoke table and endpoint.
+  // Best-effort by design: a failed vote must never interrupt reading help.
+  try {
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.help_article_rated, {
+      drawer_id: id,
+      rating: value,
+    });
+  } catch {}
 }
 
 /** Format a DrawerId into a human label. Mirrors drawerIdToLabel
@@ -621,98 +632,42 @@ function FooterActions({
         // line for this whole "drawer-meta" footer block. Stacking
         // two horizontal rules created visual noise.
         display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, alignItems: "center" }} className="text-admin-ink-muted">
+      {/*
+        These were three buttons that fired a toast saying "coming soon".
+        "Full guide" pointed at /support/<slug>, a route that was never built, so
+        it is gone rather than left promising. The other two now open the support
+        ticket drawer, which exists, carrying the drawer and its ticket category
+        so the ticket arrives with context already attached.
+
+        A control that only apologises is worse than no control at the moment
+        somebody needs help.
+      */}
       <button
         type="button"
-        onClick={() =>
-          proto.toast(
-            interpolate(
-              tOr(
-                t,
-                `${HELP_NS}.ui.toastSupportArticle`,
-                'Support article "/support/{slug}" is coming soon.',
-              ),
-              { slug },
-            ),
-          )
-        }
+        onClick={() => {
+          proto.openDrawer("support-ticket", {
+            originDrawerId: drawerId,
+            category: entry.ticketCategory ?? null,
+          });
+        }}
         style={linkBtnStyle}
         onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
         onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
       >
-        {/* No ↗ until the actual /support/<slug> route exists. The
-            arrow on a button that just toasts felt like a 404 every
-            time you clicked it. Add ↗ back when wired live. */}
-        {tOr(t, `${HELP_NS}.ui.fullGuide`, "Full guide")}
-        <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 10.5 }}>
-          {tOr(t, `${HELP_NS}.ui.soon`, "(soon)")}
-        </span>
+        {tOr(t, "dashboard.clientOffer.askQuestion", "Ask a question")}
       </button>
       <Fragment>
         <span aria-hidden style={{ opacity: 0.4 }}>·</span>
         <button
           type="button"
-          onClick={() =>
-            proto.toast(
-              interpolate(
-                tOr(
-                  t,
-                  `${HELP_NS}.ui.toastChatSupport`,
-                  'Chat with support is coming soon. We\'ll pre-load context for "{drawer}".',
-                ),
-                { drawer: drawerId },
-              ),
-              {
-                action: {
-                  label: openHelpDrawerLabel,
-                  onClick: () => proto.openDrawer("help"),
-                },
-              },
-            )
-          }
+          onClick={() => proto.openDrawer("help")}
           style={linkBtnStyle}
           onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
           onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
         >
-          {tOr(t, "dashboard.clientOffer.askQuestion", "Ask a question")}
+          {openHelpDrawerLabel}
         </button>
       </Fragment>
-      {entry.ticketCategory && (
-        <Fragment>
-          <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-          <button
-            type="button"
-            onClick={() =>
-              proto.toast(
-                interpolate(
-                  tOr(
-                    t,
-                    `${HELP_NS}.ui.toastTicketForm`,
-                    'Ticket form is coming soon. We\'ll pre-fill category "{category}".',
-                  ),
-                  {
-                    category: tOr(
-                      t,
-                      `${HELP_NS}.ticketCategories.${catalogSlug(entry.ticketCategory!)}`,
-                      entry.ticketCategory!,
-                    ),
-                  },
-                ),
-                {
-                  action: {
-                    label: openHelpDrawerLabel,
-                    onClick: () => proto.openDrawer("help"),
-                  },
-                },
-              )
-            }
-            style={linkBtnStyle}
-            onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
-          >
-            {tOr(t, `${HELP_NS}.ui.submitATicket`, "Submit a ticket")}
-          </button>
-        </Fragment>
-      )}
     </div>
   );
 }

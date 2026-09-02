@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { assertHqAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
+import { auditHq } from "./support-engine-emit";
 import type { SupportPriority } from "./support-types";
 
 const uuid = z.string().uuid();
@@ -174,6 +175,19 @@ export async function hqLoadTicketDetailAction(raw: { ticketId: string }): Promi
   const { loadHqTicketDetail } = await import("./load-hq");
   const data = await loadHqTicketDetail(parsed.data.ticketId);
   if (!data) return { ok: false, error: "Ticket not found." };
+  // Opening a ticket returns the full thread INCLUDING platform-only internal
+  // notes, the requester's email, their client diagnostics (URLs, console
+  // errors, user agent) and their past tickets. Replies and status changes were
+  // already audited; the read that exposes all of this was not, so "who looked
+  // at my data, and when" had no answer. Best-effort — a failed audit write must
+  // not block support, but it is no longer simply absent.
+  await auditHq(hq.userId, parsed.data.ticketId, "support.ticket.viewed", {
+    surface: data.ticket.surface,
+    tenantId: data.ticket.tenantId,
+    messageCount: data.messages.length,
+    hasDiagnostics: Boolean(data.context.diagnostics),
+    pastTicketCount: data.context.pastTickets.length,
+  });
   return { ok: true, data };
 }
 

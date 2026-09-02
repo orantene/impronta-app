@@ -74,6 +74,15 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
     avgRating: null,
     aiResolvedShare: null,
     aiResolvedCount: 0,
+    aiResolvedTotal: 0,
+    medianResolveMs: null,
+    backlogAgeMs: null,
+    csatResponseRate: null,
+    reopenRate: null,
+    reopenedTickets: 0,
+    escalationRate: null,
+    escalatedCount: 0,
+    volumeByTenant: [],
     friction: [],
     weeklyVolume: [],
     digest: null,
@@ -89,15 +98,31 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
   fourWeeksAgo.setUTCDate(fourWeeksAgo.getUTCDate() - 21);
 
   const { data: tickets } = await supportFrom(admin, "support_tickets")
-    .select("id, status, waiting_on, created_at, first_human_response_at, resolved_at, satisfaction_rating, category, handled_by, ticket_number")
+    .select("id, status, waiting_on, created_at, first_human_response_at, resolved_at, satisfaction_rating, category, handled_by, ticket_number, reopened_count, escalated_at, tenant_id")
     .gte("created_at", fourWeeksAgo.toISOString());
 
   const { data: openRows } = await supportFrom(admin, "support_tickets")
-    .select("id, waiting_on")
+    .select("id, waiting_on, last_message_at")
     .eq("status", "open");
 
   const openNow = (openRows ?? []).length;
   const needsYou = (openRows ?? []).filter((r: { waiting_on?: string }) => r.waiting_on === "support").length;
+
+  // ── Metrics whose columns already existed and which nothing read ──────────
+  // Every one of these is derived from data the engine has always written. They
+  // were absent from the dashboard, not from the database.
+
+  // Oldest open ticket, measured from its last message. Backlog age is the
+  // number that tells you a case has been forgotten; a median hides exactly the
+  // one you need to see, so this is the max.
+  const backlogAgeMs = (() => {
+    const ages = (openRows ?? [])
+      .map((r: { last_message_at?: string | null }) =>
+        r.last_message_at ? now.getTime() - new Date(r.last_message_at).getTime() : null,
+      )
+      .filter((n: number | null): n is number => n != null && n >= 0);
+    return ages.length > 0 ? Math.max(...ages) : null;
+  })();
 
   const thisWeek = (tickets ?? []).filter((r: { resolved_at?: string | null; status?: string }) => {
     if (r.status !== "resolved" && r.status !== "closed") return false;
@@ -195,14 +220,66 @@ export async function loadHqInsightsDashboard(): Promise<HqInsightsDashboard> {
     }
   }
 
+  // Time from creation to resolution, over the same resolved-this-week set the
+  // first-reply median uses, so the two tiles are comparable.
+  const resolveDeltas = thisWeek
+    .map((r: { created_at?: string; resolved_at?: string | null }) => {
+      if (!r.created_at || !r.resolved_at) return null;
+      return new Date(r.resolved_at).getTime() - new Date(r.created_at).getTime();
+    })
+    .filter((n: number | null): n is number => n != null && n >= 0);
+
+  // Share of resolved tickets that were rated. A 5.0 average over one rating is
+  // not a signal, so the average is only meaningful next to this.
+  const csatResponseRate = thisWeek.length > 0 ? ratings.length / thisWeek.length : null;
+
+  // Reopens are the honest counter-metric to "resolved": closing a ticket the
+  // customer reopens is not a resolution.
+  const reopenedTickets = (tickets ?? []).filter(
+    (r: { reopened_count?: number | null }) => (r.reopened_count ?? 0) > 0,
+  ).length;
+  const reopenRate = (tickets ?? []).length > 0 ? reopenedTickets / (tickets ?? []).length : null;
+
+  const escalationDeltas = (tickets ?? [])
+    .map((r: { created_at?: string; escalated_at?: string | null }) => {
+      if (!r.created_at || !r.escalated_at) return null;
+      return new Date(r.escalated_at).getTime() - new Date(r.created_at).getTime();
+    })
+    .filter((n: number | null): n is number => n != null && n >= 0);
+  const escalatedCount = escalationDeltas.length;
+  const escalationRate =
+    (tickets ?? []).length > 0 ? escalatedCount / (tickets ?? []).length : null;
+
+  // Per-tenant volume over the 4-week window. Tenant-less rows (guest and
+  // platform-scoped tickets) are grouped under a null id by design — they are a
+  // real cohort, not missing data.
+  const tenantCounts = new Map<string | null, number>();
+  for (const r of (tickets ?? []) as Array<{ tenant_id?: string | null }>) {
+    const key = r.tenant_id ?? null;
+    tenantCounts.set(key, (tenantCounts.get(key) ?? 0) + 1);
+  }
+  const volumeByTenant = [...tenantCounts.entries()]
+    .map(([tenantId, count]) => ({ tenantId, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
   return {
     openNow,
     needsYou,
     medianFirstReplyMs: median(replyDeltas),
+    medianResolveMs: median(resolveDeltas),
+    backlogAgeMs,
     resolvedThisWeek: thisWeek.length,
     avgRating,
+    csatResponseRate,
+    reopenRate,
+    reopenedTickets,
+    escalationRate,
+    escalatedCount,
+    volumeByTenant,
     aiResolvedShare,
     aiResolvedCount,
+    aiResolvedTotal: insightTotal,
     friction,
     weeklyVolume: buckets.map((b) => ({ weekLabel: b.weekLabel, count: b.count })),
     digest,
