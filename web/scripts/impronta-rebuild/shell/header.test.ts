@@ -89,27 +89,47 @@ const EXPECTED_WIDGET_KEYS = [
   "header_language",
 ];
 
-test("header: the live header widgets are embedded, in order, in EN and ES", () => {
+/** The four widgets, as NATIVE nodes, in bar order. */
+function widgetNodes(locale: (typeof LOCALES)[number]) {
+  const keys = new Set<string>(EXPECTED_WIDGET_KEYS);
+  return collect(improntaHeaderTree[locale]).filter((node) =>
+    keys.has(node.kind),
+  );
+}
+
+test("header: the live header widgets are NATIVE kinds, in order, in EN and ES", () => {
+  for (const locale of LOCALES) {
+    assert.deepEqual(
+      widgetNodes(locale).map((node) => node.kind),
+      EXPECTED_WIDGET_KEYS,
+      `${locale} header widget kinds`,
+    );
+  }
+});
+
+/**
+ * The bridge these four used to carry. They were 4 of the 167 live
+ * `section_embed` nodes and, living in the shell, they rode on every one of 37
+ * routes — so this pin is what stops a re-seed quietly restoring 148 embeds.
+ */
+test("header: NO widget is a section_embed bridge any more", () => {
   for (const locale of LOCALES) {
     const embeds = collect(improntaHeaderTree[locale]).filter(
-      (node): node is BuilderSectionEmbedNode => node.kind === "section_embed",
+      (node) => node.kind === "section_embed",
     );
-    assert.deepEqual(
-      embeds.map((node) => node.props.sectionTypeKey),
-      EXPECTED_WIDGET_KEYS,
-      `${locale} header widget embeds`,
-    );
+    assert.deepEqual(embeds, [], `${locale} header must carry zero embeds`);
   }
 });
 
 test("header: mobile-hidden widget set is exactly inquiry + account", () => {
   for (const locale of LOCALES) {
-    const embeds = collect(improntaHeaderTree[locale]).filter(
-      (node): node is BuilderSectionEmbedNode => node.kind === "section_embed",
-    );
-    const hidden = embeds
-      .filter((node) => node.props.style?.responsive?.mobile?.visibility === "hidden")
-      .map((node) => node.props.sectionTypeKey)
+    const nodes = widgetNodes(locale);
+    const mobileVisibility = (node: (typeof nodes)[number]) =>
+      (node.props as { style?: { responsive?: { mobile?: { visibility?: string } } } })
+        .style?.responsive?.mobile?.visibility;
+    const hidden = nodes
+      .filter((node) => mobileVisibility(node) === "hidden")
+      .map((node) => node.kind)
       .sort();
     assert.deepEqual(
       hidden,
@@ -117,11 +137,44 @@ test("header: mobile-hidden widget set is exactly inquiry + account", () => {
       `${locale} mobile-hidden widgets`,
     );
     // Search + language stay visible so a phone visitor keeps both affordances.
-    const visible = embeds
-      .filter((node) => node.props.style?.responsive?.mobile?.visibility !== "hidden")
-      .map((node) => node.props.sectionTypeKey)
+    const visible = nodes
+      .filter((node) => mobileVisibility(node) !== "hidden")
+      .map((node) => node.kind)
       .sort();
     assert.deepEqual(visible, ["header_language", "header_search"], `${locale} mobile-visible widgets`);
+  }
+});
+
+/**
+ * The native widgets carry the accessible name the frozen sections resolved
+ * internally, so the swap does not silently drop it. Values read off the live
+ * pages 2026-09-02. The language label is the one deliberate change: the frozen
+ * widget said "Language" in Spanish too.
+ */
+test("header: native widgets carry their per-locale accessible name", () => {
+  const expected = {
+    en: { header_search: "Search talent", header_language: "Language" },
+    es: { header_search: "Buscar talento", header_language: "Idioma" },
+  } as const;
+  for (const locale of LOCALES) {
+    for (const [kind, label] of Object.entries(expected[locale])) {
+      const node = widgetNodes(locale).find((n) => n.kind === kind);
+      assert.equal(
+        (node?.props as { label?: string } | undefined)?.label,
+        label,
+        `${locale} ${kind} label`,
+      );
+    }
+    // account + inquiry stay label-free so the config handed to the live
+    // component is `{}` — exactly what the embed passed.
+    for (const kind of ["header_account", "header_inquiry"]) {
+      const node = widgetNodes(locale).find((n) => n.kind === kind);
+      assert.equal(
+        (node?.props as { label?: string } | undefined)?.label,
+        undefined,
+        `${locale} ${kind} must stay label-free`,
+      );
+    }
   }
 });
 
@@ -145,10 +198,12 @@ test("header: announcement row hides on mobile; CTA and nav do not", () => {
         // drawer CTA and had been failing on main ever since — verified by
         // running it against a clean checkout before touching it.
         if (node.id.endsWith("-cta")) continue;
-        assert.equal(
-          node.kind,
-          "section_embed",
-          `${locale}: only widget embeds, the CTA and the announcement row may hide on mobile, found ${node.id}`,
+        // The header widgets are NATIVE kinds now, not `section_embed`
+        // bridges. This assertion pinned the bridge kind, so it is the third
+        // place in this file that had to move with the swap.
+        assert.ok(
+          EXPECTED_WIDGET_KEYS.includes(node.kind),
+          `${locale}: only header widgets, the CTA and the announcement row may hide on mobile, found ${node.id} (${node.kind})`,
         );
       }
     }

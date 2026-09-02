@@ -79,7 +79,7 @@
     "perf:builder-budget:selftest": "tsx scripts/fidelity/perf-budget.ts --selftest",
     "test:node-presentation": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/site-admin/sections/shared/node-presentation*.test.ts src/lib/site-admin/sections/node-presentation*.test.ts src/lib/site-admin/sections/section-display-tier*.test.ts",
     "test:platform-stock": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/media/platform-stock.test.ts src/lib/media/system-folders.test.ts scripts/import-stock-images.test.ts",
-    "test:impronta-pages": "tsx --test scripts/impronta-rebuild/*.test.ts scripts/impronta-rebuild/pages/*.test.ts",
+    "test:impronta-pages": "tsx --test scripts/impronta-rebuild/*.test.ts scripts/impronta-rebuild/pages/*.test.ts scripts/impronta-rebuild/shell/*.test.ts",
     "test:publish-preflight": "tsx --test src/lib/site-admin/edit-mode/publish-preflight-*.test.ts src/lib/site-admin/edit-mode/publish-diff.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:browser-health": "playwright test e2e/browser-health.spec.ts",
