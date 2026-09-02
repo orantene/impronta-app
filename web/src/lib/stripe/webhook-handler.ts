@@ -38,7 +38,6 @@
 import { NextResponse } from "next/server";
 import {
   classifyStripeEvent,
-  interpretClaimError,
   isTalentSubscription,
   WORKSPACE_PLAN_KEYS,
   type StripeAction,
@@ -73,6 +72,10 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import { applyCampaignGrantForDiscount } from "@/lib/billing/apply-campaign-grant";
 import { improntaLog } from "@/lib/server/structured-log";
+import {
+  claimStripeEvent,
+  releaseStripeEventClaim,
+} from "@/lib/stripe/event-idempotency";
 import type Stripe from "stripe";
 
 // ─── Error classification ─────────────────────────────────────────────────────
@@ -654,25 +657,16 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
  * already won. The handler runs only when we successfully claimed the row.
  */
 export async function claimEventForProcessing(event: Stripe.Event): Promise<boolean> {
-  const sb = createServiceRoleClient();
-  if (!sb) {
-    // No service-role key → idempotency is best-effort. Don't block the webhook
-    // on missing infra; the per-handler upserts are still safe.
-    return false;
-  }
-  const { error } = await sb.from("stripe_processed_events").insert({
-    event_id: event.id,
-    event_type: event.type,
+  return claimStripeEvent({
+    lane: "platform",
+    eventId: event.id,
+    eventType: event.type,
     livemode: event.livemode ?? null,
-    api_version: event.api_version ?? null,
+    apiVersion: event.api_version ?? null,
   });
-  if (!error) return false; // claimed; first delivery
-  if (interpretClaimError(error) === "duplicate") return true;
-  logServerError("stripe-webhook.idempotency-claim", error);
-  return false; // best effort: proceed
 }
 
-// `interpretClaimError` (the pure 23505→duplicate classifier) now lives in
+// `interpretClaimError` (the pure 23505→duplicate classifier) lives in
 // `webhook-routing.ts` and is imported above — it is unit-tested there.
 
 /**
@@ -681,10 +675,7 @@ export async function claimEventForProcessing(event: Stripe.Event): Promise<bool
  * "already processed" — silently dropping a paid event.
  */
 async function releaseEventClaim(eventId: string): Promise<void> {
-  const sb = createServiceRoleClient();
-  if (!sb) return;
-  const { error } = await sb.from("stripe_processed_events").delete().eq("event_id", eventId);
-  if (error) logServerError("stripe-webhook.idempotency-release", error);
+  return releaseStripeEventClaim({ lane: "platform", eventId });
 }
 
 // ─── HTTP entry ────────────────────────────────────────────────────────────────

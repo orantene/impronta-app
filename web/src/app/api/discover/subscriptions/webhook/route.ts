@@ -21,6 +21,10 @@ import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { syncClientProSubscriptionToDb } from "@/lib/stripe/client-billing";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  claimStripeEvent,
+  releaseStripeEventClaim,
+} from "@/lib/stripe/event-idempotency";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +53,23 @@ export async function POST(req: Request): Promise<Response> {
   } catch (err) {
     logServerError("client-subscription-webhook.verify", err);
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+  }
+
+  // Idempotency. This route had NONE: Stripe retries and duplicate deliveries
+  // re-ran the tier sync every time. It claims under its OWN lane rather than
+  // the bare event id, because the platform endpoint also subscribes to
+  // customer.subscription.* — a shared key would mean whichever URL Stripe hit
+  // first won the claim and the other handler silently never ran.
+  const LANE = "discover_client_subscription" as const;
+  const alreadyProcessed = await claimStripeEvent({
+    lane: LANE,
+    eventId: event.id,
+    eventType: event.type,
+    livemode: event.livemode ?? null,
+    apiVersion: event.api_version ?? null,
+  });
+  if (alreadyProcessed) {
+    return NextResponse.json({ received: true, idempotent: true });
   }
 
   try {
@@ -85,6 +106,7 @@ export async function POST(req: Request): Promise<Response> {
         } as unknown as Stripe.Event;
         const res = await syncClientProSubscriptionToDb(synthetic);
         if (!res.ok) {
+          await releaseStripeEventClaim({ lane: LANE, eventId: event.id });
           return NextResponse.json({ error: res.error }, { status: 503 });
         }
       }
@@ -103,6 +125,7 @@ export async function POST(req: Request): Promise<Response> {
       }
       const res = await syncClientProSubscriptionToDb(event);
       if (!res.ok) {
+        await releaseStripeEventClaim({ lane: LANE, eventId: event.id });
         return NextResponse.json({ error: res.error }, { status: 503 });
       }
       return NextResponse.json({ received: true });
@@ -112,6 +135,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ received: true, ignored: true });
   } catch (err) {
     logServerError(`client-subscription-webhook.${event.type}`, err);
+    await releaseStripeEventClaim({ lane: LANE, eventId: event.id });
     return NextResponse.json({ error: "Processing failure; will retry." }, { status: 503 });
   }
 }
