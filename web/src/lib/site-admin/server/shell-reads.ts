@@ -10,7 +10,9 @@
  * Returns null when:
  *   - the tenant has no shell row at all (default state pre-B.2 backfill)
  *   - the shell row exists but has never been published
- *   - the snapshot is empty (no header AND no footer slot)
+ *   - the snapshot is empty — meaning NO slots AND NO freeform `builderTree`.
+ *     A snapshot with zero slots but a real tree is a valid slots-free shell
+ *     and renders; see `shellSnapshotHasContent`.
  *
  * Callers MUST treat null as "fall through to the hard-coded PublicHeader",
  * not as an error. Phase B.1 does not change any rendering — the wrapper
@@ -27,7 +29,10 @@ import { unstable_cache } from "next/cache";
 
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
-import { resolveShellSnapshotBuilderTree } from "@/lib/site-admin/edit-mode/site-shell-publish";
+import {
+  hasFreeformShellTree,
+  resolveShellSnapshotBuilderTree,
+} from "@/lib/site-admin/edit-mode/site-shell-publish";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -51,6 +56,56 @@ interface ShellRow {
   status: string;
   published_at: string | null;
   published_page_snapshot: HomepageSnapshot | null;
+}
+
+/**
+ * SLOTS-FREE SHELL (2026-09-02) — does this published snapshot carry anything
+ * the shell renderer can draw?
+ *
+ * This used to be `Array.isArray(snap.slots) && snap.slots.length > 0`, i.e.
+ * legacy slot rows were the ONLY recognised way to have a shell. A shell
+ * authored entirely on the freeform surface (all content in `builderTree`,
+ * zero `cms_page_sections` rows) therefore read as EMPTY, `loadPublishedShell`
+ * returned null, and the public reader fell back to the hard-coded LEGACY
+ * header — the correct shell rendering as the wrong one, or as nothing. See
+ * the header comment of `scripts/impronta-rebuild/shell/seed-shell.ts` for the
+ * incident this papered over.
+ *
+ * `slots: []` plus a tree is a shape the renderer already handles: with no
+ * slots, `classifyShellTree` returns "freeform" and `resolveShellSidePlan`
+ * returns `mode: "freeform"` for both sides. Nothing downstream needed to
+ * change.
+ *
+ * The freeform half uses the SAME `hasFreeformShellTree` shape test the
+ * publish path uses to decide the tree wins, so read and write cannot drift.
+ */
+export function shellSnapshotHasContent(
+  snap: Pick<HomepageSnapshot, "slots" | "builderTree"> | null | undefined,
+): boolean {
+  if (!snap) return false;
+  const hasSlots = Array.isArray(snap.slots) && snap.slots.length > 0;
+  return hasSlots || hasFreeformShellTree(snap.builderTree);
+}
+
+/**
+ * The whole of `loadPublishedShell`'s post-read logic, factored PURE so the
+ * shell's "is this renderable?" decision is directly unit-testable without a
+ * Supabase client, `unstable_cache`, or a request scope. `loadPublishedShell`
+ * does the I/O and delegates every decision here.
+ */
+export function projectPublishedShellRow(
+  data: ShellRow | null | undefined,
+): PublishedShell | null {
+  if (!data) return null;
+  if (data.status !== "published") return null;
+  const snap = data.published_page_snapshot;
+  if (!shellSnapshotHasContent(snap)) return null;
+  return {
+    pageId: data.id,
+    locale: data.locale,
+    publishedAt: data.published_at,
+    snapshot: snap as HomepageSnapshot,
+  };
 }
 
 const SELECT = `
@@ -93,19 +148,7 @@ export function loadPublishedShell(
       const dataForLocale = candidateLocales
         .map((candidate) => rows.find((row) => row.locale === candidate))
         .find(Boolean);
-      const data = dataForLocale ?? null;
-      if (!data) return null;
-      if (data.status !== "published") return null;
-      const snap = data.published_page_snapshot;
-      if (!snap || !Array.isArray(snap.slots) || snap.slots.length === 0) {
-        return null;
-      }
-      return {
-        pageId: data.id,
-        locale: data.locale,
-        publishedAt: data.published_at,
-        snapshot: snap,
-      };
+      return projectPublishedShellRow(dataForLocale ?? null);
     },
     ["site-admin:published-shell", tenantId, locale],
     {
@@ -221,14 +264,23 @@ export async function loadDraftShell(
       .order("sort_order", { ascending: true });
     slotRows = (liveRowsRaw ?? []) as typeof slotRows;
   }
-  if (slotRows.length === 0) return null;
+  // SLOTS-FREE SHELL (2026-09-02) — same predicate as `loadPublishedShell` and
+  // `republishSiteShellSnapshot`: zero slot rows is only "no shell" when the
+  // draft `blocks` tree is empty too. Without this the shell EDITOR (this read
+  // is the preview-JWT draft path) would show a freeform-only shell as nothing.
+  const hasDraftFreeform = hasFreeformShellTree(shell.blocks);
+  if (slotRows.length === 0 && !hasDraftFreeform) return null;
 
   const sectionIds = slotRows.map((r) => r.section_id);
-  const { data: sectionRowsRaw } = await supabase
-    .from("cms_sections")
-    .select("id, section_type_key, schema_version, name, props_jsonb, status")
-    .eq("tenant_id", tenantId)
-    .in("id", sectionIds);
+  const sectionRowsRaw = sectionIds.length
+    ? (
+        await supabase
+          .from("cms_sections")
+          .select("id, section_type_key, schema_version, name, props_jsonb, status")
+          .eq("tenant_id", tenantId)
+          .in("id", sectionIds)
+      ).data
+    : [];
   const factsById = new Map<
     string,
     { type: string; ver: number; name: string; props: Record<string, unknown> }
@@ -258,7 +310,7 @@ export async function loadDraftShell(
       props: f.props,
     });
   }
-  if (slots.length === 0) return null;
+  if (slots.length === 0 && !hasDraftFreeform) return null;
 
   const snapshot: HomepageSnapshot = {
     version: 1,
