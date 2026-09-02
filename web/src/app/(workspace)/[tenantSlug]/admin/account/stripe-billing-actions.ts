@@ -23,6 +23,7 @@ import { loadTenantCampaignPromo } from "@/lib/billing/tenant-campaign-promo";
 import {
   createWorkspaceCheckoutSession,
   createBillingPortalSession,
+  hasLiveWorkspaceSubscription,
 } from "@/lib/stripe/workspace-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -76,6 +77,26 @@ export async function startWorkspaceUpgrade(
   const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
   if (!canManageBilling) {
     return { ok: false, error: "You don't have permission to manage billing." };
+  }
+
+  // A workspace that ALREADY has a live Stripe subscription must not be sent
+  // through Checkout again. `mode: "subscription"` Checkout always creates a
+  // NEW subscription, so an "upgrade" would leave the customer paying for two
+  // plans at once — the finance audit's P0-4, second half. Stripe's own Billing
+  // Portal is the supported way to change the plan on an existing
+  // subscription, so send them there instead.
+  if (await hasLiveWorkspaceSubscription(scope.tenantId)) {
+    const portal = await createBillingPortalSession({
+      tenantId: scope.tenantId,
+      appBaseUrl: await deriveAppBaseUrl(),
+      tenantSlug,
+      locale: await getRequestLocale(),
+    });
+    if (!portal.ok) {
+      logServerError("stripe-billing-actions.startUpgrade.portal", portal.error);
+      return { ok: false, error: "Couldn't open billing. Contact support and nothing will be charged twice." };
+    }
+    return { ok: true, redirectUrl: portal.data.url };
   }
 
   const appBaseUrl = await deriveAppBaseUrl();
