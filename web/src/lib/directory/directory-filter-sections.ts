@@ -401,7 +401,12 @@ async function loadDirectoryFilterSectionsUncached(
         fieldKey: "languages",
         label: pickLabel(locale, f.label_en, f.label_es),
         kind: "field_text_enum",
-        presentation: languageOptions.length <= 6 ? "chips" : "grid",
+        // Always chips, never radio. The filter ORs its values
+        // (fetchLanguageProfileIds), so a client can ask for English OR
+        // Italian; radio would present that as a single choice and quietly
+        // misrepresent what the facet does. Five distinct languages exist on
+        // the platform today, so this is the branch that renders anyway.
+        presentation: "chips",
         options: languageOptions.map((o) => ({ ...o })),
       });
       continue;
