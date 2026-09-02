@@ -54,6 +54,7 @@ import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { isFacetRelevantToTenantRoster } from "@/lib/field-engine/directory-facet-category-gate";
 
 /** Common context passed to all three helpers. tenantId null = hub surface. */
 export interface PublicSurfaceContext {
@@ -404,7 +405,15 @@ export async function isResolvedFieldVisibleInDirectoryFilter(
     const decisions = await _getDecisionsForTenant(ctx.tenantId);
     const dec = decisions.get(field.key);
     if (!dec) return false; // canonical def missing → safe-fail
-    return dec.isPublic && dec.showInDirectoryFilter;
+    if (!dec.isPublic || !dec.showInDirectoryFilter) return false;
+    // 4. Roster relevance. show_in_directory_filter is a single GLOBAL flag,
+    //    so without this an agency of chefs and DJs still rendered the
+    //    casting facets (dress size, body type, hair colour…) that the
+    //    profile editor already refuses to show them. Fails open.
+    return isFacetRelevantToTenantRoster(
+      bridgedCanonicalKey(field.key) ?? field.key,
+      ctx.tenantId,
+    );
   }
 
   // No canonical, not allow-listed → not visible. Phase 3 audits the legacy
@@ -453,7 +462,14 @@ export async function isResolvedFieldVisibleOnDirectoryCard(
     const decisions = await _getDecisionsForTenant(ctx.tenantId);
     const dec = decisions.get(field.key);
     if (!dec) return false;
-    return dec.isPublic && dec.showInDirectoryCard;
+    if (!dec.isPublic || !dec.showInDirectoryCard) return false;
+    // 3. Roster relevance — same global-flag problem as the filter surface.
+    //    A card trait line for a category this tenant does not represent is
+    //    dead space on the conversion asset. Fails open.
+    return isFacetRelevantToTenantRoster(
+      bridgedCanonicalKey(field.key) ?? field.key,
+      ctx.tenantId,
+    );
   }
 
   // Non-bridged keys never reach cards today (talent_type/location are

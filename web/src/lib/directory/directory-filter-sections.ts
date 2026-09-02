@@ -286,6 +286,30 @@ async function loadDirectoryFilterSectionsUncached(
     return { id: String(l.city_slug), label: cc ? `${city}, ${cc}` : city };
   });
 
+  // Language facet options — read from `talent_languages`, the only place the
+  // data exists. The catalog declares this facet `taxonomy_kind: "language"`
+  // but there are ZERO taxonomy_terms of that kind, so the generic taxonomy
+  // path below resolves to an empty option list and drops the section. 36
+  // profiles have languages recorded; without this they are unfilterable.
+  //
+  // Only languages somebody actually speaks are offered, so the facet can
+  // never present an option that returns nobody.
+  const languageOptions: DirectoryFilterOption[] = await (async () => {
+    const { data, error } = await supabase
+      .from("talent_languages")
+      .select("language_code, language_name");
+    if (error || !data) return [];
+    const byCode = new Map<string, string>();
+    for (const row of data as { language_code: string | null; language_name: string | null }[]) {
+      const code = (row.language_code ?? "").trim().toLowerCase();
+      if (!code) continue;
+      if (!byCode.has(code)) byCode.set(code, (row.language_name ?? "").trim() || code.toUpperCase());
+    }
+    return [...byCode.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  })();
+
   const sections: DirectoryFilterSection[] = [];
   let heightSectionInserted = false;
 
@@ -365,6 +389,26 @@ async function loadDirectoryFilterSectionsUncached(
         kind: "field_text_enum",
         presentation: enumOpts.length <= 6 ? "chips" : "radio",
         options: enumOpts.map((label) => ({ id: label, label })),
+      });
+      continue;
+    }
+
+    // Table-backed facet: see languageOptions above. Must precede the generic
+    // taxonomy branch, which would drop it for having no terms.
+    if (raw.key === "languages") {
+      if (languageOptions.length === 0 || !defId) continue;
+      sections.push({
+        fieldKey: "languages",
+        fieldDefinitionId: defId,
+        label: pickLabel(locale, f.label_en, f.label_es),
+        kind: "field_text_enum",
+        // Always chips, never radio. The filter ORs its values
+        // (fetchLanguageProfileIds), so a client can ask for English OR
+        // Italian; radio would present that as a single choice and quietly
+        // misrepresent what the facet does. Five distinct languages exist on
+        // the platform today, so this is the branch that renders anyway.
+        presentation: "chips",
+        options: languageOptions.map((o) => ({ ...o })),
       });
       continue;
     }

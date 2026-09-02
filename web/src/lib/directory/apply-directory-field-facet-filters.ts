@@ -19,6 +19,23 @@ function facetKeyHasCanonicalBridge(legacyKey: string): boolean {
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
 
+/**
+ * The `languages` facet — filtered via `talent_languages`, not the field-value
+ * store and not the taxonomy.
+ *
+ * The catalog declares this facet `value_type: "taxonomy_multi"` with
+ * `taxonomy_kind: "language"`, but there are ZERO `taxonomy_terms` of that
+ * kind, so the facet resolved to an empty option list and silently never
+ * rendered — while 108 rows across 36 profiles sat in `talent_languages` with
+ * nowhere to be filtered from. Same shape of defect as the gender facet, which
+ * is column-backed and gets its own branch above; this is that branch for
+ * languages.
+ *
+ * Option ids are ISO language codes (`talent_languages.language_code`), chosen
+ * over term ids because there is no term vocabulary to point at.
+ */
+export const DIRECTORY_LANGUAGES_FIELD_KEY = "languages";
+
 const ID_CHUNK = 450;
 
 export type DirectoryFacetDefinitionRow = {
@@ -149,6 +166,53 @@ async function fetchGenderProfileIds(
 /**
  * ANDs scalar `ff` facets onto `filteredTalentIds` (null = no id constraint yet).
  */
+/**
+ * Talent ids that speak ANY of `languageCodes`, narrowed to
+ * `constrainedTalentIds` when the pipeline has already filtered.
+ *
+ * OR within the facet (a client asking for English-or-Italian wants either),
+ * matching how every other multi-value facet in this pipeline behaves.
+ *
+ * NOT tenant-scoped on purpose: `talent_languages.tenant_id` records who
+ * entered the row, but which languages a person speaks is a property of the
+ * person, not of the agency that typed it in. A talent on three rosters speaks
+ * the same languages on all three. Contrast `price-from.ts`, where the tenant
+ * scope IS load-bearing because agencies negotiate different rates.
+ */
+async function fetchLanguageProfileIds(
+  supabase: SupabaseClient,
+  languageCodes: string[],
+  constrainedTalentIds: string[] | null,
+): Promise<string[]> {
+  const out = new Set<string>();
+  const codes = [...new Set(languageCodes.map((c) => c.trim().toLowerCase()).filter(Boolean))];
+  if (codes.length === 0) return [];
+
+  const chunks: (string[] | null)[] =
+    constrainedTalentIds == null
+      ? [null]
+      : constrainedTalentIds.length === 0
+        ? []
+        : Array.from(
+            { length: Math.ceil(constrainedTalentIds.length / ID_CHUNK) },
+            (_, i) => constrainedTalentIds.slice(i * ID_CHUNK, (i + 1) * ID_CHUNK),
+          );
+
+  for (const chunk of chunks) {
+    let q = supabase
+      .from("talent_languages")
+      .select("talent_profile_id")
+      .in("language_code", codes);
+    if (chunk) q = q.in("talent_profile_id", chunk);
+    const { data, error } = await q;
+    if (error || !data) continue;
+    for (const row of data as { talent_profile_id: string }[]) {
+      out.add(row.talent_profile_id);
+    }
+  }
+  return [...out];
+}
+
 export async function applyDirectoryFieldFacetFilters(
   supabase: SupabaseClient,
   selections: DirectoryFieldFacetSelection[],
@@ -174,6 +238,13 @@ export async function applyDirectoryFieldFacetFilters(
     if (!def || !isDirectoryFacetEligibleDef(def)) continue;
     const values = [...new Set(sel.values.map((v) => v.trim()).filter(Boolean))];
     if (values.length === 0) continue;
+
+    if (def.key === DIRECTORY_LANGUAGES_FIELD_KEY) {
+      const next = await fetchLanguageProfileIds(supabase, values, ids);
+      if (next.length === 0) return { filteredTalentIds: [], isEmpty: true };
+      ids = next;
+      continue;
+    }
 
     const isCanonicalGender =
       def.key === DIRECTORY_CANONICAL_GENDER_FIELD_KEY &&

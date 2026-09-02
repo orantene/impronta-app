@@ -45,6 +45,7 @@ import {
   getDemandScores,
 } from "@/lib/directory/demand-score";
 import { applyPortfolioPlacementBoost } from "@/lib/directory/portfolio-boost";
+import { applyPresentabilityOrdering } from "@/lib/directory/presentability-order";
 import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -1386,6 +1387,17 @@ export async function fetchDirectoryPage(
   // the inner tie-break. See lib/directory/portfolio-boost.ts.
   if (sort === "recommended") {
     applyPortfolioPlacementBoost(items, portfolioProfileIds);
+  }
+
+  // Presentability is the OUTERMOST key of "recommended", so it runs last.
+  // 78 profiles are publicly listed and one meets the publish floor; without
+  // this a client's first screen can be mostly grey boxes. Featured and
+  // manually-arranged slots are untouched, nobody is hidden, and the window
+  // and cursor are unchanged — it is a permutation of this page. Deliberately
+  // after the Portfolio boost: a paying tier buys placement among comparable
+  // cards, not the right to lead with an empty one.
+  if (sort === "recommended") {
+    applyPresentabilityOrdering(items);
   }
 
   if (audit) {

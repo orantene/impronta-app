@@ -39,7 +39,33 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-/** Facets whose values live outside talent_profile_field_values. */
+/**
+ * TAXONOMY-BACKED FACETS — read `talent_profile_taxonomy`, NOT the scalar
+ * value table.
+ *
+ * This map exists because its absence caused a real regression. An earlier
+ * pass measured these facets against `talent_profile_field_values`, found
+ * zero rows, and retired four of them — two of which (industries, 19
+ * profiles; event_types, 18 profiles) were working perfectly. Their values
+ * had simply never lived in the scalar table.
+ *
+ * field_key → the `taxonomy_terms.kind` that supplies its vocabulary.
+ */
+const TAXONOMY_BACKED_FACETS = {
+  tags: "tag",
+  industries: "industry",
+  event_types: "event_type",
+  fit_labels: "fit_label",
+  skills: "skill",
+  languages: "language",
+};
+
+/**
+ * Facets whose values live in a dedicated table — neither store above.
+ * `languages` is declared taxonomy-backed but has ZERO terms of kind
+ * "language"; its real data is 108 rows in `talent_languages`. Retiring it
+ * would be the wrong fix, so it is reported separately.
+ */
 const ALTERNATE_SOURCE_FACETS = {
   languages: "talent_languages",
 };
@@ -124,6 +150,31 @@ const surfaceLabel = (d) =>
 const dead = [];
 const thin = [];
 const mismatched = [];
+
+// Taxonomy-backed facets: fill comes from talent_profile_taxonomy via the
+// term vocabulary, so overlay those counts before judging anything.
+for (const [fieldKey, kind] of Object.entries(TAXONOMY_BACKED_FACETS)) {
+  const def = surfaced.find((d) => d.field_key === fieldKey);
+  if (!def) continue;
+  const { data: terms, error: termsErr } = await sb
+    .from("taxonomy_terms")
+    .select("id")
+    .eq("kind", kind);
+  if (termsErr) {
+    console.error(`[check-dead-facets] could not read ${kind} terms: ${termsErr.message}`);
+    process.exit(1);
+  }
+  const termIds = (terms ?? []).map((t) => t.id);
+  const holders = new Set();
+  for (let i = 0; i < termIds.length; i += 200) {
+    const { data: asg } = await sb
+      .from("talent_profile_taxonomy")
+      .select("talent_profile_id")
+      .in("taxonomy_term_id", termIds.slice(i, i + 200));
+    for (const a of asg ?? []) holders.add(a.talent_profile_id);
+  }
+  fill.set(def.id, holders);
+}
 
 for (const d of surfaced) {
   const n = fill.get(d.id)?.size ?? 0;
