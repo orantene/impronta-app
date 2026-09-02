@@ -26,6 +26,8 @@ export const TALENT_TYPE_GRID_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
 export interface TalentDisciplineDecomposedInput {
   /** Stable root id (migration / page-design presets). */
   rootId?: string;
+  /** Stable id for the NATIVE `talent_type_grid` node (keeps re-seeds idempotent). */
+  gridNodeId?: string;
   eyebrow?: string;
   headline?: string;
   subheadline?: string;
@@ -72,6 +74,85 @@ export function isMonolithicTalentTypeGridEmbed(
   const seeAll =
     typeof config.seeAllLabel === "string" ? config.seeAllLabel.trim() : "";
   return eyebrow.length > 0 || headline.length > 0 || seeAll.length > 0;
+}
+
+/**
+ * Project a legacy `talent_type_grid` section config onto the NATIVE node's
+ * props. An ALLOW-LIST — see `nativeFeaturedTalentProps` for why a spread is
+ * not safe here.
+ *
+ * `mode` decides whether the server resolves anything at all: only
+ * `mode: "dynamic"` makes `collectNativeDataBlockNeeds` record a discipline
+ * need. The legacy preset ships authored `items`, so the default stays
+ * `manual` and the cards are exactly the ones already on the page; a config
+ * that explicitly asks for `dynamic` gets the roster-derived categories.
+ */
+export function nativeTalentTypeGridProps(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const str = (key: string): string | undefined =>
+    typeof config[key] === "string" && (config[key] as string).trim()
+      ? (config[key] as string)
+      : undefined;
+  const num = (key: string): number | undefined =>
+    typeof config[key] === "number" ? (config[key] as number) : undefined;
+  const bool = (key: string): boolean | undefined =>
+    typeof config[key] === "boolean" ? (config[key] as boolean) : undefined;
+  const oneOf = <T extends string>(key: string, allowed: readonly T[]): T | undefined => {
+    const value = config[key];
+    return typeof value === "string" && (allowed as readonly string[]).includes(value)
+      ? (value as T)
+      : undefined;
+  };
+
+  const rawItems = Array.isArray(config.items) ? config.items : [];
+  const items = rawItems
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map((item) => {
+      const out: Record<string, unknown> = {
+        label: typeof item.label === "string" ? item.label : "",
+      };
+      for (const key of [
+        "description",
+        "imageUrl",
+        "imageAlt",
+        "imagePosition",
+        "taxonomyTermId",
+        "href",
+      ] as const) {
+        if (typeof item[key] === "string" && (item[key] as string).trim()) {
+          out[key] = item[key];
+        }
+      }
+      if (item.featured === true) out.featured = true;
+      return out;
+    })
+    .filter((item) => Boolean(item.label));
+
+  const props: Record<string, unknown> = {};
+  const put = (key: string, value: unknown): void => {
+    if (value !== undefined) props[key] = value;
+  };
+
+  put("mode", oneOf("mode", ["manual", "dynamic"] as const) ?? "manual");
+  if (items.length > 0) put("items", items);
+  const termIds = Array.isArray(config.selectedTermIds)
+    ? config.selectedTermIds.filter(
+        (v): v is string => typeof v === "string" && !!v.trim(),
+      )
+    : [];
+  if (termIds.length > 0) put("selectedTermIds", termIds);
+  put("parentCategoryMode", bool("parentCategoryMode"));
+  put("maxItems", num("maxItems"));
+  put("columns", num("columns"));
+  put("showCount", bool("showCount"));
+  put("showImages", bool("showImages"));
+  put("showDescriptions", bool("showDescriptions"));
+  put("cardRatio", oneOf("cardRatio", ["1/1", "3/4", "4/3", "16/9"] as const));
+  put("textPosition", oneOf("textPosition", ["overlay-bottom", "below"] as const));
+  put("emptyStateText", str("emptyStateText"));
+
+  return props;
 }
 
 export function buildTalentDisciplineDecomposedSection(
@@ -177,12 +258,11 @@ export function buildTalentDisciplineDecomposedSection(
               ]
             : []),
           {
-            id: makeNodeId("section_embed"),
-            kind: "section_embed",
+            id: input.gridNodeId ?? makeNodeId("talent_type_grid"),
+            kind: "talent_type_grid",
             props: {
-              sectionTypeKey: "talent_type_grid",
+              ...nativeTalentTypeGridProps(embedConfig),
               layerLabel: "Discipline Grid",
-              config: embedConfig,
             },
           },
         ],

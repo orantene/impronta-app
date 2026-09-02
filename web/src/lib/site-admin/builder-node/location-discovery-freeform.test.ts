@@ -29,13 +29,22 @@ describe("location-discovery-freeform", () => {
       "Markets Grid",
     ]);
 
-    const embed = childNodes(column).find((c) => c.kind === "section_embed");
-    assert.ok(embed);
-    const config = (embed!.props as { config?: Record<string, unknown> }).config;
-    assert.equal(config?.eyebrow, "");
-    assert.equal(config?.headline, "");
-    assert.equal(config?.subheadline, "");
-    assert.equal(config?.headless, true);
+    // Phase 8B — a NATIVE `location_map` node, not a `section_embed` bridge,
+    // and it carries no head props (the wrapper's own layers are the head).
+    const grid = childNodes(column).find((c) => c.kind === "location_map");
+    assert.ok(grid);
+    assert.equal(
+      childNodes(column).some((c) => c.kind === "section_embed"),
+      false,
+      "no section_embed bridge may survive in the location-discovery wrapper",
+    );
+    const props = grid!.props as Record<string, unknown>;
+    assert.equal(props.eyebrow, undefined);
+    assert.equal(props.headline, undefined);
+    assert.equal(props.subheadline, undefined);
+    assert.equal(props.headless, undefined);
+    assert.equal(props.config, undefined);
+    assert.equal(props.sectionTypeKey, undefined);
   });
 
   test("optional Subtitle layer appears when subheadline is non-empty", () => {
@@ -121,9 +130,13 @@ describe("location-discovery-freeform", () => {
   test("embed section type is location_discovery", () => {
     const root = buildLocationDiscoveryDecomposedSection({ rootId: "ld-type" });
     const column = childNodes(root)[0];
-    const embed = childNodes(column).find((c) => c.kind === "section_embed");
-    assert.ok(embed);
-    const sectionTypeKey = (embed!.props as { sectionTypeKey?: string }).sectionTypeKey;
-    assert.equal(sectionTypeKey, "location_discovery");
+    const grid = childNodes(column).find((c) => c.kind === "location_map");
+    assert.ok(grid);
+    assert.equal(grid!.kind, "location_map");
+    // The load-bearing projection: a config with no authored `items` MUST come
+    // out as `roster_cities`. `manual` here would leave the node with an empty
+    // items array, and `collectNativeDataBlockNeeds` would record no need at
+    // all — an empty markets band where a live city grid used to be.
+    assert.equal((grid!.props as Record<string, unknown>).source, "roster_cities");
   });
 });

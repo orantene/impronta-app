@@ -61,35 +61,52 @@ const hero = pageHero("rb-home", {
     "An Impronta model in a black bodysuit and tinted sunglasses, photographed against a warm tan studio backdrop.",
 });
 
-// ── discipline marquee (curated Tulala component) ────────────────────────────
+// ── discipline marquee (NATIVE `marquee` node) ───────────────────────────────
+//
+// Phase 8B: this was a `section_embed` bridge to the frozen `marquee` section.
+// The native kind carries the same behaviour (doubled track, seamless 0 → -50%
+// loop, direction, separator) plus a real reduced-motion stop, so the swap is
+// behaviour-preserving. Two things had to be carried across BY HAND:
+//
+//  - The legacy `presentation` block (espresso ground, full-bleed, thin rules,
+//    tight padding) has no native equivalent — it becomes node `style`.
+//  - The tenant `customCss` targeted `.site-marquee*`, which the native node
+//    never emits. Rewritten onto `.site-builder-node--marquee*`. It stays
+//    customCss rather than style props because every rule below addresses a
+//    DESCENDANT (the link, the item span, the separator), and node style only
+//    reaches the node itself. `style.customCss` is scope-confined to this
+//    node's `[data-builder-node-id]`, so it cannot leak a page-global rule.
+//
+// The `::before` separator trick is preserved deliberately: the native glyph
+// for "diamond" is ◆, and Impronta's strip has always shown ✦ (U+2726).
 const marquee: BuilderNode = {
   id: "rb-home-marquee",
-  kind: "section_embed",
+  kind: "marquee",
   props: {
-    sectionTypeKey: "marquee",
     layerLabel: "Discipline Marquee",
-    config: {
-      items: [
-        { text: "Fashion Models", href: "/p/fashion-models" },
-        { text: "Hosts & Promoters", href: "/p/hosts-promoters" },
-        { text: "Performers", href: "/p/performers" },
-        { text: "Music & DJs", href: "/p/music-djs" },
-        { text: "Full Roster", href: "/directory" },
-      ],
-      speed: "slow",
-      direction: "left",
-      separator: "diamond",
-      variant: "text",
-      presentation: {
-        background: "espresso",
-        containerWidth: "full-bleed",
-        paddingTop: "tight",
-        paddingBottom: "tight",
-        dividerTop: "thin-line",
-        animation: { entry: "fade", reducedMotion: "respect" },
-        customCss:
-          ".site-marquee { background: var(--token-color-background, #0a0a0a); border-top: 1px solid var(--token-color-line, #1f1f22); border-bottom: 1px solid var(--token-color-line, #1f1f22); } .site-marquee__link, .site-marquee__item > span:not(.site-marquee__sep) { color: var(--token-color-ink, #f4f4f5); font-family: var(--site-heading-font, inherit); font-style: italic; text-decoration: none; } .site-marquee__sep { color: var(--token-color-accent, #d4af37); } .site-marquee__sep::before { content: '\\2726'; } .site-marquee__sep { font-size: 0; } .site-marquee__sep::before { font-size: 1rem; }",
-      },
+    items: [
+      { text: "Fashion Models", href: "/p/fashion-models" },
+      { text: "Hosts & Promoters", href: "/p/hosts-promoters" },
+      { text: "Performers", href: "/p/performers" },
+      { text: "Music & DJs", href: "/p/music-djs" },
+      { text: "Full Roster", href: "/directory" },
+    ],
+    speed: "slow",
+    direction: "left",
+    separator: "diamond",
+    variant: "text",
+    pauseOnHover: true,
+    style: {
+      width: "100%",
+      maxWidthFree: "100%",
+      paddingTop: "14px",
+      paddingBottom: "14px",
+      backgroundColor: "token:color.background",
+      borderColor: "token:color.line",
+      borderStyle: "solid",
+      borderWidth: "1px 0px 1px 0px",
+      customCss:
+        ".site-builder-node--marquee-link, .site-builder-node--marquee-item > span:not(.site-builder-node--marquee-sep) { color: var(--token-color-ink, #f4f4f5); font-family: var(--site-heading-font, inherit); font-style: italic; text-decoration: none; } .site-builder-node--marquee-sep { color: var(--token-color-accent, #d4af37); font-size: 0; } .site-builder-node--marquee-sep::before { content: '\\2726'; font-size: 1rem; }",
     },
   },
 };
