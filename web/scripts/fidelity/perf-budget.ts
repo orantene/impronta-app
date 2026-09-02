@@ -11,7 +11,13 @@
  *
  *   - rendered HTML byte size (the document a browser receives)
  *   - the renderer stylesheet's byte size, and that it is emitted EXACTLY ONCE
- *     per page (PERF-1: `BuilderNodeRendererStyles` de-dup must hold)
+ *     per RENDERED TREE (PERF-1: the one-sheet-per-render convention must hold)
+ *   - the renderer CSS a visitor downloads for a WHOLE PAGE: a public route
+ *     composes shell header + page body + shell footer, three independently
+ *     rendered trees mounting three sheets, so `./page-shape.ts` builds that
+ *     composition offline and this script budgets the total (see the
+ *     `pageRendererCssBytes` comment for the relationship to the one-tree
+ *     numbers — they are additive, not redefined)
  *   - font requests + font payload (self-hosted woff2 measured on disk; Google
  *     families counted + estimated)
  *   - image payload (root-relative photos resolved against web/public + sized
@@ -42,6 +48,9 @@ import { fileURLToPath } from "node:url";
 
 import { fidelityDesigns } from "./designs";
 import { buildFidelityHtml, renderFidelityMarkup, type FidelityDesign } from "./html";
+// Page-shaped composition (shell header + body + shell footer) — the renderer
+// CSS a VISITOR downloads, as opposed to the one-tree numbers below it.
+import { measurePageShape, type PageShapeMeasurement } from "./page-shape";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
 // Pure (no React) — the same three helpers every public render path uses to
 // scope the renderer sheet, so the scoped budget measures exactly what ships.
@@ -82,28 +91,36 @@ interface Budget {
 }
 
 export const BUDGETS: readonly Budget[] = [
-  // PERF-1 regression lock: the global renderer sheet must appear once per
-  // RENDERED TREE. Read the scope note below before trusting this as a
-  // per-PAGE guarantee — it is not one.
+  // ── PERF-1: one sheet per RENDERED TREE ─────────────────────────────────
+  // KEPT, RELABELLED 2026-09-02 (BUILDER 2027 · LANE B). The old label read
+  // "Renderer CSS blocks (PERF-1: exactly 1)", which people reasonably took as
+  // a per-PAGE guarantee. It never was one, and the 2026-09-01 measurement
+  // below proved it. But the invariant itself is real and worth keeping, so it
+  // is relabelled rather than replaced — here is exactly what it protects.
   //
-  // ── WHAT THIS GATE DOES NOT SEE (measured 2026-09-01, LANE A) ────────────
-  // This harness renders ONE tree and asserts one sheet, and that assertion is
-  // correct for what it renders. A real published page is composed of THREE
-  // independently-rendered trees, and ships THREE sheets:
+  // There is NO de-dup mechanism in the renderer: `BuilderNodeRendererStyles`
+  // (builder-node/render.tsx) has no module-level Set, no `React.cache`, no
+  // context, no dedupe key — the `key="site-builder-node-styles"` in
+  // `renderBuilderNodes` is React list-key hygiene, not de-dup. "Exactly one"
+  // is therefore a CALLER CONVENTION enforced by two facts: `renderBuilderNodes`
+  // emits the sheet at most once per call, and nested nodes recurse through
+  // `BuilderNodeView` (which never emits), so nesting cannot duplicate it.
   //
+  // This budget catches the two ways that convention breaks inside one tree:
+  //   0 sheets — the sheet stopped emitting and the page renders unstyled
+  //   2+ sheets — someone re-emitted from a nested render path
+  // Both are real regressions. What it CANNOT see is composition, because a
+  // page is not one tree — see `pageRendererCssSheets` below, which is the
+  // per-page companion this lane added.
+  //
+  // ── The measurement that forced the relabel (production, 2026-09-01) ─────
   //   live improntamodels.com, `<style data-builder-node-renderer-styles>`
   //     shell header  100.0 KB
   //     page body      87.0 KB   ← byte-identical in size to the `impronta`
   //     shell footer   87.8 KB     fidelity design's scoped sheet (89,117 B),
-  //     ─────────────────────      so the harness models the BODY faithfully;
-  //     per page      274.8 KB     it just models one sheet where there are 3.
-  //
+  //     ─────────────────────      so the harness modelled the BODY faithfully;
+  //     per page      274.8 KB     it just modelled one sheet where there are 3.
   //   Same shape on /fashion-models (274.8 KB) and /contact (274.1 KB).
-  //
-  // So `rendererCssScopedBytes` below polices roughly ONE THIRD of the renderer
-  // CSS a visitor actually downloads. It is still the right number to optimise
-  // — the ~46.5 KB base bucket is carried by all three sheets, so a byte saved
-  // there is saved three times — but it must not be read as the page total.
   //
   // A raw `grep -c data-builder-node-renderer-styles` on the live HTML returns
   // 9-12, not 3. That count is NOT nine sheets: Next.js re-serializes the same
@@ -111,12 +128,12 @@ export const BUDGETS: readonly Budget[] = [
   // so each one appears once as HTML and again as escaped JSON. Counting the
   // marker string overstates the block count by 3-4x; counting real
   // `<style …>` elements is the honest measure, and it is 3 on every page.
-  //
-  // NOT FIXED HERE, deliberately: making this budget page-shaped means teaching
-  // the harness to compose shell + body + shell the way the public routes do,
-  // which is a different lane's worth of work and would change what every
-  // historical number in this file means. Filed as the finding it is.
-  { key: "rendererCssBlocks", label: "Renderer CSS blocks (PERF-1: exactly 1)", max: 1, unit: "exact" },
+  {
+    key: "rendererCssBlocks",
+    label: "Renderer CSS sheets per tree (PERF-1)",
+    max: 1,
+    unit: "exact",
+  },
   // The FULL renderer sheet — the worst case, emitted when a caller cannot tell
   // the renderer which node-kinds are on the page (Lab canvas, dev previews).
   //
@@ -282,6 +299,73 @@ export const BUDGETS: readonly Budget[] = [
     max: 90 * KB,
     unit: "bytes",
   },
+  // ── PAGE-SHAPED renderer CSS (BUILDER 2027 · LANE B, 2026-09-02) ─────────
+  // Everything above this point is a ONE-TREE number, and every historical
+  // measurement and retune recorded above means "one body sheet". Nothing about
+  // that changed: `rendererCssScopedBytes` still measures exactly what it
+  // always measured, so its history stays comparable. The two budgets below sit
+  // BESIDE it and answer the different question — what does a VISITOR download
+  // for the whole page?
+  //
+  // Relationship, stated once so it cannot drift:
+  //   pageRendererCssBytes  =  shell-header sheet + body sheet + shell-footer sheet
+  //   rendererCssScopedBytes  IS  the body sheet in that sum
+  // The other two come from `scripts/fidelity/page-shape.ts`, which composes the
+  // heaviest shipped shell header and footer variant (`SHELL_VARIANT_SEEDS`)
+  // around each design, the way PublicHeader → PublishedShellHeader / the route
+  // body / PublicFooter → PublishedShellFooter compose a real page. Offline,
+  // no tenant, no DB, no network. Read that file's header for the fixture
+  // choice and the ±2.5% cross-check against the live Impronta shell.
+  //
+  // OBSERVED, not assumed: the sheet count comes from re-running the same
+  // `<style data-builder-node-renderer-styles>` regex over the composed HTML.
+  //
+  // Why 3 is an exact budget and not a reported number: it pins the shape the
+  // byte ceiling below assumes. If the composition ever becomes ONE hoisted
+  // sheet, that is a ~93 KB WIN and this gate should go red anyway — because
+  // the byte ceiling would then be ~2x too loose and would silently stop
+  // policing anything. Re-tune both together, deliberately, in the commit that
+  // changes the shape.
+  {
+    key: "pageRendererCssSheets",
+    label: "Renderer CSS sheets per page (composed)",
+    max: 3,
+    unit: "exact",
+  },
+  // ── The ceiling, and where 208 KB comes from ─────────────────────────────
+  // Measured 2026-09-02 on this branch (`npm run perf:builder-budget`), the
+  // composed page total per design, worst → best:
+  //   store 192.9 · festival 192.6 · agency 181.1 · editorial 179.2 ·
+  //   saas 169.6 · impronta 167.4 · trivial 164.2 KB
+  // (shell header 61.9 KB + shell footer 53.2 KB are constant across all seven;
+  // only the body varies.)
+  //
+  // The ceiling is NOT "worst + a round number". It is derived from the budget
+  // above it, because two ceilings on overlapping quantities must not
+  // contradict each other. `rendererCssScopedBytes` already permits a body of
+  // 90 KB. A design that spends its entire legal body allowance composes to:
+  //   197,498 B (store today) − 79,645 B (store's body) + 92,160 B (90 KB)
+  //   = 210,013 B = 205.1 KB
+  // So any ceiling below 205.1 KB would make a body that is legal under one
+  // budget illegal under the other. 205.1 KB is therefore the floor, and 208 KB
+  // is that floor plus ~2.9 KB of named pad for the SHELL — the half of the sum
+  // no other budget polices at all.
+  //
+  // What that headroom buys, honestly: shell CSS is the largest of the three
+  // sheets and the ~46.5 KB always-shipped base bucket is paid THREE times, so
+  // a byte added to the base costs a visitor three bytes here. 2.9 KB of pad is
+  // therefore ~1 KB of new base rules, or a few kind-scoped rules that land in
+  // the shell. Phases 2B / 6 / 7 add node kinds: a kind that renders only in
+  // page bodies spends from the 12.2 KB still free under the scoped ceiling and
+  // costs 1x here; a kind that also renders in headers or footers costs 2-3x
+  // and will hit this ceiling first. That is the intended asymmetry — it makes
+  // shell-weight growth an argument rather than an accident.
+  {
+    key: "pageRendererCssBytes",
+    label: "Renderer CSS per page (all sheets)",
+    max: 208 * KB,
+    unit: "bytes",
+  },
   // The HTML document itself. Rich pages reference images externally, so the
   // document stays small; a balloon here means inlined data or runaway markup.
   { key: "htmlBytes", label: "Rendered HTML size", max: 220 * KB, unit: "bytes" },
@@ -307,6 +391,10 @@ export interface Metrics {
   rendererCssBytes: number;
   rendererCssScopedBytes: number;
   rendererCssBlocks: number;
+  /** Sheets OBSERVED in the composed shell-header + body + shell-footer page. */
+  pageRendererCssSheets: number;
+  /** Sum of those sheets — the renderer CSS one visitor downloads. */
+  pageRendererCssBytes: number;
   domNodeCount: number;
   fontFileCount: number;
   fontStylesheetRequests: number;
@@ -389,7 +477,16 @@ export function measureDesign(
    * metrics) omit it and the full-sheet size is used, which is the conservative
    * direction — scoping can only ever shrink the sheet.
    */
-  scopedRendererCss?: string | null,
+  scopedRendererCss: string | null | undefined,
+  /**
+   * The page-shaped composition for this design (`measurePageShape`). REQUIRED
+   * — deliberately not optional and never defaulted. A default would have to
+   * invent a sheet count, and inventing `3` would make `pageRendererCssSheets`
+   * a budget that can never fail, which is the exact failure mode this repo has
+   * shipped six times. Every caller composes a real page, the self-test
+   * included.
+   */
+  pageShape: PageShapeMeasurement,
 ): { metrics: Metrics; notes: string[] } {
   const notes: string[] = [];
 
@@ -409,6 +506,28 @@ export function measureDesign(
   } else if (rendererBlocks.length > 1) {
     notes.push(
       `Renderer stylesheet emitted ${rendererBlocks.length}× — PERF-1 de-dup regressed.`,
+    );
+  }
+
+  // ── Page-shaped composition (shell header + body + shell footer) ───────────
+  notes.push(
+    `Composed page renderer CSS: ${pageShape.sheets
+      .map((sheet) => `${sheet.slot} ${fmt(sheet.bytes, "bytes")}`)
+      .join(" + ")} = ${fmt(pageShape.totalBytes, "bytes")} ` +
+      `(shell ${pageShape.headerVariantSlug} / ${pageShape.footerVariantSlug}).`,
+  );
+  // Consistency check between the two ways this file derives the body sheet:
+  // `scopedRendererCss` is computed here from the full sheet via
+  // `buildScopedRendererCss`; the composed `page_body` sheet is whatever the
+  // real `BuilderNodeRendererStyles` component emitted. They must agree — if
+  // they ever diverge, one of the two paths has stopped modelling the public
+  // render and the scoped budget is measuring a fiction.
+  const composedBody = pageShape.sheets.find((sheet) => sheet.slot === "page_body");
+  if (composedBody && composedBody.bytes !== rendererCssScopedBytes) {
+    notes.push(
+      `Body sheet DISAGREES: harness-scoped ${rendererCssScopedBytes} B vs ` +
+        `component-emitted ${composedBody.bytes} B — the scoped budget and the ` +
+        `real render path have drifted.`,
     );
   }
 
@@ -505,6 +624,8 @@ export function measureDesign(
       rendererCssBytes,
       rendererCssScopedBytes,
       rendererCssBlocks: rendererBlocks.length,
+      pageRendererCssSheets: pageShape.sheetCount,
+      pageRendererCssBytes: pageShape.totalBytes,
       domNodeCount,
       fontFileCount,
       fontStylesheetRequests,
@@ -594,7 +715,13 @@ function measureRegisteredDesign(design: FidelityDesign): DesignReport {
         collectPresentContainerQueryBreakpoints(design.tree),
       )
     : null;
-  const { metrics, notes } = measureDesign(html, markup, diskSizers, scopedRendererCss);
+  const { metrics, notes } = measureDesign(
+    html,
+    markup,
+    diskSizers,
+    scopedRendererCss,
+    measurePageShape(design.tree, design.dataSources),
+  );
   return { id: design.id, title: design.title, metrics, notes };
 }
 
@@ -658,11 +785,15 @@ function runEnforce(jsonOnly: boolean): void {
 
 /**
  * Prove the gate actually REJECTS bloat — otherwise a budget that never fails is
- * worthless. Three checks, all offline:
+ * worthless. Four checks, all offline:
  *   1. a synthetic 5,000-node design run through the real measure→evaluate
  *      pipeline must produce violations (end-to-end enforcement),
  *   2. a metrics object that exceeds EVERY budget must flag every budget key,
- *   3. a metrics object at the limit must flag nothing (no false positives).
+ *   3. a metrics object at the limit must flag nothing (no false positives),
+ *   4. the page-shaped composition must really be three sheets whose bytes sum
+ *      to the reported total and exceed the body sheet alone — otherwise
+ *      `pageRendererCssBytes` could silently degrade back into a one-tree
+ *      number and every check above would still pass.
  */
 function runSelfTest(): void {
   const failures: string[] = [];
@@ -692,13 +823,14 @@ function runSelfTest(): void {
     markup,
     diskSizers,
     hugeSheet ? buildScopedRendererCss(hugeSheet[1], collectPresentNodeKinds(huge.tree)) : null,
+    measurePageShape(huge.tree),
   );
   const e2eViolations = evaluateBudgets(huge.id, metrics);
   const breachedKeys = new Set(e2eViolations.map((v) => v.key));
   if (!breachedKeys.has("domNodeCount")) failures.push("synthetic design did not breach domNodeCount");
   if (!breachedKeys.has("htmlBytes")) failures.push("synthetic design did not breach htmlBytes");
   console.log(
-    `[1/3] synthetic design → ${e2eViolations.length} violation(s): ` +
+    `[1/4] synthetic design → ${e2eViolations.length} violation(s): ` +
       `${[...breachedKeys].join(", ") || "NONE"} (domNodes=${metrics.domNodeCount}, html=${fmt(metrics.htmlBytes, "bytes")})`,
   );
 
@@ -712,7 +844,7 @@ function runSelfTest(): void {
       failures.push(`budget "${budget.key}" did not fire when exceeded`);
     }
   }
-  console.log(`[2/3] over-every-budget metrics → ${overViolations.length}/${BUDGETS.length} budgets fired`);
+  console.log(`[2/4] over-every-budget metrics → ${overViolations.length}/${BUDGETS.length} budgets fired`);
 
   // 3. At-the-limit metrics object must flag nothing.
   const atLimit = Object.fromEntries(BUDGETS.map((b) => [b.key, b.max])) as unknown as Metrics;
@@ -720,7 +852,33 @@ function runSelfTest(): void {
   if (atLimitViolations.length > 0) {
     failures.push(`at-the-limit metrics produced ${atLimitViolations.length} false positive(s)`);
   }
-  console.log(`[3/3] at-the-limit metrics → ${atLimitViolations.length} false positive(s)`);
+  console.log(`[3/4] at-the-limit metrics → ${atLimitViolations.length} false positive(s)`);
+
+  // 4. The page-shaped composition must actually BE page-shaped, and its total
+  //    must actually be the sum of its parts. Without this, `pageRendererCssBytes`
+  //    could quietly become a single-sheet number again — the precise regression
+  //    this lane exists to make impossible — and the check would still be green.
+  const pageShape = measurePageShape(fidelityDesigns[0].tree, fidelityDesigns[0].dataSources);
+  const slots = pageShape.sheets.map((sheet) => sheet.slot).join(",");
+  if (slots !== "shell_header,page_body,shell_footer") {
+    failures.push(`composed page emitted sheets [${slots}], expected shell_header,page_body,shell_footer`);
+  }
+  const summed = pageShape.sheets.reduce((sum, sheet) => sum + sheet.bytes, 0);
+  if (summed !== pageShape.totalBytes || summed === 0) {
+    failures.push(`composed page total ${pageShape.totalBytes} B is not the sum of its sheets (${summed} B)`);
+  }
+  // A page total that is merely the body sheet would mean the shell dropped out.
+  const bodyOnly = pageShape.sheets.find((sheet) => sheet.slot === "page_body")?.bytes ?? 0;
+  if (pageShape.totalBytes <= bodyOnly) {
+    failures.push(
+      `composed page total ${pageShape.totalBytes} B is not larger than the body sheet alone ` +
+        `(${bodyOnly} B) — the shell contributed nothing`,
+    );
+  }
+  console.log(
+    `[4/4] composed page → ${pageShape.sheetCount} sheet(s) [${slots}] totalling ` +
+      `${fmt(pageShape.totalBytes, "bytes")} (body alone ${fmt(bodyOnly, "bytes")})`,
+  );
 
   if (failures.length > 0) {
     console.error(`\n✗ Self-test FAILED — the perf gate would not reliably catch bloat:`);
@@ -738,6 +896,11 @@ function zeroMetrics(): Metrics {
     rendererCssBytes: 0,
     rendererCssScopedBytes: 0,
     rendererCssBlocks: 1,
+    // The two "exact" budgets need their PASSING value here, so a synthetic
+    // metrics object that overrides one budget key does not accidentally fail
+    // the other. Keep in step with the BUDGETS entries above.
+    pageRendererCssSheets: 3,
+    pageRendererCssBytes: 0,
     domNodeCount: 0,
     fontFileCount: 0,
     fontStylesheetRequests: 0,
