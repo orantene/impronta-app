@@ -130,6 +130,10 @@ export type StripeAction =
       currency: string;
     }
   | { kind: "invoice_payment_succeeded"; subscriptionId: string | null; customerId: string | null; amountPaid: number; currency: string }
+  /** An invoice lifecycle event that carries no subscription re-sync of its own.
+   *  Recorded into `provider_invoices` and nothing else — the money-moving
+   *  invoice events remain `invoice_payment_succeeded` / `invoice_payment_failed`. */
+  | { kind: "invoice_recorded"; invoiceId: string; eventType: string }
   | { kind: "invalid"; reason: string }
   | { kind: "ignore" };
 
@@ -272,6 +276,20 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         amountPaid: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",
       };
+    }
+
+    // Lifecycle-only invoice events. These were neither subscribed nor handled,
+    // so nothing was ever written down: no invoice register, no dunning history,
+    // no visibility of credit notes. They deliberately do NOT re-sync the
+    // subscription — `invoice.payment_succeeded` / `.payment_failed` own that,
+    // and duplicating it here would double-run the sync on every paid invoice.
+    case "invoice.finalized":
+    case "invoice.paid":
+    case "invoice.voided":
+    case "invoice.marked_uncollectible": {
+      const inv = event.data.object as Stripe.Invoice;
+      if (!inv.id) return { kind: "ignore" };
+      return { kind: "invoice_recorded", invoiceId: inv.id, eventType: event.type };
     }
 
     case "charge.refunded": {
