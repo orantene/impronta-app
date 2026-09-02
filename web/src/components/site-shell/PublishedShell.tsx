@@ -51,6 +51,7 @@ import {
   isShellLandmarkNode,
   resolveShellLandmarkSectionProps,
   resolveShellSidePlan,
+  shellLandmarkWrapper,
   type ShellSideKey,
 } from "@/lib/site-admin/builder-node/shell-render-plan";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
@@ -279,20 +280,15 @@ async function renderShellSlot(
   }
   const Comp = reg.Component;
   const publicPathPrefix = await getPublicPathPrefix();
-  const builderNodeId = builderSectionNodeIds.get(
+  // One address, two indexes — hoisted so the lookups provably cannot diverge.
+  const slotAddressKey =
     builderSectionNodeAddressKey({
       sectionId: slot.sectionId,
       slotKey: slot.slotKey,
       sortOrder: slot.sortOrder,
-    }) ?? "",
-  );
-  const builderSectionNode = builderSectionNodes.get(
-    builderSectionNodeAddressKey({
-      sectionId: slot.sectionId,
-      slotKey: slot.slotKey,
-      sortOrder: slot.sortOrder,
-    }) ?? "",
-  );
+    }) ?? "";
+  const builderNodeId = builderSectionNodeIds.get(slotAddressKey);
+  const builderSectionNode = builderSectionNodes.get(slotAddressKey);
   const builderSectionChildren = builderSectionNode?.children ?? [];
   // See the eject note at the <Comp> render below.
   const sectionEjected = builderSectionNode?.props.ejected === true;
@@ -405,9 +401,18 @@ async function renderShellSlot(
   // selection layer queries it for hover/click, so without this wrapper shell
   // sections render but are not selectable. Markers + fields match body
   // sections, so selection chrome, inspector binding and save need no forks.
+  // F13 — an ejected landmark suppresses the curated component that emitted
+  // `<header>`/`<footer>`, so the wrapper carries the semantics instead. See
+  // `shellLandmarkWrapper` for why non-ejected must stay a plain `div`.
+  const landmark = shellLandmarkWrapper({
+    sectionTypeKey: slot.sectionTypeKey,
+    ejected: sectionEjected,
+  });
+  const Wrapper = landmark.element;
   return (
-    <div
+    <Wrapper
       key={slot.sectionId}
+      role={landmark.role}
       data-cms-section=""
       // The synthetic `__site_header__` id routes editor clicks to the curated
       // header FORM inspector, and suppressing the node id stops the header
@@ -447,10 +452,9 @@ async function renderShellSlot(
       {/* "2018 bye-bye" — an EJECTED landmark no longer renders its curated
        *  React component; its freeform children render in its place. Same
        *  contract the homepage composer honors (homepage-cms-sections.tsx:586-588)
-       *  and the one `BuilderSectionNode.props.ejected` documents. The shell
-       *  renderer used to ignore the flag entirely, which made "eject" a silent
-       *  no-op on the header/footer — the one surface where replacing the
-       *  curated bar with an authored tree is the whole point. */}
+       *  and the one `BuilderSectionNode.props.ejected` documents. Ignoring the
+       *  flag made "eject" a silent no-op on the one surface whose whole point
+       *  is replacing the curated bar with an authored tree. */}
       {sectionEjected ? null : (
         <Comp
           sectionId={slot.sectionId}
@@ -471,14 +475,12 @@ async function renderShellSlot(
               mediaAssets,
               collections,
               socialLinks: navData.socialLinks,
-              // BUILDER 2027 · P2B — visitor-scoped state for the native
-              // `header_account` / `header_inquiry` widgets. Absent ⇒ each
-              // renders its signed-out affordance, which is a real link.
+              // P2B — visitor state for native `header_account`/`header_inquiry`.
+              // Absent ⇒ each renders its signed-out affordance, a real link.
               ...(headerWidgets ? { headerWidgets } : {}),
             },
             availableLocales: navData.availableLocales,
-            // Phase 3 — resolve live component instances in shell slots too.
-            // Gated: the DB query only runs when the slot actually has instances.
+            // Phase 3 — live component instances; the DB query is gated above.
             components: builderComponents,
             visibilityContext,
             componentStyleDefaults,
@@ -488,15 +490,13 @@ async function renderShellSlot(
               publicPathPrefix,
               // WS-A A5 — on the shell EDIT canvas, interactive header-widget
               // embeds render their static placeholder (no live widget / auth
-              // read / data fetch); the published shell mounts the real widget.
+              // read / data fetch); the published shell mounts the real one.
               // Pure-render embeds ignore `preview`, so they are unaffected.
               editorMode: editModeActive,
             }),
             // BUILDER 2027 · P2B — the native `header_account` /
             // `header_inquiry` nodes delegate to the SAME live widgets the
-            // curated header-widget embeds mount. `editorMode` keeps the shell
-            // canvas on the static placeholder, matching the embed contract
-            // directly above.
+            // embeds above mount, under the same `editorMode` contract.
             renderNativeLiveBlock: makeNativeLiveBlockRenderer({
               tenantId,
               locale,
@@ -505,7 +505,7 @@ async function renderShellSlot(
             }),
           })
         : null}
-    </div>
+    </Wrapper>
   );
 }
 
@@ -751,9 +751,16 @@ function renderFreeformShellLandmark({
       unknownNodeIds: roleBindingResult.unknownNodeIds.join(", "),
     });
   }
+  // F13 — see the identical note on the legacy-slot path.
+  const landmark = shellLandmarkWrapper({
+    sectionTypeKey,
+    ejected: node.props.ejected === true,
+  });
+  const Wrapper = landmark.element;
   return (
-    <div
+    <Wrapper
       key={node.id}
+      role={landmark.role}
       data-cms-section=""
       // See the identical note on the legacy-slot path: an ejected header is an
       // authored tree, so it exposes its real ids and stays node-selectable.
@@ -772,11 +779,7 @@ function renderFreeformShellLandmark({
           : node.id
       }
     >
-      {/* "2018 bye-bye" — see the identical guard on the legacy-slot path.
-       *  An EJECTED landmark renders ONLY its freeform children; the curated
-       *  header/footer component is gone. This is what makes an all-freeform
-       *  shell possible: without it, authored children render BELOW the
-       *  curated bar (two headers), so there was no way to replace the bar. */}
+      {/* "2018 bye-bye" — see the full note on the legacy-slot path above. */}
       {node.props.ejected === true ? null : (
         <Comp
           sectionId={sectionId}
@@ -792,6 +795,6 @@ function renderFreeformShellLandmark({
         />
       )}
       {children.length > 0 ? renderBuilderNodes(children, renderOptions) : null}
-    </div>
+    </Wrapper>
   );
 }

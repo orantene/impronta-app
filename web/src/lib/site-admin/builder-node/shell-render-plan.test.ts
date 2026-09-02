@@ -45,6 +45,7 @@ import {
   prepareShellTree,
   resolveShellLandmarkSectionProps,
   resolveShellSidePlan,
+  shellLandmarkWrapper,
   splitShellTree,
 } from "./shell-render-plan";
 import { resolveSnapshotBuilderTree } from "./snapshot-tree";
@@ -528,4 +529,48 @@ test("[data] a side's freeform node set is landmark children plus non-landmark r
     ["operator-announcement-bar", "header-nav"],
     "the landmark itself renders via its bespoke component, so it is excluded",
   );
+});
+
+// ─── F13 · SEMANTIC LANDMARK ELEMENTS ───────────────────────────────────────
+//
+// Measured on production 2026-09-02, BEFORE this rule existed: `<header>` 0,
+// `<footer>` 0, `role=banner` 0, `role=contentinfo` 0 across the whole live
+// site. Impronta's landmarks are `ejected: true`, which suppresses the curated
+// component that was the only thing emitting those elements.
+
+test("[a11y] an EJECTED site_header wrapper is <header role=banner>", () => {
+  assert.deepEqual(
+    shellLandmarkWrapper({ sectionTypeKey: "site_header", ejected: true }),
+    { element: "header", role: "banner" },
+  );
+});
+
+test("[a11y] an EJECTED site_footer wrapper is <footer role=contentinfo>", () => {
+  assert.deepEqual(
+    shellLandmarkWrapper({ sectionTypeKey: "site_footer", ejected: true }),
+    { element: "footer", role: "contentinfo" },
+  );
+});
+
+test("[a11y] a NON-ejected landmark stays a div — the curated component owns the element", () => {
+  // The regression this guards: emitting <header> here too would nest it inside
+  // the curated component's own <header> and produce TWO banner landmarks,
+  // which is worse than the zero it replaced.
+  for (const sectionTypeKey of ["site_header", "site_footer"]) {
+    assert.deepEqual(
+      shellLandmarkWrapper({ sectionTypeKey, ejected: false }),
+      { element: "div" },
+      `${sectionTypeKey} must not double the landmark`,
+    );
+  }
+});
+
+test("[a11y] a non-landmark section type is never given landmark semantics", () => {
+  for (const sectionTypeKey of ["hero", "contact_form", null, undefined]) {
+    assert.deepEqual(
+      shellLandmarkWrapper({ sectionTypeKey, ejected: true }),
+      { element: "div" },
+      `${String(sectionTypeKey)} is not a shell landmark`,
+    );
+  }
 });

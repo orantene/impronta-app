@@ -376,3 +376,56 @@ export function collectShellSideFreeformNodes(
   }
   return out;
 }
+
+/**
+ * F13 — WHICH HTML ELEMENT a shell landmark's wrapper must be.
+ *
+ * THE BUG THIS FIXES, measured on production 2026-09-02: the live site shipped
+ * `<header>` 0, `<footer>` 0, `role=banner` 0, `role=contentinfo` 0. A screen
+ * reader got no banner and no contentinfo landmark anywhere on the site, and
+ * no way to skip to either.
+ *
+ * The cause is the interaction of two individually correct decisions. The
+ * curated `site_header` / `site_footer` components each emit their own
+ * `<header>` / `<footer>` root, so the wrapper around them was deliberately a
+ * plain `<div>` — nesting two `<header>`s would produce two banner landmarks.
+ * But an EJECTED landmark suppresses that curated component and renders only
+ * its authored children, so the one element carrying the semantics disappeared
+ * with it and the `<div>` was all that remained. Ejection was designed to
+ * replace the curated BAR, not to strip the page of its landmarks.
+ *
+ * Hence the rule: the wrapper takes over the semantics exactly when the
+ * component that used to carry them is not rendering.
+ *
+ *   - not ejected → `div`. The curated component emits the landmark itself, so
+ *     a semantic wrapper here would DOUBLE it. Unchanged from before this fix,
+ *     which is what keeps every non-ejected tenant byte-identical.
+ *   - ejected `site_header` → `<header role="banner">`
+ *   - ejected `site_footer` → `<footer role="contentinfo">`
+ *
+ * WHY THE ROLE IS EXPLICIT rather than left to the implicit mapping: `<header>`
+ * only maps to `banner` when it is NOT a descendant of `article`, `aside`,
+ * `main`, `nav` or `section`. The shell's mount point is a page-level decision
+ * this pure module cannot see, and a tenant page that ever nests the shell side
+ * inside one of those would silently lose the landmark again — the exact
+ * failure mode being fixed. Stating the role costs one attribute and cannot
+ * regress: it is the same role the implicit mapping would assign.
+ *
+ * Safe on the styling side because every shell selector is attribute-qualified
+ * (`[data-cms-section]`, `[data-section-type-key="site_header"]`) and none is
+ * element-qualified, and the editor selection layer matches the same
+ * attributes rather than a tag name.
+ */
+export function shellLandmarkWrapper(input: {
+  sectionTypeKey: string | null | undefined;
+  ejected: boolean;
+}): { element: "div" | "header" | "footer"; role?: "banner" | "contentinfo" } {
+  if (!input.ejected) return { element: "div" };
+  if (input.sectionTypeKey === "site_header") {
+    return { element: "header", role: "banner" };
+  }
+  if (input.sectionTypeKey === "site_footer") {
+    return { element: "footer", role: "contentinfo" };
+  }
+  return { element: "div" };
+}
