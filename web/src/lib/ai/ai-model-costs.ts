@@ -16,7 +16,11 @@ const MODEL_RATES: ReadonlyArray<{ prefix: string; rate: Rate }> = [
   { prefix: "claude-opus-4-7", rate: { inputPerM: 5, outputPerM: 25 } },
   { prefix: "claude-opus-4-6", rate: { inputPerM: 5, outputPerM: 25 } },
   { prefix: "claude-opus", rate: { inputPerM: 5, outputPerM: 25 } },
-  { prefix: "claude-sonnet-5", rate: { inputPerM: 3, outputPerM: 15 } },
+  // Sonnet 5 is $2/$10 — it was recorded at $3/$15, which is the Sonnet 4.6
+  // rate. Spend was overstated by 50%, so the $25 monthly cap tripped a third
+  // early. The generic "claude-sonnet" fallback below stays at 4.6 pricing and
+  // must remain AFTER this entry: matching is longest-prefix.
+  { prefix: "claude-sonnet-5", rate: { inputPerM: 2, outputPerM: 10 } },
   { prefix: "claude-sonnet", rate: { inputPerM: 3, outputPerM: 15 } },
   { prefix: "claude-haiku", rate: { inputPerM: 1, outputPerM: 5 } },
   { prefix: "claude-fable-5", rate: { inputPerM: 10, outputPerM: 50 } },

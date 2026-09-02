@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
@@ -146,7 +148,7 @@ export function NewTicketForm({
       </button>
       <div style={{ fontSize: 12, color: COLORS.inkDim, display: "flex", alignItems: "center", gap: 6 }}>
         <Icon name="sparkle" size={12} color={COLORS.royal} />
-        {t("dashboard.adminSupport.aiMicrocopy")}
+        {interpolate(t("dashboard.adminSupport.aiMicrocopy"), SUPPORT_AGENT_VARS)}
       </div>
       {/*
         Expected response time, stated BEFORE the ticket is sent.
@@ -156,7 +158,7 @@ export function NewTicketForm({
         to bother asking is the moment the answer matters.
       */}
       <div style={{ fontSize: 12, color: COLORS.inkDim }}>
-        {t("dashboard.adminSupport.humanReplyEta")}
+        {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
       </div>
     </form>
   );

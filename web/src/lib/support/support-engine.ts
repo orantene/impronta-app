@@ -6,6 +6,7 @@ import { updateContact, keepTicketOpen } from "./support-engine-contact";
 import { adminClient, claimIfUnassigned, insertEvent, loadTicketById } from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
+import { assignEscalationOwner } from "./escalation-owner";
 import {
   mapEventRow,
   mapMessageRow,
@@ -492,6 +493,24 @@ export async function escalateTicket(input: {
   }
   const updated = mapTicketRow(data);
   if (!updated) return { ok: false, error: "Could not escalate." };
+
+  // Give the case a named owner. Extracted to escalation-owner.ts — it never
+  // reassigns and never throws; a failure leaves the escalation intact.
+  if (!updated.assigneeUserId) {
+    const owner = await assignEscalationOwner(admin, ticket.id, updated.assigneeUserId);
+    if (owner) {
+      updated.assigneeUserId = owner;
+      await insertEvent(admin, {
+        ticketId: ticket.id,
+        tenantId: ticket.tenantId,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "assigned",
+        oldValue: { assigneeUserId: null },
+        newValue: { assigneeUserId: owner, via: "escalation" },
+      });
+    }
+  }
 
   const eventId = await insertEvent(admin, {
     ticketId: ticket.id,

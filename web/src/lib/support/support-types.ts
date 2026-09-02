@@ -16,13 +16,41 @@ export type SupportHandledBy = "ai" | "human";
 export type SupportAuthorKind = "requester" | "agent" | "ai" | "system";
 export type SupportMessageKind = "text" | "card" | "system" | "note";
 export type SupportCallbackPref = "anytime" | "morning" | "afternoon" | "evening";
+/**
+ * Why a ticket reached a human.
+ *
+ * The first group describes the HANDOFF MECHANISM — how the AI gave up. The
+ * second describes the SUBJECT MATTER, and each maps to an owning department in
+ * docs/support-escalation-runbook.md. Without the second group a refund dispute
+ * and a low-confidence answer were indistinguishable in the queue, and no report
+ * could count how many money cases support handled.
+ *
+ * Kept in sync with the CHECK in 20261227000004_support_escalation_reasons.sql.
+ */
 export type SupportEscalationReason =
+  // Handoff mechanism
   | "user_requested"
   | "ai_low_confidence"
   | "ai_sentiment"
   | "ai_suggested"
   | "ai_unavailable"
-  | "staff_initiated";
+  | "staff_initiated"
+  // Subject matter — each has an owning department and, for dispute and legal,
+  // an externally imposed deadline.
+  | "billing"
+  | "refund"
+  | "dispute"
+  | "safety"
+  | "legal";
+
+/** The subject-matter reasons, for filtering and reporting on money and risk. */
+export const SUBJECT_ESCALATION_REASONS = [
+  "billing",
+  "refund",
+  "dispute",
+  "safety",
+  "legal",
+] as const satisfies readonly SupportEscalationReason[];
 
 export type SupportTicketEventType =
   | "created"

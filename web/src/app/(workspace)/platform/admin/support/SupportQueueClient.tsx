@@ -303,6 +303,32 @@ export function SupportQueueClient({
                       {row.requesterName ?? row.requesterEmail ?? t("dashboard.platform.support.unknownRequester")}
                     </span>
                     {row.planTier ? <PlanChip plan={row.planTier} /> : null}
+                    {/*
+                      A reopened ticket is a resolution that did not hold. The
+                      count was stored on every row and shown nowhere, so the
+                      one signal that a case is going wrong was invisible in the
+                      only screen where an agent would act on it. Amber, not
+                      neutral: this is meant to catch the eye.
+                    */}
+                    {row.ticket.reopenedCount > 0 ? (
+                      <span
+                        title={t("dashboard.platform.support.reopenedHint")}
+                        style={{
+                          fontSize: 10,
+                          border: "1px solid rgba(194,106,69,0.45)",
+                          background: "rgba(194,106,69,0.12)",
+                          borderRadius: 999,
+                          padding: "1px 7px",
+                          color: "#C26A45",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {interpolate(t("dashboard.platform.support.reopenedBadge"), {
+                          n: row.ticket.reopenedCount,
+                        })}
+                      </span>
+                    ) : null}
                     {row.ticket.category ? (
                       <span
                         style={{

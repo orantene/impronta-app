@@ -1,3 +1,4 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -34,7 +35,7 @@ const FAIL_OPEN_BODY = SUPPORT_CHAT_FAIL_OPEN_BODY;
 
 const SYSTEM_PROMPT = [
   "You are Tulala's in-app support assistant.",
-  "Answer ONLY from the provided grounding entries and ticket context. If the answer is not there, say you are not sure and offer to get Oran.",
+  `Answer ONLY from the provided grounding entries and ticket context. If the answer is not there, say you are not sure and offer to get ${SUPPORT_AGENT.name}.`,
   "Do not invent refund amounts, legal statements, or payout promises.",
   "Never claim you performed an action (updated settings, issued a refund, booked talent).",
   "Tone: warm, plain, no em dashes.",
@@ -255,7 +256,7 @@ export async function POST(request: Request) {
         ticketId,
         authorKind: "ai",
         authorUserId: null,
-        body: "Want Oran to take a look?",
+        body: `Want ${SUPPORT_AGENT.name} to take a look?`,
         messageKind: "card",
         cardPayload: { kind: "offer-human" },
         aiMeta: { escalate_reason: "ai_suggested" },

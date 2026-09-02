@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import { submitFeatureRequestAction } from "@/lib/support/feature-request-actions";
@@ -66,7 +68,7 @@ export function SupportIdeaForm({
         </div>
       </div>
       <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45, marginTop: -4 }}>
-        {t("dashboard.adminSupport.ideaBlurb")}
+        {interpolate(t("dashboard.adminSupport.ideaBlurb"), SUPPORT_AGENT_VARS)}
       </div>
 
       <label style={fieldLabel}>
