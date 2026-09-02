@@ -8918,6 +8918,33 @@ export type Database = {
           },
         ]
       }
+      plan_capabilities: {
+        Row: {
+          capability_key: string
+          included: boolean
+          note: string | null
+          plan_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          capability_key: string
+          included: boolean
+          note?: string | null
+          plan_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          capability_key?: string
+          included?: boolean
+          note?: string | null
+          plan_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       plan_tier_caps: {
         Row: {
           api_access: boolean
@@ -10119,6 +10146,93 @@ export type Database = {
           {
             foreignKeyName: "profiles_origin_workspace_id_fkey"
             columns: ["origin_workspace_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_balance_transactions: {
+        Row: {
+          amount_cents: number
+          available_on: string | null
+          booking_transaction_id: string | null
+          currency: string
+          exchange_rate: number | null
+          fee_cents: number
+          fee_details: Json
+          id: string
+          ingested_at: string
+          net_cents: number
+          presented_amount_cents: number | null
+          presented_currency: string | null
+          provider: string
+          reporting_category: string | null
+          source_id: string | null
+          stripe_account_id: string | null
+          stripe_balance_txn_id: string
+          stripe_created_at: string
+          tenant_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          available_on?: string | null
+          booking_transaction_id?: string | null
+          currency: string
+          exchange_rate?: number | null
+          fee_cents?: number
+          fee_details?: Json
+          id?: string
+          ingested_at?: string
+          net_cents: number
+          presented_amount_cents?: number | null
+          presented_currency?: string | null
+          provider?: string
+          reporting_category?: string | null
+          source_id?: string | null
+          stripe_account_id?: string | null
+          stripe_balance_txn_id: string
+          stripe_created_at: string
+          tenant_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          available_on?: string | null
+          booking_transaction_id?: string | null
+          currency?: string
+          exchange_rate?: number | null
+          fee_cents?: number
+          fee_details?: Json
+          id?: string
+          ingested_at?: string
+          net_cents?: number
+          presented_amount_cents?: number | null
+          presented_currency?: string | null
+          provider?: string
+          reporting_category?: string | null
+          source_id?: string | null
+          stripe_account_id?: string | null
+          stripe_balance_txn_id?: string
+          stripe_created_at?: string
+          tenant_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_balance_transactions_booking_transaction_id_fkey"
+            columns: ["booking_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "booking_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_balance_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
             referencedColumns: ["id"]
@@ -18754,12 +18868,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18783,11 +18897,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18808,11 +18922,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18833,11 +18947,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18850,11 +18964,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
