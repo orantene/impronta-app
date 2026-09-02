@@ -54,6 +54,9 @@ import {
 } from "@/lib/site-admin/builder-node/shell-render-plan";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
+import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { resolveNativeHeaderWidgets } from "@/lib/site-admin/server/native-header-widget-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -337,6 +340,11 @@ async function renderShellSlot(
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  // BUILDER 2027 · P2B — the two SESSION-dependent header widgets. The walk is
+  // free and the resolver short-circuits when the slot holds neither, so a
+  // footer slot costs nothing.
+  const nativeHeaderWidgetNeed =
+    collectNativeDataBlockNeeds(builderSectionChildren).headerWidgets;
   const [
     builderComponents,
     mediaAssets,
@@ -346,6 +354,7 @@ async function renderShellSlot(
     editModeActive,
     componentStyleDefaults,
     navData,
+    headerWidgets,
   ] =
     await Promise.all([
       treeHasInstances(builderSectionChildren)
@@ -368,7 +377,8 @@ async function renderShellSlot(
       getCachedActorSession(),
       isEditModeActiveForTenant(tenantId),
       loadPublicComponentStyleDefaults(tenantId),
-      resolveShellNavData(tenantId, locale, publicPathPrefix)
+      resolveShellNavData(tenantId, locale, publicPathPrefix),
+      resolveNativeHeaderWidgets(nativeHeaderWidgetNeed),
     ]);
   // Merge the user collections + the built-in nav collections into one map so
   // every binding (user `collection:<id>` repeaters AND nav cms_page/cms_posts)
@@ -451,7 +461,15 @@ async function renderShellSlot(
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
-            dataSources: { mediaAssets, collections, socialLinks: navData.socialLinks },
+            dataSources: {
+              mediaAssets,
+              collections,
+              socialLinks: navData.socialLinks,
+              // BUILDER 2027 · P2B — visitor-scoped state for the native
+              // `header_account` / `header_inquiry` widgets. Absent ⇒ each
+              // renders its signed-out affordance, which is a real link.
+              ...(headerWidgets ? { headerWidgets } : {}),
+            },
             availableLocales: navData.availableLocales,
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
@@ -466,6 +484,17 @@ async function renderShellSlot(
               // embeds render their static placeholder (no live widget / auth
               // read / data fetch); the published shell mounts the real widget.
               // Pure-render embeds ignore `preview`, so they are unaffected.
+              editorMode: editModeActive,
+            }),
+            // BUILDER 2027 · P2B — the native `header_account` /
+            // `header_inquiry` nodes delegate to the SAME live widgets the
+            // curated header-widget embeds mount. `editorMode` keeps the shell
+            // canvas on the static placeholder, matching the embed contract
+            // directly above.
+            renderNativeLiveBlock: makeNativeLiveBlockRenderer({
+              tenantId,
+              locale,
+              publicPathPrefix,
               editorMode: editModeActive,
             }),
           })
@@ -527,6 +556,8 @@ async function renderFreeformShellSide({
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const nativeHeaderWidgetNeed =
+    collectNativeDataBlockNeeds(freeformNodes).headerWidgets;
   const [
     builderComponents,
     mediaAssets,
@@ -536,6 +567,7 @@ async function renderFreeformShellSide({
     editModeActive,
     componentStyleDefaults,
     navData,
+    headerWidgets,
   ] = await Promise.all([
     treeHasInstances(freeformNodes)
       ? loadBuilderComponentsForTenant(tenantId)
@@ -557,7 +589,8 @@ async function renderFreeformShellSide({
     getCachedActorSession(),
     isEditModeActiveForTenant(tenantId),
     loadPublicComponentStyleDefaults(tenantId),
-    resolveShellNavData(tenantId, locale, publicPathPrefix)
+    resolveShellNavData(tenantId, locale, publicPathPrefix),
+    resolveNativeHeaderWidgets(nativeHeaderWidgetNeed),
   ]);
   const collections =
     userCollections || navCollections
@@ -570,12 +603,23 @@ async function renderFreeformShellSide({
     publicPathPrefix,
     mode: "freeform" as const,
     includeRendererStyles: false,
-    dataSources: { mediaAssets, collections, socialLinks: navData.socialLinks },
+    dataSources: {
+      mediaAssets,
+      collections,
+      socialLinks: navData.socialLinks,
+      ...(headerWidgets ? { headerWidgets } : {}),
+    },
     availableLocales: navData.availableLocales,
     components: builderComponents,
     visibilityContext,
     componentStyleDefaults,
     renderSectionEmbed: makeSectionEmbedRenderer({
+      tenantId,
+      locale,
+      publicPathPrefix,
+      editorMode: editModeActive,
+    }),
+    renderNativeLiveBlock: makeNativeLiveBlockRenderer({
       tenantId,
       locale,
       publicPathPrefix,

@@ -61,6 +61,7 @@ import {
 import {
   buildScopedRendererCss,
   collectPresentNodeKinds,
+  collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import {
   collectBuilderNodeFontUsage,
@@ -184,6 +185,23 @@ export interface BuilderNodeRenderDataSources {
    * and its empty state rather than a blank band.
    */
   directoryProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
+  /**
+   * BUILDER 2027 · P2B — the SAME cards, resolved PER `directory` NODE.
+   *
+   * `directoryProfiles` is one array for the whole tree, which is only correct
+   * while every directory node on the page is scoped identically. An "Our
+   * Chefs" band above an "Everyone" band are not, and a single shared array
+   * paints one of them with the other's people. The server caller therefore
+   * resolves each node separately and keys the result by node id; this map wins
+   * when it has an entry for the node, and `directoryProfiles` remains the
+   * fallback for callers that resolve one array (and for existing fixtures).
+   *
+   * Same tenant contract as `directoryProfiles`: every entry was already gated
+   * on the tenant's visible roster by the server caller.
+   */
+  directoryProfilesByNodeId?: Readonly<
+    Record<string, ReadonlyArray<FeaturedTalentCardDTO>>
+  >;
   /**
    * BUILDER 2027 · P2A — the visitor-scoped state the two SESSION-dependent
    * header widgets need. The shared renderer must never read a session (it is
@@ -6782,10 +6800,13 @@ function renderBuilderNodeElement(
         p.searchActionHref?.trim() || "/directory",
         options.publicPathPrefix,
       );
-      const cards = (options.dataSources.directoryProfiles ?? []).slice(
-        0,
-        p.pageSize ?? 24,
-      );
+      // Per-node cards win over the whole-tree array (see
+      // `directoryProfilesByNodeId`); absent ⇒ the shared array, then empty.
+      const cards = (
+        options.dataSources.directoryProfilesByNodeId?.[node.id] ??
+        options.dataSources.directoryProfiles ??
+        []
+      ).slice(0, p.pageSize ?? 24);
       const chips =
         p.topBarMode === "none"
           ? []
@@ -8098,8 +8119,17 @@ export function hasAnimationPlayOnceNode(
 export function BuilderNodeRendererStyles({
   kinds,
   nodes,
+  components,
 }: {
   kinds?: ReadonlySet<BuilderNodeKind> | null;
+  /**
+   * The saved component definitions, when the page has any. Passed to the
+   * container-query collector so a linked instance's master subtree is walked
+   * LIVE, exactly as `collectPresentNodeKinds` already does for kinds. Omitted
+   * on a page with no instances; an instance whose master is missing makes the
+   * collector return "unknown" and both `@container` blocks are kept.
+   */
+  components?: ComponentDefinitions;
   /**
    * The tree this sheet is being hoisted for. Supplied so the "play once"
    * arming runtime can ride along with the sheet -- the sheet is the one thing
@@ -8114,7 +8144,18 @@ export function BuilderNodeRendererStyles({
    */
   nodes?: ReadonlyArray<BuilderNode> | null;
 } = {}): ReactNode {
-  const css = buildScopedRendererCss(BUILDER_NODE_RENDERER_CSS, kinds);
+  // The two `@container` blocks are 24 KB of the sheet and are dead unless a
+  // node authors `style.containerQueries`. `nodes` is already passed by every
+  // scoping call site; without it the collector is skipped and both blocks are
+  // kept, exactly as before.
+  const cqBreakpoints = nodes
+    ? collectPresentContainerQueryBreakpoints(nodes, components ?? {})
+    : null;
+  const css = buildScopedRendererCss(
+    BUILDER_NODE_RENDERER_CSS,
+    kinds,
+    cqBreakpoints,
+  );
   const sheet = (
     <style
       data-builder-node-renderer-styles=""
@@ -8133,7 +8174,11 @@ export function BuilderNodeRendererStyles({
   );
 }
 
-export { buildScopedRendererCss, collectPresentNodeKinds };
+export {
+  buildScopedRendererCss,
+  collectPresentNodeKinds,
+  collectPresentContainerQueryBreakpoints,
+};
 
 export function hasRenderableBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,

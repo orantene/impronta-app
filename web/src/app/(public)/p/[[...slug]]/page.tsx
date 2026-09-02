@@ -26,6 +26,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-canvas";
@@ -605,6 +606,17 @@ export default async function CmsPublicPage({
                   locale,
                   publicPathPrefix,
                   previewSubject: { kind: "workspace", id: publicScope.tenantId },
+                }),
+                // BUILDER 2027 · P2B — a native `directory` node on a freeform
+                // page now gets the REAL engine (live re-query, faceted
+                // sidebar, map, AI interpret) instead of its static fallback
+                // grid. `editorMode` keeps the canvas on the static grid, which
+                // is what an operator needs there: selectable and offline.
+                renderNativeLiveBlock: makeNativeLiveBlockRenderer({
+                  tenantId: publicScope.tenantId,
+                  locale,
+                  publicPathPrefix,
+                  editorMode: editorViewing,
                 }),
               })
             )}

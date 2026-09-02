@@ -45,6 +45,7 @@ import {
   collectBuilderSectionEmbedNodes,
   makeSectionEmbedRenderer,
 } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
 import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
 import { ClientSectionChildren } from "@/components/edit-chrome/client-section-children";
 import { loadBuilderNodeDataSources } from "./homepage-cms-data-sources";
@@ -287,6 +288,18 @@ export async function HomepageCmsSections({
     ? { provider: resolvedCaptcha.provider, siteKey: resolvedCaptcha.siteKey }
     : null;
 
+  // BUILDER 2027 · P2B — the live-engine hook for the native `directory` and
+  // the two session-dependent header widgets. Built ONCE here and passed to
+  // every render path below, for the same reason `visibilityContext` is: four
+  // separately-constructed renderers is four chances for one path to be given
+  // a different `editorMode` and quietly diverge from the others.
+  const nativeLiveBlockRenderer = makeNativeLiveBlockRenderer({
+    tenantId,
+    locale,
+    publicPathPrefix,
+    editorMode: editMode,
+  });
+
   // Filter by slot AND/OR section id. The storefront mounts one
   // `<HomepageCmsSections onlySectionId=… />` per non-hero section without
   // `onlySlot`; without an `onlySectionId` branch every such mount iterated
@@ -324,6 +337,7 @@ export async function HomepageCmsSections({
       components: builderComponents,
       visibilityContext,
       renderSectionEmbed: sectionEmbedRenderer,
+      renderNativeLiveBlock: nativeLiveBlockRenderer,
     });
   }
 
@@ -426,6 +440,7 @@ export async function HomepageCmsSections({
             visibilityContext,
             componentStyleDefaults,
             renderSectionEmbed: freeformSectionEmbedRenderer,
+            renderNativeLiveBlock: nativeLiveBlockRenderer,
           })}
         </>
       );
@@ -698,6 +713,7 @@ export async function HomepageCmsSections({
               visibilityContext,
               componentStyleDefaults,
               renderSectionEmbed: sectionEmbedRendererForChildren,
+              renderNativeLiveBlock: nativeLiveBlockRenderer,
               captcha: captchaConfig,
               visitorLocale: locale,
             });
@@ -753,6 +769,7 @@ export async function HomepageCmsSections({
               locale,
               publicPathPrefix,
             }),
+            renderNativeLiveBlock: nativeLiveBlockRenderer,
           })}
     </>
   );
