@@ -535,7 +535,7 @@ function ReadOnlyStripNotice() {
       role="note"
       className="mb-3 rounded-[9px] border border-[rgba(91,107,160,0.25)] bg-[rgba(91,107,160,0.10)] px-3 py-2 text-[12px] leading-[1.5] text-admin-indigo-deep"
     >
-      {copy.t("Read-only preview. Edit your page content from My pages.")}
+      {copy.t("Read-only preview. Edit your page content from Public page.")}
     </div>
   );
 }
@@ -565,7 +565,7 @@ function ManageOnPublicPage({ blurb }: { blurb: string }) {
             setTalentPage("public-page");
           }}
         >
-          {copy.t("Open My pages")}
+          {copy.t("Open Public page")}
         </PrimaryButton>
       </div>
     </>
@@ -781,7 +781,7 @@ export function TalentCustomDomainDrawer() {
     >
       <ManageOnPublicPage
         blurb={copy.t(
-          "Connect a custom domain from My pages. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.",
+          "Connect a custom domain from Public page. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.",
         )}
       />
     </DrawerShell>

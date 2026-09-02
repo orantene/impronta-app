@@ -2538,7 +2538,7 @@ const ES_TEXT: Record<string, string> = {
   "✨ Resolve conflict": "✨ Resolver conflicto",
   "Agencies, notifications, privacy and payouts. Where you appear lives in Reach.": "Agencias, notificaciones, privacidad y pagos. Dónde apareces vive en Alcance.",
   "Open Reach →": "Abrir Alcance →",
-  "Services & pricing → moved to your Catalog & Pricing tab": "Servicios y precios → ahora en tu pestaña Catálogo y precios",
+  "Services & pricing → moved to your Services tab": "Servicios y precios → ahora en tu pestaña Servicios",
   "Manage everything clients can book or buy from your page in one place.": "Administra todo lo que los clientes pueden reservar o comprar desde tu página en un solo lugar.",
   "Distribution decisions live in Reach": "Las decisiones de distribución viven en Alcance",
   "Toggle channels, manage which hubs and studios you're listed on, set exposure presets. All over there.": "Activa canales, administra en qué hubs y estudios apareces y define niveles de exposición. Todo está allá.",
@@ -2782,8 +2782,8 @@ const ES_TEXT: Record<string, string> = {
   "Profile performance": "Desempeño del perfil",
   "Last 7 days": "Últimos 7 días",
   "Your personal Tulala page": "Tu página personal de Tulala",
-  "Manage your templates, media embeds, press band, media kit and custom domain on My pages.": "Administra tus plantillas, embeds de medios, banda de prensa, kit de medios y dominio propio en Mis páginas.",
-  "Open My pages": "Abrir Mis páginas",
+  "Manage your templates, media embeds, press band, media kit and custom domain on Public page.": "Administra tus plantillas, embeds de medios, banda de prensa, kit de medios y dominio propio en Página pública.",
+  "Open Public page": "Abrir Página pública",
   "Your roster page is live": "Tu página de roster está publicada",
   "It's published at": "Está publicada en",
   "Richer personal-page tiers with custom templates, embeds and your own domain are on the way, we'll let you know when they open.": "Vienen niveles de página personal más completos con plantillas propias, embeds y tu propio dominio; te avisaremos cuando abran.",
@@ -2857,7 +2857,7 @@ const ES_TEXT: Record<string, string> = {
   "Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.": "Pon tu menú en tu página: los clientes pueden preguntar por un servicio o reservarlo directamente. Toma alrededor de un minuto por servicio.",
   "Set up services": "Configurar servicios",
   "Later": "Más tarde",
-  "Read-only preview. Edit your page content from My pages.": "Vista de solo lectura. Edita el contenido de tu página desde Mis páginas.",
+  "Read-only preview. Edit your page content from Public page.": "Vista de solo lectura. Edita el contenido de tu página desde Página pública.",
 
   // ── W9: profile field-catalog chip labels (Today setup band) ──
   "Contact email": "Correo de contacto",
@@ -3021,7 +3021,7 @@ const ES_TEXT: Record<string, string> = {
   // ── Talent premium pages drawers ──
   "Embeds live on your public page. Add or remove them from My pages, where the changes are saved and published.": "Los embeds viven en tu página pública. Agrégalos o quítalos desde Mis páginas, donde los cambios se guardan y se publican.",
   "Press clippings are part of your public page content. Add them from My pages so they publish with the rest of your site.": "Las notas de prensa son parte del contenido de tu página pública. Agrégalas desde Mis páginas para que se publiquen junto con el resto de tu sitio.",
-  "Connect a custom domain from My pages. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.": "Conecta un dominio personalizado desde Mis páginas. Ese gestor verifica tus registros DNS y emite el certificado SSL, y te muestra los registros exactos para tu dominio.",
+  "Connect a custom domain from Public page. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.": "Conecta un dominio personalizado desde Página pública. Ese gestor verifica tus registros DNS y emite el certificado SSL, y te muestra los registros exactos para tu dominio.",
   "Photo editing requires a live talent profile.": "Para editar fotos necesitas un perfil de talento activo.",
 
   // ── Talent profile shell drawer (Lane Q sweep) ──

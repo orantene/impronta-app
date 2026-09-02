@@ -1106,11 +1106,6 @@
       "count": 19
     }
   },
-  "src/components/admin/shell/internal/talent/pages/messages/MessagesPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 26
-    }
-  },
   "src/components/admin/shell/internal/talent/pages/messages/ThreadParts.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 28

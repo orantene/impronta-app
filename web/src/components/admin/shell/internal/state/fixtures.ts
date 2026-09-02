@@ -52,16 +52,16 @@ export function resolveWorkspacePage(raw: string): WorkspacePage {
 // the topbar nav.
 // WS-8.1: activity removed from primary nav; WS-8.2: reach split into agencies + public-page.
 // Talent Max foundation: public-page tab renders the site dashboard inside the shell at /talent/site
-// and appears in nav as "My pages".
+// and appears in nav as "Public page". Order mirrors talent.tsx rail groups.
 export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
-  "public-page",
-  "profile",
-  "services",
-  "reviews",
   "calendar",
   "money",
+  "profile",
+  "public-page",
+  "services",
+  "reviews",
   "settings",
 ];
 // Messages replaces Inquiries as the canonical chat-first surface for
@@ -279,7 +279,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today:       { label: "Today" },
   messages:    { label: "Messages" },
   profile:     { label: "Profile" },
-  services:    { label: "Catalog & Pricing" },
+  services:    { label: "Services" },
   reviews:     { label: "Reviews" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
@@ -288,7 +288,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   agencies:    { label: "Agencies" },      // legacy — redirects to money
   money:       { label: "Money" },
   payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
-  "public-page": { label: "My pages" }, // canonical URL segment: /talent/site
+  "public-page": { label: "Public page" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };
 

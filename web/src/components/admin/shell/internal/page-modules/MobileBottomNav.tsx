@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
 import type { ClientPage, PlatformPage, TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -17,6 +17,7 @@ export function MobileBottomNav() {
     setPlatformPage,
     effectiveRoster,
     totalUnread: bridgeTotalUnread,
+    bridgeTalentUnread,
   } = useAdminShell();
   const copy = useDashboardText();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -50,9 +51,11 @@ export function MobileBottomNav() {
       }));
     }
     if (state.surface === "talent") {
-      // Per-tab unread badges — derived from real NOTIFICATIONS data.
+      // Per-tab unread badges — live bridge count only (matches the desktop
+      // talent rail, which reads bridgeTalentUnread). 0 shows no badge; no
+      // fixture fallback (was echoing TALENT_NOTIFICATION_COUNT on live 0).
       const TALENT_TAB_BADGE: Partial<Record<TalentPage, number>> = {
-        messages: TALENT_NOTIFICATION_COUNT || undefined,
+        messages: bridgeTalentUnread || undefined,
       };
       return TALENT_PAGES.map((p) => ({
         id: p,
@@ -213,7 +216,7 @@ function BottomTab({
 }: {
   id: string;
   label: string;
-  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down" | "layers" | "globe" | "image" | "star" | "chart" | "send";
+  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down" | "layers" | "globe" | "image" | "star" | "chart" | "send" | "briefcase";
   active: boolean;
   run: () => void;
   badge?: number;
@@ -332,19 +335,21 @@ const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "pl
   workspace: "info",
 };
 
-const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
+const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "briefcase" | "globe" | "star">> = {
   today: "bolt",
   messages: "mail",
-  profile: "user",
-  reviews: "sparkle",
   calendar: "calendar",
-  agencies: "team",
-  "public-page": "sparkle",
+  money: "credit",       // mirrors desktop rail (talent.tsx)
+  profile: "user",
+  "public-page": "globe",
+  services: "briefcase", // mirrors desktop rail (talent.tsx)
+  reviews: "star",
   settings: "info",
   // legacy aliases
   inbox: "mail",
   activity: "sparkle",
   reach: "search",
+  agencies: "team",
 };
 
 const CLIENT_TAB_ICON: Partial<Record<ClientPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
