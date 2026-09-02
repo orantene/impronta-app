@@ -14,15 +14,25 @@
  * WHY THE ANCHOR SECTIONS STAY
  * ────────────────────────────
  * It is tempting to "clean up" the legacy `site_header` / `site_footer`
- * sections once the shell is freeform. Do NOT:
- *   - `loadPublishedShell` returns null when `snapshot.slots` is empty
- *     (`shell-reads.ts:94-96`) → the public reader falls back to the LEGACY
- *     header, i.e. deleting the rows un-does the whole rebuild.
- *   - `republishSiteShellSnapshot` hard-bails with `shell_has_no_sections`
- *     when a shell has zero section rows (`site-shell-publish.ts:139-141`), so
- *     Publish silently no-ops and reports success.
- * The rows are ANCHORS. The freeform tree lives at `snapshot.builderTree`;
- * `slots[]` only has to be non-empty.
+ * sections once the shell is freeform. Do NOT — but the reason CHANGED on
+ * 2026-09-02, so read this carefully before acting on an older copy of it.
+ *
+ * It USED to be that the two engine guards treated zero slot rows as "this
+ * shell is empty": `loadPublishedShell` returned null (→ the public reader fell
+ * back to the LEGACY header, un-doing the whole rebuild) and
+ * `republishSiteShellSnapshot` bailed with `shell_has_no_sections` while
+ * REPORTING SUCCESS. Both now key on "no slots AND no freeform `builderTree`",
+ * so a slots-free shell renders and publishes correctly; see
+ * `shellSnapshotHasContent` (`shell-reads.ts`) and `hasFreeformShellTree`
+ * (`site-shell-publish.ts`).
+ *
+ * The rows are still ANCHORS, for a narrower reason: a landmark node authored
+ * on the freeform surface carries only its identity, and
+ * `hydrateShellLandmarkSectionProps` (`builder-node/shell-render-plan.ts`)
+ * sources its `sectionProps` from the matching SLOT. Delete the rows and the
+ * landmarks lose their bespoke configuration unless the tree carries inline
+ * `sectionProps`. The freeform content itself lives at `snapshot.builderTree`
+ * and no longer depends on `slots[]` being non-empty.
  *
  * WHY THE LANDMARKS ARE `ejected`
  * ───────────────────────────────

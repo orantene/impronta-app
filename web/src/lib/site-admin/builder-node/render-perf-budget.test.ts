@@ -150,9 +150,18 @@ test("PERF-1: a large multi-node page emits the renderer stylesheet exactly once
 });
 
 test("PERF-1: rendering sections independently + composing keeps one stylesheet", () => {
-  // The production path: each section is rendered on its own with the renderer
-  // sheet opted OUT, then the page composes them under a single shared
-  // <BuilderNodeRendererStyles/>. A regression here would emit zero or N sheets.
+  // The production path FOR ONE TREE: each section is rendered on its own with
+  // the renderer sheet opted OUT, then the tree composes them under a single
+  // shared <BuilderNodeRendererStyles/>. A regression here would emit zero or N
+  // sheets.
+  //
+  // NOT a per-PAGE guarantee, and it was read as one until 2026-09-02. A public
+  // route composes THREE such trees — PublicHeader → PublishedShellHeader, the
+  // route body, PublicFooter → PublishedShellFooter — each mounting its own
+  // sheet, so a real page ships three. There is no de-dup mechanism to make it
+  // one; "exactly one" is a per-call convention. The page-level count and byte
+  // total are budgeted in scripts/fidelity/page-shape.ts + perf-budget.ts
+  // (`pageRendererCssSheets` / `pageRendererCssBytes`).
   const sections = Array.from({ length: 10 }, (_, i) =>
     renderBuilderNodes([section(i + 1)], { mode: "freeform", includeRendererStyles: false }),
   );

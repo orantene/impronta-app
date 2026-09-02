@@ -6,8 +6,12 @@
  * Spanish is the reason this exists: its snapshot predates the freeform shell
  * entirely, and the editor publishes one locale at a time.
  *
- * Reports the `reason` verbatim. `shell_has_no_sections` means the anchors are
- * gone and publish SILENTLY no-ops -- it must never be mistaken for success.
+ * Reports the `reason` verbatim. As of 2026-09-02 a shell row with nothing to
+ * bake (no slot rows AND no freeform `blocks`) returns `ok: false` with a real
+ * error instead of the old `ok: true, applied: false,
+ * reason: "shell_has_no_sections"` — that combination reported success while
+ * publishing nothing. The only remaining `applied: false` is `no_shell_row`,
+ * which is a genuine no-op: the tenant is not on the shell path.
  */
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
 import { createClient } from "@supabase/supabase-js";

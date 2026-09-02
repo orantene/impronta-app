@@ -30,8 +30,32 @@ import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-re
 
 export type ShellRepublishResult =
   | { ok: true; applied: true; sectionCount: number; pageVersion: number }
+  /**
+   * The ONLY honest no-op: this tenant has no `site_shell` row, so there is
+   * nothing to publish and nothing was promised. Every caller that treats
+   * `ok: true` as success is correct for this case.
+   *
+   * A shell row that exists but has NOTHING to bake is NOT this. It used to
+   * return `ok: true, applied: false, reason: "shell_has_no_sections"` — and
+   * because no caller inspects `applied`, the operator saw a success toast
+   * while the live shell was untouched. That now returns `ok: false`; see
+   * `NOTHING_TO_PUBLISH_ERROR`.
+   */
   | { ok: true; applied: false; reason: string }
   | { ok: false; error: string };
+
+/**
+ * Operator-facing message for "the shell row exists but carries no content".
+ *
+ * Chosen over a distinct `applied: false` signal because every one of the four
+ * callers (shell Publish, homepage publish, header autosave, footer autosave)
+ * already branches on `ok` alone and renders `error` honestly — an explicit
+ * failure needs ZERO caller changes to stop lying, whereas a new signal would
+ * need all four taught to read it and would keep lying until they were.
+ */
+const NOTHING_TO_PUBLISH_ERROR =
+  "This site shell has no content to publish: no header or footer sections, " +
+  "and no freeform blocks. Add content to the shell before publishing.";
 
 interface ShellRow {
   id: string;
@@ -89,15 +113,38 @@ interface SectionFacts {
  * An EMPTY / non-array `blocks` still falls back to the slot-derived tree, which
  * is what every pre-freeform tenant has. That keeps the legacy path byte-stable.
  */
+/**
+ * SLOTS-FREE SHELL (2026-09-02) — is `cms_pages.blocks` a real freeform tree?
+ *
+ * This is the EXACT shape test `resolveShellSnapshotBuilderTree` uses to decide
+ * that the freeform tree wins over the slot-derived one, and the same test
+ * `publishHomepage` uses for `isFreeformHomepage` (`server/homepage.ts`). It is
+ * exported so the read path (`server/shell-reads.ts`) and the publish path here
+ * cannot drift on what "this shell has freeform content" means.
+ *
+ * WHY IT EXISTS
+ * -------------
+ * Two live guards treated "zero slot rows" as "this shell is empty":
+ * `loadPublishedShell` returned null (→ public reader fell back to the LEGACY
+ * header) and `republishSiteShellSnapshot` bailed with `shell_has_no_sections`
+ * while reporting success. Both are wrong for a shell whose content lives
+ * entirely in `blocks`, which is where the shell surface is heading. See the
+ * header comment of `scripts/impronta-rebuild/shell/seed-shell.ts` for the
+ * incident where deleting the anchor slot rows left the live site with no
+ * header at all — that incident is what these guards were papering over.
+ */
+export function hasFreeformShellTree(blocks: unknown): boolean {
+  return Array.isArray(blocks) && blocks.length > 0;
+}
+
 export function resolveShellSnapshotBuilderTree(
   blocks: unknown,
   slots: ReadonlyArray<Parameters<typeof buildLegacySectionBuilderTree>[0][number]>,
   styleClasses?: BuilderStyleClassRegistry,
 ) {
-  const tree =
-    Array.isArray(blocks) && blocks.length > 0
-      ? (blocks as ReturnType<typeof buildLegacySectionBuilderTree>)
-      : buildLegacySectionBuilderTree(slots);
+  const tree = hasFreeformShellTree(blocks)
+    ? (blocks as ReturnType<typeof buildLegacySectionBuilderTree>)
+    : buildLegacySectionBuilderTree(slots);
   return resolveBuilderTreeClassRefs(tree, styleClasses);
 }
 
@@ -145,17 +192,28 @@ export async function republishSiteShellSnapshot(
       .order("sort_order", { ascending: true });
     draftRows = (liveRowsRaw ?? []) as DraftSlotRow[];
   }
-  if (draftRows.length === 0) {
-    return { ok: true, applied: false, reason: "shell_has_no_sections" };
+  // SLOTS-FREE SHELL (2026-09-02) — zero slot rows is only "nothing to publish"
+  // when there is also no freeform `blocks` tree. A shell authored entirely on
+  // the freeform surface is VALID and must publish: `slots: []` plus the tree
+  // is exactly what `resolveShellSidePlan` renders as `mode: "freeform"`.
+  const hasFreeform = hasFreeformShellTree(shell.blocks);
+  if (draftRows.length === 0 && !hasFreeform) {
+    return { ok: false, error: NOTHING_TO_PUBLISH_ERROR };
   }
 
   // 3. Resolve section facts (type, version, props).
   const sectionIds = draftRows.map((r) => r.section_id);
-  const { data: sectionRowsRaw } = await supabase
-    .from("cms_sections")
-    .select("id, section_type_key, schema_version, name, props_jsonb, status")
-    .eq("tenant_id", tenantId)
-    .in("id", sectionIds);
+  // `.in("id", [])` is a wasted round-trip (and an `id=in.()` PostgREST filter)
+  // on the slots-free shell path — skip it when there is nothing to resolve.
+  const sectionRowsRaw = sectionIds.length
+    ? (
+        await supabase
+          .from("cms_sections")
+          .select("id, section_type_key, schema_version, name, props_jsonb, status")
+          .eq("tenant_id", tenantId)
+          .in("id", sectionIds)
+      ).data
+    : [];
   const factsById = new Map<string, SectionFacts>();
   for (const r of sectionRowsRaw ?? []) {
     if ((r as { status?: string }).status === "archived") continue;
@@ -187,8 +245,8 @@ export async function republishSiteShellSnapshot(
       props: f.props,
     });
   }
-  if (slots.length === 0) {
-    return { ok: true, applied: false, reason: "all_sections_archived" };
+  if (slots.length === 0 && !hasFreeform) {
+    return { ok: false, error: NOTHING_TO_PUBLISH_ERROR };
   }
 
   // 5. Bake snapshot + flip page row to published.
@@ -250,7 +308,11 @@ export async function republishSiteShellSnapshot(
     sort_order: r.sort_order,
     is_draft: false,
   }));
-  await supabase.from("cms_page_sections").insert(liveInserts);
+  // Empty on the slots-free shell path (`draftRows` is already the live-row
+  // fallback, so zero draft rows means zero live rows to re-point at).
+  if (liveInserts.length > 0) {
+    await supabase.from("cms_page_sections").insert(liveInserts);
+  }
 
   return {
     ok: true,
