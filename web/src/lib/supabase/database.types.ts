@@ -5774,7 +5774,7 @@ export type Database = {
           notes: string | null
           reason: string
           source: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -5783,7 +5783,7 @@ export type Database = {
           notes?: string | null
           reason: string
           source?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -5792,7 +5792,7 @@ export type Database = {
           notes?: string | null
           reason?: string
           source?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -10125,6 +10125,94 @@ export type Database = {
           },
         ]
       }
+      provider_payouts: {
+        Row: {
+          amount_cents: number
+          arrival_date: string | null
+          created_at: string
+          currency: string
+          destination_kind: string | null
+          destination_last4: string | null
+          failure_code: string | null
+          failure_message: string | null
+          id: string
+          last_event_id: string | null
+          last_event_type: string | null
+          method: string | null
+          provider: string
+          status: string
+          stripe_account_id: string | null
+          stripe_payout_id: string
+          talent_profile_id: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          arrival_date?: string | null
+          created_at?: string
+          currency: string
+          destination_kind?: string | null
+          destination_last4?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          last_event_id?: string | null
+          last_event_type?: string | null
+          method?: string | null
+          provider?: string
+          status: string
+          stripe_account_id?: string | null
+          stripe_payout_id: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          arrival_date?: string | null
+          created_at?: string
+          currency?: string
+          destination_kind?: string | null
+          destination_last4?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          last_event_id?: string | null
+          last_event_type?: string | null
+          method?: string | null
+          provider?: string
+          status?: string
+          stripe_account_id?: string | null
+          stripe_payout_id?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_payouts_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_payouts_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_payouts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -10419,6 +10507,7 @@ export type Database = {
           notes: string | null
           promo_code: string | null
           provisioned_tenant_id: string | null
+          recovery_email_sent_at: string | null
           referrer: string | null
           roster_size: string
           source_page: string | null
@@ -10447,6 +10536,7 @@ export type Database = {
           notes?: string | null
           promo_code?: string | null
           provisioned_tenant_id?: string | null
+          recovery_email_sent_at?: string | null
           referrer?: string | null
           roster_size: string
           source_page?: string | null
@@ -10475,6 +10565,7 @@ export type Database = {
           notes?: string | null
           promo_code?: string | null
           provisioned_tenant_id?: string | null
+          recovery_email_sent_at?: string | null
           referrer?: string | null
           roster_size?: string
           source_page?: string | null
@@ -17786,6 +17877,10 @@ export type Database = {
           p_participant_id: string
         }
         Returns: undefined
+      }
+      engine_caller_may_write_tenant_finances: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
       }
       engine_cancel_inquiry: {
         Args: {
