@@ -172,7 +172,14 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.tagline}
               </div>
-              {/* Price from PLAN_CATALOG, the same source checkout bills against. */}
+              {/* Price from PLAN_CATALOG. NOTE: this is NOT the source checkout
+                  bills against — checkout resolves a Stripe price id from
+                  `product_prices` via lib/stripe/price-catalog.ts, and this
+                  constant is a second, code-side copy of the number. The two
+                  agree today ($9 / $15). They are not guaranteed to, and the
+                  comment that used to sit here claimed they were the same
+                  source, which is exactly how a stale price reaches a customer.
+                  Replace with a catalog read when this drawer gets a loader. */}
               <div className="mt-2 text-[13px] font-semibold">
                 {tierMonthlyPrice(tierId)
                   ? interpolate(t("dashboard.talentDrawers.premiumPages.perMonth"), {

@@ -9,8 +9,8 @@
  *   - Free plan: never exclusive (friend-link case, 0% commission).
  *
  * Symmetric with `web/src/lib/inquiry/owning-party-resolver.ts` — both
- * gate on the same exclusive-tier plan set:
- *   EXCLUSIVE_PLAN_TIERS = { studio, agency, network, hub-network }
+ * gate on the same exclusive-tier plan set, which is now declared once in
+ * `@/lib/access/exclusive-plan-tiers` rather than copied into each caller.
  *
  * Talent-initiated self-provision flows should NOT call this: when a
  * talent joins their own profile to an existing agency, they're
@@ -19,13 +19,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-const EXCLUSIVE_PLAN_TIERS = new Set<string>([
-  "studio",
-  "agency",
-  "network",
-  "hub-network",
-]);
+import { planAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 export type ExclusivityResolution = {
   /** True when the new roster row should be inserted with is_primary=TRUE. */
@@ -69,7 +63,7 @@ export async function resolveExclusivityForRosterAdd(
     .maybeSingle();
   const planTier = (agencyError ? null : (agency?.plan_tier as string | null)) ?? null;
 
-  if (!planTier || !EXCLUSIVE_PLAN_TIERS.has(planTier)) {
+  if (!planAllowsExclusivity(planTier)) {
     return {
       shouldBeExclusive: false,
       planTier,

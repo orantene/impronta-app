@@ -104,8 +104,15 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     key: "studio",
     audience: "workspace",
     displayName: "Studio",
-    tagline: "For solo operators",
-    description: "Embed your roster anywhere. Studio adds widgets and API access.",
+    tagline: "For small teams",
+    // CORRECTED 2026-09-02. This read "Embed your roster anywhere. Studio adds
+    // widgets and API access." — a description of AGENCY's capability set, sold
+    // as Studio's. `plan_tier_caps` has Studio at embed_widgets=false and
+    // api_access=false; there is also no public API in the product to grant.
+    // What Studio actually adds over Free is the people machinery, which is what
+    // the live Stripe product description has always said.
+    description:
+      "Your website plus the people machinery: a roster of up to 15, three team seats, commissions, and coordinated bookings.",
     rank: 2,
     monthlyPriceCents: 2900,
     annualPriceCents: 29000,
@@ -122,7 +129,13 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     audience: "workspace",
     displayName: "Agency",
     tagline: "For full agencies",
-    description: "Your domain. Your pages. Your brand. Pages, posts, navigation, theme.",
+    // CORRECTED 2026-09-02. This read "Your domain. Your pages. Your brand.
+    // Pages, posts, navigation, theme." — the WEBSITE tier's pitch, on the
+    // Agency row. The plan descriptions were shifted by one rung. What Agency
+    // actually adds over Studio is unlimited roster and team, exclusivity, and
+    // the capabilities `plan_tier_caps` reserves for it.
+    description:
+      "Unlimited roster and team, exclusivity management, pitch tools, and priority support.",
     rank: 3,
     monthlyPriceCents: 7900,
     annualPriceCents: 79000,
