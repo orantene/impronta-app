@@ -504,6 +504,151 @@ export async function syncStripeSubscriptionToDb(
 // ─── Subscription state reader ────────────────────────────────────────────────
 
 /**
+ * Tell Stripe to stop billing this workspace at the end of the period it has
+ * already paid for.
+ *
+ * WHY THIS EXISTS: `cancelSubscription` used to write `agencies.plan_tier`
+ * straight to 'free' and never contact Stripe at all — the code said so in a
+ * comment ("Phase 8 (Stripe) will hook this to cancel_at_period_end. For now
+ * agencies.plan_tier is direct"). Two things went wrong at once. The customer
+ * lost access immediately while their card kept being charged every month. And
+ * because `syncStripeSubscriptionToDb` keeps `plan_tier` in step with Stripe,
+ * the next `customer.subscription.updated` webhook silently restored the tier
+ * they had just cancelled.
+ *
+ * The fix is to make Stripe the one that decides when the plan ends. We set
+ * `cancel_at_period_end`, leave the entitlement exactly where it is, and let
+ * the `customer.subscription.deleted` webhook drop the tier when the period
+ * actually runs out. The customer keeps what they paid for, billing stops, and
+ * there is no longer a local write for a webhook to disagree with.
+ *
+ * Returns the date access runs until, so the caller can tell the customer.
+ */
+export async function cancelWorkspaceSubscriptionAtPeriodEnd(
+  tenantId: string,
+): Promise<BillingResult<{ effectiveAt: string | null; hadSubscription: boolean }>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Database not available." };
+
+  const { data, error } = await admin
+    .from("workspace_subscriptions")
+    .select("stripe_subscription_id, status, current_period_end")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("workspace-billing.cancelAtPeriodEnd.load", error);
+    return { ok: false, error: "Could not read the subscription." };
+  }
+
+  const row = data as {
+    stripe_subscription_id?: string | null;
+    status?: string | null;
+    current_period_end?: string | null;
+  } | null;
+
+  // No Stripe subscription: a free or comped tenant. Nothing to cancel, and the
+  // caller's direct plan write is the correct behaviour for them.
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { effectiveAt: null, hadSubscription: false } };
+  }
+  // Already ended at Stripe; treat as done rather than erroring the customer.
+  if (row.status === "canceled" || row.status === "cancelled") {
+    return { ok: true, data: { effectiveAt: row.current_period_end ?? null, hadSubscription: true } };
+  }
+
+  if (!isStripeConfigured()) {
+    return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
+  }
+  const stripe = getStripe();
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
+  }
+
+  try {
+    const updated = await stripe.subscriptions.update(row.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
+    // Mirror the flag locally so the UI can say "ends on ..." before the
+    // webhook lands. The tier itself is deliberately NOT touched.
+    const periodEnd = updated.cancel_at ?? updated.items?.data?.[0]?.current_period_end ?? null;
+    const effectiveAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : row.current_period_end ?? null;
+    const { error: writeErr } = await admin
+      .from("workspace_subscriptions")
+      .update({ cancel_at_period_end: true, updated_at: new Date().toISOString() })
+      .eq("tenant_id", tenantId);
+    if (writeErr) logServerError("workspace-billing.cancelAtPeriodEnd.mirror", writeErr);
+
+    return { ok: true, data: { effectiveAt, hadSubscription: true } };
+  } catch (err) {
+    logServerError("workspace-billing.cancelAtPeriodEnd", err);
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+  }
+}
+
+/**
+ * Pause billing until a date, using Stripe's own `pause_collection`.
+ *
+ * `pauseSubscription` previously inserted an analytics row and did nothing
+ * else — the code called itself a stub ("Stripe pause is Phase 8") while the
+ * customer kept being invoiced through the pause they thought they had.
+ * `behavior: "void"` means invoices raised during the window are voided rather
+ * than accumulating into a bill that lands the moment they come back.
+ */
+export async function pauseWorkspaceSubscriptionCollection(
+  tenantId: string,
+  resumesAtIso: string,
+): Promise<BillingResult<{ paused: boolean }>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Database not available." };
+
+  const { data } = await admin
+    .from("workspace_subscriptions")
+    .select("stripe_subscription_id, status")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const row = data as { stripe_subscription_id?: string | null; status?: string | null } | null;
+
+  // Nothing is being billed, so there is nothing to pause. Not an error.
+  if (!row?.stripe_subscription_id) return { ok: true, data: { paused: false } };
+
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now, so the pause was not applied." };
+  }
+
+  try {
+    await stripe.subscriptions.update(row.stripe_subscription_id, {
+      pause_collection: {
+        behavior: "void",
+        resumes_at: Math.floor(new Date(resumesAtIso).getTime() / 1000),
+      },
+    });
+    return { ok: true, data: { paused: true } };
+  } catch (err) {
+    logServerError("workspace-billing.pauseCollection", err);
+    return { ok: false, error: "Stripe could not pause billing. Nothing was changed." };
+  }
+}
+
+/**
+ * Does this workspace have a live Stripe subscription? Used to refuse a
+ * paid-to-paid tier change that we cannot yet perform correctly, rather than
+ * writing the tier locally and leaving Stripe billing the old price.
+ */
+export async function hasLiveWorkspaceSubscription(tenantId: string): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data } = await admin
+    .from("workspace_subscriptions")
+    .select("stripe_subscription_id, status")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const row = data as { stripe_subscription_id?: string | null; status?: string | null } | null;
+  if (!row?.stripe_subscription_id) return false;
+  return !["canceled", "cancelled", "incomplete_expired"].includes(String(row.status ?? ""));
+}
+
+/**
  * Load the current subscription state for a tenant. Returns null when the
  * tenant has no active Stripe subscription (free tier).
  *
