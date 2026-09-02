@@ -28,7 +28,7 @@
  * reason the brief also requires a live round-trip check.
  *
  * 2026-09-02 — THAT LIMIT IS NOW EXERCISED, DELIBERATELY. The save path calls
- * `mirrorShellLandmarkSectionProps`, which DOES update `cms_pages.blocks`. It
+ * `writeShellLandmarkNodeProps`, which DOES update `cms_pages.blocks`. It
  * has to: `resolveShellLandmarkSectionProps` makes a landmark's inline
  * `props.sectionProps` beat the slot row, so after Phase 8B a footer inspector
  * save that only touched `cms_sections` would never reach the live site.

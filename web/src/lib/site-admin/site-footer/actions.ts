@@ -7,21 +7,23 @@
  * header inspector spans three tables (identity / branding / navigation) plus
  * the section row, and needs a five-kind save queue to keep their CAS pointers
  * straight. The footer's entire configuration already lives in ONE place — the
- * `site_footer` section's `props_jsonb` — so this file has exactly one write
- * path and one CAS pointer. Inventing the header's multi-kind machinery here
- * would be complexity with nothing behind it.
+ * `site_footer` landmark's section props — so this file has exactly one write
+ * path. Inventing the header's multi-kind machinery here would be complexity
+ * with nothing behind it.
  *
  * WRITE TARGET, AND THE PROPERTY THAT DEPENDS ON IT
  * --------------------------------------------------------------------------
- * The save goes through the EXISTING canonical `saveSectionDraftAction` (Zod +
- * CAS + audit + revision) against `cms_sections`, then re-bakes the shell
- * snapshot via the EXISTING `republishSiteShellSnapshot`.
+ * While a `cms_sections` row exists the save goes through the EXISTING
+ * canonical `saveSectionDraftAction` (Zod + CAS + audit + revision) against it,
+ * then re-bakes the shell snapshot via the EXISTING
+ * `republishSiteShellSnapshot`.
  *
  * 2026-09-02 — THIS FILE NO LONGER WRITES ONLY `cms_sections`. It previously
  * said it "NEVER writes `cms_pages.blocks`", and that is now false: the save
- * also calls `mirrorShellLandmarkSectionProps`, which updates the `site_footer`
+ * also calls `writeShellLandmarkNodeProps`, which updates the `site_footer`
  * landmark node's `props.sectionProps` on `cms_pages.blocks` WHEN that landmark
- * owns its config inline.
+ * owns its config inline — and which becomes the ONLY write once Phase 8B has
+ * deleted the anchor row and there is no `cms_sections` row left to save to.
  *
  * It has to. `resolveShellLandmarkSectionProps` makes a landmark's inline
  * `sectionProps` beat the slot row on both render paths, so once Phase 8B seeds
@@ -37,10 +39,15 @@
  * (`freeform-children-untouched.static.test.ts`) still forbids a RAW `blocks`
  * write in this file — that remains the wrong way to do it.
  *
- * The read also touches `cms_pages.blocks` read-only, twice: to count the
- * landmark's freeform children for the drawer, and to prefer the landmark's
- * inline `sectionProps` over the section row so the inspector displays what the
- * site actually renders.
+ * The read also touches `cms_pages.blocks` read-only: `resolveShellLandmark`
+ * prefers the landmark's inline `sectionProps` over the section row so the
+ * inspector displays what the site actually renders, and
+ * `countFooterFreeformChildren` counts the landmark's children for the drawer.
+ *
+ * And the file no longer has "exactly one CAS pointer". It has one at a time:
+ * `cms_sections.version` while the anchor row exists, `cms_pages.version` once
+ * it does not. Which is which is `resolveFooterSection`'s answer, not this
+ * file's guess.
  */
 
 import { revalidateTag } from "next/cache";
@@ -52,8 +59,9 @@ import { userHasCapability } from "@/lib/access/has-capability";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { saveSectionDraftAction } from "@/lib/site-admin/edit-mode/section-actions";
 import {
-  mirrorShellLandmarkSectionProps,
-  readShellLandmarkOwnedProps,
+  readShellPageVersion,
+  resolveShellLandmark,
+  writeShellLandmarkNodeProps,
 } from "@/lib/site-admin/edit-mode/shell-landmark-props-persist";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
 import {
@@ -64,7 +72,6 @@ import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities"
 import type { Locale } from "@/i18n/config";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
-import { pickShellPageForLocale } from "@/lib/site-admin/site-header/shell-page-pick";
 
 import { mergeFooterProps, readFooterValue } from "./config-merge";
 import type { SiteFooterConfig, SiteFooterPatchInput } from "./types";
@@ -76,109 +83,81 @@ type ActionResult<T> =
 /** The capability every footer read/write is gated on. */
 const FOOTER_EDIT_CAPABILITY = "agency.site_admin.pages.edit";
 
-interface FooterSectionFacts {
-  sectionId: string;
-  sectionTypeKey: string;
-  schemaVersion: number;
-  name: string;
-  version: number;
-  locale: string;
-  props: Record<string, unknown>;
-  /**
-   * The shell `cms_pages` row id — used for the read-only child count, and for
-   * the landmark-node props mirror.
-   */
-  shellPageId: string;
-}
-
 /**
- * Resolve the tenant's `site_footer` section row.
+ * What the footer inspector is editing, and WHICH STORE owns it.
  *
- * Byte-for-byte the header's `resolveHeaderSection` with `slot_key = "footer"`,
- * including the draft-then-published pointer fallback: a tenant whose shell has
- * been published but never re-drafted has no `is_draft = true` pointer, and
- * without the fallback the inspector would report "not found" on exactly the
- * tenants whose footer is live.
+ * The old body began at the slot pointer, so with no pointer it returned `null`
+ * and the drawer failed with NOT_FOUND — the shell editor dies the moment Phase
+ * 8B deletes the anchor rows. `resolveShellLandmark` begins at the shell page
+ * and lets ownership decide. It carries the shell-page pick, the
+ * draft-then-published pointer fallback, the bilingual `.maybeSingle()` fix and
+ * the NODE-FIRST read, so the header and the footer cannot drift apart again.
+ *
+ *   `owner: "section"` — a `cms_sections` row exists. It stays the write spine
+ *                        (Zod + CAS + audit + revision) and 8B's rollback
+ *                        target; `version` is that row's, `props` is
+ *                        node-first for display, and the save MIRRORS onto the
+ *                        node when the landmark owns its config.
+ *   `owner: "node"`    — no row left. The node IS the store; `version` is
+ *                        `cms_pages.version` and the save CAS's on it.
+ *   `null`             — neither exists. An honest empty state, never a save
+ *                        that goes nowhere.
  */
+type FooterSectionFacts =
+  | {
+      owner: "node";
+      pageId: string;
+      version: number;
+      locale: string;
+      props: Record<string, unknown>;
+      /** The shell `cms_pages` row id — used for the read-only child count. */
+      shellPageId: string;
+    }
+  | {
+      owner: "section";
+      sectionId: string;
+      sectionTypeKey: string;
+      schemaVersion: number;
+      name: string;
+      version: number;
+      locale: string;
+      props: Record<string, unknown>;
+      /**
+       * The shell `cms_pages` row id — used for the read-only child count, and
+       * for the landmark-node props mirror.
+       */
+      shellPageId: string;
+    };
+
 async function resolveFooterSection(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<FooterSectionFacts | null> {
-  // 2026-08-17 — this used `.maybeSingle()`, the exact bug the header already
-  // fixed: with one shell page PER LOCALE, PostgREST errors instead of picking,
-  // and every footer control silently renders its empty state on a bilingual
-  // tenant. Ported verbatim from `resolveHeaderSection`; the rule + its test
-  // live in `site-header/shell-page-pick.ts`.
-  const { data: shells } = await supabase
-    .from("cms_pages")
-    .select("id, locale")
-    .eq("tenant_id", tenantId)
-    .eq("system_template_key", "site_shell")
-    .neq("status", "archived")
-    .returns<Array<{ id: string; locale: string | null }>>();
-  const { data: identity } = await supabase
-    .from("agency_business_identity")
-    .select("default_locale")
-    .eq("tenant_id", tenantId)
-    .maybeSingle<{ default_locale: string | null }>();
-  const shell = pickShellPageForLocale(
-    shells ?? [],
-    identity?.default_locale ?? "en",
-  );
-  if (!shell) return null;
-
-  let { data: ptr } = await supabase
-    .from("cms_page_sections")
-    .select("section_id")
-    .eq("tenant_id", tenantId)
-    .eq("page_id", shell.id)
-    .eq("slot_key", "footer")
-    .eq("is_draft", true)
-    .maybeSingle<{ section_id: string }>();
-  if (!ptr) {
-    ({ data: ptr } = await supabase
-      .from("cms_page_sections")
-      .select("section_id")
-      .eq("tenant_id", tenantId)
-      .eq("page_id", shell.id)
-      .eq("slot_key", "footer")
-      .eq("is_draft", false)
-      .maybeSingle<{ section_id: string }>());
-  }
-  if (!ptr) return null;
-
-  const { data: sec } = await supabase
-    .from("cms_sections")
-    .select("id, section_type_key, schema_version, name, version, props_jsonb")
-    .eq("tenant_id", tenantId)
-    .eq("id", ptr.section_id)
-    .maybeSingle<{
-      id: string;
-      section_type_key: string;
-      schema_version: number;
-      name: string;
-      version: number;
-      props_jsonb: Record<string, unknown> | null;
-    }>();
-  if (!sec) return null;
-
-  // NODE-FIRST, matching the renderer — the same rule the header applies, for
-  // the same reason. See `readShellLandmarkOwnedProps`.
-  const owned = await readShellLandmarkOwnedProps(supabase, {
+  const resolved = await resolveShellLandmark(supabase, {
     tenantId,
-    shellPageId: shell.id,
     side: "footer",
   });
-
+  if (resolved.target.kind === "none" || !resolved.shellPageId) return null;
+  if (resolved.target.kind === "node") {
+    return {
+      owner: "node",
+      pageId: resolved.target.pageId,
+      version: resolved.target.version,
+      locale: resolved.target.locale,
+      props: resolved.target.props,
+      shellPageId: resolved.shellPageId,
+    };
+  }
   return {
-    sectionId: sec.id,
-    sectionTypeKey: sec.section_type_key,
-    schemaVersion: sec.schema_version,
-    name: sec.name,
-    version: sec.version,
-    locale: shell.locale ?? "en",
-    props: owned ?? sec.props_jsonb ?? {},
-    shellPageId: shell.id,
+    owner: "section",
+    sectionId: resolved.target.sectionId,
+    sectionTypeKey: resolved.target.sectionTypeKey,
+    schemaVersion: resolved.target.schemaVersion,
+    name: resolved.target.name,
+    version: resolved.target.version,
+    locale: resolved.target.locale,
+    props: resolved.target.props,
+    shellPageId: resolved.shellPageId,
   };
 }
 
@@ -250,7 +229,9 @@ export async function loadFooterConfigAction(): Promise<
     ok: true,
     shellEditMode: shellEditModeForPlan(plan),
     config: {
-      sectionId: facts.sectionId,
+      // On the node-primary path there is no section row; this is the shell
+      // page id, and nothing reads it as a `cms_sections` key.
+      sectionId: facts.owner === "node" ? facts.pageId : facts.sectionId,
       version: facts.version,
       locale: facts.locale,
       value: readFooterValue(facts.props),
@@ -310,6 +291,48 @@ export async function saveFooterSectionAction(input: {
 
   const nextProps = mergeFooterProps(facts.props, input.patch);
 
+  // NODE-PRIMARY — Phase 8B has deleted this landmark's anchor row, so there is
+  // no `cms_sections` write to make and no row CAS to hang off. The node is the
+  // store. Before this branch existed the resolver returned null here and the
+  // whole drawer failed with NOT_FOUND.
+  if (facts.owner === "node") {
+    const written = await writeShellLandmarkNodeProps(auth.supabase, {
+      tenantId: scope.tenantId,
+      shellPageId: facts.pageId,
+      side: "footer",
+      nextProps,
+      expectedPageVersion: input.expectedVersion,
+    });
+    if (!written.ok) {
+      return {
+        ok: false,
+        error: written.error,
+        code: written.code,
+        currentVersion: written.currentVersion,
+      };
+    }
+    const nodeRep = await republishSiteShellSnapshot(auth.supabase, {
+      tenantId: scope.tenantId,
+      locale: facts.locale as Locale,
+      actorProfileId: null,
+    });
+    if (!nodeRep.ok) return { ok: false, error: nodeRep.error };
+
+    revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+    revalidateTag(tagFor(scope.tenantId, "storefront"), "default");
+
+    // The republish bumps `cms_pages.version` again — read back the value the
+    // drawer must hold for its next CAS rather than deriving it.
+    const current = await readShellPageVersion(auth.supabase, {
+      tenantId: scope.tenantId,
+      pageId: facts.pageId,
+    });
+    return {
+      ok: true,
+      version: current ?? written.version ?? input.expectedVersion,
+    };
+  }
+
   const res = await saveSectionDraftAction({
     id: facts.sectionId,
     sectionTypeKey: facts.sectionTypeKey,
@@ -333,11 +356,15 @@ export async function saveFooterSectionAction(input: {
   // win and this row write stops reaching the live site. A no-op, and no
   // `cms_pages` write at all, on every slot-owned shell. Must run BEFORE the
   // republish, which bakes `blocks` into the rendered snapshot.
-  const mirror = await mirrorShellLandmarkSectionProps(auth.supabase, {
+  //
+  // `expectedPageVersion: null` is MIRROR mode: the authoritative CAS was the
+  // row's, applied above, so this must not impose a second one.
+  const mirror = await writeShellLandmarkNodeProps(auth.supabase, {
     tenantId: scope.tenantId,
     shellPageId: facts.shellPageId,
     side: "footer",
     nextProps,
+    expectedPageVersion: null,
   });
   if (!mirror.ok) return { ok: false, error: mirror.error };
 

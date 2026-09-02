@@ -39,10 +39,8 @@ import {
   resolveShellLandmarkSectionProps,
   type ShellSideKey,
 } from "@/lib/site-admin/builder-node/shell-render-plan";
-import {
-  mirrorShellLandmarkSectionProps,
-  readShellLandmarkOwnedProps,
-} from "@/lib/site-admin/edit-mode/shell-landmark-props-persist";
+import { writeShellLandmarkNodeProps } from "@/lib/site-admin/edit-mode/shell-landmark-props-persist";
+import { readLandmarkInlineProps } from "@/lib/site-admin/edit-mode/shell-landmark-config";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 const TENANT = "tenant-1";
@@ -96,14 +94,37 @@ interface FakeDb {
   blocks: BuilderNodeTree | null;
   updates: number;
   failUpdate?: boolean;
+  /** `cms_pages.version` — the CAS token the node-PRIMARY path uses. */
+  version?: number;
+  /** `cms_pages.updated_at` — the guard both modes take. */
+  updatedAt?: string;
+  /**
+   * Fired AFTER the writer's SELECT and BEFORE its UPDATE — the interleaving a
+   * database CAS filter exists to catch. Without it the read-then-write window
+   * is untestable and the `.eq()` filters could be deleted with a green suite.
+   */
+  onRead?: () => void;
 }
 
 /**
  * The narrow slice of the Supabase client surface the persist module touches:
- * `.from("cms_pages").select("blocks").eq().eq().maybeSingle()` for the read,
- * and `.from("cms_pages").update({blocks}).eq().eq()` for the write.
+ * a `cms_pages` row read, and a filtered `cms_pages` update.
+ *
+ * The `.eq()` filters are HONOURED rather than ignored, because the node-primary
+ * path's whole concurrency story is those filters. A fake that swallowed them
+ * would let a CAS test pass against a writer that had no CAS.
  */
 function fakeSupabase(db: FakeDb) {
+  const row = () =>
+    db.blocks === null
+      ? null
+      : {
+          id: SHELL_PAGE,
+          locale: "en",
+          version: db.version ?? 1,
+          updated_at: db.updatedAt ?? "2026-09-02T00:00:00Z",
+          blocks: db.blocks,
+        };
   return {
     from(table: string) {
       assert.equal(table, "cms_pages", "persist module read an unexpected table");
@@ -115,23 +136,49 @@ function fakeSupabase(db: FakeDb) {
           return chain;
         },
         async maybeSingle() {
-          return { data: db.blocks === null ? null : { blocks: db.blocks } };
+          const snapshot = row();
+          db.onRead?.();
+          return { data: snapshot };
         },
-        update(patch: { blocks: BuilderNodeTree }) {
-          db.updates += 1;
-          if (!db.failUpdate) db.blocks = patch.blocks;
+        update(patch: Record<string, unknown>) {
+          const filters: Array<[string, unknown]> = [];
           const done = {
-            eq() {
+            eq(column: string, value: unknown) {
+              filters.push([column, value]);
               return done;
             },
-            then(
-              resolve: (v: { error: { message: string } | null }) => unknown,
-            ) {
-              return Promise.resolve(
-                db.failUpdate ? { error: { message: "boom" } } : { error: null },
-              ).then(resolve);
+            select() {
+              return done;
+            },
+            async maybeSingle() {
+              return settle();
+            },
+            then(resolve: (v: unknown) => unknown) {
+              return Promise.resolve(settle()).then(resolve);
             },
           };
+          function settle() {
+            if (db.failUpdate) return { data: null, error: { message: "boom" } };
+            const current = row();
+            // Every filter must match the row as it stands, exactly as the
+            // database would apply them.
+            for (const [column, value] of filters) {
+              if (column === "version" && (current?.version ?? null) !== value) {
+                return { data: null, error: null };
+              }
+              if (
+                column === "updated_at" &&
+                (current?.updated_at ?? null) !== value
+              ) {
+                return { data: null, error: null };
+              }
+            }
+            db.updates += 1;
+            if (patch.blocks !== undefined) db.blocks = patch.blocks as BuilderNodeTree;
+            if (typeof patch.version === "number") db.version = patch.version;
+            if (typeof patch.updated_at === "string") db.updatedAt = patch.updated_at;
+            return { data: { version: db.version ?? 1 }, error: null };
+          }
           return done;
         },
       };
@@ -153,12 +200,14 @@ async function inspectorSave(
   opts: { mirror: boolean } = { mirror: true },
 ) {
   db.rows[side] = nextProps;
-  if (!opts.mirror) return { ok: true as const, mirrored: false };
-  return mirrorShellLandmarkSectionProps(fakeSupabase(db), {
+  if (!opts.mirror) return { ok: true as const, wrote: false, version: null };
+  return writeShellLandmarkNodeProps(fakeSupabase(db), {
     tenantId: TENANT,
     shellPageId: SHELL_PAGE,
     side,
     nextProps,
+    // MIRROR mode: the row write above already applied the authoritative CAS.
+    expectedPageVersion: null,
   });
 }
 
@@ -189,7 +238,7 @@ test("[N1] a node-owned header: the inspector's edit reaches the live site", asy
   assert.equal(whatTheSiteShows(db, "header").variant, "standard");
 
   const res = await inspectorSave(db, "header", { variant: "centered" });
-  assert.deepEqual(res, { ok: true, mirrored: true });
+  assert.deepEqual(res, { ok: true, wrote: true, version: null });
 
   // THE ASSERTION. On `main` — row write only, no mirror — this is still
   // "standard": the operator saw "saved" and the site never changed.
@@ -248,7 +297,7 @@ test("[N4] a slot-owned landmark is left alone — no cms_pages write at all", a
   const before = db.blocks;
 
   const res = await inspectorSave(db, "header", { variant: "centered" });
-  assert.deepEqual(res, { ok: true, mirrored: false });
+  assert.deepEqual(res, { ok: true, wrote: false, version: null });
   assert.equal(db.updates, 0, "a slot-owned shell must take ZERO cms_pages writes");
   assert.equal(db.blocks, before, "the tree must be the same object, untouched");
 
@@ -378,7 +427,7 @@ test("[N9] a failed tree write is reported, never swallowed", async () => {
 test("[N10] a shell with no freeform tree is a clean no-op", async () => {
   const db: FakeDb = { rows: { header: {} }, blocks: null, updates: 0 };
   const res = await inspectorSave(db, "header", { variant: "centered" });
-  assert.deepEqual(res, { ok: true, mirrored: false });
+  assert.deepEqual(res, { ok: true, wrote: false, version: null });
   assert.equal(db.updates, 0);
 });
 
@@ -392,11 +441,7 @@ test("[N11] the inspector DISPLAYS the node's props when the node owns them", as
     blocks: [landmark("header", { variant: "what-the-site-renders" })],
     updates: 0,
   };
-  const owned = await readShellLandmarkOwnedProps(fakeSupabase(db), {
-    tenantId: TENANT,
-    shellPageId: SHELL_PAGE,
-    side: "header",
-  });
+  const owned = readLandmarkInlineProps(db.blocks, "header");
   assert.deepEqual(
     owned,
     { variant: "what-the-site-renders" },
@@ -412,14 +457,7 @@ test("[N12] a slot-owned landmark reports null so the caller falls back to the r
     blocks: [landmark("header", undefined)],
     updates: 0,
   };
-  assert.equal(
-    await readShellLandmarkOwnedProps(fakeSupabase(db), {
-      tenantId: TENANT,
-      shellPageId: SHELL_PAGE,
-      side: "header",
-    }),
-    null,
-  );
+  assert.equal(readLandmarkInlineProps(db.blocks, "header"), null);
 });
 
 test("[N13] a non-object inline value is not treated as ownership", () => {
@@ -454,11 +492,11 @@ for (const [side, rel] of ACTION_FILES) {
   const CODE = codeOnly(readFileSync(path.join(process.cwd(), rel), "utf8"));
 
   test(`[N14-${side}] the save mirrors onto the landmark node`, () => {
-    // Match the CALL, not a mention: an `import { mirrorShellLandmarkSectionProps }`
+    // Match the CALL, not a mention: an `import { writeShellLandmarkNodeProps }`
     // left behind after the call was deleted must not satisfy this guard.
     assert.match(
       CODE,
-      /await\s+mirrorShellLandmarkSectionProps\(/,
+      /await\s+writeShellLandmarkNodeProps\(/,
       `${rel} saves \`cms_sections.props_jsonb\` and nothing else. Once the ` +
         `${side} landmark carries inline \`sectionProps\`, that write no longer ` +
         `reaches the live site — see [N3].`,
@@ -466,7 +504,7 @@ for (const [side, rel] of ACTION_FILES) {
   });
 
   test(`[N15-${side}] the mirror runs BEFORE the snapshot re-bake`, () => {
-    const mirrorAt = CODE.indexOf("mirrorShellLandmarkSectionProps(");
+    const mirrorAt = CODE.indexOf("writeShellLandmarkNodeProps(");
     const republishAt = CODE.indexOf("republishSiteShellSnapshot(");
     assert.ok(mirrorAt > 0 && republishAt > 0, "both calls must be present");
     assert.ok(
@@ -480,7 +518,7 @@ for (const [side, rel] of ACTION_FILES) {
   test(`[N16-${side}] the mirror's failure is propagated, not ignored`, () => {
     assert.match(
       CODE,
-      /const mirror = await mirrorShellLandmarkSectionProps\([\s\S]{0,400}?if \(!mirror\.ok\)/,
+      /const mirror = await writeShellLandmarkNodeProps\([\s\S]{0,400}?if \(!mirror\.ok\)/,
       "The mirror result must be checked. An unchecked call turns a failed tree " +
         "write into a success state on a save that changed nothing visible.",
     );
@@ -489,10 +527,208 @@ for (const [side, rel] of ACTION_FILES) {
   test(`[N17-${side}] the inspector reads node-first, matching the renderer`, () => {
     assert.match(
       CODE,
-      /await\s+readShellLandmarkOwnedProps\(/,
+      /await\s+resolveShellLandmark\(/,
       `${rel} must prefer the landmark's inline \`sectionProps\` when it owns ` +
         `them — the same precedence \`resolveShellLandmarkSectionProps\` applies ` +
         `on the render path. See [N11].`,
     );
   });
+
+  test(`[N18-${side}] the action has a NODE-PRIMARY branch for the post-8B shell`, () => {
+    // The mirror alone cannot save a landmark whose anchor row is gone: there
+    // is no row write to mirror from. The action must pass a NUMERIC
+    // `expectedPageVersion`, which is what selects the primary, CAS'd write.
+    assert.match(
+      CODE,
+      /expectedPageVersion:\s*input\.expectedVersion/,
+      `${rel} only ever calls the node writer in MIRROR mode ` +
+        `(\`expectedPageVersion: null\`). Once Phase 8B deletes the ` +
+        `${side} anchor row there is no \`cms_sections\` write to mirror from, ` +
+        `and every save in that state fails NOT_FOUND. See [N19].`,
+    );
+  });
 }
+
+// ── NODE-PRIMARY: the state Phase 8B actually leaves behind ─────────────────
+
+/** A shell whose anchor row is GONE: only the landmark node holds the config. */
+function nodeOnlyDb(props: Record<string, unknown>): FakeDb {
+  return {
+    rows: {}, // no `cms_sections` row for either side
+    blocks: [landmark("header", props, [operatorRoot("child-a")])],
+    updates: 0,
+    version: 5,
+    updatedAt: "2026-09-02T10:00:00Z",
+  };
+}
+
+test("[N19] node-only: the save reaches the live site with no section row at all", async () => {
+  const db = nodeOnlyDb({ variant: "standard" });
+  const res = await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: 5,
+  });
+
+  assert.deepEqual(res, { ok: true, wrote: true, version: 6 });
+  assert.deepEqual(
+    whatTheSiteShows(db, "header"),
+    { variant: "centered" },
+    "This is the whole point of the change: with the anchor row deleted, an " +
+      "inspector save must still reach what the visitor sees.",
+  );
+  assert.equal(db.version, 6, "the CAS token must advance, or it is not a CAS");
+});
+
+test("[N20] node-only: a stale expectedPageVersion is a CONFLICT, not an overwrite", async () => {
+  const db = nodeOnlyDb({ variant: "standard" });
+  const res = await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: 4, // the drawer loaded before someone else saved
+  });
+
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "CONFLICT");
+  assert.equal(!res.ok && res.currentVersion, 5);
+  assert.deepEqual(
+    whatTheSiteShows(db, "header"),
+    { variant: "standard" },
+    "a losing CAS must change nothing",
+  );
+  assert.equal(db.updates, 0);
+});
+
+test("[N21] node-only: a vanished landmark is refused, never a silent no-op success", async () => {
+  const db: FakeDb = {
+    rows: {},
+    blocks: [operatorRoot("just-an-announcement-bar")],
+    updates: 0,
+    version: 5,
+  };
+  const res = await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: 5,
+  });
+
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "NOT_FOUND");
+  assert.equal(
+    db.updates,
+    0,
+    "appending a landmark here would invent a shell the operator never authored",
+  );
+});
+
+test("[N22] node-only: the landmark's freeform children survive the primary write", async () => {
+  const db = nodeOnlyDb({ variant: "standard" });
+  await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: 5,
+  });
+  const node = (db.blocks ?? [])[0] as { children?: Array<{ id: string }> };
+  assert.deepEqual((node.children ?? []).map((c) => c.id), ["child-a"]);
+});
+
+test("[N23] MIRROR mode leaves `version` alone — the row's CAS is authoritative", async () => {
+  // Bumping `cms_pages.version` on the mirror would invalidate the drawer's
+  // pointer, which on this path is `cms_sections.version`. Worse, it would make
+  // the next republish's own CAS (`.eq("version", shell.version)`) race.
+  const db: FakeDb = {
+    rows: { header: { variant: "standard" } },
+    blocks: [landmark("header", { variant: "standard" })],
+    updates: 0,
+    version: 5,
+  };
+  const res = await inspectorSave(db, "header", { variant: "centered" });
+
+  assert.equal(res.ok, true);
+  assert.equal(db.version, 5, "mirror mode must not advance the page version");
+  assert.deepEqual(whatTheSiteShows(db, "header"), { variant: "centered" });
+});
+
+// ── The read-then-write window ──────────────────────────────────────────────
+//
+// The early `row.version !== expectedPageVersion` check catches a STALE DRAWER.
+// It cannot catch a write that lands between this function's own SELECT and its
+// UPDATE — only the `.eq()` filters on the UPDATE can. These two tests are the
+// only thing standing between those filters and silent deletion: without them,
+// removing both filters leaves the suite green.
+
+test("[N24] node-only: a write landing between the read and the write is a CONFLICT", async () => {
+  const db = nodeOnlyDb({ variant: "standard" });
+  // Someone else saves the shell in the gap: version moves 5 → 6.
+  db.onRead = () => {
+    if (db.version === 5) {
+      db.version = 6;
+      db.updatedAt = "2026-09-02T11:00:00Z";
+      db.blocks = [landmark("header", { variant: "someone-elses-value" })];
+    }
+  };
+
+  const res = await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: 5, // still current when we read it
+  });
+
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "CONFLICT");
+  assert.deepEqual(
+    whatTheSiteShows(db, "header"),
+    { variant: "someone-elses-value" },
+    "the interleaved write must survive — clobbering it is the data loss the " +
+      "database-level CAS filters exist to prevent",
+  );
+  assert.equal(db.updates, 0);
+});
+
+test("[N25] MIRROR mode also refuses to clobber an interleaved write", async () => {
+  // The mirror has no version of its own to compare, so `updated_at` is its
+  // ONLY protection. #1509's mirror had none at all.
+  const db: FakeDb = {
+    rows: { header: { variant: "centered" } },
+    blocks: [landmark("header", { variant: "standard" })],
+    updates: 0,
+    version: 5,
+    updatedAt: "2026-09-02T10:00:00Z",
+  };
+  db.onRead = () => {
+    if (db.updatedAt === "2026-09-02T10:00:00Z") {
+      db.updatedAt = "2026-09-02T11:00:00Z";
+      db.blocks = [
+        landmark("header", { variant: "someone-elses-value" }),
+        operatorRoot("a-root-they-just-added"),
+      ];
+    }
+  };
+
+  const res = await writeShellLandmarkNodeProps(fakeSupabase(db), {
+    tenantId: TENANT,
+    shellPageId: SHELL_PAGE,
+    side: "header",
+    nextProps: { variant: "centered" },
+    expectedPageVersion: null,
+  });
+
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "CONFLICT");
+  assert.equal(
+    (db.blocks ?? []).length,
+    2,
+    "the root the other editor added must not be dropped by a stale mirror",
+  );
+  assert.equal(db.updates, 0);
+});
