@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
-import type { ClientPage, TalentPage, WorkspacePage } from "../state";
+import { COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
+import type { TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
 
@@ -13,7 +13,6 @@ export function MobileBottomNav() {
     state,
     setPage,
     setTalentPage,
-    setClientPage,
     effectiveRoster,
     totalUnread: bridgeTotalUnread,
     bridgeTalentUnread,
@@ -347,12 +346,3 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | 
   agencies: "team",
 };
 
-const CLIENT_TAB_ICON: Partial<Record<ClientPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
-  today: "bolt",
-  messages: "mail",
-  discover: "search",
-  shortlists: "team",
-  inquiries: "mail",
-  bookings: "calendar",
-  settings: "info",
-};

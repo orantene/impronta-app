@@ -27,7 +27,6 @@ export function TulalaIdentityBar() {
     state,
     openDrawer,
     flipMode,
-    setClientPage,
     totalUnread: bridgeTotalUnread,
     bridgeTenantIdentity,
     bridgeSessionIdentity,

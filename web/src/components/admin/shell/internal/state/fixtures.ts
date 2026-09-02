@@ -10,7 +10,7 @@ import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
 import { deriveWebsitePageStatus } from "./website-page-status";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", ];
@@ -61,16 +61,6 @@ export const TALENT_PAGES: TalentPage[] = [
   "public-page",
   "services",
   "reviews",
-  "settings",
-];
-// Messages replaces Inquiries as the canonical chat-first surface for
-// clients (mirrors talent). Inquiries remains for URL compat.
-export const CLIENT_PAGES: ClientPage[] = [
-  "today",
-  "messages",
-  "discover",
-  "shortlists",
-  "bookings",
   "settings",
 ];
 
@@ -288,31 +278,8 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
  */
 export const TALENT_PAGES_ALL = Object.keys(TALENT_PAGE_META) as TalentPage[];
 
-export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
-  today: { label: "Today" },
-  messages: { label: "Messages" },
-  discover: { label: "Discover" },
-  shortlists: { label: "Shortlists" },
-  inquiries: { label: "Inquiries" },
-  bookings: { label: "Bookings" },
-  notifications: { label: "Notifications" },
-  settings: { label: "Settings" },
-};
 
 
-export const CLIENT_PLAN_META: Record<
-  ClientPlan,
-  { label: string; theme: string; rank: number; price: string }
-> = {
-  free: { label: "Free", theme: "Browse openly", rank: 0, price: "$0" },
-  pro: { label: "Pro", theme: "Active outreach", rank: 1, price: "$49 / month" },
-  enterprise: {
-    label: "Enterprise",
-    theme: "Team & controls",
-    rank: 2,
-    price: "Custom",
-  },
-};
 
 
 export function meetsPlan(current: Plan, required: Plan): boolean {
@@ -323,9 +290,6 @@ export function meetsRole(current: Role, required: Role): boolean {
   return ROLE_META[current].rank >= ROLE_META[required].rank;
 }
 
-export function meetsClientPlan(current: ClientPlan, required: ClientPlan): boolean {
-  return CLIENT_PLAN_META[current].rank >= CLIENT_PLAN_META[required].rank;
-}
 
 export const INQUIRY_STAGES: InquiryStage[] = [
   "draft",
