@@ -432,7 +432,11 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-19 onboarding-honesty fix: +5 for `TalentProfile.isStarterSeed`
   // and the note recording why the setup checklist must not count seeded
   // demo profiles as the operator's own talent.
-  "src/components/admin/shell/internal/state/types.ts": 2872,
+  // 2026-09-02 roster publish-readiness: +10 for `TalentProfile.publishBlockers`
+  // and the note recording why a bare completeness percentage was replaced by
+  // the unmet requirement labels ("Still needs: a bio, 1 language") drawn from
+  // the same gate the Publish button enforces.
+  "src/components/admin/shell/internal/state/types.ts": 2882,
   "src/components/admin/shell/admin-shell-client.tsx": 2430,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

@@ -396,9 +396,10 @@ async function loadDirectoryFilterSectionsUncached(
     // Table-backed facet: see languageOptions above. Must precede the generic
     // taxonomy branch, which would drop it for having no terms.
     if (raw.key === "languages") {
-      if (languageOptions.length === 0) continue;
+      if (languageOptions.length === 0 || !defId) continue;
       sections.push({
         fieldKey: "languages",
+        fieldDefinitionId: defId,
         label: pickLabel(locale, f.label_en, f.label_es),
         kind: "field_text_enum",
         // Always chips, never radio. The filter ORs its values
