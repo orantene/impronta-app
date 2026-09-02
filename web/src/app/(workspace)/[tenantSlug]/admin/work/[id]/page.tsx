@@ -25,6 +25,7 @@ import {
   markPaidAction,
   markPayoutSentAction,
   markRefundedAction,
+  refundTransactionAction,
   requestPaymentAction,
   selectPayoutReceiverAction,
 } from "./actions";
@@ -879,6 +880,56 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={transaction.status !== "paid" || (!canRefund && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.redSoft, color: C.red, fontSize: 12.5, cursor: transaction.status === "paid" && (canRefund || canManageBilling) ? "pointer" : "not-allowed", opacity: transaction.status === "paid" && (canRefund || canManageBilling) ? 1 : 0.45 }}>
                     {t("admin.work.detail.markDisputed")}
+                  </button>
+                </form>
+                {/* Real Stripe refund. Moves the money; the charge.refunded
+                    webhook then writes the books and reverses the payout legs. */}
+                <form action={refundTransactionAction} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                  <input type="hidden" name="inquiryId" value={inquiryId} />
+                  <input type="hidden" name="transactionId" value={transaction.id} />
+                  <input
+                    type="text"
+                    name="refundAmount"
+                    inputMode="decimal"
+                    placeholder={t("admin.work.detail.refundAmountPlaceholder")}
+                    defaultValue=""
+                    style={{
+                      height: 32,
+                      width: 150,
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      padding: "0 10px",
+                      fontSize: 12,
+                      fontFamily: FONT,
+                    }}
+                  />
+                  <select
+                    name="refundReason"
+                    defaultValue="requested_by_client"
+                    aria-label={t("admin.work.detail.refundReasonLabel")}
+                    style={{
+                      height: 32,
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      padding: "0 8px",
+                      fontSize: 12,
+                      fontFamily: FONT,
+                      background: C.cardBg,
+                      color: C.ink,
+                    }}
+                  >
+                    <option value="requested_by_client">{t("admin.work.detail.refundReason.requested_by_client")}</option>
+                    <option value="service_not_delivered">{t("admin.work.detail.refundReason.service_not_delivered")}</option>
+                    <option value="booking_cancelled">{t("admin.work.detail.refundReason.booking_cancelled")}</option>
+                    <option value="duplicate_charge">{t("admin.work.detail.refundReason.duplicate_charge")}</option>
+                    <option value="fraudulent">{t("admin.work.detail.refundReason.fraudulent")}</option>
+                    <option value="overcharge_correction">{t("admin.work.detail.refundReason.overcharge_correction")}</option>
+                    <option value="goodwill">{t("admin.work.detail.refundReason.goodwill")}</option>
+                    <option value="other">{t("admin.work.detail.refundReason.other")}</option>
+                  </select>
+                  <button type="submit" disabled={!["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) && (canRefund || canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, cursor: ["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) && (canRefund || canManageBilling) ? "pointer" : "not-allowed", opacity: ["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) && (canRefund || canManageBilling) ? 1 : 0.45 }}>
+                    {t("admin.work.detail.refundStripe")}
                   </button>
                 </form>
                 <form action={markRefundedAction}>

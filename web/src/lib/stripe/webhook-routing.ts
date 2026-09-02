@@ -52,7 +52,17 @@ export type StripeAction =
       amountCents: number;
       paymentIntentId: string | null;
     }
-  | { kind: "booking_payment"; transactionId: string }
+  | {
+      kind: "booking_payment";
+      transactionId: string;
+      /** The PaymentIntent that settled this invoice (`pi_...`), when the event
+       *  exposes one. Persisted onto the transaction by `markPaid` so a refund
+       *  can later be issued against it — without this there is no link from a
+       *  Tulala transaction back to the Stripe charge, and the hosted-Checkout
+       *  PaymentIntent does NOT carry `metadata.transaction_id` (that lives on
+       *  the session), so it cannot be recovered by searching Stripe. */
+      paymentIntentId: string | null;
+    }
   | { kind: "subscription_checkout"; subscriptionId: string }
   | { kind: "subscription_lifecycle_talent" }
   | { kind: "subscription_lifecycle_workspace"; planKey: string }
@@ -182,7 +192,11 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
           strOrNull(session.client_reference_id) ??
           strOrNull(session.metadata?.transaction_id);
         if (transactionId) {
-          return { kind: "booking_payment", transactionId };
+          return {
+            kind: "booking_payment",
+            transactionId,
+            paymentIntentId: refId(session.payment_intent),
+          };
         }
 
         return { kind: "invalid", reason: `unknown one-time checkout_type=${checkoutType ?? "<missing>"}` };
@@ -315,7 +329,7 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       // this branch only fires for the on-page Payment Element charge.)
       const transactionId = strOrNull(intent.metadata?.transaction_id);
       if (transactionId) {
-        return { kind: "booking_payment", transactionId };
+        return { kind: "booking_payment", transactionId, paymentIntentId: intent.id };
       }
       return { kind: "ignore" };
     }
