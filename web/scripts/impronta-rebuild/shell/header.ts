@@ -25,9 +25,7 @@
 import type {
   BuilderNavLink,
   BuilderNode,
-  BuilderSectionEmbedNode,
 } from "@/lib/site-admin/builder-node/types";
-import { createBuilderSectionEmbed } from "@/lib/site-admin/builder-node/section-embed-presets";
 
 import { GOLD } from "../shared";
 import {
@@ -171,31 +169,77 @@ const WIDGET_LAYER_LABELS: Record<(typeof HEADER_WIDGET_KEYS)[number], string> =
   };
 
 /**
- * A header-widget embed with a DETERMINISTIC id (the factory mints a random
- * one; the shell tree must be byte-stable) and the mobile visibility applied.
+ * The widget ACCESSIBLE NAMES, per locale.
+ *
+ * The frozen sections resolved these internally, so authoring them here is what
+ * lets the native kinds reproduce the same accessible name. Values are the ones
+ * production actually renders today, read off the live pages 2026-09-02:
+ * `aria-label="Search talent"` / `"Buscar talento"`.
+ *
+ * ONE DELIBERATE CHANGE, called out rather than buried: the frozen language
+ * widget labelled itself `aria-label="Language"` in BOTH locales, so a Spanish
+ * screen-reader user heard an English name for the control. Authoring the label
+ * makes that a choice rather than an accident, and a Spanish string is the only
+ * defensible one to choose. Everything else here is byte-for-byte what ships.
  */
-function headerWidgetEmbed(
+const WIDGET_COPY: Record<ShellLocale, { search: string; language: string }> = {
+  en: { search: "Search talent", language: "Language" },
+  es: { search: "Buscar talento", language: "Idioma" },
+};
+
+/**
+ * A header widget as a NATIVE builder node.
+ *
+ * These four used to be `section_embed` bridges onto the frozen `header_*`
+ * curated sections — 4 of the 167 live embeds, on every one of 37 routes
+ * because they live in the shell. The native kinds render the same affordance:
+ * `header_account` and `header_inquiry` delegate to the very same
+ * `HeaderAccountComponent` / `HeaderInquiryComponent` the embed mounted (see
+ * `native-live-block-renderer.tsx`), so their inner markup is unchanged and
+ * only the wrapper element differs; `header_search` and `header_language` are
+ * fully native and reproduce the frozen markup from these props.
+ *
+ * The id stays DETERMINISTIC and stays exactly what it was — the shell tree
+ * must be byte-stable, and the generated responsive CSS is keyed by node id.
+ */
+function headerWidgetNode(
   locale: ShellLocale,
   key: (typeof HEADER_WIDGET_KEYS)[number],
 ): BuilderNode {
-  const node = createBuilderSectionEmbed(key) as BuilderSectionEmbedNode;
-  const hiddenOnMobile = MOBILE_HIDDEN_WIDGET_KEYS.has(key);
-  const embed: BuilderSectionEmbedNode = {
-    ...node,
+  const shared = {
     id: `shellhdr-${locale}-widget-${key.replace(/_/g, "-")}`,
-    props: {
-      ...node.props,
-      layerLabel: WIDGET_LAYER_LABELS[key],
-      ...(hiddenOnMobile
-        ? {
-            style: {
-              responsive: { mobile: { visibility: "hidden" as const } },
-            },
-          }
-        : {}),
-    },
+    layerLabel: WIDGET_LAYER_LABELS[key],
+    ...(MOBILE_HIDDEN_WIDGET_KEYS.has(key)
+      ? { style: { responsive: { mobile: { visibility: "hidden" as const } } } }
+      : {}),
   };
-  return embed;
+  const { id, ...props } = shared;
+  switch (key) {
+    case "header_search":
+      // href is omitted on purpose: the native default is `/directory`, which
+      // is the route the frozen widget resolved to, and leaving it unset keeps
+      // `prefixPublicHref` free to apply the locale prefix (`/es/directory`).
+      return {
+        id,
+        kind: "header_search",
+        props: { ...props, label: WIDGET_COPY[locale].search },
+      } as BuilderNode;
+    case "header_language":
+      // `|` is the frozen widget's separator; the native default is `/`.
+      return {
+        id,
+        kind: "header_language",
+        props: {
+          ...props,
+          label: WIDGET_COPY[locale].language,
+          separator: "|",
+        },
+      } as BuilderNode;
+    default:
+      // account + inquiry carry NO label or icon, so the config handed to the
+      // live component stays `{}` — identical to what the embed passed.
+      return { id, kind: key, props } as BuilderNode;
+  }
 }
 
 /** Hide a node at the mobile tier only (desktop + tablet untouched). */
@@ -439,7 +483,7 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
       },
     },
     children: [
-      ...HEADER_WIDGET_KEYS.map((key) => headerWidgetEmbed(locale, key)),
+      ...HEADER_WIDGET_KEYS.map((key) => headerWidgetNode(locale, key)),
       hideOnMobile(shellGoldCta(id("cta"), copy.ctaLabel, "/p/contact")),
     ],
   };
