@@ -203,7 +203,8 @@
     "worktree:check": "node scripts/worktree-guard.mjs check",
     "check:builder-2027-gate": "node scripts/check-builder-2027-gate.cjs",
     "check:builder-2027-gate-selftest": "node scripts/check-builder-2027-gate.cjs --selftest",
-    "qa:builder-2027-ship": "npm run typecheck && npm run lint && npm run verify:server-actions && npm run test:builder && npm run test:builder-chrome && npm run test:builder-capabilities && npm run test:publish-preflight && npm run verify:builder-ownership && npm run test:size-ratchet && npm run check:builder-test-lane-coverage && npm run perf:builder-budget && npm run check:ci-lane-parity && npm run check:builder-2027-gate && npm run qa:impronta-section-build && npm run qa:impronta-freeform-renderer && npm run qa:impronta-builder-wave3 && npm run qa:impronta-registered-host-matrix-local"
+    "qa:builder-2027-ship": "npm run typecheck && npm run lint && npm run verify:server-actions && npm run test:builder && npm run test:builder-chrome && npm run test:builder-capabilities && npm run test:publish-preflight && npm run verify:builder-ownership && npm run test:size-ratchet && npm run check:builder-test-lane-coverage && npm run perf:builder-budget && npm run check:ci-lane-parity && npm run check:builder-2027-gate && npm run qa:impronta-section-build && npm run qa:impronta-freeform-renderer && npm run qa:impronta-builder-wave3 && npm run qa:impronta-registered-host-matrix-local",
+    "check:dead-facets": "node scripts/check-dead-facets.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
