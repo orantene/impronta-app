@@ -45,9 +45,16 @@ import { getCachedDirectoryFirstPage } from "@/lib/directory/cache";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { NativeDirectoryNeed } from "@/lib/site-admin/builder-node/native-data-block-needs";
-import { nativeDirectoryScopeSignature } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import type {
+  NativeDirectoryNeed,
+  NativeFeaturedTalentNeed,
+} from "@/lib/site-admin/builder-node/native-data-block-needs";
+import {
+  nativeDirectoryScopeSignature,
+  nativeFeaturedTalentSignature,
+} from "@/lib/site-admin/builder-node/native-data-block-needs";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
+import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { resolveDirectoryScopeSeed } from "@/lib/site-admin/sections/directory/scope-seed";
 import { mapDirectoryDefaultSort } from "@/lib/site-admin/sections/directory/default-sort";
 
@@ -281,6 +288,89 @@ export async function fetchNativeDirectoryProfilesByNodeId(params: {
         }
       } catch (error) {
         logServerError("native-directory-source/fetchNativeDirectoryProfiles", error);
+      }
+    }),
+  );
+
+  return out;
+}
+
+/**
+ * PHASE 8B — resolve the cards for EVERY native `featured_talent` node in a
+ * tree, keyed by node id.
+ *
+ * WHY THIS EXISTS. The only featured-talent fetch before it was keyed off a
+ * bound CONTAINER's `dataBinding` and hard-coded to `auto_featured_flag`. A
+ * native `featured_talent` node carries no `dataBinding`, so it contributed no
+ * need at all, and on a page with no bound container — which is every page
+ * after the Phase 8B swap — it resolved to nothing and painted its empty state.
+ * It also could not express `manual_pick`: Impronta's homepage names five
+ * profile codes, and one tree-wide auto-flag array is not those five people.
+ *
+ * WHY PER NODE, like `fetchNativeDirectoryProfilesByNodeId`: `sourceMode` and
+ * `manualProfileCodes` are authored ON the node, so two featured bands on one
+ * page can legitimately name different people. Nodes with an identical source
+ * signature share one fetch, so the common case (a single band) is one
+ * round-trip.
+ *
+ * Never throws. A failed node gets no entry, which the renderer reads as "no
+ * cards" and paints as the authored empty state — never a blank band and never
+ * another tenant's roster. Tenant scoping is `fetchFeaturedTalentForSection`'s
+ * own: it reads through the same visible-roster gate the curated section used,
+ * which is why it is REUSED here rather than re-derived.
+ */
+export async function fetchNativeFeaturedTalentByNodeId(params: {
+  tenantId: string;
+  needs: ReadonlyArray<NativeFeaturedTalentNeed>;
+  locale: string;
+}): Promise<Record<string, FeaturedTalentCardDTO[]>> {
+  const { tenantId, needs, locale } = params;
+  const out: Record<string, FeaturedTalentCardDTO[]> = {};
+  if (!tenantId || needs.length === 0) return out;
+  if (!isSupabaseConfigured()) return out;
+
+  const groups = new Map<string, NativeFeaturedTalentNeed[]>();
+  for (const need of needs) {
+    const key = nativeFeaturedTalentSignature(need);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(need);
+    else groups.set(key, [need]);
+  }
+
+  await Promise.all(
+    [...groups.values()].map(async (bucket) => {
+      const head = bucket[0];
+      if (!head) return;
+      try {
+        // The largest band in the group decides the fetch limit; each node then
+        // slices to its own, exactly as the directory resolver does.
+        const limit = Math.max(...bucket.map((need) => need.limit));
+        const cards = await fetchFeaturedTalentForSection(
+          tenantId,
+          {
+            sourceMode: head.sourceMode,
+            limit,
+            columnsDesktop: head.columnsDesktop,
+            variant: head.variant,
+            presentation: {},
+            ...(head.manualProfileCodes.length > 0
+              ? { manualProfileCodes: head.manualProfileCodes }
+              : {}),
+            ...(head.filterServiceSlug
+              ? { filterServiceSlug: head.filterServiceSlug }
+              : {}),
+            ...(head.filterDestinationSlug
+              ? { filterDestinationSlug: head.filterDestinationSlug }
+              : {}),
+          } as Parameters<typeof fetchFeaturedTalentForSection>[1],
+          locale,
+        );
+        for (const need of bucket) out[need.nodeId] = cards.slice(0, need.limit);
+      } catch (error) {
+        logServerError(
+          "native-directory-source/fetchNativeFeaturedTalentByNodeId",
+          error,
+        );
       }
     }),
   );

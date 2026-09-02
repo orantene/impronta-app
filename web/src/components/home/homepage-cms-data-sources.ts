@@ -25,7 +25,10 @@ import {
   fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
 import { loadTenantWords } from "@/lib/words/server";
-import { fetchNativeDirectoryProfilesByNodeId } from "@/lib/site-admin/server/native-directory-source";
+import {
+  fetchNativeDirectoryProfilesByNodeId,
+  fetchNativeFeaturedTalentByNodeId,
+} from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
 export { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
@@ -122,9 +125,16 @@ export async function loadBuilderNodeDataSources(
   const needsNativeDirectoryChips = nativeNeeds.directories.some(
     (need) => need.needsShortcuts,
   );
+  // PHASE 8B — a native `location_map` sourcing `roster_cities` reads the SAME
+  // tenant-wide city list a bound container does, but carries no `dataBinding`,
+  // so the walk above never saw it and every native map fell back to its
+  // authored `items` (on Impronta's homepage: none, i.e. an empty band).
+  const needsNativeLocations = nativeNeeds.needsTalentLocations;
   if (
     featuredLimit == null &&
     !needsLocations &&
+    !needsNativeLocations &&
+    nativeNeeds.featuredTalent.length === 0 &&
     !needsDirectoryShortcuts &&
     !needsNativeDirectoryChips &&
     !needsSocialLinks &&
@@ -155,6 +165,7 @@ export async function loadBuilderNodeDataSources(
     menuOfferings,
     menuWords,
     directoryProfilesByNodeId,
+    featuredTalentProfilesByNodeId,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -169,7 +180,10 @@ export async function loadBuilderNodeDataSources(
           },
           locale,
         ),
-    needsLocations || needsDirectoryShortcuts || needsNativeDirectoryChips
+    needsLocations ||
+    needsNativeLocations ||
+    needsDirectoryShortcuts ||
+    needsNativeDirectoryChips
       ? getHomepageData({ tenantId: dataTenantId })
       : Promise.resolve(null),
     mediaSupabase
@@ -229,6 +243,18 @@ export async function loadBuilderNodeDataSources(
           locale,
         })
       : Promise.resolve(undefined),
+    // PHASE 8B — one resolved card list per native `featured_talent` node, so
+    // the node's authored `sourceMode` / `manualProfileCodes` are what decide
+    // who appears. `fetchFeaturedTalentForSection` is the SAME tenant-scoped
+    // fetcher the curated section used, reused rather than re-derived, so a
+    // native block and the section it replaced pick the same people.
+    nativeNeeds.featuredTalent.length > 0
+      ? fetchNativeFeaturedTalentByNodeId({
+          tenantId: dataTenantId,
+          needs: nativeNeeds.featuredTalent,
+          locale,
+        })
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -261,5 +287,8 @@ export async function loadBuilderNodeDataSources(
     ...(directoryProfilesByNodeId === undefined
       ? {}
       : { directoryProfilesByNodeId }),
+    ...(featuredTalentProfilesByNodeId === undefined
+      ? {}
+      : { featuredTalentProfilesByNodeId }),
   };
 }

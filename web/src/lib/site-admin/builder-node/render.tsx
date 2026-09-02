@@ -131,6 +131,25 @@ export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   tenantId?: string;
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
+  /**
+   * PHASE 8B — the SAME cards, resolved PER native `featured_talent` NODE.
+   *
+   * `featuredTalentProfiles` is one array for the whole tree, resolved with a
+   * single hard-coded `auto_featured_flag` config. That is only correct while
+   * every featured-talent surface on the page wants the same people. A native
+   * node authored with `sourceMode: "manual_pick"` wants a NAMED five, and the
+   * shared array cannot express it — the Impronta homepage's manual pick
+   * resolved to the auto-flag roster (and, with no bound container on the page
+   * to trigger the fetch at all, to nothing).
+   *
+   * Same contract as `directoryProfilesByNodeId`: the server caller resolves
+   * each node against the tenant's visible roster and keys by node id; this map
+   * wins when it has an entry, and `featuredTalentProfiles` stays the fallback
+   * for bound containers and existing fixtures.
+   */
+  featuredTalentProfilesByNodeId?: Readonly<
+    Record<string, ReadonlyArray<FeaturedTalentCardDTO>>
+  >;
   talentLocations?: ReadonlyArray<{
     id: string;
     citySlug: string;
@@ -6990,7 +7009,14 @@ function renderBuilderNodeElement(
           ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
           : "";
       const limit = p.limit ?? 6;
-      const cards = (options.dataSources.featuredTalentProfiles ?? []).slice(0, limit);
+      // PHASE 8B — this node's OWN cards first (they honour its `sourceMode` /
+      // `manualProfileCodes`); absent ⇒ the shared tree-wide array, then empty.
+      // Mirrors `directoryProfilesByNodeId` exactly.
+      const cards = (
+        options.dataSources.featuredTalentProfilesByNodeId?.[node.id] ??
+        options.dataSources.featuredTalentProfiles ??
+        []
+      ).slice(0, limit);
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
       const copy = text("copy", p.copy);
