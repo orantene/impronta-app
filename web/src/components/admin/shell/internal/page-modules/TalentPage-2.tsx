@@ -588,7 +588,20 @@ function RosterCard({
           }}
         >
           {rosterCardBadges.completeness && profile.state !== "published" && profile.completeness !== undefined && (
-            <div style={OVERLAY_PILL_BASE}>
+            <div
+              style={OVERLAY_PILL_BASE}
+              /* The percentage says how far along; the tooltip says what to do
+                 about it. An admin managing a roster of 50 needs the second
+                 one — "62%" is not an instruction. Blockers are the unmet
+                 labels from the same gate the Publish button enforces. */
+              title={
+                profile.publishBlockers && profile.publishBlockers.length > 0
+                  ? fillAdminTpl(t("admin.roster.card.publishNeeds"), {
+                      items: profile.publishBlockers.join(", "),
+                    })
+                  : t("admin.roster.card.publishReady")
+              }
+            >
               {profile.completeness}%
             </div>
           )}

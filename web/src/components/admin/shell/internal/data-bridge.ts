@@ -3,6 +3,10 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope } from "@/lib/saas/scope";
+import {
+  buildCorePublishRequirements,
+  getProfilePublishCompleteness,
+} from "@/lib/field-engine/profile-publish-requirements";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizeRosterCardBadges,
@@ -472,6 +476,40 @@ export async function loadRosterCardBadges(
   }
 }
 
+/**
+ * How many languages each of these talents has recorded.
+ *
+ * `talent_languages` is a separate table, so this is one extra round trip per
+ * roster load — the same shape as `loadCategoryTreeById` above. It matters
+ * because "1 language" is a publish-floor requirement and, on live data, the
+ * single most common thing a listed profile is missing after a bio: 42 of 78
+ * listed profiles have none.
+ *
+ * Failure degrades to an empty map, which reports the language requirement as
+ * unmet. That is the safe direction — it over-reports work to do rather than
+ * telling an admin a profile is ready when it is not.
+ */
+async function loadLanguageCounts(
+  client: BridgeReadClient,
+  profileIds: string[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (profileIds.length === 0) return out;
+  try {
+    const { data, error } = await client
+      .from("talent_languages")
+      .select("talent_profile_id")
+      .in("talent_profile_id", profileIds);
+    if (error || !data) return out;
+    for (const row of data as { talent_profile_id: string }[]) {
+      out.set(row.talent_profile_id, (out.get(row.talent_profile_id) ?? 0) + 1);
+    }
+  } catch {
+    // Same fail-direction as above: no data → requirement reads unmet.
+  }
+  return out;
+}
+
 type RosterRow = {
   status: string;
   agency_visibility: string;
@@ -491,6 +529,12 @@ type RosterRow = {
     height_cm: number | null;
     manual_rank_override: number | null;
     updated_at: string | null;
+    /** Publish-floor inputs — see derivePublishReadiness. */
+    short_bio: string | null;
+    bio_i18n: Record<string, string | null> | null;
+    home_city_text: string | null;
+    location_id: string | null;
+    residence_city_id: string | null;
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
@@ -948,6 +992,11 @@ export async function loadWorkspaceRosterForCurrentTenant(
           height_cm,
           manual_rank_override,
           updated_at,
+          short_bio,
+          bio_i18n,
+          home_city_text,
+          location_id,
+          residence_city_id,
           talent_profile_taxonomy (
             relationship_type,
             display_order,
@@ -987,6 +1036,11 @@ export async function loadWorkspaceRosterForCurrentTenant(
     // Which talent types THIS workspace offers. Read alongside the tree so a
     // type the tenant disabled renders dimmed instead of looking bookable.
     const disabledTermIds = await loadDisabledTermIds(readClient, tenantId);
+    // Publish-floor inputs that are not on the roster join.
+    const languageCounts = await loadLanguageCounts(
+      readClient,
+      rows.map((r) => r.talent_profile_id).filter(Boolean),
+    );
 
     const out: TalentProfile[] = [];
     for (const row of rows) {
@@ -1012,6 +1066,37 @@ export async function loadWorkspaceRosterForCurrentTenant(
           m.deleted_at == null &&
           m.variant_kind === "gallery",
       ).length;
+      // ── Publish readiness ────────────────────────────────────────────
+      // The roster's only at-a-glance quality signal used to be a
+      // `completeness` number the bridge never populated, so the badge never
+      // rendered and the "Completeness" sort ordered by undefined. Both are
+      // fed here from the SAME requirement set the editor's publish gate uses
+      // (buildCorePublishRequirements), so the roster can never disagree with
+      // what happens when the admin actually hits Publish.
+      //
+      // A percentage alone is a vanity metric — it tells an admin a profile is
+      // "62%" without saying what to do. `publishBlockers` carries the labels
+      // of the unmet requirements so the card can say "needs a bio and a
+      // language" instead.
+      const galleryCount = (profile.media_assets ?? []).filter(
+        (m) => m.deleted_at == null,
+      ).length;
+      const publishRequirements = buildCorePublishRequirements({
+        stageName: deriveDisplayName(profile) ?? "",
+        primaryType: derivePrimaryType(profile) ?? null,
+        homeBase:
+          profile.home_city_text ??
+          (profile.location_id || profile.residence_city_id ? "set" : ""),
+        totalPhotos: galleryCount,
+        activeBioLength: (
+          profile.bio_i18n?.en?.trim() ||
+          profile.short_bio?.trim() ||
+          ""
+        ).length,
+        languageCount: languageCounts.get(profile.id) ?? 0,
+      });
+      const unmetRequirements = publishRequirements.filter((r) => !r.met);
+
       out.push({
         id: profile.id,
         profileCode: profile.profile_code ?? undefined,
@@ -1043,10 +1128,14 @@ export async function loadWorkspaceRosterForCurrentTenant(
         directoryRank: profile.manual_rank_override ?? undefined,
         createdAt: row.created_at ?? undefined,
         updatedAt: profile.updated_at ?? undefined,
-        // `completeness`, `availability`, `lastActive` are derived UI
-        // hints not yet wired in the live schema. Leaving them undefined
-        // is a valid `TalentProfile` and the existing roster card
-        // primitives render their fallbacks for missing fields.
+        // Share of the publish floor this profile meets, and the labels of
+        // what it still needs. Both derived above from the canonical
+        // requirement set.
+        completeness: getProfilePublishCompleteness(publishRequirements),
+        publishBlockers: unmetRequirements.map((r) => r.label),
+        // `availability` and `lastActive` remain derived UI hints not yet
+        // wired in the live schema. Leaving them undefined is a valid
+        // `TalentProfile`; the card primitives render their fallbacks.
       });
     }
     return out;

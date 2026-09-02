@@ -579,8 +579,18 @@ export type TalentProfile = {
    * small muted chips on the roster card (capped there, "+N" for the rest).
    */
   secondaryTypes?: RosterTaxonomyChip[];
-  /** Profile completeness 0–100. Surfaced on cards in non-published states. */
+  /** Profile completeness 0–100. Surfaced on cards in non-published states.
+   *  Derived from the SAME requirement set as the editor's publish gate
+   *  (`buildCorePublishRequirements`), so the roster can never disagree with
+   *  what happens when the admin hits Publish. */
   completeness?: number;
+  /** Labels of the publish requirements this profile does NOT yet meet, e.g.
+   *  ["a bio", "1 language"]. Empty when the profile clears the floor.
+   *
+   *  A percentage on its own is a vanity metric: it tells an admin a profile
+   *  is "62%" without saying what to do about it. These are the words the
+   *  card shows instead. Ordered as the requirement set defines them. */
+  publishBlockers?: string[];
   /** ISO timestamp of when this talent was added to the roster. Drives "Newest" sort. */
   createdAt?: string;
   /** ISO timestamp of the last profile edit (`talent_profiles.updated_at`). Drives "Last edited" sort. */

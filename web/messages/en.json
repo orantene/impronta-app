@@ -12622,7 +12622,9 @@
         "disputedTitle": "Talent disputed this profile claim, admin review needed.",
         "disputed": "⚠ Disputed",
         "inviteSentTitle": "Claim invite sent, talent has not yet accepted.",
-        "inviteSent": "Invite sent"
+        "inviteSent": "Invite sent",
+        "publishNeeds": "Still needs: {items}",
+        "publishReady": "Ready to publish"
       },
       "row": {
         "colName": "Name · type · city",

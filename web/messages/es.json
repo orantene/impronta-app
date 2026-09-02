@@ -12622,7 +12622,9 @@
         "disputedTitle": "El talento disputó este reclamo, requiere revisión del admin.",
         "disputed": "⚠ Disputado",
         "inviteSentTitle": "Invitación de reclamo enviada, el talento aún no la acepta.",
-        "inviteSent": "Invitación enviada"
+        "inviteSent": "Invitación enviada",
+        "publishNeeds": "Falta para publicar: {items}",
+        "publishReady": "Listo para publicar"
       },
       "row": {
         "colName": "Nombre · tipo · ciudad",
