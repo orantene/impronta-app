@@ -4144,7 +4144,7 @@ export function WhatsNewDrawer() {
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
   const t = useT();
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4196,30 +4196,26 @@ export function HelpDrawer() {
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
             {t("dashboard.adminWave.getHelp")}
           </div>
+          {/*
+            These were three `disabled` buttons titled "coming soon". Two of the
+            three destinations now exist — the help centre and the support ticket
+            drawer — so they are wired. "Book onboarding" had nothing behind it and
+            is gone: a control that cannot do anything is worse than no control at
+            the moment somebody needs help.
+          */}
           <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              disabled
-              title={t("dashboard.adminWave.comingSoon")}
-              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
-            >
+            <a href="/help" target="_blank" rel="noreferrer" style={helpRowStyle}>
               {t("dashboard.adminWave.readDocs")}
-            </button>
+            </a>
             <button
               type="button"
-              disabled
-              title={t("dashboard.adminWave.comingSoon")}
-              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
+              onClick={() => {
+                closeDrawer();
+                openDrawer("support-ticket");
+              }}
+              style={helpRowStyle}
             >
               {t("dashboard.adminWave.chatSupport")}
-            </button>
-            <button
-              type="button"
-              disabled
-              title={t("dashboard.adminWave.comingSoon")}
-              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
-            >
-              {t("dashboard.adminWave.bookOnboarding")}
             </button>
           </div>
         </section>

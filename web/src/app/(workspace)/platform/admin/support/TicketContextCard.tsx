@@ -153,6 +153,41 @@ export function TicketContextCard({
         )}
       </section>
 
+      {/*
+        Commerce context. Without this an agent handling "I was charged twice"
+        could see the workspace, the contact and past tickets — and neither the
+        charge nor the booking. Read-only and small on purpose: enough to
+        recognise the case being described, not a finance console.
+      */}
+      {context.recentBookings.length > 0 ? (
+        <section>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: HQ.inkDim, marginBottom: 8 }}>
+            {t("dashboard.platform.support.contextBookings")}
+          </div>
+          {context.recentBookings.map((b) => (
+            <div
+              key={b.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 10,
+                fontSize: 12,
+                color: HQ.ink,
+                padding: "6px 0",
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {new Date(b.createdAt).toISOString().slice(0, 10)} · {b.status}
+                {b.paymentStatus ? ` · ${b.paymentStatus}` : ""}
+              </span>
+              <span style={{ fontVariantNumeric: "tabular-nums", color: HQ.inkMuted, flexShrink: 0 }}>
+                {b.totalClientRevenue == null ? "-" : b.totalClientRevenue.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
       <section>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: HQ.inkDim, marginBottom: 8 }}>
           {t("dashboard.platform.support.contextPast")}

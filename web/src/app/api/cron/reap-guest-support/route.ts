@@ -11,7 +11,9 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { supportFrom } from "@/lib/support/support-from";
 import { mapTicketRow, type SupportTicketRow } from "@/lib/support/support-types";
 import {
+  DIAGNOSTICS_RETENTION_DAYS,
   GUEST_TICKET_RETENTION_DAYS,
+  diagnosticsRetentionCutoff,
   guestTicketRetentionCutoff,
   isUnconvertedGuestExpired,
 } from "@/lib/support/guest-retention";
@@ -72,11 +74,44 @@ export async function GET(request: Request) {
     deleted += 1;
   }
 
+  // Age out client diagnostics on ALL tickets, not just guest ones. These
+  // cascade on ticket delete, but authenticated tickets are never deleted, so
+  // their telemetry — URLs, console errors, user agent — persisted forever.
+  // The thread itself is untouched; only the debugging exhaust expires.
+  const diagCutoff = diagnosticsRetentionCutoff();
+  let diagnosticsDeleted = 0;
+  {
+    const { data: staleDiag, error: diagSelErr } = await supportFrom(
+      admin,
+      "support_ticket_diagnostics",
+    )
+      .select("id")
+      .lte("created_at", diagCutoff)
+      .limit(500);
+    if (diagSelErr) {
+      logServerError("cron/reap-guest-support.diagnostics.select", diagSelErr);
+    } else {
+      for (const row of (staleDiag ?? []) as Array<{ id: string }>) {
+        const { error: dErr } = await supportFrom(admin, "support_ticket_diagnostics")
+          .delete()
+          .eq("id", row.id);
+        if (dErr) {
+          logServerError("cron/reap-guest-support.diagnostics.delete", dErr);
+          continue;
+        }
+        diagnosticsDeleted += 1;
+      }
+    }
+  }
+
   await improntaLog("cron.reap-guest-support", {
     retentionDays: GUEST_TICKET_RETENTION_DAYS,
     cutoff,
     matched: expired.length,
     deleted,
+    diagnosticsRetentionDays: DIAGNOSTICS_RETENTION_DAYS,
+    diagnosticsCutoff: diagCutoff,
+    diagnosticsDeleted,
   });
 
   return NextResponse.json({
@@ -85,5 +120,7 @@ export async function GET(request: Request) {
     cutoff,
     matched: expired.length,
     deleted,
+    diagnosticsRetentionDays: DIAGNOSTICS_RETENTION_DAYS,
+    diagnosticsDeleted,
   });
 }

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
@@ -224,6 +226,12 @@ export function SupportPanel({
     setSending(false);
     if (r.ok) {
       setAsk("");
+      // In-app support emitted no product events at all — only the marketing
+      // surface did — so there was no support funnel to measure.
+      trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
+        surface: contract.surface,
+        origin_slug: contract.originSlug ?? null,
+      });
       prependSummary(summaryFromCreate(r.ticketId, r.ticketNumber ?? 0, body.slice(0, 80), body));
       setView("thread", r.ticketId);
       void maybeAttachReplay(r.ticketId);
@@ -316,6 +324,10 @@ export function SupportPanel({
                   diagnostics: getDiagnosticsSnapshot(),
                 });
                 if (r.ok) {
+                  trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
+                    surface: contract.surface,
+                    message_oran_directly: true,
+                  });
                   prependSummary(
                     summaryFromCreate(r.ticketId, r.ticketNumber ?? 0, "", ""),
                   );
@@ -349,11 +361,21 @@ export function SupportPanel({
               if (ticketId) void contract.rateTicket({ ticketId, rating, comment });
             }}
             onRequestHuman={() => {
-              if (ticketId) void contract.requestHuman({ ticketId });
+              if (ticketId) {
+                trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_human_requested, {
+                  surface: contract.surface,
+                });
+                void contract.requestHuman({ ticketId });
+              }
             }}
             onCardAction={(action) => {
               if (action === "add-phone") setView("new");
-              if (action === "talk-human" && ticketId) void contract.requestHuman({ ticketId });
+              if (action === "talk-human" && ticketId) {
+                trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_human_requested, {
+                  surface: contract.surface,
+                });
+                void contract.requestHuman({ ticketId });
+              }
               if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
             thinking={thinking}

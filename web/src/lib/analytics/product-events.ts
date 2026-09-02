@@ -35,6 +35,15 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   marketing_support_human_requested: "marketing_support_human_requested",
   marketing_contact_form_submitted: "marketing_contact_form_submitted",
 
+  // In-product help. The "was this helpful" vote used to live only in
+  // localStorage with a comment describing an endpoint nobody built, so Support
+  // could not see a single vote. Routed through the analytics pipeline that
+  // already exists rather than a new table: the store, the endpoint and the
+  // retention all come for free.
+  help_article_rated: "help_article_rated",
+  support_ticket_created: "support_ticket_created",
+  support_human_requested: "support_human_requested",
+
   // ---------------------------------------------------------------------------
   // /get-started funnel — step instrumentation so we can find where the
   // 87.5% who bounce actually drop off. Each event fires once per visitor

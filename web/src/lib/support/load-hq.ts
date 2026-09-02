@@ -31,6 +31,26 @@ export type HqTicketContext = {
   pastTickets: SupportTicketSummary[];
   auditEvents: { action: string; summary: string | null; createdAt: string }[];
   diagnostics: Record<string, unknown> | null;
+  /**
+   * The requester's recent bookings.
+   *
+   * The context card previously showed workspace, contact and past tickets and
+   * NO commerce data at all, so an agent handling "I was charged twice" could
+   * see neither the charge nor the booking. support_tickets has no FK to any
+   * money object, so this is resolved through the requester instead: their user
+   * id, scoped to the ticket's tenant when it has one.
+   *
+   * Read-only, and deliberately small: enough to recognise the case being
+   * described, not a finance console.
+   */
+  recentBookings: Array<{
+    id: string;
+    status: string;
+    paymentStatus: string | null;
+    totalClientRevenue: number | null;
+    bookingSubType: string | null;
+    createdAt: string;
+  }>;
 };
 
 type AgencyLite = { id: string; slug: string | null; display_name: string | null; plan_tier: string | null };
@@ -179,12 +199,21 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
       ingestPast(past ?? []);
     }
     if (ticket.contactEmail) {
-      const { data: past } = await supportFrom(admin, "support_tickets")
+      // Scoped to the SAME tenant space as this ticket. An unscoped email match
+      // pulled in tickets from other tenants that happened to share a contact
+      // address — one person who is a client of agency A and staff at agency B
+      // would leak B's ticket subjects into A's drawer.
+      //
+      // Both branches matter: a tenant ticket matches only that tenant, and a
+      // guest/platform ticket (tenant_id null) matches only other tenant-less
+      // ones, which is what keeps the returning-guest-on-a-new-device case
+      // working — the reason this lookup exists at all.
+      let q = supportFrom(admin, "support_tickets")
         .select("*")
         .ilike("contact_email", ticket.contactEmail)
-        .neq("id", ticket.id)
-        .order("last_message_at", { ascending: false })
-        .limit(8);
+        .neq("id", ticket.id);
+      q = ticket.tenantId ? q.eq("tenant_id", ticket.tenantId) : q.is("tenant_id", null);
+      const { data: past } = await q.order("last_message_at", { ascending: false }).limit(8);
       ingestPast(past ?? []);
     }
     pastTickets = [...pastById.values()]
@@ -219,6 +248,37 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
       }));
     }
 
+    // Commerce context for the agent. Resolved through the requester, because
+    // support_tickets has no link to a booking; scoped to the ticket's tenant
+    // when it has one so a platform admin handling one workspace's ticket does
+    // not see that person's bookings with a different agency.
+    let recentBookings: HqTicketContext["recentBookings"] = [];
+    if (ticket.requesterUserId) {
+      let bq = admin
+        .from("agency_bookings")
+        .select("id, status, payment_status, total_client_revenue, booking_sub_type, created_at")
+        .eq("client_user_id", ticket.requesterUserId);
+      if (ticket.tenantId) bq = bq.eq("tenant_id", ticket.tenantId);
+      const { data: bookings, error: bErr } = await bq
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (bErr) {
+        // Never let a context lookup take down the drawer — an agent with a
+        // partial card can still answer; an agent with an error page cannot.
+        logServerError("support.loadHqTicketDetail.bookings", bErr);
+      } else {
+        recentBookings = (bookings ?? []).map((b: Record<string, unknown>) => ({
+          id: String(b.id ?? ""),
+          status: String(b.status ?? ""),
+          paymentStatus: b.payment_status == null ? null : String(b.payment_status),
+          totalClientRevenue:
+            b.total_client_revenue == null ? null : Number(b.total_client_revenue),
+          bookingSubType: b.booking_sub_type == null ? null : String(b.booking_sub_type),
+          createdAt: String(b.created_at ?? ""),
+        }));
+      }
+    }
+
     let diagnostics: Record<string, unknown> | null = null;
     {
       const { data: diag } = await supportFrom(admin, "support_ticket_diagnostics")
@@ -245,6 +305,7 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         pastTickets,
         auditEvents,
         diagnostics,
+        recentBookings,
       },
     };
   } catch (err) {

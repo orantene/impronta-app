@@ -335,7 +335,26 @@ function pricingEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
   ];
 }
 
-function helpGuideEntries(): HelpCorpusEntry[] {
+/**
+ * The /help role guides, as grounding.
+ *
+ * These are ENGLISH-ONLY: `ROLE_LABELS` has no locale dimension, unlike every
+ * other source in this corpus. They were previously added to the Spanish corpus
+ * verbatim, which is worse than leaving them out — the retriever is bag-of-words
+ * over the entry text, so Spanish query tokens score ~0 against English bodies
+ * and contribute nothing, while the English text still lands in the prompt and
+ * invites the model to answer a Spanish visitor with English source material.
+ *
+ * So the ES corpus omits them. The remaining three sources (features, pricing,
+ * sales) are genuinely bilingual, and a thinner accurate corpus produces an
+ * honest "let me get a person" rather than an answer the reader cannot check.
+ *
+ * Translating the 22 guide bodies is content work, not a code change: they carry
+ * prices and URLs and belong to Marketing. When they gain an `es` field, drop
+ * the locale guard here.
+ */
+function helpGuideEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
+  if (locale !== "en") return [];
   return (Object.entries(ROLE_LABELS) as Array<[string, (typeof ROLE_LABELS)[keyof typeof ROLE_LABELS]]>).map(
     ([role, content]) => ({
       slug: `help:${role}`,
@@ -354,7 +373,7 @@ function helpGuideEntries(): HelpCorpusEntry[] {
  */
 export function buildGuestCorpus(locale: GuestCorpusLocale): HelpCorpusEntry[] {
   const features = MARKETING_FEATURES.map((f) => featureToEntry(f, locale));
-  return [...features, ...pricingEntries(locale), ...helpGuideEntries(), ...salesEntries(locale)];
+  return [...features, ...pricingEntries(locale), ...helpGuideEntries(locale), ...salesEntries(locale)];
 }
 
 export function flattenGroundingText(entries: HelpCorpusEntry[]): string {

@@ -53,6 +53,7 @@ import {
   notifyBookingPayoutReversal as notifyBookingPayoutReversalReal,
   notifyClientPartialRefund as notifyClientPartialRefundReal,
 } from "@/lib/payments/payout-reversal-notify";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -464,6 +465,23 @@ export async function handleBookingDispute(
         `Dispute ${input.disputeId} opened on booking transaction — amount=${input.amount} reason=${input.reason} status=${input.status}. Transfers NOT reversed (pending resolution).`,
       ),
     );
+    // Tell a human. The log line above was the ONLY signal that a chargeback had
+    // been filed and an external deadline had started running — dispute CLOSED
+    // notified via the payout reversal, so the time-critical half was the silent
+    // one. Never let a notification failure change the webhook's outcome.
+    await dispatchEventNotifications({
+      type: "payment.dispute.opened",
+      tenantId: null,
+      eventId: `dispute-opened-${input.disputeId}`,
+      payload: {
+        amountCents: input.amount,
+        currency: null,
+        reason: input.reason,
+        disputeId: input.disputeId,
+        bookingId: ref.bookingId,
+        platformFrom: true,
+      },
+    }).catch(() => undefined);
     return true;
   }
 

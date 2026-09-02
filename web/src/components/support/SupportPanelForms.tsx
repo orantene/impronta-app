@@ -148,6 +148,16 @@ export function NewTicketForm({
         <Icon name="sparkle" size={12} color={COLORS.royal} />
         {t("dashboard.adminSupport.aiMicrocopy")}
       </div>
+      {/*
+        Expected response time, stated BEFORE the ticket is sent.
+        Nothing told a requester when to expect a reply: the handoff card carries
+        an ETA, but only after escalation, and there is no acknowledgement email
+        to a signed-in requester at all. The moment someone is deciding whether
+        to bother asking is the moment the answer matters.
+      */}
+      <div style={{ fontSize: 12, color: COLORS.inkDim }}>
+        {t("dashboard.adminSupport.humanReplyEta")}
+      </div>
     </form>
   );
 }

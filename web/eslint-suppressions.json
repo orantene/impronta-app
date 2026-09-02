@@ -391,7 +391,7 @@
   },
   "src/components/admin/shell/internal/help.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 19
+      "count": 17
     }
   },
   "src/components/admin/shell/internal/language-add-search.tsx": {
@@ -1244,7 +1244,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 270
+      "count": 267
     }
   },
   "src/components/admin/shell/internal/workspace.tsx": {

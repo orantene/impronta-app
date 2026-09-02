@@ -1552,13 +1552,13 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
   help: {
     audience: [W_ADMIN, W_COORD, TALENT, CLIENT],
     category: "Help",
-    purpose:
-      "The help hub: search articles, browse by topic, contact support, submit a ticket.",
+    // Pinned to what the drawer does: it advertised "search articles" and
+    // "browse by topic", neither of which exists. Describe the real thing.
+    purpose: "Keyboard shortcuts, the help centre, and a way to reach support.",
     youCanHere: [
-      "Search the documentation",
-      "Browse articles by surface (admin, talent, client)",
-      "Open a chat with support",
-      "Submit a ticket for issues that need a human",
+      "See the keyboard shortcuts for this workspace",
+      "Open the help centre in a new tab",
+      "Start a support ticket when you need a person",
     ],
     relatedDrawers: ["whats-new"],
     ticketCategory: "General",

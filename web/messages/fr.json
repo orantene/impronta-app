@@ -930,7 +930,7 @@
         "statAvgRating": "note moyenne {n} sur 5",
         "statNoRatings": "pas encore de notes",
         "statAiResolved": "Resolus par l'IA seule",
-        "statAiResolvedHint": "{n} sur {total}, sans humain",
+        "statAiResolvedHint": "{n} sur {total} examinés, sans humain",
         "frictionTitle": "Ou est la friction",
         "frictionEmpty": "Pas encore de tickets resolus cette semaine.",
         "trendTitle": "Tickets par semaine",
@@ -965,7 +965,16 @@
         "ideasSaved": "Enregistre",
         "ideasCall": "Appeler",
         "ideasWhatsapp": "WhatsApp",
-        "pageSubtitleOne": "1 ticket ouvert"
+        "pageSubtitleOne": "1 ticket ouvert",
+        "statMedianResolve": "Résolution médiane",
+        "statMedianResolveHint": "De la création à la résolution, cette semaine",
+        "statBacklogAge": "Le plus ancien",
+        "statBacklogAgeHint": "Depuis son dernier message",
+        "statReopenRate": "Taux de réouverture",
+        "statReopenRateHint": "{n} rouverts en 4 semaines",
+        "statEscalationRate": "Taux d'escalade",
+        "statEscalationRateHint": "{n} ont atteint une personne",
+        "contextBookings": "Réservations récentes"
       },
       "operations": {
         "flagAiSupportLabel": "IA, premier repondant du support",
