@@ -3,6 +3,7 @@
 // celebrationBtnStyle · ProfileOwnershipPanel.  Byte-for-byte.
 "use client";
 import React, { useState } from "react";
+import { ClaimInvitedState } from "./claim-link-panel";
 import {
   COLORS,
   FIELD_CATALOG,
@@ -605,31 +606,54 @@ export function ProfileOwnershipPanel({
     status: false,
   });
 
-  const sendInvite = async () => {
+  // The claim link the action hands back. Surfacing it is not a nicety: the
+  // agency-entered contact details on a pre-launch roster are frequently
+  // placeholders (live data: 13 of 47 Impronta addresses are unroutable, and
+  // the rest were typed from memory), and SMS delivery is not wired. The link
+  // is therefore the ONLY channel an admin can rely on — they paste it into
+  // WhatsApp, which is how this roster actually communicates.
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+
+  /** Absolute, host-correct link an admin can paste anywhere. */
+  const toAbsolute = (path: string) =>
+    typeof window === "undefined" ? path : new URL(path, window.location.origin).toString();
+
+  const runInvite = async (isResend: boolean) => {
     if (!email.trim() && !phone.trim()) {
       toast(copy.t("Add an email or phone first"));
       return;
     }
-    if (talentProfileId) {
-      const res = await sendTalentClaimInvite({ talent_profile_id: talentProfileId, email: email.trim() || undefined, phone: phone.trim() || undefined });
-      if (!res.ok) { toast(copy.t("Failed to send invite, try again")); return; }
-    }
+    if (!talentProfileId) return;
+    const res = await sendTalentClaimInvite({
+      talent_profile_id: talentProfileId,
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+      resend: isResend,
+    });
+    if (!res.ok) { toast(copy.t("Failed to send invite, try again")); return; }
+    if (res.redeem_url) setInviteLink(toAbsolute(res.redeem_url));
     setState("invited");
     setShowInviteForm(false);
-    toast(copy.t("Claim invite sent to {contact}").replace("{contact}", email || phone));
+    toast(
+      isResend
+        ? copy.t("Resent claim invite to {contact}").replace("{contact}", email || phone)
+        : copy.t("Claim invite sent to {contact}").replace("{contact}", email || phone),
+    );
   };
-  const resendInvite = () => toast(copy.t("Resent claim invite to {contact}").replace("{contact}", email || phone));
+
+  const sendInvite = () => runInvite(false);
+  // Previously a toast and nothing else — no invite was ever re-issued. Now it
+  // calls the same action, which revokes the prior pending invite and mints a
+  // fresh one (see sendTalentClaimInvite).
+  const resendInvite = () => runInvite(true);
   const cancelInvite = () => {
     setState("unclaimed");
+    setInviteLink(null);
     toast(copy.t("Claim invite cancelled"));
   };
   const revoke = () => {
     setState("unclaimed");
     toast(copy.t("{name} ownership revoked, back to agency-managed").replace("{name}", talentName));
-  };
-  const simulateClaim = () => {
-    setState("claimed");
-    toast(copy.t("{name} accepted the invite. They now own this profile.").replace("{name}", talentName));
   };
 
   if (state === "unclaimed") {
@@ -663,7 +687,7 @@ export function ProfileOwnershipPanel({
               <TextInput type="email" placeholder="talent@example.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
             </FieldRow>
-            <FieldRow label={copy.t("Phone")} optional hint={copy.t("Backup channel, we'll SMS the link too.")}>
+            <FieldRow label={copy.t("Phone")} optional hint={copy.t("Recorded on the invite. Send the link yourself; SMS delivery is not switched on.")}>
               <TextInput type="text" placeholder="+34 612 345 678"
                 value={phone} onChange={(e) => setPhone(e.target.value)} />
             </FieldRow>
@@ -694,36 +718,10 @@ export function ProfileOwnershipPanel({
 
   if (state === "invited") {
     return (
-      <div style={{ fontFamily: FONTS.body }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderRadius: 999, fontSize: 12, marginBottom: 10, width: "fit-content", fontWeight: 600 }} className="bg-admin-amber-soft text-admin-amber-deep">
-          <span style={{
-            width: 6, height: 6, borderRadius: "50%",
-            background: COLORS.amber,
-          }} />
-          {copy.t("Invite sent to {contact} · waiting for {name} to claim").replace("{contact}", email || phone).replace("{name}", talentName)}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-          <button type="button" onClick={resendInvite} style={{
-            padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
-            background: "transparent", color: COLORS.ink,
-            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>↺ {copy.t("Resend invite")}</button>
-          <button type="button" onClick={cancelInvite} style={{
-            padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
-            background: "transparent", color: COLORS.inkMuted,
-            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>× {copy.t("Cancel invite")}</button>
-          {/* Demo helper — simulates the talent accepting in real product */}
-          <button type="button" onClick={simulateClaim} style={{
-            padding: "8px 13px", borderRadius: 999, border: `1px dashed ${COLORS.border}`,
-            background: "transparent", color: COLORS.inkDim,
-            fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, cursor: "pointer",
-          }}>↗ {copy.t("Simulate talent accepting (demo)")}</button>
-        </div>
-        <div style={{ fontSize: 11, lineHeight: 1.5 }} className="text-admin-ink-dim">
-          {copy.t("You can keep editing while the invite is pending. Talent's first edit will overwrite drafts in the fields they have permission for.")}
-        </div>
-      </div>
+      <ClaimInvitedState
+        contact={email || phone} talentName={talentName} inviteLink={inviteLink}
+        t={copy.t} onToast={toast} onResend={resendInvite} onCancel={cancelInvite}
+      />
     );
   }
 
