@@ -188,6 +188,50 @@ export function splitShellTree(tree: BuilderNodeTree): {
 }
 
 /**
+ * THE ONE PLACE a shell landmark's bespoke-component configuration is decided.
+ *
+ * PRECEDENCE: the landmark node's own inline `props.sectionProps` wins; the
+ * addressed `cms_page_sections` slot is the FALLBACK; `{}` is the floor.
+ *
+ * WHY IT IS NODE-FIRST (this reverses the earlier slot-first order)
+ * ----------------------------------------------------------------
+ * Phase 8B must delete the legacy `site_header` / `site_footer` anchor rows to
+ * reach zero `section_embed`. Once they are gone the slot is `undefined` and
+ * the landmark has nothing to render from unless it carries its own config —
+ * so the tree has to be able to own it. Slot-first made that capability
+ * UNVERIFIABLE: a tenant could seed inline props, see no change on the live
+ * site (the slot still won), delete the rows, and only then discover whether
+ * the inline copy was right. Node-first makes the seed step observable while
+ * the rows are still there to roll back to, which is the whole point of
+ * seeding before deleting.
+ *
+ * THE COST, STATED PLAINLY: for a landmark that HAS inline `sectionProps`, a
+ * later edit to `cms_sections.props_jsonb` (the SiteHeaderInspector autosave
+ * path) no longer reaches the live site — the tree is authoritative for that
+ * landmark. That is the deliberate trade, and it is inert for every shell
+ * alive today because none of them carry inline `sectionProps`: with the field
+ * absent this function returns `slot.props`, the exact expression it replaced.
+ * A tenant opts into the new ownership by authoring the field, and only then.
+ *
+ * Non-object inline values (a stray `null`, a string) fall through to the slot
+ * rather than being handed to a bespoke component that expects a record.
+ */
+export function resolveShellLandmarkSectionProps(
+  node: BuilderNode | null | undefined,
+  slot?: { props?: Record<string, unknown> } | null,
+): Record<string, unknown> {
+  // Only a LANDMARK may own config inline. A non-landmark section node indexed
+  // at the same address is not a shell landmark and stays slot-sourced.
+  if (node && isShellLandmarkNode(node)) {
+    const inline = node.props.sectionProps;
+    if (inline && typeof inline === "object" && !Array.isArray(inline)) {
+      return inline as Record<string, unknown>;
+    }
+  }
+  return slot?.props ?? {};
+}
+
+/**
  * LAZY `sectionProps` HYDRATION (read-side).
  *
  * A shell landmark authored on the freeform surface carries only its identity
@@ -199,16 +243,19 @@ export function splitShellTree(tree: BuilderNodeTree): {
  * inline `sectionProps` gets it from the current slot composition, matched by
  * address key first and by side (`site_header` → the `header` slot) second.
  *
- * DELIBERATELY READ-ONLY. It is applied when the shell snapshot is LOADED, not
- * when it is published, and the renderer still prefers the live slot's props
- * whenever the landmark is address-matched. Baking a copy of the slot props
- * into the persisted tree at publish time would make the tree and the slot able
- * to DRIFT — and since the renderer would then be reading the baked copy, a
- * later `cms_sections.props_jsonb` edit (the SiteHeaderInspector autosave path)
- * would stop taking effect on the live site. That is the same silent-write-drop
- * shape as the F2 bug this lane's predecessor fixed. Hydrating on read gets the
- * whole benefit — an un-addressed landmark renders its real configuration —
- * with none of the drift.
+ * DELIBERATELY READ-ONLY, and it never overwrites: a landmark that already has
+ * inline `sectionProps` is returned untouched, because as of
+ * `resolveShellLandmarkSectionProps` those inline props are what the renderer
+ * uses. Applied when the snapshot is LOADED, never at publish: baking a copy of
+ * the slot props into the PERSISTED tree would silently promote every existing
+ * slot-sourced landmark to tree-owned, and a later `cms_sections.props_jsonb`
+ * edit (the SiteHeaderInspector autosave path) would stop taking effect on the
+ * live site without anyone asking for that. Ownership must be opted into by
+ * authoring the field, not acquired by passing through a publish.
+ *
+ * With ZERO slots there is nothing to source from, so the tree comes back as-is
+ * — which is exactly right for a Phase 8B shell whose anchors are gone: its
+ * landmarks already carry their config inline and need no hydration at all.
  *
  * Pure and allocation-frugal: returns the SAME array reference when nothing
  * needed hydrating (the legacy case and the already-hydrated case).

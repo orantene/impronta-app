@@ -41,7 +41,9 @@ import {
   classifyShellTree,
   collectShellSideFreeformNodes,
   hydrateShellLandmarkSectionProps,
+  isShellLandmarkNode,
   prepareShellTree,
+  resolveShellLandmarkSectionProps,
   resolveShellSidePlan,
   splitShellTree,
 } from "./shell-render-plan";
@@ -383,6 +385,137 @@ test("[hydrate] the LEGACY tree is never rewritten", () => {
 test("[hydrate] with no slots at all the tree is returned untouched", () => {
   const tree = [landmark("header", [], { sectionId: undefined })];
   assert.equal(hydrateShellLandmarkSectionProps(tree, []), tree);
+});
+
+// ─── LANDMARK CONFIG OWNERSHIP (Phase 8B prerequisite) ──────────────────────
+//
+// Phase 8B deletes the legacy `site_header` / `site_footer` anchor rows to reach
+// zero `section_embed`. A landmark whose only source of configuration is the
+// slot those rows produce is blank the moment they go. These tests pin the
+// capability that lets a landmark own its config, and — just as importantly —
+// pin that a landmark WITHOUT inline config resolves to the byte-identical slot
+// props it resolved to before, which is what keeps Impronta's live header from
+// moving.
+
+test("[config] inline `sectionProps` WINS over the addressed slot", () => {
+  // The proof-of-life test: on the pre-change renderer the expression was
+  // `slot?.props ?? node.props.sectionProps ?? {}`, so this returned the SLOT's
+  // props and a tenant could not observe their seeded inline config until after
+  // they had deleted the rows. That ordering makes the 8B seed step unverifiable.
+  const node = landmark("header", [], {
+    sectionProps: { variant: "minimal", brandDisplay: "wordmark" },
+  });
+  assert.deepEqual(
+    resolveShellLandmarkSectionProps(node, LEGACY_SLOTS[0]),
+    { variant: "minimal", brandDisplay: "wordmark" },
+  );
+});
+
+test("[config] with the anchor rows GONE the landmark still renders its own config", () => {
+  // The literal Phase 8B end state: no slot at all.
+  const node = landmark("footer", [], { sectionProps: { copyright: "© Impronta" } });
+  assert.deepEqual(resolveShellLandmarkSectionProps(node, undefined), {
+    copyright: "© Impronta",
+  });
+});
+
+test("[config] IMPRONTA TODAY — no inline props means the slot row, unchanged", () => {
+  // This is the no-change proof, and it passes on the PRE-change code too: with
+  // `sectionProps` absent the resolver is the identity `slot.props`, the exact
+  // expression both render paths used before. Asserted by REFERENCE, not deep
+  // equality, so a "helpfully" cloned or normalized props object fails it.
+  for (const slot of LEGACY_SLOTS) {
+    const node = landmark(slot.slotKey as "header" | "footer");
+    assert.equal(
+      resolveShellLandmarkSectionProps(node, slot),
+      slot.props,
+      "a slot-sourced landmark must be handed the slot's own props object",
+    );
+  }
+});
+
+test("[config] a non-object inline value falls through to the slot", () => {
+  for (const bad of [null, "minimal", 7, ["variant"]]) {
+    const node = landmark("header", [], { sectionProps: bad });
+    assert.equal(
+      resolveShellLandmarkSectionProps(node, LEGACY_SLOTS[0]),
+      LEGACY_SLOTS[0].props,
+      `inline ${JSON.stringify(bad)} is not a props record`,
+    );
+  }
+});
+
+test("[config] a NON-LANDMARK section node may not own config inline", () => {
+  // `renderShellSlot` looks its builder node up by address, and that node is not
+  // guaranteed to be a shell landmark. Only landmarks opt into tree ownership.
+  const notALandmark = {
+    id: "some-section",
+    kind: "section",
+    props: {
+      sectionId: HEADER_SECTION_ID,
+      sectionTypeKey: "hero_banner",
+      slotKey: "header",
+      sortOrder: 0,
+      sectionProps: { variant: "minimal" },
+    },
+    children: [],
+  } as unknown as BuilderNode;
+  assert.equal(
+    resolveShellLandmarkSectionProps(notALandmark, LEGACY_SLOTS[0]),
+    LEGACY_SLOTS[0].props,
+  );
+});
+
+test("[config] no node and no slot resolves to an empty record, never undefined", () => {
+  assert.deepEqual(resolveShellLandmarkSectionProps(undefined, undefined), {});
+  assert.deepEqual(resolveShellLandmarkSectionProps(landmark("header"), null), {});
+});
+
+test("[config] hydration and the resolver agree on the SAME landmark", () => {
+  // Both paths must land on one answer, or a tree would render differently
+  // depending on whether it happened to be hydrated first.
+  const inline = landmark("header", [], { sectionProps: { variant: "minimal" } });
+  const [afterHydrate] = hydrateShellLandmarkSectionProps([inline], LEGACY_SLOTS) as [
+    BuilderNode,
+  ];
+  assert.deepEqual(
+    resolveShellLandmarkSectionProps(afterHydrate, LEGACY_SLOTS[0]),
+    resolveShellLandmarkSectionProps(inline, LEGACY_SLOTS[0]),
+  );
+
+  // And an un-addressed landmark hydrated from the slot resolves to the very
+  // props the slot carries — hydration then resolution is a fixed point.
+  const unaddressed = landmark("header", [], { sectionId: undefined });
+  const [filled] = hydrateShellLandmarkSectionProps([unaddressed], LEGACY_SLOTS) as [
+    BuilderNode,
+  ];
+  assert.deepEqual(
+    resolveShellLandmarkSectionProps(filled, undefined),
+    LEGACY_SLOTS[0].props,
+  );
+});
+
+test("[config] an 8B tree with inline props and NO slots plans as freeform on both sides", () => {
+  // End-to-end of the decision layer in the post-8B world: slot rows deleted,
+  // tree carries everything. Every side must still resolve to real nodes (a
+  // `none` here would blank the live header) and to real config.
+  const tree = [
+    landmark("header", [], { sectionProps: { variant: "standard" } }),
+    landmark("footer", [], { sectionProps: { copyright: "© Impronta" } }),
+  ];
+  const prepared = prepareShellTree(tree, []);
+  assert.equal(prepared.authoring, "freeform");
+  assert.equal(prepared.tree, tree, "no slots means nothing to hydrate");
+  for (const side of ["header", "footer"] as const) {
+    const plan = resolveShellSidePlan({ tree: prepared.tree, slots: [], side });
+    assert.equal(plan.mode, "freeform");
+    const node = plan.mode === "freeform" ? plan.nodes[0] : null;
+    assert.ok(node && isShellLandmarkNode(node));
+    assert.deepEqual(
+      resolveShellLandmarkSectionProps(node, undefined),
+      side === "header" ? { variant: "standard" } : { copyright: "© Impronta" },
+    );
+  }
 });
 
 // ─── DATA-SOURCE NODE COLLECTION ────────────────────────────────────────────
