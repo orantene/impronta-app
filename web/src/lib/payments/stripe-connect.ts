@@ -15,11 +15,18 @@
  *      → called from the return URL, the `account.updated` webhook, and on
  *        demand from the agency settings page.
  *
- * Charging model (used by `stripe-checkout.ts`):
- *   Direct Charges with `application_fee_amount`. The connected account
- *   bears chargebacks; the platform receives an application fee. Today the
- *   fee defaults to 0 — `getApplicationFeeForAgency` is the single point of
- *   change when the platform monetizes.
+ * Charging model:
+ *   Connected accounts here are PAYOUT DESTINATIONS ONLY. They never take a
+ *   charge. Every client payment settles on the platform account and is fanned
+ *   out to talent + workspace by `lib/payments/transfers.ts` ("separate charges
+ *   and transfers"), which is what lets the talent be paid their full quote
+ *   with the platform's seller share coming out of the workspace margin.
+ *
+ *   This module used to describe Direct Charges with `application_fee_amount`.
+ *   That lane was removed on 2026-09-01: our accounts are onboarded under the
+ *   `recipient` service agreement, which per Stripe cannot process payments or
+ *   hold the `card_payments` capability, and an application fee cannot express
+ *   a three-way split. See `lib/payments/stripe-checkout.ts`.
  */
 
 import Stripe from "stripe";
@@ -472,72 +479,19 @@ export async function disconnectAccount(
   return { ok: true, data: true };
 }
 
-/**
- * Compute the platform application fee in cents for a charge of `amountCents`
- * routed to a given agency. Synchronous, kept for legacy callers — always
- * returns 0. Prefer the async `getApplicationFeeForBooking` below, which
- * reads the persisted commission snapshot per-booking.
+/*
+ * REMOVED 2026-09-01 (finance audit): `getApplicationFeeForAgency`,
+ * `getApplicationFeeForBooking` and `canRouteCheckoutsToAgency`.
  *
- * @deprecated Use `getApplicationFeeForBooking(bookingId)` — it reads
- * from `booking_commission_snapshot` (per Phase B PR 1/2 spec) so the
- * fee tracks the actual ratified commission rate, not a flat 0.
+ * All three existed only to support routing a booking checkout as a Direct
+ * Charge onto a workspace's connected account, with the platform taking
+ * `application_fee_amount`. That lane is gone — Stripe does not permit charges
+ * on our `recipient`-agreement connected accounts, and an application fee
+ * cannot express the three-way talent/workspace/platform split anyway. Every
+ * booking charge now settles on the platform account and fans out via
+ * transfers. See `lib/payments/stripe-checkout.ts` for the reasoning.
+ *
+ * The platform's take is read from the commission snapshot at payout time
+ * (`sumBookingPlatformFeeCents`), not at charge time.
  */
-export function getApplicationFeeForAgency(
-  _tenantSlug: string,
-  _amountCents: number,
-): number {
-  return 0;
-}
 
-/**
- * Phase B PR 3 — pulls the platform_fee_cents from the booking's
- * commission snapshots (persisted by `convertToBooking` via the engine
- * RPC, see `lib/billing/commission-engine.ts`).
- *
- * Since the per-participant grain shipped (ADR 2026-05-22), one booking
- * has N snapshot rows — one per active talent participant. The Stripe
- * application fee is the SUM of every row's platform_fee_cents, since
- * a single PaymentIntent settles the whole booking and the platform's
- * total take is the union of every participant's take.
- *
- * Returns 0 when:
- *   - The booking has no snapshots (rare — the snapshot persist is
- *     best-effort post-commit, but if it failed the booking still
- *     exists). Logged so we notice.
- *   - The supabase client is unavailable (dev / misconfigured env).
- *
- * The math itself is enforced at the DB layer (`CHECK lanes_sum_to_gross`
- * applies per row) so each row's split is consistent.
- */
-export async function getApplicationFeeForBooking(
-  bookingId: string,
-): Promise<number> {
-  if (!bookingId) return 0;
-  // Lazy import — keeps the lib graph clean (commission-engine pulls in
-  // its own server-only deps).
-  const { sumBookingPlatformFeeCents } = await import(
-    "@/lib/billing/commission-engine"
-  );
-  const { createClient: createSupabaseServerClient } = await import(
-    "@/lib/supabase/server"
-  );
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return 0;
-  return sumBookingPlatformFeeCents(supabase, bookingId);
-}
-
-/**
- * Convenience: is the agency in a state where checkout should route to its
- * connected account? Both `enabled` and a positive charges flag are required.
- * `restricted` accounts can sometimes still charge, but to be safe we treat
- * anything other than `enabled` as "fall back to platform".
- */
-export function canRouteCheckoutsToAgency(
-  snapshot: Pick<ConnectedAccountSnapshot, "status" | "chargesEnabled" | "stripeAccountId">,
-): snapshot is ConnectedAccountSnapshot & { stripeAccountId: string } {
-  return (
-    snapshot.status === "enabled"
-    && snapshot.chargesEnabled
-    && !!snapshot.stripeAccountId
-  );
-}

@@ -16,16 +16,10 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
-import { isCrossChannelRehomedInquiry } from "@/lib/inquiry/inquiry-rehome";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment-intent";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import {
-  getConnectedAccountSnapshotById,
-  canRouteCheckoutsToAgency,
-  getApplicationFeeForBooking,
-} from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
 
@@ -248,31 +242,17 @@ export async function startInquiryCheckout(
     const successUrl = `${origin}/checkout/success`;
     const cancelUrl = `${origin}/checkout/cancel`;
 
-    // Charge/payout coherence guard (cross-channel re-home): when the inquiry
-    // was re-homed onto a tenant that is NOT its originating channel (hub /
-    // Discover), a Direct Charge on that tenant's Connect account would strand
-    // the platform-funded payout fan-out (markPaid → executeBookingTransfers
-    // pays talent + workspace from the PLATFORM balance). Force the charge onto
-    // the platform account so the fan-out stays funded — the same well-tested
-    // embedded-PayNow model (createInquiryPaymentIntent). For a NATIVE agency
-    // inquiry (source_workspace_id == tenant_id) this is FALSE and Direct Charge
-    // routing is unchanged.
-    const rehomed = isCrossChannelRehomedInquiry(ctx.tenantId, ctx.sourceWorkspaceId);
-
-    // Connect routing: if the agency has connected Stripe and the account is
-    // fully enabled, run a Direct Charge against their account. Otherwise
-    // fall back to the platform's single-account flow (legacy / pre-launch).
-    const connectSnap = await getConnectedAccountSnapshotById(ctx.tenantId);
-    const useConnect =
-      !rehomed && connectSnap.ok && canRouteCheckoutsToAgency(connectSnap.data);
-    const connectedAccountId = useConnect ? connectSnap.data.stripeAccountId : null;
-    // Phase B PR 3 — pull the actual platform fee from the persisted
-    // commission snapshot, not the legacy flat-0 helper. When the booking
-    // has no snapshot yet (rare), falls back to 0 so checkout still works.
-    const applicationFeeCents = useConnect
-      ? await getApplicationFeeForBooking(booking.id as string)
-      : 0;
-
+    // The charge ALWAYS lands on the platform account — there is no
+    // connected-account routing here any more. It used to branch: a workspace
+    // with a fully-onboarded Connect account got a Direct Charge on its own
+    // account with the platform taking an application fee, and a cross-channel
+    // re-home was special-cased back onto the platform to keep the payout
+    // fan-out funded. Both the branch and the special case are gone
+    // (finance audit, 2026-09-01): our connected accounts are on the
+    // `recipient` service agreement, which Stripe does not allow to process
+    // payments at all, and a Direct Charge leaves the gross on the workspace's
+    // account while `markPaid` pays talent + workspace out of the PLATFORM
+    // balance. See lib/payments/stripe-checkout.ts for the full reasoning.
     const result = await createCheckoutSessionForTransaction({
       transactionId: txn.id,
       amountCents: txn.grossAmountCents,
@@ -283,8 +263,6 @@ export async function startInquiryCheckout(
       successUrl,
       cancelUrl,
       description: "Booking invoice",
-      connectedAccountId,
-      applicationFeeCents,
       // Pay in the language the client is reading the app in, not the one
       // their browser happens to advertise.
       locale: await getRequestLocale(),

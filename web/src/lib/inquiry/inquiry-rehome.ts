@@ -50,19 +50,19 @@ export function resolveInquiryHome(
  * where the inquiry was routed onto a managing agency that is NOT the channel it
  * came in through.
  *
- * Consumed by startInquiryCheckout (client-pipeline.ts) to force the client
- * charge onto the PLATFORM account instead of a Direct Charge on the tenant's
- * Connect account. A Direct Charge on the re-home tenant would strand the
- * platform-funded payout fan-out (markPaid → executeBookingTransfers pays
- * talent + workspace from the PLATFORM balance), so the transfers would fail on
- * insufficient funds or double-pay. Collecting on the platform keeps the
- * fan-out funded — the same model the embedded PayNow path already uses.
+ * NO LONGER CONSUMED BY CHECKOUT (2026-09-01). This was startInquiryCheckout's
+ * escape hatch: a re-homed inquiry had to be forced onto the PLATFORM account
+ * because a Direct Charge on the re-home tenant would strand the
+ * platform-funded payout fan-out. The Direct Charge lane has since been removed
+ * outright — EVERY booking charge now settles on the platform — so there is no
+ * routing decision left for this predicate to make. It is kept because it
+ * states a true and separately useful fact about an inquiry (its channel is not
+ * its home) and is covered by tests; it has no production caller today.
  *
  * Strict no-op for NATIVE inquiries: a client on the agency's own storefront
  * contacting the agency's own talent has source_workspace_id == tenant_id →
- * FALSE → Direct Charge routing is completely unchanged. Also FALSE when
- * source_workspace_id is null (pre-attribution legacy rows), so we only ever
- * re-route when we can positively prove channel != home.
+ * FALSE. Also FALSE when source_workspace_id is null (pre-attribution legacy
+ * rows), so it only ever reports true when channel != home is positively proven.
  */
 export function isCrossChannelRehomedInquiry(
   tenantId: string,
