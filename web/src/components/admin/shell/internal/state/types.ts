@@ -35,8 +35,8 @@ export type WorkspacePage =
   | "menu"
   | "roster"     // replaces talent
   | "clients"
-  | "operations" // WS-19/20: analytics + workflow automation
-  | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
+  | "reviews"    // WP1 — reputation: reported-review moderation + review photos + rating integrity
+  | "analytics"  // WP1 — funnel, money (→ Financials), website analytics, reviews rollup; honest empty states
   | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
   | "media"      // Agency/Studio — workspace media gallery + watermark control
   | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.

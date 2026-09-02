@@ -118,14 +118,6 @@
       "count": 47
     }
   },
-  "src/components/admin/shell/admin-shell.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 1
-    }
-  },
   "src/components/admin/shell/internal/context-add-search.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 17
@@ -233,7 +225,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-15.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 92
+      "count": 82
     }
   },
   "src/components/admin/shell/internal/drawers/light-17.tsx": {
@@ -249,16 +241,6 @@
   "src/components/admin/shell/internal/drawers/light-19.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 69
-    }
-  },
-  "src/components/admin/shell/internal/drawers/light-21.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 28
-    }
-  },
-  "src/components/admin/shell/internal/drawers/light-22.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 32
     }
   },
   "src/components/admin/shell/internal/drawers/light-23.tsx": {
@@ -675,6 +657,11 @@
       "count": 12
     }
   },
+  "src/components/admin/shell/internal/page-modules/FreeValuePanel.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
   "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 14
@@ -682,7 +669,7 @@
   },
   "src/components/admin/shell/internal/page-modules/InboxPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 29
+      "count": 12
     }
   },
   "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
@@ -690,9 +677,9 @@
       "count": 13
     }
   },
-  "src/components/admin/shell/internal/page-modules/OperationsPage.tsx": {
+  "src/components/admin/shell/internal/page-modules/PageStatusChip.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 10
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
@@ -703,11 +690,6 @@
   "src/components/admin/shell/internal/page-modules/PitchesPage-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 44
-    }
-  },
-  "src/components/admin/shell/internal/page-modules/SitePage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 29
     }
   },
   "src/components/admin/shell/internal/page-modules/SurfaceRouter.tsx": {
@@ -738,11 +720,6 @@
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 11
-    }
-  },
-  "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 31
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspacePageView.tsx": {

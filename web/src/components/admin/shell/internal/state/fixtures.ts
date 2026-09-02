@@ -28,8 +28,8 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "roster",
   "clients",
   "pitches",   // Phase 9 — pitch history surface.
-  "operations",
-  "production",
+  "reviews",   // WP1 — reputation surface (moderation queue + review photos)
+  "analytics", // WP1 — funnel / money / website / reviews, honest empty states
   "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
   "media",     // Agency/Studio — workspace media gallery + watermark control
   "settings",
@@ -258,8 +258,8 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   menu:      { label: "Menu",      icon: "layers",   description: "Workspace-owned items customers can order from your site" },
   roster:    { label: "Roster",    icon: "users",    description: "Your talent, availability, and performance" },
   clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
-  operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },
-  production:{ label: "Production",icon: "camera",   description: "Casting, crew bookings, call sheets, rights, and safety" },
+  reviews:   { label: "Reviews",   icon: "star",     description: "Reported reviews, review photos, and rating integrity" },
+  analytics: { label: "Analytics", icon: "chart",    description: "Funnel, money, website, and reviews" },
   website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
   media:     { label: "Media",     icon: "camera",   description: "Workspace photo library, watermark control, and usage tracking" },
   pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },

@@ -7,7 +7,7 @@ import { WorkspaceMediaPage } from "../media-page";
 import { useWebsiteSubnav } from "./website-nav";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
+import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsPlan, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
@@ -15,15 +15,14 @@ import { CalendarPage } from "./CalendarPage";
 import { MenuPage } from "./MenuPage";
 import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
-import { UnifiedInboxPage, WorkspaceMessagesPage } from "./InboxPage";
-import { OperationsPage, ProductionPage } from "./OperationsPage";
+import { WorkspaceMessagesPage } from "./InboxPage";
 import { OverviewPage } from "./OverviewPage";
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
-import { SitePage } from "./SitePage";
+import { ReviewsPage } from "./ReviewsPage";
+import { AnalyticsPage } from "./AnalyticsPage";
 import { TalentPage } from "./TalentPage-1";
 import { WebsitePage } from "./WebsitePage-1";
-import { WorkPage } from "./WorkPage";
 import { WorkspacePageView } from "./WorkspacePageView";
 import { MessagesShell } from "./pages-dynamic";
 
@@ -98,12 +97,33 @@ export function WorkspaceShell() {
  * (unread) + Roster (pending approvals/verifications), and Settings
  * pinned to the bottom of the rail like Shopify's admin.
  */
-const SIDEBAR_GROUPS: Array<{ label: string | null; pages: WorkspacePage[] }> = [
+// WP1 — the rail is a PROJECTION of state.visiblePages, not a hardcoded list.
+// A business workspace (workspace_type=business) has roster + pitches removed
+// from visiblePages upstream, so those rows never render for it (previously
+// the rail showed them and bounced the click). Media is additionally gated to
+// the agency plan at the rail (the in-page gate stays as the backstop).
+const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "menu", "roster", "clients"] },
-  { label: "Grow", pages: ["pitches", "operations", "production"] },
+  { label: "Operate", pages: ["messages", "calendar", "clients"] },
+  { label: "Sell and grow", pages: ["menu", "roster", "pitches", "reviews", "analytics"] },
   { label: "Site", pages: ["website", "media"] },
 ];
+
+function buildSidebarGroups(
+  visiblePages: readonly WorkspacePage[],
+  plan: Parameters<typeof meetsPlan>[0],
+): Array<{ label: string | null; pages: WorkspacePage[] }> {
+  const visible = new Set(visiblePages);
+  const canMedia = meetsPlan(plan, "agency");
+  return SIDEBAR_GROUP_TEMPLATE
+    .map((group) => ({
+      label: group.label,
+      pages: group.pages.filter(
+        (page) => visible.has(page) && (page !== "media" || canMedia),
+      ),
+    }))
+    .filter((group) => group.pages.length > 0);
+}
 
 /** Complete icon coverage for the rail — PAGE_ICON only maps the canonical 6. */
 const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
@@ -114,8 +134,8 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   roster: "team",
   clients: "briefcase",
   pitches: "send",
-  operations: "layers",
-  production: "camera",
+  reviews: "star",
+  analytics: "chart",
   website: "globe",
   media: "image",
   settings: "settings",
@@ -404,7 +424,7 @@ function WorkspaceSidebarShell() {
             mode toggle, bell/help all live in the persistent identity
             bar above. Grouped Shopify-style. */}
         <nav ref={sidebarNavRef} aria-label="Workspace sections" className="flex flex-col gap-[2px]">
-          {SIDEBAR_GROUPS.map((group, gi) => (
+          {buildSidebarGroups(state.visiblePages, state.plan).map((group, gi) => (
             <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
               {group.label && (
                 <div
@@ -488,10 +508,11 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "menu":
       body = <MenuPage />;
       break;
-    // WS-3.3 — "work" pipeline is now a view-filter inside Messages;
-    // keep the page component for now so deep-links still land somewhere.
+    // WS-3.3 — "work" pipeline is a view-filter inside Messages; the legacy
+    // /admin/work route syncs to messages. The old WorkPage stub was deleted
+    // in WP1, so the alias renders Messages directly.
     case "work":
-      body = <WorkPage />;
+      body = <WorkspaceMessagesPage />;
       break;
     // WS-3.1 — canonical "roster" route (was "talent")
     case "roster":
@@ -504,11 +525,11 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "pitches":
       body = <PitchesPage />;
       break;
-    case "operations":
-      body = <OperationsPage />;
+    case "reviews":
+      body = <ReviewsPage />;
       break;
-    case "production":
-      body = <ProductionPage />;
+    case "analytics":
+      body = <AnalyticsPage />;
       break;
     // 2026 — Website is the premium site management surface (pages,
     // posts, redirects, custom code, tracking, SEO, domain, maintenance,

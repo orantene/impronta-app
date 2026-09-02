@@ -191,20 +191,11 @@ export type DrawerId =
   // ── WS-18 AI assist ─────────────────────────────────────────────────
   | "ai-draft-assist"
   | "ai-search-explain"
-  | "ai-weekly-digest"
   // ── WS-19 Reporting & analytics ────────────────────────────────────
   // "workspace-revenue" retired 2026-05-26 — replaced by the canonical
   // /{tenantSlug}/admin/financials route. See decision-log L46.
   | "conversion-funnel"
-  | "top-performers"
-  | "coordinator-workload"
   // ── WS-20 Operations & workflow ──────────────────────────────────────
-  | "my-queue"            // coordinator's personal inquiry queue
-  | "sla-timers"          // SLA breach monitor across all active inquiries
-  | "rules-builder"       // automation rules engine
-  | "saved-replies"       // saved reply templates for messaging
-  | "vacation-handover"   // reassign workload during absence
-  | "on-call-rotation"    // on-call schedule + escalation config
   // ── WS-21 Compliance, legal, audit ──────────────────────────────────
   | "gdpr-export"         // per-data-type GDPR / CCPA export
   | "consent-log"         // marketing consent log per channel + timestamp
@@ -227,36 +218,19 @@ export type DrawerId =
   | "csv-import"          // CSV import for talent / clients with column mapping
   | "migration-assistant" // AI-assisted Excel / WhatsApp migration
   // ── WS-26 Brand & creative tools ────────────────────────────────────
-  | "brief-builder"       // client brief authoring: scope, dates, deliverables
   | "brand-assets"        // workspace brand-asset library
-  | "approval-flow"       // multi-stakeholder brief / booking approval
   // ── WS-27 Site & page-builder management ────────────────────────────
   | "site-context-switcher" // multi-context site picker (agency/talent/hub)
   | "page-scheduler"      // schedule page publish/unpublish
   // ── WS-28 Casting director ──────────────────────────────────────────
-  | "casting-flow"        // open/closed casting with multi-round callbacks
-  | "callback-tracker"    // per-round talent status + structured feedback
   // ── WS-29 Production team & multi-discipline bookings ───────────────
-  | "crew-booking"        // multi-resource booking (talent + crew + studio)
-  | "production-timeline" // shoot day call-sheet and timeline
   // ── WS-30 Image rights & post-booking lifecycle ──────────────────────
-  | "usage-tracker"       // licensed usage per booking: region, media, expiry
-  | "relicense-flow"      // extend or re-license usage after expiry
   // ── WS-31 Account lifecycle ─────────────────────────────────────────
-  | "ownership-transfer"  // transfer workspace to new owner with audit trail
   | "minor-account"       // parent/guardian co-pilot account for under-18 talent
   // ── WS-32 Discovery & marketplace ────────────────────────────────────
-  | "discovery-feed"      // trending talent + editor's picks curation
-  | "avail-search"        // date-aware geo + availability search
   // ── WS-33 On-set / production-day live ───────────────────────────────
-  | "call-sheet"          // live call sheet with check-in status
-  | "onset-checkin"       // talent/crew check-in for shoot day
   // ── WS-34 Safety, disputes, incident handling ────────────────────────
-  | "incident-report"     // on-set incident report + whistleblower channel
-  | "dispute-resolution"  // dispute stages: Filed → Mediation → Decision
   // ── WS-35 Production-feature reconciliation ──────────────────────────
-  | "locations-drawer"    // shoot locations, studios, recurring venues
-  | "ai-workspace"        // AI workspace: provider registry + usage controls
   // ── Feature controls ─────────────────────────────────────────────────
   | "feature-controls"    // agency-admin on/off toggles for every platform feature
   // ── Talent circle ────────────────────────────────────────────────────

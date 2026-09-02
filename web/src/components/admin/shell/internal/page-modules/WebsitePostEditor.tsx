@@ -50,7 +50,7 @@ import type { PostEditorRecord } from "@/lib/site-admin/server/posts";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
 import type { WebsitePost } from "../state";
-import { PageStatusChip } from "./SitePage";
+import { PageStatusChip } from "./PageStatusChip";
 import { PageHeader } from "./pages-shared";
 
 const BUTTON_BASE =

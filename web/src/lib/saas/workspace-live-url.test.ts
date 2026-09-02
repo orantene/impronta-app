@@ -153,7 +153,6 @@ test("normalizeWorkspaceUrlPlan degrades unknown plans to free", () => {
 test("admin storefront cards do not synthesize slug.tulala.digital", () => {
   const files = [
     "src/components/admin/shell/internal/page-modules/OverviewPage.tsx",
-    "src/components/admin/shell/internal/page-modules/SitePage.tsx",
     "src/components/admin/shell/internal/messages/admin-1.tsx",
     "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx",
   ];
