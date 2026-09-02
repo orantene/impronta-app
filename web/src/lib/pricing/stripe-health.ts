@@ -343,6 +343,161 @@ async function checkConnect(key: string): Promise<HealthCheck> {
   };
 }
 
+
+type StripeCoupon = { id: string; valid: boolean };
+
+/**
+ * Every DB discount that claims a Stripe coupon must have one that still
+ * exists and is still valid on THIS account.
+ *
+ * The 2026-09-02 commerce audit found the Health tab checking prices only, so
+ * the coupon half of the catalog was unverified: a discount row could point at
+ * a coupon deleted in the Stripe dashboard, and nothing would say so until a
+ * customer typed the code and checkout failed. That is the same class of bug
+ * `checkPrices` exists to catch, one table over.
+ *
+ * Also reports Stripe-side promotion codes that have NO row here. Those are not
+ * broken — they are redeemable in Stripe's own checkout box while being
+ * invisible to `validateDiscount` — which is exactly the split-brain the
+ * importer was built to close, so a standing count is worth surfacing.
+ */
+async function checkCoupons(key: string): Promise<HealthCheck> {
+  const supabase = createServiceRoleClient();
+  if (!supabase) {
+    return {
+      id: "coupons",
+      label: "Discount coupons",
+      status: "unknown",
+      detail: "Could not read the discount catalog.",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("product_discounts")
+    .select("code, stripe_coupon_id")
+    .eq("is_active", true);
+
+  if (error || !data) {
+    return {
+      id: "coupons",
+      label: "Discount coupons",
+      status: "unknown",
+      detail: "Could not read the discount catalog.",
+    };
+  }
+
+  const rows = data as unknown as { code: string; stripe_coupon_id: string | null }[];
+  const claimed = rows.filter((r) => r.stripe_coupon_id);
+
+  if (claimed.length === 0) {
+    return {
+      id: "coupons",
+      label: "Discount coupons",
+      status: "ok",
+      detail:
+        rows.length === 0
+          ? "No active discounts."
+          : `${rows.length} active discount(s), none mirrored to Stripe yet.`,
+    };
+  }
+
+  const broken: string[] = [];
+  for (const row of claimed) {
+    const res = await stripeGet<StripeCoupon>(
+      `/coupons/${encodeURIComponent(row.stripe_coupon_id as string)}`,
+      key,
+    );
+    if (!res.ok) {
+      broken.push(`${row.code} (${res.status === 404 ? "missing" : res.message})`);
+    } else if (!res.data.valid) {
+      broken.push(`${row.code} (expired or fully redeemed)`);
+    }
+  }
+
+  if (broken.length > 0) {
+    return {
+      id: "coupons",
+      label: "Discount coupons",
+      status: "fail",
+      detail: `Coupon missing or invalid on this account: ${broken.join(", ")}.`,
+    };
+  }
+
+  return {
+    id: "coupons",
+    label: "Discount coupons",
+    status: "ok",
+    detail: `All ${claimed.length} mirrored coupon(s) exist and are valid.`,
+  };
+}
+
+type StripeProduct = { id: string; active: boolean };
+
+/**
+ * Every active tier that claims a Stripe product must have one that exists and
+ * is active. A tier whose product was archived in the Stripe dashboard can
+ * still hold live prices, so `checkPrices` passes while new Checkout Sessions
+ * for that tier fail.
+ */
+async function checkProducts(key: string): Promise<HealthCheck> {
+  const supabase = createServiceRoleClient();
+  if (!supabase) {
+    return {
+      id: "products",
+      label: "Tier products",
+      status: "unknown",
+      detail: "Could not read the pricing catalog.",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("product_tiers")
+    .select("slug, stripe_product_id")
+    .eq("is_active", true);
+
+  if (error || !data) {
+    return {
+      id: "products",
+      label: "Tier products",
+      status: "unknown",
+      detail: "Could not read the pricing catalog.",
+    };
+  }
+
+  const rows = data as unknown as { slug: string; stripe_product_id: string | null }[];
+  const claimed = rows.filter((r) => r.stripe_product_id);
+
+  const broken: string[] = [];
+  for (const row of claimed) {
+    const res = await stripeGet<StripeProduct>(
+      `/products/${encodeURIComponent(row.stripe_product_id as string)}`,
+      key,
+    );
+    if (!res.ok) {
+      broken.push(`${row.slug} (${res.status === 404 ? "missing" : res.message})`);
+    } else if (!res.data.active) {
+      broken.push(`${row.slug} (archived in Stripe)`);
+    }
+  }
+
+  if (broken.length > 0) {
+    return {
+      id: "products",
+      label: "Tier products",
+      status: "fail",
+      detail: `Product missing or archived on this account: ${broken.join(", ")}.`,
+    };
+  }
+
+  // Free and Network legitimately have no Stripe product: nothing is charged.
+  return {
+    id: "products",
+    label: "Tier products",
+    status: "ok",
+    detail: `All ${claimed.length} mirrored product(s) exist and are active.`,
+  };
+}
+
 /** Runs every check in parallel. Never throws. */
 export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
   const fetchedAt = new Date().toISOString();
@@ -355,16 +510,23 @@ export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
       checks: [
         account,
         { id: "prices", label: "Tier prices", status: "unknown", detail: "No Stripe key." },
+        { id: "products", label: "Tier products", status: "unknown", detail: "No Stripe key." },
+        { id: "coupons", label: "Discount coupons", status: "unknown", detail: "No Stripe key." },
         { id: "webhooks", label: "Webhooks", status: "unknown", detail: "No Stripe key." },
         { id: "connect", label: "Connect accounts", status: "unknown", detail: "No Stripe key." },
       ],
     };
   }
 
-  const [prices, webhooks, connect] = await Promise.all([
+  const [prices, products, coupons, webhooks, connect] = await Promise.all([
     checkPrices(key),
+    checkProducts(key),
+    checkCoupons(key),
     checkWebhooks(key),
     checkConnect(key),
   ]);
-  return { fetchedAt, checks: [account, prices, webhooks, connect] };
+  return {
+    fetchedAt,
+    checks: [account, prices, products, coupons, webhooks, connect],
+  };
 });

@@ -7042,7 +7042,9 @@
             "account": "Cuenta de Stripe",
             "prices": "Precios de nivel",
             "webhooks": "Webhooks",
-            "connect": "Cuentas de Connect"
+            "connect": "Cuentas de Connect",
+            "products": "Productos de nivel",
+            "coupons": "Cupones de descuento"
           }
         },
         "revenue": {

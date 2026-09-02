@@ -41,6 +41,8 @@ const STATUS_KEY: Record<HealthStatus, string> = {
 const CHECK_LABEL_KEY: Record<string, string> = {
   account: "dashboard.platform.commerce.health.checks.account",
   prices: "dashboard.platform.commerce.health.checks.prices",
+  products: "dashboard.platform.commerce.health.checks.products",
+  coupons: "dashboard.platform.commerce.health.checks.coupons",
   webhooks: "dashboard.platform.commerce.health.checks.webhooks",
   connect: "dashboard.platform.commerce.health.checks.connect",
 };

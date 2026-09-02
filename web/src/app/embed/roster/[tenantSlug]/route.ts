@@ -17,6 +17,7 @@
 
 import type { NextRequest } from "next/server";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { loadEmbedRoster } from "@/lib/embed/roster-data";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
@@ -81,10 +82,54 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   const cardDesign = await resolveCardDesign(scope.tenantId);
 
   const baseHref = baseOrigin(request);
+
+  // INSTRUMENTATION, added 2026-09-02. This route deliberately skips the app
+  // shell ("no PublicHeader, no analytics"), and the cost of that showed up in
+  // the commerce audit: `plan_tier_caps` reserves embed widgets for Agency and
+  // Network, the route gates on nothing, and NOBODY COULD SAY who was using it.
+  // 0 of 8,502 analytics events touched /embed, which looked like zero usage
+  // and was actually zero instrumentation.
+  //
+  // One event, so the eventual plan gate can be sized on a measured number
+  // instead of an assumption. Fire-and-forget: an analytics failure must never
+  // affect an embed a third-party site is rendering, and `logAnalyticsEventServer`
+  // already swallows its own errors.
+  void logAnalyticsEventServer({
+    name: "embed.roster.served",
+    tenantId: scope.tenantId,
+    path: `/embed/roster/${slug}`,
+    payload: {
+      // No plan_tier here on purpose: it is not on the portal scope, and adding
+      // a query to a route third-party sites render would be a real cost for
+      // data that is already joinable from `agencies` on tenant_id at analysis
+      // time.
+      roster_count: roster.entries.length,
+      // The page the iframe sits on, when the browser sends it. This is the
+      // question the gate actually needs answered: is anyone embedding this on
+      // a real site, or is the traffic all our own previews?
+      referrer_host: refererHost(request),
+      theme,
+    },
+  });
+
   return new Response(renderEmbedHtml({ roster, theme, baseHref, cardDesign }), {
     status: 200,
     headers: htmlHeaders(),
   });
+}
+
+/**
+ * Host of the embedding page, or null. Host only — never the full referer,
+ * which can carry a path and query from someone else's site.
+ */
+function refererHost(request: NextRequest): string | null {
+  const raw = request.headers.get("referer");
+  if (!raw) return null;
+  try {
+    return new URL(raw).host || null;
+  } catch {
+    return null;
+  }
 }
 
 /* ─── HTML response headers — allow embedding anywhere ──────────────── */

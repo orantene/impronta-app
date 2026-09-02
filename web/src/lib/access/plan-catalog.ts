@@ -96,8 +96,21 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     trialDays: 14,
     badgeColor: "#3fa7a0",
     accentColor: "#2b7a74",
-    isVisible: true,
-    isSelfServe: true,
+    // NOT LAUNCHED. The DB is the enforcing side and has always said so
+    // (`product_tiers.website.is_active = false`, which keeps the tier off the
+    // pricing ladder and makes `resolveWorkspacePriceId('website')` return
+    // null so no checkout can start). These two flags said the opposite, which
+    // left the tier in two contradictory states at once: unsellable in the
+    // database, advertised and self-serve in code.
+    //
+    // Low blast radius today, because sellability is decided by the DB. But
+    // Website has ZERO `product_features` rows, so flipping `is_active` without
+    // seeding them would publish a compare-table column of dashes. Aligning the
+    // code to the DB means the tier is now coherently "not launched yet", and
+    // launching it is a deliberate three-part change: seed the features, flip
+    // `is_active`, flip these flags back.
+    isVisible: false,
+    isSelfServe: false,
     isArchived: false,
   },
   studio: {

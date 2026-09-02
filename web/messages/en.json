@@ -7042,7 +7042,9 @@
             "account": "Stripe account",
             "prices": "Tier prices",
             "webhooks": "Webhooks",
-            "connect": "Connect accounts"
+            "connect": "Connect accounts",
+            "products": "Tier products",
+            "coupons": "Discount coupons"
           }
         },
         "revenue": {
