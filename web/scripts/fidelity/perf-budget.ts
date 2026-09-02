@@ -82,7 +82,40 @@ interface Budget {
 }
 
 export const BUDGETS: readonly Budget[] = [
-  // PERF-1 regression lock: the global renderer sheet must appear once per page.
+  // PERF-1 regression lock: the global renderer sheet must appear once per
+  // RENDERED TREE. Read the scope note below before trusting this as a
+  // per-PAGE guarantee — it is not one.
+  //
+  // ── WHAT THIS GATE DOES NOT SEE (measured 2026-09-01, LANE A) ────────────
+  // This harness renders ONE tree and asserts one sheet, and that assertion is
+  // correct for what it renders. A real published page is composed of THREE
+  // independently-rendered trees, and ships THREE sheets:
+  //
+  //   live improntamodels.com, `<style data-builder-node-renderer-styles>`
+  //     shell header  100.0 KB
+  //     page body      87.0 KB   ← byte-identical in size to the `impronta`
+  //     shell footer   87.8 KB     fidelity design's scoped sheet (89,117 B),
+  //     ─────────────────────      so the harness models the BODY faithfully;
+  //     per page      274.8 KB     it just models one sheet where there are 3.
+  //
+  //   Same shape on /fashion-models (274.8 KB) and /contact (274.1 KB).
+  //
+  // So `rendererCssScopedBytes` below polices roughly ONE THIRD of the renderer
+  // CSS a visitor actually downloads. It is still the right number to optimise
+  // — the ~46.5 KB base bucket is carried by all three sheets, so a byte saved
+  // there is saved three times — but it must not be read as the page total.
+  //
+  // A raw `grep -c data-builder-node-renderer-styles` on the live HTML returns
+  // 9-12, not 3. That count is NOT nine sheets: Next.js re-serializes the same
+  // three <style> elements into the RSC flight payload (`self.__next_f.push`),
+  // so each one appears once as HTML and again as escaped JSON. Counting the
+  // marker string overstates the block count by 3-4x; counting real
+  // `<style …>` elements is the honest measure, and it is 3 on every page.
+  //
+  // NOT FIXED HERE, deliberately: making this budget page-shaped means teaching
+  // the harness to compose shell + body + shell the way the public routes do,
+  // which is a different lane's worth of work and would change what every
+  // historical number in this file means. Filed as the finding it is.
   { key: "rendererCssBlocks", label: "Renderer CSS blocks (PERF-1: exactly 1)", max: 1, unit: "exact" },
   // The FULL renderer sheet — the worst case, emitted when a caller cannot tell
   // the renderer which node-kinds are on the page (Lab canvas, dev previews).
