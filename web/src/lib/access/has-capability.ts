@@ -37,7 +37,6 @@ import {
   STATUS_RULES,
 } from "./status-rules";
 import { planGrantsCapability } from "./plan-capabilities";
-import { loadPlanEntitlements } from "./plan-entitlements-store";
 import { isKnownPlan, type PlanKey } from "./plan-catalog";
 
 export type AuthorizeResult =
@@ -155,8 +154,17 @@ export async function authorize(
   // entitled — it can only fail to withhold a feature we meant to upsell. The
   // alternative would mean a capability added to the registry but not yet
   // packaged instantly locks every tenant out of a shipped feature.
+  //
+  // The store is imported DYNAMICALLY, not at module scope. `plan-entitlements-
+  // store.ts` is marked `server-only`, and this module is re-exported by the
+  // `@/lib/access` barrel, which pure modules like `scheduling/
+  // exclusive-release-gate.ts` import for `roleGrantsCapability`. A static
+  // import would drag `server-only` into every `tsx --test` lane that has no
+  // shim registered and break it at load time, which is exactly what it did on
+  // the first push of this change.
   const plan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
   if (typeof plan === "string" && isKnownPlan(plan)) {
+    const { loadPlanEntitlements } = await import("./plan-entitlements-store");
     const entitlements = await loadPlanEntitlements();
     if (!planGrantsCapability(plan as PlanKey, capability, entitlements)) {
       return { ok: false, reason: "plan_lacks_capability" };
