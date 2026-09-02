@@ -48,6 +48,9 @@
     "src/app/api/cron/flag-unassigned-inquiries/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/ingest-balance-transactions/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/alert-money-failures/route.ts": {
       "maxDuration": 30
     },
@@ -140,6 +143,10 @@
     {
       "path": "/api/cron/flag-unassigned-inquiries",
       "schedule": "45 * * * *"
+    },
+    {
+      "path": "/api/cron/ingest-balance-transactions",
+      "schedule": "35 * * * *"
     },
     {
       "path": "/api/cron/alert-money-failures",
