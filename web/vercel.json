@@ -48,6 +48,9 @@
     "src/app/api/cron/flag-unassigned-inquiries/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/project-ledger/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/ingest-balance-transactions/route.ts": {
       "maxDuration": 60
     },
@@ -143,6 +146,10 @@
     {
       "path": "/api/cron/flag-unassigned-inquiries",
       "schedule": "45 * * * *"
+    },
+    {
+      "path": "/api/cron/project-ledger",
+      "schedule": "50 * * * *"
     },
     {
       "path": "/api/cron/ingest-balance-transactions",
