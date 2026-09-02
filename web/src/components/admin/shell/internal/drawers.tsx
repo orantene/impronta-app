@@ -39,14 +39,12 @@ import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/li
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
 import { TalentPhoneVerifyDrawer, TalentIdVerifyDrawer, TalentBusinessVerifyDrawer, TalentDomainVerifyDrawer, TalentPaymentVerifyDrawer, ClientCsvBulkAddDrawer, WidgetsDrawer, ApiKeysDrawer, SiteHealthDrawer } from "./drawers/light-13";
 import { StorefrontVisibilityDrawer, HubDistributionDrawer, FilterConfigDrawer, DangerZoneDrawer, SimpleStubDrawer, PlanCompareDrawer, ClientTrustDetailDrawer } from "./drawers/light-14";
-import { EscrowDetailDrawer, RefundFlowDrawer, DisputeFlowDrawer, KycVerificationDrawer, ProofOfFundsDrawer, PayoutMethodFailureDrawer, SubscriptionLifecycleDrawer, NotificationDetailDrawer, AiDraftAssistDrawer, AiSearchExplainDrawer, AiWeeklyDigestDrawer, ConversionFunnelDrawer } from "./drawers/light-15";
-import { TopPerformersDrawer, CoordinatorWorkloadDrawer, MyQueueDrawer, SlaTimersDrawer, RulesBuilderDrawer, SavedRepliesDrawer } from "./drawers/light-16";
-import { VacationHandoverDrawer, OnCallRotationDrawer, GdprExportDrawer, ConsentLogDrawer, ContractTemplatesDrawer, ReportContentDrawer } from "./drawers/light-17";
+import { EscrowDetailDrawer, RefundFlowDrawer, DisputeFlowDrawer, KycVerificationDrawer, ProofOfFundsDrawer, PayoutMethodFailureDrawer, SubscriptionLifecycleDrawer, NotificationDetailDrawer, AiDraftAssistDrawer, AiSearchExplainDrawer, ConversionFunnelDrawer } from "./drawers/light-15";
+import { GdprExportDrawer, ConsentLogDrawer, ContractTemplatesDrawer, ReportContentDrawer } from "./drawers/light-17";
 import { EmailTemplatesDrawer, EmailBrandingDrawer, EmailSequencesDrawer, NotificationPrefsDrawer, InviteFlowDrawer, ReferralDashboardDrawer } from "./drawers/light-18";
 import { CalendarSyncDrawer, SystemStatusDrawer, TelemetryDashboardDrawer, BetaProgramDrawer, CsvImportDrawer, MigrationAssistantDrawer } from "./drawers/light-19";
-import { BriefBuilderDrawer, BrandAssetsDrawer, ApprovalFlowDrawer, SiteContextSwitcherDrawer, PageSchedulerDrawer, CastingFlowDrawer, CallbackTrackerDrawer } from "./drawers/light-20";
-import { CrewBookingDrawer, ProductionTimelineDrawer, UsageTrackerDrawer, RelicenseFlowDrawer, OwnershipTransferDrawer, MinorAccountDrawer, DiscoveryFeedDrawer, AvailSearchDrawer, CallSheetDrawer } from "./drawers/light-21";
-import { OnsetCheckinDrawer, IncidentReportDrawer, DisputeResolutionDrawer, LocationsDrawer, AiWorkspaceDrawer } from "./drawers/light-22";
+import { BrandAssetsDrawer, SiteContextSwitcherDrawer, PageSchedulerDrawer } from "./drawers/light-20";
+import { MinorAccountDrawer } from "./drawers/light-21";
 import { FeatureControlsDrawer, CircleManageDrawer, CircleRecommendDrawer } from "./drawers/light-23";
 import { SupportTicketDrawer } from "./drawers/light-support";
 
@@ -448,31 +446,13 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <AiDraftAssistDrawer />;
     case "ai-search-explain":
       return <AiSearchExplainDrawer />;
-    case "ai-weekly-digest":
-      return <AiWeeklyDigestDrawer />;
 
     // ── WS-19 Reporting & analytics ──────────────────────────────────
     // "workspace-revenue" retired 2026-05-26 — see decision-log L46.
     case "conversion-funnel":
       return <ConversionFunnelDrawer />;
-    case "top-performers":
-      return <TopPerformersDrawer />;
-    case "coordinator-workload":
-      return <CoordinatorWorkloadDrawer />;
 
     // ── WS-20 Operations & workflow ───────────────────────────────────
-    case "my-queue":
-      return <MyQueueDrawer />;
-    case "sla-timers":
-      return <SlaTimersDrawer />;
-    case "rules-builder":
-      return <RulesBuilderDrawer />;
-    case "saved-replies":
-      return <SavedRepliesDrawer />;
-    case "vacation-handover":
-      return <VacationHandoverDrawer />;
-    case "on-call-rotation":
-      return <OnCallRotationDrawer />;
 
     // ── WS-21 Compliance, legal, audit ────────────────────────────────
     case "gdpr-export":
@@ -517,12 +497,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <MigrationAssistantDrawer />;
 
     // ── WS-26 Brand & creative tools ──────────────────────────────────
-    case "brief-builder":
-      return <BriefBuilderDrawer />;
     case "brand-assets":
       return <BrandAssetsDrawer />;
-    case "approval-flow":
-      return <ApprovalFlowDrawer />;
 
     // ── WS-27 Site & page-builder management ──────────────────────────
     case "site-context-switcher":
@@ -531,52 +507,22 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <PageSchedulerDrawer />;
 
     // ── WS-28 Casting director ─────────────────────────────────────────
-    case "casting-flow":
-      return <CastingFlowDrawer />;
-    case "callback-tracker":
-      return <CallbackTrackerDrawer />;
 
     // ── WS-29 Production team & multi-discipline bookings ─────────────
-    case "crew-booking":
-      return <CrewBookingDrawer />;
-    case "production-timeline":
-      return <ProductionTimelineDrawer />;
 
     // ── WS-30 Image rights & post-booking lifecycle ───────────────────
-    case "usage-tracker":
-      return <UsageTrackerDrawer />;
-    case "relicense-flow":
-      return <RelicenseFlowDrawer />;
 
     // ── WS-31 Account lifecycle ────────────────────────────────────────
-    case "ownership-transfer":
-      return <OwnershipTransferDrawer />;
     case "minor-account":
       return <MinorAccountDrawer />;
 
     // ── WS-32 Discovery & marketplace ─────────────────────────────────
-    case "discovery-feed":
-      return <DiscoveryFeedDrawer />;
-    case "avail-search":
-      return <AvailSearchDrawer />;
 
     // ── WS-33 On-set / production-day live ────────────────────────────
-    case "call-sheet":
-      return <CallSheetDrawer />;
-    case "onset-checkin":
-      return <OnsetCheckinDrawer />;
 
     // ── WS-34 Safety, disputes, incident handling ─────────────────────
-    case "incident-report":
-      return <IncidentReportDrawer />;
-    case "dispute-resolution":
-      return <DisputeResolutionDrawer />;
 
     // ── WS-35 Production-feature reconciliation ───────────────────────
-    case "locations-drawer":
-      return <LocationsDrawer />;
-    case "ai-workspace":
-      return <AiWorkspaceDrawer />;
 
     // ── Feature controls ──────────────────────────────────────────────
     case "feature-controls":

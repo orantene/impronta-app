@@ -54,7 +54,7 @@ import {
   derivePageVisibilityNotes,
   type WebsitePageGroup,
 } from "../state/website-pages-list";
-import { PageStatusChip } from "./SitePage";
+import { PageStatusChip } from "./PageStatusChip";
 import { WebsitePageActions } from "./WebsitePageActions";
 import { formatPageUpdatedAt, formatScheduledPublishAt, formatShortDate } from "./WebsitePage-2";
 

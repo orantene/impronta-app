@@ -26,54 +26,6 @@ import { useDashboardText } from "../dashboard-i18n";
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
-export function VacationHandoverDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const open = state.drawer.drawerId === "vacation-handover";
-  const copy = useDashboardText();
-  const tt = copy.t;
-  // Honest stub — this feature has no backend yet; the previous body showed
-  // hardcoded demo data. Surface a clear "coming soon" instead.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("Vacation handover")}
-      description={tt("Reassign your workload while you're away.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="calendar"
-        title={tt("Coming soon")}
-        body={tt("Reassigning your workload while you're away isn't available yet. We'll add handover here when it ships.")}
-      />
-    </DrawerShell>
-  );
-}
-
-
-export function OnCallRotationDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const open = state.drawer.drawerId === "on-call-rotation";
-  const copy = useDashboardText();
-  const tt = copy.t;
-  // Honest stub — this feature has no backend yet; the previous body showed
-  // hardcoded demo data. Surface a clear "coming soon" instead.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("On-call rotation")}
-      description={tt("Weekly schedule and escalation ladder.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="calendar"
-        title={tt("Coming soon")}
-        body={tt("On-call scheduling and the escalation ladder aren't available yet.")}
-      />
-    </DrawerShell>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════
 // WS-21 — Compliance, legal, audit drawers

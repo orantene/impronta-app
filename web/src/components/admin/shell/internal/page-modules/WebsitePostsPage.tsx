@@ -41,7 +41,7 @@ import { createDraftPostAction } from "@/lib/server-actions/admin-site-posts";
 import { EmptyState, Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import type { WebsitePost } from "../state";
-import { PageStatusChip } from "./SitePage";
+import { PageStatusChip } from "./PageStatusChip";
 import { PageHeader } from "./pages-shared";
 import { formatPageUpdatedAt } from "./WebsitePage-2";
 import { WebsitePostEditor } from "./WebsitePostEditor";

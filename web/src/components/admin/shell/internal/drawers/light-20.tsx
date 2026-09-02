@@ -23,29 +23,6 @@ import { useDashboardText } from "../dashboard-i18n";
 // Phase 1d (remediation §4): 7 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
-export function BriefBuilderDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const copy = useDashboardText();
-  const tt = copy.t;
-  const open = state.drawer.drawerId === "brief-builder";
-  // Honest stub — no backend yet; the previous body was hardcoded demo data.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("Brief builder")}
-      description={tt("Draft a brief and pre-fill an inquiry.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="info"
-        title={tt("Coming soon")}
-        body={tt("The brief builder isn't live yet, create inquiries directly for now.")}
-      />
-    </DrawerShell>
-  );
-}
-
 
 export function BrandAssetsDrawer() {
   const { state, closeDrawer } = useAdminShell();
@@ -70,30 +47,6 @@ export function BrandAssetsDrawer() {
   );
 }
 
-
-export function ApprovalFlowDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const copy = useDashboardText();
-  const tt = copy.t;
-  const open = state.drawer.drawerId === "approval-flow";
-  // Honest stub — this feature has no backend yet; the previous body showed
-  // hardcoded demo data. Surface a clear "coming soon" instead.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("Approval queue")}
-      description={tt("Briefs, offers, and documents waiting for sign-off.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="info"
-        title={tt("Coming soon")}
-        body={tt("A unified approval queue isn't live yet. Briefs and offers are approved inside each inquiry for now.")}
-      />
-    </DrawerShell>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════
 // WS-27 — Site & page-builder management
@@ -152,52 +105,6 @@ export function PageSchedulerDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 
-export function CastingFlowDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const copy = useDashboardText();
-  const tt = copy.t;
-  const open = state.drawer.drawerId === "casting-flow";
-  // Honest stub — no backend yet; the previous body was hardcoded demo data.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("Casting flow")}
-      description={tt("Set up casting rounds and shortlists.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="info"
-        title={tt("Coming soon")}
-        body={tt("Multi-round casting setup isn't available yet.")}
-      />
-    </DrawerShell>
-  );
-}
-
-
-export function CallbackTrackerDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const copy = useDashboardText();
-  const tt = copy.t;
-  const open = state.drawer.drawerId === "callback-tracker";
-  // Honest stub — no backend yet; the previous body was hardcoded demo data.
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title={tt("Callback tracker")}
-      description={tt("Track talent across callback rounds.")}
-      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
-    >
-      <EmptyState
-        icon="user"
-        title={tt("Coming soon")}
-        body={tt("Callback tracking isn't available yet.")}
-      />
-    </DrawerShell>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════
 // WS-29 — Production team & multi-discipline bookings

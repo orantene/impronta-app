@@ -57,7 +57,7 @@ const ES_TEXT: Record<string, string> = {
   "Dismiss": "Descartar",
   // Sidebar rail — group labels + Website sub-links (Shopify polish W1/W7)
   "Operate": "Operar",
-  "Grow": "Crecer",
+  "Sell and grow": "Vender y crecer",
   "Site": "Sitio",
   "Card Design": "Diseño de tarjetas",
   "Profile Pages": "Páginas de perfil",

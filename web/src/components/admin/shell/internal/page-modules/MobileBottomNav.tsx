@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, Z, useAdminShell } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
 import type { ClientPage, PlatformPage, TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -30,7 +30,9 @@ export function MobileBottomNav() {
       // + unread message count on Messages, matching the desktop topbar nav.
       // Roster badge derived from effectiveRoster (same source as the page body)
       // so it never echoes fixture data when live mode shows 0 talent.
-      const effectiveUnread = bridgeTotalUnread > 0 ? bridgeTotalUnread : WORKSPACE_NOTIFICATION_COUNT;
+      // WP1 — honest unread: real count only, 0 shows no badge (was falling
+      // back to the WORKSPACE_NOTIFICATION_COUNT fixture when live unread was 0).
+      const effectiveUnread = bridgeTotalUnread;
       const rosterPending = effectiveRoster.filter(
         (p) => p.state === "awaiting-approval"
       ).length;
@@ -211,7 +213,7 @@ function BottomTab({
 }: {
   id: string;
   label: string;
-  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down";
+  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down" | "layers" | "globe" | "image" | "star" | "chart" | "send";
   active: boolean;
   run: () => void;
   badge?: number;
@@ -308,21 +310,24 @@ function BottomTab({
   );
 }
 
-const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
+const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "layers" | "globe" | "image" | "star" | "chart" | "send">> = {
   overview: "bolt",
   messages: "mail",
   calendar: "calendar",
+  menu: "layers",
   roster: "team",
   clients: "user",
-  pitches: "bolt",
-  operations: "search",
-  production: "sparkle",
+  pitches: "send",
+  reviews: "star",
+  analytics: "chart",
+  website: "globe",
+  media: "image",
   settings: "info",
   // legacy aliases
   inbox: "mail",
   work: "info",
   talent: "team",
-  site: "sparkle",
+  site: "globe",
   billing: "credit",
   workspace: "info",
 };

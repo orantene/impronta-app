@@ -60,6 +60,11 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/financials — Business Financials page (L46).
   (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/reviews/** — WP1. The review-photo moderation grid at
+  // /admin/reviews/media is a real server page; the new Reviews page-module
+  // links to it. Without this matcher it rendered without shell chrome /
+  // stacked under the SPA (the same failure the bookings matcher fixed).
+  (s) => s[0] === "admin" && s[1] === "reviews" && s[2] === "media",
   // /<tenant>/admin/bookings/** + /admin/account — these server pages have
   // no SPA counterpart ("bookings"/"account" are not WorkspacePage ids), so
   // without a matcher the route rendered BOTH the server page and the SPA

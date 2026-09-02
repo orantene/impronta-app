@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
-import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, useAdminShell } from "../state";
+import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, TRANSITION, formatRecentActivity, getTeam, meetsRole, useAdminShell } from "../state";
 
 // Time-aware greeting key for the overview header. Mirrors the hour buckets
 // of the shared English greeting helper, but maps them to a localized catalog
@@ -46,7 +46,7 @@ const ACTIVATION_EST_KEY: Record<string, string> = {
   "invite-team": "dashboard.adminOverview.est1min",
 };
 import { DemoDataBanner, WorkspaceActivationBanner } from "../wave2";
-import { FreeValuePanel } from "./WorkPage";
+import { FreeValuePanel } from "./FreeValuePanel";
 import { Grid, PageHeader, WorkspaceStatStrip } from "./pages-shared";
 
 
@@ -436,27 +436,6 @@ export function OverviewPage() {
             {t("dashboard.adminOverview.recentActivity")}
           </h2>
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => openDrawer("ai-weekly-digest")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 9px",
-                background: COLORS.royalSoft,
-                border: `1px solid rgba(95,75,139,0.2)`,
-                borderRadius: RADIUS.sm,
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: COLORS.royal,
-                cursor: "pointer",
-              }}
-            >
-              <Icon name="sparkle" size={11} color={COLORS.royal} stroke={1.8} />
-              {t("dashboard.adminOverview.weeklyDigest")}
-            </button>
             <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>{t("dashboard.adminOverview.viewAll")}</GhostButton>
           </div>
         </div>

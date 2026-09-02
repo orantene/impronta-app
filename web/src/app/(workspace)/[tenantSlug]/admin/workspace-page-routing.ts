@@ -16,8 +16,8 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "menu",
   "roster",     // also covers /roster/applications (layout strips to first segment)
   "clients",
-  "operations",
-  "production",
+  "reviews",    // WP1 — reputation surface (moderation queue + review photos)
+  "analytics",  // WP1 — funnel / money / website / reviews
   "website",
   "media",
   "pitches",
