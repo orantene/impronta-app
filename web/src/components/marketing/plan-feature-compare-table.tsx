@@ -4,7 +4,7 @@
  *
  * Replaces the hard-coded SECTIONS const that used to live in
  * `web/src/app/(marketing)/pricing/page.tsx`. Operators now edit rows
- * from /platform/admin/pricing → tier drawer → Features tab; this
+ * from /platform/admin/commerce?tab=catalog; this
  * surface is the read side.
  *
  * Server component. Loads the table via `loadCompareTable("workspace")`
@@ -46,7 +46,7 @@ export async function PlanFeatureCompareTable({
         }}
       >
         Plan-comparison data isn&rsquo;t available right now. Check{" "}
-        <code>/platform/admin/pricing</code> &rarr; Discounts tab to add
+        <code>/platform/admin/commerce?tab=discounts</code> &rarr; to add
         per-tier feature rows.
       </div>
     );

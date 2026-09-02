@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPES, ENTITY_TYPE_META, FONTS, PAGE_META, PLANS, PLAN_META, PLATFORM_PAGES, PLATFORM_PAGE_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
-import type { ClientPage, EntityType, Plan, PlatformPage, Role, Surface, TalentPage, WorkspacePage } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPES, ENTITY_TYPE_META, FONTS, PAGE_META, PLANS, PLAN_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
+import type { ClientPage, EntityType, Plan, Role, Surface, TalentPage, WorkspacePage } from "../state";
 
 // ════════════════════════════════════════════════════════════════════
 // Prototype control bar
@@ -21,7 +21,6 @@ export function ControlBar() {
     setTalentPage,
     setClientPage,
     setClientProfile,
-    setPlatformPage,
     bridgeTenantIdentity,
   } = useAdminShell();
   const copy = useDashboardText();
@@ -169,14 +168,6 @@ export function ControlBar() {
       )}
 
 
-      {state.surface === "platform" && (
-        <SegmentedControl
-          label="Page"
-          value={state.platformPage}
-          options={PLATFORM_PAGES.map((p) => ({ value: p, label: PLATFORM_PAGE_META[p].label }))}
-          onChange={(v) => setPlatformPage(v as PlatformPage)}
-        />
-      )}
 
       <div style={{ flex: 1 }} />
       {/* Hide-controls toggle — sets localStorage so future visits stay

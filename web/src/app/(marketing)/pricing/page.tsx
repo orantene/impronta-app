@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * L50 Phase 4: the per-tier compare table is read from `product_features`
  * (non-null, non-'core' category rows). Edit cells at
- * /platform/admin/pricing → tier drawer → Features tab.
+ * /platform/admin/commerce?tab=catalog.
  *
  * L50 post-launch fix (2026-05-28): page is async + accepts searchParams
  * so `?currency=MXN` shared links honor the override on first render.

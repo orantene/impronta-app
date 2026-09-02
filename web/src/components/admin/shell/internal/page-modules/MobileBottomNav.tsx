@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
-import type { ClientPage, PlatformPage, TalentPage, WorkspacePage } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, Z, useAdminShell } from "../state";
+import type { ClientPage, TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
 
@@ -14,7 +14,6 @@ export function MobileBottomNav() {
     setPage,
     setTalentPage,
     setClientPage,
-    setPlatformPage,
     effectiveRoster,
     totalUnread: bridgeTotalUnread,
     bridgeTalentUnread,
@@ -66,13 +65,9 @@ export function MobileBottomNav() {
         badge: TALENT_TAB_BADGE[p as TalentPage],
       }));
     }
-    return PLATFORM_PAGES.map((p) => ({
-      id: p,
-      label: copy.t(PLATFORM_PAGE_META[p].label),
-      active: state.platformPage === p,
-      run: () => setPlatformPage(p as PlatformPage),
-      icon: "info" as const,
-    }));
+    // WP2 — platform SPA surface deleted; surface is workspace|talent only,
+    // both handled above. This fallback is unreachable but keeps the IIFE total.
+    return [];
   })();
 
   const visible = tabs.slice(0, MOBILE_TAB_LIMIT - 1);

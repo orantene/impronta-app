@@ -2,7 +2,7 @@
 
 /**
  * admin-product-pricing.ts — server actions for the Product Pricing
- * dashboard at `/platform/admin/pricing` (Phase 1).
+ * dashboard at `/platform/admin/commerce?tab=catalog` (Phase 1).
  *
  * All actions are super_admin-gated (platform-role check). The DB
  * tables (`product_*`) have no public RLS policies — only the

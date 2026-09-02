@@ -40,10 +40,10 @@ import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-fla
 // When absent, fall back to the hardcoded mirror below so the drawer rail never crashes.
 import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
-import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
+import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
-import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
   normalizeWorkspaceType,
@@ -93,8 +93,6 @@ export type AdminShellState = {
    * "gringo" = personal client (The Gringo). Drives identity bar photo. */
   clientProfile: ClientProfileId;
   // platform dimensions
-  hqRole: HqRole;
-  platformPage: PlatformPage;
   impersonating: Impersonation;
   // shared
   drawer: DrawerContext;
@@ -146,8 +144,6 @@ type Ctx = {
   setClientProfile: (p: ClientProfileId) => void;
   /** Resolved profile object for the active client. */
   activeClientProfile: ClientProfile;
-  setHqRole: (r: HqRole) => void;
-  setPlatformPage: (p: PlatformPage) => void;
   startImpersonation: (i: NonNullable<Impersonation>) => void;
   stopImpersonation: () => void;
   openDrawer: (id: DrawerId, payload?: Record<string, unknown>) => void;
@@ -1180,8 +1176,6 @@ export function AdminShellProvider({
   const [clientProfile, setClientProfile] = useState<ClientProfileId>("martina");
   const activeClientProfile = CLIENT_PROFILES[clientProfile];
   // platform
-  const [hqRole, setHqRole] = useState<HqRole>("exec");
-  const [platformPage, setPlatformPage] = useState<PlatformPage>("today");
   const [impersonating, setImpersonating] = useState<Impersonation>(null);
   // shared
   const [drawer, setDrawer] = useState<DrawerContext>({ drawerId: null });
@@ -1626,8 +1620,6 @@ export function AdminShellProvider({
     const tpg = params.get("talentPage");
     const cpl = params.get("clientPlan");
     const cpg = params.get("clientPage");
-    const hr = params.get("hqRole");
-    const ppg = params.get("platformPage");
     const dr = params.get("drawer");
     const drp = params.get("drawerPayload");
     if (s && SURFACES.includes(s as Surface)) setSurface(s as Surface);
@@ -1642,8 +1634,6 @@ export function AdminShellProvider({
     if (cpg && CLIENT_PAGES.includes(cpg as ClientPage)) setClientPage(cpg as ClientPage);
     const cprof = params.get("clientProfile");
     if (cprof === "martina" || cprof === "gringo") setClientProfile(cprof);
-    if (hr && HQ_ROLES.includes(hr as HqRole)) setHqRole(hr as HqRole);
-    if (ppg && PLATFORM_PAGES.includes(ppg as PlatformPage)) setPlatformPage(ppg as PlatformPage);
     // Drawer is a wide string-literal union (~150 ids); we trust the URL
     // rather than enumerating a runtime list. If the id is unknown,
     // DrawerRoot's switch falls through and renders nothing — same as a
@@ -1685,9 +1675,6 @@ export function AdminShellProvider({
       params.set("page", page);
     } else if (surface === "talent") {
       params.set("talentPage", talentPage);
-        } else if (surface === "platform") {
-      params.set("hqRole", hqRole);
-      params.set("platformPage", platformPage);
     }
     // Drawer (cross-surface): persist the open drawer + JSON-encoded
     // payload of primitives. Skipped if no drawer is open so closed-state
@@ -1718,8 +1705,6 @@ export function AdminShellProvider({
     clientPlan,
     clientPage,
     clientProfile,
-    hqRole,
-    platformPage,
     drawer,
     urlHydrated,
   ]);
@@ -1872,7 +1857,6 @@ export function AdminShellProvider({
     setSurface(s);
     if (s === "workspace") setPage("overview");
     if (s === "talent") setTalentPage("today");
-    if (s === "platform") setPlatformPage("today");
     setDrawer({ drawerId: null });
   }, []);
 
@@ -1948,9 +1932,11 @@ export function AdminShellProvider({
     [],
   );
   const stopImpersonation = useCallback(() => {
+    // WP2 — the SPA platform HQ was deleted; real HQ is /platform/admin.
+    // Stopping impersonation drops back to the admin's own workspace.
     setImpersonating(null);
-    setSurface("platform");
-    setPlatformPage("tenants");
+    setSurface("workspace");
+    setPage("overview");
     setDrawer({ drawerId: null });
   }, []);
 
@@ -2180,9 +2166,7 @@ export function AdminShellProvider({
         clientPlan,
         clientPage,
         clientProfile,
-        hqRole,
-        platformPage,
-        impersonating,
+                impersonating,
         drawer,
         toasts,
         completedTasks,
@@ -2206,8 +2190,6 @@ export function AdminShellProvider({
       clientProfile,
       setClientProfile,
       activeClientProfile,
-      setHqRole,
-      setPlatformPage,
       startImpersonation,
       stopImpersonation,
       openDrawer,
@@ -2324,9 +2306,7 @@ export function AdminShellProvider({
       talentTier,
       clientPlan,
       clientPage,
-      hqRole,
-      platformPage,
-      impersonating,
+          impersonating,
       drawer,
       drawerStack,
       toasts,

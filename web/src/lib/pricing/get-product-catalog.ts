@@ -2,7 +2,7 @@
  * get-product-catalog.ts — server-only reader for the Product Pricing
  * dashboard data tree (packages → tiers → prices + features).
  *
- * Used by `/platform/admin/pricing/page.tsx`. Uses the service-role
+ * Used by the commerce catalog surface (`/platform/admin/commerce?tab=catalog`). Uses the service-role
  * client because the new `product_*` tables have NO public RLS policies
  * (only service-role reads/writes — see migration
  * `20260527213552_product_pricing_dashboard.sql`).

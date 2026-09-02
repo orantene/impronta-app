@@ -10,7 +10,7 @@ import type { WebsiteHealthReport } from "@/lib/admin/website-health";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
-export type Surface = "workspace" | "talent" | "platform";
+export type Surface = "workspace" | "talent";
 export type Plan = "free" | "website" | "studio" | "agency" | "network";
 export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
 /**
@@ -85,21 +85,8 @@ export type ClientPage =
 
 // Platform / Tulala HQ — internal tooling. HQ roles are NOT additive in the
 // same way tenant roles are; each role has a different scope (Support sees
-// audit + impersonate; Billing sees revenue; Ops sees flags + jobs; Exec sees
-// everything). For the prototype we treat them as separate "lenses".
-export type HqRole = "support" | "ops" | "billing" | "exec";
-export type PlatformPage =
-  | "today"
-  | "tenants"
-  | "users"
-  | "network"
-  | "billing"
-  | "operations"
-  // Platform Builder Lab (WS5) — super_admin-only page-builder workshop that
-  // authors/tests templates against real talent + workspace data and publishes
-  // them into the consumer gallery. Persistence is ephemeral (never a page).
-  | "builder-lab"
-  | "settings";
+// WP2 — HqRole + PlatformPage retired with the SPA platform HQ prototype.
+// The real Platform HQ is the App Router tree at /platform/admin/*.
 
 // ════════════════════════════════════════════════════════════════════
 // Inquiry / messaging / coordinator / offers — the CORE product.
