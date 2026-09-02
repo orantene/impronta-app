@@ -87,7 +87,7 @@ test("every conversion event is mapped to a helper", () => {
  * defined with a comment about finding where visitors drop off while not
  * actually recording where visitors drop off.
  */
-const KNOWN_DEAD_PRODUCT_EVENTS = 25;
+const KNOWN_DEAD_PRODUCT_EVENTS = 24;
 
 test("the count of never-emitted product events does not grow", () => {
   const names = execSync(

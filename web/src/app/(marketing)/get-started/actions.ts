@@ -359,6 +359,11 @@ export async function submitGetStartedSignup(
           ? input.businessDescription.trim()
           : null,
       audience: input.audience,
+      // NOT COLLECTED ANY MORE. The form's roster-size control was removed and
+      // the field is now a hard-coded "1-5" on every submission, so this
+      // column is a constant for recent leads and means nothing. It varied
+      // genuinely until around August 2026; do not segment on it without
+      // checking created_at first.
       roster_size: input.rosterSize,
       tier_interest: input.tierInterest ?? null,
       subdomain_wanted: subdomain,

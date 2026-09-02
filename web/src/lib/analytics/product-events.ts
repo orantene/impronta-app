@@ -66,8 +66,6 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   /** Fires when subdomain availability check returns. Payload: { available, audience, length } */
   marketing_subdomain_checked: "marketing_subdomain_checked",
 
-  /** Fires when the visitor selects a roster-size bucket. Payload: { bucket, audience } */
-  marketing_roster_size_selected: "marketing_roster_size_selected",
 
   /** Fires the moment submit is clicked, BEFORE the server action returns. Payload: { audience, has_subdomain, roster_size, tier? } */
   marketing_submit_attempted: "marketing_submit_attempted",
