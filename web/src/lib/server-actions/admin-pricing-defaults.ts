@@ -43,6 +43,7 @@ import type {
 } from "@/lib/directory/pricing-defaults-shape";
 import { invalidateTenantPricingDefaults } from "@/lib/directory/pricing-defaults";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 
 const amount = z
   .number()
@@ -64,7 +65,7 @@ export async function updateTenantPricingDefaults(
 ): Promise<UpdatePricingDefaultsResult> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId, tenantSlug } = auth;
+  const { tenantId, tenantSlug, user } = auth;
 
   const parsed = schema.safeParse({
     ...input,
@@ -120,6 +121,17 @@ export async function updateTenantPricingDefaults(
 
   invalidateTenantPricingDefaults(tenantId);
   revalidatePath(`/${tenantSlug}`, "layout");
+
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PRICING_DEFAULTS_UPDATED,
+    actorId: user.id,
+    actorRole: "workspace_staff",
+    tenantId,
+    targetType: "agencies.settings",
+    targetId: tenantId,
+    after: parsed.data as unknown,
+  });
+
   return { ok: true };
 }
 

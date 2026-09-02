@@ -38,6 +38,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { trackPlanChanged } from "@/lib/analytics/conversion-events";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -256,6 +257,24 @@ export async function commitPlanDowngrade(input: {
   });
 
   revalidatePath("/", "layout");
+
+  // A downgrade ARCHIVES roster rows to fit the smaller plan. That is the most
+  // customer-visible destructive action in the commerce surface, and the
+  // archive event id is what makes it restorable.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PLAN_DOWNGRADED,
+    actorId: user.id,
+    actorRole: "workspace_staff",
+    tenantId,
+    targetType: "agencies",
+    targetId: tenantId,
+    after: { plan_tier: v.target_tier },
+    context: {
+      archived_count: archivedCount ?? 0,
+      archive_event_id: eventId,
+    },
+  });
+
   return {
     ok: true,
     archived_count: archivedCount ?? 0,
@@ -279,7 +298,7 @@ export async function restoreFromDowngradeArchive(
 ): Promise<{ ok: true; restored_count: number } | { ok: false; error: string }> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const parsed = restoreSchema.safeParse(input);
   if (!parsed.success) {
@@ -311,5 +330,20 @@ export async function restoreFromDowngradeArchive(
   }
 
   revalidatePath("/", "layout");
+
+  // The mirror of a downgrade: roster rows come back. Audited for the same
+  // reason — it changes who is visible and bookable on the tenant.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PLAN_DOWNGRADED,
+    actorId: user.id,
+    actorRole: "workspace_staff",
+    tenantId,
+    targetType: "agency_talent_roster",
+    targetId: eventId ?? tenantId,
+    severity: "info",
+    after: { restored_count: count ?? 0 },
+    context: { archive_event_id: eventId ?? null, direction: "restore" },
+  });
+
   return { ok: true, restored_count: count ?? 0 };
 }

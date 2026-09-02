@@ -124,6 +124,12 @@ test("product_discounts is written only where discounts are validated", () => {
     // everyone. Sanctioned only because it is unreachable except through the
     // gated action, which the next assertion pins.
     "lib/billing/discount-edit.ts",
+    // Split out of `admin-product-discounts.ts` on 2026-09-02, when adding
+    // audit coverage to that file's four write actions pushed it past its
+    // 800-line cap. It is the SAME write surface, in a second file, still
+    // behind `requirePlatformAdmin` — not a rival store. The next assertion
+    // pins that its gate runs before it writes.
+    "lib/server-actions/admin-discount-stripe-import.ts",
     "lib/server-actions/admin-product-discounts.ts",
   ]);
 });
@@ -146,6 +152,24 @@ test("the discount-edit library has exactly one caller, and it is gated", () => 
   assert.ok(
     callAt !== -1 && gateAt < callAt,
     "the admin gate must run BEFORE the edit is applied",
+  );
+});
+
+test("the Stripe importer gates before it writes", () => {
+  // The importer moved into its own file, which moved it out of the original
+  // file's gate. Same standard as the discount-edit library above: the gate
+  // must run before any write, in the file that now owns the write.
+  const src = readFileSync(
+    join(SRC, "lib/server-actions/admin-discount-stripe-import.ts"),
+    "utf8",
+  );
+  const fn = src.slice(src.indexOf("export async function importStripePromotionCodes("));
+  const gateAt = fn.indexOf("requirePlatformAdmin()");
+  const writeAt = fn.search(/from\("product_discounts"\)[\s\S]{0,400}?\.(insert|update|upsert)\(/);
+  assert.ok(gateAt !== -1, "importStripePromotionCodes must gate on requirePlatformAdmin");
+  assert.ok(
+    writeAt === -1 || gateAt < writeAt,
+    "the admin gate must run BEFORE any product_discounts write",
   );
 });
 

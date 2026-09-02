@@ -16,7 +16,7 @@
  */
 
 import { useState, useTransition } from "react";
-import { importStripePromotionCodes } from "@/lib/server-actions/admin-product-discounts";
+import { importStripePromotionCodes } from "@/lib/server-actions/admin-discount-stripe-import";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, F } from "../_tokens";

@@ -44,6 +44,7 @@ import {
   renameStripeProduct,
 } from "@/lib/pricing/stripe-sync";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 // Phase 3 discount actions live in `admin-product-discounts.ts` (kept
 // out of this file to stay under the 800-line max-lines cap).
 
@@ -204,6 +205,34 @@ export async function updateTierPrice(
 
   revalidateCommerceSurfaces();
 
+  // A price edit is archive-then-insert, so the audit row carries BOTH sides:
+  // the amount that was being charged and the amount that will be, plus which
+  // Stripe price id replaced which. Without this there was no way to answer
+  // "who moved this price, from what, and did Stripe actually follow".
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PRICE_UPDATED,
+    actorId: gate.userId,
+    targetType: "product_prices",
+    targetId: current.id,
+    before: {
+      unit_amount: current.unit_amount,
+      currency: current.currency,
+      interval: current.interval,
+      stripe_price_id: current.stripe_price_id,
+    },
+    after: {
+      unit_amount: input.unitAmount,
+      currency,
+      interval,
+      stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
+    },
+    context: {
+      tier_id: current.tier_id,
+      stripe_synced: !stripe.stub,
+      stripe_stub_reason: stripe.stub ? stripe.reason : null,
+    },
+  });
+
   return {
     ok: true,
     stripe: {
@@ -317,6 +346,23 @@ export async function updateTierDisplay(
   }
 
   revalidateCommerceSurfaces();
+
+  // `info`, not `warn`: a display edit changes presentation, not what anyone is
+  // charged. The exception is `is_active`, which decides whether a tier is
+  // sellable at all — flagged in context so the audit surface can spot it.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.TIER_DISPLAY_UPDATED,
+    actorId: gate.userId,
+    targetType: "product_tiers",
+    targetId: input.tierId,
+    severity: input.isActive === undefined ? "info" : "warn",
+    before: { name: current.name, tagline: current.tagline },
+    after: updates,
+    context: {
+      stripe_renamed: stripeResult.ok && !stripeResult.stub,
+      sellability_changed: input.isActive !== undefined,
+    },
+  });
 
   return {
     ok: true,
@@ -482,6 +528,30 @@ export async function addTierPrice(
 
   revalidateCommerceSurfaces();
 
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PRICE_ADDED,
+    actorId: gate.userId,
+    targetType: "product_prices",
+    targetId: (insert.data as { id: string }).id,
+    before: null,
+    after: {
+      unit_amount: input.unitAmount,
+      currency,
+      interval: input.interval,
+      stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
+      valid_from: input.validFrom ?? null,
+      valid_until: input.validUntil ?? null,
+    },
+    context: {
+      tier_id: input.tierId,
+      // A windowed row is a marketing SALE price, which checkout deliberately
+      // never charges (see stripe/price-catalog.ts). Worth distinguishing in
+      // the log from a canonical price change.
+      is_sale_row: isSale,
+      stripe_synced: !stripe.stub,
+    },
+  });
+
   return {
     ok: true,
     priceId: (insert.data as { id: string }).id,
@@ -586,5 +656,19 @@ export async function archiveTierPrice(
   }
 
   revalidateCommerceSurfaces();
+
+  // Archiving is the most destructive thing this surface does: it removes a row
+  // checkout may have been resolving against. `after` is the archived state
+  // rather than null, because the row still exists.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.PRICE_ARCHIVED,
+    actorId: gate.userId,
+    targetType: "product_prices",
+    targetId: current.id,
+    before: { is_active: true, stripe_price_id: current.stripe_price_id },
+    after: { is_active: false },
+    context: { tier_id: current.tier_id },
+  });
+
   return { ok: true };
 }
