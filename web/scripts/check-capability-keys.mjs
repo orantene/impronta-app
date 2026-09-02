@@ -3,13 +3,16 @@
  * CI guard: validate that every capability key referenced in code is registered
  * in `web/src/lib/access/capabilities.ts`.
  *
- * Phase 1 (today): no DB tables yet, so this checks code only:
+ * Checks:
  *   1. Every key in `roles.ts` ROLE_CAPABILITIES sets is in CAPABILITIES.
- *   2. Every key in `plan-capabilities.ts` PLAN_CAPABILITIES sets is in CAPABILITIES.
+ *   2. Every distinct `capability_key` in the `plan_capabilities` TABLE is in
+ *      CAPABILITIES. Track C landed 2026-09-02: the per-plan subsets moved out
+ *      of `plan-capabilities.ts` (which no longer holds any keys) and into the
+ *      database, so this is where entitlement-key drift can now occur.
  *
- * Phase 1+ (post Track C): also queries the `plan_capabilities` table
- * (Supabase REST) and validates every distinct `capability_key` is in
- * CAPABILITIES.
+ * The DB check is SKIPPED, not failed, when Supabase credentials are absent —
+ * this script runs in `npm run ci` on machines that have no service-role key,
+ * and a missing credential is not key drift.
  *
  * Runs in `npm run ci` and is idempotent — safe to run anytime.
  *
@@ -74,7 +77,7 @@ function extractCapStrings(src) {
 const KNOWN_NON_CAPABILITY_STRINGS = new Set([
   // status / role / plan / category / tag values that share the snake_case shape
   "view", "edit", "publish", "manage", "tenant", "platform",
-  "owner", "admin", "coordinator", "editor", "viewer",
+  "owner", "admin", "coordinator", "manager", "editor", "viewer",
   "free", "studio", "agency", "network", "legacy",
   "draft", "onboarding", "trial", "active", "past_due", "restricted",
   "suspended", "cancelled", "archived",
@@ -90,13 +93,45 @@ function checkRolesFile(registry) {
   return orphans;
 }
 
-function checkPlanCapabilitiesFile(registry) {
-  const src = readSource("src/lib/access/plan-capabilities.ts");
-  const found = extractCapStrings(src);
-  const orphans = [...found].filter(
-    (s) => !registry.has(s) && !KNOWN_NON_CAPABILITY_STRINGS.has(s),
-  );
-  return orphans;
+/**
+ * Every distinct `capability_key` in the `plan_capabilities` table must be in
+ * the registry. This is where entitlement-key drift lives now that Track C has
+ * moved the per-plan subsets out of code: an operator packaging a capability
+ * that was renamed or removed would otherwise write a dead row that silently
+ * never matches, and the plan would appear to grant something it cannot.
+ *
+ * Returns `{ skipped: true }` when there are no Supabase credentials — CI runs
+ * this on machines without a service-role key, and a missing credential is not
+ * key drift. Never fails the build for an unreachable database.
+ */
+async function checkPlanCapabilitiesTable(registry) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
+  if (!url || !key) return { skipped: true, orphans: [] };
+
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/plan_capabilities?select=capability_key`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) {
+      return { skipped: true, orphans: [], warn: `REST ${res.status}` };
+    }
+    const rows = await res.json();
+    const found = new Set(rows.map((r) => r.capability_key));
+    return {
+      skipped: false,
+      orphans: [...found].filter((k) => !registry.has(k)),
+      count: found.size,
+    };
+  } catch (err) {
+    return {
+      skipped: true,
+      orphans: [],
+      warn: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 let exitCode = 0;
@@ -111,11 +146,20 @@ try {
     exitCode = 1;
   }
 
-  const planCapsOrphans = checkPlanCapabilitiesFile(registry);
-  if (planCapsOrphans.length) {
-    console.error(`\nFAIL: plan-capabilities.ts references unknown capability keys:`);
-    for (const o of planCapsOrphans) console.error(`  - ${o}`);
+  const planCaps = await checkPlanCapabilitiesTable(registry);
+  if (planCaps.skipped) {
+    console.log(
+      `plan_capabilities: skipped${planCaps.warn ? ` (${planCaps.warn})` : " (no Supabase credentials)"}`,
+    );
+  } else if (planCaps.orphans.length) {
+    console.error(`\nFAIL: plan_capabilities holds unknown capability keys:`);
+    for (const o of planCaps.orphans) console.error(`  - ${o}`);
+    console.error(
+      "\nThese rows can never match a real check. Remove them, or add the key to the registry.",
+    );
     exitCode = 1;
+  } else {
+    console.log(`plan_capabilities: ${planCaps.count} distinct keys, all known`);
   }
 
   if (exitCode === 0) {

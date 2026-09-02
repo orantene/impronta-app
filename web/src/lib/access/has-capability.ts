@@ -14,7 +14,7 @@
  *   4. Platform role bypass (super_admin)
  *   5. Active membership
  *   6. Role grants capability
- *   7. Plan grants capability   (permissive Phase 1; Track C tightens)
+ *   7. Plan grants capability   (public.plan_capabilities; fail-open on a miss)
  *   8. Limit headroom           (caller invokes assertWithinLimit separately)
  *   9. Status-degraded behavior (Phase 1: enforced for onboarding/active/suspended)
  *  10. Allow
@@ -144,12 +144,29 @@ export async function authorize(
   }
 
   // ── Step 7: plan grants capability ─────────────────────────────────
-  // Phase 1 PLAN_CAPABILITIES is permissive (every plan grants every cap);
-  // this branch is a no-op until Track C tightens the per-plan subsets.
-  // Once tightened, denials surface here automatically.
+  // Entitlements live in `public.plan_capabilities` (Track C, landed
+  // 2026-09-02). The matrix is cached and tag-revalidated, so this is not a DB
+  // round-trip per check.
+  //
+  // This is the LAST gate, which is what makes its fail-open default safe: role,
+  // membership, tenant status and platform role have all already passed, so a
+  // missing entitlement row cannot grant access to anyone who was not otherwise
+  // entitled — it can only fail to withhold a feature we meant to upsell. The
+  // alternative would mean a capability added to the registry but not yet
+  // packaged instantly locks every tenant out of a shipped feature.
+  //
+  // The store is imported DYNAMICALLY, not at module scope. `plan-entitlements-
+  // store.ts` is marked `server-only`, and this module is re-exported by the
+  // `@/lib/access` barrel, which pure modules like `scheduling/
+  // exclusive-release-gate.ts` import for `roleGrantsCapability`. A static
+  // import would drag `server-only` into every `tsx --test` lane that has no
+  // shim registered and break it at load time, which is exactly what it did on
+  // the first push of this change.
   const plan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
   if (typeof plan === "string" && isKnownPlan(plan)) {
-    if (!planGrantsCapability(plan as PlanKey, capability)) {
+    const { loadPlanEntitlements } = await import("./plan-entitlements-store");
+    const entitlements = await loadPlanEntitlements();
+    if (!planGrantsCapability(plan as PlanKey, capability, entitlements)) {
       return { ok: false, reason: "plan_lacks_capability" };
     }
   }
