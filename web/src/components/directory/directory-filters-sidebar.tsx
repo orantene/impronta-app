@@ -981,19 +981,20 @@ export function DirectoryFiltersSidebar({
     hasScalarFilters;
 
   if (facetSections.length === 0) {
+    // VISITOR-FACING ONLY. This aside renders on the PUBLIC directory, for
+    // anyone, with no role check — so it must never carry operator
+    // instructions. It previously listed an "Admin → Directory filters"
+    // step and a literal Supabase migration filename, both shipped in EN and
+    // ES; a client shopping the roster was shown our engineering runbook.
+    // (An earlier pass removed a dead admin LINK from this same block for the
+    // same reason and left the bullets behind.) Admins configure facets from
+    // the admin app, where that guidance belongs.
     return (
       <aside className="space-y-3 rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
           {fc.emptyAsideTitle}
         </h2>
         <p className="text-foreground">{fc.emptyAsideBody}</p>
-        <ul className="list-disc space-y-1.5 pl-5">
-          <li className="font-medium text-foreground">{fc.emptyAsideBulletAdmin}</li>
-          <li className="text-foreground">{fc.emptyAsideBulletMigration}</li>
-        </ul>
-        {/* The former "{fc.emptyAsideLink}" → /admin/directory/filters link was
-            removed: that route does not exist (a dead 404 leaking admin chrome
-            onto the public directory). Admins manage filters from the admin app. */}
       </aside>
     );
   }

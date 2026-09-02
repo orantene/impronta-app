@@ -94,9 +94,6 @@ export type DirectoryUiCopy = {
     radioMore: string;
     emptyAsideTitle: string;
     emptyAsideBody: string;
-    emptyAsideBulletAdmin: string;
-    emptyAsideBulletMigration: string;
-    emptyAsideLink: string;
     filterMatchesOne: string;
     filterMatchesMany: string;
     filterGroupsOne: string;
@@ -402,9 +399,6 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       radioMore: t("public.directory.ui.filters.radioMore"),
       emptyAsideTitle: t("public.directory.ui.filters.emptyAsideTitle"),
       emptyAsideBody: t("public.directory.ui.filters.emptyAsideBody"),
-      emptyAsideBulletAdmin: t("public.directory.ui.filters.emptyAsideBulletAdmin"),
-      emptyAsideBulletMigration: t("public.directory.ui.filters.emptyAsideBulletMigration"),
-      emptyAsideLink: t("public.directory.ui.filters.emptyAsideLink"),
       filterMatchesOne: t("public.directory.ui.filters.filterMatchesOne"),
       filterMatchesMany: t("public.directory.ui.filters.filterMatchesMany"),
       filterGroupsOne: t("public.directory.ui.filters.filterGroupsOne"),
