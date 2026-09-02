@@ -87,7 +87,11 @@ test("a half-onboarded account is not greeted by name", () => {
     undefined,
     "naming someone who cannot use their account yet reads as a working account",
   );
-  assert.ok(account.href.endsWith("/onboarding/role"));
+  assert.equal(
+    account.href,
+    "https://app.example.test/onboarding/role",
+    "…and is sent to finish onboarding rather than to a dashboard",
+  );
 });
 
 test("a blank display name does not produce an empty label", () => {
