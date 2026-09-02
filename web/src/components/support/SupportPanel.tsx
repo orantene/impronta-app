@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import { supportPanelContainerStyle } from "./support-panel-geometry";
@@ -319,7 +320,7 @@ export function SupportPanel({
                 const r = await contract.createTicket({
                   tenantSlug: contract.tenantSlug,
                   surface: contract.surface,
-                  body: t("dashboard.adminSupport.messageOranBody"),
+                  body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
                 });
@@ -416,7 +417,7 @@ export function SupportPanel({
                 color: COLORS.inkMuted,
               }}
             >
-              {t("dashboard.adminSupport.oranTyping")}
+              {interpolate(t("dashboard.adminSupport.oranTyping"), SUPPORT_AGENT_VARS)}
             </div>
           ) : null}
           <Composer

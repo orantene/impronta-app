@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
@@ -70,7 +71,7 @@ export function HomeView({
         >
           <Icon name="sparkle" size={14} color={COLORS.royal} />
           <span style={{ flex: 1, fontSize: 12.5, color: COLORS.royalDeep, lineHeight: 1.4 }}>
-            {interpolate(t("dashboard.adminSupport.ideaThanks"), { n: String(ideaSent) })}
+            {interpolate(interpolate(t("dashboard.adminSupport.ideaThanks"), SUPPORT_AGENT_VARS), { n: String(ideaSent) })}
           </span>
           <button
             type="button"
@@ -205,7 +206,7 @@ export function HomeView({
         onClick={onMessageOran}
         style={{ border: "none", background: "transparent", color: COLORS.royal, fontSize: 12.5, cursor: "pointer" }}
       >
-        {t("dashboard.adminSupport.messageOran")}
+        {interpolate(t("dashboard.adminSupport.messageOran"), SUPPORT_AGENT_VARS)}
       </button>
     </div>
   );

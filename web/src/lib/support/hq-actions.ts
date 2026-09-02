@@ -150,6 +150,58 @@ export async function hqEscalateOverrideAction(raw: {
   return { ok: true };
 }
 
+/**
+ * "Still working on it."
+ *
+ * There was no way to tell a customer their case is taking longer. A ticket
+ * could sit past its target with the customer hearing nothing, and silence
+ * after a handoff is what people actually complain about — more than the delay.
+ *
+ * Sent as a card rather than a typed reply so it renders consistently, carries
+ * the agent's face, and can be counted later. It deliberately does NOT change
+ * `waiting_on`: the case is still with support, and pretending otherwise would
+ * hide it from the "needs you" queue.
+ */
+export async function hqSendDelayUpdateAction(raw: {
+  ticketId: string;
+  note?: string;
+  nextUpdate?: string;
+}): Promise<Ok | Fail> {
+  const parsed = z
+    .object({
+      ticketId: uuid,
+      note: z.string().trim().max(600).optional(),
+      nextUpdate: z.string().trim().max(80).optional(),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+
+  const result = await supportEngine.appendMessage({
+    ticketId: parsed.data.ticketId,
+    authorKind: "agent",
+    authorUserId: hq.userId,
+    // Body doubles as the plain-text fallback in email and any surface that
+    // does not render cards.
+    body: parsed.data.note?.trim() || "Still working on this. You have not been forgotten.",
+    messageKind: "card",
+    cardPayload: {
+      kind: "delay",
+      note: parsed.data.note?.trim() || null,
+      nextUpdate: parsed.data.nextUpdate?.trim() || null,
+    },
+    asHq: true,
+  });
+  if (!result.ok) return result;
+
+  await auditHq(hq.userId, parsed.data.ticketId, "support.delay_update.sent", {
+    hasNote: Boolean(parsed.data.note?.trim()),
+    nextUpdate: parsed.data.nextUpdate?.trim() || null,
+  });
+  return { ok: true };
+}
+
 export async function hqClaimSelfAction(raw: { ticketId: string }): Promise<Ok | Fail> {
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };

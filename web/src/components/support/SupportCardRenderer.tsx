@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { SupportAgentAvatar } from "./SupportAgentAvatar";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { COLORS, RADIUS } from "./support-tokens";
 import { acceptLiveShareFromCard } from "@/lib/support/replay/LiveShareHost";
 import { declineLiveViewAction } from "@/lib/support/replay/live-actions";
@@ -64,8 +66,16 @@ export function SupportCardRenderer({
           margin: "8px auto",
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 600, color: ink, marginBottom: 6 }}>
-          {t("dashboard.adminSupport.handoffTitle")}
+        {/*
+          The handoff is the moment a customer is told a person has their case.
+          Putting the face on it is the difference between a status change and
+          being introduced to someone.
+        */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <SupportAgentAvatar size={26} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
+            {interpolate(t("dashboard.adminSupport.handoffTitle"), SUPPORT_AGENT_VARS)}
+          </div>
         </div>
         <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45, marginBottom: hasPhone ? 0 : 10 }}>
           {t("dashboard.adminSupport.handoffBody")}
@@ -116,7 +126,7 @@ export function SupportCardRenderer({
           <PhoneGlyph />
         </span>
         <div style={{ fontSize: 13, color: ink, lineHeight: 1.45 }}>
-          {interpolate(t("dashboard.adminSupport.callbackConfirmed"), { phone })}
+          {interpolate(interpolate(t("dashboard.adminSupport.callbackConfirmed"), SUPPORT_AGENT_VARS), { phone })}
         </div>
       </div>
     );
@@ -126,6 +136,51 @@ export function SupportCardRenderer({
     const attachmentId = typeof payload.attachmentId === "string" ? payload.attachmentId : "";
     const name = typeof payload.name === "string" ? payload.name : "Image";
     return <AttachmentCard attachmentId={attachmentId} name={name} tone={tone} />;
+  }
+
+  if (kind === "delay") {
+    // "Still working on it."
+    //
+    // There was no way to say this. A case could sit past its target with the
+    // customer hearing nothing, and silence after a handoff is what people
+    // actually complain about — more than the delay itself. The runbook calls a
+    // delay message the cheapest thing that protects the relationship, so it
+    // needed to exist as a real card rather than a hand-typed reply an agent
+    // has to remember to write.
+    //
+    // Neutral, not alarming: this is "we have not forgotten you", not an error.
+    const note = typeof payload.note === "string" && payload.note.trim() ? payload.note.trim() : null;
+    const nextUpdate =
+      typeof payload.nextUpdate === "string" && payload.nextUpdate.trim()
+        ? payload.nextUpdate.trim()
+        : null;
+    return (
+      <div
+        style={{
+          background: cardBg,
+          border: `1px solid ${border}`,
+          borderRadius: 12,
+          padding: "14px 16px",
+          maxWidth: "86%",
+          margin: "8px auto",
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+          <SupportAgentAvatar size={22} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
+            {interpolate(t("dashboard.adminSupport.delayTitle"), SUPPORT_AGENT_VARS)}
+          </div>
+        </div>
+        <div style={{ fontSize: 12.5, color: muted, lineHeight: 1.45 }}>
+          {note ?? t("dashboard.adminSupport.delayBody")}
+        </div>
+        {nextUpdate ? (
+          <div style={{ fontSize: 12, color: ink, marginTop: 8, fontWeight: 500 }}>
+            {interpolate(t("dashboard.adminSupport.delayNextUpdate"), { when: nextUpdate })}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   if (kind === "issue-fixed") {
@@ -172,7 +227,7 @@ export function SupportCardRenderer({
         {typeof payload.title === "string"
           ? payload.title
           : kind === "offer-human"
-            ? t("dashboard.adminSupport.offerHumanTitle")
+            ? interpolate(t("dashboard.adminSupport.offerHumanTitle"), SUPPORT_AGENT_VARS)
             : t("dashboard.adminSupport.cardTitle")}
       </div>
       {typeof payload.description === "string" ? (

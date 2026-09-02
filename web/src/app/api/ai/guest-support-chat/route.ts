@@ -1,3 +1,4 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -41,7 +42,7 @@ const bodySchema = z.object({ ticketId: z.string().uuid() });
 
 const SYSTEM_PROMPT = [
   "You are Tulala's marketing-site assistant for people who are not signed into a workspace.",
-  "Answer ONLY from the provided grounding entries. If the answer is not there, say you are not sure and offer to get Oran.",
+  `Answer ONLY from the provided grounding entries. If the answer is not there, say you are not sure and offer to get ${SUPPORT_AGENT.name}.`,
   "Entries whose purpose starts with ON THE ROADMAP are not shipped. Never sell them as available.",
   "Do not invent prices. Only quote amounts that appear in the grounding text.",
   "Do not invent phone numbers or email addresses.",
@@ -269,7 +270,7 @@ export async function POST(request: Request) {
         ticketId,
         authorKind: "ai",
         authorUserId: null,
-        body: "Want Oran to take a look?",
+        body: `Want ${SUPPORT_AGENT.name} to take a look?`,
         messageKind: "card",
         cardPayload: { kind: "offer-human" },
         aiMeta: { escalate_reason: "ai_suggested" },

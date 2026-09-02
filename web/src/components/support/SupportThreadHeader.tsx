@@ -2,6 +2,9 @@
 
 import type { CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+import { SupportAgentAvatar } from "./SupportAgentAvatar";
+import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportTicketRow } from "@/lib/support/support-types";
@@ -33,7 +36,7 @@ export function SupportThreadStatusLine({
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {t("dashboard.adminSupport.oranOnline")}
+          {interpolate(t("dashboard.adminSupport.oranOnline"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
     );
@@ -80,7 +83,7 @@ export function SupportThreadStatusLine({
           OT
         </span>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {t("dashboard.adminSupport.humanReplyEta")}
+          {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
     );
@@ -136,6 +139,12 @@ export function SupportThreadHeader({
           <Icon name="chevron-right" size={16} />
         </span>
       </button>
+      {/*
+        The face, next to the subject. A support thread that shows only text
+        reads as a form submission; a face reads as a person on the other end,
+        which is the entire difference the customer feels.
+      */}
+      <SupportAgentAvatar size={30} online={ticket?.status === "open" && hqOnline === true} />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{

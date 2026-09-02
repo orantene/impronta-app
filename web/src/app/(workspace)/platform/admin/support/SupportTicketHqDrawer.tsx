@@ -1,5 +1,6 @@
 "use client";
 
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F } from "../tenants/hq-kit";
@@ -73,14 +74,14 @@ export function SupportTicketHqDrawer({
       const name =
         (typeof user.user_metadata?.first_name === "string"
           ? user.user_metadata.first_name
-          : null) || "Oran";
+          : null) || SUPPORT_AGENT.name;
       setHqSelf({ id: user.id, name });
     });
   }, []);
   const { setTyping, peers } = useThreadPresence({
     channelKey: hqSelf ? `support.${ticketId}` : null,
     userId: hqSelf?.id ?? "",
-    displayName: hqSelf?.name ?? "Oran",
+    displayName: hqSelf?.name ?? SUPPORT_AGENT.name,
     role: "hq",
   });
   const requesterViewing = peers.some((p) => p.role === "requester");
