@@ -16,9 +16,48 @@
  *   - `collectPresentNodeKinds(nodes, components)` — one tree walk (including
  *     children resolved LIVE from a linked-component instance's master) that
  *     returns the exact set of kinds rendered on the page.
- *   - `buildScopedRendererCss(fullSheet, presentKinds)` — filters the monolithic
- *     sheet to the base/shared rules (always emitted) plus the rule blocks for
- *     the present kinds, byte-for-byte preserving every retained rule.
+ *   - `collectPresentContainerQueryBreakpoints(nodes, components)` — the same
+ *     walk for the `@container` tiers the page authors, or `null` for "cannot
+ *     prove it, keep everything".
+ *   - `buildScopedRendererCss(fullSheet, presentKinds, presentCqBreakpoints)` —
+ *     filters the monolithic sheet to the base/shared rules (always emitted)
+ *     plus the rule blocks for the present kinds, byte-for-byte preserving
+ *     every retained rule.
+ *
+ * A block is attributed to a kind by TWO signals, both of which must be kept in
+ * step with the renderer:
+ *   1. a `.site-builder-node--<token>` class, via `KIND_BY_RENDERER_CSS_TOKEN`;
+ *   2. a kind-owned class PREFIX, via `KIND_BY_RENDERER_CSS_CLASS_PREFIX` — for
+ *      sub-sheets like the carousel's `.site-bn-hero__*` and social feed's
+ *      `.sf-*` that never use the `--<token>` shape and so used to be read as
+ *      base and shipped to every page.
+ * `renderer-css-scope-inverse.test.ts` asserts the converse of all of this: for
+ * every fidelity design, every kind on the page still has all of its rules in
+ * the scoped sheet. A mis-mapped token fails there loudly rather than shipping
+ * a page with missing styles.
+ *
+ * WHAT IS STILL BASE, AND WHY (measured 2026-09-01, BUILDER 2027 · LANE A)
+ * ───────────────────────────────────────────────────────────────────────
+ * After this pass the always-shipped base bucket is 46.5 KB per page. It is
+ * not an oversight; it is what remains once the safely-attributable rules are
+ * attributed. The three items that dominate it, and the reason each is left:
+ *
+ *   13,451 B  `@media` TABLET style lane   ┐ Keyed on ~100 individual
+ *   13,358 B  `@media` MOBILE style lane   ┘ `data-builder-style-<lane>-<attr>`
+ *     presence attributes. Scoping these needs the set of ATTRIBUTES the page
+ *     emits, and the only honest source for that is `builderNodeStyleAttrs`
+ *     itself — a ~100-entry literal map in render.tsx. Re-deriving it here
+ *     would be a SECOND copy that drifts, and every drift is a dropped rule on
+ *     a live page. The safe whole-lane granularity ("does any node author a
+ *     tablet override?") saves nothing, because every fidelity design authors
+ *     both lanes. Worth doing only by calling the emitter, which needs a
+ *     render-time signal this module does not have.
+ *      2,570 B  `@keyframes` — the entrance/hover animation vocabulary. Not
+ *     kind-owned (any node may animate), and Phase 7 is about to add to it.
+ *      1,290 B  `.site-builder-bg-media__*` — emitted per-node from
+ *     `props.backgroundMedia`, a style signal rather than a kind. Scoping it
+ *     needs a second presence axis, and the inverse test's kind-driven fixtures
+ *     could not cover it.
  *
  * BYTE-SAFETY is the prime directive. The filter NEVER edits a declaration; it
  * only DROPS whole rule blocks whose selectors target a kind-token that is
@@ -245,7 +284,39 @@ const LIVE_BUTTON_SOURCE_KEYS: ReadonlySet<string> = new Set([
   "tenant_directory_search",
 ]);
 
+/**
+ * Kind-owned sub-sheets that DO NOT use the `.site-builder-node--<token>` class
+ * shape at all, and were therefore invisible to the token map above — an
+ * unmapped selector is treated as base, so every one of these rules shipped to
+ * every page whether or not it could ever match.
+ *
+ * Measured on the seven fidelity designs (2026-09-01): 6,800 B of
+ * `.site-bn-hero__*` and 3,741 B of `.sf-*` were in the "base" bucket of all
+ * seven scoped sheets, and NOT ONE of the seven renders either kind. That is
+ * 10.3 KB of guaranteed-dead CSS on every page — the single largest miss the
+ * token map had.
+ *
+ * Each prefix is claimed by exactly one renderer, verified by grep:
+ *   - `site-bn-hero`  → `carousel.tsx` only (the `variant="hero"` chrome).
+ *   - `sf-`           → `social-feed.tsx` only (the social_feed grid/rail).
+ * A rule that mixes one of these prefixes WITH a `--<token>` selector keeps the
+ * union of both kinds, and "any present → keep" means such a rule survives
+ * exactly as it did before. Adding a prefix here can therefore only ever drop
+ * a block whose every selector hook belongs to the named kind.
+ *
+ * Order matters only for readability; the scan checks every entry.
+ */
+const KIND_BY_RENDERER_CSS_CLASS_PREFIX: ReadonlyArray<
+  readonly [prefix: string, kind: BuilderNodeKind]
+> = [
+  ["site-bn-hero", "carousel"],
+  ["sf-", "social_feed"],
+];
+
 const RENDERER_CSS_TOKEN_RE = /\.site-builder-node--([a-z0-9-]+)/g;
+
+/** Every class name a block's selectors reference, e.g. `sf-tile`. */
+const RENDERER_CSS_CLASS_RE = /\.([a-zA-Z_][\w-]*)/g;
 
 /** Read a node's `dataBinding.sourceKey`, if any (container/card/section). */
 function nodeDataBindingSourceKey(node: BuilderNode): string | undefined {
@@ -303,7 +374,15 @@ export function collectPresentNodeKinds(
     if (
       kind === "directory" ||
       kind === "featured_talent" ||
-      kind === "location_map"
+      kind === "location_map" ||
+      // A `form` renders its own submit as
+      // `<button class="site-builder-node site-builder-node--button">`
+      // (render.tsx), with no authored button node anywhere. Found by
+      // renderer-css-scope-inverse.test.ts: without this, a contact page whose
+      // only button is the form's submit shipped that button UNSTYLED. The
+      // fidelity designs all happen to carry a separate button node, which is
+      // why every existing suite stayed green.
+      kind === "form"
     ) {
       present.add("button");
     }
@@ -331,6 +410,117 @@ export function collectPresentNodeKinds(
 
   for (const node of nodes) visit(node, 0);
   return present;
+}
+
+/**
+ * The two built-in container-query tiers the sheet ships an `@container` block
+ * for. Mirrors `builderNodeContainerQueryCss` in render.tsx.
+ */
+export type ContainerQueryBreakpoint = "tablet" | "mobile";
+
+const CONTAINER_QUERY_BREAKPOINTS: ReadonlyArray<ContainerQueryBreakpoint> = [
+  "tablet",
+  "mobile",
+];
+
+/**
+ * Which `@container` tiers this page can actually use.
+ *
+ * The two `@container` blocks are 24,078 B — 19% of the whole sheet and the
+ * largest single item in the always-shipped "base" bucket. Every rule in them
+ * is keyed on a `data-builder-style-cq-<tier>-*` presence attribute, and those
+ * attributes have EXACTLY ONE emitter: `builderNodeContainerQueryStyleAttrs`
+ * in render.tsx, fed only from `style.containerQueries.{tablet,mobile}`. That
+ * makes "is this tier authored anywhere on the page?" a precise, one-field
+ * question — unlike the `@media` responsive lanes, whose ~100 attributes would
+ * need a second copy of the emitter's key map to answer.
+ *
+ * Returns `null` for "cannot prove it — keep both tiers", which is what the
+ * caller must do whenever the walk cannot see the whole truth:
+ *
+ *   - A node carries a `style.classRef`. A style CLASS can itself carry
+ *     `containerQueries` (see `mergeBuilderNodeStyle`), and the class registry
+ *     is not resolved into the tree this walk receives. Reading only
+ *     `props.style` would miss it and drop a block the page needs.
+ *   - The tree is empty / unusable.
+ *
+ * Mirrors `collectPresentNodeKinds`: same walk shape, same live-resolved
+ * component-instance children, same depth cap.
+ */
+export function collectPresentContainerQueryBreakpoints(
+  nodes: ReadonlyArray<BuilderNode>,
+  components: ComponentDefinitions = {},
+): Set<ContainerQueryBreakpoint> | null {
+  if (!Array.isArray(nodes) || nodes.length === 0) return null;
+  const present = new Set<ContainerQueryBreakpoint>();
+  const MAX_DEPTH = 64;
+  let uncertain = false;
+
+  const visit = (node: BuilderNode, depth: number): void => {
+    if (uncertain) return;
+    if (!node || typeof node !== "object" || depth > MAX_DEPTH) return;
+    const style = (
+      node as { props?: { style?: Record<string, unknown> } }
+    ).props?.style;
+    if (style && typeof style === "object") {
+      // A linked style class may supply containerQueries this walk cannot see.
+      if (style.classRef) {
+        uncertain = true;
+        return;
+      }
+      const cq = style.containerQueries as
+        | Partial<Record<ContainerQueryBreakpoint, unknown>>
+        | undefined;
+      if (cq && typeof cq === "object") {
+        for (const bp of CONTAINER_QUERY_BREAKPOINTS) {
+          const bucket = cq[bp];
+          if (
+            bucket &&
+            typeof bucket === "object" &&
+            Object.keys(bucket).length > 0
+          ) {
+            present.add(bp);
+          }
+        }
+      }
+    }
+
+    const resolved = resolveInstanceChildren(node, components);
+    if (resolved) {
+      for (const child of resolved) visit(child, depth + 1);
+    } else if (
+      typeof (node as { props?: { instanceOf?: unknown } }).props
+        ?.instanceOf === "string"
+    ) {
+      // A tagged linked instance whose master is NOT in `components`: the
+      // subtree that will actually render is invisible here, so we cannot say
+      // the page authors no container queries.
+      uncertain = true;
+      return;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child, depth + 1);
+    }
+  };
+
+  for (const node of nodes) visit(node, 0);
+  return uncertain ? null : present;
+}
+
+/**
+ * The `@container` tier a wrapper block belongs to, read from the presence
+ * attributes its inner rules key on rather than from the `max-width` value, so
+ * retuning a breakpoint's px threshold cannot silently unhook the scoping.
+ * `null` when the block is not one of the two style-lane wrappers (it targets
+ * both tiers, or neither) — in which case it is kept.
+ */
+function containerBlockBreakpoint(
+  block: string,
+): ContainerQueryBreakpoint | null {
+  const hit = CONTAINER_QUERY_BREAKPOINTS.filter((bp) =>
+    block.includes(`data-builder-style-cq-${bp}-`),
+  );
+  return hit.length === 1 ? hit[0] : null;
 }
 
 /**
@@ -383,7 +573,44 @@ function blockTargetKinds(block: string): Set<BuilderNodeKind> | null {
     if (!kind) return null; // unknown token → keep block (safe)
     kinds.add(kind);
   }
+  // Kind-owned sub-sheets that use their own class prefix instead of the
+  // `--<token>` shape. Scanned over SELECTOR TEXT ONLY: a declaration value
+  // (`content:".sf-x"`, a url(), a font name) must never be mistaken for a
+  // selector, because that would attribute — and so potentially DROP — a block
+  // that the prefix does not actually own.
+  const selectors = selectorTextOf(block);
+  RENDERER_CSS_CLASS_RE.lastIndex = 0;
+  while ((match = RENDERER_CSS_CLASS_RE.exec(selectors)) !== null) {
+    const className = match[1];
+    for (const [prefix, kind] of KIND_BY_RENDERER_CSS_CLASS_PREFIX) {
+      if (className.startsWith(prefix)) kinds.add(kind);
+    }
+  }
   return kinds;
+}
+
+/**
+ * The SELECTOR text of a block: every run of characters that a `{` closes —
+ * selectors and at-rule preludes — with all declaration bodies discarded.
+ *
+ * `.sf-tile{background:url(a.svg)}` yields `.sf-tile `, never the url. Used by
+ * the class-prefix scan above, where a false positive means a dropped rule.
+ */
+function selectorTextOf(block: string): string {
+  let out = "";
+  let buf = "";
+  for (let i = 0; i < block.length; i += 1) {
+    const ch = block[i];
+    if (ch === "{") {
+      out += `${buf} `;
+      buf = "";
+    } else if (ch === "}") {
+      buf = "";
+    } else {
+      buf += ch;
+    }
+  }
+  return out;
 }
 
 /**
@@ -398,10 +625,18 @@ function blockTargetKinds(block: string): Set<BuilderNodeKind> | null {
 function keepBlockForKinds(
   block: string,
   presentKinds: ReadonlySet<BuilderNodeKind>,
+  presentCqBreakpoints: ReadonlySet<ContainerQueryBreakpoint> | null,
 ): string | null {
   const trimmed = block.trim();
   const atMatch = AT_BLOCK_PREFIX_RE.exec(block);
   const atName = atMatch?.[1]?.toLowerCase();
+
+  // A whole `@container` style-lane wrapper whose tier is not authored anywhere
+  // on the page. `null` breakpoints means "could not prove it" → keep both.
+  if (atName === "container" && presentCqBreakpoints) {
+    const bp = containerBlockBreakpoint(block);
+    if (bp && !presentCqBreakpoints.has(bp)) return null;
+  }
 
   // @media / @container wrappers: filter their inner rules.
   if (atName === "media" || atName === "container") {
@@ -414,7 +649,11 @@ function keepBlockForKinds(
     const innerBlocks = splitTopLevelCssBlocks(inner);
     if (!innerBlocks) return block; // anomaly → keep whole
     const keptInner = innerBlocks
-      .map((b) => (b.trim() === "" ? b : keepBlockForKinds(b, presentKinds)))
+      .map((b) =>
+        b.trim() === ""
+          ? b
+          : keepBlockForKinds(b, presentKinds, presentCqBreakpoints),
+      )
       .filter((b): b is string => b !== null);
     // If nothing but whitespace survived, drop the wrapper entirely.
     if (keptInner.every((b) => b.trim() === "")) return null;
@@ -491,6 +730,13 @@ export function stripCssComments(sheet: string): string {
 export function buildScopedRendererCss(
   fullSheet: string,
   presentKinds: ReadonlySet<BuilderNodeKind> | null | undefined,
+  /**
+   * The `@container` tiers this page authors, from
+   * {@link collectPresentContainerQueryBreakpoints}. Omitted or `null` keeps
+   * BOTH `@container` blocks — the byte-safe default, so every caller that has
+   * not opted in behaves exactly as it did before.
+   */
+  presentCqBreakpoints?: ReadonlySet<ContainerQueryBreakpoint> | null,
 ): string {
   // No kinds known (undefined / empty) → conservative full sheet.
   if (!presentKinds || presentKinds.size === 0) return stripCssComments(fullSheet);
@@ -504,7 +750,11 @@ export function buildScopedRendererCss(
       kept += block; // preserve inter-block whitespace
       continue;
     }
-    const result = keepBlockForKinds(block, presentKinds);
+    const result = keepBlockForKinds(
+      block,
+      presentKinds,
+      presentCqBreakpoints ?? null,
+    );
     if (result !== null) kept += result;
   }
   // Defensive: an empty result would mean the page has styling but we emitted

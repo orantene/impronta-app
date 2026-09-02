@@ -61,6 +61,7 @@ import {
 import {
   buildScopedRendererCss,
   collectPresentNodeKinds,
+  collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import {
   collectBuilderNodeFontUsage,
@@ -8098,8 +8099,17 @@ export function hasAnimationPlayOnceNode(
 export function BuilderNodeRendererStyles({
   kinds,
   nodes,
+  components,
 }: {
   kinds?: ReadonlySet<BuilderNodeKind> | null;
+  /**
+   * The saved component definitions, when the page has any. Passed to the
+   * container-query collector so a linked instance's master subtree is walked
+   * LIVE, exactly as `collectPresentNodeKinds` already does for kinds. Omitted
+   * on a page with no instances; an instance whose master is missing makes the
+   * collector return "unknown" and both `@container` blocks are kept.
+   */
+  components?: ComponentDefinitions;
   /**
    * The tree this sheet is being hoisted for. Supplied so the "play once"
    * arming runtime can ride along with the sheet -- the sheet is the one thing
@@ -8114,7 +8124,18 @@ export function BuilderNodeRendererStyles({
    */
   nodes?: ReadonlyArray<BuilderNode> | null;
 } = {}): ReactNode {
-  const css = buildScopedRendererCss(BUILDER_NODE_RENDERER_CSS, kinds);
+  // The two `@container` blocks are 24 KB of the sheet and are dead unless a
+  // node authors `style.containerQueries`. `nodes` is already passed by every
+  // scoping call site; without it the collector is skipped and both blocks are
+  // kept, exactly as before.
+  const cqBreakpoints = nodes
+    ? collectPresentContainerQueryBreakpoints(nodes, components ?? {})
+    : null;
+  const css = buildScopedRendererCss(
+    BUILDER_NODE_RENDERER_CSS,
+    kinds,
+    cqBreakpoints,
+  );
   const sheet = (
     <style
       data-builder-node-renderer-styles=""
@@ -8133,7 +8154,11 @@ export function BuilderNodeRendererStyles({
   );
 }
 
-export { buildScopedRendererCss, collectPresentNodeKinds };
+export {
+  buildScopedRendererCss,
+  collectPresentNodeKinds,
+  collectPresentContainerQueryBreakpoints,
+};
 
 export function hasRenderableBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,

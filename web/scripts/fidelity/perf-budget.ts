@@ -43,11 +43,12 @@ import { fileURLToPath } from "node:url";
 import { fidelityDesigns } from "./designs";
 import { buildFidelityHtml, renderFidelityMarkup, type FidelityDesign } from "./html";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
-// Pure (no React) — the same two helpers every public render path uses to scope
-// the renderer sheet, so the scoped budget measures exactly what ships.
+// Pure (no React) — the same three helpers every public render path uses to
+// scope the renderer sheet, so the scoped budget measures exactly what ships.
 import {
   buildScopedRendererCss,
   collectPresentNodeKinds,
+  collectPresentContainerQueryBreakpoints,
 } from "../../src/lib/site-admin/builder-node/renderer-css-scope";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -217,7 +218,35 @@ export const BUDGETS: readonly Budget[] = [
     // is exactly the point of scoping the block to the form kind-token. Every
     // other design measured unchanged, so the visitors who pay this are the
     // ones who get a form they can see and use.
-    max: 103 * KB,
+    //
+    // ── LOWERED 2026-09-01 (BUILDER 2027 · LANE A): 103 KB → 90 KB ──────────
+    // Not a retune for new features: a ceiling brought DOWN onto a measured
+    // reduction, so the win cannot be quietly spent. Two scoping fixes, no rule
+    // deleted and no rendered output changed:
+    //
+    //  1. `KIND_BY_RENDERER_CSS_CLASS_PREFIX` — the carousel's
+    //     `.site-bn-hero__*` (6,800 B) and the social feed's `.sf-*` (3,741 B)
+    //     never used the `--<token>` class shape, so the scoper read them as
+    //     BASE and shipped 10.3 KB of them to every page. Not one of the seven
+    //     designs renders either kind.
+    //  2. `collectPresentContainerQueryBreakpoints` — the two `@container`
+    //     blocks are 24,078 B (19% of the sheet, the largest single item in the
+    //     always-shipped base bucket) and are keyed on
+    //     `data-builder-style-cq-<tier>-*`, whose only emitter is fed solely by
+    //     `style.containerQueries`. Five designs author one tier, two author
+    //     none; nobody authors `tablet`.
+    //
+    // Measured after (npm run perf:builder-budget), worst → best:
+    //   store 77.8 · festival 77.5 · agency 66.1 · editorial 64.1 ·
+    //   impronta 52.3 · saas 54.5 · trivial 49.1 KB
+    // 90 KB therefore leaves the heaviest design 12.2 KB of real headroom —
+    // roughly the whole of Phase 2A's twelve kinds again — instead of the
+    // 2.6 KB that prompted this lane. Phases 2B / 6 / 7 spend from that.
+    //
+    // NOTE the base bucket is still 46.5 KB per page after this, dominated by
+    // the `@media` tablet (13,451 B) and mobile (13,358 B) style lanes. Those
+    // are deliberately NOT scoped — see renderer-css-scope.ts for why.
+    max: 90 * KB,
     unit: "bytes",
   },
   // The HTML document itself. Rich pages reference images externally, so the
@@ -526,7 +555,11 @@ function measureRegisteredDesign(design: FidelityDesign): DesignReport {
   // tree, using the same two helpers they call.
   const fullSheetMatch = [...html.matchAll(RENDERER_STYLE_RE)][0];
   const scopedRendererCss = fullSheetMatch
-    ? buildScopedRendererCss(fullSheetMatch[1], collectPresentNodeKinds(design.tree))
+    ? buildScopedRendererCss(
+        fullSheetMatch[1],
+        collectPresentNodeKinds(design.tree),
+        collectPresentContainerQueryBreakpoints(design.tree),
+      )
     : null;
   const { metrics, notes } = measureDesign(html, markup, diskSizers, scopedRendererCss);
   return { id: design.id, title: design.title, metrics, notes };
