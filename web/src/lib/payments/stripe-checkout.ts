@@ -1,6 +1,33 @@
 /**
  * Stripe Checkout integration for client-paid invoices.
  *
+ * THE CHARGE ALWAYS LANDS ON THE PLATFORM ACCOUNT. This module used to branch:
+ * when a workspace had finished Connect onboarding it created the session with
+ * `{ stripeAccount }` — a Direct Charge on the workspace's own account, with
+ * the platform taking `application_fee_amount`. That branch was removed
+ * (finance audit, 2026-09-01) for two independent reasons:
+ *
+ *   1. Stripe refuses it. Our connected accounts are onboarded under the
+ *      `recipient` service agreement, and per Stripe's "Service agreement
+ *      types" docs those accounts "can't process payments or request the
+ *      card_payments capability". Their capability set is `{transfers}` and
+ *      nothing else. (`charges_enabled: true` on such an account is a legacy
+ *      aggregate field and does NOT mean it can take a card — it was misread
+ *      that way once already.)
+ *   2. It contradicts the commission model. `markPaid` fans out to talent and
+ *      workspace from the PLATFORM balance, which is what lets the talent be
+ *      paid their full quote with the platform's seller share coming out of
+ *      the workspace margin. A Direct Charge leaves the gross on the
+ *      workspace's account, so the fan-out would pay out money the platform
+ *      never received. `application_fee_amount` cannot express a three-way
+ *      split.
+ *
+ * The money model is therefore ONE model everywhere: collect the full
+ * `gross_charged` on the platform, then transfer out (`separate charges and
+ * transfers`). The embedded Payment Element path
+ * (`stripe-payment-intent.ts`) already worked this way; this module now
+ * matches it. Do not reintroduce a connected-account branch here.
+ *
  * Two pieces:
  *   1. `createCheckoutSessionForTransaction` — server-side helper that
  *      builds a one-shot Checkout session for a `booking_transactions`
@@ -43,19 +70,6 @@ export type CheckoutSessionInput = {
   successUrl: string;
   cancelUrl: string;
   description?: string;
-  /**
-   * Stripe Connect account id (`acct_*`) to route this charge to. When set,
-   * the charge becomes a Direct Charge on the connected account; the
-   * platform receives `applicationFeeCents` as its cut. When omitted, the
-   * charge runs as single-account on the platform's Stripe account
-   * (legacy / fallback path).
-   */
-  connectedAccountId?: string | null;
-  /**
-   * Platform application fee, in cents. Only meaningful when
-   * `connectedAccountId` is set. Defaults to 0 (no platform cut).
-   */
-  applicationFeeCents?: number;
   /**
    * The paying client's resolved app locale (`getRequestLocale()`), threaded
    * from the calling server action. Stripe otherwise reads the BROWSER
@@ -101,9 +115,6 @@ export async function createCheckoutSessionForTransaction(
       return { ok: false, error: "Amount must be positive." };
     }
 
-    const useConnect = !!input.connectedAccountId;
-    const applicationFee = Math.max(0, Math.floor(input.applicationFeeCents ?? 0));
-
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
@@ -132,20 +143,9 @@ export async function createCheckoutSessionForTransaction(
       },
     };
 
-    // Connect: Direct Charge on the connected account, platform takes
-    // `application_fee_amount`. Application fee can only be set when the
-    // charge is on a Connect account, hence the conditional.
-    if (useConnect && applicationFee > 0) {
-      sessionParams.payment_intent_data = {
-        application_fee_amount: applicationFee,
-      };
-    }
-
-    const session = useConnect
-      ? await stripe.checkout.sessions.create(sessionParams, {
-          stripeAccount: input.connectedAccountId!,
-        })
-      : await stripe.checkout.sessions.create(sessionParams);
+    // Always the PLATFORM account. See the module header for why the
+    // connected-account (Direct Charge) branch was removed.
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
