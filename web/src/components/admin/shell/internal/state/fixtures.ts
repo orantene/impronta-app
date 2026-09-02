@@ -10,15 +10,14 @@ import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
 import { deriveWebsitePageStatus } from "./website-page-status";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
-export const SURFACES: Surface[] = ["workspace", "talent", "platform"];
+export const SURFACES: Surface[] = ["workspace", "talent", ];
 export const PLANS: Plan[] = ["free", "website", "studio", "agency", "network"];
 export const ROLES: Role[] = ["viewer", "editor", "manager", "admin", "owner"];
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
-export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
 // WS-3.1 — The canonical nav pages. Legacy aliases excluded.
 export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
@@ -72,16 +71,6 @@ export const CLIENT_PAGES: ClientPage[] = [
   "discover",
   "shortlists",
   "bookings",
-  "settings",
-];
-export const PLATFORM_PAGES: PlatformPage[] = [
-  "today",
-  "tenants",
-  "users",
-  "network",
-  "billing",
-  "operations",
-  "builder-lab",
   "settings",
 ];
 
@@ -245,7 +234,6 @@ export const SURFACE_META: Record<
 > = {
   workspace: { label: "Workspace Admin", short: "Workspace", ready: true },
   talent: { label: "Talent", short: "Talent", ready: true },
-  platform: { label: "Platform · Super Admin", short: "Platform", ready: true },
 };
 
 // WS-3.2 — canonical page metadata.  Legacy aliases included so code that
@@ -311,16 +299,6 @@ export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
   settings: { label: "Settings" },
 };
 
-export const PLATFORM_PAGE_META: Record<PlatformPage, { label: string }> = {
-  today: { label: "Today" },
-  tenants: { label: "Tenants" },
-  users: { label: "Users" },
-  network: { label: "Network" },
-  billing: { label: "Billing" },
-  operations: { label: "Operations" },
-  "builder-lab": { label: "Builder Lab" },
-  settings: { label: "Settings" },
-};
 
 export const CLIENT_PLAN_META: Record<
   ClientPlan,
@@ -336,39 +314,6 @@ export const CLIENT_PLAN_META: Record<
   },
 };
 
-export const HQ_ROLE_META: Record<
-  HqRole,
-  { label: string; tagline: string; canImpersonate: boolean; canRefund: boolean; canFlag: boolean }
-> = {
-  support: {
-    label: "Support",
-    tagline: "Help tenants. View audit. Impersonate read-only.",
-    canImpersonate: true,
-    canRefund: false,
-    canFlag: false,
-  },
-  ops: {
-    label: "Ops",
-    tagline: "Feature flags. Moderation. System jobs.",
-    canImpersonate: true,
-    canRefund: false,
-    canFlag: true,
-  },
-  billing: {
-    label: "Billing",
-    tagline: "Revenue. Refunds. Plan overrides.",
-    canImpersonate: false,
-    canRefund: true,
-    canFlag: false,
-  },
-  exec: {
-    label: "Exec",
-    tagline: "Everything. Read-mostly.",
-    canImpersonate: true,
-    canRefund: true,
-    canFlag: true,
-  },
-};
 
 export function meetsPlan(current: Plan, required: Plan): boolean {
   return PLAN_META[current].rank >= PLAN_META[required].rank;

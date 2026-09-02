@@ -19,7 +19,6 @@ import { OPEN_DRAWER_EVENT, type OpenDrawerEventDetail } from "./open-drawer-bri
 import { InquiryWorkspaceDrawer } from "./workspace";
 import { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "./wave2";
 import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentConnectionsDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
-import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
 import { ReviewModerationQueue } from "./drawers/profile-shell/profile-shell-modules/review-moderation-queue";
@@ -354,48 +353,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <PlanCompareDrawer />;
 
     // ─── Platform / HQ drawers ──────────────────────────────────────────
-    case "platform-today-pulse":
-      return <PlatformTodayPulseDrawer />;
-    case "platform-tenant-detail":
-      return <PlatformTenantDetailDrawer />;
-    case "platform-tenant-impersonate":
-      return <PlatformTenantImpersonateDrawer />;
-    case "platform-tenant-suspend":
-      return <PlatformTenantSuspendDrawer />;
-    case "platform-tenant-plan-override":
-      return <PlatformTenantPlanOverrideDrawer />;
-    case "platform-user-detail":
-      return <PlatformUserDetailDrawer />;
-    case "platform-user-merge":
-      return <PlatformUserMergeDrawer />;
-    case "platform-user-reset":
-      return <PlatformUserResetDrawer />;
-    case "platform-hub-submission":
-      return <PlatformHubSubmissionDrawer />;
-    case "platform-hub-rules":
-      return <PlatformHubRulesDrawer />;
-    case "platform-billing-invoice":
-      return <PlatformBillingInvoiceDrawer />;
-    case "platform-refund":
-      return <PlatformRefundDrawer />;
-    case "platform-dunning":
-      return <PlatformDunningDrawer />;
-    case "platform-feature-flag":
-      return <PlatformFeatureFlagDrawer />;
-    case "platform-moderation-item":
-      return <PlatformModerationItemDrawer />;
-    case "platform-system-job":
-      return <PlatformSystemJobDrawer />;
-    case "platform-incident":
-      return <PlatformIncidentDrawer />;
-    case "platform-support-ticket":
-      return <PlatformSupportTicketDrawer />;
-    case "platform-audit-export":
-      return <PlatformAuditExportDrawer />;
-    case "platform-hq-team":
-      return <PlatformHqTeamDrawer />;
-    case "platform-region-config":
-      return <PlatformRegionConfigDrawer />;
 
     // ─── Wave 2 drawers ─────────────────────────────────────────────────
     case "inbox-snippets":

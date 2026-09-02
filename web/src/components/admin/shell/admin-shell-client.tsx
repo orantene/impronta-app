@@ -43,13 +43,7 @@ import { SupportSlotGate } from "./internal/support-slot-gate";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
-import {
-  AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole,
-  PAGE_META,
-  TALENT_PAGE_META, CLIENT_PAGE_META, PLATFORM_PAGE_META,
-  FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT,
-  type FabPaletteChangedDetail,
-} from "./internal/state";
+import { AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole, PAGE_META, TALENT_PAGE_META, CLIENT_PAGE_META, FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT, type FabPaletteChangedDetail,  } from "./internal/state";
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
 // owns that screen position; feedback is reachable via the FAB's Ask AI tab.
@@ -418,7 +412,7 @@ const FAB_DRAFTS_MOCK = 2;
 const FAB_POPOVER_ID = "tulala-fab-popover";
 
 function BottomActionFab() {
-  const { state, openDrawer, setPage, setTalentPage, setClientPage, setPlatformPage, toast } = useAdminShell();
+  const { state, openDrawer, setPage, setTalentPage, setClientPage, toast } = useAdminShell();
   const copy = useDashboardText();
   // Native popover-driven open/close — listens to the browser's
   // toggle event so React state still mirrors visibility for animation
@@ -519,23 +513,6 @@ function BottomActionFab() {
         icon: "arrow-right",
         canDo: true,
         run: () => setTalentPage(p),
-      }));
-      return [...create, ...nav];
-    }
-    if (state.surface === "platform") {
-      const create: Item[] = [
-        { id: "new-tenant",     label: copy.t("New tenant"), sub: copy.t("Onboard an agency or hub"),          icon: "plus",     canDo: true,
-          run: () => toast("Open tenant intake") },
-        { id: "ops",            label: copy.t("Operations alerts"), sub: copy.t("Cross-tenant flags"),                icon: "info",     canDo: true,
-          run: () => toast("Open operations") },
-      ];
-      const nav: Item[] = (Object.keys(PLATFORM_PAGE_META) as Array<keyof typeof PLATFORM_PAGE_META>).map((p) => ({
-        id: `nav-platform-${p}`,
-        label: goTo(PLATFORM_PAGE_META[p].label),
-        sub: copy.t("Platform surface"),
-        icon: "arrow-right",
-        canDo: true,
-        run: () => setPlatformPage(p),
       }));
       return [...create, ...nav];
     }

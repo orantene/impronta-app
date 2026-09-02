@@ -109,5 +109,4 @@ function MessagesShellSkeleton() {
 }
 
 export { TalentSurface } from "../talent";
-export { PlatformSurface } from "../platform";
 export { MessagesShell } from "../messages";

@@ -58,7 +58,7 @@ type AudienceKey = "operator" | "agency" | "organization" | "business";
 /**
  * Tier-specific marketing copy. The Studio eyebrow is templated with the
  * live monthly price (via Phase 2 catalog read) so the chip stays in sync
- * with whatever pricing is currently set in `/platform/admin/pricing`.
+ * with whatever pricing is currently set in `/platform/admin/commerce?tab=catalog`.
  * Other eyebrows have no embedded price; kept as static strings.
  */
 type TierHeadline = { eyebrow: string; title: string; subtitle: string };
@@ -831,7 +831,7 @@ function HowItWorksSection({ locale }: { locale: string }) {
 /**
  * Tagline fallback when the catalog tagline is empty. Keeps the ladder
  * card looking finished even before an operator has filled in custom
- * tagline copy from `/platform/admin/pricing`.
+ * tagline copy from `/platform/admin/commerce?tab=catalog`.
  */
 function planLadderFallbackTagline(slug: string): string {
   switch (slug) {

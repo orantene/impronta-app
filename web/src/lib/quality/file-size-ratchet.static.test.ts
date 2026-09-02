@@ -358,7 +358,7 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
-  "src/components/admin/shell/internal/help-registry.ts": 2237,
+  "src/components/admin/shell/internal/help-registry.ts": 1982,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
   // 2026-08-14 media-ownership phase 1: +72 for the ownership chip on every
@@ -438,7 +438,6 @@ const BUDGETS: Record<string, number> = {
   // the same gate the Publish button enforces.
   "src/components/admin/shell/internal/state/types.ts": 2882,
   "src/components/admin/shell/admin-shell-client.tsx": 2430,
-  "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;

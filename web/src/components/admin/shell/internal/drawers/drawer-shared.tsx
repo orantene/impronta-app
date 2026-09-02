@@ -348,29 +348,6 @@ import {
   TalentReceiveReviewDrawer,
   TalentAgencyAnalyticsDrawer,
 } from "../talent-drawers";
-import {
-  PlatformTodayPulseDrawer,
-  PlatformTenantDetailDrawer,
-  PlatformTenantImpersonateDrawer,
-  PlatformTenantSuspendDrawer,
-  PlatformTenantPlanOverrideDrawer,
-  PlatformUserDetailDrawer,
-  PlatformUserMergeDrawer,
-  PlatformUserResetDrawer,
-  PlatformHubSubmissionDrawer,
-  PlatformHubRulesDrawer,
-  PlatformBillingInvoiceDrawer,
-  PlatformRefundDrawer,
-  PlatformDunningDrawer,
-  PlatformFeatureFlagDrawer,
-  PlatformModerationItemDrawer,
-  PlatformSystemJobDrawer,
-  PlatformIncidentDrawer,
-  PlatformSupportTicketDrawer,
-  PlatformAuditExportDrawer,
-  PlatformHqTeamDrawer,
-  PlatformRegionConfigDrawer,
-} from "../platform";
 
 // ════════════════════════════════════════════════════════════════════
 // drawer-shared — Phase 1d HUB (remediation-plan-2026-05-19 §4).
@@ -428,7 +405,6 @@ export { LiveCategoryFieldsEditor } from "../live-category-fields-editor";
 export { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "../wave2";
 export { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, // TalentProfileEditDrawer removed — replaced by unified TalentProfileShellDrawer.
   TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer } from "../talent-drawers";
-export { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "../platform";
 export { default as SkillOverridesPanel } from "../skill-overrides-panel";
 export { default as SkillHintsBanner } from "../skill-hints-banner";
 export { default as SkillFreshnessBanner } from "../skill-freshness-banner";

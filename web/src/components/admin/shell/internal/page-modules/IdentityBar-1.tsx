@@ -56,10 +56,6 @@ export function TulalaIdentityBar() {
     return () => window.removeEventListener(START_WORKSPACE_EVENT, handler);
   }, []);
 
-  // Identity bar renders for the three end-user surfaces (workspace +
-  // talent + client). Platform HQ has its own dark chrome and skips it.
-  if (surface === "platform") return null;
-
   const inWorkspace = surface === "workspace";
   const inTalent    = !inWorkspace;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;

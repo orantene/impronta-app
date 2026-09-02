@@ -8,7 +8,6 @@ import type { Plan, Surface } from "../state";
 import { ControlBar } from "./ControlBar";
 import { HybridShell, WorkspaceShell } from "./WorkspaceShell";
 import { TalentSurface } from "../talent";
-import { PlatformSurface } from "./pages-dynamic";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -37,8 +36,6 @@ export function SurfaceRouter() {
             <TalentSurface />
           </HybridShell>
         );
-      case "platform":
-        return <PlatformSurface />;
     }
   })();
   return (
