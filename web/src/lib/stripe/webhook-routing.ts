@@ -85,7 +85,20 @@ export type StripeAction =
        *  the cumulative amount when no individual refund is enumerable. */
       refundAmountCents: number;
     }
-  | { kind: "charge_dispute"; disputeId: string; paymentIntentId: string | null; amount: number; reason: string; status: string; closed: boolean }
+  | {
+      kind: "charge_dispute";
+      disputeId: string;
+      paymentIntentId: string | null;
+      amount: number;
+      reason: string;
+      status: string;
+      /** True only for `charge.dispute.closed`. Drives the reverse-or-restore
+       *  decision, which must NOT fire for an update or a funds movement. */
+      closed: boolean;
+      /** The raw event type. `created` and `closed` drive money; `updated`,
+       *  `funds_withdrawn` and `funds_reinstated` are recorded only. */
+      eventType: string;
+    }
   | { kind: "trial_will_end"; subscriptionId: string; trialEnd: number | null }
   | {
       kind: "booking_deposit";
@@ -290,7 +303,13 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
     }
 
     case "charge.dispute.created":
-    case "charge.dispute.closed": {
+    case "charge.dispute.closed":
+    // `updated` carries evidence-deadline changes; the funds events are the
+    // only signal that the money actually left or came back. All three were
+    // previously unclassified, so the balance impact of a dispute was invisible.
+    case "charge.dispute.updated":
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated": {
       const dispute = event.data.object as Stripe.Dispute;
       // `.closed` carries the terminal `status` ('lost' / 'won' / 'warning_closed');
       // `.created` is the opened alert. The handler reverses payouts only on a
@@ -303,6 +322,7 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         reason: dispute.reason ?? "unknown",
         status: dispute.status ?? "unknown",
         closed: event.type === "charge.dispute.closed",
+        eventType: event.type,
       };
     }
 

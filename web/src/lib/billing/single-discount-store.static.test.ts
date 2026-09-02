@@ -166,7 +166,7 @@ test("subscription_discounts is written only by its own library and actions", ()
 
 test("redemptions are counted through the RPC, never by hand", () => {
   // `redemption_count` used to be a column nothing wrote. It is now written in
-  // ONE place — inside `record_discount_redemption`, whose UNIQUE(stripe_event_id)
+  // ONE place — inside the `record_discount_redemption` RPC, whose UNIQUE(stripe_event_id)
   // is what makes a webhook replay a no-op. An app-side increment would not have
   // that protection and would double-count on every Stripe retry.
   const writers = withoutTests(
@@ -174,5 +174,14 @@ test("redemptions are counted through the RPC, never by hand", () => {
   );
   assert.deepEqual(writers, []);
   const callers = withoutTests(grep(/record_discount_redemption/));
-  assert.deepEqual(callers, ["lib/stripe/webhook-handler.ts"]);
+  // ONE caller is the invariant here; WHICH file holds it is incidental and is
+  // allowed to move. If this fails only because the module was renamed or
+  // extracted, update the name below — do not add a second caller. (A guard
+  // that pins a path rather than a shape is how a clean refactor reddens main.)
+  assert.equal(
+    callers.length,
+    1,
+    `record_discount_redemption must have exactly one caller, found: ${callers.join(", ")}`,
+  );
+  assert.deepEqual(callers, ["lib/billing/record-discount-redemption.ts"]);
 });

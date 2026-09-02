@@ -64,14 +64,11 @@ import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
+import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import {
-  extractSubscriptionDiscount,
-  isUnexpandedDiscount,
-} from "@/lib/billing/subscription-discounts";
 import { logServerError } from "@/lib/server/safe-error";
-import { applyCampaignGrantForDiscount } from "@/lib/billing/apply-campaign-grant";
+import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
   claimStripeEvent,
@@ -109,72 +106,6 @@ function ensureSyncOk(
 // ─── Side-effect dispatch ─────────────────────────────────────────────────────
 
 /** Sync a workspace OR talent subscription object (used for checkout-init + invoice-failed). */
-/**
- * Count one code redemption, if the subscription that just started carries one
- * of our catalog coupons.
- *
- * WHY: `product_discounts.redemption_count` was written by nothing. It sat at
- * zero forever, which meant `max_redemptions` was a number the admin could type
- * and the product would never honour — a "first 50 customers" campaign had no
- * fiftieth customer. `per_customer_limit` was the same promise, unkept for the
- * same reason. The `discount_redemptions` ledger is what makes both answerable.
- *
- * BEST EFFORT, ALWAYS. A ledger write must never 5xx a webhook: Stripe would
- * retry the whole event, and the money-side work above this line already
- * succeeded. Two layers of idempotency stand behind it — this branch is already
- * claimed by the event-level ledger, and the RPC's UNIQUE(stripe_event_id)
- * makes a replay a no-op even if the claim is bypassed.
- */
-async function recordDiscountRedemption(
-  subscription: Stripe.Subscription,
-  eventId: string,
-): Promise<void> {
-  try {
-    const mirror = extractSubscriptionDiscount(subscription);
-    if (!mirror || isUnexpandedDiscount(mirror) || !mirror.couponId) return;
-
-    const tenantId = subscription.metadata?.tenant_id ?? null;
-    const talentProfileId = subscription.metadata?.talent_profile_id ?? null;
-    if (!tenantId && !talentProfileId) return;
-
-    const sb = createServiceRoleClient();
-    if (!sb) return;
-
-    const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
-      p_stripe_coupon_id: mirror.couponId,
-      p_stripe_event_id: eventId,
-      p_subject_type: talentProfileId ? "talent" : "workspace",
-      p_tenant_id: tenantId as string,
-      p_talent_profile_id: talentProfileId as string,
-      p_stripe_subscription_id: subscription.id,
-      // WHO redeemed. Talent checkout has always stamped `user_id`; the
-      // workspace side now does too. Older subscriptions carry no such
-      // metadata, so this is null for them rather than wrong.
-      p_user_id: subscription.metadata?.user_id ?? null,
-    });
-    if (error) logServerError("stripe-webhook.discount-redemption", error);
-
-    // The entitlement half of a campaign, applied exactly once. `recorded` is
-    // the RPC's own idempotency answer: true ONLY on the insert that actually
-    // happened, so a replayed webhook cannot hand out a second free upgrade.
-    // Workspace subjects only, and best-effort -- a courtesy grant that fails
-    // must never fail the webhook that delivered the payment.
-    if (recorded === true && tenantId) {
-      const outcome = await applyCampaignGrantForDiscount({
-        stripeCouponId: mirror.couponId,
-        tenantId,
-      });
-      if (outcome.applied) {
-        logServerError(
-          "stripe-webhook.campaign-grant.applied",
-          `tenant ${tenantId} granted ${outcome.planTier} until ${outcome.expiresAt}`,
-        );
-      }
-    }
-  } catch (err) {
-    logServerError("stripe-webhook.discount-redemption", err);
-  }
-}
 
 async function syncSubscriptionByType(
   subscription: Stripe.Subscription,
@@ -524,6 +455,36 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "charge_dispute": {
+      const dispute = event.data.object as Stripe.Dispute;
+
+      // Record EVERY dispute event first, whatever it is. Until now there was
+      // no disputes table at all, so nothing tracked the evidence deadline —
+      // and a dispute is lost by default once that date passes, regardless of
+      // the merits.
+      await recordProviderDispute({
+        dispute,
+        eventId: event.id,
+        eventType: action.eventType,
+      });
+
+      // The evidence deadline is only actionable while the dispute is open.
+      if (action.eventType === "charge.dispute.created" && dispute.evidence_details?.due_by) {
+        logServerError(
+          "stripe-webhook.dispute.evidence_due",
+          new Error(
+            `Dispute ${action.disputeId} opened: ${action.amount} ${(dispute.currency ?? "usd").toUpperCase()}, ` +
+              `reason=${action.reason}. EVIDENCE DUE ${new Date(dispute.evidence_details.due_by * 1000).toISOString()} — ` +
+              `unanswered disputes are lost by default.`,
+          ),
+        );
+      }
+
+      // Money only moves on created / closed. An `updated` or a funds movement
+      // must never re-run the reverse-or-restore decision.
+      if (action.eventType !== "charge.dispute.created" && action.eventType !== "charge.dispute.closed") {
+        return;
+      }
+
       // Booking dispute? On OPEN (created) we flag the transaction + alert but do
       // NOT reverse — a dispute may be won and Stripe debits the platform on its
       // own. On CLOSE/LOST (audit #14) we reverse the payouts + refund the
