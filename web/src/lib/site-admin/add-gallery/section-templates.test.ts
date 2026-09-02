@@ -153,10 +153,14 @@ test("gallery templates expose image layers", () => {
   ]);
 });
 
-test("connected wrapper templates include labeled embed child", () => {
+test("connected wrapper templates include a labeled NATIVE grid child", () => {
+  // Phase 8B — these wrappers emit native data kinds; a `section_embed` bridge
+  // in an Add Gallery template would put one straight back on the next page an
+  // operator builds.
   const featured = buildAddGallerySectionTemplate("featured-talent-wrapper");
   assert.ok(featured);
-  assert.equal(sectionTemplateContainsKind(featured!, "section_embed"), true);
+  assert.equal(sectionTemplateContainsKind(featured!, "featured_talent"), true);
+  assert.equal(sectionTemplateContainsKind(featured!, "section_embed"), false);
   assertTemplateLayerLabels("featured-talent-wrapper", [
     "Intro Text",
     "Title",
@@ -175,7 +179,8 @@ test("connected wrapper templates include labeled embed child", () => {
 
   const discipline = buildAddGallerySectionTemplate("talent-discipline-wrapper");
   assert.ok(discipline);
-  assert.equal(sectionTemplateContainsKind(discipline!, "section_embed"), true);
+  assert.equal(sectionTemplateContainsKind(discipline!, "talent_type_grid"), true);
+  assert.equal(sectionTemplateContainsKind(discipline!, "section_embed"), false);
   assertTemplateLayerLabels("talent-discipline-wrapper", [
     "Intro Text",
     "Title",
@@ -184,10 +189,11 @@ test("connected wrapper templates include labeled embed child", () => {
   ]);
 });
 
-test("markets-wrapper template exposes freeform header layers and grid-only embed", () => {
+test("markets-wrapper template exposes freeform header layers and a native map", () => {
   const markets = buildAddGallerySectionTemplate("markets-wrapper");
   assert.ok(markets);
-  assert.equal(sectionTemplateContainsKind(markets!, "section_embed"), true);
+  assert.equal(sectionTemplateContainsKind(markets!, "location_map"), true);
+  assert.equal(sectionTemplateContainsKind(markets!, "section_embed"), false);
   assertTemplateLayerLabels("markets-wrapper", [
     "Intro Text",
     "Title",
@@ -198,7 +204,8 @@ test("markets-wrapper template exposes freeform header layers and grid-only embe
   // location-discovery-wrapper is an alias — same template
   const alias = buildAddGallerySectionTemplate("location-discovery-wrapper");
   assert.ok(alias);
-  assert.equal(sectionTemplateContainsKind(alias!, "section_embed"), true);
+  assert.equal(sectionTemplateContainsKind(alias!, "location_map"), true);
+  assert.equal(sectionTemplateContainsKind(alias!, "section_embed"), false);
   assertTemplateLayerLabels("location-discovery-wrapper", [
     "Intro Text",
     "Title",
