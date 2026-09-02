@@ -59,7 +59,7 @@
  * exists to avoid.
  */
 
-import { createElement, Fragment } from "react";
+import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import {
@@ -109,20 +109,17 @@ export interface PageShapeMeasurement {
 function renderSlot(
   tree: ReadonlyArray<BuilderNode>,
   dataSources?: BuilderNodeRenderDataSources,
-): ReturnType<typeof createElement> {
-  return createElement(
-    Fragment,
-    null,
-    createElement(BuilderNodeRendererStyles, {
-      kinds: collectPresentNodeKinds(tree),
-      nodes: tree,
-    }),
-    renderBuilderNodes(tree, {
-      mode: "freeform",
-      includeRendererStyles: false,
-      includeFontLinks: false,
-      dataSources,
-    }),
+): ReactElement {
+  return (
+    <>
+      <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(tree)} nodes={tree} />
+      {renderBuilderNodes(tree, {
+        mode: "freeform",
+        includeRendererStyles: false,
+        includeFontLinks: false,
+        dataSources,
+      })}
+    </>
   );
 }
 
