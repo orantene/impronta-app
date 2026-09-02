@@ -408,7 +408,11 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
           }
         }
       }
-      const result = await markPaid(action.transactionId);
+      // Thread the settling PaymentIntent onto the transaction so a refund can
+      // later be issued against the real charge (see markPaid).
+      const result = await markPaid(action.transactionId, {
+        paymentIntentId: action.paymentIntentId,
+      });
       if (!result.ok) {
         // markPaid is idempotent (sets status=paid); a failure here is almost
         // always a transient DB blip. Retry rather than silently lose a paid

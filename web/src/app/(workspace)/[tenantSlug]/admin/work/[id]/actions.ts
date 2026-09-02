@@ -23,6 +23,12 @@ import {
   type TransactionResult,
 } from "@/lib/bookings/transactions";
 import { sumBookingGrossChargedCents } from "@/lib/billing/commission-engine";
+import {
+  executeBookingRefund,
+  loadRefundEligibility,
+  isRefundReason,
+} from "@/lib/payments/refund-execute";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 
 type Context = {
@@ -402,12 +408,112 @@ export async function markDisputedAction(formData: FormData): Promise<never> {
   );
 }
 
+/**
+ * Issue a REAL refund at Stripe.
+ *
+ * The money moves here; the books do not. `executeBookingRefund` creates the
+ * Stripe Refund and returns — Stripe then emits `charge.refunded` and the
+ * existing webhook path marks the transaction, records the linked refund row,
+ * and reverses the talent / workspace payout legs talent-protectively. One
+ * writer for the books, driven by what Stripe actually did.
+ *
+ * Amount is optional: blank refunds everything still outstanding. A reason is
+ * mandatory — a refund with no recorded reason is not auditable.
+ *
+ * Authorization reuses the existing billing capability gate. NOTE for Products:
+ * there is deliberately no per-amount approval threshold yet, because no refund
+ * authorization policy has been set. Anyone who could already mark a booking
+ * refunded can now issue the real thing.
+ */
+export async function refundTransactionAction(formData: FormData): Promise<never> {
+  const tenantSlug = String(formData.get("tenantSlug") ?? "");
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  const transactionId = String(formData.get("transactionId") ?? "");
+  const reasonRaw = String(formData.get("refundReason") ?? "").trim();
+  const amountRaw = String(formData.get("refundAmount") ?? "").trim();
+  const note = String(formData.get("refundNote") ?? "").trim() || null;
+
+  const context = await resolveContext(tenantSlug, inquiryId);
+  if (!context?.booking) {
+    const p = new URLSearchParams({ txerr: "Booking not found or permission denied." });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+  if (!(await canUseBillingAction(context.tenantId, ["booking.payment.refund", "manage_billing"]))) {
+    const p = new URLSearchParams({ txerr: "You do not have permission to refund a payment." });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+  if (!isRefundReason(reasonRaw)) {
+    const p = new URLSearchParams({ txerr: "Choose a reason for the refund." });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+
+  // Blank amount = refund the whole outstanding balance. A supplied amount is
+  // read as major units (what the admin typed) and converted to cents.
+  let amountCents: number | null = null;
+  if (amountRaw) {
+    const parsed = Number(amountRaw.replace(/,/g, ""));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      const p = new URLSearchParams({
+        txerr: "Enter a refund amount greater than zero, or leave it blank to refund the full remaining amount.",
+      });
+      returnToDetail(tenantSlug, inquiryId, p);
+    }
+    amountCents = Math.round(parsed * 100);
+  }
+
+  const actor = await getCachedActorSession();
+  const result = await executeBookingRefund({
+    transactionId,
+    amountCents,
+    reason: reasonRaw,
+    actorUserId: actor?.user?.id ?? null,
+    note,
+  });
+  if (!result.ok) {
+    const p = new URLSearchParams({ txerr: result.error });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+
+  revalidatePath(`/${tenantSlug}/admin/work/${inquiryId}`);
+  revalidatePath(`/${tenantSlug}/admin/bookings`);
+  const amountLabel = `${(result.amountCents / 100).toFixed(2)} ${result.currency}`;
+  const p = new URLSearchParams({
+    tx: `Refunded ${amountLabel} at Stripe. The booking updates as soon as Stripe confirms it.`,
+  });
+  returnToDetail(tenantSlug, inquiryId, p);
+}
+
+/**
+ * Record an OFF-PLATFORM refund — cash handed back, a bank transfer, anything
+ * that did not go through Stripe.
+ *
+ * This used to be the only refund control in the product, and it was dangerous:
+ * it flipped the transaction to refunded on the strength of a typed-in
+ * reference string, which ALSO reverses the talent's transfer. Used on a Stripe
+ * payment it clawed money back from a talent while the client got nothing back.
+ *
+ * It is now refused whenever the payment actually has a Stripe charge behind it
+ * — those must go through `refundTransactionAction`, which moves the money for
+ * real.
+ */
 export async function markRefundedAction(formData: FormData): Promise<never> {
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
   const providerReference = String(formData.get("refundReference") ?? "").trim() || null;
   const refundNote = String(formData.get("refundNote") ?? "").trim() || null;
+
+  const eligibility = await loadRefundEligibility(transactionId);
+  if (!("error" in eligibility) && eligibility.paymentIntentId) {
+    const p = new URLSearchParams({
+      txerr:
+        "This payment was collected through Stripe, so it has to be refunded through Stripe. " +
+        "Recording it by hand would reverse the talent's payout without returning the client's money. " +
+        "Use Refund payment instead.",
+    });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+
   return mutateStatus(
     tenantSlug,
     inquiryId,
@@ -418,7 +524,7 @@ export async function markRefundedAction(formData: FormData): Promise<never> {
         providerReference,
         refundNote,
       }),
-    "Transaction marked refunded.",
+    "Off-platform refund recorded.",
   );
 }
 

@@ -532,15 +532,68 @@ export async function requestPayment(
 }
 
 /**
+ * Read a transaction's `provider_metadata` bag so a writer can merge into it
+ * rather than clobber it. Returns `{}` on any miss — a metadata read must never
+ * be the reason a payment fails to settle.
+ */
+async function loadProviderMetadata(
+  transactionId: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const sb = createServiceRoleClient();
+    if (!sb) return {};
+    const { data } = await sb
+      .from("booking_transactions")
+      .select("provider_metadata")
+      .eq("id", transactionId)
+      .maybeSingle();
+    const meta = (data as { provider_metadata?: unknown } | null)?.provider_metadata;
+    return meta && typeof meta === "object" && !Array.isArray(meta)
+      ? (meta as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Mark transaction as paid (funds received).
  * Valid from payment_requested or pending.
  */
 export async function markPaid(
   transactionId: string,
+  opts?: {
+    /**
+     * The Stripe PaymentIntent that settled this invoice (`pi_...`). Recorded
+     * into `provider_metadata.payment_intent_id` so a refund can later be
+     * issued against the actual charge.
+     *
+     * It CANNOT go in `provider_reference` — that column is claimed by
+     * `markPayoutSent` for the payout reference on the same row, so a charge id
+     * written there would be overwritten at payout time.
+     *
+     * It also cannot be recovered later by searching Stripe: the hosted
+     * Checkout flow puts `metadata.transaction_id` on the SESSION, not on the
+     * resulting PaymentIntent, so a metadata search finds only embedded
+     * payments. Capturing it here is the only reliable link from a Tulala
+     * transaction back to its Stripe charge.
+     */
+    paymentIntentId?: string | null;
+  },
 ): Promise<TransactionResult<BookingTransaction>> {
-  const result = await transitionStatus(transactionId, ["payment_requested", "pending", "disputed"], "paid", {
-    paid_at: new Date().toISOString(),
-  });
+  const paymentIntentId = opts?.paymentIntentId?.trim() || null;
+  const extraFields: Record<string, unknown> = { paid_at: new Date().toISOString() };
+  if (paymentIntentId && !paymentIntentId.startsWith("mock_pi_")) {
+    // Merge rather than replace — provider_metadata is a shared bag.
+    const existingMeta = await loadProviderMetadata(transactionId);
+    extraFields.provider_metadata = { ...existingMeta, payment_intent_id: paymentIntentId };
+  }
+  const result = await transitionStatus(
+    transactionId,
+    ["payment_requested", "pending", "disputed"],
+    "paid",
+    extraFields,
+  );
   // 6.3 deposits: a 'deposit' transaction flips the booking to deposit_paid and
   // does NOT fan out the talent/agency payout — that waits for the balance/full
   // charge (payout-on-full). 'balance'/'full' behave as before.
