@@ -278,6 +278,7 @@ import SkillOverridesPanel from "../skill-overrides-panel";
 import { LiveCategoryFieldsEditor } from "../live-category-fields-editor";
 import SkillHintsBanner from "../skill-hints-banner";
 import SkillFreshnessBanner from "../skill-freshness-banner";
+import { PLAN_LIMITS } from "@/lib/access/plan-limits";
 import {
   InboxSnippetsDrawer,
   NotificationsPrefsDrawer,
@@ -589,8 +590,16 @@ export function UsageRow({ label, value }: { label: string; value: number }) {
 }
 
 
-export function teamCap(plan: Plan): number {
-  return plan === "free" ? 1 : plan === "studio" ? 3 : plan === "agency" ? 25 : 999;
+/**
+ * Team seats for a plan. `null` = unlimited.
+ *
+ * Reads the RATIFIED ladder in `PLAN_LIMITS.max_team_seats`, which is what
+ * `lib/saas/team-seat-limit.ts` enforces at invite creation and redemption.
+ * This function used to hard-code 1 / 3 / 25 / 999 and was wrong at both ends:
+ * Free is 2, not 1, and Agency is unlimited, not 25.
+ */
+export function teamCap(plan: Plan): number | null {
+  return PLAN_LIMITS[plan].max_team_seats;
 }
 
 export function nextPlan(plan: Plan): Plan | null {

@@ -13,8 +13,11 @@
  *   Hub (=network)  ✓       ✓     ✓         ✓           "open" is curated/cross-tenant discovery
  *   Legacy          ✓       ✓     ✓         ✓           grandfathered → treat as Agency-equivalent
  *
- * `exclusive` is only offered to plans in EXCLUSIVE_PLAN_TIERS, matching the
- * exclusivity resolver (web/src/lib/agency/exclusivity-resolver.ts). Exclusive
+ * `exclusive` is only offered to plans in EXCLUSIVE_PLAN_KEYS (see
+ * ./exclusive-plan-tiers), which the exclusivity resolver now reads from the
+ * same module. Until 2026-09-02 this file kept its OWN copy of that set, and
+ * the two disagreed about `legacy`: the picker offered exclusive registration
+ * that the resolver would then decline to honour. Exclusive
  * ALWAYS routes through approval — never auto-accept — but that is a runtime
  * rule in the policy resolver, not a selectable distinction here.
  *
@@ -24,6 +27,7 @@
  */
 
 import { isKnownPlan, type PlanKey } from "./plan-catalog";
+import { planAllowsExclusivity } from "./exclusive-plan-tiers";
 
 export const REGISTRATION_MODES = [
   "closed",
@@ -33,14 +37,6 @@ export const REGISTRATION_MODES = [
 ] as const;
 
 export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
-
-/** Plans that may grant exclusive representation on join. Mirrors the resolver. */
-const EXCLUSIVE_PLAN_TIERS: ReadonlySet<PlanKey> = new Set<PlanKey>([
-  "studio",
-  "agency",
-  "network",
-  "legacy",
-]);
 
 /**
  * Human copy for the admin mode-picker. Single source so UI + docs agree.
@@ -93,7 +89,7 @@ export function registrationModesForPlan(
 ): RegistrationMode[] {
   const plan: PlanKey = isKnownPlan(planTier) ? planTier : "free";
   const base: RegistrationMode[] = ["closed", "open", "approval"];
-  if (EXCLUSIVE_PLAN_TIERS.has(plan)) base.push("exclusive");
+  if (planAllowsExclusivity(plan)) base.push("exclusive");
   return base;
 }
 

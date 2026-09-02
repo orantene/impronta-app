@@ -31,6 +31,7 @@ import { useDashboardText } from "../dashboard-i18n";
 // Real workspace billing. `openSubscriptionPortal` is capability-gated on
 // `manage_billing` server-side, so this import cannot widen access.
 import { openSubscriptionPortal } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
+import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 
 // Phase 1d (remediation §4): 4 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -41,8 +42,15 @@ export function TenantSummaryDrawer() {
   const tt = copy.t;
   const planMeta = PLAN_META[state.plan];
   const rosterCount = effectiveRoster.length;
-  const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
+  // Roster cap comes from PLAN_SEAT_CAPS, the table `agencies.talent_seat_limit`
+  // is actually enforced against. This line used to hard-code 5 / 50 / 200 / 999,
+  // which told a Studio workspace it had 50 profiles when signup refuses the
+  // 16th, and told an Agency it had 200 when the real answer is unlimited.
+  const rosterCap = seatCapForPlan(state.plan);
   const teamCount = effectiveTeamMembers.length > 0 ? effectiveTeamMembers.length : getTeam(state.plan).length;
+  // Team seats from PLAN_LIMITS.max_team_seats, the ladder the invite gate
+  // enforces. `null` = unlimited.
+  const seats = teamCap(state.plan);
 
   const jumpItems: { label: string; icon: AdminShellIconName; drawer: DrawerId }[] = [
     { label: tt("Plan & billing"), icon: "credit", drawer: "plan-billing" },
@@ -110,8 +118,14 @@ export function TenantSummaryDrawer() {
       </Section>
 
       <Section title={tt("Roster")}>
-        <UsageRow label={`${rosterCount} / ${rosterCap === 999 ? "∞" : rosterCap} ${tt("talents")}`} value={rosterCap === 999 ? 0.4 : rosterCount / rosterCap} />
-        <UsageRow label={`${teamCount} / ${teamCap(state.plan)} ${tt("seats")}`} value={teamCap(state.plan) === 999 ? 0.2 : teamCount / teamCap(state.plan)} />
+        <UsageRow
+          label={`${rosterCount} / ${rosterCap === null ? "∞" : rosterCap} ${tt("talents")}`}
+          value={rosterCap === null ? 0.4 : rosterCap === 0 ? 0 : rosterCount / rosterCap}
+        />
+        <UsageRow
+          label={`${teamCount} / ${seats === null ? "∞" : seats} ${tt("seats")}`}
+          value={seats === null ? 0.2 : seats === 0 ? 0 : teamCount / seats}
+        />
         <UsageRow label={`${tt("Storage")} · 1.4 / 25 GB`} value={1.4 / 25} />
       </Section>
 

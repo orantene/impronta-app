@@ -31,12 +31,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
- * Plan tiers whose primary roster claim confers exclusivity. Mirrors
- * EXCLUSIVE_PLAN_TIERS in owning-party-resolver.ts / exclusivity-resolver.ts.
- * Kept local (not imported) because those modules don't export it; the set is
- * tiny and the divergence risk is covered by the unit test.
+ * Plan tiers whose primary roster claim confers exclusivity.
+ *
+ * This was a LOCAL COPY, justified by a comment claiming the other modules did
+ * not export the set. `owning-party-resolver.ts` did export it, and the copy had
+ * already drifted from the fourth declaration in `access/registration-modes.ts`
+ * (which included `legacy`, while the three copies did not). One set now, in
+ * the access layer.
  */
-const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hub-network"]);
+import { planAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 /**
  * exclusivity_status values that mean the talent is NOT (or no longer)
@@ -74,7 +77,7 @@ export function isExclusiveElsewhere(
     if (!row.isPrimary) return false;
     if (!row.status || !LIVE_STATUSES.has(row.status)) return false;
     if (row.exclusivityStatus && NON_EXCLUSIVE_STATUSES.has(row.exclusivityStatus)) return false;
-    return !!row.planTier && EXCLUSIVE_PLAN_TIERS.has(row.planTier);
+    return planAllowsExclusivity(row.planTier);
   });
 }
 

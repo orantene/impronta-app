@@ -41,6 +41,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { planAllowsExclusivity as planTierAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 export type OwningPartyType = "agency" | "workspace" | "talent";
 
@@ -63,11 +64,14 @@ export type OwningParty = {
  */
 /**
  * Plan tiers on which a primary roster row means EXCLUSIVE representation.
- * Exported so read-side surfaces (e.g. the public profile's "Exclusively
- * represented by" line) share one definition instead of re-listing the tiers
- * and silently drifting from the money path.
+ *
+ * The set itself now lives in `@/lib/access/exclusive-plan-tiers` — it is a
+ * commercial decision (exclusivity is a paid capability), so it belongs in the
+ * access layer rather than in the money path that happens to read it. This
+ * re-export keeps the many existing importers working; new callers should
+ * import from the access module directly.
  */
-export const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hub-network"]);
+export { EXCLUSIVE_PLAN_TIERS, planAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 /**
  * Roster exclusivity_status values that mean the talent is NOT (or no longer)
@@ -121,7 +125,7 @@ export function rowIsExclusive(
   if (exclusivityStatus && NON_EXCLUSIVE_STATUSES.has(exclusivityStatus)) return false;
   const agency = Array.isArray(agencies) ? agencies[0] : agencies;
   const planTier = agency?.plan_tier ?? null;
-  return !!planTier && EXCLUSIVE_PLAN_TIERS.has(planTier);
+  return planTierAllowsExclusivity(planTier);
 }
 
 /**
