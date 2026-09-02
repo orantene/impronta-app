@@ -53,7 +53,9 @@ function parseArgs(argv: string[]): CliArgs {
   const baseUrl = (
     read("--base-url") ??
     process.env.NO_EMBED_BRIDGES_BASE_URL ??
-    "https://impronta.tulala.digital"
+    // The tenant's canonical host. `impronta.tulala.digital` 308-redirects
+    // here, so crawling the subdomain works but reports the wrong origin.
+    "https://improntamodels.com"
   ).replace(/\/+$/, "");
   return { tenantSlug, baseUrl };
 }
@@ -162,25 +164,56 @@ async function checkDb(
 // 1. LIVE — what a visitor actually receives
 // ---------------------------------------------------------------------------
 
+/**
+ * Build the public path for a page row.
+ *
+ * The locale prefix is load-bearing: a non-default locale renders its OWN
+ * shell row and its OWN body tree, so `/es/fashion-models` can carry bridges
+ * long after `/fashion-models` is clean. An earlier revision of this gate
+ * keyed a Set on slug alone, which silently collapsed every `es` row onto its
+ * `en` twin and would have reported green with 5 bridges live on every
+ * Spanish page.
+ */
+export function routeForPage(
+  slug: string | null,
+  locale: string,
+  defaultLocale: string,
+): string {
+  const prefix = locale === defaultLocale ? "" : `/${locale}`;
+  const path = `${prefix}/${slug ?? ""}`.replace(/\/+$/, "");
+  return path === "" ? "/" : path;
+}
+
 async function publishedRoutes(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<string[]> {
   const { data, error } = await supabase
     .from("cms_pages")
-    .select("slug, system_template_key")
+    .select("slug, locale, system_template_key")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
-    .returns<{ slug: string | null; system_template_key: string | null }[]>();
+    .returns<
+      { slug: string | null; locale: string; system_template_key: string | null }[]
+    >();
   if (error) throw new Error(`published page scan failed: ${error.message}`);
 
-  const routes = new Set<string>(EXTRA_ROUTES);
-  for (const row of data ?? []) {
+  const rows = data ?? [];
+  const locales = [...new Set(rows.map((r) => r.locale))].sort();
+  const defaultLocale = locales.includes("en") ? "en" : (locales[0] ?? "en");
+
+  const routes = new Set<string>();
+  for (const extra of EXTRA_ROUTES) {
+    for (const locale of locales) {
+      routes.add(locale === defaultLocale ? extra : `/${locale}${extra}`);
+    }
+  }
+  for (const row of rows) {
     // `__site_shell__` / `__directory__` are not addressable slugs; the shell
     // is proven by every other route (it renders on all of them) and the
     // directory is covered by the EXTRA_ROUTES entry.
     if ((row.slug ?? "").startsWith("__")) continue;
-    routes.add(`/${row.slug ?? ""}`.replace(/\/+$/, "") || "/");
+    routes.add(routeForPage(row.slug, row.locale, defaultLocale));
   }
   return [...routes].sort();
 }
@@ -321,6 +354,22 @@ if (isSelftest) {
       .length === 0,
     "a clean source reports nothing",
   );
+  assert(routeForPage("", "en", "en") === "/", "default-locale homepage is /");
+  assert(
+    routeForPage("fashion-models", "en", "en") === "/fashion-models",
+    "default locale carries no prefix",
+  );
+  assert(routeForPage("", "es", "en") === "/es", "non-default homepage is /es");
+  assert(
+    routeForPage("fashion-models", "es", "en") === "/es/fashion-models",
+    "non-default locale is prefixed",
+  );
+  assert(
+    routeForPage("x", "es", "en") !== routeForPage("x", "en", "en"),
+    "es and en routes never collapse onto each other",
+  );
+  assert(!expectsNotFoundStatus("/about"), "a normal route must return 2xx");
+  assert(expectsNotFoundStatus("/404"), "the 404 page may return 404");
 } else {
   // Not top-level `await`: tsx transforms this file to CJS, where top-level
   // await is a hard transform error.
