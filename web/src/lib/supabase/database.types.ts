@@ -7597,6 +7597,129 @@ export type Database = {
           },
         ]
       }
+      ledger_accounts: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["ledger_account_kind"]
+          name: string
+          normal_side: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          kind: Database["public"]["Enums"]["ledger_account_kind"]
+          name: string
+          normal_side: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["ledger_account_kind"]
+          name?: string
+          normal_side?: string
+        }
+        Relationships: []
+      }
+      ledger_entries: {
+        Row: {
+          account_id: string
+          amount_cents: number
+          booking_id: string | null
+          booking_transaction_id: string | null
+          currency: string
+          group_id: string
+          group_kind: string
+          id: string
+          memo: string | null
+          occurred_at: string
+          provider: string
+          provider_object_id: string | null
+          recorded_at: string
+          talent_profile_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          account_id: string
+          amount_cents: number
+          booking_id?: string | null
+          booking_transaction_id?: string | null
+          currency: string
+          group_id: string
+          group_kind: string
+          id?: string
+          memo?: string | null
+          occurred_at: string
+          provider?: string
+          provider_object_id?: string | null
+          recorded_at?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount_cents?: number
+          booking_id?: string | null
+          booking_transaction_id?: string | null
+          currency?: string
+          group_id?: string
+          group_kind?: string
+          id?: string
+          memo?: string | null
+          occurred_at?: string
+          provider?: string
+          provider_object_id?: string | null
+          recorded_at?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_booking_transaction_id_fkey"
+            columns: ["booking_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "booking_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           active: boolean
@@ -18922,6 +19045,12 @@ export type Database = {
         | "rejected"
         | "expired"
       inquiry_thread_type: "private" | "group"
+      ledger_account_kind:
+        | "asset"
+        | "liability"
+        | "revenue"
+        | "expense"
+        | "contra"
       media_approval_state: "pending" | "approved" | "rejected"
       media_purpose:
         | "talent"
@@ -19261,6 +19390,13 @@ export const Constants = {
         "expired",
       ],
       inquiry_thread_type: ["private", "group"],
+      ledger_account_kind: [
+        "asset",
+        "liability",
+        "revenue",
+        "expense",
+        "contra",
+      ],
       media_approval_state: ["pending", "approved", "rejected"],
       media_purpose: [
         "talent",
