@@ -24,6 +24,7 @@ import {
   fetchTenantTalentDisciplines,
   fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
+import { fetchNativeDirectoryProfilesByNodeId } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
 export { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
@@ -114,14 +115,22 @@ export async function loadBuilderNodeDataSources(
   const needsSocialLinks = hasBoundSocialLinksNode(nodes);
   // WS7 Phase 0 — native data blocks.
   const nativeNeeds = collectNativeDataBlockNeeds(nodes);
+  // BUILDER 2027 · P2B — a native `directory` node renders its category chips
+  // from `directoryShortcuts`, but carries no `dataBinding`, so the binding
+  // walk above never saw it and every native directory rendered chip-less.
+  const needsNativeDirectoryChips = nativeNeeds.directories.some(
+    (need) => need.needsShortcuts,
+  );
   if (
     featuredLimit == null &&
     !needsLocations &&
     !needsDirectoryShortcuts &&
+    !needsNativeDirectoryChips &&
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
     nativeNeeds.disciplines == null &&
+    nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
   ) {
@@ -143,6 +152,7 @@ export async function loadBuilderNodeDataSources(
     tenantTalentCount,
     talentDisciplines,
     menuOfferings,
+    directoryProfilesByNodeId,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -157,7 +167,7 @@ export async function loadBuilderNodeDataSources(
           },
           locale,
         ),
-    needsLocations || needsDirectoryShortcuts
+    needsLocations || needsDirectoryShortcuts || needsNativeDirectoryChips
       ? getHomepageData({ tenantId: dataTenantId })
       : Promise.resolve(null),
     mediaSupabase
@@ -191,6 +201,18 @@ export async function loadBuilderNodeDataSources(
     nativeNeeds.menuBoard
       ? fetchWorkspaceMenuOfferings(dataTenantId, locale)
       : Promise.resolve(undefined),
+    // BUILDER 2027 · P2B — the native `directory` node's FALLBACK cards, one
+    // list per node so two differently-scoped bands on a page cannot share (and
+    // therefore swap) each other's people. Gated inside the fetcher by the same
+    // `listTalentIdsOnTenantRoster` query-layer predicate every other roster
+    // read here uses, so a talent this tenant removed cannot appear.
+    nativeNeeds.directories.length > 0
+      ? fetchNativeDirectoryProfilesByNodeId({
+          tenantId: dataTenantId,
+          needs: nativeNeeds.directories,
+          locale,
+        })
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -219,5 +241,8 @@ export async function loadBuilderNodeDataSources(
     ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
     ...(menuOfferings === undefined ? {} : { menuOfferings }),
+    ...(directoryProfilesByNodeId === undefined
+      ? {}
+      : { directoryProfilesByNodeId }),
   };
 }

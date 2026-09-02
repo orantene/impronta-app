@@ -186,6 +186,23 @@ export interface BuilderNodeRenderDataSources {
    */
   directoryProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
   /**
+   * BUILDER 2027 · P2B — the SAME cards, resolved PER `directory` NODE.
+   *
+   * `directoryProfiles` is one array for the whole tree, which is only correct
+   * while every directory node on the page is scoped identically. An "Our
+   * Chefs" band above an "Everyone" band are not, and a single shared array
+   * paints one of them with the other's people. The server caller therefore
+   * resolves each node separately and keys the result by node id; this map wins
+   * when it has an entry for the node, and `directoryProfiles` remains the
+   * fallback for callers that resolve one array (and for existing fixtures).
+   *
+   * Same tenant contract as `directoryProfiles`: every entry was already gated
+   * on the tenant's visible roster by the server caller.
+   */
+  directoryProfilesByNodeId?: Readonly<
+    Record<string, ReadonlyArray<FeaturedTalentCardDTO>>
+  >;
+  /**
    * BUILDER 2027 · P2A — the visitor-scoped state the two SESSION-dependent
    * header widgets need. The shared renderer must never read a session (it is
    * imported by the client edit-chrome), so the shell resolves this and passes
@@ -6783,10 +6800,13 @@ function renderBuilderNodeElement(
         p.searchActionHref?.trim() || "/directory",
         options.publicPathPrefix,
       );
-      const cards = (options.dataSources.directoryProfiles ?? []).slice(
-        0,
-        p.pageSize ?? 24,
-      );
+      // Per-node cards win over the whole-tree array (see
+      // `directoryProfilesByNodeId`); absent ⇒ the shared array, then empty.
+      const cards = (
+        options.dataSources.directoryProfilesByNodeId?.[node.id] ??
+        options.dataSources.directoryProfiles ??
+        []
+      ).slice(0, p.pageSize ?? 24);
       const chips =
         p.topBarMode === "none"
           ? []
