@@ -10332,6 +10332,151 @@ export type Database = {
           },
         ]
       }
+      provider_invoices: {
+        Row: {
+          amount_due_cents: number
+          amount_paid_cents: number
+          amount_remaining_cents: number
+          attempt_count: number
+          automatic_tax_enabled: boolean
+          automatic_tax_status: string | null
+          billing_reason: string | null
+          collection_method: string | null
+          created_at: string
+          currency: string
+          due_date: string | null
+          finalized_at: string | null
+          hosted_invoice_url: string | null
+          id: string
+          invoice_number: string | null
+          invoice_pdf_url: string | null
+          last_event_id: string | null
+          last_event_type: string | null
+          marked_uncollectible_at: string | null
+          next_payment_attempt: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          post_payment_credit_notes_cents: number
+          pre_payment_credit_notes_cents: number
+          provider: string
+          status: string | null
+          stripe_created_at: string
+          stripe_customer_id: string | null
+          stripe_invoice_id: string
+          stripe_subscription_id: string | null
+          subtotal_cents: number
+          talent_profile_id: string | null
+          tax_cents: number
+          tenant_id: string | null
+          total_cents: number
+          updated_at: string
+          voided_at: string | null
+        }
+        Insert: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          amount_remaining_cents?: number
+          attempt_count?: number
+          automatic_tax_enabled?: boolean
+          automatic_tax_status?: string | null
+          billing_reason?: string | null
+          collection_method?: string | null
+          created_at?: string
+          currency: string
+          due_date?: string | null
+          finalized_at?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          last_event_id?: string | null
+          last_event_type?: string | null
+          marked_uncollectible_at?: string | null
+          next_payment_attempt?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          post_payment_credit_notes_cents?: number
+          pre_payment_credit_notes_cents?: number
+          provider?: string
+          status?: string | null
+          stripe_created_at: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id: string
+          stripe_subscription_id?: string | null
+          subtotal_cents?: number
+          talent_profile_id?: string | null
+          tax_cents?: number
+          tenant_id?: string | null
+          total_cents?: number
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Update: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          amount_remaining_cents?: number
+          attempt_count?: number
+          automatic_tax_enabled?: boolean
+          automatic_tax_status?: string | null
+          billing_reason?: string | null
+          collection_method?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          finalized_at?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          last_event_id?: string | null
+          last_event_type?: string | null
+          marked_uncollectible_at?: string | null
+          next_payment_attempt?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          post_payment_credit_notes_cents?: number
+          pre_payment_credit_notes_cents?: number
+          provider?: string
+          status?: string | null
+          stripe_created_at?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string
+          stripe_subscription_id?: string | null
+          subtotal_cents?: number
+          talent_profile_id?: string | null
+          tax_cents?: number
+          tenant_id?: string | null
+          total_cents?: number
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_invoices_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_invoices_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_payouts: {
         Row: {
           amount_cents: number

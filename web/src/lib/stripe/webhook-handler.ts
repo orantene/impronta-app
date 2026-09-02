@@ -65,6 +65,7 @@ import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/b
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
+import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -404,6 +405,14 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "invoice_payment_failed": {
+      // Record first: a failed invoice is exactly the row that makes dunning
+      // visible (attempt_count, next_payment_attempt), so it must land even if
+      // the subscription retrieve below throws and the event is retried.
+      await recordProviderInvoice({
+        invoice: event.data.object as Stripe.Invoice,
+        eventId: event.id,
+        eventType: event.type,
+      });
       let subscription: Stripe.Subscription;
       try {
         subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
@@ -596,6 +605,13 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "invoice_payment_succeeded": {
+      // Record before the re-sync, so the register is complete even if the
+      // subscription retrieve below fails and the event is retried.
+      await recordProviderInvoice({
+        invoice: event.data.object as Stripe.Invoice,
+        eventId: event.id,
+        eventType: event.type,
+      });
       // QA 2026-06-13: a renewal/dunning-recovery payment must re-sync the
       // subscription so a past_due plan returns to active (previously log-only,
       // leaving a recovered subscription stuck past_due until the next
@@ -618,6 +634,16 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       }
       return;
     }
+
+    case "invoice_recorded":
+      // Record only. The subscription-affecting invoice events are handled by
+      // their own cases and record themselves there.
+      await recordProviderInvoice({
+        invoice: event.data.object as Stripe.Invoice,
+        eventId: event.id,
+        eventType: action.eventType,
+      });
+      return;
 
     case "invalid":
       // Permanent: malformed event we can't act on. Log + ack (no retry).
