@@ -434,8 +434,10 @@ export function shellLandmarkWrapper(input: {
     return { element: "footer", role: "contentinfo" };
   }
   return { element: "div" };
+}
 
-* THE WRITE COUNTERPART to `resolveShellLandmarkSectionProps`.
+/**
+ * THE WRITE COUNTERPART to `resolveShellLandmarkSectionProps`.
  *
  * It lives in THIS module, immediately below the read precedence it mirrors,
  * for one reason: the two must never drift. `resolveShellLandmarkSectionProps`
