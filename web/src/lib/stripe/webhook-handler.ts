@@ -64,6 +64,7 @@ import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
+import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -524,6 +525,36 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "charge_dispute": {
+      const dispute = event.data.object as Stripe.Dispute;
+
+      // Record EVERY dispute event first, whatever it is. Until now there was
+      // no disputes table at all, so nothing tracked the evidence deadline —
+      // and a dispute is lost by default once that date passes, regardless of
+      // the merits.
+      await recordProviderDispute({
+        dispute,
+        eventId: event.id,
+        eventType: action.eventType,
+      });
+
+      // The evidence deadline is only actionable while the dispute is open.
+      if (action.eventType === "charge.dispute.created" && dispute.evidence_details?.due_by) {
+        logServerError(
+          "stripe-webhook.dispute.evidence_due",
+          new Error(
+            `Dispute ${action.disputeId} opened: ${action.amount} ${(dispute.currency ?? "usd").toUpperCase()}, ` +
+              `reason=${action.reason}. EVIDENCE DUE ${new Date(dispute.evidence_details.due_by * 1000).toISOString()} — ` +
+              `unanswered disputes are lost by default.`,
+          ),
+        );
+      }
+
+      // Money only moves on created / closed. An `updated` or a funds movement
+      // must never re-run the reverse-or-restore decision.
+      if (action.eventType !== "charge.dispute.created" && action.eventType !== "charge.dispute.closed") {
+        return;
+      }
+
       // Booking dispute? On OPEN (created) we flag the transaction + alert but do
       // NOT reverse — a dispute may be won and Stripe debits the platform on its
       // own. On CLOSE/LOST (audit #14) we reverse the payouts + refund the

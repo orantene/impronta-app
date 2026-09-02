@@ -10125,6 +10125,99 @@ export type Database = {
           },
         ]
       }
+      provider_disputes: {
+        Row: {
+          amount_cents: number
+          booking_id: string | null
+          booking_transaction_id: string | null
+          closed_at: string | null
+          created_at: string
+          currency: string
+          evidence_due_by: string | null
+          evidence_submitted_at: string | null
+          funds_reinstated_at: string | null
+          funds_withdrawn_at: string | null
+          id: string
+          is_charge_refundable: boolean | null
+          last_event_id: string | null
+          last_event_type: string | null
+          opened_at: string | null
+          provider: string
+          reason: string | null
+          status: string
+          stripe_charge_id: string | null
+          stripe_dispute_id: string
+          stripe_payment_intent_id: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          booking_id?: string | null
+          booking_transaction_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          currency: string
+          evidence_due_by?: string | null
+          evidence_submitted_at?: string | null
+          funds_reinstated_at?: string | null
+          funds_withdrawn_at?: string | null
+          id?: string
+          is_charge_refundable?: boolean | null
+          last_event_id?: string | null
+          last_event_type?: string | null
+          opened_at?: string | null
+          provider?: string
+          reason?: string | null
+          status: string
+          stripe_charge_id?: string | null
+          stripe_dispute_id: string
+          stripe_payment_intent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          booking_id?: string | null
+          booking_transaction_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          currency?: string
+          evidence_due_by?: string | null
+          evidence_submitted_at?: string | null
+          funds_reinstated_at?: string | null
+          funds_withdrawn_at?: string | null
+          id?: string
+          is_charge_refundable?: boolean | null
+          last_event_id?: string | null
+          last_event_type?: string | null
+          opened_at?: string | null
+          provider?: string
+          reason?: string | null
+          status?: string
+          stripe_charge_id?: string | null
+          stripe_dispute_id?: string
+          stripe_payment_intent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_disputes_booking_transaction_id_fkey"
+            columns: ["booking_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "booking_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_disputes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_payouts: {
         Row: {
           amount_cents: number
