@@ -1522,6 +1522,11 @@
       "count": 4
     }
   },
+  "src/lib/server-actions/admin-discount-stripe-import.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
   "src/lib/server-actions/admin-inquiries.ts": {
     "max-lines": {
       "count": 1
@@ -1542,12 +1547,12 @@
   },
   "src/lib/server-actions/admin-product-discounts.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 11
+      "count": 7
     }
   },
   "src/lib/server-actions/admin-product-features.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 8
+      "count": 10
     }
   },
   "src/lib/server-actions/admin-product-pricing.ts": {
@@ -1658,7 +1663,7 @@
   },
   "src/lib/server-actions/admin-trial-offers.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 1
+      "count": 2
     }
   },
   "src/lib/server-actions/admin-user-workspaces.ts": {

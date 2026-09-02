@@ -98,3 +98,13 @@ export function normalizeProductDiscount(
     isActive: raw.is_active,
   };
 }
+
+/**
+ * Shape of a promo code: 3-32 chars, uppercase alphanumerics plus `_` and `-`.
+ *
+ * Lives here rather than in a server-action module because two actions need it
+ * (`createDiscount` validates against it, and the Stripe importer uses it to
+ * skip codes Stripe accepted but we would not), and a "use server" file may
+ * only export async functions.
+ */
+export const DISCOUNT_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/;

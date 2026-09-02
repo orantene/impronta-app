@@ -18,6 +18,7 @@
  */
 
 import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -113,6 +114,19 @@ export async function addFeature(raw: AddFeatureInput): Promise<AddFeatureResult
   }
 
   revalidateCommerceSurfaces();
+
+  // `info`: feature rows are the PUBLIC compare table, so this is customer-
+  // visible copy, but it does not change what anyone is charged.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.FEATURE_ADDED,
+    actorId: gate.userId,
+    targetType: "product_features",
+    targetId: (insert.data as { id: string }).id,
+    severity: "info",
+    before: null,
+    after: { ...input },
+  });
+
   return { ok: true, featureId: (insert.data as { id: string }).id };
 }
 
@@ -168,6 +182,14 @@ export async function updateFeature(
   if (input.category !== undefined)  updates.category = input.category;
   if (input.valueText !== undefined) updates.value_text = input.valueText;
 
+  // Read the row first so the audit carries a real before-state. Without this
+  // an edit to a public compare-table cell is unattributable and unrevertable.
+  const priorLoad = await admin
+    .from("product_features")
+    .select("label, included, highlight, category, value_text, tier_id")
+    .eq("id", input.featureId)
+    .maybeSingle();
+
   const upd = await admin
     .from("product_features")
     .update(updates)
@@ -178,6 +200,17 @@ export async function updateFeature(
   }
 
   revalidateCommerceSurfaces();
+
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.FEATURE_UPDATED,
+    actorId: gate.userId,
+    targetType: "product_features",
+    targetId: input.featureId,
+    severity: "info",
+    before: priorLoad.data ?? null,
+    after: updates,
+  });
+
   return { ok: true };
 }
 
@@ -212,6 +245,16 @@ export async function archiveFeature(raw: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  // This is a HARD DELETE — the row is gone, not flagged. Read it first so the
+  // audit log holds what was destroyed; that record is the only way to restore
+  // a compare-table cell someone removed by mistake. Until 2026-09-02 this
+  // action's own docstring said "features have no audit trail".
+  const priorLoad = await admin
+    .from("product_features")
+    .select("label, included, highlight, category, value_text, display_order, tier_id")
+    .eq("id", parsed.data.featureId)
+    .maybeSingle();
+
   const del = await admin
     .from("product_features")
     .delete()
@@ -222,6 +265,20 @@ export async function archiveFeature(raw: {
   }
 
   revalidateCommerceSurfaces();
+
+  // `warn`, unlike the other feature actions: this one is irreversible without
+  // the audit row it is writing.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.FEATURE_ARCHIVED,
+    actorId: gate.userId,
+    targetType: "product_features",
+    targetId: parsed.data.featureId,
+    severity: "warn",
+    before: priorLoad.data ?? null,
+    after: null,
+    context: { hard_delete: true },
+  });
+
   return { ok: true };
 }
 
@@ -319,5 +376,15 @@ export async function reorderFeature(
   }
 
   revalidateCommerceSurfaces();
+
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.FEATURE_REORDERED,
+    actorId: gate.userId,
+    targetType: "product_features",
+    targetId: featureId,
+    severity: "info",
+    context: { direction, swapped_with: neighbour.id },
+  });
+
   return { ok: true, moved: true };
 }

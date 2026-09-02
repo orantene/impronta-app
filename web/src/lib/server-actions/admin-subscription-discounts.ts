@@ -38,6 +38,7 @@ import {
   type AccountDiscountRow,
 } from "@/lib/billing/subscription-discounts";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 
 // ─── Result shapes ───────────────────────────────────────────────────────────
 
@@ -486,6 +487,20 @@ export async function setAccountDiscount(
   const stripe = await syncAccountDiscount(admin, row, label);
 
   revalidateCommerceSurfaces();
+
+  // A per-account discount is a negotiated deal that beats any typed promo
+  // code at checkout (see billing/checkout-discounts.ts precedence). It must be
+  // attributable: who granted this account a permanent price cut, and when.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.ACCOUNT_DISCOUNT_GRANTED,
+    actorId: gate.userId,
+    targetType: "subscription_discounts",
+    targetId: row.id,
+    before: null,
+    after: { subject_type: input.subjectType, subject_id: subjectId },
+    context: { stripe_synced: !stripe.stub, subject_label: label },
+  });
+
   return { ok: true, discountId: row.id, stripe };
 }
 
@@ -535,6 +550,16 @@ export async function endAccountDiscount(
   }
 
   revalidateCommerceSurfaces();
+
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.ACCOUNT_DISCOUNT_REVOKED,
+    actorId: gate.userId,
+    targetType: "subscription_discounts",
+    targetId: row.id,
+    after: { ended_by: gate.userId },
+    context: { stripe_sync_error: stripe.reason ?? null },
+  });
+
   return { ok: true, stripe };
 }
 
@@ -576,6 +601,24 @@ export async function repairAccountDiscount(
   const stripe = await syncAccountDiscount(admin, row, label);
 
   revalidateCommerceSurfaces();
+
+  // A repair mints or re-links a real Stripe coupon, so it is a commercial
+  // write even though the DB row already existed. `info` unless Stripe actually
+  // moved.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.ACCOUNT_DISCOUNT_GRANTED,
+    actorId: gate.userId,
+    targetType: "subscription_discounts",
+    targetId: row.id,
+    severity: stripe.stub ? "info" : "warn",
+    after: { repaired: true },
+    context: {
+      stripe_synced: !stripe.stub,
+      stripe_reason: stripe.reason ?? null,
+      subject_label: label,
+    },
+  });
+
   return { ok: true, discountId: row.id, stripe };
 }
 

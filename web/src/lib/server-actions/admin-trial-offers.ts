@@ -15,6 +15,7 @@
  */
 
 import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
+import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -78,6 +79,13 @@ export async function upsertTrialOffer(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  const prior = await admin
+    .from("plan_trial_offers")
+    .select("trial_days, is_enabled, cta_headline, cta_subtext")
+    .eq("audience", input.audience)
+    .eq("plan_key", input.planKey)
+    .maybeSingle();
+
   const { error } = await admin.from("plan_trial_offers").upsert(
     {
       audience: input.audience,
@@ -96,5 +104,23 @@ export async function upsertTrialOffer(
   }
 
   revalidateCommerceSurfaces();
+
+  // `warn`: the trial CTA is a customer-facing PROMISE. The 2026-09-02 audit
+  // found Studio's subtext selling "widgets and API access" the plan does not
+  // have, edited here with no record of who wrote it or when.
+  await recordCommerceAudit({
+    action: COMMERCE_AUDIT.TRIAL_OFFER_UPDATED,
+    actorId: gate.userId,
+    targetType: "plan_trial_offers",
+    targetId: `${input.audience}:${input.planKey}`,
+    before: prior.data ?? null,
+    after: {
+      trial_days: input.trialDays,
+      is_enabled: input.isEnabled,
+      cta_headline: trimToNull(input.ctaHeadline),
+      cta_subtext: trimToNull(input.ctaSubtext),
+    },
+  });
+
   return { ok: true };
 }
