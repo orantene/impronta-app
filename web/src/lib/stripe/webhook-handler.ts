@@ -63,6 +63,7 @@ import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
+import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -596,14 +597,34 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       }
       return;
 
-    case "payout_event":
-      // Log only today. B5 will persist payout history for agency visibility.
-      if (process.env.NODE_ENV !== "production") {
-        void improntaLog("stripe_webhook.info", {
-          message: `[stripe.connect] ${action.eventType} acct=${action.accountId ?? "?"} payout=${action.payoutId} amount=${action.amount} ${action.currency}`,
-        });
+    case "payout_event": {
+      // Persist the payout. Until now this branch logged in development and did
+      // NOTHING in production, so no record connected a Stripe payout to the
+      // bank deposit it becomes — for Tulala's own money or for a talent's.
+      await recordProviderPayout({
+        payout: event.data.object as Stripe.Payout,
+        stripeAccountId: action.accountId,
+        eventId: event.id,
+        eventType: event.type,
+      });
+
+      // A failed payout is money that did NOT arrive, and nothing previously
+      // surfaced one. This is the platform's own bank failing as much as a
+      // talent's — the platform account's only external account is currently in
+      // `verification_failed`, so this is the signal that would catch it.
+      if (action.eventType === "payout.failed") {
+        const payout = event.data.object as Stripe.Payout;
+        logServerError(
+          "stripe-webhook.payout.failed",
+          new Error(
+            `payout ${payout.id} FAILED on ${action.accountId ?? "the platform account"}: ` +
+              `${action.amount} ${action.currency} — ${payout.failure_code ?? "no code"} ` +
+              `${payout.failure_message ?? ""}`.trim(),
+          ),
+        );
       }
       return;
+    }
 
     case "transfer_settlement":
       // A Connect transfer leg was reversed/returned (e.g. a failed USD→USDC
