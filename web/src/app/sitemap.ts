@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
 import { SPANISH_NAMED_MARKETING_PATHS } from "@/lib/seo/spanish-named-routes";
+import { COMPARISONS, comparisonPaths } from "@/lib/marketing/compare";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import { publicRequestSiteBase } from "@/lib/seo/request-base";
@@ -31,7 +32,7 @@ const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
  * BUMP THIS when marketing copy materially changes (new page, rewritten
  * positioning, pricing change). Do not bump it for code-only refactors.
  */
-const MARKETING_CONTENT_REVISED = new Date("2026-08-29T00:00:00.000Z");
+const MARKETING_CONTENT_REVISED = new Date("2026-09-02T00:00:00.000Z");
 
 /**
  * Real publication date per resource article, keyed by its sitemap path.
@@ -209,6 +210,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ];
     });
 
+    // Comparison pages, same cross-slug shape as features: each locale has its
+    // own path, so they cannot go through the generic flatMap without
+    // advertising twins that redirect away.
+    const comparisonEntries: MetadataRoute.Sitemap = COMPARISONS.flatMap((c) => {
+      const { enPath, esPath } = comparisonPaths(c);
+      const lastModified = MARKETING_CONTENT_REVISED;
+      const enUrl = new URL(enPath, base).toString();
+      const esUrl = new URL(withLocalePath(esPath, "es"), base).toString();
+      const languages = { en: enUrl, es: esUrl, "x-default": enUrl };
+      return [
+        { url: enUrl, lastModified, alternates: { languages } },
+        { url: esUrl, lastModified, alternates: { languages } },
+      ];
+    });
+
     const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
       (path) => {
         // EN and ES ship together, so both locales share one lastmod.
@@ -236,7 +252,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ];
       },
     );
-    return [...marketingEntries, ...featureEntries, ...platformTalentEntries];
+    return [...marketingEntries, ...featureEntries, ...comparisonEntries, ...platformTalentEntries];
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {
     return platformTalentEntries;
