@@ -87,9 +87,11 @@ export {
 export type { LimitKey, LimitDef } from "./plan-limits";
 
 export {
-  PLAN_CAPABILITIES,
   planGrantsCapability,
+  packagedCapabilitiesForPlan,
+  entitlementKey,
 } from "./plan-capabilities";
+export type { PlanEntitlementMap } from "./plan-capabilities";
 
 export {
   TALENT_PLAN_KEYS,
