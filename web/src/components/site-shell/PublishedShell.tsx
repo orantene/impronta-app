@@ -49,6 +49,7 @@ import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instan
 import {
   collectShellSideFreeformNodes,
   isShellLandmarkNode,
+  resolveShellLandmarkSectionProps,
   resolveShellSidePlan,
   type ShellSideKey,
 } from "@/lib/site-admin/builder-node/shell-render-plan";
@@ -278,7 +279,6 @@ async function renderShellSlot(
   }
   const Comp = reg.Component;
   const publicPathPrefix = await getPublicPathPrefix();
-  const props = prefixPublicHrefsDeep(slot.props, publicPathPrefix);
   const builderNodeId = builderSectionNodeIds.get(
     builderSectionNodeAddressKey({
       sectionId: slot.sectionId,
@@ -296,6 +296,12 @@ async function renderShellSlot(
   const builderSectionChildren = builderSectionNode?.children ?? [];
   // See the eject note at the <Comp> render below.
   const sectionEjected = builderSectionNode?.props.ejected === true;
+  // Inline `sectionProps` on the landmark node wins over the slot row — the same
+  // precedence the freeform path uses. See `resolveShellLandmarkSectionProps`.
+  const props = prefixPublicHrefsDeep(
+    resolveShellLandmarkSectionProps(builderSectionNode, slot),
+    publicPathPrefix,
+  );
   const shouldIncludeBuilderNodeRendererStyles =
     options.includeBuilderNodeRendererStyles !== false &&
     hasRenderableBuilderNodes(builderSectionChildren, { mode: "freeform" });
@@ -678,13 +684,10 @@ async function renderFreeformShellSide({
 /**
  * Render one shell LANDMARK from a freeform tree.
  *
- * The bespoke component's props come from the LIVE slot when the landmark is
- * address-matched, and from the landmark's inline `props.sectionProps` only
- * when it is not (an un-addressed landmark from an applied shell template, or a
- * second landmark the operator added). That ordering is deliberate: the slot
- * row stays authoritative, so a `cms_sections.props_jsonb` edit — the
- * SiteHeaderInspector autosave path — keeps taking effect on the live site. See
- * `hydrateShellLandmarkSectionProps` for the drift argument in full.
+ * The bespoke component's props come from the landmark's own inline
+ * `props.sectionProps` when it has them, and from the address-matched LIVE slot
+ * otherwise. `resolveShellLandmarkSectionProps` owns that precedence and states
+ * the trade it makes; the legacy-slot path resolves through the same function.
  *
  * The wrapper `<div>` carries the identical `data-cms-section` marker set the
  * slot path emits, so EditShell selection, inspector binding and the save flow
@@ -727,7 +730,7 @@ function renderFreeformShellLandmark({
     sortOrder: node.props.sortOrder,
   });
   const slot = addressKey ? slotByAddress.get(addressKey) : undefined;
-  const rawProps = slot?.props ?? node.props.sectionProps ?? {};
+  const rawProps = resolveShellLandmarkSectionProps(node, slot);
   const props = prefixPublicHrefsDeep(rawProps, publicPathPrefix);
   const sectionId = slot?.sectionId ?? node.props.sectionId ?? node.id;
   const children = node.children ?? [];
