@@ -40,10 +40,10 @@ import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-fla
 // When absent, fall back to the hardcoded mirror below so the drawer rail never crashes.
 import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
-import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
+import type { Client, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
-import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
   normalizeWorkspaceType,
@@ -88,7 +88,6 @@ export type AdminShellState = {
   talentTier: TalentSubscriptionTier;
   // client dimensions
   clientPlan: ClientPlan;
-  clientPage: ClientPage;
   /** Active client identity. "martina" = business (Martina Beach Club);
    * "gringo" = personal client (The Gringo). Drives identity bar photo. */
   clientProfile: ClientProfileId;
@@ -138,7 +137,6 @@ type Ctx = {
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
   setClientPlan: (p: ClientPlan) => void;
-  setClientPage: (p: ClientPage) => void;
   /** Active client identity (Martina Beach Club business vs The Gringo person). */
   clientProfile: ClientProfileId;
   setClientProfile: (p: ClientProfileId) => void;
@@ -1172,7 +1170,6 @@ export function AdminShellProvider({
   );
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
-  const [clientPage, setClientPage] = useState<ClientPage>("today");
   const [clientProfile, setClientProfile] = useState<ClientProfileId>("martina");
   const activeClientProfile = CLIENT_PROFILES[clientProfile];
   // platform
@@ -1619,7 +1616,6 @@ export function AdminShellProvider({
     const pg = params.get("page");
     const tpg = params.get("talentPage");
     const cpl = params.get("clientPlan");
-    const cpg = params.get("clientPage");
     const dr = params.get("drawer");
     const drp = params.get("drawerPayload");
     if (s && SURFACES.includes(s as Surface)) setSurface(s as Surface);
@@ -1631,7 +1627,6 @@ export function AdminShellProvider({
     if (pg) setPage(resolveWorkspacePage(pg));
     if (tpg && TALENT_PAGES_ALL.includes(tpg as TalentPage)) setTalentPage(tpg as TalentPage);
     if (cpl && CLIENT_PLANS.includes(cpl as ClientPlan)) setClientPlan(cpl as ClientPlan);
-    if (cpg && CLIENT_PAGES.includes(cpg as ClientPage)) setClientPage(cpg as ClientPage);
     const cprof = params.get("clientProfile");
     if (cprof === "martina" || cprof === "gringo") setClientProfile(cprof);
     // Drawer is a wide string-literal union (~150 ids); we trust the URL
@@ -1703,7 +1698,6 @@ export function AdminShellProvider({
     page,
     talentPage,
     clientPlan,
-    clientPage,
     clientProfile,
     drawer,
     urlHydrated,
@@ -2164,9 +2158,8 @@ export function AdminShellProvider({
         talentPage,
         talentTier,
         clientPlan,
-        clientPage,
         clientProfile,
-                impersonating,
+        impersonating,
         drawer,
         toasts,
         completedTasks,
@@ -2186,7 +2179,6 @@ export function AdminShellProvider({
       setTalentPage,
       setTalentTier: handleSetTalentTier,
       setClientPlan,
-      setClientPage,
       clientProfile,
       setClientProfile,
       activeClientProfile,
@@ -2305,8 +2297,7 @@ export function AdminShellProvider({
       talentPage,
       talentTier,
       clientPlan,
-      clientPage,
-          impersonating,
+      impersonating,
       drawer,
       drawerStack,
       toasts,

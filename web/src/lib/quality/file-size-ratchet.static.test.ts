@@ -299,7 +299,7 @@ const BUDGETS: Record<string, number> = {
   // +14 (website plan key) stacked on +10 (analytics tiles) — two branches
   // landed the same day; the true count is their sum (exact number below is
   // the measured file size after the rebase, not either branch's claim).
-  "src/components/admin/shell/internal/state/fixtures.ts": 5241,
+  "src/components/admin/shell/internal/state/fixtures.ts": 5150,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and

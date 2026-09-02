@@ -22,7 +22,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, FONTS, PAGE_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, Z, useAdminShell, type ClientPage, type DrawerId, type Role, type Surface, type TalentPage, type WorkspacePage,  } from "./state";
+import { COLORS, FONTS, PAGE_META, ROLES, ROLE_META, SURFACES, SURFACE_META, TALENT_PAGES, TALENT_PAGE_META, Z, useAdminShell, type DrawerId, type Role, type Surface, type TalentPage, type WorkspacePage } from "./state";
 
 type CommandItem = {
   id: string;

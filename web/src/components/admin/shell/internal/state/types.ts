@@ -73,15 +73,6 @@ export type TalentPage =
 // Client surface — its own plan ladder. Free is browse-only, Pro adds active
 // outbound inquiry & shortlists, Enterprise adds team + integrations.
 export type ClientPlan = "free" | "pro" | "enterprise";
-export type ClientPage =
-  | "today"
-  | "messages"      // Chat-first inquiry/booking surface (mirrors talent)
-  | "discover"
-  | "shortlists"
-  | "inquiries"     // Legacy list view — kept for URL compat
-  | "bookings"
-  | "notifications" // #15 — real notifications surface (was a drawer)
-  | "settings";
 
 // Platform / Tulala HQ — internal tooling. HQ roles are NOT additive in the
 // same way tenant roles are; each role has a different scope (Support sees

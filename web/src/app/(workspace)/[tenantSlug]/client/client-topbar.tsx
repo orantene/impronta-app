@@ -22,15 +22,19 @@ const C = {
 // `fallbackLabel` is used only when the i18n catalog has no
 // `dashboard.clientNav.<key>` string yet (the translator returns the raw key
 // path in that case). Existing items resolve from the catalog and omit it.
+// Order mirrors the dashboard rail so the client nav reads the same
+// left-to-right everywhere: Today first, then the inbox spine
+// (messages -> inquiries -> bookings), then discovery
+// (discover/favorites/shortlists/pitches), reviews, and settings.
 const NAV_ITEMS = [
-  { key: "messages",   path: "messages"   },
   { key: "today",      path: "today"      },
+  { key: "messages",   path: "messages"   },
+  { key: "inquiries",  path: "inquiries"  },
+  { key: "bookings",   path: "bookings"   },
   { key: "discover",   path: "discover"   },
   { key: "favorites",  path: "favorites"  },
   { key: "shortlists", path: "shortlists" },
   { key: "pitches",    path: "pitches"    },
-  { key: "inquiries",  path: "inquiries"  },
-  { key: "bookings",   path: "bookings"   },
   { key: "reviews",    path: "reviews",    fallbackLabel: "Reviews" },
   { key: "settings",   path: "settings"   },
 ] as const;

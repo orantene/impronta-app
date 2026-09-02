@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createTranslator } from "@/i18n/messages";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
+import { CLIENT_PRO_PRICING_LIVE } from "@/lib/client-billing/pricing-flag";
 import type { ClientSubscriptionTier } from "@/lib/discover/client-subscription";
 import type { ClientTrustLevel } from "@/lib/client-trust/evaluator";
 
@@ -286,19 +287,25 @@ export function ClientSidebar({
           whole point: the monetization axes stop being invisible), plus
           Settings pinned Shopify-style. */}
       <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
-        <Link
-          href={`/${tenantSlug}/client/subscription`}
-          data-tulala-client-plan-nav
-          className="flex w-full items-center justify-between gap-[8px] rounded-[8px] border border-transparent bg-transparent px-[10px] py-[8px] font-admin-body text-[13px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_120ms,color_120ms]"
-        >
-          <span>{planLabel}</span>
-          <span
-            aria-hidden
-            className={`rounded-full px-[6px] py-[2px] text-[9.5px] font-bold uppercase tracking-[0.4px] ${tierChipClass}`}
+        {/* WP4 — the always-visible Plan row advertises the client
+            subscription tiers, whose pricing is still placeholder. Hidden
+            until real pricing ships (CLIENT_PRO_PRICING_LIVE). Trust
+            standing below is orthogonal to plan and stays visible. */}
+        {CLIENT_PRO_PRICING_LIVE && (
+          <Link
+            href={`/${tenantSlug}/client/subscription`}
+            data-tulala-client-plan-nav
+            className="flex w-full items-center justify-between gap-[8px] rounded-[8px] border border-transparent bg-transparent px-[10px] py-[8px] font-admin-body text-[13px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_120ms,color_120ms]"
           >
-            {tierLabel}
-          </span>
-        </Link>
+            <span>{planLabel}</span>
+            <span
+              aria-hidden
+              className={`rounded-full px-[6px] py-[2px] text-[9.5px] font-bold uppercase tracking-[0.4px] ${tierChipClass}`}
+            >
+              {tierLabel}
+            </span>
+          </Link>
+        )}
         <Link
           href={`/${tenantSlug}/client/settings#trust`}
           data-tulala-client-trust-nav

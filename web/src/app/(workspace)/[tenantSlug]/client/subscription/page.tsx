@@ -16,7 +16,8 @@
 // rule): Pro = TOOLS, trust tier = ACCESS. This page only covers the
 // subscription axis; trust lives in /client/settings.
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { CLIENT_PRO_PRICING_LIVE } from "@/lib/client-billing/pricing-flag";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSubscription, type ClientSubscriptionTier }
@@ -118,6 +119,11 @@ const TIERS: TierCard[] = [
 
 export default async function ClientSubscriptionPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  // WP4 — client Pro pricing is still placeholder (see the header note and
+  // pricing-flag.ts). Until real prices ship we do not render the tier
+  // comparison; existing "Upgrade" CTAs (rail footer, shortlists, hub) land
+  // gracefully on the client home instead of a placeholder-price page.
+  if (!CLIENT_PRO_PRICING_LIVE) redirect(`/${tenantSlug}/client`);
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
