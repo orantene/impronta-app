@@ -45,7 +45,7 @@ export const SPANISH_NAMED_MARKETING_PATHS: readonly string[] = [
  * The locale pin is the same and for the same reason: without it the chrome
  * around a Spanish page renders in English.
  */
-export const SPANISH_NAMED_MARKETING_PREFIXES: readonly string[] = ["/funciones"];
+export const SPANISH_NAMED_MARKETING_PREFIXES: readonly string[] = ["/funciones", "/comparar"];
 
 const SPANISH_NAMED_SET = new Set(SPANISH_NAMED_MARKETING_PATHS);
 

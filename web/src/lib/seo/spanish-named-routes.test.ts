@@ -93,19 +93,32 @@ test("pins es only on the marketing host, and only for these routes", () => {
 });
 
 test("a Spanish-slugged SUBTREE pins to Spanish, on a slash boundary", () => {
-  assert.deepEqual([...SPANISH_NAMED_MARKETING_PREFIXES], ["/funciones"]);
+  assert.deepEqual([...SPANISH_NAMED_MARKETING_PREFIXES], ["/funciones", "/comparar"]);
   for (const p of [
     "/funciones",
     "/funciones/",
     "/funciones/citas-y-reservas",
     "/es/funciones",
     "/es/funciones/citas-y-reservas",
+    "/comparar",
+    "/comparar/",
+    "/comparar/tulala-vs-booksy",
+    "/es/comparar",
+    "/es/comparar/tulala-vs-booksy",
   ]) {
     assert.equal(isSpanishNamedMarketingPath(p), true, `expected a pin for ${p}`);
   }
   // A neighbour that merely starts with the same letters must NOT pin, or an
   // unrelated future route would silently render in Spanish.
-  for (const p of ["/funciones-falso", "/funcionesx", "/fun", "/features/appointments"]) {
+  for (const p of [
+    "/funciones-falso",
+    "/funcionesx",
+    "/fun",
+    "/features/appointments",
+    "/compararx",
+    "/comparar-falso",
+    "/compare/tulala-vs-booksy",
+  ]) {
     assert.equal(isSpanishNamedMarketingPath(p), false, `expected no pin for ${p}`);
   }
 });
