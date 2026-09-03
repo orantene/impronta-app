@@ -80,7 +80,12 @@ export function isExclusionViolation(err: { code?: string | null; message?: stri
   if (!err) return false;
   if (err.code === "23P01") return true;
   const msg = (err.message ?? "").toLowerCase();
-  return msg.includes("23p01") || msg.includes("exclusion") || msg.includes("talent_holds_firm_no_overlap");
+  return (
+    msg.includes("23p01") ||
+    msg.includes("exclusion") ||
+    msg.includes("talent_holds_firm_no_overlap") ||
+    msg.includes("talent_bookings_no_overlap")
+  );
 }
 
 export function mapHoldInsertError(
