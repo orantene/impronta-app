@@ -490,15 +490,29 @@ production and the code, then promoted from "a property that happens to hold" to
   `ON DELETE RESTRICT`.
 
 **THE RULE, which does not yet have a structural guarantee and therefore needs to be written
-down: removing a space in this area is `status = 'retired'`, NEVER a `DELETE`.** There is no
+down: removing a space in this area is `status = 'retired'`, NEVER a `DELETE`.**
+
+QR & Links deliberately put **no foreign key** on `links.context.space_id`, and their reasoning is
+the counterpart to this rule: an FK with `ON DELETE CASCADE` would destroy the *link* on a hard
+delete, so the guest holding the printed tent gets nothing, whereas a dangling id degrades to "the
+menu with no table attached", which is a perfectly good page. **A dangling id is a worse database
+and a better restaurant.** Our retire rule means it should never dangle at all; their FK-free
+column is the belt to our braces. Neither half is sufficient alone. There is no
 delete affordance today, and a space that has never been seated has no `RESTRICT` protecting it,
 so the next person to build "remove this table" is the one this rule is for. **A printed code must
 outlive every reconfiguration of the room it names.** Changing this comes to QR & Links first.
 
 **`spaces.code` is a HUMAN LABEL, not a scan token.** It is "T7" — what the host says out loud and
 what is painted on the table. Unique per venue, not secret, not signed, and **it must never be
-resolvable**: a resolver that accepts it makes every venue's tables enumerable by guessing
-T1..T20. Anything durable keys on `id`; `code` can be reassigned by an operator renumbering a floor.
+resolvable**, nor used to *derive* a link code: either way a venue's eleven tables become
+`/q/t1`..`/q/t11` and a stranger walks the floor plan from a phone. Anything durable keys on `id`;
+`code` can be reassigned by an operator renumbering a floor.
+
+**Calibration, from the QR & Links Manager and worth keeping honest:** a guessable *table* code is
+not a breach the way a guessable door code would be. `/q/t7` resolves to "the menu with Table 7
+attached", so a guest who guesses it opens a tab at the wrong table — a floor-service annoyance a
+host fixes in ten seconds. **It is a bad default, not a hole**, and defaults are what ship a
+thousand times. I overstated this first; the rule stands and the severity does not.
 
 **QR is not this area's.** "QR per space" belongs to QR & Links: a QR is one rendering of a link
 whose `context.space_id` is the space. Spaces calls their helper and never writes `links`, never
@@ -513,9 +527,26 @@ object with one analytics story. Verified 2026-09-03: zero occurrences of qr/tok
 - **There is a second gate the caveat never mentions:** `web/src/lib/saas/surface-allow-list.ts`, a
   per-host-kind path allow-list run inside the proxy. A path not in it is rewritten to
   `/_page-not-found` with a 404 **before Next routing runs**, so a route file that exists and is
-  correct still 404s and the HTML 404 reads as a routing bug. **Any new public path in S4 or S5 —
-  a floor plan view, a seat picker — goes in the allow-list and in `surface-allow-list.test.ts` per
-  host kind.** Found by the QR & Links Manager; this repo has a recorded incident of exactly it.
+  correct still 404s and the HTML 404 reads as a routing bug.
+- **A new public ROOT path needs FOUR registrations, not two.** I recorded two here first and was
+  wrong; corrected by the QR & Links Manager and verified against `origin/main` and production:
+  1. `surface-allow-list.ts` — the gate itself.
+  2. `WORKSPACE_SLUG_RESERVED_PREFIXES` in the same file (`PATH_BASED_TENANT_RESERVED_PREFIXES`
+     inherits it by spread).
+  3. `PLATFORM_RESERVED_SLUGS` in `web/src/lib/site-admin/reserved-routes.ts`.
+  4. **A seed row in `public.platform_reserved_slugs`, in a migration.** The table is live with 52
+     rows today.
+
+  `reserved-routes.collisions.static.test.ts` walks the real `src/app` tree and fails until 3 and 4
+  exist. **Miss 3 or 4 and a tenant can author a CMS page at that slug which publishes, links, and
+  silently never opens** — which is worse than a 404, because nothing reports it.
+- **`surface-allow-list.ts` is EXACTLY 800 lines on `origin/main`, against a `max-lines` cap of 800.
+  It can absorb ZERO new lines.** Verified by counting. So S4 and S5 cannot add a path without first
+  making room. **Do not add a suppression — the ratchet only goes down.** The QR & Links Manager
+  freed space by reflowing wrapped prose comments in place, guarded by a check comparing the word
+  multiset before and after (which caught `textwrap` breaking `guest-chat` into `guest- chat`), for
+  a net-zero line cost. Budget time for that, or expect the PR to be blocked by a file it only
+  touches in passing.
 
 ## 6. Files I own
 
