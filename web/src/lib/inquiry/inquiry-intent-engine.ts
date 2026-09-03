@@ -26,6 +26,7 @@ import {
   type IntentAdapterContext,
   type MissingInfoFlag,
 } from "./inquiry-intent";
+import { capacityHoldTtlSeconds } from "@/lib/capacity/reserve";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   applyReservationToIntent,
@@ -121,7 +122,7 @@ export async function createInquiryFromIntent(
     }
     const { data: offering } = await admin
       .from("talent_offerings")
-      .select("id, talent_profile_id, tenant_id, title")
+      .select("id, talent_profile_id, tenant_id, title, capacity_pool_id")
       .eq("id", incomingStamp.offering_id)
       .maybeSingle();
     if (!offering?.talent_profile_id) {
@@ -141,6 +142,12 @@ export async function createInquiryFromIntent(
       startsAt: incomingStamp.starts_at,
       endsAt: incomingStamp.ends_at,
       title: typeof offering.title === "string" ? offering.title : "Reservation",
+      // The pool owns how long a hold lives. Without this the hold silently
+      // took the 48h default while the instant-book path honoured the pool.
+      ttlSeconds: await capacityHoldTtlSeconds(
+        typeof offering.capacity_pool_id === "string" ? offering.capacity_pool_id : null,
+        admin,
+      ),
       createdByUserId: ctx.actor_user_id,
     });
     if (!hold.ok) {

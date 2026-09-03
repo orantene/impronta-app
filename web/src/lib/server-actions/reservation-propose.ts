@@ -15,6 +15,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
+import { capacityHoldTtlSeconds } from "@/lib/capacity/reserve";
 import { placeReservationHold, releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
 import { parseReservationStamp, type ReservationStamp } from "@/lib/scheduling/reservation-intent";
 import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling/reservation-card";
@@ -102,7 +103,7 @@ export async function proposeReservationTimeAction(raw: {
 
   const { data: offering } = await admin
     .from("talent_offerings")
-    .select("id, talent_profile_id, tenant_id, title, duration_minutes")
+    .select("id, talent_profile_id, tenant_id, title, duration_minutes, capacity_pool_id")
     .eq("id", offeringId)
     .eq("tenant_id", staff.tenantId)
     .maybeSingle();
@@ -128,6 +129,13 @@ export async function proposeReservationTimeAction(raw: {
     startsAt: new Date(starts).toISOString(),
     endsAt: new Date(ends).toISOString(),
     title: typeof offering?.title === "string" ? offering.title : "Reservation",
+    // The pool owns how long a hold lives. Without this a staff-proposed time
+    // sat on the slot for 48h while the same offering booked instantly held
+    // it for the pool's TTL.
+    ttlSeconds: await capacityHoldTtlSeconds(
+      typeof offering?.capacity_pool_id === "string" ? offering.capacity_pool_id : null,
+      admin,
+    ),
     createdByUserId: staff.user.id,
   });
   if (!hold.ok) return { ok: false, error: hold.error };
