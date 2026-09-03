@@ -43,6 +43,7 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import {
@@ -582,13 +583,29 @@ async function readNavLinks(
   tenantId: string,
   zone: "header" | "footer",
 ): Promise<NavRow[]> {
-  const { data } = await admin
-    .from("cms_navigation_links")
+  // `cms_navigation_links` DOES NOT EXIST. Production has
+  // `cms_navigation_items`, `cms_navigation_menus` and
+  // `cms_navigation_revisions`, and the public header reads
+  // `cms_navigation_items` (filtered `visible = true`) through
+  // `cms_public_navigation_for_tenant`.
+  //
+  // This read asked for the missing table AND discarded the error with
+  // `const { data } = await ...`, so PostgREST's "relation does not exist"
+  // became `[]` and every seeded shell got an empty nav, silently, for every
+  // tenant, forever. The table name is fixed and the error is now checked;
+  // returning [] is still the right fallback, but only for a REAL empty nav.
+  const { data, error } = await admin
+    .from("cms_navigation_items")
     .select("label, href, sort_order, zone")
     .eq("tenant_id", tenantId)
     .eq("zone", zone)
+    .eq("visible", true)
     .order("sort_order", { ascending: true })
     .limit(8);
+  if (error) {
+    logServerError("siteShellBackfill.readNavLinks", new Error(error.message));
+    return [];
+  }
   return (data ?? []) as NavRow[];
 }
 
