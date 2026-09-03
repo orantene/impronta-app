@@ -40,6 +40,7 @@ import type Stripe from "stripe";
  *   payment_intent_failed                       — best-effort log
  *   connect_account_updated / capability_updated — refresh Connect account snapshot
  *   payout_event                                — log today (B5 will persist)
+ *   refund_settlement                           — a refund FAILED or was canceled; customer never got the money
  *   invalid                                     — malformed; permanent (no retry)
  *   ignore                                      — unhandled / not actionable
  */
@@ -127,6 +128,22 @@ export type StripeAction =
        *  leg to failed/held + re-syncs the booking. */
       failed: boolean;
       amountReversed: number;
+      currency: string;
+    }
+  | {
+      kind: "refund_settlement";
+      eventType: string;
+      refundId: string;
+      chargeId: string | null;
+      paymentIntentId: string | null;
+      /** Terminal NON-success status only: `failed` or `canceled`. A refund that
+       *  succeeded never reaches the handler, so this kind always means the
+       *  customer did NOT receive the money. */
+      status: string;
+      /** Stripe `failure_reason` (declined, lost_or_stolen_card, ...). Null on a
+       *  cancellation, which carries the reason on the Refund but not always. */
+      failureReason: string | null;
+      amount: number;
       currency: string;
     }
   | { kind: "invoice_payment_succeeded"; subscriptionId: string | null; customerId: string | null; amountPaid: number; currency: string }
@@ -402,6 +419,36 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         accountId: strOrNull(event.account),
         amount: payout.amount ?? 0,
         currency: payout.currency ?? "usd",
+      };
+    }
+
+    // A refund is NOT final when we create it. Stripe can return it up to 30
+    // days later (closed account, expired card, issuer decline), at which point
+    // the money comes back to the PLATFORM balance and the customer has still
+    // not been paid. `charge.refunded` fires at creation and never fires again,
+    // so without these two events our records say "refunded" forever while the
+    // customer is out of pocket.
+    //
+    // `refund.updated` fires on EVERY status transition, `succeeded` included,
+    // so it is narrowed to the terminal bad states exactly as `transfer.updated`
+    // is narrowed to real reversals above. Acting on a succeeded refund would
+    // raise a false alarm on every healthy refund.
+    case "refund.failed":
+    case "refund.updated": {
+      const refund = event.data.object as Stripe.Refund;
+      if (!refund.id) return { kind: "ignore" };
+      const status = refund.status ?? null;
+      if (status !== "failed" && status !== "canceled") return { kind: "ignore" };
+      return {
+        kind: "refund_settlement",
+        eventType: event.type,
+        refundId: refund.id,
+        chargeId: refId(refund.charge),
+        paymentIntentId: refId(refund.payment_intent),
+        status,
+        failureReason: refund.failure_reason ?? null,
+        amount: refund.amount ?? 0,
+        currency: refund.currency ?? "usd",
       };
     }
 

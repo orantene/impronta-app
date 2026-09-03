@@ -673,3 +673,72 @@ test("interpretClaimError: null → other", () => {
 test("interpretClaimError: missing code → other", () => {
   assert.equal(interpretClaimError({}), "other");
 });
+
+// ─── Refund settlement (a refund that failed AFTER we recorded it) ─────────────
+//
+// `charge.refunded` fires once, when the refund is created. Stripe can return
+// the refund up to 30 days later, and only `refund.failed` / `refund.updated`
+// carry that. Without these, our records say "refunded" while the customer was
+// never paid — so the narrowing below is the whole guarantee.
+
+test("refund.failed → refund_settlement with the ids needed to act", () => {
+  const a = classifyStripeEvent(
+    evt("refund.failed", {
+      id: "re_1",
+      status: "failed",
+      charge: "ch_1",
+      payment_intent: "pi_1",
+      failure_reason: "declined",
+      amount: 25000,
+      currency: "usd",
+    }),
+  );
+  const action = expectKind(a, "refund_settlement");
+  assert.equal(action.eventType, "refund.failed");
+  assert.equal(action.refundId, "re_1");
+  assert.equal(action.chargeId, "ch_1");
+  assert.equal(action.paymentIntentId, "pi_1");
+  assert.equal(action.status, "failed");
+  assert.equal(action.failureReason, "declined");
+  assert.equal(action.amount, 25000);
+  assert.equal(action.currency, "usd");
+});
+
+test("refund.updated with status=canceled → refund_settlement (customer also unpaid)", () => {
+  const a = classifyStripeEvent(
+    evt("refund.updated", { id: "re_2", status: "canceled", amount: 500, currency: "usd" }),
+  );
+  const action = expectKind(a, "refund_settlement");
+  assert.equal(action.eventType, "refund.updated");
+  assert.equal(action.status, "canceled");
+  assert.equal(action.failureReason, null);
+});
+
+// The critical negative case: a healthy refund must NOT raise the alarm.
+test("refund.updated with status=succeeded → ignore (no false alarm)", () => {
+  const a = classifyStripeEvent(
+    evt("refund.updated", { id: "re_3", status: "succeeded", amount: 500, currency: "usd" }),
+  );
+  expectKind(a, "ignore");
+});
+
+test("refund.updated while still pending → ignore (not terminal)", () => {
+  const a = classifyStripeEvent(
+    evt("refund.updated", { id: "re_4", status: "pending", amount: 500, currency: "usd" }),
+  );
+  expectKind(a, "ignore");
+});
+
+test("refund.failed missing id → ignore", () => {
+  const a = classifyStripeEvent(evt("refund.failed", { status: "failed", amount: 100 }));
+  expectKind(a, "ignore");
+});
+
+test("refund_settlement tolerates a charge-less / PI-less refund payload", () => {
+  const a = classifyStripeEvent(evt("refund.failed", { id: "re_5", status: "failed" }));
+  const action = expectKind(a, "refund_settlement");
+  assert.equal(action.chargeId, null);
+  assert.equal(action.paymentIntentId, null);
+  assert.equal(action.amount, 0);
+  assert.equal(action.currency, "usd");
+});

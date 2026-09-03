@@ -604,6 +604,34 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       await applyConnectTransferSettlement(action);
       return;
 
+    case "refund_settlement": {
+      // The refund did NOT reach the customer. Stripe has returned the money to
+      // the PLATFORM balance, while our records already say this booking was
+      // refunded and its payouts were reversed.
+      //
+      // This deliberately does NOT auto-revert that state. Un-reversing would
+      // move real money on the strength of a rare event no human has looked at,
+      // and Stripe's own guidance is that a failed refund needs an alternative
+      // arrangement with the customer rather than an automatic retry. The
+      // correct action is a loud, actionable alert; a person decides how the
+      // customer actually gets paid.
+      //
+      // Alerting is therefore the whole job here, and it must carry every id
+      // needed to act without going digging.
+      logServerError(
+        "stripe-webhook.refund.failed",
+        new Error(
+          `Refund ${action.refundId} ${action.status.toUpperCase()} for ` +
+            `${(action.amount / 100).toFixed(2)} ${action.currency.toUpperCase()} ` +
+            `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
+            `reason=${action.failureReason ?? "unspecified"}). ` +
+            `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
+            `Our records still show this payment as refunded — arrange an alternative refund manually.`,
+        ),
+      );
+      return;
+    }
+
     case "invoice_payment_succeeded": {
       // Record before the re-sync, so the register is complete even if the
       // subscription retrieve below fails and the event is retried.
