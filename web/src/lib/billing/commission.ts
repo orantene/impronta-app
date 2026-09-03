@@ -20,8 +20,8 @@
  * talent sells independently (owning_party_type = talent). When a workspace
  * is the seller, the talent is paid their full quote — always.
  *
- *   subtotal       = Σ units × unit_price          (what the offer lists)
- *   talent_full    = Σ units × talent_cost          (the talent's quote)
+ *   subtotal       = Σ line_total_cents             (what the offer lists)
+ *   talent_full    = Σ talent_cost_total_cents      (the talent's quote)
  *   margin         = subtotal − talent_full         (the workspace markup)
  *
  *   client_surcharge = round(subtotal × client_share_bps / 10000)
@@ -82,35 +82,17 @@ export type CommissionResolvedFrom =
  *  fields the resolver actually needs. */
 export interface OfferLineItemForResolver {
   /**
-   * Multiplier for this line. The resolver computes `units * line_total_cents`
-   * and `units * talent_cost_total_cents`, so the two amount fields must be stated at
-   * whatever grain `units` implies.
-   *
-   * GRAIN WARNING — read before changing a caller. On
-   * `inquiry_offer_line_items`, `unit_price` is PER UNIT but `talent_cost` is
-   * the LINE TOTAL. Passing both through as per-unit multiplied the talent's
-   * cost by units a SECOND time, which inflated `talent_net_cents`; that value
-   * is paid straight through as a transfer amount, so it moved real money.
-   * Fixed 2026-09-02 (migration 20261226000017).
-   *
-   * `engine_load_commission_context` therefore passes LINE TOTALS with
-   * `units = 1`. Dividing `talent_cost` by units to reach a per-unit figure was
-   * rejected deliberately: it reintroduces rounding drift ($200.00 over 3 units
-   * is 6667c x 3 = 20001c) which the lane reconciler would then absorb into
-   * platform_fee, hiding an inexactness rather than avoiding it.
-   */
-  units: number;
-  /**
-   * What the CLIENT pays for this line, in cents of the offer's presentment
-   * currency, at the grain `units` implies. The SQL context passes the line's
-   * `total_price` with `units = 1`, because `total_price` is the figure the
-   * client actually agreed to and `round(unit_price * 100) * units` can differ
-   * from it by a cent.
+   * What the CLIENT pays for this LINE IN FULL, in cents of the offer's
+   * presentment currency. A line total, never a per-unit price: any quantity
+   * is already folded in. The SQL context passes the row's `total_price`,
+   * because that is the figure the client actually agreed to and
+   * `round(unit_price * 100) * quantity` can differ from it by a cent.
    */
   line_total_cents: number;
   /**
-   * What the TALENT is owed for this line, at the same grain. Workspace margin
-   * for the line is `line_total_cents - talent_cost_total_cents`.
+   * What the TALENT is owed for this LINE IN FULL, same grain as above.
+   * Workspace margin for the line is
+   * `line_total_cents - talent_cost_total_cents`.
    */
   talent_cost_total_cents: number;
 }
@@ -197,7 +179,7 @@ export interface ResolveBookingCommissionsInput {
 export interface BookingCommissionSnapshot {
   platform_take_bps: number;
   platform_take_floor_cents: number;
-  /** The service subtotal = Σ units × unit_price (talent quote + markup).
+  /** The service subtotal = Σ line_total_cents (talent quote + markup).
    *  This is the offer's listed value, NOT what the client is charged
    *  (that is `gross_charged_cents`). */
   gross_cents: number;
@@ -278,7 +260,7 @@ export function resolveBookingCommissions(
     throw new CommissionResolutionError("currency_invalid");
   }
   for (const li of input.offerLineItems) {
-    if (li.units < 0 || li.line_total_cents < 0 || li.talent_cost_total_cents < 0) {
+    if (li.line_total_cents < 0 || li.talent_cost_total_cents < 0) {
       throw new CommissionResolutionError("negative_line_item");
     }
     if (li.talent_cost_total_cents > li.line_total_cents) {
@@ -334,31 +316,28 @@ export function resolveBookingCommissions(
 
   // 2. Service subtotal + workspace margin from line items.
   //
-  // INVARIANT, and the reason this multiplication still exists: every producer
-  // passes `units: 1` with LINE TOTALS. `engine_load_commission_context` is the
-  // only production caller and it hard-codes 1 (migration 20261226000017).
+  // These are LINE TOTALS, so the subtotal is a plain sum.
   //
-  // So `units * X` is `1 * X` in production. The multiply is retained only
-  // because `units` is still part of this interface, and it is the exact
-  // mechanism of the P0 fixed on 2026-09-02: a LINE TOTAL passed in a per-unit
-  // field was multiplied by units a SECOND time, inflating `talent_net_cents`,
+  // This used to be `Math.round(li.units * li.line_total_cents)`. That multiply
+  // was the mechanism of the 2026-09-02 P0: a line TOTAL passed in a per-unit
+  // field got multiplied by units a second time, inflating `talent_net_cents`,
   // which `transfers.ts` pays straight through as a transfer amount.
   //
-  // Renaming the fields to `*_total_cents` removed the misleading NAME. It did
-  // NOT remove this multiply, so the bug class is not extinguished — a future
-  // caller passing units > 1 with a line total resurrects it exactly. The
-  // follow-up is to drop `units` from this interface and sum the totals
-  // directly, which cannot recur rather than merely being unlikely to. That is
-  // deliberately its own change, because it deletes the characterization tests
-  // whose subject IS units (the `units === 0` boundary, the negative guard,
-  // fractional-unit rounding) and a coverage reduction must be the visible
-  // point of a PR, not a side effect of a rename.
+  // Migration 20261226000017 fixed the values and 20261226000018 fixed the
+  // names, but both left the multiply standing, so the bug class survived
+  // behind an INVARIANT (every producer passes units: 1) rather than behind the
+  // type. An invariant holds only until someone new writes a caller.
+  //
+  // Removing `units` from the interface is what actually extinguishes it:
+  // there is no longer a quantity to multiply by, so the defect cannot be
+  // written again. Callers that genuinely have a quantity must fold it into the
+  // line total, which is the grain the offer table already stores.
   const subtotalCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * li.line_total_cents),
+    (sum, li) => sum + li.line_total_cents,
     0,
   );
   const talentFullCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * li.talent_cost_total_cents),
+    (sum, li) => sum + li.talent_cost_total_cents,
     0,
   );
   const marginCents = subtotalCents - talentFullCents;

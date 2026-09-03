@@ -26,7 +26,7 @@ import {
 // Identical line items for every scenario so only the config varies.
 //   1 unit @ $1,000 client price, $700 talent cost → workspace margin $300.
 const LINE_ITEMS = [
-  { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 70_000 },
+  { line_total_cents: 100_000, talent_cost_total_cents: 70_000 },
 ];
 
 // The LIVE platform config. `default_take_bps` moved 500 → 600 in migration

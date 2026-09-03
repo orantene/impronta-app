@@ -15,7 +15,7 @@
  *   so the resolver is actually exercised, and goes deeper than the dead
  *   vitest file: the 4-level override ladder peeled one layer at a time,
  *   the range guard via every source, validation precedence, Math.round
- *   drift, the units=0 hole, and the spec-vs-code divergences.
+ *   drift, the zero-amount-line hole, and the spec-vs-code divergences.
  *
  * Snapshots CURRENT behavior incl. quirks. Nothing is fixed here. Suspected
  * bugs are flagged with it.skip("CHARACTERIZATION: ... looks wrong — reported").
@@ -55,7 +55,7 @@ const input = (
 ): ResolveBookingCommissionsInput => ({
   tenantId: TENANT,
   workspacePlan: "agency",
-  offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
+  offerLineItems: [{ line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
   currencyCode: "MXN",
   paymentMethod: "card",
   platformConfig: cfg(),
@@ -99,9 +99,9 @@ describe("lane math", () => {
     assert.equal(r.off_platform_reason, null);
   });
 
-  it("the spec's 8h example: 400/hr client, 200/hr talent, 8 units", () => {
+  it("the spec's 8h example: 400/hr client, 200/hr talent, 8h folded into the line total", () => {
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 8, line_total_cents: 40_000, talent_cost_total_cents: 20_000 }],
+      offerLineItems: [{ line_total_cents: 320_000, talent_cost_total_cents: 160_000 }],
     }));
     assert.equal(r.gross_cents, 320_000);
     assert.equal(r.workspace_fee_cents, 152_000); // 160000 margin − 8000 seller deduction
@@ -112,8 +112,8 @@ describe("lane math", () => {
   it("sums independent line items (gross and workspace fee summed per-line)", () => {
     const r = resolveBookingCommissions(input({
       offerLineItems: [
-        { units: 2, line_total_cents: 50_000, talent_cost_total_cents: 40_000 }, // g100000 w20000
-        { units: 1, line_total_cents: 80_000, talent_cost_total_cents: 60_000 }, // g80000  w20000
+        { line_total_cents: 100_000, talent_cost_total_cents: 80_000 }, // g100000 w20000
+        { line_total_cents: 80_000, talent_cost_total_cents: 60_000 }, // g80000  w20000
       ],
     }));
     assert.equal(r.gross_cents, 180_000);
@@ -125,7 +125,7 @@ describe("lane math", () => {
   it("friend-link: talent_cost == unit_price → workspace fee 0, talent FULL, only client surcharge collected", () => {
     const r = resolveBookingCommissions(input({
       workspacePlan: "free",
-      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 100_000 }],
+      offerLineItems: [{ line_total_cents: 100_000, talent_cost_total_cents: 100_000 }],
     }));
     assert.equal(r.workspace_fee_cents, 0);
     assert.equal(r.platform_fee_cents, 2_500);   // zero margin → seller side absorbed by platform
@@ -220,7 +220,7 @@ describe("override hierarchy — resolved bps + resolved_from", () => {
 
   it("relationship workspace_take_bps caps the workspace lane and gives the rest to talent", () => {
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
+      offerLineItems: [{ line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       relationshipOverride: {
         platform_take_bps: null,
         platform_take_floor_cents: null,
@@ -321,7 +321,7 @@ describe("override hierarchy — the floor-vs-resolved_from QUIRK", () => {
     // resolved_from:'platform_default' while the floor in effect actually
     // came from the tenant row. Audit-trail readers beware.
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 1, line_total_cents: 1_000, talent_cost_total_cents: 500 }],
+      offerLineItems: [{ line_total_cents: 1_000, talent_cost_total_cents: 500 }],
       platformConfig: cfg({ default_take_bps: 100, default_take_floor_cents: 50 }),
       tenantOverride: { platform_take_bps: null, platform_take_floor_cents: 100 },
     }));
@@ -334,7 +334,7 @@ describe("override hierarchy — the floor-vs-resolved_from QUIRK", () => {
     // `0 != null` is true, so a tenant can be configured with a 0 floor
     // that strips the platform's protective minimum.
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
+      offerLineItems: [{ line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 999 }),
       tenantOverride: { platform_take_bps: null, platform_take_floor_cents: 0 },
     }));
@@ -431,29 +431,25 @@ describe("input validation — codes", () => {
     expectCode(() => resolveBookingCommissions(input({ offerLineItems: [] })), "no_line_items");
   });
 
-  it("negative units / price / cost → negative_line_item", () => {
+  it("negative price / cost → negative_line_item", () => {
     expectCode(
-      () => resolveBookingCommissions(input({ offerLineItems: [{ units: -1, line_total_cents: 100, talent_cost_total_cents: 50 }] })),
+      () => resolveBookingCommissions(input({ offerLineItems: [{ line_total_cents: -100, talent_cost_total_cents: 0 }] })),
       "negative_line_item",
     );
     expectCode(
-      () => resolveBookingCommissions(input({ offerLineItems: [{ units: 1, line_total_cents: -100, talent_cost_total_cents: 0 }] })),
-      "negative_line_item",
-    );
-    expectCode(
-      () => resolveBookingCommissions(input({ offerLineItems: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: -1 }] })),
+      () => resolveBookingCommissions(input({ offerLineItems: [{ line_total_cents: 100, talent_cost_total_cents: -1 }] })),
       "negative_line_item",
     );
   });
 
   it("talent_cost > unit_price → talent_cost_exceeds_price; equal is allowed (not >)", () => {
     expectCode(
-      () => resolveBookingCommissions(input({ offerLineItems: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: 200 }] })),
+      () => resolveBookingCommissions(input({ offerLineItems: [{ line_total_cents: 100, talent_cost_total_cents: 200 }] })),
       "talent_cost_exceeds_price",
     );
     // Boundary: cost == price is the friend-link case — must NOT throw.
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: 100 }],
+      offerLineItems: [{ line_total_cents: 100, talent_cost_total_cents: 100 }],
     }));
     assert.equal(r.workspace_fee_cents, 0);
   });
@@ -477,21 +473,21 @@ describe("input validation — precedence ordering (pins the guard sequence)", (
     );
   });
 
-  it("currency is checked BEFORE per-line validation — bad currency + negative units → currency_invalid", () => {
+  it("currency is checked BEFORE per-line validation — bad currency + negative price → currency_invalid", () => {
     expectCode(
       () => resolveBookingCommissions(input({
         currencyCode: "XX",
-        offerLineItems: [{ units: -5, line_total_cents: 100, talent_cost_total_cents: 50 }],
+        offerLineItems: [{ line_total_cents: -100, talent_cost_total_cents: 50 }],
       })),
       "currency_invalid",
     );
   });
 
   it("within a line, negative_line_item is checked BEFORE talent_cost_exceeds_price", () => {
-    // units < 0 AND cost > price on the same row → negative wins.
+    // price < 0 AND cost > price on the same row → negative wins.
     expectCode(
       () => resolveBookingCommissions(input({
-        offerLineItems: [{ units: -1, line_total_cents: 100, talent_cost_total_cents: 200 }],
+        offerLineItems: [{ line_total_cents: -100, talent_cost_total_cents: 200 }],
       })),
       "negative_line_item",
     );
@@ -501,8 +497,8 @@ describe("input validation — precedence ordering (pins the guard sequence)", (
     expectCode(
       () => resolveBookingCommissions(input({
         offerLineItems: [
-          { units: 1, line_total_cents: 100, talent_cost_total_cents: 200 },        // cost > price
-          { units: 1, line_total_cents: 1_000_000, talent_cost_total_cents: 0 },    // would dwarf it
+          { line_total_cents: 100, talent_cost_total_cents: 200 },        // cost > price
+          { line_total_cents: 1_000_000, talent_cost_total_cents: 0 },    // would dwarf it
         ],
       })),
       "talent_cost_exceeds_price",
@@ -514,19 +510,7 @@ describe("input validation — precedence ordering (pins the guard sequence)", (
 // 5. Math.round behavior — half-up to +∞, per-line, residual absorbs drift
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Math.round / fractional units", () => {
-  it("fractional units are allowed and rounded per-line (units type is just `number`)", () => {
-    // 0.5 * 101 = 50.5 → Math.round = 51 (half rounds toward +∞).
-    const r = resolveBookingCommissions(input({
-      platformConfig: cfg({ default_take_bps: 0, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 0.5, line_total_cents: 101, talent_cost_total_cents: 0 }],
-    }));
-    assert.equal(r.gross_cents, 51); // round(50.5)
-    assert.equal(r.workspace_fee_cents, 51); // round(0.5 * 101)
-    assert.equal(r.platform_fee_cents, 0);
-    assert.equal(r.talent_net_cents, 0);
-  });
-
+describe("Math.round behaviour", () => {
   it("the take is split into two halves, each rounded independently", () => {
     // subtotal 100010, 5% total → 2.5% client + 2.5% seller. Each half =
     // round(100010*250/10000) = round(2500.25) = 2500 → platform fee 5000.
@@ -534,7 +518,7 @@ describe("Math.round / fractional units", () => {
     // the split rounds each side, so 5000.)
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 1, line_total_cents: 100_010, talent_cost_total_cents: 50_000 }],
+      offerLineItems: [{ line_total_cents: 100_010, talent_cost_total_cents: 50_000 }],
     }));
     assert.equal(r.gross_cents, 100_010);
     assert.equal(r.client_surcharge_cents, 2_500);
@@ -548,7 +532,7 @@ describe("Math.round / fractional units", () => {
     // subtotal 100020 @ 2.5% = 2500.5 → 2501 (half rounds toward +∞).
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 1, line_total_cents: 100_020, talent_cost_total_cents: 50_000 }],
+      offerLineItems: [{ line_total_cents: 100_020, talent_cost_total_cents: 50_000 }],
     }));
     assert.equal(r.client_surcharge_cents, 2_501);
     assert.equal(r.seller_deduction_cents, 2_501);
@@ -557,7 +541,7 @@ describe("Math.round / fractional units", () => {
   it("the client surcharge rounds down below .5: round(2500.2) = 2500", () => {
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 1, line_total_cents: 100_008, talent_cost_total_cents: 50_000 }],
+      offerLineItems: [{ line_total_cents: 100_008, talent_cost_total_cents: 50_000 }],
     }));
     assert.equal(r.client_surcharge_cents, 2_500); // round(2500.2)
   });
@@ -568,7 +552,7 @@ describe("Math.round / fractional units", () => {
     // lanes still sum to gross_charged exactly.
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500 }),
-      offerLineItems: [{ units: 1, line_total_cents: 100_001, talent_cost_total_cents: 79_999 }],
+      offerLineItems: [{ line_total_cents: 100_001, talent_cost_total_cents: 79_999 }],
     }));
     assert.equal(r.gross_cents, 100_001);
     assert.equal(r.talent_net_cents, 79_999);      // exact full quote
@@ -584,14 +568,14 @@ describe("Math.round / fractional units", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. units === 0 — only `< 0` throws, so a zero-unit line is silently inert
+// 6. a zero-amount line — only `< 0` throws, so a zero line is silently inert
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("units === 0 (boundary — not negative, so allowed)", () => {
-  it("a single units:0 line yields an all-zero snapshot, no throw", () => {
+describe("a zero-amount line (boundary — not negative, so allowed)", () => {
+  it("a single zero-amount line yields an all-zero snapshot, no throw", () => {
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 0, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
+      offerLineItems: [{ line_total_cents: 0, talent_cost_total_cents: 0 }],
     }));
     assert.equal(r.gross_cents, 0);
     assert.equal(r.workspace_fee_cents, 0);
@@ -603,20 +587,20 @@ describe("units === 0 (boundary — not negative, so allowed)", () => {
   it("a zero-unit line is inert in a mix — only the real line contributes", () => {
     const r = resolveBookingCommissions(input({
       offerLineItems: [
-        { units: 0, line_total_cents: 999_999, talent_cost_total_cents: 0 }, // ignored
-        { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
+        { line_total_cents: 0, talent_cost_total_cents: 0 }, // ignored
+        { line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
       ],
     }));
     assert.equal(r.gross_cents, 100_000);
     assert.equal(r.workspace_fee_cents, 17_500); // margin 20000 − seller deduction 2500
   });
 
-  it("units:0 + a platform FLOOR → the client covers the floor; talent stays whole (no throw)", () => {
+  it("a zero-amount line + a platform FLOOR → the client covers the floor; talent stays whole (no throw)", () => {
     // Old model threw (talent went negative). Talent-protected: a zero-gross
     // booking with a floor charges the client the floor and leaves talent at 0.
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 50 }),
-      offerLineItems: [{ units: 0, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
+      offerLineItems: [{ line_total_cents: 0, talent_cost_total_cents: 0 }],
     }));
     assert.equal(r.gross_cents, 0);
     assert.equal(r.talent_net_cents, 0);
@@ -638,7 +622,7 @@ describe("lanes_do_not_sum (talent_net would go negative)", () => {
     // client surcharge instead, so no lane goes negative — the old model's
     // lanes_do_not_sum throw is now unreachable for valid inputs.
     const r = resolveBookingCommissions(input({
-      offerLineItems: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: 100 }],
+      offerLineItems: [{ line_total_cents: 100, talent_cost_total_cents: 100 }],
       platformConfig: cfg({ default_take_floor_cents: 200 }),
     }));
     assert.equal(r.talent_net_cents, 100);
@@ -654,8 +638,12 @@ describe("lanes_do_not_sum (talent_net would go negative)", () => {
     // client_surcharge + seller_deduction, and no lane goes negative — for
     // BOTH seller-of-record paths. Talent protection makes the old
     // lanes_do_not_sum throw unreachable, so nothing in the grid throws.
+    // `scale` used to be a `units` field the resolver multiplied by. Units are
+    // gone, so it is applied here instead -- the grid still generates exactly
+    // the same line totals the resolver used to compute internally, including
+    // the fractional case, so coverage is unchanged rather than reduced.
     let checked = 0;
-    for (const units of [1, 2, 3.5, 8]) {
+    for (const scale of [1, 2, 3.5, 8]) {
       for (const price of [1, 999, 100_000, 100_001]) {
         for (const cost of [0, 1, 500]) {
           if (cost > price) continue;
@@ -664,7 +652,10 @@ describe("lanes_do_not_sum (talent_net would go negative)", () => {
               for (const seller of ["workspace", "talent"] as const) {
                 const r = resolveBookingCommissions(input({
                   sellerOfRecord: seller,
-                  offerLineItems: [{ units, line_total_cents: price, talent_cost_total_cents: cost }],
+                  offerLineItems: [{
+                    line_total_cents: Math.round(scale * price),
+                    talent_cost_total_cents: Math.round(scale * cost),
+                  }],
                   platformConfig: cfg({ default_take_bps: bps, default_take_floor_cents: floor }),
                 }));
                 assert.equal(

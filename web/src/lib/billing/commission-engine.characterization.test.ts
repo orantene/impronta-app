@@ -127,7 +127,7 @@ function validCtx(
         workspace_plan: "agency",
         tenant_override: null,
         offer_line_items: [
-          { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
+          { line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
         ],
         ...participantOverrides,
       },
@@ -192,7 +192,7 @@ describe("persistBookingCommissionSnapshot — resolver_failed", () => {
       rpc: {
         engine_load_commission_context: {
           data: validCtx({
-            offer_line_items: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: 200 }],
+            offer_line_items: [{ line_total_cents: 100, talent_cost_total_cents: 200 }],
           }),
         },
       },
