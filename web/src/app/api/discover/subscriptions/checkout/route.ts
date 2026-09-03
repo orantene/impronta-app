@@ -5,7 +5,8 @@
 //   → 200 { url }                  Stripe Checkout (subscription mode)
 //   → 401 unauthenticated
 //   → 400 tenant_slug_required
-//   → 503 not configured (Stripe key OR STRIPE_CLIENT_PRO_PRICE_ID unset)
+//   → 503 { error: "not_configured" }  Stripe key or the Pro price is unset.
+//        The specific cause is logged server-side, never returned.
 //
 // The price is read from STRIPE_CLIENT_PRO_PRICE_ID inside
 // createClientProCheckoutSession — never hardcoded. On success the webhook
@@ -16,6 +17,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClientProCheckoutSession } from "@/lib/stripe/client-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -62,8 +64,20 @@ export async function POST(req: Request) {
   if (!result.ok) {
     // "not configured" is an ops/setup error, not a client error → 503.
     const isConfig = /not configured/i.test(result.error);
+
+    // The detail belongs in OUR logs, not in the client's devtools. It names
+    // internal configuration ("missing STRIPE_CLIENT_PRO_PRICE_ID"), which
+    // tells anyone reading the network tab exactly which env var gates the
+    // payment path. Not a credential, but not the client's business either,
+    // and no caller ever read it: ProUpgradeButton renders its own copy off
+    // `error`, and ShortlistsShell reads only `url`.
+    //
+    // The response is now a closed set of stable codes with no interpolated
+    // internals, so the leak cannot creep back in through a reworded message.
+    logServerError("discover.subscription-checkout.failed", new Error(result.error));
+
     return NextResponse.json(
-      { error: isConfig ? "not_configured" : "checkout_failed", message: result.error },
+      { error: isConfig ? "not_configured" : "checkout_failed" },
       { status: isConfig ? 503 : 502 },
     );
   }
