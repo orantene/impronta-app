@@ -673,6 +673,7 @@ export type Database = {
           lodging_notes: string | null
           meals_notes: string | null
           notes: string | null
+          order_id: string | null
           override_reason: string | null
           owner_staff_id: string | null
           owner_user_id_snapshot: string | null
@@ -747,6 +748,7 @@ export type Database = {
           lodging_notes?: string | null
           meals_notes?: string | null
           notes?: string | null
+          order_id?: string | null
           override_reason?: string | null
           owner_staff_id?: string | null
           owner_user_id_snapshot?: string | null
@@ -821,6 +823,7 @@ export type Database = {
           lodging_notes?: string | null
           meals_notes?: string | null
           notes?: string | null
+          order_id?: string | null
           override_reason?: string | null
           owner_staff_id?: string | null
           owner_user_id_snapshot?: string | null
@@ -898,6 +901,13 @@ export type Database = {
             columns: ["event_type_id"]
             isOneToOne: false
             referencedRelation: "taxonomy_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agency_bookings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -2570,6 +2580,7 @@ export type Database = {
           gross_cents: number
           gross_charged_cents: number
           off_platform_reason: string | null
+          order_id: string | null
           owning_party_id: string
           owning_party_type: string
           participant_id: string
@@ -2593,6 +2604,7 @@ export type Database = {
           gross_cents: number
           gross_charged_cents?: number
           off_platform_reason?: string | null
+          order_id?: string | null
           owning_party_id: string
           owning_party_type: string
           participant_id: string
@@ -2616,6 +2628,7 @@ export type Database = {
           gross_cents?: number
           gross_charged_cents?: number
           off_platform_reason?: string | null
+          order_id?: string | null
           owning_party_id?: string
           owning_party_type?: string
           participant_id?: string
@@ -2635,6 +2648,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "agency_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_commission_snapshot_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -2882,6 +2902,7 @@ export type Database = {
           gross_amount_cents: number
           id: string
           net_amount_cents: number
+          order_id: string | null
           paid_at: string | null
           payer_email: string | null
           payer_user_id: string | null
@@ -2916,6 +2937,7 @@ export type Database = {
           gross_amount_cents: number
           id?: string
           net_amount_cents: number
+          order_id?: string | null
           paid_at?: string | null
           payer_email?: string | null
           payer_user_id?: string | null
@@ -2950,6 +2972,7 @@ export type Database = {
           gross_amount_cents?: number
           id?: string
           net_amount_cents?: number
+          order_id?: string | null
           paid_at?: string | null
           payer_email?: string | null
           payer_user_id?: string | null
@@ -2985,6 +3008,13 @@ export type Database = {
             columns: ["created_by_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -3507,6 +3537,13 @@ export type Database = {
           units?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "capacity_allocations_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "order_lines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "capacity_allocations_pool_id_fkey"
             columns: ["pool_id"]
@@ -5747,6 +5784,88 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          client_profile_id: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          last_seen_at: string | null
+          locale: string | null
+          merged_into_id: string | null
+          no_shows: number
+          notes: string | null
+          phone_e164: string | null
+          spend_cents: number
+          tags: string[]
+          tenant_id: string
+          updated_at: string
+          user_id: string | null
+          visits: number
+        }
+        Insert: {
+          client_profile_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          last_seen_at?: string | null
+          locale?: string | null
+          merged_into_id?: string | null
+          no_shows?: number
+          notes?: string | null
+          phone_e164?: string | null
+          spend_cents?: number
+          tags?: string[]
+          tenant_id: string
+          updated_at?: string
+          user_id?: string | null
+          visits?: number
+        }
+        Update: {
+          client_profile_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          last_seen_at?: string | null
+          locale?: string | null
+          merged_into_id?: string | null
+          no_shows?: number
+          notes?: string | null
+          phone_e164?: string | null
+          spend_cents?: number
+          tags?: string[]
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string | null
+          visits?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       directory_filter_panel_items: {
         Row: {
           item_key: string
@@ -7288,6 +7407,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inquiry_offer_line_items_source_service_id_fkey"
+            columns: ["source_service_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inquiry_offer_line_items_talent_profile_id_fkey"
             columns: ["talent_profile_id"]
             isOneToOne: false
@@ -8665,6 +8791,204 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_lines: {
+        Row: {
+          addon_ids: string[]
+          created_at: string
+          id: string
+          label: string
+          offering_id: string | null
+          order_id: string
+          owner_tenant_id: string | null
+          sort_order: number
+          talent_cost_cents: number
+          talent_profile_id: string | null
+          tax_cents: number
+          tenant_id: string
+          total_cents: number
+          unit_cents: number
+          units: number
+          variant_id: string | null
+        }
+        Insert: {
+          addon_ids?: string[]
+          created_at?: string
+          id?: string
+          label: string
+          offering_id?: string | null
+          order_id: string
+          owner_tenant_id?: string | null
+          sort_order?: number
+          talent_cost_cents?: number
+          talent_profile_id?: string | null
+          tax_cents?: number
+          tenant_id: string
+          total_cents: number
+          unit_cents: number
+          units?: number
+          variant_id?: string | null
+        }
+        Update: {
+          addon_ids?: string[]
+          created_at?: string
+          id?: string
+          label?: string
+          offering_id?: string | null
+          order_id?: string
+          owner_tenant_id?: string | null
+          sort_order?: number
+          talent_cost_cents?: number
+          talent_profile_id?: string | null
+          tax_cents?: number
+          tenant_id?: string
+          total_cents?: number
+          unit_cents?: number
+          units?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lines_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_owner_tenant_id_fkey"
+            columns: ["owner_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offering_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_id: string
+          discount_cents: number
+          hold_expires_at: string | null
+          id: string
+          inquiry_id: string | null
+          payout_release_rule: string
+          session_id: string | null
+          source_channel: string
+          source_page: string | null
+          space_id: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          subtotal_cents: number
+          tax_cents: number
+          tenant_id: string
+          total_cents: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id: string
+          discount_cents?: number
+          hold_expires_at?: string | null
+          id?: string
+          inquiry_id?: string | null
+          payout_release_rule?: string
+          session_id?: string | null
+          source_channel: string
+          source_page?: string | null
+          space_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal_cents?: number
+          tax_cents?: number
+          tenant_id: string
+          total_cents?: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string
+          discount_cents?: number
+          hold_expires_at?: string | null
+          id?: string
+          inquiry_id?: string | null
+          payout_release_rule?: string
+          session_id?: string | null
+          source_channel?: string
+          source_page?: string | null
+          space_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal_cents?: number
+          tax_cents?: number
+          tenant_id?: string
+          total_cents?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -13719,6 +14043,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "talent_offering_variants_capacity_pool_id_fkey"
+            columns: ["capacity_pool_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_pools"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "talent_offering_variants_offering_id_fkey"
             columns: ["offering_id"]
             isOneToOne: false
@@ -13834,6 +14165,13 @@ export type Database = {
           visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "talent_offerings_capacity_pool_id_fkey"
+            columns: ["capacity_pool_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_pools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "talent_offerings_talent_profile_id_fkey"
             columns: ["talent_profile_id"]
@@ -18672,6 +19010,16 @@ export type Database = {
         Args: { p_iso2: string; p_name_en?: string; p_name_es?: string }
         Returns: string
       }
+      ensure_customer_for_tenant: {
+        Args: {
+          p_display_name?: string
+          p_email: string
+          p_phone?: string
+          p_tenant_id: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
       ensure_guest_session: { Args: { p_session_key: string }; Returns: string }
       find_auth_user_identity_by_email: {
         Args: { p_email: string }
@@ -18885,6 +19233,7 @@ export type Database = {
             Returns: undefined
           }
       normalize_location_slug: { Args: { p_input: string }; Returns: string }
+      offer_major_to_cents: { Args: { p_major: number }; Returns: number }
       owning_parties_for_inquiry: {
         Args: { p_inquiry_id: string }
         Returns: {
@@ -18905,6 +19254,10 @@ export type Database = {
         }[]
       }
       reap_capacity_allocations: { Args: { p_limit?: number }; Returns: number }
+      recompute_customer_rollups: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recompute_talent_height_gender: {
         Args: { p_talent_profile_id: string }
         Returns: undefined
@@ -19029,6 +19382,10 @@ export type Database = {
           cnt: number
           reason: string
         }[]
+      }
+      set_offering_stock: {
+        Args: { p_available: number; p_offering_id: string }
+        Returns: Json
       }
       set_primary_agency_domain: {
         Args: { p_hostname: string; p_tenant_id: string }
@@ -19296,6 +19653,15 @@ export type Database = {
         | "expired"
         | "manual_override"
       membership_tier: "free" | "free_trial" | "premium" | "featured"
+      order_status:
+        | "draft"
+        | "quoted"
+        | "pending_payment"
+        | "paid"
+        | "fulfilled"
+        | "cancelled"
+        | "refunded"
+        | "partially_refunded"
       organization_kind: "agency" | "hub"
       payment_method: "cash" | "transfer" | "other"
       payment_status: "unpaid" | "partial" | "paid" | "cancelled" | "refunded"
@@ -19645,6 +20011,16 @@ export const Constants = {
         "manual_override",
       ],
       membership_tier: ["free", "free_trial", "premium", "featured"],
+      order_status: [
+        "draft",
+        "quoted",
+        "pending_payment",
+        "paid",
+        "fulfilled",
+        "cancelled",
+        "refunded",
+        "partially_refunded",
+      ],
       organization_kind: ["agency", "hub"],
       payment_method: ["cash", "transfer", "other"],
       payment_status: ["unpaid", "partial", "paid", "cancelled", "refunded"],
