@@ -10,6 +10,7 @@
  * and hang off `venues.id`.
  */
 
+import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   PLATFORM_FALLBACK_TIMEZONE,
@@ -44,12 +45,18 @@ export async function loadDefaultVenue(tenantId: string): Promise<VenueRow | nul
   if (!tenantId) return null;
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("venues")
     .select(VENUE_COLUMNS)
     .eq("tenant_id", tenantId)
     .eq("is_default", true)
     .maybeSingle();
+  if (error) {
+    // A failed read must not read as "this workspace has no venue". That is the
+    // silent path back to UTC, which is the bug S1a exists to close.
+    logServerError("spaces/loadDefaultVenue", error);
+    return null;
+  }
   return (data as VenueRow | null) ?? null;
 }
 
@@ -57,12 +64,17 @@ export async function listVenues(tenantId: string): Promise<VenueRow[]> {
   if (!tenantId) return [];
   const admin = createServiceRoleClient();
   if (!admin) return [];
-  const { data } = await admin
+  const { data, error } = await admin
     .from("venues")
     .select(VENUE_COLUMNS)
     .eq("tenant_id", tenantId)
     .order("is_default", { ascending: false })
     .order("name", { ascending: true });
+  if (error) {
+    // An empty list and a failed read render identically to a caller. Say which.
+    logServerError("spaces/listVenues", error);
+    return [];
+  }
   return (data as VenueRow[] | null) ?? [];
 }
 

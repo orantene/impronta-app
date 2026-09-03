@@ -22,6 +22,7 @@ import {
   type BookingSurface,
 } from "./appointment-policy";
 import type { AppointmentMode } from "./appointments-plan-policy";
+import { logServerError } from "@/lib/server/safe-error";
 
 export type TalentBookingMode = "inquire" | "request" | "instant";
 
@@ -299,12 +300,18 @@ export async function resolveTalentBooking(
   // whose first rung is the venue the workspace actually operates from.
   let venueTimezone: string | null = null;
   if (channelAgency) {
-    const { data: venueRow } = await admin
+    const { data: venueRow, error: venueError } = await admin
       .from("venues")
       .select("timezone")
       .eq("tenant_id", channelAgency.id)
       .eq("is_default", true)
       .maybeSingle();
+    if (venueError) {
+      // Falling through to the next rung is correct; doing it silently is not.
+      // A failed venue read and a workspace with no venue both end at UTC, and
+      // only one of them is a bug.
+      logServerError("scheduling/bookingSurface.venueTimezone", venueError);
+    }
     venueTimezone = (venueRow as { timezone: string | null } | null)?.timezone ?? null;
   }
 
