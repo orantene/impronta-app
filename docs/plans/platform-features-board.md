@@ -338,6 +338,15 @@ Found by the Spaces & Seating Manager, applying the invariant Capacity handed th
 
 **MIGRATION ORDER, because the obvious order is wrong:** reserve the replacement table and **commit it BEFORE releasing the group allocation**. Release-then-reserve opens a window where the guest holds nothing and a walk-in takes their table. No new RPC is needed.
 
+**THE REGISTRY LINE IS THREE FACTS, NOT ONE:**
+1. `space_group` pools exist **in band mode only, and PARENTLESS**.
+2. `space` pools exist **in assigned mode only**, parented to the room per SS-1.
+3. **SS-2 — a `space_group` pool and its member table pools are never both active.**
+
+**`capacity_subject_kinds` does NOT cover mode exclusivity, and Capacity volunteered that rather than let it be assumed.** That registry maps a kind to a backing table: registering `space_group` says the subject id must be a real group row, and says **nothing** about whether that group should currently be selling. A caller who reads the registration as protection has bought less than they think.
+
+**The band → assigned migration is FOUR steps and the ORDER is the safety property, not an implementation detail:** create the table pools → `reserve` then `commit` each replacement → **only then** release the group allocation → deactivate the drained pool. Reserve before release, never the reverse. It needs no new RPC. **This is a real deliverable on the Reservations Phase 3 critical path and they must know before they plan.**
+
 **Registry line: `space_group` → band mode only.** Without it, a future session creates both kinds of pool for one venue and the only thing preventing a double-sold table is that nobody thought of it.
 
 **Band → assigned is a real migration and belongs on the Reservations Phase 3 critical path.** Capacity's trigger refuses to re-parent a pool holding live allocations, so it is *create the table pools, drain the group pool, deactivate it* — not a re-parent. **Reservations must know this before they plan**, not discover it in Phase 3.
