@@ -57,8 +57,10 @@ function collectIds(nodes: BuilderNode[]): string[] {
 // design stays single-root; this set names the documented exceptions.
 const MULTI_ROOT_DESIGN_IDS = new Set(["impronta"]);
 
-test("page-designs: thirteen designs with copy (single-root, except documented multi-root)", () => {
-  assert.equal(PAGE_DESIGNS.length, 13);
+test("page-designs: fourteen designs with copy (single-root, except documented multi-root)", () => {
+  // 14th is `services`, the salon/barber/spa/clinic front door: those four had
+  // no keyword row and fell through to the print storefront.
+  assert.equal(PAGE_DESIGNS.length, 14);
   for (const design of PAGE_DESIGNS) {
     if (MULTI_ROOT_DESIGN_IDS.has(design.id)) {
       assert.ok(design.tree.length > 1, `${design.id} must be multi-root`);

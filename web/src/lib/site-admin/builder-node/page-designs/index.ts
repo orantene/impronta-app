@@ -26,6 +26,7 @@ import { restaurantDesign } from "./restaurant";
 import { restaurantOrderableDesign } from "./restaurant-orderable";
 import { conferenceDesign } from "./conference";
 import { coachDesign } from "./coach";
+import { servicesDesign } from "./services";
 
 export type { PageDesign, PageDesignArchetype } from "./types";
 export {
@@ -50,6 +51,7 @@ export {
   restaurantOrderableDesign,
   conferenceDesign,
   coachDesign,
+  servicesDesign,
 };
 
 /** Registry order = display order in the template picker. */
@@ -67,6 +69,7 @@ export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
   restaurantOrderableDesign,
   conferenceDesign,
   coachDesign,
+  servicesDesign,
 ];
 
 export function getPageDesign(id: string): PageDesign | undefined {

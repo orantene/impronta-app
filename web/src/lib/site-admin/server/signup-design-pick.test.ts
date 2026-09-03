@@ -77,3 +77,48 @@ test("the Website surfaces mount the homepage design swap", () => {
   assert.match(overview, /<HomepageDesignSwap/);
   assert.match(hub, /<HomepageDesignSwap/);
 });
+
+// ─── Salon, barber, spa, clinic (F8) ────────────────────────────────────────
+
+test("a salon, barber, spa or clinic lands on the services design, not a shop", () => {
+  // These four had NO keyword row, so all of them fell through
+  // AUDIENCE_DEFAULT.business to `store` — the fine-art print storefront whose
+  // nav said Shop and whose button said "Add to cart, $280" against a
+  // fabricated price. A barbershop was handed a shop with a cart in it.
+  const cases = [
+    "Barbershop in Tulum",
+    "Barbería del centro",
+    "Hair salon and colour",
+    "Day spa and massage",
+    "Dental clinic",
+    "Clínica dental",
+    "Nails and beauty",
+    "Wellness and massage studio",
+  ];
+  for (const businessDescription of cases) {
+    const pick = pickSignupDesign({ audience: "business", businessDescription });
+    assert.equal(pick.source, "page_design", businessDescription);
+    assert.equal(pick.designId, "services", businessDescription);
+  }
+});
+
+test("the services row sits ABOVE shop, so 'barber shop' is not a storefront", () => {
+  // Keyword rows are first-match-wins, and "barber shop" contains "shop". If
+  // the services row ever moves below the store row this silently regresses to
+  // the exact bug it was added to fix.
+  assert.equal(
+    pickSignupDesign({ audience: "business", businessDescription: "Barber shop" }).designId,
+    "services",
+  );
+});
+
+test("a real shop still gets the store design", () => {
+  // The new row must not swallow retail.
+  for (const businessDescription of ["Print shop and framing", "Boutique retail store"]) {
+    assert.equal(
+      pickSignupDesign({ audience: "business", businessDescription }).designId,
+      "store",
+      businessDescription,
+    );
+  }
+});
