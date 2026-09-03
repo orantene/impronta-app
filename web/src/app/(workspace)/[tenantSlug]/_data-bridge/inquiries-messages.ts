@@ -597,6 +597,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
           card_payload?: Record<string, unknown> | null;
         }>,
       ),
+      { tenantId },
     );
 
     for (const row of (lastMessagesRes.data ?? []) as {

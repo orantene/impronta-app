@@ -162,7 +162,9 @@ export async function loadInquiryMessages(
     // thread. A thread can hold several orders (deposit, balance and add-ons
     // are separate orders against one conversation), so a per-card fetch would
     // be an N+1 in the hottest read in the product.
-    const ordersById = await loadOrdersForThread(readClient, orderIdsFromMessages(rows));
+    const ordersById = await loadOrdersForThread(readClient, orderIdsFromMessages(rows), {
+      tenantId,
+    });
 
     return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;

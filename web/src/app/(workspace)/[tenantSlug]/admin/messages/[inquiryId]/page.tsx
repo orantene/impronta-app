@@ -238,6 +238,7 @@ export default async function AdminInquiryThreadPage({
   const ordersForCards = await loadOrdersForThread(
     supabase,
     orderIdsFromMessages(msgRowsTyped),
+    { tenantId: scope.tenantId },
   );
   const initialMessages: ParticipantThreadMessage[] = msgRowsTyped.map((m) => {
     const profArrOrRow = m.profiles;

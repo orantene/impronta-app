@@ -194,6 +194,7 @@
   "src/lib/inquiry/inquiry-settings.ts": 3,
   "src/lib/inquiry/instant-book-engine.ts": 9,
   "src/lib/inquiry/load-alternates.ts": 1,
+  "src/lib/inquiry/menu-order-engine.ts": 3,
   "src/lib/invites/redeem.ts": 1,
   "src/lib/ledger/run-projection.ts": 5,
   "src/lib/load-directory-inquiry-payload.ts": 7,

@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { OrderForCard } from "@/lib/orders/order-card";
+import { loadTenantWords } from "@/lib/words/server";
 
 /**
  * Load the orders a thread's cards refer to.
@@ -22,6 +23,7 @@ import type { OrderForCard } from "@/lib/orders/order-card";
 export async function loadOrdersForThread(
   db: SupabaseClient,
   orderIds: readonly string[],
+  opts: { tenantId?: string | null; locale?: "en" | "es" } = {},
 ): Promise<Map<string, OrderForCard>> {
   const out = new Map<string, OrderForCard>();
   const ids = [...new Set(orderIds.filter(Boolean))];
@@ -69,6 +71,20 @@ export async function loadOrdersForThread(
     collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + Number(row.gross_amount_cents ?? 0));
   }
 
+  // ONE words read for the whole thread. D4: the customer-facing noun comes
+  // from the tenant's words table with a default, never hardcoded. A failure
+  // here yields no noun and the card falls back to "Order" — a neutral word is
+  // an acceptable degradation; a blank title is not.
+  let noun: string | null = null;
+  if (opts.tenantId) {
+    try {
+      const words = await loadTenantWords(opts.tenantId, opts.locale ?? "en");
+      noun = words["menu.order"] ?? null;
+    } catch (err) {
+      logServerError("orders.loadOrdersForThread/words", err);
+    }
+  }
+
   for (const row of (orderRows ?? []) as Array<{
     id: string;
     status: string;
@@ -86,6 +102,7 @@ export async function loadOrdersForThread(
       // amount to show a customer.
       outstandingCents: Math.max(0, total - already),
       lineCount: lineCount.get(row.id) ?? 0,
+      noun,
     });
   }
 

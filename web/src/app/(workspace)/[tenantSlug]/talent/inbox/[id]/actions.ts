@@ -213,6 +213,23 @@ export type TalentThreadMessage = {
   ts: string;
   messageKind: string;
   cardPayload: Record<string, unknown> | null;
+  /**
+   * For `messageKind === 'order'`: the order the card describes.
+   *
+   * Null on this surface today — the talent thread does not load orders, and a
+   * null renders the card's neutral state rather than a wrong figure. Declared
+   * so the renderer's contract is the same on every surface: a card that hangs
+   * off a type which cannot carry an order is a card that silently shows
+   * nothing, which is the failure the whole four-layer guard exists for.
+   */
+  order?: {
+    id: string;
+    status: string;
+    currency: string;
+    totalCents: number;
+    outstandingCents?: number | null;
+    lineCount: number;
+  } | null;
   /** Raw message metadata jsonb — carries the voice-note descriptor for
    *  message_kind='voice' (parsed bubble-side via readVoiceMetaFromMessageMetadata). */
   metadata: Record<string, unknown> | null;

@@ -35,6 +35,16 @@ export type OrderCardTone = "info" | "amber" | "success" | "alert";
 /** What the card needs from the order. A subset, so callers select narrowly. */
 export type OrderForCard = {
   id: string;
+  /**
+   * The tenant's word for an order, resolved from the words table at load time.
+   *
+   * Travels WITH the order rather than through a separate wire, because the two
+   * are always needed together and a noun that arrives by a different route is a
+   * noun that can go missing on one surface and not another. D4: a tenant who
+   * calls it a quote gets "quote", and nothing hardcodes a product noun in a
+   * surface a customer reads.
+   */
+  noun?: string | null;
   status: string;
   currency: string;
   totalCents: number;
@@ -98,7 +108,7 @@ export function orderCardView(
 ): OrderCardView {
   // The tenant's word, or a neutral default. Never a hardcoded product noun in
   // a surface a customer reads.
-  const noun = (opts.noun ?? "").trim() || "Order";
+  const noun = (order?.noun ?? opts.noun ?? "").trim() || "Order";
 
   // An order we could not load renders as ITSELF, not as an error and not as
   // zero. "$0.00" would be a lie a customer might act on; a blank card is
