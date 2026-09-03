@@ -50,6 +50,7 @@ import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
 import { ensureNotFoundPage } from "./onboard-notfound-page";
 import { ensureBookingPage } from "./onboard-booking-page";
+import { ensureContactPageIfDetailsExist } from "./onboard-contact-page";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
 // single import site for the seed's public surface.
@@ -627,12 +628,34 @@ export async function onboardStarterContent(
       );
     }
 
-    // CONTACT is deliberately NOT seeded. Owner-ratified: a published
-    // placeholder contact page from minute one is a worse first impression
-    // than a shorter nav, and it undercuts the AI-draft magic moment. The
-    // dangling default is resolved the other way instead — the default shell
-    // nav and footer link sets no longer hard-code `/contact`, which on an
-    // agency host is a CMS clean-URL that 404s until such a page exists.
+    // CONTACT, per D7 (2026-09-03), which supersedes the #1395 blanket skip.
+    //
+    // #1395 was right that a PLACEHOLDER contact page is a worse first
+    // impression than a shorter nav. It resolved that by seeding nothing and
+    // repointing every seeded CTA at `/directory` — which 404s on a business
+    // workspace, so the fix propagated a different dead link.
+    //
+    // D7 takes the third way: seed a contact page ONLY when the operator's own
+    // identity row has real details to render, and otherwise seed nothing and
+    // let the header verb point at Ask. A page built from their own email and
+    // phone is not a placeholder, and when there is nothing to build one from,
+    // the chat is a working front door that needs no page.
+    //
+    // The gate is a real CHANNEL, not the existence of the row; every workspace
+    // has a row, so keying on it would rebuild the rejected placeholder with
+    // extra steps. Non-fatal: a workspace that adds its phone number later gets
+    // the page on that write.
+    const contactResult = await ensureContactPageIfDetailsExist({
+      admin: client,
+      tenantId: input.tenantId,
+      actorProfileId,
+    });
+    if (!contactResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureContactPageIfDetailsExist (non-fatal)",
+        new Error(contactResult.error),
+      );
+    }
 
     return {
       ok: true,
