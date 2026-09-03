@@ -28,6 +28,16 @@
 # bug in a milder form. The heartbeat that remains is informational only, so a
 # waiter can say how long ago the holder was seen.
 
+# CI RUNS ALONE, SO IT MUST NOT QUEUE. On a GitHub runner there is exactly one
+# job on the machine, /tmp is fresh, and there is nothing to serialise against.
+# Taking a lock there buys nothing and adds a failure mode (a crashed run
+# leaving a lock dir behind on a reused runner). Exec tsc directly and exit with
+# its real code, which is byte-identical to what `npm run typecheck` did before
+# this script became the default entry point.
+if [ -n "${CI:-}" ]; then
+  exec env NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}" npx tsc --noEmit
+fi
+
 LOCK="/tmp/tulala-tsc.lock"
 WAITED=0
 HB_PID=""
