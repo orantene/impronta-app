@@ -40,7 +40,8 @@ and will not claim its exit proof as mine; I re-ran its tests and re-read its DD
 before building on it, which is the most I can honestly offer about someone else's PR.
 
 **(2) The shipped `sessions` has no `kind` and no `meeting_point`.** My brief specifies both.
-See §2.1 — I am adding them, minus one enum value, with the reason.
+See §2.1 — after an argument that ran three ways and reversed twice, **neither is being added** and
+`sessions` is not changed at all in Phase 1.
 
 **(3) Nothing in the codebase moves an order to `paid`.** `grep` over `origin/main` finds four
 writers of `orders` (`purchase.ts`, `draft-order.ts`, `orders-for-thread.ts` reads only) and none of
@@ -72,30 +73,34 @@ primitives Events and Reservations are both blocked on: a stored occurrence, and
 
 ## 2. Schema
 
-### 2.1 `sessions` gains `kind` and `meeting_point` (P1.2 migration)
+### 2.1 `sessions` is not changed at all — the `kind` column is WITHDRAWN
 
-```sql
-ALTER TABLE public.sessions
-  ADD COLUMN kind text NOT NULL DEFAULT 'class'
-    CHECK (kind IN ('class','show','departure','screening','tour')),
-  ADD COLUMN meeting_point jsonb,
-  ADD CONSTRAINT sessions_meeting_point_only_on_departures
-    CHECK (meeting_point IS NULL OR kind IN ('tour','departure'));
-```
+An earlier revision of this plan added `kind` (with `service_window` dropped) and `meeting_point`.
+**Both are withdrawn and `sessions` stays exactly as `20261229000214` shipped it.**
 
-**`service_window` is deliberately not in the enum.** The brief lists it. A service window is a
-*continuous* shape — "dinner, 19:00 to 23:00, 90-minute turns, four two-tops" — and Spaces and
-Capacity already model it as a band pool, which is what Reservations Phase 1 is being opened on. If
-it were also a session kind there would be two implementations of one concept and the second one
-would be mine. I would rather be told I am wrong about this than discover it after Reservations has
-built on the other one. Raised with the Director; Reservations copied.
+Two separate reversals landed on the same column:
 
-**Why `kind` earns a column at all, given the shown word comes from the words table.** A column
-whose only consumer is a label is a lying column, and this department has a recorded incident about
-exactly that shape. `kind` earns it because of the CHECK above: `meeting_point` is meaningless on a
-class and mandatory-in-practice on a tour, and the reminder copy diverges ("your class is tomorrow"
-against "meet at the pier at 08:00"). It is structural on the day it lands, not decorative pending
-a future reader. The customer-facing noun still comes from `words` (`events.session`), always.
+**`service_window`.** I argued it out; the Director overruled me; the Director then retracted the
+overrule; the Reservations Manager independently withdrew the model it was protecting. The argument
+that closes it is theirs, and it is better than the one I used: **nothing would ever point at a
+service-window occurrence.** A class session is named by its tier pool and by every admission. A
+dinner service is named by nothing — capacity sits on the band pool and the allocation is a
+90-minute turn floating inside the window, not the window itself. Reservations build the rule and a
+small exceptions table inside their own area and call `lib/sessions/recurrence.ts`, so there is one
+implementation of "wall clock plus zone to instant" and no row of mine involved.
+
+**`kind` itself, which I am withdrawing against my own earlier argument.** I claimed it earned a
+column because a CHECK would make `meeting_point` structural on day one rather than decorative.
+There is no tour or departure feature, no tenant with one, and no reader. *A column with no reader
+now is a column read wrongly later* is the argument I used to reject a decorative enum; it applies
+to me. Both columns cost nothing to add the day a departure exists.
+
+**A note on how the wrong ruling was produced, because half of it was mine.** I reported that I had
+"dropped `service_window` from the session `kind` enum". That sentence presupposes an enum. There
+was never one — `20261229000214` creates `sessions` with no `kind` column at all. The Director
+priced a change they had not read; I described a delta against a schema I had read and they had
+not, in words that only parse if they had. **Quote the DDL, never describe the delta**, when asking
+someone to rule on schema.
 
 ### 2.2 `admissions` (P1.5 migration)
 
@@ -103,13 +108,22 @@ a future reader. The customer-facing noun still comes from `words` (`events.sess
 CREATE TABLE public.admissions (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id      uuid NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  -- NULLABLE: a walk-in seated by a host has no order at all, and that is a
+  -- complete, valid reservation. (Reservations Manager, ratified.)
   order_line_id  uuid REFERENCES public.order_lines(id) ON DELETE SET NULL,
+  -- The capacity this admission is backed by. See the note on NOT NULL below.
+  allocation_id  uuid REFERENCES public.capacity_allocations(id) ON DELETE SET NULL,
   session_id     uuid REFERENCES public.sessions(id) ON DELETE SET NULL,
   space_id       uuid REFERENCES public.spaces(id) ON DELETE SET NULL,
+  -- The host stand assigns Table 7 later; unassigned is a valid completed state.
+  assigned_space_id uuid REFERENCES public.spaces(id) ON DELETE SET NULL,
   -- WHO THIS ADMISSION IS FOR. Not the buyer: the buyer is orders.customer_id.
   customer_id    uuid REFERENCES public.customers(id) ON DELETE SET NULL,
   holder_name    text,
   holder_email   citext,
+  -- "Today's book, ordered by time" is the host stand's entire query; joining
+  -- allocations to sort it is an index nobody should need.
+  starts_at      timestamptz,
   party_size     int  NOT NULL DEFAULT 1 CHECK (party_size > 0),
   -- THE COMMERCIAL STATE. Not the door state. See below.
   status         text NOT NULL DEFAULT 'valid'
@@ -119,22 +133,41 @@ CREATE TABLE public.admissions (
   first_admitted_at timestamptz,
   last_admitted_at  timestamptz,
   admitted_by       uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  -- STAMPS, not derivations. `admitted_count = 0` covers "has not arrived yet"
+  -- AND "never came", which is the same label collapse the status split rejects.
+  seated_at      timestamptz,
+  no_show_at     timestamptz,
+  completed_at   timestamptz,
   token_version  smallint NOT NULL DEFAULT 1,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT admissions_admitted_within_party
     CHECK (admitted_count <= party_size),
-  -- A void or refunded admission has nobody through the door.
   CONSTRAINT admissions_no_entry_when_not_valid
     CHECK (status = 'valid' OR admitted_count = 0),
   CONSTRAINT admissions_admitted_stamps
     CHECK ((admitted_count > 0) = (first_admitted_at IS NOT NULL)
            AND (admitted_count > 0) = (last_admitted_at IS NOT NULL)),
-  -- An admission is for a session or a space. Reservations use the space arm.
-  CONSTRAINT admissions_subject_present
-    CHECK (num_nonnulls(session_id, space_id) >= 1)
+  -- An admission must name SOMETHING. The earlier session-or-space guard
+  -- refused every band-mode reservation, which has neither at reserve time.
+  CONSTRAINT admissions_names_something
+    CHECK (num_nonnulls(allocation_id, session_id, space_id, order_line_id) >= 1)
 );
 ```
+
+**On `allocation_id NOT NULL`, which the Director has ruled for and I have contested once.** The
+case for it is strong: class seat, ticket, table and walk-in are all backed by a capacity allocation
+by construction, and a NOT NULL on the thing that is always there beats a CHECK over two things that
+are each sometimes there. **There is a fifth case and it is in writing.** The Events brief scopes
+*"free events with RSVP"* and `admission_kind in ('ticket','pass','registration','rsvp')`, and the
+proposal (§08) says zero-dollar orders *"still need a customer, an admission and a check-in"*. Under
+Capacity's ratified semantics an uncapped thing has **no live pool** — unlimited deactivates the pool
+and `reserve_capacity` refuses an inactive one — so an uncapped RSVP has no allocation to point at.
+Shipping NOT NULL anyway gets satisfied in Phase 2 by a placeholder allocation against a dummy pool,
+which is a sentinel that participates in arithmetic, in the schema instead of in a function. The
+column is written nullable here pending the Director's second answer; if they hold the NOT NULL I
+ship it, and Reservations lose nothing either way.
+
 
 **Three deviations from both the brief and the starter, each with a reason.**
 
@@ -351,24 +384,54 @@ Phase 1, and the marketing case study that promises it should not be pointed at 
 
 ---
 
-## 9. Open questions
+## 9. Open questions — resolved and outstanding
 
-1. **Reporting line.** My prompt says Platform Features Director. The board's 2026-09-03 evening
-   entry says a peer director, "Sessions, Events & Reservations Director", now owns this cluster.
-   **No chat with that title exists.** I am reporting to the Platform Features Director until told
-   otherwise, and flagging it rather than choosing quietly.
-2. **Migration band.** Sessions & Classes has no band in the table. `…340`–`…359` is free against
-   the live ledger (heads: 214 Capacity, 223 Spaces, 242 Orders, 400, 500). Requested; **I will not
-   apply anything until it is confirmed.**
-3. **`service_window` dropped from the `kind` enum** (§2.1). Reservations copied.
-4. **No `checked_in` status; `admitted_count` instead** (§2.2a). Events and Reservations inherit it.
-5. **`order_lines.session_id`** (§2.3). Orders' contract, my migration.
-6. **`builder-node/` ownership** (§4). Blocks P1.4 only.
-7. **`session_series.timezone` as a deliberate copy**, or Spaces adds `timezone_confirmed_at`
-   (§3.3).
-8. **The paid seam** (§6). The phase's real exit depends on it.
+Ruled by the Director on 2026-09-03, all confirmed here rather than remembered from a message:
 
----
+| # | Question | Ruling |
+|---|---|---|
+| 1 | Reporting line | **Platform Features Director.** The peer director the board names has no chat. If one opens, the handover is explicit. |
+| 2 | Migration band | **`20261229000340`–`…000359`.** Each exact number announced before it is applied. Events take `…360`–`…379`, Reservations `…380`–`…399`. |
+| 3 | `service_window` | **Out, and no `kind` column at all** (§2.1). Reservations build windows entirely inside their own area. |
+| 4 | No `checked_in` status; `admitted_count` | **Ratified.** Reservations' `booked\|seated\|no_show\|completed\|cancelled` was the same collapse in a different vocabulary; their `seated_at` / `no_show_at` stamps say the same things without it. |
+| 5 | `order_lines.session_id` | **Ratified**, in my migration. Orders agreed independently: the link belongs on the many side. `orders.session_id` stays as a commented convenience, explicitly not the binding. |
+| 6 | `builder-node/` ownership | **My recommendation ratified.** I own the resolver and the island; the registry wirings go to the Page Builder Director as one small PR against a contract I hand them, routed by the Director. Blocks P1.4 only. |
+| 7 | `session_series.timezone` as a deliberate copy | **Approved.** The materialiser refuses rather than defaulting. |
+| 8 | The paid seam | **Orders owns it and has moved it ahead of everything for tomorrow.** They escalated to have their own 0.6b-1 held behind it, because re-homing Menu before the seam exists would leave a paid order stuck in `pending_payment` with its capacity hold lapsing under a customer who has paid. |
+
+Still outstanding:
+
+**(a) `admissions.allocation_id`, NOT NULL or nullable** (§2.2). Ruled NOT NULL; contested once with
+the uncapped-RSVP case; awaiting a second answer. Not blocking — this is P1.5.
+
+**(b) Two zone resolvers with opposite gap policies, live on main.** Measured on `3d2a8d14d` with
+both functions imported side by side:
+
+```
+Europe/Madrid 2027-03-28, wall clock 02:30 (the hour that does not exist)
+  scheduling/tz.ts     zonedLocalToUtc      -> NULL        (skip)
+  sessions/recurrence  zonedWallClockToUtc  -> 03:30 local (next)
+Fall-back ambiguity 2027-10-31 02:30: both give 00:30Z. They agree there.
+```
+
+Capacity's rule — one resolver, and it is `tz.ts` — is right, and `recurrence.ts:107` does not
+follow it yet. **But consolidating on `tz.ts`'s policy would change this area's behaviour in the
+wrong direction:** a class on the gap day does happen, so `null` means the occurrence silently does
+not exist. No pool, no seat, no error, once a year in every zone that observes DST. For an
+appointment *slot* `null` is correct, which is why the two diverged and why neither is wrong.
+Proposed to Capacity: one implementation taking `{ gap: "skip" | "next" }`, default `"skip"` so
+their existing callers are byte-identical, with the choice named at the call site. Their file;
+`materialise.ts` does no zone math of its own.
+
+**(c) Can one class sell under two offerings (member price and drop-in)?** The starter's open
+question 1, left deliberately for a product answer. My working position: **the pool is the binding,
+not the offering.** Two offerings pointing at one session tier pool draw from one seat count, which
+is what a member price needs. That makes neither `sessions.offering_id` nor `offering.capacity_pool_id`
+redundant — it makes `sessions.offering_id` mislabelled: it is provenance (which offering created
+this series), not the sales route. Per-session pricing stays out of Phase 1 for a pipeline reason
+rather than a schema one: `createPurchase` reads `unit_cents` from the offering and variant rows at
+step 1, so a price on the session would be a second price source it does not read, which is a
+silently wrong charge rather than a missing feature.
 
 ## 10. Status
 
