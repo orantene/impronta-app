@@ -59,6 +59,7 @@
     "test:sessions": "tsx --test src/lib/sessions/*.test.ts",
     "test:spaces": "tsx --test src/lib/spaces/*.test.ts",
     "test:reservations": "tsx --test src/lib/reservations/*.test.ts",
+    "test:links": "tsx --test src/lib/links/*.test.ts",
     "verify:capacity-concurrency": "node --env-file=.env.vercel.local scripts/verify-capacity-concurrency.mjs",
     "test:size-ratchet": "tsx --test src/lib/quality/file-size-ratchet.static.test.ts src/lib/quality/file-size-ratchet.selftest.test.ts src/lib/quality/max-lines-suppression-enrolment.static.test.ts src/lib/quality/no-google-font-build-dependency.static.test.ts src/lib/quality/supabase-unchecked-read.static.test.ts",
     "test:media-ownership": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/media/library-query.test.ts src/lib/media/media-upload-engine.test.ts src/lib/media/ownership.test.ts src/lib/media/talent-document-ref.test.ts src/lib/media/talent-media-for-hub.test.ts src/lib/media/media-grants.test.ts src/lib/media/phase4-policy.test.ts src/lib/media/private-access.test.ts src/lib/media/gated-url-optimizer.test.ts src/lib/media/quota-line.test.ts src/lib/media/reap-orphaned-media.test.ts src/lib/media/notification-drawer-targets.static.test.ts",

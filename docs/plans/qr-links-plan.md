@@ -19,7 +19,7 @@ The audit facts in the proposal hold. Verified, not assumed:
 | No `/q` route | **holds** | Nothing under `web/src/app` resolves `/q`. |
 | Inquiry provenance exists | **holds** | `inquiries.source_page` (init), `source_channel` (`inquiry_source_channel` enum, `20260411120000`), `origin_domain`. The enum has an established `ALTER TYPE ... ADD VALUE` extension pattern (`20260514153544`, `20260614031019`). |
 | A signed-token pattern exists to copy | **holds** | `web/src/lib/guest-cookie.ts` — HMAC-SHA256, `${id}.${base64url(sig)}`, `timingSafeEqual`. Also `lib/inquiry/conversation-email-tokens.ts`, `lib/site-admin/share-link/jwt.ts`. |
-| `spaces`, `orders`, `sessions` do not exist yet | **holds** | No `CREATE TABLE public.spaces\|public.orders` anywhere in `supabase/migrations/`. Local head is `20261226000010`. |
+| ~~`spaces`, `orders`, `sessions` do not exist yet~~ | **NO LONGER TRUE** | They landed on `main` while this plan was being written. Verified in **production**: `spaces`, `orders`, `order_lines`, `sessions`, `capacity_pools`, `customers`, `venues` all exist; remote ledger head is `20261229000500`. The shared checkout (`d06ce1ef8`) predates them and reads identically to a tree where they were never built, which is exactly why the rule is to verify against `origin/main` and not the checkout you are standing in. |
 
 ### Contradictions to report (five)
 
@@ -27,14 +27,20 @@ The audit facts in the proposal hold. Verified, not assumed:
    file that gates every request against `agency_domains`. The file is
    **`web/src/proxy.ts`** (Next 16 renamed middleware to proxy). The *gate* is real and
    the caveat's substance is correct; only the path is stale.
-2. **There is a second gate the caveat does not mention, and it will 404 `/q/<code>`.**
-   `web/src/lib/saas/surface-allow-list.ts` is a per-host-kind path allow-list run
-   inside the proxy. A path absent from it is rewritten to `/_page-not-found` with
-   status 404 *before Next routing runs* — this repo has a recorded incident of exactly
-   that ("A route can 404 despite existing — the SURFACE ALLOW-LIST"). Q1 therefore must
-   add `/q` to the cross-kind prefixes **and** reserve `"q"` in
-   `WORKSPACE_SLUG_RESERVED_PREFIXES` and `PATH_BASED_TENANT_RESERVED_PREFIXES`, or a
-   tenant whose slug is `q` shadows the whole engine. Not optional, not cosmetic.
+2. **A new root path must be registered in FOUR places, not one.** I first found two;
+   the repo's own tripwire found the other two for me, which is the useful part of this
+   entry. `web/src/lib/saas/surface-allow-list.ts` is a per-host-kind allow-list run
+   inside the proxy, and a path absent from it is rewritten to `/_page-not-found` with
+   status 404 *before Next routing runs* (this repo's recorded "a route can 404 despite
+   existing" incident). Then `reserved-routes.collisions.static.test.ts` walks the real
+   `src/app` tree, asks the real allow-list what resolves on a tenant host, and fails
+   until the segment is also in `PLATFORM_RESERVED_SLUGS` **and** mirrored into the
+   `public.platform_reserved_slugs` table by a migration. So `/q` needed:
+   (a) the allow-list gate, (b) `WORKSPACE_SLUG_RESERVED_PREFIXES` — which
+   `PATH_BASED_TENANT_RESERVED_PREFIXES` inherits by spread, (c) `PLATFORM_RESERVED_SLUGS`,
+   (d) a seed row. Miss (c) or (d) and a tenant can author a CMS page at that slug which
+   publishes, links, and silently never opens. **Every manager adding a public root path
+   (Sessions, Events, Front Door) hits all four.** Worth a board line.
 3. **The contracts registry gives "QR per space" to Spaces & Seating.** My contract says
    no feature builds its own QR. These collide. Proposed resolution, for the Director to
    rule: **Spaces owns the space; I own the link and every rendering of it.** "QR per
@@ -123,9 +129,13 @@ mistake, and a join through `links` for every analytics read is the slower answe
   "talent_profile_id": "...", "campaign": "summer-2026" }
 ```
 
-Plain JSONB with **no foreign keys**, because `spaces` and `sessions` do not exist yet
-and I am not blocking Q1 on two other managers. Each key gets an FK in a later contract
-migration once its table is on main and verified — expand, then contract.
+Plain JSONB with **no foreign keys** — and this stayed true after `spaces` and
+`sessions` turned out to already exist, because the original reason was the weaker one.
+The real reason is that a link is a **printed artefact with a life measured in years**.
+An `ON DELETE CASCADE` from a space to a link would destroy a code glued to eleven
+tables the moment a room is reconfigured. A dangling `space_id` must degrade to "the
+menu with no table attached", which is a fine guest experience; a deleted link is a dead
+table tent that someone has to physically replace.
 
 Whether a context key is *honoured* is the consuming feature's decision, not mine. I
 resolve and hand over; Orders decides what a `space_id` means on a draft order.
@@ -295,7 +305,7 @@ colour picked. Every customer-facing string in en and es.
 
 | Stamp | Purpose | State |
 |---|---|---|
-| `20261229000280` | `links`, `link_scans` (Q1) | **claimed, announced to the Director** |
+| `20261229000280` | `links`, `link_scans`, `platform_reserved_slugs` seed for `q` (Q1) | **APPLIED to production 2026-09-03, objects verified** |
 | `20261229000282` | `orders.link_id`, `inquiries.link_id` (Q4) | reserved |
 | `20261229000283` | `ADD VALUE 'qr'`, alone in its file (Q4) | reserved |
 
@@ -306,4 +316,15 @@ a collision, so the green line is never the evidence.
 ## 6. Log
 
 - **2026-09-03** — Plan written. Audit facts re-verified against `origin/main` @ 3c3740ca2;
-  five contradictions found (§0). Q1 and Q2 have their go; Q1 starts now.
+  five contradictions found (§0). Q1 and Q2 have their go.
+- **2026-09-03** — Q1 built. `20261229000280` applied to production and the objects
+  verified directly (two tables, the unique index, two RLS policies, three CHECK
+  constraints, the reserved-slug row, RLS enabled on both). The three constraints were
+  then probed live inside a self-rolling-back `DO` block: a rule list with no default is
+  refused, a non-typeable code is refused, a well-formed link is accepted, and zero rows
+  were left behind. Resolver tests: 22 pass, and mutation-checked — flipping the window
+  from half-open to closed, and treating an unknown event as "nothing on", each turn a
+  test red, so the guards measure something.
+- **Correction to §0:** the "spaces/orders do not exist" audit row was true of the shared
+  checkout and false of `origin/main`. Caught by reading the migrations directory in a
+  fresh worktree rather than the one this session started in.

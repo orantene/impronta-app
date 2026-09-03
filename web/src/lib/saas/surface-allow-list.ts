@@ -390,6 +390,23 @@ const CANONICAL_TALENT_PREFIX = "/t" as const;
 const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
 
 /**
+ * QR & Links Q1 — the tracked-link resolver (`/q/[code]`).
+ *
+ * Reachable on the two host kinds that carry a tenant, because a code is
+ * meaningless without an owner to look it up under: `casarizo.com/q/t7` and
+ * `otherplace.com/q/t7` are different links that share a code. On app and
+ * marketing hosts there is no tenant, so the handler could only 404 anyway,
+ * and allow-listing a path that can never resolve would be a lie in the one
+ * table that is supposed to answer "does this path exist on this host?".
+ *
+ * The route handler resolves the tenant from the host itself; this entry only
+ * lets the path reach it. Without it the proxy rewrites every scan to
+ * `/_page-not-found` BEFORE Next routing runs, and the symptom is an HTML 404
+ * from a route file that exists and is correct.
+ */
+const CANONICAL_LINK_PREFIX = "/q" as const;
+
+/**
  * Phase 3 — multi-tenant workspace surface on the app host.
  * Pattern: `/<tenantSlug>/<surface>` where surface ∈ {admin, talent, client, platform}.
  *
@@ -411,6 +428,9 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "t",
   // Guest full-window conversation (/c/[inquiryId]) — U1 mini→full expansion.
   "c",
+  // QR & Links (/q/[code]) — the tracked-link resolver. Reserved so a tenant
+  // whose slug is "q" cannot shadow every printed code on the platform.
+  "q",
   // Static
   "sitemap.xml", "robots.txt",
   // Prototypes + internals
@@ -734,6 +754,11 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CHECKOUT_PREFIX)) return true;
   if (hasPrefix(pathname, EMBED_PREFIX)) return true;
   if (anyExact(pathname, EMBED_EXACT_PATHS)) return true;
+
+  // A tracked link resolves only where a tenant exists to own the code.
+  if (hasPrefix(pathname, CANONICAL_LINK_PREFIX) && (kind === "agency" || kind === "hub")) {
+    return true;
+  }
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the
