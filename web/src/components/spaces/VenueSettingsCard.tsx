@@ -32,6 +32,7 @@ import {
 } from "@/lib/server-actions/venue-settings";
 import { timeZoneOptions, type TimezoneSource } from "@/lib/spaces/venue-timezone";
 import { useT } from "@/i18n/use-t";
+import { SpacesEditor } from "./SpacesEditor";
 
 const C = {
   ink: "#0B0B0D",
@@ -314,6 +315,11 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
         ) : null}
         {error ? <span style={{ fontSize: 13, color: C.error }}>{error}</span> : null}
       </div>
+
+      {/* Rooms, tables and groups. Below the venue because a space needs a venue
+          to hang off, and the timezone is the field that changes behaviour. */}
+      <hr style={{ border: "none", borderTop: `1px solid ${C.borderSoft}`, margin: "4px 0" }} />
+      <SpacesEditor tenantSlug={tenantSlug} />
     </div>
   );
 }
