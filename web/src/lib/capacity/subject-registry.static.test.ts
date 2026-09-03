@@ -89,3 +89,24 @@ test("the unguarded 2-arg set_offering_stock overload is dropped", () => {
   // 3-arg version has a DEFAULT, so existing 2-arg calls still resolve.
   assert.match(MIGRATION, /DROP FUNCTION IF EXISTS public\.set_offering_stock\(uuid, int\);/);
 });
+
+test("a multi-line cart can attribute each allocation to its own line", () => {
+  // Before 0.11 `reserve_capacity_batch` stamped ONE order_line_id on every
+  // allocation, so a cart with a GA line and a VIP line had to choose between a
+  // correct ledger and cross-line atomicity. Attribution is not cosmetic:
+  // refund-by-line reads this column to decide which units to free.
+  const M = readFileSync(
+    join(MIGRATIONS, "20261229000213_batch_per_line_attribution.sql"),
+    "utf8",
+  );
+  assert.match(
+    M,
+    /COALESCE\(NULLIF\(r->>'order_line_id', ''\)::uuid, p_order_line_id\) AS order_line_id/,
+    "each request must take its own order_line_id, falling back to the batch-level one",
+  );
+  // The fallback is what keeps every existing caller working unchanged.
+  assert.match(M, /p_order_line_id uuid DEFAULT NULL/);
+  // And the lock order must survive the change, or two concurrent carts over the
+  // same pools can deadlock against each other.
+  assert.match(M, /ORDER BY p\.pool_path::text NULLS LAST/);
+});
