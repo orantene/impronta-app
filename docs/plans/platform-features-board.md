@@ -513,6 +513,33 @@ Found by the **Sessions & Classes Manager** while planning their phase exit, con
 **DIRECTOR ERROR, corrected by Orders & Checkout: their click list is ONE line, not three.** *Set a tenant's words row to "Quote", confirm the card title follows.* `Pay now` and `Add line` are not unclicked paths — they **do not render**, because no call site passes their handlers. That is a missing wiring, not a QA item, and asking a real person to click a button that does not exist would have spent their evening on my mistake. The manager verified it rather than assuming.
 
 
+## RULING 2026-09-03: the workspace admin has no mobile layout, and every feature is shipping a desktop-only screen without having decided to
+
+Found by the Creative Director, verified here against `origin/main`. `WorkspaceShell.tsx:387` is `grid grid-cols-[240px_1fr]`, unconditional, with a 240px sticky full-height sidebar over it. **The entire file contains zero occurrences of `sm:`, `md:`, `lg:`, `isMobile`, `matchMedia` or `@media`** — measured, not estimated. At 375px the sidebar takes 64% of the viewport and the grid is wider than the screen. The owner has reported finger-scrolling as broken; this is the likely cause, though nobody has held a phone against it and no one should claim the touch behaviour until they have.
+
+**The ruling, because it is a product decision and every manager is making it by default right now:**
+
+**An operator is NOT expected to run their whole business from a phone, and IS expected to run the floor from one.** Those are different surfaces and they get different bars.
+
+- **Operational screens are mobile-first and non-negotiable:** the host stand, the door scanner, the order queue, the kitchen view, anything a person uses standing up while something is happening. These are held in one hand by someone who is not at a desk. Reservations R6, Events' door slice and Menu's queue are all in this class.
+- **The full workspace admin stays desktop-first** — configuration, catalogue, pricing, reporting. Nobody sets up party bands on a phone.
+- **But desktop-first does not license broken.** A workspace page must not exceed the viewport width or hide its own content at 375px. Degrading to a single column is enough; a redesign is not required.
+
+**What this means for a manager shipping a workspace screen:** you are not being asked to design a mobile experience. You are being asked to check that yours does not overflow, and to say which of the two classes your screen is in. If it is operational, it is mobile-first and that belongs in your plan, not in a later polish pass.
+
+The shell fix itself is queued with the Creative Director's developer as J1. It is theirs, not a feature manager's.
+
+## A null is not a design
+
+`preset.designId` is read at `words.test.ts:87-88` and nowhere else in the tree — and that test only asserts the named ids exist in the registry, so it certifies the names while nothing consumes them. Sixteen industry presets each name the homepage design that business should get; **choosing "Restaurant" supplies the words and the feature flags and not the design.**
+
+**Routed on the same split as native blocks:** Front Door owns the read (they own the words + industry preset contract and signup seeding, so reading `preset.designId` at seed time is a seeding decision); Page Builder owns the apply (the registry is under `builder-node/`, theirs by standing rule). Two small PRs against a contract Front Door hands them; neither reaches into the other's tree.
+
+**And the null case needs an answer, not an absence.** `agency` and `custom` both name `designId: null` today, and between them they catch six of the eleven incoming businesses — including the laundry the CEO has designated as the design brief. "We do not know what you are" is a reasonable engineering state and an unacceptable design state. The Creative Director is bringing a general-purpose fallback design; **Page Builder must not design around a null or let the applier quietly no-op.**
+
+**The general form, now a standing rule:** *the industry preset today configures words and feature flags, nothing visual.* Any copy anywhere implying that picking your industry sets up your site is false in exactly the way the Tables floor-plan copy is. Expect a third and fourth instance; every one found is in scope.
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
