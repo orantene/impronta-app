@@ -38,6 +38,19 @@ export type WorkspaceMessage = {
   message_kind?: string | null;
   /** Per-kind JSON payload for the structured card. */
   card_payload?: Record<string, unknown> | null;
+  /**
+   * For `message_kind === 'order'`: the order the card describes, read live
+   * when the thread loaded. Never stored in `card_payload` — an order changes,
+   * and a stored copy of the total disagrees with it from the next edit on.
+   */
+  order?: {
+    id: string;
+    status: string;
+    currency: string;
+    totalCents: number;
+    outstandingCents?: number | null;
+    lineCount: number;
+  } | null;
   /** Raw message metadata jsonb — carries the voice-note descriptor for
    *  message_kind='voice' (parsed bubble-side via readVoiceMetaFromMessageMetadata). */
   metadata?: Record<string, unknown> | null;

@@ -686,6 +686,7 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
           isYou: message.is_mine,
           messageKind: message.message_kind ?? "text",
           cardPayload: message.card_payload ?? null,
+          order: message.order ?? null,
           metadata: message.metadata ?? null,
         } as ThreadMessage;
       })

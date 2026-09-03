@@ -306,7 +306,7 @@ export function AdminMessageStream({
                     swap the body for the inline audio player. */}
                 {m.messageKind && m.messageKind !== "text" && m.messageKind !== "voice" ? (
                   <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
-                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id })}
+                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id, order: m.order ?? null, viewerRole: "staff" })}
                   </div>
                 ) : (
                 <div style={{

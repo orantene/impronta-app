@@ -336,14 +336,15 @@ export function renderChatCardForMessage(
     messageId?: string;
     suppressPayCta?: boolean;
     /**
-     * Orders referenced by 'order' cards in this thread, keyed by id, loaded by
-     * the bridge alongside the messages.
+     * THE order this card describes, read live by the bridge when it loaded the
+     * messages.
      *
      * Threaded through rather than fetched here because this renderer is
-     * synchronous — and threaded as a LOOKUP rather than baked into
-     * `card_payload` because an order changes after its card is written.
+     * synchronous — and threaded as the order itself rather than baked into
+     * `card_payload` because an order changes after its card is written. The
+     * copy lives for one render, not in the database.
      */
-    orders?: ReadonlyMap<string, OrderForCard>;
+    order?: OrderForCard | null;
     /** The tenant's word for an order. Never hardcoded in a customer surface. */
     orderNoun?: string | null;
     viewerRole?: "staff" | "client" | "talent";
@@ -358,8 +359,7 @@ export function renderChatCardForMessage(
       // `card_payload` carries { order_id } and NOTHING ELSE. Every figure is
       // read from the order, so a card cannot drift from what it describes.
       const orderId = get<string>("order_id", "");
-      const order = orderId ? ctx?.orders?.get(orderId) : undefined;
-      const view = orderCardView(order ?? null, {
+      const view = orderCardView(ctx?.order ?? null, {
         viewerRole: ctx?.viewerRole ?? "staff",
         noun: ctx?.orderNoun,
       });

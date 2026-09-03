@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
 import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
 import type { ThreadType, WorkspaceMessage } from "./inquiries-messages";
 
@@ -157,6 +158,12 @@ export async function loadInquiryMessages(
       for (const r of ((starsRows ?? []) as Array<{ message_id: string }>)) starredSet.add(r.message_id);
     }
 
+    // Orders referenced by 'order' cards, read live in ONE query for the whole
+    // thread. A thread can hold several orders (deposit, balance and add-ons
+    // are separate orders against one conversation), so a per-card fetch would
+    // be an N+1 in the hottest read in the product.
+    const ordersById = await loadOrdersForThread(readClient, orderIdsFromMessages(rows));
+
     return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
       const senderName =
@@ -173,6 +180,13 @@ export async function loadInquiryMessages(
         is_mine,
         message_kind: row.message_kind ?? "text",
         card_payload: row.card_payload ?? null,
+        // The order the card describes, or null when it could not be read. The
+        // card renders its neutral state on null rather than "$0.00" — a wrong
+        // figure beside a Pay button is worse than no figure.
+        order:
+          row.message_kind === "order" && typeof row.card_payload?.order_id === "string"
+            ? (ordersById.get(row.card_payload.order_id as string) ?? null)
+            : null,
         metadata: row.metadata ?? null,
         reactions: reactionAgg
           ? [...reactionAgg.entries()].map(([emoji, v]) => ({ emoji, count: v.count, mine: v.mine }))
