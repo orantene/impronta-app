@@ -133,13 +133,28 @@ const TICKET_ESCALATED: CatalogEntry = {
   },
   email: {
     templateId: "support.ticket.escalated",
-    subject: (event) => `Urgent: ticket #${num(event, "ticketNumber")} needs you`,
+    // A chase is distinguishable from the first alert in the SUBJECT LINE, so
+    // the inbox is triageable without opening anything. Four identical
+    // "Urgent: ticket #24 needs you" rows read as a broken system; "Still
+    // waiting: #24 (2 days)" reads as one case getting older.
+    subject: (event) =>
+      event.payload.isReAlert === true
+        ? `Still waiting: ticket #${num(event, "ticketNumber")}${
+            str(event.payload.waitedLabel) ? ` (${str(event.payload.waitedLabel)})` : ""
+          }`
+        : `Ticket #${num(event, "ticketNumber")} needs you`,
     render: ({ event, brand, unsubscribeUrl }) =>
       React.createElement(TicketEscalatedAlert, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
         requesterLabel: str(event.payload.requesterLabel) ?? "A user",
         phone: str(event.payload.contactPhone),
+        workspace: str(event.payload.tenantName),
+        excerpt: str(event.payload.excerpt),
+        waited: str(event.payload.waitedLabel),
+        isReAlert: event.payload.isReAlert === true,
+        reAlertNumber: typeof event.payload.reAlertNumber === "number" ? event.payload.reAlertNumber : undefined,
+        reAlertOf: typeof event.payload.reAlertOf === "number" ? event.payload.reAlertOf : undefined,
         adminUrl: pageUrl(brand, str(event.payload.adminPath) ?? "/platform/admin/support"),
         brand,
         unsubscribeUrl,
