@@ -2,7 +2,7 @@
  * House-lane commission characterization + mixed talent+house offer.
  *
  * resolveBookingCommissions needs ZERO house-specific branches: feed
- * talent_cost_cents=0 and sellerOfRecord="workspace".
+ * talent_cost_total_cents=0 and sellerOfRecord="workspace".
  *
  * Run: npm run test:money
  */
@@ -26,7 +26,7 @@ const cfg = (o: Partial<PlatformCommissionConfig> = {}): PlatformCommissionConfi
 const input = (o: Partial<ResolveBookingCommissionsInput> = {}): ResolveBookingCommissionsInput => ({
   tenantId: TENANT,
   workspacePlan: "studio",
-  offerLineItems: [{ units: 1, unit_price_cents: 10_000, talent_cost_cents: 0 }],
+  offerLineItems: [{ units: 1, line_total_cents: 10_000, talent_cost_total_cents: 0 }],
   currencyCode: "USD",
   paymentMethod: "card",
   platformConfig: cfg(),
@@ -53,7 +53,7 @@ describe("house lane commission", () => {
   it("2× flat_package pizza ($25) → quantity survives in subtotal", () => {
     const snap = resolveBookingCommissions(
       input({
-        offerLineItems: [{ units: 2, unit_price_cents: 2500, talent_cost_cents: 0 }],
+        offerLineItems: [{ units: 2, line_total_cents: 2500, talent_cost_total_cents: 0 }],
       }),
     );
     // subtotal 5000; 5% = 250; split 125/125; workspace 4875; gross 5125
@@ -68,13 +68,13 @@ describe("mixed talent + house offer (two resolver calls, one booking)", () => {
     const talent = resolveBookingCommissions(
       input({
         sellerOfRecord: "workspace",
-        offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+        offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       }),
     );
     const house = resolveBookingCommissions(
       input({
         sellerOfRecord: "workspace",
-        offerLineItems: [{ units: 2, unit_price_cents: 2500, talent_cost_cents: 0 }],
+        offerLineItems: [{ units: 2, line_total_cents: 2500, talent_cost_total_cents: 0 }],
       }),
     );
 

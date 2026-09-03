@@ -82,8 +82,8 @@ export type CommissionResolvedFrom =
  *  fields the resolver actually needs. */
 export interface OfferLineItemForResolver {
   /**
-   * Multiplier for this line. The resolver computes `units * unit_price_cents`
-   * and `units * talent_cost_cents`, so the two amount fields must be stated at
+   * Multiplier for this line. The resolver computes `units * line_total_cents`
+   * and `units * talent_cost_total_cents`, so the two amount fields must be stated at
    * whatever grain `units` implies.
    *
    * GRAIN WARNING — read before changing a caller. On
@@ -107,12 +107,12 @@ export interface OfferLineItemForResolver {
    * client actually agreed to and `round(unit_price * 100) * units` can differ
    * from it by a cent.
    */
-  unit_price_cents: number;
+  line_total_cents: number;
   /**
    * What the TALENT is owed for this line, at the same grain. Workspace margin
-   * for the line is `unit_price_cents - talent_cost_cents`.
+   * for the line is `line_total_cents - talent_cost_total_cents`.
    */
-  talent_cost_cents: number;
+  talent_cost_total_cents: number;
 }
 
 /** Subset of `platform_commission_config` the resolver reads. */
@@ -278,10 +278,10 @@ export function resolveBookingCommissions(
     throw new CommissionResolutionError("currency_invalid");
   }
   for (const li of input.offerLineItems) {
-    if (li.units < 0 || li.unit_price_cents < 0 || li.talent_cost_cents < 0) {
+    if (li.units < 0 || li.line_total_cents < 0 || li.talent_cost_total_cents < 0) {
       throw new CommissionResolutionError("negative_line_item");
     }
-    if (li.talent_cost_cents > li.unit_price_cents) {
+    if (li.talent_cost_total_cents > li.line_total_cents) {
       // Workspace would pay the talent more than the client pays the agency.
       // That's nonsense at the data layer — surface so the offer can't be
       // accepted into a booking.
@@ -333,12 +333,32 @@ export function resolveBookingCommissions(
   }
 
   // 2. Service subtotal + workspace margin from line items.
+  //
+  // INVARIANT, and the reason this multiplication still exists: every producer
+  // passes `units: 1` with LINE TOTALS. `engine_load_commission_context` is the
+  // only production caller and it hard-codes 1 (migration 20261226000017).
+  //
+  // So `units * X` is `1 * X` in production. The multiply is retained only
+  // because `units` is still part of this interface, and it is the exact
+  // mechanism of the P0 fixed on 2026-09-02: a LINE TOTAL passed in a per-unit
+  // field was multiplied by units a SECOND time, inflating `talent_net_cents`,
+  // which `transfers.ts` pays straight through as a transfer amount.
+  //
+  // Renaming the fields to `*_total_cents` removed the misleading NAME. It did
+  // NOT remove this multiply, so the bug class is not extinguished — a future
+  // caller passing units > 1 with a line total resurrects it exactly. The
+  // follow-up is to drop `units` from this interface and sum the totals
+  // directly, which cannot recur rather than merely being unlikely to. That is
+  // deliberately its own change, because it deletes the characterization tests
+  // whose subject IS units (the `units === 0` boundary, the negative guard,
+  // fractional-unit rounding) and a coverage reduction must be the visible
+  // point of a PR, not a side effect of a rename.
   const subtotalCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * li.unit_price_cents),
+    (sum, li) => sum + Math.round(li.units * li.line_total_cents),
     0,
   );
   const talentFullCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * li.talent_cost_cents),
+    (sum, li) => sum + Math.round(li.units * li.talent_cost_total_cents),
     0,
   );
   const marginCents = subtotalCents - talentFullCents;

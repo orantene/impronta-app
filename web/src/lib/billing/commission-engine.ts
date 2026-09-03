@@ -51,8 +51,8 @@ interface ParticipantContext {
   tenant_override: WorkspaceCommissionOverride | null;
   offer_line_items: Array<{
     units: number;
-    unit_price_cents: number;
-    talent_cost_cents: number;
+    line_total_cents: number;
+    talent_cost_total_cents: number;
   }>;
 }
 
