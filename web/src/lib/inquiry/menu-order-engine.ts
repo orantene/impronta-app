@@ -121,6 +121,9 @@ export async function createMenuOrder(
     // 1. Re-resolve every offering server-side (ids + quantities only from client).
     const resolvedInputs: MenuOrderItemInput[] = [];
     const stockNeeds: Array<{ offeringId: string; qty: number }> = [];
+    // Re-derived from the TRUSTED rows below, never from the client. See the
+    // clamp after the resolve loop.
+    let everyLineAllowsPayInPerson = true;
     for (const line of input.lines) {
       const qty = Math.max(1, Math.min(99, Math.round(line.quantity)));
       const { data: row, error } = await admin
@@ -163,7 +166,16 @@ export async function createMenuOrder(
       if (offering.inventoryQty != null) {
         stockNeeds.push({ offeringId: offering.id, qty });
       }
+      if (offering.allowPayInPerson !== true) everyLineAllowsPayInPerson = false;
     }
+
+    // PAYMENT POLICY IS SERVER-DERIVED. `input.payInPerson` is a client hint and
+    // nothing more: a caller that posts `true` on a card-only item would
+    // otherwise get an order stamped 'cash' / 'pay_in_person' and skip the
+    // payment request entirely, silently defeating the merchant's own policy.
+    // ALL lines must allow it, matching what the board renders and what the
+    // Sheet will read (Front Door contract: the pipeline re-validates at submit).
+    const payInPerson = input.payInPerson === true && everyLineAllowsPayInPerson;
 
     const seeds = menuOrderToOfferLineSeeds(resolvedInputs, input.tenantId);
     if (!seeds.length) return { ok: false, reason: "empty_order" };
@@ -391,8 +403,8 @@ export async function createMenuOrder(
     const snap = await persistBookingCommissionSnapshot(
       admin,
       bookingId as string,
-      input.payInPerson ? "cash" : "card",
-      input.payInPerson ? "pay_in_person" : null,
+      payInPerson ? "cash" : "card",
+      payInPerson ? "pay_in_person" : null,
     );
     if (!snap.ok) {
       logServerError("menuOrder.commission_snapshot", new Error(snap.reason));
@@ -406,7 +418,7 @@ export async function createMenuOrder(
     }
 
     // 7. Payment (best-effort for request path; instant charges when not pay-in-person).
-    if (!input.payInPerson && totalCents > 0) {
+    if (!payInPerson && totalCents > 0) {
       try {
         const txn = await createBookingTransaction({
           bookingId: bookingId as string,

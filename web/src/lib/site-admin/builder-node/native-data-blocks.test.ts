@@ -214,6 +214,8 @@ test("menu_board renders items, prices, and the order island", () => {
         priceType: "flat_package",
         priceDisplay: "exact",
         kind: "service",
+        unitsLeft: null,
+        allowPayInPerson: true,
       },
       {
         id: "menu-2",
@@ -224,6 +226,9 @@ test("menu_board renders items, prices, and the order island", () => {
         priceType: "event",
         priceDisplay: "from",
         kind: "package",
+        // kind='package' WITH stock: the shape the kind gate used to miss.
+        unitsLeft: 0,
+        allowPayInPerson: false,
       },
     ],
   });
@@ -389,8 +394,49 @@ test("TENANT SCOPING: foreign-tenant menu rows never survive the fetch helper", 
       priceType: "flat_package",
       priceDisplay: "exact",
       kind: "service",
+      unitsLeft: null,
+      allowPayInPerson: false,
     },
   ]);
+});
+
+test("STOCK: unitsLeft is carried for ANY kind, not just kind='product'", () => {
+  // instant-book reserves stock only when kind === "product". The live
+  // seat-limited item — "Posing course - September (12 spots)" — is
+  // kind='package', so a kind gate leaves exactly the offering that needs
+  // enforcement unenforced: the page keeps advertising 12 seats while any
+  // number of people order it, with no error anywhere.
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "course", tenant_id: "t", kind: "package", inventory_qty: 12 }),
+    menuRow({ id: "merch", tenant_id: "t", kind: "product", inventory_qty: 3 }),
+    menuRow({ id: "studio", tenant_id: "t", kind: "service", inventory_qty: null }),
+    menuRow({ id: "gone", tenant_id: "t", kind: "package", inventory_qty: 0 }),
+  ];
+  const derived = deriveWorkspaceMenuOfferings(rows, "t");
+  assert.deepEqual(
+    derived.map((d) => [d.id, d.unitsLeft]),
+    [
+      ["course", 12],
+      ["merch", 3],
+      ["studio", null],
+      ["gone", 0],
+    ],
+  );
+});
+
+test("STOCK: the pay-in-person policy reaches the board", () => {
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "cash-ok", tenant_id: "t", allow_pay_in_person: true }),
+    menuRow({ id: "card-only", tenant_id: "t", allow_pay_in_person: false }),
+  ];
+  const derived = deriveWorkspaceMenuOfferings(rows, "t");
+  assert.deepEqual(
+    derived.map((d) => [d.id, d.allowPayInPerson]),
+    [
+      ["cash-ok", true],
+      ["card-only", false],
+    ],
+  );
 });
 
 test("TENANT SCOPING: deriveTalentDisciplines drops rows outside the tenant roster", () => {

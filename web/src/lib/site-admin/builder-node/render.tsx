@@ -125,6 +125,7 @@ import { isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
+import { menuBoardCopy } from "./menu-board-copy";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -232,6 +233,10 @@ export interface BuilderNodeRenderDataSources {
     priceType: string;
     priceDisplay: string;
     kind: string;
+    /** Units left, or null when not stock-limited. See WorkspaceMenuOffering. */
+    unitsLeft: number | null;
+    /** Offering policy: may the customer settle in person? */
+    allowPayInPerson: boolean;
   }>;
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
   /**
@@ -5440,6 +5445,7 @@ function renderBuilderNodeElement(
           <MenuBoardIsland
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
+            copy={menuBoardCopy(options.contentLocale)}
           />
         </section>
       );
