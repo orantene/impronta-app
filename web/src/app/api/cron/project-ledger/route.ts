@@ -48,12 +48,21 @@ export async function GET(request: Request) {
     result.invoices.refused +
     result.payouts.refused;
 
+  // Flat scalars only — the structured logger does not accept nested objects.
   void improntaLog("money.cron.ledger_projection", {
     ok: result.ok,
-    bookingPayments: result.bookingPayments,
-    processingFees: result.processingFees,
-    invoices: result.invoices,
-    payouts: result.payouts,
+    bookingPaymentsProjected: result.bookingPayments.projected,
+    bookingPaymentsSkipped: result.bookingPayments.skipped,
+    bookingPaymentsRefused: result.bookingPayments.refused,
+    processingFeesProjected: result.processingFees.projected,
+    processingFeesSkipped: result.processingFees.skipped,
+    processingFeesRefused: result.processingFees.refused,
+    invoicesProjected: result.invoices.projected,
+    invoicesSkipped: result.invoices.skipped,
+    invoicesRefused: result.invoices.refused,
+    payoutsProjected: result.payouts.projected,
+    payoutsSkipped: result.payouts.skipped,
+    payoutsRefused: result.payouts.refused,
     refusedTotal,
   });
 
