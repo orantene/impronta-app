@@ -278,7 +278,7 @@ function ItemSettings({
           {verbNeedsCustomHref(verbModel.selected) ? (
             <TextRow
               label="Address"
-              hint="A full web address, or a path on this site that you have made."
+              hint="A full web address, or a path on this site."
               value={item.href ?? ""}
               maxLength={500}
               onChange={(v) => onUpdate({ ...item, href: v || undefined })}
