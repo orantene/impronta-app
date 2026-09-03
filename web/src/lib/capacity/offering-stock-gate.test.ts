@@ -55,10 +55,19 @@ test("no offering stamp at all is not a release", () => {
 });
 
 test("the reserve gate keys on the pool, not the kind", () => {
-  const src = read("lib/inquiry/instant-book-engine.ts");
+  // REPOINTED at the purchase pipeline. `instant-book-engine.ts` was deleted in
+  // 0.6b-2; the behaviour this guards moved to `createPurchase`, which asks
+  // `loadOfferingCapacityPoolId` and reserves only when a pool exists. The
+  // assertion is kept because the BUG it guards is still possible — gating on
+  // `kind === 'product'` is what let the 12-spot course oversell.
+  const src = read("lib/orders/purchase.ts");
   assert.ok(
-    src.includes("if (offering && offering.capacityPoolId != null) {"),
-    "instant-book must gate stock on capacityPoolId",
+    src.includes("capacity_pool_id"),
+    "the pipeline must resolve a pool id rather than infer one from kind",
+  );
+  assert.ok(
+    !src.includes('kind === "product"') && !src.includes("kind === 'product'"),
+    "stock must never be gated on the offering kind",
   );
   assert.ok(
     !/offering\.kind === "product" && offering\.inventoryQty/.test(src),

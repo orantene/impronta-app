@@ -8,6 +8,11 @@ import {
   releaseCapacity,
   capacityHoldTtlSeconds,
 } from "@/lib/capacity";
+import {
+  placeReservationHold,
+  releaseReservationHold,
+} from "@/lib/scheduling/reservation-hold";
+import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import {
   resolvePurchasePolicy,
@@ -98,6 +103,26 @@ export type PurchaseInput = {
    * The inquiry here is a CONVERSATION, which is all it was ever needed for.
    */
   openThread?: boolean;
+  /**
+   * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
+   *
+   * Capacity answers "are there seats left"; a slot answers "is this person
+   * free at this time". A timed appointment needs both, and the instant-book
+   * engine held them separately with its own compensation — the one thing it
+   * did that Menu never needed.
+   *
+   * The TTL comes from the POOL, not from this file, so the two clocks agree.
+   * Capacity's warning: hold the slot on its own timer and the units come back
+   * in fifteen minutes while the slot stays blocked for two days.
+   */
+  reservation?: {
+    talentProfileId: string;
+    startsAt: string;
+    endsAt: string;
+    title?: string | null;
+    /** The pool whose TTL governs both holds. */
+    poolId?: string | null;
+  } | null;
 };
 
 export type PurchaseRefusalReason =
@@ -118,6 +143,10 @@ export type PurchaseRefusalReason =
   | "sold_out"
   /** The capacity engine could not be REACHED. A retry, not an absence. */
   | "capacity_unavailable"
+  /** Someone else holds that time. Distinct from sold_out: seats remain. */
+  | "slot_taken"
+  /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
+  | "slot_required"
   | "engine_error";
 
 export type PurchaseResult =
@@ -146,6 +175,8 @@ export type PurchaseResult =
       bookingId: string | null;
       /** The conversation, when one was opened. */
       inquiryId: string | null;
+      /** The calendar hold, when a slot was taken. */
+      reservationHoldId: string | null;
     }
   | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
 
@@ -162,8 +193,18 @@ export async function createPurchase(
   const heldAllocationIds: string[] = [];
   let createdOrderId: string | null = null;
   let createdTransactionId: string | null = null;
+  let placedHoldId: string | null = null;
 
   const unwind = async (why: string) => {
+    // The slot first: it blocks a PERSON's calendar, so leaving it held is the
+    // most visible kind of leak — a talent looks booked for a purchase that
+    // never happened.
+    if (placedHoldId) {
+      const released = await releaseReservationHold(admin, placedHoldId);
+      if (!released.ok) {
+        logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+      }
+    }
     if (heldAllocationIds.length > 0) {
       const released = await releaseCapacity(heldAllocationIds, admin);
       logServerError(
@@ -379,6 +420,66 @@ export async function createPurchase(
       heldAllocationIds.push(...reserved.allocationIds);
     }
 
+    // ── 7a. A TIMED offering may not be bought without a slot.
+    //
+    // This gate lived in `instant-book-engine.ts` and my first rewire DROPPED
+    // it — a timed service with bookable hours would have been purchasable with
+    // no time attached, producing a paid appointment nobody could attend. It
+    // was caught by a Capacity guard that pinned the engine's source, which is
+    // the argument for repointing guards rather than deleting them: the guard
+    // outlived the file and was still right.
+    if (input.reservation === null || input.reservation === undefined) {
+      for (const line of input.lines) {
+        const offering = catalog.rawOfferings.get(line.offeringId);
+        if (!offering) continue;
+        const missing = await timedInstantMissingSlot(
+          admin,
+          { kind: offering.kind, durationMinutes: offering.durationMinutes },
+          offering.talentProfileId ?? "",
+          false,
+        );
+        if (missing) {
+          await unwind("timed offering booked with no slot");
+          return { ok: false, reason: "slot_required", offeringId: line.offeringId };
+        }
+      }
+    }
+
+    // ── 7b. The calendar slot, when the purchase takes someone's time.
+    //
+    // AFTER capacity and BEFORE money, so a sold-out purchase never blocks a
+    // calendar and a slot conflict never charges a card. Both holds are on the
+    // unwind ledger, so either failing releases the other.
+    if (input.reservation) {
+      const ttlSeconds =
+        (await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin))
+        ?? shortestTtlSeconds
+        ?? FALLBACK_HOLD_TTL_SECONDS;
+
+      const hold = await placeReservationHold(admin, {
+        talentProfileId: input.reservation.talentProfileId,
+        tenantId: input.tenantId,
+        startsAt: input.reservation.startsAt,
+        endsAt: input.reservation.endsAt,
+        title: input.reservation.title ?? priced.lines[0]?.label ?? "Reservation",
+        ttlSeconds,
+        createdByUserId: input.actorUserId,
+      });
+
+      if (!hold.ok) {
+        await unwind(`slot refused: ${hold.code}`);
+        return {
+          ok: false,
+          // `slot_taken` is NOT sold_out. Seats remain; that TIME is gone. A
+          // buyer told "sold out" stops looking, one told the time is taken
+          // picks another.
+          reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
+          error: hold.error,
+        };
+      }
+      placedHoldId = hold.holdId;
+    }
+
     // ── 8/9. The payment leg.
     //
     // WHY A BOOKING EXISTS HERE AT ALL. `booking_transactions.booking_id` is
@@ -562,6 +663,7 @@ export async function createPurchase(
       allocationIds: heldAllocationIds,
       transactionId,
       bookingId,
+      reservationHoldId: placedHoldId,
     };
   } catch (err) {
     logServerError("orders.createPurchase", err);
@@ -576,6 +678,8 @@ type Catalog =
   | {
       ok: true;
       policies: Map<string, OfferingPolicy>;
+      /** Columns only the slot gate needs, kept off the priced shape. */
+      rawOfferings: Map<string, { kind: string; durationMinutes: number | null; talentProfileId: string | null }>;
       offerings: Map<string, PricedOffering>;
       variants: Map<string, PricedVariant>;
       addons: Map<string, PricedAddon>;
@@ -587,7 +691,8 @@ async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promis
     .from("talent_offerings")
     .select(
       "id, tenant_id, title, status, price_type, amount_cents, talent_profile_id, " +
-        "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours",
+        "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
+        "kind, duration_minutes",
     )
     .in("id", offeringIds);
 
@@ -633,6 +738,10 @@ async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promis
 
   const policies = new Map<string, OfferingPolicy>();
   const offerings = new Map<string, PricedOffering>();
+  const rawOfferings = new Map<
+    string,
+    { kind: string; durationMinutes: number | null; talentProfileId: string | null }
+  >();
 
   for (const row of (offeringRows ?? []) as unknown as OfferingRow[]) {
     policies.set(row.id, {
@@ -665,6 +774,13 @@ async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promis
       ownerTenantId: row.talent_profile_id ? null : row.tenant_id,
       talentCostCents: row.talent_profile_id ? (row.amount_cents ?? 0) : 0,
     });
+
+    rawOfferings.set(row.id, {
+      kind: (row as unknown as { kind?: string | null }).kind ?? "service",
+      durationMinutes:
+        (row as unknown as { duration_minutes?: number | null }).duration_minutes ?? null,
+      talentProfileId: row.talent_profile_id,
+    });
   }
 
   type VariantRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
@@ -691,7 +807,7 @@ async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promis
     });
   }
 
-  return { ok: true, policies, offerings, variants, addons };
+  return { ok: true, policies, rawOfferings, offerings, variants, addons };
 }
 
 /**
@@ -742,4 +858,32 @@ function mapCapacityRefusal(reason: CapacityRefusalReason): PurchaseRefusalReaso
       return "engine_error";
     }
   }
+}
+
+/**
+ * The capacity pool an offering draws from, or null when it is unlimited.
+ *
+ * Lives here rather than in the caller so every channel asks the same question
+ * the same way. The instant-book engine read `offering.capacityPoolId` off a
+ * loader of its own and the menu engine did not ask at all — which is how one
+ * path could oversell and the other could not.
+ */
+export async function loadOfferingCapacityPoolId(
+  admin: SupabaseClient,
+  offeringId: string,
+): Promise<string | null> {
+  const { data, error } = await admin
+    .from("talent_offerings")
+    .select("capacity_pool_id")
+    .eq("id", offeringId)
+    .maybeSingle();
+
+  if (error) {
+    // Fail CLOSED to "no pool" rather than guessing one. A wrong pool id
+    // reserves someone else's units; no pool reserves nothing and the purchase
+    // proceeds unlimited, which is what an offering without a pool means.
+    logServerError("orders.loadOfferingCapacityPoolId", error);
+    return null;
+  }
+  return (data as { capacity_pool_id?: string | null } | null)?.capacity_pool_id ?? null;
 }

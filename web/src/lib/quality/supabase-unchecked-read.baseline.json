@@ -192,7 +192,6 @@
   "src/lib/inquiry/inquiry-permissions.ts": 5,
   "src/lib/inquiry/inquiry-receipt-data.ts": 1,
   "src/lib/inquiry/inquiry-settings.ts": 3,
-  "src/lib/inquiry/instant-book-engine.ts": 9,
   "src/lib/inquiry/load-alternates.ts": 1,
   "src/lib/invites/redeem.ts": 1,
   "src/lib/ledger/run-projection.ts": 5,

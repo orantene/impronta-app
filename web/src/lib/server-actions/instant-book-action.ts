@@ -10,7 +10,7 @@
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { createInstantBooking } from "@/lib/inquiry/instant-book-engine";
+import { createPurchase, loadOfferingCapacityPoolId } from "@/lib/orders/purchase";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
   convertClientForActor,
@@ -80,39 +80,84 @@ export async function createInstantBookingAction(
       payload,
       currencyCode: operatingCurrency,
       createBooking: async (engineInput) => {
-        const booked = await createInstantBooking(convertClient, {
-          tenantId: engineInput.tenantId,
-          talentProfileId: engineInput.talentProfileId,
-          clientUserId: engineInput.userId,
-          actorUserId: engineInput.userId,
-          contactName: engineInput.contactName,
-          contactEmail: engineInput.contactEmail,
-          contactPhone: engineInput.contactPhone,
-          eventDate: payload.eventDate ?? null,
-          eventLocation: payload.eventLocation ?? null,
-          sourcePage: payload.sourcePage ?? null,
-          currencyCode: engineInput.currencyCode,
-          offeringId: payload.offeringId ?? null,
-          payInPerson: payload.payInPerson === true,
-          variantId: payload.variantId ?? null,
-          addOnIds: payload.addOnIds ?? [],
-          quantity: payload.quantity,
-          reservation: payload.reservation ?? null,
-        });
-        if (!booked.ok) {
-          if (
-            booked.reason !== "instant_book_not_enabled" &&
-            booked.reason !== "no_fixed_rate" &&
-            booked.reason !== "slot_taken" &&
-            booked.reason !== "plan_lacks_capability" &&
-            booked.reason !== "not_authenticated" &&
-            booked.reason !== "slot_required"
-          ) {
-            logServerError("instantBookAction.engine", new Error(`${booked.reason}: ${booked.error ?? ""}`));
-          }
-          return booked;
+        // Re-homed onto the ONE purchase pipeline. The engine this replaces
+        // reserved stock through `reserve_offering_stock` — a shim that frees a
+        // QUANTITY newest-first and can release a DIFFERENT allocation than the
+        // caller reserved. The pipeline reserves and releases by allocation ID
+        // through the capacity engine, which is what makes refund-by-line able
+        // to free exactly the units a line held.
+        const offeringId = payload.offeringId ?? null;
+        if (!offeringId) {
+          return { ok: false, reason: "no_fixed_rate" as const, error: "No offering to book." };
         }
-        return { ok: true, inquiryId: booked.inquiryId, bookingId: booked.bookingId };
+
+        const poolId = await loadOfferingCapacityPoolId(convertClient, offeringId);
+
+        const booked = await createPurchase(convertClient, {
+          tenantId: engineInput.tenantId,
+          // Per CART. Stable for one attempt at one offering by one buyer, so a
+          // double-tapped Confirm cannot mint two bookings.
+          clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
+          actorUserId: engineInput.userId ?? null,
+          contact: {
+            email: engineInput.contactEmail,
+            phone: engineInput.contactPhone ?? null,
+            displayName: engineInput.contactName,
+          },
+          lines: [
+            {
+              offeringId,
+              units: payload.quantity ?? 1,
+              variantId: payload.variantId ?? null,
+              addonIds: payload.addOnIds ?? [],
+            },
+          ],
+          // INTENT, never policy. The pipeline re-derives reserve_mode,
+          // deposit_pct, allow_pay_in_person and require_account_to_book from
+          // the offering row and refuses if the client's choice disagrees.
+          paymentChoice: payload.payInPerson === true ? "in_person" : "full",
+          sourceChannel: "instant_book",
+          sourcePage: payload.sourcePage ?? null,
+          capacity: poolId
+            ? [{ offeringId, poolId, units: payload.quantity ?? 1 }]
+            : undefined,
+          // The calendar slot, when this purchase takes someone's time. Capacity
+          // and the slot are two different questions and both are on the
+          // pipeline's unwind ledger.
+          reservation: payload.reservation
+            ? {
+                talentProfileId: engineInput.talentProfileId,
+                startsAt: payload.reservation.startsAt,
+                endsAt: payload.reservation.endsAt,
+                poolId,
+              }
+            : null,
+          // Instant bookings are worked in Messages exactly as before.
+          openThread: true,
+        });
+
+        if (!booked.ok) {
+          // The pipeline's reasons are its own. `slot_taken` and the policy
+          // refusals are customer-facing states; everything else is ours.
+          const customerFacing =
+            booked.reason === "slot_taken"
+            || booked.reason === "sold_out"
+            || booked.reason === "account_required"
+            || booked.reason === "pay_in_person_not_allowed"
+            || booked.reason === "deposit_not_offered"
+            || booked.reason === "offering_not_priceable"
+            || booked.reason === "offering_not_published"
+            || booked.reason === "unknown_offering";
+          if (!customerFacing) {
+            logServerError("instantBookAction.pipeline", new Error(`${booked.reason}: ${booked.error ?? ""}`));
+          }
+          return {
+            ok: false as const,
+            reason: booked.reason === "slot_taken" ? ("slot_taken" as const) : ("engine_error" as const),
+            error: booked.error,
+          };
+        }
+        return { ok: true, inquiryId: booked.inquiryId ?? "", bookingId: booked.bookingId ?? "" };
       },
       notifyGuest: async (resolved) => {
         await notifyGuestInstantBooking({
