@@ -707,6 +707,21 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   // ── Buttons, links, media controls ──────────────────────────────────────
   Button: "Botón",
   "Button text": "Texto del botón",
+  "Where it goes": "A dónde lleva",
+  "Address": "Dirección",
+  "A full web address, or a path on this site that you have made.":
+    "Una dirección web completa, o una ruta de este sitio que ya hayas creado.",
+  "Opens your booking page": "Abre tu página de reservas",
+  "Opens the chat, ready to take an order": "Abre el chat, listo para tomar un pedido",
+  "Opens the chat, ready to talk tickets": "Abre el chat, listo para hablar de entradas",
+  "Opens the chat": "Abre el chat",
+  "You provide the address": "Tú das la dirección",
+  "Reserve a time": "Reservar un horario",
+  "Book an appointment": "Agendar una cita",
+  "Order": "Pedir",
+  "Tickets": "Entradas",
+  "Ask us a question": "Hacernos una pregunta",
+  "A link I choose": "Un enlace que yo elijo",
   "Button label, e.g. Explore services":
     "Etiqueta del botón, p. ej. Explora los servicios",
   "Button label, e.g. Start a booking":

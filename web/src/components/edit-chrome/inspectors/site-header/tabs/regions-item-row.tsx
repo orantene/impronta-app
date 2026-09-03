@@ -189,14 +189,19 @@ function ItemSettings({
   onUpdate,
   availableSocial,
 }: ItemRowProps) {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   const responsive = item.responsive ?? {};
   // Options and normalised value together, so the select's value is always one
   // of its options. Same guard, same reason as the preset picker: a mismatch
   // silently shows the FIRST option and saves it on the next change.
+  // The editor's OWN locale, not a hardcoded "en": an operator editing in
+  // Spanish must read the verb choices in Spanish. `header-verb-options` ships
+  // both languages, so this is a wiring detail rather than a copy one — and
+  // hardcoding it would have shipped an English-only picker that every other
+  // check passed.
   const verbModel = headerVerbPickerModel(
     item.type === "cta" || item.type === "inquiry" ? item.headerVerb : undefined,
-    "en",
+    locale === "es" ? "es" : "en",
   );
 
   return (
