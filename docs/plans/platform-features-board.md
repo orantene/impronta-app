@@ -52,7 +52,7 @@ Off the critical path, blocking nothing, and worth starting first because they a
 | What | Where | Evidence |
 |---|---|---|
 | **Orders 0.8a** — idempotency key on hosted Checkout (`cs_txn_<transactionId>`), and the second deposit path retired | PR #1511, merged 2026-09-03, sha `4be3ae9c4` | All CI gates green including the structural quality gate, which the PR body had named as its authoritative type-check. Both guards proven to fail before they pass. |
-| **Orders 0.4** — `customers` table, backfill, `lib/customers/` | migrations `20261228000140` + `…141`, applied to production | 8 customers, 8 distinct emails, 7 correctly sharing one phone. |
+| **Orders 0.4** — `customers` table, backfill, `lib/customers/` | migrations `20261228000140` + `…141`, applied to production | 8 customers, 8 distinct emails, 6 correctly sharing one phone (measured by the manager; an earlier 7 here was mine and wrong). |
 | **Migration history repair** — two duplicate auto-stamped rows removed, DDL preserved onto their correct twins | production, owner-authorised | `db:check` OK, 651 local migrations all applied, exit 0. |
 
 | **Department docs committed** — the board, all 11 manager prompts and the typecheck serialiser | PR #1512 | The operating rules told every manager to read `docs/plans/platform-features-board.md` before planning, but it was **untracked**, so no worktree branched off `origin/main` contained it. Director error, fixed. |
@@ -142,6 +142,24 @@ node web/scripts/apply-migration.mjs --apply-pending
 ```
 
 It derives the version from the filename, applies via the Management API, records the correct version, and ignores remote-only rows.
+
+## The remote-only migration versions, measured 2026-09-03
+
+The Orders & Checkout Manager reported "three remote-only migration versions still block `db:push` department-wide." Measured against the ledger, the count is **eighteen in a stale checkout, five against `origin/main`, and two that are genuine orphans**. The difference matters, so here it is precisely.
+
+Of the five that exist in production but not on `origin/main`:
+
+| Version | Name | Verdict |
+|---|---|---|
+| `20261228000140` | customers | **Not an orphan.** Orders' own, in PR #1513. Resolves on merge. |
+| `20261228000141` | customers_phone_is_not_identity | **Not an orphan.** Same PR. |
+| `20261229000200` | capacity_engine | **Not an orphan.** Capacity's 0.2, applied, branch unmerged. Confirms they are building. |
+| `20260903015526` | card_capability_trait_lines | **Genuine orphan.** Applied via the management API on 2026-09-03, no file anywhere in git history. |
+| `20261227000000` | signup_recovery_marker | **Genuine orphan, and harmless.** Zero statements. A bookkeeping marker row, no DDL to lose. |
+
+Neither orphan is this department's. `card_capability_trait_lines` created **no schema object** (nothing in `information_schema` matches `%trait%` or `%capability%` beyond `plan_capabilities.capability_key` and `talent_reviews.traits`, both of which predate it), so it wrote data, not structure. A rebuild from migrations would miss seeded rows, not tables. It belongs to whoever owns plan capability cards — most likely the Product, Pricing & Commerce Director. **Routed there, not picked up here.**
+
+Practical impact on this department: **none.** We do not use `db:push`; the apply path is `node web/scripts/apply-migration.mjs --apply-pending`, and `db:check` returns OK with 651 local migrations all applied. Nobody should stop work on this.
 
 ## Original diagnosis, kept for the record
 
