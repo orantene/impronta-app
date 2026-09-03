@@ -10,6 +10,7 @@
 import { PERFORMING_CATEGORIES } from "./performing";
 import { CRAFT_CATEGORIES } from "./craft";
 import { WELLBEING_CATEGORIES } from "./wellbeing";
+import { SERVICE_CATEGORIES } from "./services";
 import type { CategoryContent, TalentCategory } from "./types";
 
 export type {
@@ -23,6 +24,7 @@ export const TALENT_CATEGORIES: TalentCategory[] = [
   ...PERFORMING_CATEGORIES,
   ...CRAFT_CATEGORIES,
   ...WELLBEING_CATEGORIES,
+  ...SERVICE_CATEGORIES,
 ];
 
 export function getTalentCategory(slug: string): TalentCategory | undefined {
