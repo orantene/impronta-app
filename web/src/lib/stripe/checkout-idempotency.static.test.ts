@@ -28,17 +28,18 @@ const CHECKOUT_FILES = [
 ] as const;
 
 /**
- * Files knowingly still unkeyed, with an owner and a reason.
+ * Files knowingly still unkeyed, with an owner and a reason. EMPTY, and it
+ * should stay that way.
  *
- * `payments/stripe-checkout.ts` is the hosted BOOKING checkout. It is being
- * keyed by the Orders & Checkout lane in PR #1511 (`cs_txn_<transactionId>`),
- * and that file is theirs for the duration — keying it here would collide.
+ * It briefly held `payments/stripe-checkout.ts` while the Orders & Checkout
+ * lane keyed it in #1511. That PR landed, this list's own assertion went red on
+ * the next run exactly as designed, and the entry was removed — so the booking
+ * checkout is now guarded like every other lane.
  *
- * This list is SELF-CLEANING: the test below asserts each entry is genuinely
- * still unkeyed, so the moment #1511 lands this suite goes red and whoever sees
- * it deletes the entry. An exception that cannot expire quietly.
+ * The mechanism is worth keeping: an entry here must ALSO be asserted still
+ * unkeyed below, so an exception cannot outlive the reason for it.
  */
-const KNOWN_UNKEYED: readonly string[] = ["payments/stripe-checkout.ts"];
+const KNOWN_UNKEYED: readonly string[] = [];
 
 function read(rel: string): string {
   return readFileSync(join(ROOT, rel), "utf8");
