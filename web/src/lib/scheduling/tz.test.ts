@@ -257,3 +257,50 @@ test("a fall-back day's window crosses the repeated hour and is still its full l
   assert.equal((w.endsAt.getTime() - w.startsAt.getTime()) / 60_000, 90);
   assert.equal(utcToZonedHmm(w.endsAt, MADRID), "02:00");
 });
+
+// ── not every DST shift is an hour ─────────────────────────────────────────
+
+test("a THIRTY-MINUTE fall-back is detected, and still returns the earliest", () => {
+  // Australia/Lord_Howe shifts by 30 minutes. Probing a hardcoded 3_600_000 ms
+  // could not see the overlap, so a genuinely ambiguous 01:45 was reported
+  // "exact" AND returned the LATER instant — silently breaking the earliest-UTC
+  // rule this module documents as unconditional. Found in review by the
+  // Sessions & Classes Manager.
+  const LH = "Australia/Lord_Howe";
+
+  // First prove the overlap is real, or the rest of the test asserts nothing.
+  assert.equal(utcToZonedHmm(new Date("2027-04-03T14:45:00.000Z"), LH), "01:45");
+  assert.equal(utcToZonedHmm(new Date("2027-04-03T15:15:00.000Z"), LH), "01:45");
+
+  const r = resolveWallClock("2027-04-04", 1 * 60 + 45, LH);
+  assert.equal(r.kind, "ambiguous", "a 30-minute overlap is still an overlap");
+  if (r.kind !== "ambiguous") return;
+  assert.equal(r.instant.toISOString(), "2027-04-03T14:45:00.000Z", "the EARLIER of the two");
+
+  // A time outside the overlap on the same day is still exact.
+  assert.equal(resolveWallClock("2027-04-04", 2 * 60, LH).kind, "exact");
+});
+
+test("an ordinary day is EXACT, not ambiguous — the dedupe is load-bearing", () => {
+  // Both day-samples give the same offset on an ordinary day, so the two
+  // candidates are the same instant. Without deduping, `matching.length` is 2
+  // and every ordinary time reports ambiguous. Caught by an existing test when
+  // the dedupe was briefly dropped.
+  assert.equal(resolveWallClock("2027-03-09", 18 * 60, NY).kind, "exact");
+  assert.equal(resolveWallClock("2027-07-04", 12 * 60, MADRID).kind, "exact");
+  assert.equal(resolveWallClock("2027-01-15", 9 * 60, "Australia/Lord_Howe").kind, "exact");
+});
+
+test("the gap answer is the later candidate in BOTH offset signs", () => {
+  // Math.max reads as "pick the later", which is right in a positive-offset zone
+  // by construction and not obviously right in a negative one. It is: the later
+  // candidate is built from the pre-transition offset, which is the side the
+  // requested clock falls off, in either hemisphere.
+  const ny = resolveWallClock("2027-03-14", 2 * 60 + 30, NY, { gap: "next" });
+  assert.equal(ny.kind, "shifted");
+  if (ny.kind === "shifted") assert.equal(utcToZonedHmm(ny.instant, NY), "03:30");
+
+  const madrid = resolveWallClock("2027-03-28", 2 * 60 + 30, MADRID, { gap: "next" });
+  assert.equal(madrid.kind, "shifted");
+  if (madrid.kind === "shifted") assert.equal(utcToZonedHmm(madrid.instant, MADRID), "03:30");
+});

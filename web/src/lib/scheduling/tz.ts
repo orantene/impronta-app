@@ -197,35 +197,51 @@ export function resolveWallClock(
     );
   };
 
-  let ms = utcAsIf - offsetAt(utcAsIf);
-  ms = utcAsIf - offsetAt(ms);
+  // DERIVE the transition, never assume it.
+  //
+  // Sampling the offset a day either side gives the two candidate instants for
+  // this wall clock. On an ordinary day they are the same instant; across a
+  // transition they differ BY THE SIZE OF THE SHIFT, whatever that is.
+  //
+  // Earlier versions probed a hardcoded 3_600_000 ms, which is wrong wherever a
+  // zone does not shift by an hour: Australia/Lord_Howe shifts by THIRTY minutes,
+  // so a genuinely ambiguous 01:45 was reported "exact" AND returned the later
+  // instant — silently breaking the "fall-back → earliest UTC" rule this module
+  // documents as unconditional. Found in review by the Sessions & Classes
+  // Manager. Deriving the delta covers half-hour zones, 45-minute zones, and any
+  // future zone that changes its DST amount, which has happened before.
+  // DEDUPED, and that is load-bearing: on an ordinary day both samples give the
+  // same offset, so both candidates are the SAME instant. Without the dedupe
+  // `matching.length` is 2 and every ordinary time reports "ambiguous".
+  const candidates = [
+    ...new Set([
+      utcAsIf - offsetAt(utcAsIf - 86_400_000),
+      utcAsIf - offsetAt(utcAsIf + 86_400_000),
+    ]),
+  ]
+    .filter((ms) => Number.isFinite(ms))
+    .sort((a, b) => a - b);
+  if (candidates.length === 0) return { kind: "nonexistent" };
 
-  if (!matches(ms)) {
-    const nearby = [ms - 3_600_000, ms + 3_600_000, ms - 7_200_000, ms + 7_200_000];
-    const hit = nearby.find((candidate) => matches(candidate));
-    if (hit == null) {
-      // Nothing reads back as the requested wall clock: it is inside a gap.
-      if ((options.gap ?? "skip") === "skip") return { kind: "nonexistent" };
-      // "next": the instant the clock actually reaches. Take the candidate built
-      // from the POST-transition offset — the later of the two — which shifts the
-      // request forward by exactly the width of the gap.
-      const after = utcAsIf - offsetAt(utcAsIf + 86_400_000);
-      const before = utcAsIf - offsetAt(utcAsIf - 86_400_000);
-      return { kind: "shifted", instant: new Date(Math.max(after, before)) };
-    }
-    ms = hit;
+  // The round trip IS the test: does this instant read back as the clock asked
+  // for? Zero matches means a gap, two means the clock reads twice.
+  const matching = candidates.filter(matches);
+
+  if (matching.length === 0) {
+    if ((options.gap ?? "skip") === "skip") return { kind: "nonexistent" };
+    // "next": the instant the clock actually reaches. That is the LATER of the
+    // two candidates in every zone, positive or negative offset alike — the
+    // later candidate is the one built from the pre-transition offset, which is
+    // the side the requested clock falls off. Verified in both signs:
+    // America/New_York (negative) and Europe/Madrid (positive) both land after
+    // the gap.
+    return { kind: "shifted", instant: new Date(candidates[candidates.length - 1]) };
   }
 
-  // Ambiguous wall times: the clock reads this twice, so BOTH instants match.
-  // Test both directions — the two-pass above can land on either one, and the
-  // original code only noticed when it happened to land on the later, so a
-  // genuinely ambiguous time was reported as exact half the time.
-  const earlier = ms - 3_600_000;
-  const later = ms + 3_600_000;
-  if (matches(earlier)) return { kind: "ambiguous", instant: new Date(earlier) };
-  if (matches(later)) return { kind: "ambiguous", instant: new Date(ms) };
+  // Ambiguous: the clock reads this at more than one instant. Earliest wins.
+  if (matching.length > 1) return { kind: "ambiguous", instant: new Date(matching[0]) };
 
-  return { kind: "exact", instant: new Date(ms) };
+  return { kind: "exact", instant: new Date(matching[0]) };
 }
 
 /**
