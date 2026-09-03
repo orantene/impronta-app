@@ -86,7 +86,12 @@ HB_PID=$!
 
 [ "$WAITED" -gt 0 ] && echo "tsc-queue: waited ${WAITED}s, starting" >&2
 
-npx tsc --noEmit
+# The heap bump is NOT optional on this repo: a bare `npx tsc --noEmit` aborts
+# with SIGABRT (exit 134) partway through. `npm run build` and `npm run
+# typecheck` both already set 8192; only ad-hoc invocations were left without
+# it, and this script was one of them. Without this line the queue fails safe
+# (it prints "NOT A RESULT") but can never complete a run here.
+NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}" npx tsc --noEmit
 CODE=$?
 
 # The verdict must be unmistakable. A backgrounded run whose harness reports
