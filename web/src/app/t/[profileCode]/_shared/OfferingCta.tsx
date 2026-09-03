@@ -38,6 +38,8 @@ export type OfferingRequestDetail = {
   addOns?: { id: string; label: string; amountCents: number }[];
   /** D5 — null = unlimited; products with stock cap the qty stepper. */
   inventoryQty?: number | null;
+  /** Set when the offering sells from a capacity pool; null = unlimited. */
+  capacityPoolId?: string | null;
   /** 'request' → inquiry/chat · 'instant' → direct booking */
   intent: "request" | "instant";
 };
@@ -86,6 +88,7 @@ export function OfferingCta({
       variants: offering.variants ?? [],
       addOns: offering.addOns ?? [],
       inventoryQty: offering.inventoryQty,
+      capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
     };
     const eventName = instant

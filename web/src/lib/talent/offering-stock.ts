@@ -34,9 +34,18 @@ export function readInquiryOfferingContext(sourceContext: unknown): OfferingCont
   return off as OfferingContext;
 }
 
-/** True only when this inquiry reserved a product unit that should be released. */
+/**
+ * True only when this inquiry reserved units that should be released.
+ *
+ * The `kind === "product"` test that used to be here is GONE (capacity 0.3b).
+ * It was the mirror image of the reserve gate: a seat-limited package could
+ * have its units taken and never given back. In practice neither half ever ran
+ * for a package, so the seats were never taken either — the bug was an
+ * unbounded oversell, not a stuck seat. The stamp is now the whole test: if the
+ * engine recorded that it reserved, we release, whatever the offering is.
+ */
 export function shouldReleaseStock(ctx: OfferingContext | null): ctx is OfferingContext & { offering_id: string } {
-  return Boolean(ctx && ctx.stock_reserved === true && ctx.kind === "product" && ctx.offering_id);
+  return Boolean(ctx && ctx.stock_reserved === true && ctx.offering_id);
 }
 
 /**

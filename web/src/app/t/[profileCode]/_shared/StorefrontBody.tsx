@@ -40,7 +40,11 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
 }
 
 function ServiceRow({ it, locale }: { it: TalentOffering; locale: string }) {
-  const soldOut = it.kind === "product" && it.inventoryQty === 0;
+  // Sold out is a POOL fact, not a kind fact. Gating on `kind === "product"`
+  // meant a seat-limited package never showed sold out, because it never sold
+  // down. `inventoryQty` is the pool mirror maintained by the stock RPCs, so a
+  // null pool is genuinely unlimited and 0 is genuinely gone.
+  const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   return (
     <div
       className="flex items-center gap-3 border-b py-3 last:border-b-0"
@@ -110,7 +114,7 @@ function PackageCard({ it, locale }: { it: TalentOffering; locale: string }) {
 }
 
 function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
-  const soldOut = it.kind === "product" && it.inventoryQty === 0;
+  const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   // A product with no image degrades to a service-style row upstream; here we
   // always have an image or render a quiet ground (never an empty gray box).
   return (
