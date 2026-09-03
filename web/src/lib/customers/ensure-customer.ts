@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -41,8 +43,18 @@ export type EnsureCustomerResult =
   | { ok: true; customerId: string; created: boolean; identity: CustomerIdentity }
   | { ok: false; reason: "no_key" | "bad_email" | "bad_phone" | "unavailable"; error: string };
 
+/**
+ * `deps.admin` lets a caller pass the client it is already using.
+ *
+ * Not only for tests. `createPurchase` receives a service-role client and threads
+ * it through every write; a helper that quietly builds its OWN client means one
+ * logical purchase runs across two connections, and a caller that passes a
+ * client has no way to know its customer write went somewhere else. Capacity's
+ * wrappers take the same optional-client shape for the same reason.
+ */
 export async function ensureCustomer(
   input: EnsureCustomerInput,
+  deps: { admin?: SupabaseClient | null } = {},
 ): Promise<EnsureCustomerResult> {
   const resolved = resolveCustomerIdentity({
     email: input.email,
@@ -54,7 +66,7 @@ export async function ensureCustomer(
   }
   const identity = resolved.identity;
 
-  const admin = createServiceRoleClient();
+  const admin = deps.admin !== undefined ? deps.admin : createServiceRoleClient();
   if (!admin) {
     logServerError("customers.ensureCustomer", "service-role client unavailable");
     return { ok: false, reason: "unavailable", error: "Could not look up the customer." };

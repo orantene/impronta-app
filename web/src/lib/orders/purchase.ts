@@ -3,7 +3,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
-import { reserveCapacityBatch, releaseCapacity } from "@/lib/capacity";
+import {
+  reserveCapacityBatch,
+  releaseCapacity,
+  capacityHoldTtlSeconds,
+} from "@/lib/capacity";
+import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import {
   resolvePurchasePolicy,
   type OfferingPolicy,
@@ -98,6 +103,8 @@ export type PurchaseRefusalReason =
   | "amount_out_of_range"
   | "no_contact"
   | "sold_out"
+  /** The capacity engine could not be REACHED. A retry, not an absence. */
+  | "capacity_unavailable"
   | "engine_error";
 
 export type PurchaseResult =
@@ -114,7 +121,8 @@ export type PurchaseResult =
     }
   | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
 
-const HOLD_TTL_SECONDS = 15 * 60;
+/** Only used when a pool cannot tell us its own TTL. */
+const FALLBACK_HOLD_TTL_SECONDS = 15 * 60;
 
 export async function createPurchase(
   admin: SupabaseClient,
@@ -186,14 +194,19 @@ export async function createPurchase(
     );
 
     // ── 4. Resolve the customer. Never creates an auth.users row.
-    const customer = await ensureCustomer({
-      tenantId: input.tenantId,
-      email: input.contact.email,
-      phone: input.contact.phone,
-      displayName: input.contact.displayName,
-      userId: input.actorUserId,
-      locale: input.locale,
-    });
+    const customer = await ensureCustomer(
+      {
+        tenantId: input.tenantId,
+        email: input.contact.email,
+        phone: input.contact.phone,
+        displayName: input.contact.displayName,
+        userId: input.actorUserId,
+        locale: input.locale,
+      },
+      // The SAME client the rest of this purchase uses. A helper that builds its
+      // own would run one logical purchase across two connections.
+      { admin },
+    );
     if (!customer.ok) {
       // An order needs a buyer we can reach — a receipt, a reminder, a refund
       // notice all need one. Refuse rather than invent a placeholder.
@@ -273,8 +286,20 @@ export async function createPurchase(
       if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
     }
 
+    let shortestTtlSeconds: number | null = null;
+
     for (const need of input.capacity ?? []) {
       const orderLineId = lineIdByOffering.get(need.offeringId) ?? null;
+
+      // TTL comes from THE POOL, not from this file. A ticket pool wants ten
+      // minutes and a table wants fifteen, and hardcoding one here would either
+      // strand seats or rush buyers. Falls back to the local default only if
+      // the pool cannot say.
+      const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
+      const ttlSeconds = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
+      shortestTtlSeconds =
+        shortestTtlSeconds == null ? ttlSeconds : Math.min(shortestTtlSeconds, ttlSeconds);
+
       const reserved = await reserveCapacityBatch(
         [
           {
@@ -284,7 +309,7 @@ export async function createPurchase(
             units: need.units ?? 1,
           },
         ],
-        { ttlSeconds: HOLD_TTL_SECONDS, orderLineId, createdBy: input.actorUserId },
+        { ttlSeconds, orderLineId, createdBy: input.actorUserId },
         admin,
       );
 
@@ -292,10 +317,7 @@ export async function createPurchase(
         await unwind(`capacity refused: ${reserved.reason}`);
         return {
           ok: false,
-          // Every capacity refusal reads as "sold out" to a buyer. The specific
-          // reason is logged, not shown: "ancestor_full" means nothing to
-          // someone trying to book a table.
-          reason: "sold_out",
+          reason: mapCapacityRefusal(reserved.reason),
           offeringId: need.offeringId,
         };
       }
@@ -314,9 +336,14 @@ export async function createPurchase(
       .from("orders")
       .update({
         status: nextStatus,
+        // The SHORTEST hold across the lines. The order expires when its first
+        // allocation does — anything later would leave the order claiming a
+        // hold it no longer has.
         hold_expires_at:
           collectCents > 0 && heldAllocationIds.length > 0
-            ? new Date(Date.now() + HOLD_TTL_SECONDS * 1000).toISOString()
+            ? new Date(
+                Date.now() + (shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS) * 1000,
+              ).toISOString()
             : null,
       })
       .eq("id", createdOrderId)
@@ -466,4 +493,54 @@ async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promis
   }
 
   return { ok: true, policies, offerings, variants, addons };
+}
+
+/**
+ * Capacity refusal → what the buyer is told.
+ *
+ * Three classes, and collapsing them is a real bug the Capacity Engine Manager
+ * found in production: an outage was reaching customers as "this does not
+ * exist". A person told a thing is gone leaves; a person told to try again
+ * tries again.
+ *
+ *   sold_out / ancestor_full / pool_not_found / pool_inactive
+ *       → genuinely not available. `ancestor_full` means a parent is booked out
+ *         (the room is bought out, so its tables are gone), which is a sold-out
+ *         state however it reads internally.
+ *
+ *   unavailable
+ *       → the engine could not be REACHED. Not a refusal at all, and the one
+ *         outcome a buyer can act on.
+ *
+ *   invalid_units / invalid_window / invalid_ttl / empty_batch
+ *       → CALLER BUGS. A well-formed pipeline cannot produce them, so they must
+ *         alert rather than render. Showing a customer "invalid window" tells
+ *         them nothing and tells us nothing either.
+ */
+function mapCapacityRefusal(reason: CapacityRefusalReason): PurchaseRefusalReason {
+  switch (reason) {
+    case "sold_out":
+    case "ancestor_full":
+    case "pool_not_found":
+    case "pool_inactive":
+      return "sold_out";
+    case "unavailable":
+      return "capacity_unavailable";
+    case "invalid_units":
+    case "invalid_window":
+    case "invalid_ttl":
+    case "empty_batch":
+      logServerError(
+        "orders.createPurchase/capacity-caller-bug",
+        `capacity refused with ${reason} — a well-formed pipeline cannot produce this`,
+      );
+      return "engine_error";
+    default: {
+      // Exhaustiveness: a reason added upstream must not silently become
+      // "sold out". This fails the typecheck instead.
+      const unhandled: never = reason;
+      logServerError("orders.createPurchase/capacity-unknown", `unhandled reason ${String(unhandled)}`);
+      return "engine_error";
+    }
+  }
 }
