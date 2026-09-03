@@ -28,6 +28,38 @@
 # bug in a milder form. The heartbeat that remains is informational only, so a
 # waiter can say how long ago the holder was seen.
 
+# ── DEFER TO THE MACHINE GOVERNOR IF ONE IS RUNNING ──────────────────────────
+# Two schedulers are worse than one, and worse in a specific way we measured on
+# 2026-09-03: this queue held its machine-wide lock while the governor had
+# SIGSTOPped the very tsc that lock was protecting. Verified:
+#
+#   /tmp/tulala-tsc.lock/owner -> pid 25669 (wt-spaces-s1)   state S
+#                    its tsc   -> pid 33613                  state TN  <- STOPPED
+#
+# So every session obeying this queue waited behind a process that was not
+# running, while sessions bypassing it executed. Fifteen concurrent tsc runs
+# against a queue designed to permit one. The rule-followers were penalised and
+# the rule-breakers were not, which is the worst possible incentive.
+#
+# The governor already caps concurrency and pauses rather than kills, so when it
+# is running this queue has nothing left to add: it defers, sets the heap the
+# repo needs, and lets the governor schedule. One scheduler.
+if pgrep -f "tulala-cpu-governor" >/dev/null 2>&1; then
+  echo "tsc-queue: machine governor is running - deferring to it, no lock taken" >&2
+  cd "$(pwd)" || exit 1
+  NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}" npx tsc --noEmit
+  CODE=$?
+  KEY=$(pwd | shasum | cut -c1-8); MINE="/tmp/tulala-tsc.${KEY}.last"
+  if [ "$CODE" -eq 0 ]; then VERDICT="TSC PASS (exit 0)"
+  elif [ "$CODE" -gt 128 ]; then VERDICT="TSC KILLED by signal $((CODE - 128)) (exit $CODE) - NOT A RESULT, run it again"
+  else VERDICT="TSC FAIL (exit $CODE)"; fi
+  printf '%s\n' "$VERDICT" >&2
+  printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(pwd)" "$VERDICT" >> /tmp/tulala-tsc.log
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$VERDICT" > "$MINE"
+  echo "tsc-queue: read this run again with -> cat $MINE" >&2
+  exit $CODE
+fi
+
 LOCK="/tmp/tulala-tsc.lock"
 WAITED=0
 HB_PID=""
