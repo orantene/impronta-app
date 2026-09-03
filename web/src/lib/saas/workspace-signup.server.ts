@@ -34,6 +34,7 @@ import {
   preferredWorkspaceSlugFromLead,
 } from "./workspace-signup";
 import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
+import { pickSignupPreset } from "@/lib/words/signup-preset";
 
 type MarketingLeadRow = {
   id: string;
@@ -253,6 +254,22 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
     // crashed run of THIS lead without ever reaching for an unrelated
     // workspace the same person happens to own.
     signup_lead_id: lead.id,
+    // THE INDUSTRY, decided here because nothing else ever decides it.
+    //
+    // Production had `industry_preset` unset on 13 of 13 tenants: F2 shipped
+    // sixteen presets, a read path, a write path and a settings screen, and no
+    // workspace had ever been through any of them. So every tenant resolved to
+    // "custom" — agency chat voice, no header verb, shipped nouns — and the
+    // taxonomy seeding had no derivation input.
+    //
+    // Derived from the two signals this row ALREADY carries, so there is no new
+    // question in the funnel and no change to any caller. Fails to "custom",
+    // which changes nothing: a wrong industry renames a live storefront's
+    // nouns, an absent one does not, and those are not symmetric.
+    industry_preset: pickSignupPreset({
+      audience: lead.audience,
+      businessDescription: lead.business_description,
+    }),
   };
   if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
     settings.network_requested_at = new Date().toISOString();
