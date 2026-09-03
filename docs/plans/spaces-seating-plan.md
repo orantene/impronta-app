@@ -434,12 +434,46 @@ such columns (checked in production), and every table in the DDL above uses
 | S1a | migration `…220`, `lib/spaces/venues.ts`, `resolveTenantTimezone`, the booking surface | **DONE.** 13 venues, 13 defaults, 0 invalid zones in production; both live rungs exercised through the real resolver and reverted |
 | S1b | hourly reminder cron gated on venue-local hour | **DONE.** The real route handler, against production: one workspace selected at its own 8am, zero when restored to UTC |
 | S1c | the four remaining UTC surfaces plus a venue editor | an operator sets a zone in the UI and the reminder moves with it. **Every workspace in production is on UTC and there is no UI to change that**, so until S1c the ladder resolves correctly and nothing can exercise it |
-| S2a | `spaces`, `space_groups`, combinations, pool binding (band mode), `capacity_subject_kinds` registration | four two-tops and six four-tops defined in under two minutes; the ancestor tests green; **SS-1 and SS-2 each have a failing-then-passing test** |
+| S2a | `spaces`, `space_groups`, combinations, pool binding (band mode), `capacity_subject_kinds` registration | **DONE, live.** Migration `…221`; SS-1 and SS-2 each have a failing-then-passing test; the probe was red before it was green |
+| S2b | the "Venue and spaces" editor | **DONE, live.** Migration `…222`. Clicked: a room, then 4 two-tops, then 6 four-tops — Main room · 10 tables, both bands, under two minutes, no floor plan. DB agreed: 0 parented band pools, 0 member table pools, room pool units 10 |
 | S2b | the plain "Venue and spaces" editor under Settings | clicked by me on localhost, screenshot in the PR |
-| S3 | assign / move / combine, and the band → assigned migration | a party of six seated on T8+T9, the two-top pool unchanged; a venue migrated band → assigned with a live allocation, guest never unheld at any step |
+| S3 | assign / move / close, and the band → assigned migration (engine half only) | **PR #1573.** Migration `…223` (`space_assignments`). The decision table, the move ordering asserted as a literal call sequence, and a plan that refuses to start when any allocation is unplaceable. **Host stand HELD by the Director** — it is Reservations' product surface and no Reservations manager exists yet |
 | S4 | layouts + floor plan editor | the same room is dinner Friday and theatre Saturday, no double allocation |
 | S5 | seat maps | 120 seats in Section A sell to 120 admissions, each with a seat code |
 | S6 | minimum spend, private hire | a $400 minimum on a VIP table becomes credit on the tab |
+
+## 5b. What S3 taught, and what is deliberately NOT in it
+
+**`capacity_allocations` has no `space_id`, and it should not.** My first draft assumed one and
+typechecked, because the service-role client is not generically typed. The repair — a
+`space_assignments` table — is better than the column would have been: **a joined party sits at two
+tables**, so the shape is genuinely one-to-many and a column would have forced a second allocation
+for the same guests, which is the double-count this area exists to prevent.
+
+**Two rules in the decision table are judgement, not logic**, and a future reader should not
+"tidy" them:
+- A party **under** a space's minimum is **allowed and flagged**, never refused. A host seats two at
+  a four-top on a quiet night. A system that refuses is one the host works around, and a host
+  working around the floor plan is how the floor plan stops matching the room.
+- Overlap is **half-open**: a table freed at 20:00 is seatable at 20:00. That is what a turn time
+  means; treating it as a clash loses a seating every night.
+
+**Rule 8 is deliberately unimplemented.** An ancestor held over the window is the capacity engine's
+business; its reserve refuses with `ancestor_full` and that refusal is the answer. A second
+implementation of someone else's invariant is free to drift from it.
+
+**The band → assigned migration refuses to start** when even one live allocation has no free member
+table. Migrating some guests and stranding others leaves a partly-drained band pool and no way to
+tell from outside which state the venue is in.
+
+**Already-seated parties are placed before unseated ones** in that plan. Ordering by window length
+alone let an unseated party take the table a guest was already sitting at: seating is a hard
+constraint, duration is only a preference, and you cannot move someone mid-meal. A test caught it;
+the code was wrong.
+
+**The host stand is NOT mine.** The Director held it, using the argument I used to win the
+service-windows ruling: building Reservations' core screen before they exist leaves them inheriting
+a UI they did not design. What S3 ships is an API a host stand consumes.
 
 ## 6. Files I own
 
