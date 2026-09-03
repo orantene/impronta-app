@@ -215,3 +215,84 @@ export async function assignSpace(input: AssignInput): Promise<AssignOutcome> {
 
   return { ok: true, spaceIds: decision.spaceIds, oversized: decision.oversized };
 }
+
+
+export type MoveInput = AssignInput & { toSpaceId: string };
+
+/**
+ * Move a seated party to another space.
+ *
+ * THE ORDER IS THE SAFETY PROPERTY, not an implementation detail.
+ *
+ * The new space is DECIDED and its seating written before the old seating is
+ * removed. Release-then-reserve opens a window in which the guest holds nothing
+ * and a walk-in can take their table; if this fails, the guest keeps the table
+ * they had, which is the safe failure and the one a host can see and act on.
+ *
+ * It is the same ordering the band-to-assigned migration follows, for the same
+ * reason, and it is worth stating twice because the tempting shape — "clear the
+ * old, then set the new" — reads more naturally and is wrong.
+ *
+ * `assignSpace` already replaces rather than appends, so moving is one call
+ * with the destination: the replace IS the move, performed in the safe order.
+ * A separate release step would reintroduce the window this avoids.
+ */
+export async function moveToSpace(input: MoveInput): Promise<AssignOutcome> {
+  return assignSpace({ ...input, spaceId: input.toSpaceId });
+}
+
+/** Who is sitting where right now, for the host stand. */
+export async function loadSeatingForWindow(
+  tenantId: string,
+  startsAt: string,
+  endsAt: string,
+): Promise<Array<{ allocationId: string; spaceId: string; partySize: number | null; isJoin: boolean }>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+  const { data, error } = await admin
+    .from("space_assignments")
+    .select("allocation_id, space_id, party_size, is_join, capacity_allocations!inner(starts_at, ends_at)")
+    .eq("tenant_id", tenantId)
+    .lt("capacity_allocations.starts_at", endsAt)
+    .gt("capacity_allocations.ends_at", startsAt);
+  if (error) {
+    logServerError("spaces/loadSeatingForWindow", error);
+    return [];
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    allocationId: String(row.allocation_id),
+    spaceId: String(row.space_id),
+    partySize: typeof row.party_size === "number" ? row.party_size : null,
+    isJoin: row.is_join === true,
+  }));
+}
+
+/** Take a space out of service, or put it back. Deactivates its pool too. */
+export async function setSpaceStatus(
+  tenantId: string,
+  spaceId: string,
+  status: "active" | "out_of_service",
+): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { error } = await admin
+    .from("spaces")
+    .update({ status })
+    .eq("tenant_id", tenantId)
+    .eq("id", spaceId);
+  if (error) {
+    logServerError("spaces/setSpaceStatus", error);
+    return false;
+  }
+  // Deactivate, never delete: an inactive pool refuses every reserve through it
+  // with `pool_inactive`, INCLUDING for its children, which is exactly what a
+  // space going out of service should do to anything inside it.
+  const { error: poolError } = await admin
+    .from("capacity_pools")
+    .update({ is_active: status === "active" })
+    .eq("tenant_id", tenantId)
+    .eq("subject_kind", "space")
+    .eq("subject_id", spaceId);
+  if (poolError) logServerError("spaces/setSpaceStatus.pool", poolError);
+  return true;
+}
