@@ -330,9 +330,23 @@ Found by the Spaces & Seating Manager, applying the invariant Capacity handed th
 | **Band** | Reservations Phase 1, no floor plan | the **group only** | sells "a four-top at 8pm"; tables may not exist as rows yet; the only place `overbook_units` means anything |
 | **Assigned** | Reservations Phase 3, host stand | the **tables only** | the group demotes to a pure **selection** — pick an available member, reserve *its* pool. Overlapping groups become harmless, because a selection has no arithmetic. |
 
+**MEASURED, not reasoned.** The Capacity Engine Manager reproduced it in production and rolled it back: with the group pool as a sibling of the tables, band mode sells all 6 four-tops (group remaining 0), then a **direct sale of Table 7 for the same window returns ok: TRUE**, and the room does not catch it either (remaining 5). They also tested the obvious repair — parenting the group to the room — and it *works* (`ancestor_full`) and is **still not the answer**: it only holds when the room contains exactly that group's tables. Room of 10, group of 6 → band sells 6, room 6/10, Table 7 sells directly, room 7/10 allowed, **seven four-tops promised against six**. Parenting narrows the hole; the two modes close it.
+
+**ROOT CAUSE, recorded as the engine's limit rather than as the caller's workaround:** a table belongs to several groups at once and `parent_pool_id` is single-valued. A DAG would mean an allocation charging several paths, which is a materially different engine. Two mutually exclusive modes is the right answer at this scale, not a compromise.
+
+**CORRECTION — in band mode the group pool must be PARENTLESS, not parented to the room.** During a band → assigned migration both pools exist briefly. If the group hangs under the room, reserving the replacement table pool double-charges the room and returns `ancestor_full` **mid-migration** — the migration blocks itself, halfway through, on a live venue. Parentless shares no ancestor with the table pools, so the two sets never contend, and nothing is lost because in band mode the tables do not exist as rows.
+
+**MIGRATION ORDER, because the obvious order is wrong:** reserve the replacement table and **commit it BEFORE releasing the group allocation**. Release-then-reserve opens a window where the guest holds nothing and a walk-in takes their table. No new RPC is needed.
+
 **Registry line: `space_group` → band mode only.** Without it, a future session creates both kinds of pool for one venue and the only thing preventing a double-sold table is that nobody thought of it.
 
 **Band → assigned is a real migration and belongs on the Reservations Phase 3 critical path.** Capacity's trigger refuses to re-parent a pool holding live allocations, so it is *create the table pools, drain the group pool, deactivate it* — not a re-parent. **Reservations must know this before they plan**, not discover it in Phase 3.
+
+**Mode exclusivity cannot be enforced by the engine, and Capacity said so plainly rather than let anyone believe otherwise.** Their schema has no idea which tables belong to which group — membership is the caller's table. **SS-2 is therefore the caller's invariant: a `space_group` pool and its member table pools are never both active.**
+
+**The pattern, stated by the engine owner after telling Spaces twice that an invariant cannot live with them:** *the engine is correct by construction for every value a caller can pass, so there is no wrong-looking row for it to refuse. An invariant about the SHAPE of a caller's tree can only be held by the caller.* Adopted as a department rule.
+
+**Two things Capacity declined to build, both deliberately.** An any-of RPC for "pick any available four-top" — the caller's app-code loop is correct and does not race, because each reserve is atomic and a refusal writes nothing; an RPC would buy one round trip and cost the engine a concept it does not need. (Contention tip given instead: rotate candidate order, or every booker fights over Table 1.) And engine-side mode exclusivity, per above.
 
 **Why this entry exists at all:** the manager applied another engine's invariant to their own design and found their own error before writing code. That is the cheapest place this could possibly have been found, and it is worth naming as the practice rather than only the outcome.
 
