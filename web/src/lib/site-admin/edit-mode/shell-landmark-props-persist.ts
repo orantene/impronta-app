@@ -141,6 +141,9 @@ export async function resolveShellLandmark(
 
   let preferred = input.preferredLocale ?? null;
   if (!preferred) {
+    // supabase-read-unchecked-ok: a missing row, a denied policy and a null
+    // column are the same outcome here — no preferred locale, fall through to
+    // the shell's own locale order below. There is no caller action to take.
     const { data: identity } = await supabase
       .from("agency_business_identity")
       .select("default_locale")
@@ -214,7 +217,11 @@ async function resolveLandmarkSectionRow(
   if (!ptr) ({ data: ptr } = await pointerFor(false));
   if (!ptr) return null;
 
-  const { data: sec } = await supabase
+  // Checked deliberately: this row decides whether the caller writes the
+  // legacy row or the node. A denied policy arriving as data:null would
+  // silently reroute the write, which is the failure this module exists to
+  // remove — so a read error is surfaced, not treated as "no section row".
+  const { data: sec, error: secError } = await supabase
     .from("cms_sections")
     .select("id, section_type_key, schema_version, name, version, props_jsonb")
     .eq("tenant_id", tenantId)
@@ -227,6 +234,13 @@ async function resolveLandmarkSectionRow(
       version: number;
       props_jsonb: Record<string, unknown> | null;
     }>();
+  if (secError) {
+    // Not "no section row" — an unreadable one. Returning null here would send
+    // the caller down the node-only write path on a permissions error.
+    throw new Error(
+      `Could not read the ${side} shell section (${secError.code ?? "unknown"}): ${secError.message}`,
+    );
+  }
   if (!sec) return null;
 
   return {
@@ -292,12 +306,24 @@ export async function writeShellLandmarkNodeProps(
 ): Promise<ShellLandmarkNodeWriteResult> {
   const { tenantId, shellPageId, side, nextProps, expectedPageVersion } = input;
 
-  const { data: row } = await supabase
+  // Checked deliberately: `data:null` from a denied policy would otherwise be
+  // reported to the operator as NOT_FOUND ("shell page not found"), sending
+  // them to look for a missing page instead of a permissions problem.
+  const { data: row, error: rowError } = await supabase
     .from("cms_pages")
     .select("id, locale, version, updated_at, blocks")
     .eq("id", shellPageId)
     .eq("tenant_id", tenantId)
     .maybeSingle<ShellRow>();
+  if (rowError) {
+    // Distinct from NOT_FOUND on purpose: telling an operator the shell page is
+    // missing when the read was denied sends them hunting for the wrong thing.
+    return {
+      ok: false,
+      error: `Could not read the site shell page (${rowError.code ?? "unknown"}).`,
+      code: "READ_FAILED",
+    };
+  }
   if (!row || !Array.isArray(row.blocks)) {
     // No freeform tree at all. In mirror mode that is the ordinary answer for a
     // legacy shell. In primary mode it cannot happen — the caller only gets a
@@ -391,11 +417,19 @@ export async function readShellPageVersion(
   supabase: SupabaseClient,
   input: { tenantId: string; pageId: string },
 ): Promise<number | null> {
-  const { data } = await supabase
+  // Checked deliberately: returning null here makes the caller skip its CAS
+  // filter, so a read error would silently downgrade concurrency protection
+  // rather than failing loudly.
+  const { data, error } = await supabase
     .from("cms_pages")
     .select("version")
     .eq("id", input.pageId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle<{ version: number }>();
+  if (error) {
+    throw new Error(
+      `Could not read the shell page version (${error.code ?? "unknown"}): ${error.message}`,
+    );
+  }
   return data?.version ?? null;
 }
