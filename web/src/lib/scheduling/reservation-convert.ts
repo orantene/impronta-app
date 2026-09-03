@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseReservationStamp } from "./reservation-intent";
-import { releaseHoldsForInquiry } from "./reservation-hold";
+import { isExclusionViolation, releaseHoldsForInquiry } from "./reservation-hold";
 
 export type EnrichBookingFromReservationResult =
   | { ok: true; applied: boolean }
@@ -89,6 +89,12 @@ export async function enrichBookingFromReservation(
       const dup = insErr.code === "23505" || (insErr.message ?? "").includes("talent_bookings_inquiry_id");
       if (!dup) {
         logServerError("reservation-convert/talent_bookings", insErr);
+        // talent_bookings_no_overlap fired: this talent is already booked for
+        // this window by another tenant or by staff on the calendar. Say that,
+        // rather than handing a raw Postgres exclusion message to a person.
+        if (isExclusionViolation(insErr)) {
+          return { ok: false, error: "That time is already booked for this talent. Pick another time." };
+        }
         return { ok: false, error: insErr.message };
       }
     }
