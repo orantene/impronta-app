@@ -485,9 +485,30 @@ silently wrong charge rather than a missing feature.
 
 | Slice | State |
 |---|---|
-| P1.1 | **shipped by Capacity** (#1582), adopted |
-| P1.2 | planned, blocked on the band (§9.2) |
+| P1.1 | **shipped by Capacity** (#1582), adopted, not claimed as mine |
+| **P1.2 schema** | **APPLIED to production.** `20261229000340`, announced before applying, dry-run under `BEGIN … ROLLBACK` with zero residue confirmed by counting, verified afterwards by querying the objects: column nullable with no default, function present, `anon`/`authenticated` EXECUTE false, `service_role` true. |
+| **P1.2 pure half** | `lib/sessions/materialise.ts` + 16 tests. `test:sessions` real exit 0, 43/43. |
+| **P1.2 runner** | **Deliberately parked** on #1592, which adds `resolveWallClock`'s discriminated `kind`. The collision rule keys on `kind === "shifted"`; building it against `expandSeries` today means rewriting it next week. |
 | P1.3 – P1.8 | planned |
 
-Worktree `~/Desktop/wt-sessions-classes`, branch `feat/sessions-classes`, off `origin/main`
-@ `e3f30bb8c`.
+Branch `feat/sessions-classes` @ `482129f42`, five commits, **unpushed**, base `7c4642377`.
+Rebase onto current main happens **before merge**, not now: main has moved three commits, and
+rebasing would invalidate a gate run already hours deep in the machine's typecheck queue.
+
+**Gates, stated honestly.** `test:sessions` real exit 0 (43/43) and `test:capacity` real exit 0
+(43/43), both re-run *after* the last rebase rather than carried across it. I run `test:capacity`
+though it is not my lane because I consume `tierReserveRequest`, `upsert_capacity_pool` and
+`capacity_remaining_public`: **a rebase can break me without touching my files.** Full typecheck and
+eslint are queued and have written zero bytes; the machine is at load 20-26 with four worktrees'
+pre-fix unserialised `tsc` runs still draining. Not green, not red, **not a result** — and neither a
+shorter gate set nor a queue bypass would produce one, because a shorter pass is a silent change in
+what green covers.
+
+**Two lane facts worth keeping.** `test:sessions` is a **glob** (`src/lib/sessions/*.test.ts`), so a
+new test file gates without touching `web/package.json` — which is why sixteen new tests cost zero
+lines of the one file every parallel manager fights over, and why the recorded lane-collision
+incident cannot reach this area at all: it *requires* a hand-maintained list. And
+`check:ci-lane-parity` enumerates the `ci` aggregate's members and asks whether each appears in the
+workflow (`check-ci-lane-parity.cjs:51`), so it is blind in two directions: a workflow-only lane
+never runs under `npm run ci`, and a `test:*` script in **neither** never runs anywhere, with every
+gate green and coverage zero.
