@@ -155,6 +155,9 @@ Finance's file and Finance's call. Recorded here as an **open follow-up rather t
 
 ## Director errors caught by managers
 
+**2026-09-03: I ruled on an enum that does not exist, and instructed a manager to build it.** The Sessions & Classes Manager reported dropping `service_window` "from the session `kind` enum". I overruled them on Reservations' behalf and priced the change as "one enum value and a nullable" — **without opening the migration.** `sessions` has no `kind` column. There was no enum value to add. This is the same failure as the #1544 stale-branch escalation and it has now cost twice: I verified a claim once, then reasoned from the claim instead of from the thing. It produced a wrong instruction to a manager on their first day, on the single question they had flagged as make-or-break, and it was retracted only because the *other* manager withdrew the model I had ruled for. **The tell is available every time: I described a cost in units I had not looked at.** A price quoted from a report rather than from the file is a guess wearing a number.
+
+
 Kept deliberately, because the pattern is the point: the verification culture is catching the Director as often as it catches the code, and every one of these would have shipped as an instruction if managers had accepted the brief.
 
 | # | Error | Caught by | Root cause |
@@ -448,6 +451,106 @@ Their corollary reframes clause 2: **GitHub cancels superseded runs**, so a stal
 
 **The typecheck serialiser lives at `web/scripts/tsc-queue.sh`** (in the repo, as the Orders & Checkout Manager recommended: a session scratchpad dies with the session that wrote it, and the next manager gets a confusing "No such file"). Run it from your worktree's `web/` directory. `~/.claude/tulala-tsc-queue.sh` is the identical script for worktrees that predate PR #1512. It runs the same full `tsc --noEmit` and exits with its real code. It reclaims a lock only when the owner process is dead; there is no age-based reclaim, on purpose.
 
+**The host gate is `web/src/proxy.ts`. CLAUDE.md calls it `web/src/middleware.ts` and that file does not exist.** Found by the QR & Links Manager, verified against `origin/main`: Next 16 renamed middleware to proxy and the doc was never updated. The substance of the QA caveat is still correct — every request is gated against `agency_domains` and an unregistered host 404s before route matching — only the filename is stale. Recorded because a manager who greps for `middleware.ts`, finds nothing, and concludes the gate is gone will ship a route believing it is reachable.
+
+**There is a SECOND gate the QA caveat never mentions, and it silently 404s new public paths.** `web/src/lib/saas/surface-allow-list.ts` is a per-host-kind path allow-list run inside the proxy: a path absent from it is rewritten to `/_page-not-found` with status 404 **before Next routing runs**. This is the repo's recorded `incident_route_404d_by_surface_allow_list` — an HTML 404 from a route that plainly exists on disk. **Sessions, Events, Reservations and Front Door are all planning new public paths and will hit this.** Adding a route file is not enough. In the same PR you must add the path to the allow-list, and if it is a single top segment, reserve the slug in **both** `WORKSPACE_SLUG_RESERVED_PREFIXES` and `PATH_BASED_TENANT_RESERVED_PREFIXES` — otherwise a tenant whose slug happens to match shadows your engine.
+
+**A code printed on a table tent is not a secret, and pretending otherwise costs a real feature.** Ruled 2026-09-03 for QR & Links, who departed from their own brief with evidence and were right to. The brief said codes must be HMAC-signed so they cannot be guessed. Unguessability protects nothing here — the code is printed in a public dining room — and it costs the link a guest can type and staff can recognise (`casarizo.com/q/door`). **The forgeable thing is the claim, not the code.** Context never appears in the URL and is never read from it; the resolver looks the code up and reads `context` off the row it owns, which is strictly stronger than signing a URL parameter, because there is nothing to tamper with. Enumeration is a rate limit, not a secret. **The one carve-out:** readable is the default, but any link whose target is something you would not hand to a stranger gets an opaque code. That is a per-link property, decided when the link is created, not an engine-wide choice.
+
+## P0 FOUND 2026-09-03 (evening): the orders pipeline has no completion path, and 0.6b-1 was about to make that live
+
+Found by the **Sessions & Classes Manager** while planning their phase exit, confirmed by the **Orders & Checkout Manager** against their own design, verified a third time by the Director before acting.
+
+**`markPaid` in `lib/bookings/transactions.ts` — the real Stripe-webhook seam — writes `inquiry_messages` and `agency_bookings`. It never touches `orders` and it never calls `commit_capacity`.** Every non-test hit for `orders.status='paid'` on main is a *reader*. Nothing writes it. Step 12 of the 0.6 design is designed and not built.
+
+**Why that made #1580 dangerous rather than merely incomplete.** 0.6b-1 deletes the old menu-order engine, which is what makes the pipeline live. The moment Menu re-homes: a real order gets `pending_payment`, staff take the money, `markPaid` flips the *transaction*, and **the order sits in `pending_payment` for ever on a completed sale** — a state that says money is owed on a sale that finished. On any path holding capacity, `commit_capacity` never runs, the hold lapses, and **the seat returns to inventory after the customer has paid.** The engine being deleted gets this right, because it force-writes its way to a completed booking.
+
+**#1580 was converted to draft by the Director on the author's own escalation.** Sequence reordered: the paid seam ships first, #1580 lands with or after it, 0.6b-2 behind both.
+
+**The transferable lesson, in the author's words:** *I shipped a pipeline whose completion path does not exist, and my tests all passed because every one of them asserts what `createPurchase` writes and none asks what completes it.* A test suite that only checks the entry point certifies a road with no far end.
+
+**Second lesson, same report: a guard you have not seen fail is not a guard.** The author's instinct was a dynamic-import smoke test; they broke the bug on purpose to check it and **it went green**, because a type-only import is erased at runtime. That guard would have been theatre. The one that works reads imports as text and asserts each target exists on disk. Both are kept — runtime catches value imports, text catches the type-only variety. This is the second time the type-only variety has bitten and the first time it has a detector that has actually failed once.
+
+
+## Rulings, 2026-09-03 evening
+
+**RETRACTED WITHIN THE HOUR — `service_window` does NOT go into a session `kind` enum, because there is no `kind` enum.** The Director ruled that it should, overruling the Sessions & Classes Manager on Reservations' behalf, and priced the change as "one enum value and a nullable" **without opening the migration.** `20261229000214_sessions_and_series.sql:112` creates `sessions` with `id, tenant_id, series_id, venue_id, offering_id, title, starts_at, ends_at, status, created_at, updated_at` and no `kind` column anywhere in the file. Retracted to Sessions before they acted on it; recorded below as a Director error.
+
+**SETTLED ON THE FOURTH ATTEMPT, and the first three are kept because the pattern in them is the lesson.** This question moved four times in one afternoon across three sessions, twice in opposite directions. Three reasons were offered and **all three were weighings** — row count against machinery, references against variation — which is why each of us re-weighted and got a different answer. A reason that can be re-weighted settles nothing; it just picks who argued last.
+
+- **My clincher was wrong.** `hours-types.ts:65-68` rejecting `endMin > 1440` kills the *weekly-hours* shape (still true, still the reason Reservations is not built on the appointments engine) but says nothing about materialisation: `local_time` + `duration_minutes` crosses midnight fine and is what `session_series` already uses.
+- **Reservations' first reason was the wrong test.** "Nothing foreign-keys to a window occurrence" asks whether a thing is referenced, not whether it needs to vary.
+- **Their second reason, which I put on this board, was wrong in a checkable way and they retracted it themselves.** Per-date variation needs a row per *varied* date — roughly ten a year per venue — not a row per date, which is seven hundred and thirty. Two orders of magnitude, conflated. Weigh their future arguments knowing they found this one and said so.
+
+**What actually settles it is an identity fact, and it cannot be re-weighted next week.** `20261229000214:139` reads: `COMMENT ON TABLE public.sessions IS 'One occurrence. The only bookable thing, and the subject of session_tier capacity pools.'` **A service window is neither.** Nobody books a window; they book a table inside one. The pool belongs to the band, and the allocation is a turn floating inside the window. **Putting a window in that table makes the table's own comment false.** That is a statement about what `sessions` *is*, not an estimate of what it would cost.
+
+**The result costs Sessions & Classes nothing in either direction.** Five asks withdrawn: no `kind` column, no `venue_id`, no pool-less session, no `seats = 0` series, no materialiser change. Their table stays exactly as shipped. A service window becomes two small tables inside Reservations — the rule, and an exceptions table where **a closure and an override can never share a row**, because allowing both gives one date two readings. Reservations still *calls* `recurrence.ts` rather than copying it, so the DST correctness travels without owning a row in someone else's table.
+
+**The transferable rule: when a design argument keeps reopening, every reason offered so far is probably a weighing. Look for the identity fact instead — what the thing IS — because that is the only kind of reason a later session cannot re-weight.**
+
+**`admissions` anchors on the allocation: `allocation_id uuid NOT NULL`, with `session_id` and `space_id` nullable and descriptive.** The proposed guard was `CHECK (session_id IS NOT NULL OR space_id IS NOT NULL)`, which **refuses every band-mode reservation** — at reserve time a table booking has no space (unassigned is a valid completed state) and no session (by Sessions' own decision). A guard that cannot represent the correct case is not a guard. Every admission that will ever exist — class seat, ticket, table, walk-in — is backed by exactly one capacity allocation *by construction*; session and space are each true for only some. **A NOT NULL on the thing that is always there beats a CHECK over two things that are each sometimes there.**
+
+**`no_show_at` and `completed_at` are stamps, never derived from `admitted_count = 0`.** Deriving "did not show" from a count is the same label-collapse that Sessions' own `checked_in` argument correctly rejected: absence of arrivals and a positive no-show call are different facts. `starts_at` goes on the admission row — the host stand's entire query is today's book ordered by time.
+
+**`allow_public_upsize` stays a policy with an honest default: false online, always true at the host stand.** Refusing an under-minimum party outright is a lost cover; silently handing a deuce a four-top at 20:00 on a Saturday is a lost table. The host-stand override is what makes it honest — a human looking at the room can always say yes.
+
+**Put the guard inside the operation it guards.** Reservations' R9 wires `ss2Violations()` into the action that changes modes, so the one thing that can break the invariant is the one thing that checks it. Most of this department's green-that-measured-nothing incidents are guards living somewhere other than the operation they guard.
+
+**Penalty money, decided by the Director rather than escalated (reversible before R5):** the tenant keeps it, `application_fee_amount` 0 on a no-show or forfeiture charge, normal fee on a deposit applied to the bill. Direct Charges already put a forfeiture in the tenant's Stripe balance, so the only live question was the fee. A penalty is not a sale, and penalty charges are the most chargeback-prone money on the platform.
+
+**`admissions.status` is `('valid','void','refunded')` with a separate `admitted_count int`; "checked in" is derived.** Sessions & Classes proposed it against their own brief and won against Reservations' `booked|seated|no_show|completed|cancelled`. **Is-this-commercially-good and has-the-guest-arrived are independent facts**, and one label holding both is the recorded *one label, three states* incident. Seated and no-show are door facts, carried as `seated_at` / `no_show_at`. This lets the table say "seated, then refunded", which neither enum could.
+
+**Carried in Sessions' Phase 1 migration so it is one migration and not two:** `party_size int null`, `assigned_space_id uuid null`, `order_line_id` **nullable** (a walk-in has no line), `seated_at`, `no_show_at`, `sessions.venue_id`, `kind` accepting `'service_window'`.
+
+**No `qr_token` column anywhere.** Derived HMAC, revocation via `status='void'`. Reached independently by Sessions & Classes and QR & Links on the same day. A stored token is a credential at rest in a table a door role reads.
+
+**`order_lines.session_id` is the binding, not `orders.session_id`.** One checkout, two classes is one order and two lines. `orders.session_id` survives as a box-office convenience and **must be commented as not the binding** — an unlabelled duplicate pointer is how two sources of truth start.
+
+**`client_stripe_customers` CANNOT hold a card on file, for two independent reasons**, so a tenant-scoped `customer_payment_methods` is approved (Reservations builds it in R5, Finance reviews the charge path, it enters the contracts registry before Events or Appointments touch it). (a) `user_id UUID PRIMARY KEY REFERENCES auth.users(id)` — the guest being protected against has no auth user. (b) It is a PLATFORM-account Stripe customer while charges are **Direct Charges on the connected account**; a payment method saved on the platform account cannot be charged on a connected one.
+
+**`host` and `door` are LATERAL roles, not rungs.** `capabilities.ts:19` documents the model as "lower roles are strict subsets of higher roles", which is the trap: built twice, we get two different answers to whether a host may see a guest's phone number. Events builds the operational-roles slice with `door`; Reservations adds `host` on top of that shape rather than forking it.
+
+**`builder-node/` split for native blocks.** A feature manager owns the data resolver and the island (the `menu-board-island.tsx` precedent); the registry wirings go to the Page Builder Director as one small PR against a contract the manager hands them. Feature managers still do not edit `builder-node/` directly.
+
+**Marketing copy for Tables is routed to the Creative Director, not to a feature manager.** `feature-tables.ts` leads with "Your floor plan online" and explains the product as "appointments with a floor plan on top". Layouts are Phase 4, and the mechanism is wrong besides — what Reservations shares with appointments is the POLICY layer, not the booking engine, which picks one subject of capacity per offering and cannot say "a table for four at eight".
+
+**DIRECTOR ERROR, corrected by Orders & Checkout: their click list is ONE line, not three.** *Set a tenant's words row to "Quote", confirm the card title follows.* `Pay now` and `Add line` are not unclicked paths — they **do not render**, because no call site passes their handlers. That is a missing wiring, not a QA item, and asking a real person to click a button that does not exist would have spent their evening on my mistake. The manager verified it rather than assuming.
+
+
+## RULING 2026-09-03: the workspace admin has no mobile layout, and every feature is shipping a desktop-only screen without having decided to
+
+Found by the Creative Director, verified here against `origin/main`. `WorkspaceShell.tsx:387` is `grid grid-cols-[240px_1fr]`, unconditional, with a 240px sticky full-height sidebar over it. **The entire file contains zero occurrences of `sm:`, `md:`, `lg:`, `isMobile`, `matchMedia` or `@media`** — measured, not estimated. At 375px the sidebar takes 64% of the viewport and the grid is wider than the screen. The owner has reported finger-scrolling as broken; this is the likely cause, though nobody has held a phone against it and no one should claim the touch behaviour until they have.
+
+**The ruling, because it is a product decision and every manager is making it by default right now:**
+
+**An operator is NOT expected to run their whole business from a phone, and IS expected to run the floor from one.** Those are different surfaces and they get different bars.
+
+- **Operational screens are mobile-first and non-negotiable:** the host stand, the door scanner, the order queue, the kitchen view, anything a person uses standing up while something is happening. These are held in one hand by someone who is not at a desk. Reservations R6, Events' door slice and Menu's queue are all in this class.
+- **The full workspace admin stays desktop-first** — configuration, catalogue, pricing, reporting. Nobody sets up party bands on a phone.
+- **But desktop-first does not license broken.** A workspace page must not exceed the viewport width or hide its own content at 375px. Degrading to a single column is enough; a redesign is not required.
+
+**What this means for a manager shipping a workspace screen:** you are not being asked to design a mobile experience. You are being asked to check that yours does not overflow, and to say which of the two classes your screen is in. If it is operational, it is mobile-first and that belongs in your plan, not in a later polish pass.
+
+The shell fix itself is queued with the Creative Director's developer as J1. It is theirs, not a feature manager's.
+
+## A null is not a design
+
+`preset.designId` is read at `words.test.ts:87-88` and nowhere else in the tree — and that test only asserts the named ids exist in the registry, so it certifies the names while nothing consumes them. Sixteen industry presets each name the homepage design that business should get; **choosing "Restaurant" supplies the words and the feature flags and not the design.**
+
+**Routed on the same split as native blocks:** Front Door owns the read (they own the words + industry preset contract and signup seeding, so reading `preset.designId` at seed time is a seeding decision); Page Builder owns the apply (the registry is under `builder-node/`, theirs by standing rule). Two small PRs against a contract Front Door hands them; neither reaches into the other's tree.
+
+**And the null case needs an answer, not an absence.** `agency` and `custom` both name `designId: null` today, and between them they catch six of the eleven incoming businesses — including the laundry the CEO has designated as the design brief. "We do not know what you are" is a reasonable engineering state and an unacceptable design state. The Creative Director is bringing a general-purpose fallback design; **Page Builder must not design around a null or let the applier quietly no-op.**
+
+**The general form, now a standing rule:** *the industry preset today configures words and feature flags, nothing visual.* Any copy anywhere implying that picking your industry sets up your site is false in exactly the way the Tables floor-plan copy is. Expect a third and fourth instance; every one found is in scope.
+
+
+**Prefer a GLOB test lane. It is the one shape of the lane-name collision that cannot happen.** Found by the Sessions & Classes Manager, verified on main: `"test:sessions": "tsx --test src/lib/sessions/*.test.ts"`, wired into the `ci` chain. **A new test file in that directory gates automatically without touching `web/package.json`.** The recorded incident in this repo is a lane-name collision that lost coverage silently while reporting green, and it needs a hand-maintained file list to happen at all. A glob lane is structurally immune, and it removes the `package.json` conflict that every parallel manager otherwise fights over. When you define a new lane, glob the directory.
+
+**Separate "nothing right now" from "nothing ever", at the decision layer and not in the pure function.** Same manager, writing `expandSeries`: it returns `[]` both for a malformed series and for a well-formed one with nothing in the window. **That is correct for an expander and wrong for a cron** — "nothing this week" is a Tuesday; "can never produce anything" is a workspace whose schedule silently never appears and nobody finds out. The expander stays pure and total; the decision layer above it turns the second case into a refusal with a reason. And the reasons stay unmerged: `timezone_unconfirmed` and `timezone_unknown` are different problems with different fixes, and one label for both sends the operator to the wrong screen. This is `a function that answers instead of refusing` applied one level up, plus `one label, three states` applied to its reasons.
+
+**The surface allow-list does NOT bite a builder block.** Correction from the Sessions & Classes Manager, and it is a correction of the Director. I broadcast the allow-list warning to four managers as though it were imminent for all of them. A native block renders inside an existing tenant page and **claims no route**, so nothing in Sessions P1.2–P1.6 touches it. It bites at P1.7: the staff check-in workspace route, and any per-session public schedule page, which would be a top segment (`/schedule`, `/classes`) and therefore the reserve-the-slug-in-both-prefix-lists case. **A warning delivered to everyone at the same urgency is a warning nobody can schedule.**
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
@@ -505,7 +608,8 @@ Found by the Spaces & Seating Manager, applying the invariant Capacity handed th
 | orders, order_lines (cents, XOR payee, allocation_ids, space_id, session_id, payout_release_rule); order_id on booking_transactions and booking_commission_snapshot | Orders & Checkout | everyone | proposed | 0.5 |
 | lib/orders/purchase.ts pipeline | Orders & Checkout | Menu, Front Door, Sessions, Events, Reservations | proposed | 0.6 |
 | message_kind 'order', the order card | Orders & Checkout | Front Door, Menu | proposed | 0.7 |
-| spaces, space_groups, space_group_members, layouts, layout_spaces, assign/move API, QR per space | Spaces & Seating | Reservations, Events, Menu, Appointments | proposed | S2 to S5 |
+| spaces, space_groups, space_group_members, layouts, layout_spaces, assign/move API | Spaces & Seating | Reservations, Events, Menu, Appointments | proposed | S2 to S5 |
+| a space's QR: `createLinkForSpace()` returns a link whose `context.space_id` is that space. Spaces never writes `links` and never generates an image. **Ruled 2026-09-03** — QR per space moved off the Spaces row | QR & Links | Spaces & Seating | **agreed 2026-09-03** | Q1 |
 | session_series, sessions, session tier pools | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
 | admissions, check_in RPC | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
 | events, inquiries.event_id, tenant promo codes | Events & Ticketing | Front Door | proposed | Phase 2 |
@@ -549,3 +653,14 @@ Orders' already-claimed `20261228000142` and `…143` stay where they are: they 
 | 20261228000142 | Orders & Checkout | orders, order_lines | claimed |
 | 20261228000143 | Orders & Checkout | convert RPC | claimed |
 | 20261228000144 | Orders & Checkout | commission context | claimed |
+
+**Bands granted 2026-09-03 evening**, on the Reservations Manager's proposed split, verified free against the live ledger:
+
+| Manager | Band |
+|---|---|
+| Sessions & Classes | `20261229000340`–`20261229000359` |
+| Events & Ticketing | `20261229000360`–`20261229000379` |
+| Reservations | `20261229000380`–`20261229000399` |
+| QR & Links | `20261229000280`–`20261229000283` (claimed) |
+
+Announce each exact number on the board before applying it, and verify the object exists in production rather than reading the `db:check` green line.
