@@ -40,7 +40,23 @@ jobs:
         with:
           script: |
             const run = context.payload.workflow_run;
-            const conclusion = run.conclusion; // success | failure | cancelled | ...
+            const conclusion = run.conclusion; // success | failure | cancelled | timed_out | ...
+
+            // A gate that RAN OUT OF TIME has told us nothing, and "nothing" is
+            // not "green": the production exposure window is identical to a red
+            // one, because Vercel deployed the commit either way. The close-path
+            // below already reasons exactly this way — "a gate that has not
+            // reported at this commit is unknown, not green. Silence is not
+            // evidence." — and the open-path did not apply its own rule.
+            //
+            // `cancelled` is deliberately NOT here. It almost always means a
+            // newer push superseded this run, and alarming on it would fire on
+            // ordinary rapid merges. Six cancelled runs happened on main in one
+            // morning; none was a red main. An alarm that cries on routine
+            // supersede is one people learn to close without reading, which is
+            // the failure this workflow exists to prevent.
+            const RED_CONCLUSIONS = new Set(["failure", "timed_out"]);
+            const verb = conclusion === "timed_out" ? "timed out" : "failed";
             const sha = run.head_sha.slice(0, 9);
             const runUrl = run.html_url;
             const TITLE = "🔴 MAIN IS RED — production exposure window open";
@@ -54,9 +70,9 @@ jobs:
             });
             const existing = open[0];
 
-            if (conclusion === "failure") {
+            if (RED_CONCLUSIONS.has(conclusion)) {
               const body = [
-                `\`${run.name}\` failed on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
+                `\`${run.name}\` ${verb} on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
                 "",
                 `Run: ${runUrl}`,
                 "",
@@ -71,7 +87,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: existing.number,
-                  body: `Still red: \`${run.name}\` at \`${sha}\` — ${runUrl}`,
+                  body: `Still red: \`${run.name}\` ${verb} at \`${sha}\` — ${runUrl}`,
                 });
               } else {
                 await github.rest.issues.create({
