@@ -111,6 +111,44 @@ Then confirm `lsof +D <your worktree>` returns zero. **A stopped shell leaves it
 
 **Work that costs nothing and continues:** writing code and migrations, reading source, review, updating this board, committing locally. Push nothing whose honesty depends on a gate.
 
+## SESSIONS, EVENTS & RESERVATIONS — completion phase, and A BOARD ENTRY IS NOT IN FORCE UNTIL IT MERGES
+
+**MERGED to main 2026-09-03 night, both with CI as the gate of record:**
+
+| PR | What | Merge sha | Gates |
+|---|---|---|---|
+| **#1612** | Reservations **R1** — service windows, exceptions, the venue's rules, plus R2/R3 pure layers | `c5a8ce5a0` | `test:reservations` 60/60 and `test:size-ratchet` 99/99 at real exit 0 locally; **lint and typecheck NOT A RESULT locally (SIGTERM 143)** and both **passed on CI** |
+| **#1613** | Sessions & Classes **P1.2** — the materialiser that refuses rather than guessing a timezone | `acf132767` | `test:sessions` 43/43 and `test:capacity` 43/43 at real exit 0; same two gates 143 locally, **green on CI** |
+| **#1608** | this board's serialiser/governor entries | `474121b7c` | docs only |
+
+Zero file overlap between #1612 and #1613, checked before merging rather than after. Both migrations — `20261229000380` and `20261229000340` — were applied to production and verified **past existence** before merge, so there is no code-ahead-of-schema window. **MERGED IS NOT DEPLOYED:** at time of writing `origin/production` is `6f7351fc9` and main's structural gate is still pending.
+
+**This is the "local gates off by default" ruling proven rather than asserted.** Two branches whose local lint and typecheck could not survive the machine shipped with those gates honestly marked NOT A RESULT, and CI — which costs this box nothing — answered both green.
+
+### A BOARD ENTRY IS NOT IN FORCE UNTIL IT IS ON MAIN
+
+**The most expensive lesson of the night, and it was this director's.** The department's rule is that the board is the durable channel because messaging rate-pauses. True, and it held: messaging paused twice mid-relay and the board carried a gate freeze and a cancelled re-run trigger that could not be sent.
+
+**But an unmerged board entry is a draft that looks like a record.** The `admissions` overturn — `allocation_id` nullable, not `NOT NULL` — was written here, verified, and approved, and sat in an **open PR** for hours. `origin/main`'s board therefore still carried the **superseded** ruling, which is exactly what got handed to the incoming Events & Ticketing Manager as their build spec. Nobody made a mistake: the CEO quoted the board, and the board they could read said the old thing.
+
+**The rule: post to the board AND merge it, or the decision is not yet a decision.** Three decisions were routed through this file during a freeze on the assumption it was the safe channel; only merging made any of them true. A docs-only PR needs no local gate and merges in one CI cycle — there is no reason to leave one open.
+
+### CORRECTION: `web/package.json` does NOT resolve as a union
+
+Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
+
+## THE BATCHED QA LIST — every manager APPENDS, nobody clicks per slice
+
+**Human QA is batched at the phase boundary, not requested per slice.** Development runs to completion, then one full pass. **This list is the deliverable.** Format: surface · exact steps · what correct looks like. Append your own; do not edit anyone else's.
+
+| Area | Surface | Steps | What correct looks like | Owner |
+|---|---|---|---|---|
+| **Sessions & Classes** | P1.3, the workspace Sessions surface | *(to be appended when P1.3 lands)* | — | Sessions & Classes |
+| **Reservations** | R2 settings page · R3 availability endpoint and block | *(to be appended; both shipped labelled **unclicked by design**)* | — | Reservations |
+| **Events & Ticketing** | door app / check-in | *(after the `admissions` migration)* | — | Events & Ticketing |
+
+**Standing, and it does not soften:** nobody asserts a UI path they have not clicked. Batching changes *when* the click happens, never *whether* an unclicked path may be described as working. Anything shipped before its pass is labelled **unclicked by design** in its PR body.
+
 ## SESSIONS, EVENTS & RESERVATIONS — first entry, 2026-09-03 night
 
 Written by the second director. Facts first, measured against `origin/main` and the live Supabase ledger tonight, not taken from the brief that appointed me. Two items below correct that brief, one corrects this board, and the first is a live hazard throttling every department on this machine.
