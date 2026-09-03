@@ -22,6 +22,7 @@ import {
   type BookingHours,
   type WeeklyHours,
 } from "@/lib/scheduling/hours-types";
+import { tenantTimezone } from "@/lib/spaces/venues";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { actorMayWriteHours } from "@/lib/scheduling/hours-edit-policy";
@@ -206,6 +207,8 @@ type LoadHoursResult =
   | {
       ok: true;
       hours: BookingHours | null;
+      /** The workspace's zone, for an editor opening on a person with no hours yet. */
+      defaultTimezone: string;
       directBookingOptIn: boolean;
       canEditHours: boolean;
     }
@@ -246,9 +249,16 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
       ? (tp.booking_terms as Record<string, unknown>)
       : {};
 
+  // What the editor should start on when this person has no hours row yet.
+  // It used to start on "UTC", so the first thing a Tulum barber saw was the
+  // wrong timezone already filled in, and saving it made the wrong answer real.
+  const hoursTenantId = await resolveHoursTenantId(talentProfileId, auth.staffTenantId);
+  const defaultTimezone = hoursTenantId ? await tenantTimezone(hoursTenantId) : "UTC";
+
   return {
     ok: true,
     hours: parseBookingHours(hoursRow),
+    defaultTimezone,
     directBookingOptIn: terms.directBookingOptIn === true,
     canEditHours: auth.canEditHours,
   };

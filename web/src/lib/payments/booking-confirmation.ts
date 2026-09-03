@@ -19,6 +19,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { tenantTimezone } from "@/lib/spaces/venues";
 import {
   generateBookingConfirmationPdf,
   type BookingConfirmationLineItem,
@@ -146,6 +147,9 @@ export async function emitBookingConfirmation(transactionId: string): Promise<vo
       subtotalCents,
       serviceFeeCents,
       totalPaidCents,
+      // The venue's clock. A receipt that says 8:00 PM has to mean 8:00 PM
+      // where the money was spent, not in UTC.
+      timeZone: await tenantTimezone(tenantId),
     });
 
     // 5. Upload to the inquiry-files bucket + register the attachment so it

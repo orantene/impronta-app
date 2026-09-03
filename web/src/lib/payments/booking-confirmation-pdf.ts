@@ -40,6 +40,12 @@ export interface BookingConfirmationPdfInput {
   eventLabel?: string | null;
   /** Tenant brand; defaults to "Tulala". */
   brandName?: string;
+  /**
+   * IANA zone the dates are rendered in — the venue's, resolved by the caller.
+   * A receipt that says 8:00 PM must mean 8:00 PM where the money was spent.
+   * Defaults to UTC only so an old caller cannot crash a receipt.
+   */
+  timeZone?: string;
 }
 
 const PAGE_W = PageSizes.A4[0];
@@ -61,12 +67,12 @@ function fmtMoney(cents: number, currency: string): string {
   }
 }
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, timeZone: string): string {
   try {
     return new Intl.DateTimeFormat("en-US", {
       dateStyle: "long",
       timeStyle: "short",
-      timeZone: "UTC",
+      timeZone,
     }).format(new Date(iso));
   } catch {
     return iso;
@@ -78,6 +84,7 @@ export async function generateBookingConfirmationPdf(
 ): Promise<Uint8Array> {
   const brand = input.brandName?.trim() || "Tulala";
   const currency = input.currency || "USD";
+  const timeZone = input.timeZone?.trim() || "UTC";
 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -137,7 +144,7 @@ export async function generateBookingConfirmationPdf(
   cursor += 30;
   text("Booking Confirmation", { size: 22, bold: true });
   cursor += 14;
-  text(`Confirmation ${input.confirmationNumber}  ·  Paid ${fmtDate(input.paidAtISO)}`, {
+  text(`Confirmation ${input.confirmationNumber}  ·  Paid ${fmtDate(input.paidAtISO, timeZone)}`, {
     size: 9,
     color: muted,
   });

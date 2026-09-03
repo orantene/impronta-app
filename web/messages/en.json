@@ -4679,7 +4679,30 @@
       "accountBillingTitle": "Account and billing",
       "accountBillingDesc": "Your subscription, invoices, and payment method, handled in Stripe.",
       "payoutBankTitle": "Payout bank account",
-      "payoutBankDesc": "Connect the bank account that receives your booking payments."
+      "payoutBankDesc": "Connect the bank account that receives your booking payments.",
+      "venue": {
+        "label": "Venue and spaces",
+        "desc": "Where this workspace is, and what time it is there.",
+        "loading": "Loading your venue…",
+        "nameLabel": "Venue name",
+        "nameHint": "What you call the place people come to.",
+        "timezoneLabel": "Timezone",
+        "timezoneHint": "Reminders, booking times and receipts are all shown in this zone.",
+        "itIsNow": "Right now it is",
+        "useBrowserZone": "Use the zone on this device:",
+        "notFromVenueYet": "This workspace is not using a venue timezone yet. Saving sets one.",
+        "showAddress": "Add an address",
+        "hideAddress": "Hide the address",
+        "addressLine1": "Street",
+        "addressLine2": "Apartment, suite, floor",
+        "city": "City",
+        "region": "State or region",
+        "postalCode": "Postal code",
+        "countryCode": "Country code",
+        "save": "Save venue",
+        "saving": "Saving…",
+        "saved": "Saved"
+      }
     },
     "adminBilling": {
       "affordanceOpen": "Open"

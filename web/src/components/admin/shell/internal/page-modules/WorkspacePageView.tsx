@@ -25,6 +25,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
+import { VenueSettingsCard } from "@/components/spaces/VenueSettingsCard";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
 import { StaffResourcesCard } from "@/components/appointments/StaffResourcesCard";
 
@@ -118,6 +119,7 @@ type GroupId =
   | "plan"
   | "workspace"
   | "commercial-terms"
+  | "venue"
   | "appointments"
   | "pricing-defaults"
   | "domain"
@@ -425,6 +427,27 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? <CommercialTermsSettingsCard tenantSlug={tenantSlug} /> : null,
         extraSearch: [{ title: t("dashboard.adminWorkspace.bookingTermsLabel"), desc: t("dashboard.adminWorkspace.bookingTermsDesc") }],
+      },
+      {
+        // Venue sits ABOVE appointments deliberately: the appointments group
+        // asks about hours and notice periods, and every one of those answers
+        // is meaningless until the workspace has said what time it is.
+        id: "venue",
+        label: t("dashboard.adminWorkspace.venue.label"),
+        desc: t("dashboard.adminWorkspace.venue.desc"),
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? <VenueSettingsCard tenantSlug={tenantSlug} /> : null,
+        extraSearch: [
+          {
+            title: t("dashboard.adminWorkspace.venue.label"),
+            desc: t("dashboard.adminWorkspace.venue.desc"),
+          },
+          {
+            title: t("dashboard.adminWorkspace.venue.timezoneLabel"),
+            desc: t("dashboard.adminWorkspace.venue.timezoneHint"),
+          },
+        ],
       },
       {
         id: "appointments",
