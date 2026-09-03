@@ -238,6 +238,15 @@ the code and believe it".
 - **Never delete or move a materialised session when the series is edited.** A sold session is
   history. A series edit changes *future* occurrences only, which is the "this one or all future"
   question the mockup's Sessions tab asks in so many words.
+- **The materialiser CREATES a pool; it never SETS one.** Those are different operations and one
+  function will not serve both. `set_session_seats` computes `available + held` under the row lock,
+  which is right for an editor and silently wrong here: called with the series' seat count against a
+  session that has already sold, it *raises* the ceiling rather than resetting it — and it would read
+  as a fix, because it goes through the locked function instead of around it. The name would be doing
+  the reassuring. (Capacity's warning; verified — the only reference in the tree today is a comment,
+  which is "true now" rather than structural.) Guarded by a static test that nothing under
+  `app/api/cron/` references it, with a test proving the guard bites on the broken shape, and
+  comments stripped before asserting.
 - **Never `units_total = <new number>` on an existing pool.** Editing seats on a session that has
   sold is `available + held` under the pool's row lock. That arithmetic is already shipped and
   proven in `set_offering_stock` (`20261229000211`); I am copying its shape into
@@ -288,6 +297,14 @@ gets **two sessions at one instant, each with its own `session_tier` pool, each 
 capacity into the same room.** In Phase 1 tier pools are parentless, so nothing refuses it; the
 ancestor rule catches it only once a Spaces room pool is the parent, which is Phase 4. Until then
 it is an oversell with a once-a-year trigger and no guard.
+
+**Keyed on `kind === "shifted"`, not on a re-derivation.** Capacity's `resolveWallClock` (#1592)
+returns a discriminated result — `exact` / `ambiguous` / `shifted` / `nonexistent` — rather than a
+bare `Date`. Only a `shifted` occurrence can collide, so the runner tests shifted instants against
+the venue's instants instead of every pair. Without it the runner would have had to resolve twice
+under both policies and diff, which is the caller doing the resolver's job. It is the standing rule
+applied to a shift rather than an absence: a bare `Date` cannot say "this is not the clock you
+asked for", the same way a bare `[]` cannot say "this can never produce anything".
 
 **Detection, not prevention.** `sessions_series_occurrence_uniq` is on `(series_id, starts_at)` and
 correctly does not catch this: two different classes genuinely can run at one instant in two
