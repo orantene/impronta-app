@@ -137,10 +137,10 @@ const festivalTree: BuilderNode[] = [
               menuLabel: "Menu",
               ariaLabel: "Primary",
               links: [
-                { id: "n1", label: "Lineup", href: "/lineup" },
-                { id: "n2", label: "Schedule", href: "/schedule" },
-                { id: "n3", label: "Passes", href: "/passes" },
-                { id: "n4", label: "Venue", href: "/venue" },
+                { id: "n1", label: "Lineup", href: "?inquiry=open" },
+                { id: "n2", label: "Schedule", href: "?inquiry=open" },
+                { id: "n3", label: "Passes", href: "?inquiry=open" },
+                { id: "n4", label: "Venue", href: "?inquiry=open" },
               ],
               style: {
                 width: "100%",
@@ -234,7 +234,7 @@ const festivalTree: BuilderNode[] = [
             kind: "button",
             props: {
               label: "Get passes",
-              href: "/passes",
+              href: "?inquiry=open",
               tone: "primary",
               style: {
                 fontFamily: MANROPE,

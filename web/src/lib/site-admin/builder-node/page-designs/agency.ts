@@ -171,7 +171,7 @@ const agencyTree: BuilderNode[] = [
             kind: "button",
             props: {
               label: "Request the index",
-              href: "/index",
+              href: "?inquiry=open",
               tone: "primary",
               style: {
                 fontFamily: RALEWAY,

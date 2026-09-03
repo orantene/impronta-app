@@ -238,7 +238,7 @@ const restaurantTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Reserve a table",
-                  href: "/reserve",
+                  href: "?inquiry=open",
                   tone: "primary",
                   style: {
                     fontFamily: INTER,

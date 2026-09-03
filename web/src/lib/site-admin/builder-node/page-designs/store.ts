@@ -68,10 +68,10 @@ const storeTree: BuilderNode[] = [
           menuLabel: "Menu",
           ariaLabel: "Primary",
           links: [
-            { id: "n1", label: "Shop", href: "/shop" },
-            { id: "n2", label: "Collections", href: "/collections" },
-            { id: "n3", label: "Studio", href: "/studio" },
-            { id: "n4", label: "Cart (1)", href: "/cart" },
+            { id: "n1", label: "Shop", href: "?inquiry=open" },
+            { id: "n2", label: "Collections", href: "?inquiry=open" },
+            { id: "n3", label: "Studio", href: "?inquiry=open" },
+            { id: "n4", label: "Cart (1)", href: "?inquiry=open" },
           ],
           style: {
             width: "100%",
@@ -150,7 +150,7 @@ const storeTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Add to cart",
-                  href: "/cart/add",
+                  href: "?inquiry=open",
                   tone: "primary",
                   style: {
                     fontFamily: INTER,
@@ -364,7 +364,7 @@ const storeTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Add to cart · $280",
-                  href: "/cart/add",
+                  href: "?inquiry=open",
                   tone: "primary",
                   style: {
                     fontFamily: INTER,
