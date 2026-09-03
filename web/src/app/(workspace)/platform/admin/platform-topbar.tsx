@@ -25,24 +25,58 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "today",      labelKey: "dashboard.platform.nav.today",        segment: "today"      },
-  { id: "tenants",    labelKey: "dashboard.platform.nav.tenants",      segment: "tenants"    },
-  { id: "users",      labelKey: "dashboard.platform.nav.users",        segment: "users"      },
-  { id: "network",    labelKey: "dashboard.platform.nav.network",      segment: "network"    },
-  { id: "commerce",   labelKey: "dashboard.platform.nav.commerce",     segment: "commerce"   },
-  { id: "operations", labelKey: "dashboard.platform.nav.operations",   segment: "operations" },
-  { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
-  { id: "ai-providers", labelKey: "dashboard.platform.nav.aiProviders", segment: "ai-providers" },
-  { id: "email",      labelKey: "dashboard.platform.nav.email",        segment: "email"      },
-  { id: "catalog",    labelKey: "dashboard.platform.nav.catalog",      segment: "catalog" },
-  { id: "taxonomy",   labelKey: "dashboard.platform.nav.taxonomy",     segment: "taxonomy"   },
-  { id: "languages",  labelKey: "dashboard.platform.nav.languages",    segment: "languages"  },
-  { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
-  { id: "builder-lab", labelKey: "dashboard.platform.nav.builderLab",  segment: "builder-lab" },
-  { id: "support",    labelKey: "dashboard.platform.nav.support",      segment: "support"     },
-  { id: "settings",   labelKey: "dashboard.platform.nav.settings",     segment: "settings"   },
-  { id: "audit-log", labelKey: "dashboard.platform.nav.auditLog",      segment: "audit-log" },
+// Tabs grouped into five clusters so the strip reads as labelled sections
+// instead of 17 equal-weight items. `labelKey: null` = the group carries no
+// eyebrow (Today stands alone; Money holds only Commerce). Order and grouping
+// follow the WP2 target; the routes themselves are unchanged (a later pass may
+// still fold Taxonomy/Translations/AI/Email into their neighbours as tabs).
+type NavTab = { id: string; labelKey: string; segment: string };
+type NavGroup = { id: string; labelKey: string | null; tabs: readonly NavTab[] };
+
+const GROUPS: readonly NavGroup[] = [
+  {
+    id: "home",
+    labelKey: null,
+    tabs: [{ id: "today", labelKey: "dashboard.platform.nav.today", segment: "today" }],
+  },
+  {
+    id: "accounts",
+    labelKey: "dashboard.platform.nav.group.accounts",
+    tabs: [
+      { id: "tenants", labelKey: "dashboard.platform.nav.tenants", segment: "tenants" },
+      { id: "users",   labelKey: "dashboard.platform.nav.users",   segment: "users"   },
+      { id: "network", labelKey: "dashboard.platform.nav.network", segment: "network" },
+      { id: "support", labelKey: "dashboard.platform.nav.support", segment: "support" },
+    ],
+  },
+  {
+    id: "money",
+    labelKey: "dashboard.platform.nav.group.money",
+    tabs: [{ id: "commerce", labelKey: "dashboard.platform.nav.commerce", segment: "commerce" }],
+  },
+  {
+    id: "product",
+    labelKey: "dashboard.platform.nav.group.product",
+    tabs: [
+      { id: "catalog",      labelKey: "dashboard.platform.nav.catalog",      segment: "catalog"      },
+      { id: "taxonomy",     labelKey: "dashboard.platform.nav.taxonomy",     segment: "taxonomy"     },
+      { id: "languages",    labelKey: "dashboard.platform.nav.languages",    segment: "languages"    },
+      { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
+      { id: "builder-lab",  labelKey: "dashboard.platform.nav.builderLab",   segment: "builder-lab"  },
+    ],
+  },
+  {
+    id: "system",
+    labelKey: "dashboard.platform.nav.group.system",
+    tabs: [
+      { id: "operations",   labelKey: "dashboard.platform.nav.operations",   segment: "operations"   },
+      { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
+      { id: "ai-providers", labelKey: "dashboard.platform.nav.aiProviders",  segment: "ai-providers" },
+      { id: "email",        labelKey: "dashboard.platform.nav.email",        segment: "email"        },
+      { id: "audit-log",    labelKey: "dashboard.platform.nav.auditLog",     segment: "audit-log"    },
+      { id: "settings",     labelKey: "dashboard.platform.nav.settings",     segment: "settings"     },
+    ],
+  },
 ] as const;
 
 const BASE = "/platform/admin";
@@ -130,74 +164,111 @@ export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: nu
             scrollbarWidth: "none",
           } as React.CSSProperties}
         >
-          {TABS.map((tab) => {
-            const href = `${BASE}/${tab.segment}`;
-            const active = activeSegment === tab.segment;
-
+          {GROUPS.map((group, gi) => {
+            const groupLabel = group.labelKey ? t(group.labelKey) : null;
             return (
-              <Link
-                key={tab.id}
-                href={href}
-                prefetch={false}
-                style={{
-                  background: "transparent",
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  fontFamily: FONT_BODY,
-                  fontSize: 13,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? HQ.ink : HQ.inkMuted,
-                  letterSpacing: 0.1,
-                  borderRadius: 7,
-                  position: "relative",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  transition: "color 100ms",
-                }}
+              <div
+                key={group.id}
+                role="group"
+                aria-label={groupLabel ?? undefined}
+                style={{ display: "inline-flex", alignItems: "center", gap: 2, flexShrink: 0 }}
               >
-                {t(tab.labelKey)}
-                {tab.id === "support" && supportOpenCount > 0 ? (
+                {/* Divider between groups (not before the first) */}
+                {gi > 0 && (
                   <span
+                    aria-hidden
+                    style={{ width: 1, height: 18, background: HQ.borderSoft, flexShrink: 0, margin: "0 8px 0 6px" }}
+                  />
+                )}
+                {groupLabel && (
+                  <span
+                    aria-hidden
                     style={{
-                      minWidth: 16,
-                      height: 16,
-                      padding: "0 5px",
-                      borderRadius: 999,
-                      background: "#C26A45",
-                      color: "#fff",
-                      fontSize: 10,
+                      fontFamily: FONT_DISPLAY,
+                      fontSize: 9.5,
                       fontWeight: 700,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      letterSpacing: "0.09em",
+                      textTransform: "uppercase",
+                      color: HQ.inkMuted,
+                      marginRight: 4,
+                      flexShrink: 0,
                     }}
                   >
-                    {supportOpenCount > 99 ? "99+" : supportOpenCount}
+                    {groupLabel}
                   </span>
-                ) : null}
+                )}
+                {group.tabs.map((tab) => {
+                  const href = `${BASE}/${tab.segment}`;
+                  const active = activeSegment === tab.segment;
 
-                {/* Active underline */}
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    bottom: -1,
-                    left: 8,
-                    right: 8,
-                    height: 2,
-                    background: HQ.ink,
-                    borderRadius: 2,
-                    opacity: active ? 1 : 0,
-                    transform: active ? "scaleX(1)" : "scaleX(0.4)",
-                    transformOrigin: "center",
-                    transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </Link>
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={href}
+                      prefetch={false}
+                      aria-current={active ? "page" : undefined}
+                      style={{
+                        background: "transparent",
+                        cursor: "pointer",
+                        padding: "8px 12px",
+                        fontFamily: FONT_BODY,
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 400,
+                        color: active ? HQ.ink : HQ.inkMuted,
+                        letterSpacing: 0.1,
+                        borderRadius: 7,
+                        position: "relative",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                        transition: "color 100ms",
+                      }}
+                    >
+                      {t(tab.labelKey)}
+                      {tab.id === "support" && supportOpenCount > 0 ? (
+                        <span
+                          style={{
+                            minWidth: 16,
+                            height: 16,
+                            padding: "0 5px",
+                            borderRadius: 999,
+                            background: "#C26A45",
+                            color: "#fff",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {supportOpenCount > 99 ? "99+" : supportOpenCount}
+                        </span>
+                      ) : null}
+
+                      {/* Active underline */}
+                      <span
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          bottom: -1,
+                          left: 8,
+                          right: 8,
+                          height: 2,
+                          background: HQ.ink,
+                          borderRadius: 2,
+                          opacity: active ? 1 : 0,
+                          transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                          transformOrigin: "center",
+                          transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
