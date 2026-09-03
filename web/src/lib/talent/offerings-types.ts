@@ -256,7 +256,9 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
 }
 
 /** App shape → DB patch (writers persist title + title_i18n.en together). */
-export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "id" | "talent_profile_id"> {
+export function offeringToRowPatch(
+  o: TalentOffering,
+): Omit<TalentOfferingRow, "id" | "talent_profile_id" | "inventory_qty"> {
   const title = str(o.title, MAX_TITLE) ?? "";
   const description = str(o.description, MAX_DESC);
   return {
@@ -279,7 +281,12 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
     free_reserve_expires_days: o.reserveMode === "free" ? posInt(o.freeReserveExpiresDays) : null,
     duration_minutes: posInt(o.durationMinutes),
     category: str(o.category, 80),
-    inventory_qty: o.inventoryQty != null && o.inventoryQty >= 0 ? Math.round(o.inventoryQty) : null,
+    // inventory_qty is DELIBERATELY ABSENT from the editor write shape.
+    // It is the mirror of a capacity pool, and setting it means "this many
+    // available NOW", which has to become `available + already held` on the pool
+    // under its row lock. A plain write here would either shrink the ceiling
+    // below what is outstanding or desync the mirror the storefront reads.
+    // Every stock edit goes through setOfferingStock() in lib/capacity.
     status: o.status,
     visibility: o.visibility,
     moderation_state: o.moderationState,
