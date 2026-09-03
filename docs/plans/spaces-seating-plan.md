@@ -475,6 +475,48 @@ the code was wrong.
 service-windows ruling: building Reservations' core screen before they exist leaves them inheriting
 a UI they did not design. What S3 ships is an API a host stand consumes.
 
+## 5c. CONTRACT: a space id is durable, because printed things depend on it
+
+Asked by the QR & Links Manager, whose `links.context.space_id` puts a table's identity on a
+printed table tent that lives for years while the destination changes. Verified against
+production and the code, then promoted from "a property that happens to hold" to a rule.
+
+**`spaces.id` is stable across a rename, a layout change, and going out of service.**
+- `id` is `uuid NOT NULL DEFAULT gen_random_uuid()`; a rename or a status change is an `UPDATE`.
+- **A layout change never touches the space.** The tree owns the space; a layout is a *view* over
+  it, and removing a table from one is `layout_spaces.included = false`, never a delete. That is
+  what makes the same room dinner on Friday and theatre on Saturday from one set of spaces.
+- A space that has ever seated a guest is already undeletable: `space_assignments.space_id` is
+  `ON DELETE RESTRICT`.
+
+**THE RULE, which does not yet have a structural guarantee and therefore needs to be written
+down: removing a space in this area is `status = 'retired'`, NEVER a `DELETE`.** There is no
+delete affordance today, and a space that has never been seated has no `RESTRICT` protecting it,
+so the next person to build "remove this table" is the one this rule is for. **A printed code must
+outlive every reconfiguration of the room it names.** Changing this comes to QR & Links first.
+
+**`spaces.code` is a HUMAN LABEL, not a scan token.** It is "T7" — what the host says out loud and
+what is painted on the table. Unique per venue, not secret, not signed, and **it must never be
+resolvable**: a resolver that accepts it makes every venue's tables enumerable by guessing
+T1..T20. Anything durable keys on `id`; `code` can be reassigned by an operator renumbering a floor.
+
+**QR is not this area's.** "QR per space" belongs to QR & Links: a QR is one rendering of a link
+whose `context.space_id` is the space. Spaces calls their helper and never writes `links`, never
+mints a code and never generates an image — so a table code, a door code and a flyer stay one
+object with one analytics story. Verified 2026-09-03: zero occurrences of qr/token/signed in
+`lib/spaces/**`.
+
+## 5d. Traps outside this area that will cost S4 and S5 an afternoon
+
+- **`web/src/middleware.ts` DOES NOT EXIST.** CLAUDE.md's QA caveat is stale; Next 16 renamed it and
+  the file is `web/src/proxy.ts`. Verified on `origin/main`.
+- **There is a second gate the caveat never mentions:** `web/src/lib/saas/surface-allow-list.ts`, a
+  per-host-kind path allow-list run inside the proxy. A path not in it is rewritten to
+  `/_page-not-found` with a 404 **before Next routing runs**, so a route file that exists and is
+  correct still 404s and the HTML 404 reads as a routing bug. **Any new public path in S4 or S5 —
+  a floor plan view, a seat picker — goes in the allow-list and in `surface-allow-list.test.ts` per
+  host kind.** Found by the QR & Links Manager; this repo has a recorded incident of exactly it.
+
 ## 6. Files I own
 
 - `supabase/migrations/20261229000220…239_*.sql`
