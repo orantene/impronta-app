@@ -15,6 +15,7 @@ import {
   hubMayListTalent,
   mapTenantDiscoverExposure,
 } from "@/lib/saas/discover-exposure";
+import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import {
   parseTenantAppointmentSettings,
   resolveAppointmentPolicy,
@@ -52,6 +53,7 @@ type RosterRow = {
 type AgencyRow = {
   id: string;
   settings: unknown;
+  timezone: string | null;
   plan_tier: string | null;
   slug: string | null;
   discover_exposure_enabled: boolean | null;
@@ -216,7 +218,7 @@ export async function resolveTalentBooking(
   const { data: agencyData } = await admin
     .from("agencies")
     .select(
-      "id, settings, plan_tier, slug, discover_exposure_enabled, hub_exposure_tenant_ids",
+      "id, settings, timezone, plan_tier, slug, discover_exposure_enabled, hub_exposure_tenant_ids",
     )
     .in("id", [...agencyIds]);
 
@@ -290,8 +292,33 @@ export async function resolveTalentBooking(
     .maybeSingle();
 
   const bookingTerms = isPlainObject(talent.booking_terms) ? talent.booking_terms : null;
+
+  // The workspace's clock (Spaces & Seating S1). The appointments setting used
+  // to be the only place a tenant timezone could live, which made a per-feature
+  // setting answer for the whole workspace. It is now the last rung of a ladder
+  // whose first rung is the venue the workspace actually operates from.
+  let venueTimezone: string | null = null;
+  if (channelAgency) {
+    const { data: venueRow } = await admin
+      .from("venues")
+      .select("timezone")
+      .eq("tenant_id", channelAgency.id)
+      .eq("is_default", true)
+      .maybeSingle();
+    venueTimezone = (venueRow as { timezone: string | null } | null)?.timezone ?? null;
+  }
+
+  const tenantAppointments = parseTenantAppointmentSettings(channelAgency?.settings ?? null);
+  const workspaceTimezone = pickTimezone({
+    venue: venueTimezone,
+    workspace: channelAgency?.timezone ?? null,
+    appointmentsSetting: tenantAppointments?.timezone ?? null,
+  }).timezone;
+
   const policy = resolveAppointmentPolicy({
-    tenant: parseTenantAppointmentSettings(channelAgency?.settings ?? null),
+    tenant: tenantAppointments
+      ? { ...tenantAppointments, timezone: workspaceTimezone }
+      : null,
     talent: {
       profileKind: talent.profile_kind === "resource" ? "resource" : "person",
       directBookingOptIn: bookingTerms?.directBookingOptIn === true,

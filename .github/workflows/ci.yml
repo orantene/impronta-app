@@ -376,6 +376,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
+      # Spaces & Seating S1: the timezone ladder (venue, then workspace, then
+      # the legacy appointments setting, then UTC) and the local-hour helper the
+      # reminder cron gates on. Pure; the venue rows themselves are asserted in
+      # production after the migration, not here.
+      - name: tests — spaces and seating
+        if: ${{ !cancelled() }}
+        run: npm run test:spaces
+
       - name: tests — words and industry presets
         if: ${{ !cancelled() }}
         run: npm run test:words
