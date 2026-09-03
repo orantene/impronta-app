@@ -271,6 +271,37 @@ declared a clean stop, and it is reversible.
 
 ---
 
+## 3.4 The gap collision: two sessions, one instant, two pools
+
+Found by the Reservations Manager in their own area; reproduced here before being repeated.
+`Europe/Madrid`, 2027-03-28, the day 02:00 to 03:00 does not exist:
+
+```
+series at 01:30 local -> 2027-03-28T00:30:00.000Z = 01:30 local
+series at 02:30 local -> 2027-03-28T01:30:00.000Z = 03:30 local
+series at 03:30 local -> 2027-03-28T01:30:00.000Z = 03:30 local   <- same instant
+```
+
+The gap policy that saves a class from vanishing (`next`) folds two wall clocks onto one instant.
+A venue with a 02:30 show and a 03:30 show — unremarkable for a club, and `sessions` covers shows —
+gets **two sessions at one instant, each with its own `session_tier` pool, each selling its own
+capacity into the same room.** In Phase 1 tier pools are parentless, so nothing refuses it; the
+ancestor rule catches it only once a Spaces room pool is the parent, which is Phase 4. Until then
+it is an oversell with a once-a-year trigger and no guard.
+
+**Detection, not prevention.** `sessions_series_occurrence_uniq` is on `(series_id, starts_at)` and
+correctly does not catch this: two different classes genuinely can run at one instant in two
+different rooms, so a uniqueness constraint on `(venue, starts_at)` would refuse valid states —
+the mistake already caught once on `admissions`. Instead the **runner** refuses an occurrence whose
+`next`-resolved instant is already held by another occurrence at the same venue, with a named
+reason. It belongs in the runner rather than in `decideMaterialisation`, which sees one series and
+cannot know about the other.
+
+Refusing is the safe direction here in a way it is not for a dinner service: a class that does not
+appear is visibly missing from a schedule the operator reads every day, whereas a silently
+duplicated room is not visible anywhere until two crowds arrive. Resolution — asking the operator
+which one moves — is a screen, and is not Phase 1.
+
 ## 4. `session_picker` (P1.4) — and an ownership question
 
 The data contract, following `menu_board` exactly (server resolves, renderer never queries):
