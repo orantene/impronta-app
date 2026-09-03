@@ -266,10 +266,21 @@ Allow-list work per §0 contradiction 2.
   lie. Built now because `links` has zero rows: added later it needs an audit of every row
   written in between, and intent is not recoverable from a code string.
 
-**Exit proof:** a seeded event-night link, scanned at 19:00 venue-local, resolves to
-tickets; the same code at 23:30 resolves to the menu; both scans are rows on the link
-with the right `resolved_to`. Evidenced by the SQL result plus a clicked localhost path,
-not by a green test alone.
+**Exit proof:** `npm run qa:links -- --host <deploy>` green, and its seeded run showing
+the 302, the winning rule in the `Location`, the link id riding along, and a `link_scans`
+row carrying the `resolved_to` that was actually served. Run against **production after
+merge**, not localhost.
+
+The harness (`web/scripts/qa-links.mjs`, following `qa-appointments.mjs`) exists because
+AGENTS.md says "not clicked" belongs in a report only for what genuinely needs a browser.
+Its read-only probe reads the **body**, not the status: the allow-list's 404 and the
+resolver's own 404 are both 404, and only the handler's carries a sentinel string. Proven
+not to be a no-op by running it against production pre-deploy, where it fails with exactly
+the allow-list message.
+
+**What still needs a human**, and the line for the board's click list: hold a phone camera
+up to a printed code and confirm it lands on the right page with the right context. That
+is the only part curl cannot do.
 
 ### Q2 — Share popover and renderings  ·  go on the board
 
