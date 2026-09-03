@@ -220,6 +220,40 @@ It derives the version from the filename, applies via the Management API, record
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
 ## Department rules added in flight
+### Added 2026-09-03, from managers
+
+**Route contract questions back to the engine owner; do not resolve them at the surface.** Twice in one day a question about the capacity contract found a defect inside it, and both were invisible from inside the engine. Front Door asking what a refusal *says* found that a database outage was reaching customers as "this does not exist" — the one refusal a customer can act on, collapsed into one they cannot. Menu asking how to *call* `set_offering_stock` found it had no tenant check. The engine owner's words: "from inside the engine both strings are equally safe and the bug is invisible."
+
+**A ratchet is seeded by the thing that will enforce it, never by a human's grep.** The Director counted 194 unchecked Supabase reads with a literal `grep`. The detector counts bindings — `data` present, `error` absent — and found **1,186 across 386 files**, because `const { data: rows } = await` is 5.4× more common than the plain form. Baselining at 194 would have permitted about a thousand new violations while reporting green: a ratchet that ratchets nothing. Third number the Director stated too confidently in one day.
+
+**A detector must not count its own documentation.** The unchecked-read detector counted explanatory snippets in `src/`, so the baseline was inflated and could then be "fixed" by editing a comment — the guard drifting green while the code got worse, with the fix looking like a fix. It now blanks comments before scanning, preserving offsets so line numbers stay true, with string-literal tracking so a `//` inside a URL is not a comment.
+
+**An escape hatch must require a reason.** `// supabase-read-unchecked-ok: <why>` silences the guard; a bare marker does not. A marker is a silencer people route around; a reason is a decision someone defends in review.
+
+**Prove a guard bites before you ship it.** The ratchet was proven by injecting an unchecked read into `lib/capacity/reserve.ts`, watching the lane go red naming the exact file and line, then reverting to green. Six guards in this repo's history were green while measuring nothing; two self-tests asserting the ratchet actually fails is the step that separates this one from those.
+
+**Permit the unknown, but enumerate it.** `capacity_subject_kinds` permits an unregistered `subject_kind` rather than blocking it, so the engine never stops a feature shipping — and because that leaves a real gap, the test **enumerates** the unregistered kinds and fails if the set changes without someone deciding. Coverage nobody can see is how a green guard measures nothing; naming the gap makes it a decision instead of an accident.
+
+**Drop the unguarded overload; do not leave it beside the fixed one.** Keeping a 2-arg `set_offering_stock` next to the tenant-checked version would have left the cross-tenant hole reachable under a different signature — "the sort of thing a fix quietly preserves."
+
+**A guard that fails OPEN is worse than no guard.** A hardcoded `to_regclass('public.spaces')` silently disables itself when the table does not exist or the name was guessed wrong. A registry row is an explicit act by the table's owner, and registering a table that does not exist is refused.
+
+**An absent value is not a default — it is a signal that nobody has chosen, and the safe reading is whatever is already live.** Every workspace predates industry presets, so the preset parser returns "custom" for all of them. Treating "custom" as a real value would have silently rewritten the chat opener and header button on every live storefront in one merge.
+
+**Before changing a cron's schedule, look for what else is riding it.** The review-request sweep piggybacks on the booking-reminder cron and is not workspace-scoped. Moving that cron from daily to hourly would have run the sweep 24 times a day, silently. It is now gated to the 08:00 UTC tick, with `reviewSweepDue` in the log line so it is observable rather than assumed.
+
+**A local day is not 24 hours.** Madrid's fall-back Sunday is 25 and spring-forward is 23. Anyone building service windows or turn times will hit this.
+
+**`starts_at` and `event_date` are different kinds of fact.** An instant converts into a zone; a bare civil date is compared as written. "Converting it would invent a time nobody recorded and move the booking a day in half the world."
+
+**Managers apply their own migrations, in their own band, before merge, without asking.** Verify the object exists afterwards. Escalate only when a migration is destructive, changes a customer-facing promise, or touches another manager's table. Bands exist to stop two managers picking the same number, **not** to impose an order — sorting below an applied migration matters only for a rebuild-from-scratch, and only when there is a real dependency.
+
+**"CI is authoritative" is a merge-gate rule, not a licence to describe a green local run as an absent one.** Post-crash the Director told everyone to write "local typecheck not run" in their PR body. Correct for two managers whose runs never completed; **wrong** for the one whose run completed and passed, and who refused to write it. State what actually happened.
+
+**On a stacked branch whose lower PRs merged as squashes, `git rebase origin/main` is the wrong command.** It replays commits already upstream and manufactures conflicts in your own code. Use `git rebase --onto origin/main <last-merged-commit>`.
+
+**An overstated security claim is its own kind of error.** A finding described as "any authenticated staff member could call this" implied direct reachability that the grants did not permit. The finding still stood — and for a sharper reason: because the RPC was unreachable, the server action was the *only* guard rather than a second one.
+
 **Compare the FULL 40-character sha, not a prefix.** The manager's first read of the sentry release matched on nine characters and they nearly accepted it. Nine characters prove less than they appear to, and this is a money branch. Compare the whole thing.
 
 **The sentry-release check has now actually caught a divergence, so stop treating it as ceremony.** 2026-09-03: `origin/production` head was `a56a53bef` while the live page still served `sentry-release=63c98ffde`. **Pointer advanced, build not landed.** Every previous close-out in this department had the two agree — which is exactly the condition under which people stop checking. A pointer advance proves what `production` points at; only the release string on the live page proves what is serving traffic. The Orders & Checkout Manager refused to call 0.5 verified on this basis, correctly — and in their words: had they closed on the pointer alone they would have been reporting a deploy that had not happened, and would have been right by luck twelve minutes later. The check is cheap and the failure it catches is silent. That is the whole argument.
