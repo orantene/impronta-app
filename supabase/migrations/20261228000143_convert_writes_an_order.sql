@@ -4,8 +4,21 @@
 --
 -- Offer money is NUMERIC major units (`inquiry_offer_line_items.unit_price`,
 -- `.talent_cost`, `.total_price`). Orders are integer cents. A conversion
--- already exists inside `engine_load_commission_context`, written inline as
--- `(li.unit_price * 100)::int`.
+-- already exists inside `engine_load_commission_context`, written inline.
+--
+-- CORRECTED 2026-09-03. This comment originally said that inline conversion was
+-- `(li.unit_price * 100)::int`. It is now `(li.total_price * 100)::int` with
+-- `'units', 1`, because that expression was a live P0: `unit_price` is PER UNIT
+-- while `talent_cost` is a LINE TOTAL, and the context passed both as per-unit
+-- to a resolver that multiplies both by units. A $200.00 talent cost measured
+-- as $400.00 on a 2-unit line, paid out of the platform balance. Fixed by
+-- Finance; verified live.
+--
+-- The stale comment is corrected here rather than left, because it is the same
+-- failure that caused the bug: a future reader extracting a shared rounding
+-- helper would have copied the WRONG GRAIN out of a comment written by the
+-- person who fixed the grain. A name or a note that lies about grain is how
+-- this class of bug survives being fixed.
 --
 -- If the order path rounds even slightly differently, an order and the
 -- commission snapshot computed from the same offer disagree by a cent per line
