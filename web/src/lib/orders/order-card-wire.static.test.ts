@@ -17,17 +17,43 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const SRC = path.join(process.cwd(), "src");
 const read = (rel: string) => readFileSync(path.join(SRC, rel), "utf8");
 
-test("layer 1 — the thread loader reads orders and attaches them", () => {
-  const s = read("app/(workspace)/[tenantSlug]/_data-bridge/inquiry-thread-messages.ts");
-  assert.match(s, /loadOrdersForThread/, "loader must read the orders");
-  assert.match(s, /orderIdsFromMessages/, "loader must collect ids from card payloads");
-  assert.match(s, /order:\s*$|order:/m, "loader must attach `order` to the message");
+test("layer 1 — EVERY producer of a card-bearing message attaches the order", () => {
+  // The first version of this test named ONE loader and passed while the page
+  // rendered a blank card, because TWO loaders build messages: the per-thread
+  // one and the inbox-list one that feeds the shell's first paint. A guard that
+  // names a file measures that file, not the code path that runs.
+  //
+  // So find the producers instead of naming them: any site that constructs a
+  // message object with `card_payload:` must also set `order:`.
+  const dir = path.join(SRC, "app/(workspace)/[tenantSlug]/_data-bridge");
+  const producers: string[] = [];
+
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".ts") || entry.endsWith(".test.ts")) continue;
+    const body = readFileSync(path.join(dir, entry), "utf8");
+    // `card_payload: row.card_payload` is the construction shape; a bare
+    // `card_payload?:` in a type declaration is not.
+    if (/card_payload:\s*row\.card_payload/.test(body)) producers.push(entry);
+  }
+
+  assert.ok(producers.length >= 2, `expected at least 2 message producers, found ${producers.join(", ")}`);
+
+  for (const entry of producers) {
+    const body = readFileSync(path.join(dir, entry), "utf8");
+    assert.match(
+      body,
+      /order:\s*\n?\s*row\.message_kind === "order"/,
+      `${entry} builds messages with card_payload but never sets \`order\` — an order card there ` +
+        `renders its neutral "no longer available" state on a real page while every unit test passes`,
+    );
+    assert.match(body, /loadOrdersForThread/, `${entry} must read the orders it attaches`);
+  }
 });
 
 test("layer 2 — the message type carries the order", () => {

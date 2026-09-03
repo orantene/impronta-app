@@ -13,6 +13,7 @@
 // the adapter is a client island. /<tenant>/admin/messages/<id> is in
 // CANONICAL_ROUTE_MATCHERS so the prototype SPA yields.
 
+import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
 import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -213,7 +214,7 @@ export default async function AdminInquiryThreadPage({
   // ── Messages — private thread, full (capped 200), chronological ──
   const { data: msgRows } = await supabase
     .from("inquiry_messages")
-    .select("id, sender_user_id, body, created_at, profiles:sender_user_id(display_name)")
+    .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
     .eq("tenant_id", scope.tenantId)
     .eq("inquiry_id", inquiryId)
     .eq("thread_type", "private")
@@ -225,9 +226,20 @@ export default async function AdminInquiryThreadPage({
     sender_user_id: string | null;
     body: string;
     created_at: string;
+    message_kind: string | null;
+    card_payload: Record<string, unknown> | null;
     profiles: { display_name: string | null } | { display_name: string | null }[] | null;
   };
-  const initialMessages: ParticipantThreadMessage[] = ((msgRows ?? []) as unknown as MsgRowT[]).map((m) => {
+
+  // Orders referenced by order cards, in one query for the thread. Without this
+  // the card renders its neutral state; a card's `body` is blank by design, so
+  // before this the whole message showed as an empty grey bubble.
+  const msgRowsTyped = (msgRows ?? []) as unknown as MsgRowT[];
+  const ordersForCards = await loadOrdersForThread(
+    supabase,
+    orderIdsFromMessages(msgRowsTyped),
+  );
+  const initialMessages: ParticipantThreadMessage[] = msgRowsTyped.map((m) => {
     const profArrOrRow = m.profiles;
     const prof = Array.isArray(profArrOrRow) ? profArrOrRow[0] : profArrOrRow;
     const isMine = viewerId != null && m.sender_user_id === viewerId;
@@ -238,6 +250,12 @@ export default async function AdminInquiryThreadPage({
       body: m.body,
       created_at: m.created_at,
       is_mine: isMine,
+      message_kind: m.message_kind ?? "text",
+      card_payload: m.card_payload ?? null,
+      order:
+        m.message_kind === "order" && typeof m.card_payload?.order_id === "string"
+          ? (ordersForCards.get(m.card_payload.order_id as string) ?? null)
+          : null,
     };
   });
 

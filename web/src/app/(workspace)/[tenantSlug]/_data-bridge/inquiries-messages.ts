@@ -1,3 +1,4 @@
+import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
 import "server-only";
 
 import { cache } from "react";
@@ -586,6 +587,18 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       threadType: "private" | "group";
     }>();
     const messagesByInquiry = new Map<string, WorkspaceMessage[]>();
+
+    // One query for every order card across every inquiry in this list.
+    const ordersForCards = await loadOrdersForThread(
+      supabase,
+      orderIdsFromMessages(
+        (lastMessagesRes.data ?? []) as Array<{
+          message_kind?: string | null;
+          card_payload?: Record<string, unknown> | null;
+        }>,
+      ),
+    );
+
     for (const row of (lastMessagesRes.data ?? []) as {
       id: string;
       inquiry_id: string;
@@ -632,6 +645,14 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         thread_type: row.thread_type,
         message_kind: row.message_kind ?? "text",
         card_payload: row.card_payload ?? null,
+        // The order this card describes. THIS loader feeds the shell's initial
+        // render, so an order card is blank on first paint without it — the
+        // per-thread loader alone is not enough, which is how a card that
+        // renders in every test renders nothing on the page.
+        order:
+          row.message_kind === "order" && typeof row.card_payload?.order_id === "string"
+            ? (ordersForCards.get(row.card_payload.order_id as string) ?? null)
+            : null,
         reactions: [],
         seen_at: null,
         starred: false,

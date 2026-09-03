@@ -1,4 +1,5 @@
 "use client";
+import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -12,6 +13,27 @@ export type ParticipantThreadMessage = {
   body: string;
   created_at: string;
   is_mine: boolean;
+  /**
+   * Card kind, when this message is a card rather than prose.
+   *
+   * This shell rendered `body` and nothing else, so on the CANONICAL admin
+   * thread every card kind was invisible — an offer, a payment request, a
+   * balance-due milestone and a reservation all rendered as an empty grey
+   * bubble, because a card's `body` is deliberately blank. The full card system
+   * lives in the prototype SPA shell; this surface never grew one. Found while
+   * putting the order card where staff actually work.
+   */
+  message_kind?: string | null;
+  card_payload?: Record<string, unknown> | null;
+  /** For `message_kind === 'order'`: the order the card describes, read live. */
+  order?: {
+    id: string;
+    status: string;
+    currency: string;
+    totalCents: number;
+    outstandingCents?: number | null;
+    lineCount: number;
+  } | null;
 };
 
 export type ParticipantThreadSendResult = ServerActionResult<{
@@ -215,21 +237,23 @@ export default function ParticipantThreadShell({
                     {m.sender_name}
                   </div>
                 ) : null}
-                <div
-                  style={{
-                    padding: "8px 11px",
-                    borderRadius: 10,
-                    background: m.is_mine ? accent : C.surface,
-                    color: m.is_mine ? "#fff" : C.ink,
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    border: m.is_mine ? "none" : `1px solid ${C.borderSoft}`,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {m.body}
-                </div>
+                {renderThreadCard(m) ?? (
+                  <div
+                    style={{
+                      padding: "8px 11px",
+                      borderRadius: 10,
+                      background: m.is_mine ? accent : C.surface,
+                      color: m.is_mine ? "#fff" : C.ink,
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      border: m.is_mine ? "none" : `1px solid ${C.borderSoft}`,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {m.body}
+                  </div>
+                )}
                 <div
                   style={{
                     marginTop: 3,
@@ -314,4 +338,27 @@ export default function ParticipantThreadShell({
       </div>
     </section>
   );
+}
+
+/**
+ * A card, when the message is one. Null falls back to the prose bubble.
+ *
+ * Reuses the shell's existing card renderer rather than growing a second card
+ * system — there are already more thread renderers in this repo than there are
+ * kinds of thread, and a second set of card components would be the fourth
+ * place a card's appearance is defined.
+ *
+ * Fails to prose, never to blank: an unknown kind renders its body, which is
+ * how a card added by a future migration degrades instead of disappearing.
+ */
+function renderThreadCard(m: ParticipantThreadMessage): React.ReactNode {
+  const kind = m.message_kind;
+  if (!kind || kind === "text") return null;
+  const node = renderChatCardForMessage(
+    kind,
+    m.card_payload ?? {},
+    () => {},
+    { messageId: m.id, order: m.order ?? null, viewerRole: "staff" },
+  );
+  return node ?? null;
 }
