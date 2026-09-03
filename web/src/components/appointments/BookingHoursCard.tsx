@@ -15,6 +15,7 @@ import {
 } from "@/lib/server-actions/booking-hours";
 import { DEFAULT_APPOINTMENT_DEFAULTS } from "@/lib/scheduling/appointments-settings-types";
 import type { WeeklyHours } from "@/lib/scheduling/hours-types";
+import { PLATFORM_FALLBACK_TIMEZONE } from "@/lib/spaces/venue-timezone";
 import { useT } from "@/i18n/use-t";
 
 const C = {
@@ -64,6 +65,12 @@ export function BookingHoursCard({
   const [targets, setTargets] = useState<HoursTarget[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(talentProfileId ?? null);
   const [timezone, setTimezone] = useState("UTC");
+  // The venue -> workspace -> setting answer from the loader, kept so clearing
+  // the field can fall back to what this workspace actually runs on. Without
+  // it the only fallback was the literal "UTC", which is the bug this whole
+  // module exists to end: every workspace in production is on UTC and none of
+  // them chose it.
+  const [resolvedDefault, setResolvedDefault] = useState(PLATFORM_FALLBACK_TIMEZONE);
   const [weekly, setWeekly] = useState<WeeklyHours>(emptyWeekly);
   const [slotMinutes, setSlotMinutes] = useState(DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
   const [optIn, setOptIn] = useState(false);
@@ -111,6 +118,7 @@ export function BookingHoursCard({
       if (res.ok) {
         // The workspace's zone when this person has no hours row yet, so the
         // editor never opens on a timezone nobody chose.
+        setResolvedDefault(res.defaultTimezone);
         setTimezone(res.hours?.timezone ?? res.defaultTimezone);
         setWeekly(res.hours?.weekly ?? emptyWeekly());
         setSlotMinutes(res.hours?.slotMinutes ?? DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
@@ -315,7 +323,9 @@ export function BookingHoursCard({
               defaultValue={timezone}
               disabled={!canEditHours}
               onBlur={(e) => {
-                const next = e.target.value.trim() || "UTC";
+                // Clearing the box means "inherit", not "UTC". Falling back to
+                // the literal made an unchosen zone real the moment it saved.
+                const next = e.target.value.trim() || resolvedDefault;
                 if (next !== timezone) {
                   setTimezone(next);
                   persist(weekly, next);
