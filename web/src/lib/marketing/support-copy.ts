@@ -1,3 +1,5 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
+
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
 const en = {
@@ -9,13 +11,13 @@ const en = {
   newChat: "New question",
   emptyHome: "Ask anything about Tulala. We answer first.",
   emailPrompt:
-    "Want this answer by email, to keep the thread, or to talk to Oran? Leave an email.",
+    `Want this answer by email, to keep the thread, or to talk to ${SUPPORT_AGENT.name}? Leave an email.`,
   emailLabel: "Email",
   nameLabel: "Name (optional)",
   saveEmail: "Save email",
   emailConsent:
     "By leaving your email you agree we can send replies about this conversation. You can unsubscribe from any message. We delete unconverted chats after 90 days.",
-  askHuman: "Talk to Oran",
+  askHuman: `Talk to ${SUPPORT_AGENT.name}`,
   contactTitle: "Contact us",
   contactBody: "Write to the team. This goes to a person, not the chat bot.",
   topicLabel: "Topic",
@@ -28,10 +30,10 @@ const en = {
   submit: "Send message",
   submitting: "Sending…",
   successTitle: "Got it",
-  successBody: "We have your message. Oran will reply by email.",
+  successBody: `We have your message. ${SUPPORT_AGENT.name} will reply by email.`,
   askAQuestion: "Ask a question",
   close: "Close",
-  answerUnavailable: "We could not answer just now. Try again, or talk to Oran.",
+  answerUnavailable: `We could not answer just now. Try again, or talk to ${SUPPORT_AGENT.name}.`,
 };
 
 export type MarketingSupportCopy = typeof en;
@@ -45,13 +47,13 @@ const es: MarketingSupportCopy = {
   newChat: "Nueva pregunta",
   emptyHome: "Pregunta lo que quieras sobre Tulala. Primero respondemos.",
   emailPrompt:
-    "Quieres esta respuesta por email, guardar el hilo, o hablar con Oran? Deja un email.",
+    `Quieres esta respuesta por email, guardar el hilo, o hablar con ${SUPPORT_AGENT.name}? Deja un email.`,
   emailLabel: "Email",
   nameLabel: "Nombre (opcional)",
   saveEmail: "Guardar email",
   emailConsent:
     "Al dejar tu email aceptas que te enviemos respuestas sobre esta conversacion. Puedes cancelar el email cuando quieras. Borramos los chats no convertidos a los 90 dias.",
-  askHuman: "Hablar con Oran",
+  askHuman: `Hablar con ${SUPPORT_AGENT.name}`,
   contactTitle: "Contacto",
   contactBody: "Escribe al equipo. Esto llega a una persona, no al chat.",
   topicLabel: "Tema",
@@ -64,10 +66,10 @@ const es: MarketingSupportCopy = {
   submit: "Enviar mensaje",
   submitting: "Enviando…",
   successTitle: "Listo",
-  successBody: "Tenemos tu mensaje. Oran responde por email.",
+  successBody: `Tenemos tu mensaje. ${SUPPORT_AGENT.name} responde por email.`,
   askAQuestion: "Haz una pregunta",
   close: "Cerrar",
-  answerUnavailable: "No pudimos responder ahora. Intenta de nuevo, o habla con Oran.",
+  answerUnavailable: `No pudimos responder ahora. Intenta de nuevo, o habla con ${SUPPORT_AGENT.name}.`,
 };
 
 export function getMarketingSupportCopy(locale: string): MarketingSupportCopy {

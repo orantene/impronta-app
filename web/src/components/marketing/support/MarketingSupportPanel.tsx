@@ -101,7 +101,7 @@ export function MarketingSupportPanel({
     if (!ticketId || signedIn || ticket?.contactEmail) return;
     // Ask for email after the first machine reply — AI answer OR fail-open /
     // escalation system cards. Otherwise a skipped model leaves the guest
-    // with Oran but no way to leave an inbox for the reply.
+    // with the support agent but no way to leave an inbox for the reply.
     const hasMachineReply = messages.some(
       (m) => m.authorKind === "ai" || m.authorKind === "system",
     );

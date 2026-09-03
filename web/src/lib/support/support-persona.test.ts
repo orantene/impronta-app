@@ -62,16 +62,59 @@ test("every persona string carries the {agent} placeholder in every locale", () 
   }
 });
 
-test("no support component hardcodes a name instead of interpolating", () => {
-  const dir = join(process.cwd(), "src", "components", "support");
-  const offenders: string[] = [];
-  for (const file of readdirSync(dir)) {
-    if (!file.endsWith(".tsx") && !file.endsWith(".ts")) continue;
-    if (file.includes(".test.")) continue;
-    const src = readFileSync(join(dir, file), "utf8");
-    if (/\bOran\b/.test(src)) offenders.push(file);
+/**
+ * Walk EVERY directory that can produce customer-facing support copy.
+ *
+ * The first version of this test scanned only src/components/support, passed,
+ * and gave false confidence: the rename shipped to production still saying
+ * "Talk to Oran", because the marketing panel has its own copy module and the
+ * guest AI corpus has its own sales entries. A guard that covers one of three
+ * trees is worse than no guard, because it is believed.
+ */
+const PERSONA_ROOTS = [
+  join(process.cwd(), "src", "components", "support"),
+  join(process.cwd(), "src", "components", "marketing", "support"),
+  join(process.cwd(), "src", "lib", "support"),
+  join(process.cwd(), "src", "lib", "marketing"),
+] as const;
+
+function walkSourceFiles(dir: string, out: string[] = []): string[] {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out; // a root that does not exist is not a failure
   }
-  assert.deepEqual(offenders, [], `hardcoded agent name in: ${offenders.join(", ")}`);
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkSourceFiles(full, out);
+      continue;
+    }
+    if (!/\.tsx?$/.test(entry.name)) continue;
+    if (entry.name.includes(".test.")) continue;
+    out.push(full);
+  }
+  return out;
+}
+
+test("no support or marketing source hardcodes the agent name", () => {
+  const offenders: string[] = [];
+  for (const root of PERSONA_ROOTS) {
+    for (const file of walkSourceFiles(root)) {
+      const src = readFileSync(file, "utf8");
+      // Strip comments: prose about the persona is fine, shipped copy is not.
+      const code = src
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+      if (/\bOran\b/.test(code)) offenders.push(file.replace(process.cwd() + "/", ""));
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `hardcoded agent name in: ${offenders.join(", ")}`,
+  );
 });
 
 test("the interpolation vars expose the name under the {agent} key", () => {

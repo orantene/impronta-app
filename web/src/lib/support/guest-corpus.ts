@@ -4,6 +4,7 @@ import {
   type Feature,
   type Para,
 } from "@/lib/marketing/features";
+import { SUPPORT_AGENT } from "./support-persona";
 import { ROLE_LABELS } from "@/lib/marketing/help-guides";
 import { getPricingLaddersCopy } from "@/lib/marketing/pricing-ladders-copy";
 import type { HelpCorpusEntry } from "./help-corpus";
@@ -63,7 +64,7 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-reach-human",
         purpose:
-          "Puedes hablar con una persona. Pide un humano en el chat o escribe en /contact. Oran, el fundador, lee cada mensaje. El chat de soporte en tulala.digital responde primero y luego puede pasarte con Oran.",
+          `Puedes hablar con una persona. Pide un humano en el chat o escribe en /contact. ${SUPPORT_AGENT.name}, el fundador, lee cada mensaje. El chat de soporte en tulala.digital responde primero y luego puede pasarte con ${SUPPORT_AGENT.name}.`,
         youCanHere: [
           "Pedir un humano en el chat de soporte",
           "Enviar el formulario en /contact",
@@ -80,12 +81,12 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-where-team",
         purpose:
-          "Tulala es una empresa pequena. El equipo esta entre Mexico y Estados Unidos. El fundador se llama Oran. Soporte en espanol e ingles.",
-        youCanHere: ["Preguntar en espanol o ingles", "Hablar con Oran"],
+          `Tulala es una empresa pequena. El equipo esta entre Mexico y Estados Unidos. El fundador se llama ${SUPPORT_AGENT.name}. Soporte en espanol e ingles.`,
+        youCanHere: ["Preguntar en espanol o ingles", `Hablar con ${SUPPORT_AGENT.name}`],
         faqs: [
           {
             q: "Donde esta el equipo?",
-            a: "Entre Mexico y Estados Unidos. Oran lee el soporte.",
+            a: `Entre Mexico y Estados Unidos. ${SUPPORT_AGENT.name} lee el soporte.`,
           },
         ],
         category: "about",
@@ -199,7 +200,7 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
     {
       slug: "sales-reach-human",
       purpose:
-        "You can talk to a person. Ask for a human in this chat or write on /contact. Oran, the founder, reads every message. The chat on tulala.digital answers first and can hand you to Oran.",
+        `You can talk to a person. Ask for a human in this chat or write on /contact. ${SUPPORT_AGENT.name}, the founder, reads every message. The chat on tulala.digital answers first and can hand you to ${SUPPORT_AGENT.name}.`,
       youCanHere: ["Ask for a human in this chat", "Send the form on /contact"],
       faqs: [
         {
@@ -213,12 +214,12 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
     {
       slug: "sales-where-team",
       purpose:
-        "Tulala is a small company. The team sits between Mexico and the United States. The founder is Oran. Support is in English and Spanish.",
-      youCanHere: ["Ask in English or Spanish", "Talk to Oran"],
+        `Tulala is a small company. The team sits between Mexico and the United States. The founder is ${SUPPORT_AGENT.name}. Support is in English and Spanish.`,
+      youCanHere: ["Ask in English or Spanish", `Talk to ${SUPPORT_AGENT.name}`],
       faqs: [
         {
           q: "Where is the team?",
-          a: "Between Mexico and the United States. Oran reads support.",
+          a: `Between Mexico and the United States. ${SUPPORT_AGENT.name} reads support.`,
         },
       ],
       category: "about",
