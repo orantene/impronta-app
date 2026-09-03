@@ -82,6 +82,12 @@ Those sessions run `npm run typecheck` in good faith. They are invisible to the 
 
 Not acted on unilaterally: those are other directors' worktrees and someone may be waiting on those results. Killing another department's gate is that department's call, per the governor's own rule.
 
+**FIXED the same night by the CEO**, who verified the four files before acting and edited all four so that each line is now **identical to main** — a no-op if anyone commits it by accident. `mkt-industry` did not have `scripts/tsc-queue.sh` present at all and got main's copy too.
+
+**A SECOND, IRREVERSIBLE DEFECT UNDERNEATH IT, disclosed by the CEO and recorded because everyone's gate estimates depend on it.** The lock holder was `YIELDING` because the governor **niced it to 20** after it refused a stop signal — **and a nice value cannot be lowered again without root.** So the serialiser handed the lock to one job, the governor permanently crippled that job, and seventeen waiters queued behind a run that had been made unable to finish. Nicing has been removed from the governor entirely; it now logs an unstoppable job and leaves it alone.
+
+**The transferable rule: a throttle you cannot undo is not a throttle, it is damage.** `renice` is one-way for a non-root caller, so a governor that lowers priority is making a permanent decision about a process it does not own — and it made that decision about the one job every other job was waiting on. The recorded shape this belongs to is the typecheck serialiser reclaiming locks from live healthy runs "for safety": both are a backstop that inverts exactly when it is needed.
+
 ### A LANE CAN BE IN THE WORKFLOW AND ABSENT FROM `ci`, AND THE PARITY GUARD PASSES
 
 The recorded trap is a lane in the `ci` aggregate but missing from `ci.yml`, which never gates. **The mirror image also exists and is not guarded.** Reservations R1 registered `test:reservations` in `.github/workflows/ci.yml` — so it does gate PRs — but not in the `ci` aggregate in `web/package.json`. `check:ci-lane-parity` passes: verified by running it, real exit 0, *"all 43 'ci' lane(s) + guard(s) are gated in ci.yml"*. It only checks aggregate ⊆ workflow, never the reverse. **Consequence: `npm run ci` locally does not run that lane.** Register in both, every time; the guard only covers one direction.
@@ -112,7 +118,9 @@ So a `test:*` script defined in `package.json` but absent from **both** the aggr
 
 My appointing brief states no-show deposits go to the **talent** with the platform taking its **normal commission**. This board's evening rulings state the **tenant** keeps it with `application_fee_amount` **zero** on a no-show or forfeiture charge, normal fee only on a deposit applied to the bill. Different party, different number, and D2 is listed **open** in the owner-decision table while the brief calls it ratified.
 
-**Recommendation, and taken under silence if unanswered:** the board's version stands. It is the one with a mechanism behind it — Direct Charges already put a forfeiture in the tenant's Stripe balance, so only the fee was ever live, and penalty charges are the most chargeback-prone money on the platform. Nothing is built against either version yet; the path has never run. Reversible before R5. Overturn in writing.
+**RULED BY THE CEO, 2026-09-03 night: the board's version stands.** The tenant keeps the forfeited deposit, `application_fee_amount` is **zero** on a no-show or forfeiture charge, and normal commission applies only when a deposit is applied to the bill. The CEO's added reason is worth carrying because it is not a mechanism argument: **taking our cut of a penalty is the worst-looking line item a small business will ever show a customer.** The appointing brief was wrong and has been corrected at source. **D2 is closed. R5 builds against this.**
+
+The recommendation as originally written, kept because the reasoning is what decided it: It is the one with a mechanism behind it — Direct Charges already put a forfeiture in the tenant's Stripe balance, so only the fee was ever live, and penalty charges are the most chargeback-prone money on the platform. Nothing is built against either version yet; the path has never run. Reversible before R5. Overturn in writing.
 
 ### AREA STATUS
 
