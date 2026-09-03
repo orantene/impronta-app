@@ -1301,33 +1301,45 @@ export function divisionRosterSection(input: RosterSectionInput): BuilderNode {
         ],
       },
       {
+        // Phase 8B — NATIVE `directory`, no longer a `section_embed` bridge.
+        //
+        // The node id is per-page (`${p}-roster-embed`), and that is
+        // load-bearing: the server resolves each directory node SEPARATELY into
+        // `directoryProfilesByNodeId` keyed by this id. A single tree-wide card
+        // array would paint one division's heading over another division's
+        // roster — the DJs band under the Fashion Models title.
+        //
+        // `scope: "by_talent_type"` + `talentTypeKeys` are read by
+        // `collectNativeDataBlockNeeds` and resolved through
+        // `resolveDirectoryScopeSeed`, the SAME taxonomy resolver the curated
+        // section used, so a division band still cannot silently unscope to the
+        // whole roster. On the published page `renderNativeLiveBlock` is
+        // injected, so this renders the real reactive engine; the static GET-form
+        // grid is the editor-canvas fallback.
+        //
+        // Dropped with the bridge: `background`, `aiMode`, `showActiveChips`,
+        // `presentation`. The first is the band's own (set by `band()` below),
+        // and the other three were already off.
         id: `${p}-roster-embed`,
-        kind: "section_embed",
+        kind: "directory",
         props: {
-          sectionTypeKey: "directory",
           layerLabel: "Live roster (filtered)",
-          config: {
-            showHeading: false,
-            entityLabel: "talent",
-            scope: "by_talent_type",
-            talentTypeKeys: input.talentTypeKeys,
-            pagination: "load_more",
-            pageSize: 8,
-            columnsDesktop: 4,
-            columnsTablet: 3,
-            columnsMobile: 1,
-            containerWidth: "boxed",
-            background: "plain",
-            aiMode: "off",
-            topBarMode: "none",
-            sidebarShow: false,
-            filterSearchBox: false,
-            sortControlShow: false,
-            showResultCount: false,
-            showActiveChips: false,
-            emptyStateText: input.emptyStateText,
-            presentation: {},
-          },
+          showHeading: false,
+          entityLabel: "talent",
+          scope: "by_talent_type",
+          talentTypeKeys: input.talentTypeKeys,
+          pagination: "load_more",
+          pageSize: 8,
+          columnsDesktop: 4,
+          columnsTablet: 3,
+          columnsMobile: 1,
+          containerWidth: "boxed",
+          topBarMode: "none",
+          sidebarShow: false,
+          filterSearchBox: false,
+          sortControlShow: false,
+          showResultCount: false,
+          emptyStateText: input.emptyStateText,
         },
       },
     ],

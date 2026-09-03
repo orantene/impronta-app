@@ -76,28 +76,41 @@ for (const page of PAGES) {
     assert.equal(result.tree.length, page.tree.length);
   });
 
-  test(`division pages: ${page.slug} roster embed is a scoped directory`, () => {
-    const embeds: Array<Extract<BuilderNode, { kind: "section_embed" }>> = [];
+  test(`division pages: ${page.slug} roster band is a scoped NATIVE directory`, () => {
+    // Phase 8B — the roster band is a native `directory` node, not a
+    // `section_embed` bridge to the frozen curated section.
+    const rosters: Array<Extract<BuilderNode, { kind: "directory" }>> = [];
+    let embedCount = 0;
     walk(page.tree, (node) => {
-      if (node.kind === "section_embed") embeds.push(node);
+      if (node.kind === "directory") rosters.push(node);
+      if (node.kind === "section_embed") embedCount += 1;
     });
-    const rosters = embeds.filter(
-      (e) => e.props.sectionTypeKey === "directory",
+    assert.equal(
+      embedCount,
+      0,
+      `${page.slug} must carry no section_embed bridge in its body`,
     );
     assert.equal(
       rosters.length,
       1,
-      `${page.slug} must carry exactly one live roster directory embed`,
+      `${page.slug} must carry exactly one live roster directory node`,
     );
-    const parsed = directorySchemaV1.parse(rosters[0].props.config);
-    assert.equal(parsed.scope, "by_talent_type");
+    const props = rosters[0].props;
+    assert.equal(props.scope, "by_talent_type");
     assert.ok(
-      parsed.talentTypeKeys.length > 0,
-      "roster embed must be genuinely filtered (non-empty talentTypeKeys)",
+      (props.talentTypeKeys ?? []).length > 0,
+      "roster band must be genuinely filtered (non-empty talentTypeKeys)",
     );
-    assert.equal(parsed.showHeading, false);
-    assert.equal(parsed.aiMode, "off");
-    assert.ok(parsed.emptyStateText && parsed.emptyStateText.length > 0);
+    assert.equal(props.showHeading, false);
+    assert.ok(props.emptyStateText && props.emptyStateText.length > 0);
+    // The node id is what `directoryProfilesByNodeId` keys on, so it has to be
+    // page-specific: a shared id would let one division's band resolve to
+    // another division's roster.
+    assert.ok(
+      rosters[0].id.includes(page.slug.split("-")[0]!) ||
+        rosters[0].id.startsWith("div-"),
+      `roster node id "${rosters[0].id}" must be page-scoped`,
+    );
   });
 
   test(`division pages: ${page.slug} has no dead CTAs`, () => {

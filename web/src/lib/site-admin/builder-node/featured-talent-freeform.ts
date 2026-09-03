@@ -31,6 +31,15 @@ export const FEATURED_TALENT_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
 export interface FeaturedTalentDecomposedInput {
   /** Stable root id (migration / page-design presets). */
   rootId?: string;
+  /**
+   * Stable id for the NATIVE `featured_talent` grid node.
+   *
+   * Worth pinning because the server resolves this node's cards into
+   * `featuredTalentProfilesByNodeId` keyed BY THIS ID. A random id still works
+   * (both sides read the same tree in one render), but a stable one keeps
+   * re-seeds idempotent and keeps the published-snapshot diff readable.
+   */
+  gridNodeId?: string;
   eyebrow?: string;
   headline?: string;
   subheadline?: string;
@@ -79,6 +88,85 @@ export function gridOnlyFeaturedTalentConfig(
     footerCta: undefined,
     headless: true,
   };
+}
+
+/**
+ * Project a legacy `featured_talent` section config onto the NATIVE node's
+ * props.
+ *
+ * An ALLOW-LIST, not a spread. The legacy config carries keys the native card
+ * has no equivalent for (`cardChrome`, `layoutPreset`, `imageTreatment`,
+ * `requestCta`, `actionStyle`, `showBookmarkIcon`, `presentation`, `headless`),
+ * and spreading them through would put unknown props on the node —
+ * `validateBuilderNodeTree` rejects those, so the page could not be authored,
+ * and any that slipped past would be silent dead weight in every published
+ * snapshot. Dropping them is deliberate: the native block renders through
+ * `FeaturedTalentCard`, the same component a bound container uses.
+ *
+ * The head fields stay blank on purpose — this wrapper's own heading/paragraph/
+ * button nodes are the section head, and a second one inside the grid would
+ * render the title twice.
+ */
+export function nativeFeaturedTalentProps(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const str = (key: string): string | undefined =>
+    typeof config[key] === "string" && (config[key] as string).trim()
+      ? (config[key] as string)
+      : undefined;
+  const num = (key: string): number | undefined =>
+    typeof config[key] === "number" ? (config[key] as number) : undefined;
+  const bool = (key: string): boolean | undefined =>
+    typeof config[key] === "boolean" ? (config[key] as boolean) : undefined;
+  const codes = (key: string): string[] | undefined => {
+    const value = config[key];
+    if (!Array.isArray(value)) return undefined;
+    const list = value.filter((v): v is string => typeof v === "string" && !!v.trim());
+    return list.length > 0 ? list : undefined;
+  };
+  const oneOf = <T extends string>(key: string, allowed: readonly T[]): T | undefined => {
+    const value = config[key];
+    return typeof value === "string" && (allowed as readonly string[]).includes(value)
+      ? (value as T)
+      : undefined;
+  };
+
+  const props: Record<string, unknown> = {};
+  const put = (key: string, value: unknown): void => {
+    if (value !== undefined) props[key] = value;
+  };
+
+  put("sourceMode", oneOf("sourceMode", [
+    "manual_pick",
+    "auto_featured_flag",
+    "auto_by_service",
+    "auto_by_destination",
+    "auto_recent",
+  ] as const));
+  put("manualProfileCodes", codes("manualProfileCodes"));
+  put("filterServiceSlug", str("filterServiceSlug"));
+  put("filterDestinationSlug", str("filterDestinationSlug"));
+  put("limit", num("limit"));
+  put("columnsDesktop", num("columnsDesktop"));
+  put("variant", oneOf("variant", ["grid", "carousel"] as const));
+  put("headerAlign", oneOf("headerAlign", ["split", "left", "center"] as const));
+  put("cardVariant", oneOf("cardVariant", [
+    "editorial",
+    "compact",
+    "minimal",
+    "profile",
+  ] as const));
+  put("showName", bool("showName"));
+  put("showPrimaryType", bool("showPrimaryType"));
+  put("showSecondaryType", bool("showSecondaryType"));
+  put("showCity", bool("showCity"));
+  put("showLanguages", bool("showLanguages"));
+  put("showAvailability", bool("showAvailability"));
+  put("showBadge", bool("showBadge"));
+  put("parentCategoryDisplay", bool("parentCategoryDisplay"));
+  put("emptyStateText", str("emptyStateText"));
+
+  return props;
 }
 
 export function buildFeaturedTalentDecomposedSection(
@@ -197,12 +285,11 @@ export function buildFeaturedTalentDecomposedSection(
               ]
             : []),
           {
-            id: makeNodeId("section_embed"),
-            kind: "section_embed",
+            id: input.gridNodeId ?? makeNodeId("featured_talent"),
+            kind: "featured_talent",
             props: {
-              sectionTypeKey: "featured_talent",
+              ...nativeFeaturedTalentProps(embedConfig),
               layerLabel: "Talent Grid",
-              config: embedConfig,
             },
           },
         ],

@@ -39,6 +39,8 @@ export const LOCATION_DISCOVERY_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
 export interface LocationDiscoveryDecomposedInput {
   /** Stable root id (migration / page-design presets). */
   rootId?: string;
+  /** Stable id for the NATIVE `location_map` node (keeps re-seeds idempotent). */
+  gridNodeId?: string;
   eyebrow?: string;
   headline?: string;
   subheadline?: string;
@@ -77,6 +79,92 @@ export function gridOnlyLocationDiscoveryConfig(
     ctaHref: undefined,
     headless: true,
   };
+}
+
+/**
+ * Project a legacy `location_discovery` section config onto the NATIVE
+ * `location_map` node's props.
+ *
+ * An ALLOW-LIST for the same reason the featured-talent one is: unknown props
+ * fail `validateBuilderNodeTree`, so a blind spread would make the page
+ * unauthorable.
+ *
+ * `source` is the load-bearing field. The legacy section's city list came from
+ * the tenant roster whenever it was not given manual `items`, so a config with
+ * no `items` MUST project to `roster_cities` — defaulting to `manual` would
+ * leave the node with an empty `items` array and paint an empty band where a
+ * live market grid used to be. That is also what makes
+ * `collectNativeDataBlockNeeds` mark `needsTalentLocations` and trigger the
+ * fetch at all.
+ */
+export function nativeLocationMapProps(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const str = (key: string): string | undefined =>
+    typeof config[key] === "string" && (config[key] as string).trim()
+      ? (config[key] as string)
+      : undefined;
+  const num = (key: string): number | undefined =>
+    typeof config[key] === "number" ? (config[key] as number) : undefined;
+  const bool = (key: string): boolean | undefined =>
+    typeof config[key] === "boolean" ? (config[key] as boolean) : undefined;
+  const oneOf = <T extends string>(key: string, allowed: readonly T[]): T | undefined => {
+    const value = config[key];
+    return typeof value === "string" && (allowed as readonly string[]).includes(value)
+      ? (value as T)
+      : undefined;
+  };
+
+  const rawItems = Array.isArray(config.items) ? config.items : [];
+  const items = rawItems
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map((item) => {
+      const out: Record<string, unknown> = {
+        label: typeof item.label === "string" ? item.label : "",
+      };
+      if (typeof item.region === "string" && item.region.trim()) out.region = item.region;
+      if (typeof item.href === "string" && item.href.trim()) out.href = item.href;
+      if (typeof item.count === "number") out.count = item.count;
+      if (item.featured === true) out.featured = true;
+      if (item.status === "coming_soon" || item.status === "active") {
+        out.status = item.status;
+      }
+      return out;
+    })
+    .filter((item) => Boolean(item.label));
+
+  const props: Record<string, unknown> = {};
+  const put = (key: string, value: unknown): void => {
+    if (value !== undefined) props[key] = value;
+  };
+
+  // Explicit authored source wins; otherwise "has manual items" decides, which
+  // reproduces the legacy section's own behaviour.
+  put(
+    "source",
+    oneOf("source", ["manual", "roster_cities"] as const) ??
+      (items.length > 0 ? "manual" : "roster_cities"),
+  );
+  if (items.length > 0) put("items", items);
+  put("maxItems", num("maxItems"));
+  put("showCount", bool("showCount"));
+  put("showMap", bool("showMap"));
+  put("mapStyle", oneOf("mapStyle", ["editorial", "embed"] as const));
+  put("mapEmbedUrl", str("mapEmbedUrl"));
+  put("overlayTitle", str("overlayTitle"));
+  put("overlayBody", str("overlayBody"));
+  put("overlayAddress", str("overlayAddress"));
+  put("overlayHours", str("overlayHours"));
+  put("overlaySide", oneOf("overlaySide", [
+    "card-left",
+    "card-right",
+    "card-bottom",
+  ] as const));
+  put("ratio", oneOf("ratio", ["16/9", "4/3", "1/1", "21/9"] as const));
+  put("layout", oneOf("layout", ["grid", "list", "compact"] as const));
+  put("emptyStateText", str("emptyStateText"));
+
+  return props;
 }
 
 export function buildLocationDiscoveryDecomposedSection(
@@ -183,12 +271,11 @@ export function buildLocationDiscoveryDecomposedSection(
               ]
             : []),
           {
-            id: makeNodeId("section_embed"),
-            kind: "section_embed",
+            id: input.gridNodeId ?? makeNodeId("location_map"),
+            kind: "location_map",
             props: {
-              sectionTypeKey: "location_discovery",
+              ...nativeLocationMapProps(embedConfig),
               layerLabel: "Markets Grid",
-              config: embedConfig,
             },
           },
         ],

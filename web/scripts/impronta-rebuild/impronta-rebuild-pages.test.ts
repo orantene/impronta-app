@@ -51,6 +51,31 @@ function walk(nodes: BuilderNode[], visit: (node: BuilderNode) => void): void {
   }
 }
 
+/**
+ * PHASE 8B — the seed sources must not be able to re-create a `section_embed`.
+ *
+ * `verify:no-embed-bridges` proves the same thing three ways, but it needs
+ * network + service-role DB access and so cannot run in CI. This is the part of
+ * that gate a unit test can hold: if a future edit reintroduces a bridge in a
+ * page tree, the next re-seed would publish it straight to the live site (a
+ * published freeform page has no draft layer), and this catches it first.
+ */
+test("impronta-rebuild: no page tree carries a section_embed bridge", () => {
+  const offenders: string[] = [];
+  for (const page of PAGES) {
+    walk(page.tree, (node) => {
+      if (node.kind === "section_embed") {
+        offenders.push(`${page.slug}:${node.id}`);
+      }
+    });
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `section_embed bridges must not survive in a page body: ${offenders.join(", ")}`,
+  );
+});
+
 function sectionSignature(node: BuilderNode): string {
   const label = (node.props as { layerLabel?: string | null }).layerLabel;
   return `${node.kind}:${label ?? node.id}`;
@@ -95,7 +120,9 @@ test("impronta-rebuild: section structure snapshot", () => {
   assert.deepEqual(structure, {
     home: [
       "container:Hero",
-      "section_embed:Discipline Marquee",
+      // Phase 8B — the NATIVE `marquee` kind; this was a `section_embed`
+      // bridge to the frozen curated section.
+      "marquee:Discipline Marquee",
       "container:Featured Talent Section",
       "container:Divisions",
       "container:Markets Section",

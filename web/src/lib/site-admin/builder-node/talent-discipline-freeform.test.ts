@@ -31,12 +31,24 @@ describe("talent-discipline-freeform", () => {
       "Discipline Grid",
     ]);
 
-    const embed = childNodes(column).find((c) => c.kind === "section_embed");
-    assert.ok(embed);
-    const config = (embed!.props as { config?: Record<string, unknown> }).config;
-    assert.equal(config?.headline, "");
-    assert.equal(config?.eyebrow, "");
-    assert.equal(config?.seeAllLabel, "");
+    // Phase 8B — a NATIVE `talent_type_grid` node, not a `section_embed`.
+    const grid = childNodes(column).find((c) => c.kind === "talent_type_grid");
+    assert.ok(grid);
+    assert.equal(
+      childNodes(column).some((c) => c.kind === "section_embed"),
+      false,
+      "no section_embed bridge may survive in the talent-discipline wrapper",
+    );
+    const props = grid!.props as Record<string, unknown>;
+    assert.equal(props.headline, undefined);
+    assert.equal(props.eyebrow, undefined);
+    assert.equal(props.seeAllLabel, undefined);
+    assert.equal(props.config, undefined);
+    assert.equal(props.sectionTypeKey, undefined);
+    // The preset ships authored cards, so the node stays in `manual` mode and
+    // renders exactly the items already on the page.
+    assert.equal(props.mode, "manual");
+    assert.ok(Array.isArray(props.items) && (props.items as unknown[]).length > 0);
   });
 
   test("migrateMonolithicTalentTypeGridEmbeds splits legacy embed", () => {
@@ -58,14 +70,14 @@ describe("talent-discipline-freeform", () => {
     const [migrated] = migrateMonolithicTalentTypeGridEmbeds([legacy]);
     assert.equal(migrated.kind, "container");
     assert.equal(migrated.id, "legacy-disciplines");
-    const embed = childNodes(childNodes(migrated)[0]).find(
-      (c) => c.kind === "section_embed",
+    // The migration now lands on the NATIVE kind: a legacy monolithic embed
+    // decomposes straight into freeform layers + a `talent_type_grid` node, so
+    // loading an old snapshot does not reintroduce a bridge.
+    const grid = childNodes(childNodes(migrated)[0]).find(
+      (c) => c.kind === "talent_type_grid",
     );
-    assert.ok(embed);
-    assert.equal(
-      (embed!.props as { config?: Record<string, unknown> }).config?.headline,
-      "",
-    );
+    assert.ok(grid);
+    assert.equal((grid!.props as Record<string, unknown>).headline, undefined);
   });
 
   test("resolveSnapshotBuilderTree migrates monolithic embed on load", () => {

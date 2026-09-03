@@ -24,7 +24,10 @@ import {
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { validateBuilderNodeTree } from "./validate";
 import { SHIPPED_ELEMENT_INSERT_KINDS } from "./mvp-allow-list";
-import { collectNativeDataBlockNeeds } from "./native-data-block-needs";
+import {
+  collectNativeDataBlockNeeds,
+  nativeFeaturedTalentSignature,
+} from "./native-data-block-needs";
 import {
   deriveTalentDisciplines,
   deriveWorkspaceMenuOfferings,
@@ -613,4 +616,149 @@ test("deriveTalentDisciplines picks the locale label", () => {
     locale: "es",
   });
   assert.equal(derived[0]?.label, "Modelos");
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * PHASE 8B — `featured_talent` and `location_map` need collection.
+ *
+ * Before this, `collectNativeDataBlockNeeds` recognised neither kind, and the
+ * only featured-talent fetch was keyed off a bound CONTAINER's `dataBinding`.
+ * A page whose featured band is a NATIVE node and has no bound container —
+ * which is every Impronta page after the Phase 8B swap — therefore resolved
+ * NOTHING and rendered its empty state. These tests pin the trigger.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+test("a native featured_talent node records its own source as a need", () => {
+  const needs = collectNativeDataBlockNeeds([
+    {
+      id: "ft-1",
+      kind: "featured_talent",
+      props: {
+        sourceMode: "manual_pick",
+        manualProfileCodes: ["TAL-00036", " ", "TAL-00033"],
+        limit: 4,
+      },
+    },
+  ]);
+  assert.equal(needs.featuredTalent.length, 1);
+  const need = needs.featuredTalent[0]!;
+  assert.equal(need.nodeId, "ft-1");
+  assert.equal(need.sourceMode, "manual_pick");
+  // Blank codes are dropped, real ones keep their AUTHORED ORDER — manual pick
+  // is an ordered list and that order is the display order.
+  assert.deepEqual(need.manualProfileCodes, ["TAL-00036", "TAL-00033"]);
+  assert.equal(need.limit, 4);
+});
+
+test("two featured_talent nodes are collected SEPARATELY, keyed by node id", () => {
+  // The bug this forecloses: one tree-wide card array painting the second
+  // band's heading over the first band's people.
+  const needs = collectNativeDataBlockNeeds([
+    {
+      id: "ft-a",
+      kind: "featured_talent",
+      props: { sourceMode: "manual_pick", manualProfileCodes: ["TAL-1"] },
+    },
+    {
+      id: "ft-b",
+      kind: "featured_talent",
+      props: { sourceMode: "auto_recent", limit: 8 },
+    },
+  ]);
+  assert.deepEqual(
+    needs.featuredTalent.map((n) => n.nodeId),
+    ["ft-a", "ft-b"],
+  );
+  assert.notEqual(
+    nativeFeaturedTalentSignature(needs.featuredTalent[0]!),
+    nativeFeaturedTalentSignature(needs.featuredTalent[1]!),
+    "a manual pick and an auto band must never share one fetch",
+  );
+});
+
+test("featured_talent limit is clamped to what the grid can render", () => {
+  const needs = collectNativeDataBlockNeeds([
+    { id: "hi", kind: "featured_talent", props: { limit: 999 } },
+    { id: "lo", kind: "featured_talent", props: { limit: 0 } },
+  ]);
+  assert.equal(needs.featuredTalent[0]!.limit, 12);
+  assert.equal(needs.featuredTalent[1]!.limit, 1);
+});
+
+test("only a roster-sourced location_map asks for the tenant city list", () => {
+  assert.equal(
+    collectNativeDataBlockNeeds([
+      { id: "lm", kind: "location_map", props: { source: "roster_cities" } },
+    ]).needsTalentLocations,
+    true,
+  );
+  // A manually authored map renders its own `items` and must NOT trigger a
+  // roster read it has no use for.
+  assert.equal(
+    collectNativeDataBlockNeeds([
+      {
+        id: "lm",
+        kind: "location_map",
+        props: { source: "manual", items: [{ label: "Tulum" }] },
+      },
+    ]).needsTalentLocations,
+    false,
+  );
+});
+
+test("a tree with no native featured_talent or location_map asks for neither", () => {
+  const needs = collectNativeDataBlockNeeds([
+    { id: "h", kind: "heading", props: { text: "Hello", level: 2 } },
+  ]);
+  assert.deepEqual(needs.featuredTalent, []);
+  assert.equal(needs.needsTalentLocations, false);
+});
+
+test("a native featured_talent node reads its OWN per-node cards", () => {
+  // The renderer contract behind `featuredTalentProfilesByNodeId`: the per-node
+  // entry wins over the shared tree-wide array, so two bands cannot swap
+  // rosters. Mirrors the directory node's own guarantee.
+  const card = (profileCode: string, displayName: string) => ({
+    id: profileCode,
+    profileCode,
+    slugPart: profileCode.toLowerCase(),
+    displayName,
+    primaryTalentTypeLabel: null,
+    secondaryTalentTypeLabel: null,
+    locationLabel: null,
+    languages: [],
+    availabilityLabel: null,
+    parentCategoryLabel: null,
+    isFeatured: true,
+    thumbnailUrl: null,
+    bookable: false,
+  });
+  const dataSources = {
+    featuredTalentProfiles: [card("TAL-SHARED", "Shared Person")],
+    featuredTalentProfilesByNodeId: {
+      "ft-scoped": [card("TAL-SCOPED", "Scoped Person")],
+    },
+  } as unknown as BuilderNodeRenderDataSources;
+
+  const scoped = renderToStaticMarkup(
+    renderBuilderNodes(
+      [{ id: "ft-scoped", kind: "featured_talent", props: { limit: 4 } }],
+      { dataSources },
+    ) as React.ReactElement,
+  );
+  assert.ok(scoped.includes("Scoped Person"));
+  assert.ok(
+    !scoped.includes("Shared Person"),
+    "the per-node entry must win over the shared array",
+  );
+
+  // A node with no entry of its own still falls back to the shared array
+  // rather than blanking out.
+  const fallback = renderToStaticMarkup(
+    renderBuilderNodes(
+      [{ id: "ft-other", kind: "featured_talent", props: { limit: 4 } }],
+      { dataSources },
+    ) as React.ReactElement,
+  );
+  assert.ok(fallback.includes("Shared Person"));
 });
