@@ -5,9 +5,11 @@ Source architecture: "Sell the Room" §04, §05, §05b, §05d, §05f, §08, §10
 Mockups: `HostStand`, `ReserveFlow`, `SettingsReservations`, `SeatingTab`, `Receipt`.
 Designs sent to the Director: https://claude.ai/code/artifact/c66ffdd6-0ed1-4071-8830-15670f845137
 
-**Revision 3, 2026-09-03**, after the Director's rulings. Revision 1 assumed a service window was a
-session and that Spaces had not shipped; Revision 2 withdrew the session model; **Revision 3 restores it,
-for a reason neither revision gave** (C6). Migration band `20261229000380` to `…000399` granted.
+**Revision 4, 2026-09-03. C6 is CLOSED and will not be reopened by me.** Three sessions changed position
+on it in one afternoon, twice in opposite directions, on crossing messages. C6 now settles it on a rule
+that does not depend on anyone's estimate of a cost. **A service window is not a session**; it is a rule
+plus a small exceptions table, entirely inside this area, and it needs no change to any table another
+manager has shipped. Migration band `20261229000380` to `…000399` granted. **R1 to R3 have a go.**
 
 Every fact below was re-verified against `origin/main` myself, not taken from the messages that
 reported it.
@@ -64,38 +66,50 @@ so `host` needs no `ALTER TYPE` file. But
 [`capabilities.ts:19`](../../web/src/lib/saas/capabilities.ts#L19) documents "lower roles are strict
 subsets of higher roles", and `host` — and Events' `door` — are **lateral**. §5.
 
-### C6 — a service window IS a session occurrence, and the deciding reason is per-date variation
+### C6 — a service window is not a session. Closed, with the argument that ends it.
 
-I argued this three ways in one day, which is once too many, so the reasoning is recorded in full.
+This question was argued four times in one afternoon by three sessions, twice in opposite directions, on
+messages that crossed. Revision 1 made a window a `sessions` row. Revision 2 withdrew it. Revision 3
+restored it on per-date variation. The Director ruled both ways and retracted the first ruling. **The
+record matters more than any one of those positions**, so here is why it kept moving and what stops it.
 
-**Revision 1** made a window a `sessions` row. **Revision 2** withdrew it on the grounds that nothing
-foreign-keys to a window occurrence, so materialising 365 rows a year per venue was a second
-implementation of one concept. **Revision 3 restores it, because that was the wrong test.**
+**Why it oscillated: everyone, me included, was weighing two costs against each other.** Row count against
+machinery. That comparison has no fixed answer, so each of us re-weighted it and got a different result.
+A question settled by weighing is a question that reopens.
 
-The right test is not whether something *references* an occurrence, it is whether an occurrence needs to
-**vary**. A restaurant's service varies constantly: closed 25 December, New Year's Eve running 20:00 to
-02:00 with last seating at 23:00, brunch only this Sunday, an early close for a private event. A rule
-plus a resolver forces me to build an exceptions mechanism — and **an exceptions mechanism is a
-materialised occurrence with extra steps.** Sessions & Classes already own materialisation,
-`status='cancelled'`, the venue-timezone resolver and the calendar union. Rebuilding all four here to
-avoid 700 rows a year per venue is the worse trade.
+**The rule that settles it does not weigh anything.** `sessions` has a defined meaning, written in its own
+schema comment at [`20261229000214`](../../supabase/migrations/20261229000214_sessions_and_series.sql):
+*"One occurrence. The only bookable thing, and the subject of session_tier capacity pools."*
 
-**A correction to the reasoning, so the board does not carry an argument that does not hold.** The
-Director's ruling gives C3 (`hours-types.ts` rejecting `endMin > 1440`) as the clincher. C3 does not
-discriminate between the two designs: a `local_time` plus `duration_minutes` rule crosses midnight
-perfectly well. C3 kills building on the **weekly hours shape**, which is a real and separate conclusion.
-Per-date variation is what settles session-versus-rule.
+A service window is **neither**. Nobody books a service window — they book a table inside one. It is not
+the subject of a pool; the band is, and the allocation is a turn floating inside the window rather than
+the window itself. Putting a window in that table makes the table's own comment false, and every future
+reader has to learn that some rows are products and some are containers. That is the cost that does not
+show up in a row count, and it is the one that lasts.
 
-Ruled by the Director and instructed to Sessions & Classes: `sessions.kind` accepts `'service_window'`,
-plus `venue_id`, and **a session may exist with no pool of its own** — the make-or-break line, since a
-window is time and the band holds the capacity.
+**My Revision 3 argument was wrong in a specific, checkable way.** I said per-date variation forces
+materialisation, because an exceptions mechanism is a materialised occurrence with extra steps. Per-date
+variation is real — closed 25 December, New Year's Eve to 02:00, brunch only this Sunday — but it needs a
+row **per varied date**, roughly ten a year per venue, not a row per date, which is seven hundred and
+thirty. I conflated the two and they differ by two orders of magnitude. §1.1 is that exceptions table, and
+it is smaller than the thing it replaces.
 
-**What I still reuse either way.** [`lib/sessions/recurrence.ts`](../../web/src/lib/sessions/recurrence.ts)
-is pure and CI-gated, and its whole subject is that a wall clock is not an instant: the spring-forward gap
-takes the **later** candidate (its header records that an earlier version converged an hour early, this
-repo's recorded failure mode) and the fall-back ambiguity takes the earlier. A window is defined in
-`session_series` terms — `local_time`, `weekdays`, `duration_minutes` — and resolved by that function.
-One implementation of "wall clock plus zone to instant", not two.
+**What this design does not ask anyone for.** No `kind` column on `sessions` (there is none today), no
+`venue_id`, no pool-less session, no `seats = 0` series, no change to the materialiser. Sessions & Classes
+keep their table exactly as shipped. My earlier asks for all five are withdrawn.
+
+**What I reuse instead of the table.** [`lib/sessions/recurrence.ts`](../../web/src/lib/sessions/recurrence.ts)
+is pure and CI-gated, and its whole subject is that a wall clock is not an instant: `zonedWallClockToUtc`
+takes the **later** candidate in a spring-forward gap — its header records that an earlier version
+converged an hour early, a class running while customers stood outside — and the earlier candidate in a
+fall-back ambiguity. I call it; I do not copy it. That is the reuse that was worth having, and it is
+available without owning a row in their table.
+
+**One correction that must not be lost.** The first ruling gave C3 (`hours-types.ts` rejecting
+`endMin > 1440`) as the clincher for the session model. **C3 does not discriminate between the designs**:
+a `local_time` plus `duration_minutes` rule crosses midnight perfectly well. C3 kills building on the
+*weekly hours shape*, which is true and separate. If C3 reaches the board as an argument for materialised
+occurrences, someone will reuse it where it does not hold.
 
 ### C7 — a public path is 404'd by a second gate, and CLAUDE.md names a file that no longer exists
 
@@ -141,51 +155,96 @@ space, group or layout.
 Timestamps come from my band **once the Director allocates one** — the board's table stops at
 Appointments. I have picked no number and will announce each before applying it (§7 Q4).
 
-### 1.1 `venue_service_window_rules` (PR R1)
+### 1.1 `venue_service_windows` and `venue_service_window_exceptions` (PR R1)
 
-A service window's **schedule** is a `session_series` row with `seats = 0` and `offering_id` null,
-materialised into `sessions` of `kind='service_window'` by the cron that already exists. This table is
-the **policy sidecar** on that series: everything a reservation needs and a class does not. One series
-table, one materialiser, one occurrence table, and the reservation policy stays here.
-
-Proposed to Sessions & Classes; `seats = 0` on a window series is the one part that needs their sign-off,
-and until it lands `series_id` is the only column that would change.
+Two tables, one migration `20261229000380`, both inside this area. Nothing another manager owns changes.
 
 ```sql
-create table public.venue_service_window_rules (
-  series_id        uuid primary key references public.session_series(id) on delete cascade,
+-- ─── the rule: dinner, 19:00, four hours, seven nights ──────────────────────
+create table public.venue_service_windows (
+  id               uuid primary key default gen_random_uuid(),
   tenant_id        uuid not null references public.agencies(id) on delete cascade,
   venue_id         uuid not null references public.venues(id) on delete cascade,
 
-  key              text not null check (key ~ '^[a-z][a-z0-9_-]{0,31}$'),  -- 'lunch', 'dinner'
+  key              text not null check (key ~ '^[a-z][a-z0-9_-]{0,31}$'),  -- 'lunch','dinner'
+  label            jsonb not null default '{}'::jsonb,   -- { "en": "Dinner", "es": "Cena" }
 
-  -- Last seating, as minutes after the series' local_time. NULL = the window's own
-  -- end minus the party's turn time. Structurally distinct from 0, which means
-  -- "this window takes no seatings at all".
+  -- The same shape and the same semantics as session_series, resolved by the
+  -- same pure function. A wall clock, NEVER an instant: adding seven days to an
+  -- instant drifts across DST, which lib/sessions/recurrence.ts exists to stop.
+  local_time       time not null,
+  duration_minutes int  not null check (duration_minutes between 15 and 1440),
+  weekdays         int[] not null
+                     check (cardinality(weekdays) between 1 and 7
+                            and weekdays <@ array[1,2,3,4,5,6,7]),
+
+  -- Minutes after local_time. NULL = the window's end minus this party's turn.
+  -- Structurally distinct from 0, which means "this window takes no seatings".
   last_seating_offset_min int null check (last_seating_offset_min >= 0),
   seating_step_minutes    int not null default 15 check (seating_step_minutes between 5 and 120),
   turn_minutes_override   int null check (turn_minutes_override > 0),
 
+  starts_on        date not null default current_date,
+  ends_on          date,
   is_active        boolean not null default true,
   sort_order       int not null default 0,
   created_at       timestamptz not null default now(),
-  updated_at       timestamptz not null default now()
+  updated_at       timestamptz not null default now(),
+
+  constraint venue_service_windows_date_order check (ends_on is null or ends_on >= starts_on)
 );
 
-create unique index venue_service_window_rules_key_uniq
-  on public.venue_service_window_rules (venue_id, key);
-create index venue_service_window_rules_tenant_idx
-  on public.venue_service_window_rules (tenant_id) where is_active;
+create unique index venue_service_windows_key_uniq on public.venue_service_windows (venue_id, key);
+create index venue_service_windows_tenant_idx on public.venue_service_windows (tenant_id) where is_active;
+
+-- ─── the variation: about ten rows a year per venue ─────────────────────────
+-- Closed 25 December. New Year's Eve to 02:00. Brunch only this Sunday.
+create table public.venue_service_window_exceptions (
+  id               uuid primary key default gen_random_uuid(),
+  tenant_id        uuid not null references public.agencies(id) on delete cascade,
+  venue_id         uuid not null references public.venues(id) on delete cascade,
+  -- NULL window_id = the whole venue is closed that day, which is one row
+  -- rather than one per window.
+  window_id        uuid null references public.venue_service_windows(id) on delete cascade,
+
+  on_date          date not null,
+  is_closed        boolean not null default false,
+
+  -- Overrides. NULL means "inherit", which is why they are nullable rather than
+  -- defaulted: a 0 here would mean something, and inheriting must not.
+  local_time              time null,
+  duration_minutes        int null check (duration_minutes is null
+                                          or duration_minutes between 15 and 1440),
+  last_seating_offset_min int null check (last_seating_offset_min is null
+                                          or last_seating_offset_min >= 0),
+  note             text null,
+  created_at       timestamptz not null default now(),
+
+  -- A closure overrides nothing; an override closes nothing. Allowing both on
+  -- one row gives two readings of the same date.
+  constraint venue_service_window_exceptions_closed_xor_override check (
+    not is_closed
+    or (local_time is null and duration_minutes is null and last_seating_offset_min is null))
+);
+
+create unique index venue_service_window_exceptions_uniq
+  on public.venue_service_window_exceptions (venue_id, on_date, coalesce(window_id, '00000000-0000-0000-0000-000000000000'::uuid));
+create index venue_service_window_exceptions_date_idx
+  on public.venue_service_window_exceptions (venue_id, on_date);
 ```
 
-The schedule fields deliberately do **not** appear here. `local_time`, `duration_minutes`, `weekdays`,
-`starts_on` and `ends_on` live once, on `session_series`, or the two tables get to disagree about when
-dinner is. `duration_minutes` is also why 23:00 to 05:00 works where `hours-types.ts` cannot: a window is
-a start plus a length and never has to name an end inside a civil day (C3).
+`duration_minutes` is why 23:00 to 05:00 works where `hours-types.ts` cannot: a window is a start plus a
+length, so it never has to name an end inside a civil day (C3).
 
-**A closure is an occurrence, not an exception table.** Closed on 25 December is that night's
-`sessions` row at `status='cancelled'`; New Year's Eve running late is that row's `starts_at` and
-`ends_at` edited. That is the whole reason this is a session and not a rule (C6).
+`cardinality(weekdays) between 1 and 7` is copied deliberately from `session_series`, whose header records
+that the obvious `array_length(...) between 1 and 7` **accepts the empty array** — `array_length` of an
+empty array is NULL, `NULL BETWEEN` evaluates to NULL, and a CHECK accepts NULL. The obvious version
+silently permits a rule that expands to no windows, and nobody finds out until a page shows no times.
+
+**No occurrence rows.** A window for a date is the rule, plus any exception for that date, resolved
+through `zonedWallClockToUtc` in the venue's zone. The resolver returns a discriminated result and refuses
+rather than answers: an hour that does not exist in a DST gap is **dropped from the offered times, never
+moved**.
 
 ### 1.2 `venue_service_rules` (PR R1, same migration)
 
@@ -289,8 +348,7 @@ exists. Spaces must not become a wrapper I route through.
 
 | Still needed | Owner | What, and why now |
 |---|---|---|
-| `admissions.allocation_id` | Sessions & Classes (their Phase 1) | §1.5. The Director ratified `party_size`, `assigned_space_id`, nullable `order_line_id`, `seated_at`, `no_show_at`. **The anchor is still open**: with `service_window` restored I have a `session_id` at reserve time, but no `space_id` until the host seats the party, and a walk-in has neither an order line nor necessarily a window. The allocation is the only thing all four admission kinds share. |
-| `session_series.seats = 0` | Sessions & Classes | A window series has no seats. One column's worth of sign-off (§1.1). |
+| `admissions.allocation_id` | Sessions & Classes (their Phase 1) | **Ruled for me.** `allocation_id uuid not null`; `session_id` and `space_id` nullable and descriptive. A reservation has no session at all under C6 and no space until the host seats the party, and a walk-in has no order line either — the allocation is the only thing every admission has by construction. |
 | `lines[].partySize?: number` | Front Door / Orders | A line needs a party. It is **not** `units`: a party of four in a four-top band consumes **one** unit. Without it the Sheet cannot express a table booking at all. |
 | `host` role | Events' operational-roles slice | §5 |
 | `createLinkForSpace()` | QR & Links | Ruled by the Director: QR & Links own the link and every rendering of it. A table's scannable code is asked for, never generated by me. |
@@ -324,10 +382,10 @@ One column, same migration.
 
 > **A service window is time. A band is capacity. A reservation is an order plus an admission.**
 
-- **Window.** A `sessions` row of `kind='service_window'` on a venue, materialised from a
-  `session_series` whose wall clock is resolved by `lib/sessions/recurrence.ts` in the venue's own zone.
-  It carries **no pool of its own**. 23:00 to 05:00 is ordinary; DST is handled by the resolver, which
-  refuses to invent an hour. A closure is that night's row cancelled, not an exception table (C6).
+- **Window.** A `venue_service_windows` rule plus any exception for that date, resolved to instants
+  through `lib/sessions/recurrence.ts` in the venue's own zone. No stored occurrences, and no row in
+  anyone else's table. 23:00 to 05:00 is ordinary; a DST gap drops the affected seating rather than
+  moving it (C6).
 - **Capacity.** The **band** pool — a `space_groups` row of `kind='party_band'` with `party_min`/`party_max`,
   holding one `capacity_pools` row, `sell_mode='band'`. **It is parentless and I do not parent it** (C8).
   Member tables hold no pool in this mode; that is SS-2, and once I own the venue's mode it is mine to
@@ -383,7 +441,7 @@ same PR as any public path (C7).
 
 | PR | Delivers | Exit proof |
 |---|---|---|
-| **R1** | Migration `20261229000380`: `venue_service_window_rules` + `venue_service_rules`. `lib/reservations/`: fail-closed rules parser, turn-time bands, pure `offeredTimes()` over a window occurrence. Tests in a curated lane. No UI. | Lane green with real exit codes, including: a 23:00 window of 360 minutes in `America/Cancun` yields a 05:00 end across two civil days; a seating time inside a spring-forward gap is **dropped, not moved**; a malformed band blob yields the default turn and never a guess; 20:00 and 21:30 on a 90-minute turn do not overlap. |
+| **R1** | Migration `20261229000380`: `venue_service_windows` + `venue_service_window_exceptions` + `venue_service_rules`. `lib/reservations/`: fail-closed rules parser, turn-time bands, pure `offeredTimes()` over a window occurrence. Tests in a curated lane. No UI. | Lane green with real exit codes, including: a 23:00 window of 360 minutes in `America/Cancun` yields a 05:00 end across two civil days; a seating time inside a spring-forward gap is **dropped, not moved**; a malformed band blob yields the default turn and never a guess; 20:00 and 21:30 on a 90-minute turn do not overlap. |
 | **R2** | The settings page and the read-only book by window on the Reservations page. Windows and rules editable; the Set up drawer writes the same values. | Clicked on `localhost`: a restaurant defines lunch and dinner and a turn table in under two minutes, and the book renders both windows for a real date. Screenshot. |
 | **R3** | Public availability endpoint + the `reserve_table` block. "Ask first" wired; "Reserve" behind a flag until R4. **Allow-list entry in this PR.** | A real request to the public path returns 200 on a tenant host (not the route file's existence). A party of 6 is offered nothing when only two-tops and four-tops exist; is offered 20:15 when the eight-top band is free; upsizing is refused online with `allow_public_upsize` false and offered with it true. Clicked, screenshot. |
 | **R4** | The reservation through `lib/orders/purchase.ts`: order, line, one allocation, admission with `party_size`. $0 and deposit paths. Confirmation to the receipt. | **A reservation for four at 20:00, taken online end to end**, clicked by me: one allocation of one unit on the four-tops band, admission with `party_size=4`, receipt loads with no account. |
@@ -425,8 +483,7 @@ notes — **not** email, phone, spend, or notes marked private.
 8. **A walk-in consumes capacity** — null order line, host actor, same pool, counted.
 9. **A window resolver refuses rather than answers.** No invented hour in a DST gap, no guessed turn from a
    malformed blob, no sentinel standing in for "never ask".
-9b. **The schedule lives once.** `local_time`, `duration_minutes` and `weekdays` are `session_series`
-   columns; my sidecar never copies them, or the two tables get to disagree about when dinner is.
+9b. **A closure and an override never share a row**, or one date has two readings.
 10. **No table named `reservations`, `bookings` or `holds`; no venue, space, group or layout defined here;
     no `links` row written and no QR image generated; no customer-facing noun hardcoded.**
 11. **I do not touch the appointments subject model.** I reuse its policy layer and its reminders.
@@ -446,7 +503,9 @@ notes — **not** email, phone, spend, or notes marked private.
 | 6 | `feature-tables.ts` copy | **Creative Director**, with §8 as the proposed wording. Not me, not Front Door. |
 | 7 | CLAUDE.md names `web/src/middleware.ts`, which does not exist | Director's to correct. **I will not edit CLAUDE.md.** |
 
-Still open: `admissions.allocation_id` (§1.5), and `session_series.seats = 0` for a window series (§1.1).
+Still open: nothing. `admissions.allocation_id` was ruled for me and sent to Sessions & Classes as urgent;
+the `session_series.seats = 0` ask is **withdrawn**, because C6's close means I need nothing from their
+schema at all.
 
 ---
 
@@ -470,8 +529,12 @@ Wording only; I do not own the file.
 - **2026-09-03, later** — Revision 2, after the Spaces handoff, the Sessions Manager's two decisions and
   the links ruling. Three assumptions were wrong: Spaces had already shipped band mode (C8), a public path
   needs an allow-list entry (C7), and I withdrew the session model for service windows.
-- **2026-09-03, later still** — Revision 3, after the Director's rulings, which crossed Revision 2 and
-  were made against Revision 1. **The session model for service windows is restored**, for a reason
-  neither revision gave: per-date variation (C6). A window is now a `session_series` plus a policy sidecar
-  in my area, not a table of my own. The status enum was ruled against me and the ruling is right (§1.5).
-  Band `20261229000380`–`…000399` granted. Still no code and no go requested.
+- **2026-09-03, later still** — Revision 3 restored the session model on per-date variation, on a Director
+  ruling that had crossed Revision 2. The status enum was ruled against me and the ruling is right (§1.5).
+  Band `20261229000380`–`…000399` granted.
+- **2026-09-03, close of day** — **Revision 4. C6 closed.** The Director retracted the first ruling and
+  approved Revision 2; my Revision 3 argument was wrong by two orders of magnitude (a row per *varied*
+  date, not per date). C6 is now settled on what `sessions` *is* rather than on a cost comparison, so it
+  does not reopen. A window is two small tables in this area and needs nothing from anyone else's schema;
+  five asks on Sessions & Classes withdrawn. `admissions.allocation_id` ruled for me. **R1 to R3 have a
+  go.** Plan on PR #1591; no implementation code written yet.
