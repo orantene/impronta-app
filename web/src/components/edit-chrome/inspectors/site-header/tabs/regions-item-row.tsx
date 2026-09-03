@@ -16,6 +16,12 @@
 
 import { CHROME, CHROME_RADII } from "../../../kit";
 import { SelectField } from "../../kit/inspector-fields";
+import {
+  headerVerbHref,
+  headerVerbPickerModel,
+  verbNeedsCustomHref,
+} from "@/lib/words/header-verb-options";
+import type { HeaderVerb } from "@/lib/words";
 import { useEditorLocale } from "../../../use-editor-locale";
 import {
   HEADER_ZONES,
@@ -183,8 +189,20 @@ function ItemSettings({
   onUpdate,
   availableSocial,
 }: ItemRowProps) {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   const responsive = item.responsive ?? {};
+  // Options and normalised value together, so the select's value is always one
+  // of its options. Same guard, same reason as the preset picker: a mismatch
+  // silently shows the FIRST option and saves it on the next change.
+  // The editor's OWN locale, not a hardcoded "en": an operator editing in
+  // Spanish must read the verb choices in Spanish. `header-verb-options` ships
+  // both languages, so this is a wiring detail rather than a copy one — and
+  // hardcoding it would have shipped an English-only picker that every other
+  // check passed.
+  const verbModel = headerVerbPickerModel(
+    item.type === "cta" || item.type === "inquiry" ? item.headerVerb : undefined,
+    locale === "es" ? "es" : "en",
+  );
 
   return (
     <div className="flex flex-col gap-2.5 px-2 pb-2.5 pt-1">
@@ -228,13 +246,44 @@ function ItemSettings({
             maxLength={60}
             onChange={(v) => onUpdate({ ...item, label: v || undefined })}
           />
-          <TextRow
-            label="Link"
-            hint="A path like /contact, or a full web address."
-            value={item.href ?? ""}
-            maxLength={500}
-            onChange={(v) => onUpdate({ ...item, href: v || undefined })}
+          {/* THE BUTTON IS A VERB, NOT A TYPED PATH (F1e).
+              This was a free-text "Link" field hinted "A path like /contact" —
+              and on an agency host `/contact` is a CMS clean URL that 404s
+              until the operator creates that page, so the hint's own example
+              was a dead link on most workspaces. Every path a person would
+              reasonably type (/reserve, /menu, /shop, /tickets) is dead for the
+              same reason; F1a removed exactly these from the thirteen page
+              designs, and this is the one button every storefront renders.
+              Choosing a verb means the destination comes from
+              `header-verb-options.ts`, where no verb maps to a route that does
+              not exist. "A link I choose" keeps the free text for the cases we
+              cannot know about. */}
+          <SelectField
+            label="Where it goes"
+            hint={verbModel.options.find((o) => o.value === verbModel.selected)?.hint}
+            value={verbModel.selected}
+            onChange={(v) => {
+              const verb = v as HeaderVerb;
+              const href = headerVerbHref(verb, item.href);
+              onUpdate({
+                ...item,
+                headerVerb: verb,
+                // A fixed verb clears any leftover custom address, so switching
+                // away from "a link I choose" cannot leave the old one in play.
+                href: verbNeedsCustomHref(verb) ? (item.href ?? undefined) : (href ?? undefined),
+              });
+            }}
+            options={verbModel.options.map((o) => ({ value: o.value, label: o.label }))}
           />
+          {verbNeedsCustomHref(verbModel.selected) ? (
+            <TextRow
+              label="Address"
+              hint="A full web address, or a path on this site."
+              value={item.href ?? ""}
+              maxLength={500}
+              onChange={(v) => onUpdate({ ...item, href: v || undefined })}
+            />
+          ) : null}
         </>
       ) : null}
       {item.type === "inquiry" ? (

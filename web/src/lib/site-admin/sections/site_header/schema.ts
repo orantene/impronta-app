@@ -3,6 +3,7 @@ import { z } from "zod";
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
+import { HEADER_VERBS } from "@/lib/words";
 
 /**
  * Phase B — site_header section.
@@ -107,6 +108,18 @@ const headerItemSchema = z.discriminatedUnion("type", [
     type: z.literal("cta"),
     label: z.string().max(60).optional(),
     href: z.string().max(500).optional(),
+    /**
+     * F1e — which VERB this button is, so the destination comes from
+     * `lib/words/header-verb-options.ts` rather than from a typed path. The
+     * free-text field it replaces let an operator point the one button every
+     * storefront renders at `/contact` or `/menu`, which 404 on a tenant host.
+     *
+     * ADDITIVE AND OPTIONAL. Every `regions` value written before this field
+     * existed omits it, and an absent verb keeps the item's existing `href`
+     * verbatim — an absent value is not a default, it is a signal that nobody
+     * has chosen. `custom` is the only verb that carries an operator href.
+     */
+    headerVerb: z.enum(HEADER_VERBS).optional(),
     ...headerItemBase,
   }),
   z.object({
@@ -129,6 +142,8 @@ const headerItemSchema = z.discriminatedUnion("type", [
     type: z.literal("inquiry"),
     label: z.string().max(60).optional(),
     href: z.string().max(500).optional(),
+    /** F1e. See the `cta` item; same field, same reason. */
+    headerVerb: z.enum(HEADER_VERBS).optional(),
     showCount: z.boolean().optional(),
     ...headerItemBase,
   }),

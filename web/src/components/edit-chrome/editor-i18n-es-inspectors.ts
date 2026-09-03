@@ -707,6 +707,8 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   // ── Buttons, links, media controls ──────────────────────────────────────
   Button: "Botón",
   "Button text": "Texto del botón",
+  "Where it goes": "A dónde lleva",
+  "A full web address, or a path on this site.": "Una dirección web completa, o una ruta de este sitio.",
   "Button label, e.g. Explore services":
     "Etiqueta del botón, p. ej. Explora los servicios",
   "Button label, e.g. Start a booking":
