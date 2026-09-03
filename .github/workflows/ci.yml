@@ -44,12 +44,28 @@ on:
   push:
     branches: [main]
 
-# Cancel superseded runs on the same ref so a second push to a PR doesn't
-# stack up; production-branch (`main`) pushes still cancel each other but
-# that's intentional — only the latest commit needs to be green.
+# Cancel superseded runs on a PR ref, so a second push doesn't stack up.
+#
+# NEVER cancel on `main`. The original comment here said main pushes cancelling
+# each other was "intentional — only the latest commit needs to be green", and
+# that reasoning is wrong in a way that only shows up under load:
+# `promote-production.yml` advances the production pointer ONLY on a run that
+# PASSED on that exact commit. A cancelled run has no verdict, so the pointer
+# cannot advance past it.
+#
+# Measured 2026-09-03: the structural gate takes 15-17 minutes and this repo was
+# merging to main every 2-5 minutes. Eight consecutive main runs were cancelled
+# — one of them at 15m15s, a minute short — every promote run reported
+# `skipped`, and EIGHT merged commits sat undeployed while every check on every
+# PR was green and no alert fired. Nobody's PR was red and nobody's merge was
+# wrong; the platform simply stopped shipping, and it got worse the more work
+# the team landed.
+#
+# Runs on main now queue instead of cancelling. The cost is compute already
+# being spent on runs that were thrown away.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
