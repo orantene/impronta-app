@@ -376,6 +376,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
+      - name: tests — words and industry presets
+        if: ${{ !cancelled() }}
+        run: npm run test:words
+
       # ── Component test gate (10th test step) ─────────────────────────
       # Vitest + @testing-library/react + jsdom. Smoke tests for the
       # top god-files (primitives, profile-shell-internal, WorkspacePageView,
