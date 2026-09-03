@@ -4707,7 +4707,24 @@
         "countryCode": "Country code",
         "save": "Save venue",
         "saving": "Saving…",
-        "saved": "Saved"
+        "saved": "Saved",
+        "roomsTitle": "Rooms",
+        "roomsHint": "The parts of your venue people are seated in. A bar counts as a room.",
+        "noRoomsYet": "No rooms yet. Add one to start putting tables in it.",
+        "roomNamePlaceholder": "Main room",
+        "addRoom": "Add room",
+        "tablesWord": "tables",
+        "addTablesTitle": "Add tables",
+        "addTablesHint": "Add several at once. You never have to draw a floor plan to take reservations.",
+        "addWord": "Add",
+        "tablesSeatingWord": "tables seating",
+        "toWord": "to",
+        "inWord": "in",
+        "calledWord": "called",
+        "groupPlaceholder": "Two-tops",
+        "addTables": "Add them",
+        "groupsTitle": "Table groups",
+        "partiesOf": "parties of"
       }
     },
     "adminBilling": {

@@ -4707,7 +4707,24 @@
         "countryCode": "Código de país",
         "save": "Guardar sede",
         "saving": "Guardando…",
-        "saved": "Guardado"
+        "saved": "Guardado",
+        "roomsTitle": "Salas",
+        "roomsHint": "Las partes de tu sede donde se sienta la gente. Una barra cuenta como sala.",
+        "noRoomsYet": "Aún no hay salas. Agrega una para empezar a poner mesas.",
+        "roomNamePlaceholder": "Sala principal",
+        "addRoom": "Agregar sala",
+        "tablesWord": "mesas",
+        "addTablesTitle": "Agregar mesas",
+        "addTablesHint": "Agrega varias a la vez. Nunca hace falta dibujar un plano para tomar reservas.",
+        "addWord": "Agregar",
+        "tablesSeatingWord": "mesas para",
+        "toWord": "a",
+        "inWord": "en",
+        "calledWord": "llamadas",
+        "groupPlaceholder": "Mesas de dos",
+        "addTables": "Agregarlas",
+        "groupsTitle": "Grupos de mesas",
+        "partiesOf": "grupos de"
       }
     },
     "adminBilling": {
