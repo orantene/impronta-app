@@ -203,10 +203,22 @@ type StockResult =
  * goes to 0 and the buyers keep their seats. Taking a seat back from someone who
  * paid is a refund decision, not a side effect of an editor field.
  *
- * The tenant + owner_kind check is not redundant with the RPC: `setOfferingStock`
- * runs service-role and takes an offering id, so without this an authenticated
- * staff member of ANY workspace could set stock on ANY offering, including a
- * talent-owned one that merely carries their tenant id.
+ * THE TENANT + owner_kind CHECK BELOW IS THE ONLY GUARD. Do not remove it.
+ *
+ * Measured on production: `set_offering_stock` is SECURITY DEFINER and neither
+ * `authenticated` nor `anon` may execute it, so no client reaches the RPC
+ * directly. That does not make this check redundant — it makes it load-bearing.
+ * THIS ACTION is what a client reaches: it is a `"use server"` export, callable
+ * by any authenticated staff member, and it hands the RPC an offering id under
+ * service role. Without the check below, this function is itself the
+ * cross-tenant write, with nothing behind it.
+ *
+ * When the Capacity Engine adds `p_tenant_id` (their 0.10), this becomes belt
+ * and braces rather than the only brace — but the two assert DIFFERENT things
+ * and both are still needed. Theirs: the offering belongs to that tenant.
+ * Ours: the CALLER is staff of that tenant, and the row is owner_kind
+ * 'workspace'. A talent-owned offering carrying this tenant's id passes theirs
+ * and must still fail ours.
  */
 export async function setMenuItemStockAction(
   tenantId: string,
