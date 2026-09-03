@@ -31,6 +31,35 @@ Off the critical path, blocking nothing, and worth starting first because they a
 | D | Phase 1 on main, verified | Events Phase 2 · Reservations Phase 3 · Spaces S2, S3 · Front Door F6, F7, F8 |
 | E | Phases 2 and 3 live | Spaces S4, S5, S6 · Front Door F9 · Appointments Phase 5 |
 
+## THE DEPARTMENT SPLIT, 2026-09-03 evening
+
+**A second peer director now owns Sessions & Classes, Events & Ticketing and Reservations as one cluster** — the "Sell the Room" product set. They share a spine and carried none of this department's history. **They are a peer, not a subordinate**, and their chat is "Sessions, Events & Reservations Director".
+
+**Platform Features keeps:** Capacity Engine · Orders & Checkout · Front Door · Menu Workspace · Appointments · Spaces & Seating · QR & Links.
+
+**Why the split happened is worth more than the fact of it.** It was not workload. It was **the message channel**:
+
+- One ownership ruling took **eight delivery attempts** and blocked Spaces & Seating's S2 for hours — while the decision had already been made. **A decision that cannot be delivered is indistinguishable from one that has not been made.**
+- The Director escalated a merge block to the owner **four times over several hours**, and it was a **stale branch** never retested. The claim was wrong the whole time and every escalation rested on the Director's own unverified conclusion rather than anyone else's.
+
+Three more managers multiplies that class of error rather than diluting it. **So the split is by SPINE rather than by count** — a cluster that shares a foundation can be reasoned about as one thing.
+
+**Company policy adopted from this:** the board is the durable channel between directors, not messaging. Write decisions here; messages are for urgency, not for record.
+
+### The first trap the new director will hit
+
+**The shared `package.json` lane list collided three times in one day at six managers.** It is one line every manager must edit, and a lane-**name** collision **loses coverage silently** — the lane still exists, still passes, still gates, and runs a third fewer tests. Either side alone looks healthy.
+
+**Resolve by taking main's line and re-appending only your own test file** (`web/AGENTS.md`), never a naive union — a union carries a stale sibling entry forward if main dropped one. **Then prove the count by running the lane**, and remember the conflict always has a **second file**: `.github/workflows/ci.yml`. A lane present in the `ci` aggregate but absent from the workflow **never gates.**
+
+### Cross-cluster contracts they inherit
+
+- **Reservations Phase 1 is band mode and already exists.** Spaces shipped venues, rooms, tables, groups and the editor. **Read their handoff page first** (`afb0b1293`) — it documents the two things a careful person would "fix" in the wrong direction: a **parentless band pool** is deliberate, and **refusing a party under a table's minimum** is how the floor plan stops matching the room.
+- **SS-2 is the caller's invariant**: a `space_group` pool and its member table pools are never both active. Capacity cannot enforce it — their schema cannot see group membership.
+- **Sessions starts at P1.2.** Capacity has P1.1 open at #1582. The handoff belongs at a slice boundary because **a new manager's first act should not be inheriting a PR they did not write and cannot vouch for.**
+- **A tier is not a table.** `subject_kind='session_tier'`, `subject_id` = the session, `pool_key` = the tier slug. Now **enforced rather than documented**: `lib/sessions/tier-pools.ts` builds requests from a session, so the wrong shape cannot be constructed.
+- **Events is blocked on `admissions`**, which exists in the repo only as a *word* in `lib/words/rows.ts` — no table, no migration. Independently verified by the CEO.
+
 ## Status by manager
 
 *Rewritten end of day 2026-09-03. The previous table described the morning and was eight PRs stale for Spaces alone — the manager flagged it rather than editing the Director's file, which was right.*
