@@ -28,6 +28,14 @@ export type ReserveRequest = {
   startsAt?: string | null;
   endsAt?: string | null;
   units?: number;
+  /**
+   * The order line these units belong to. Set it PER REQUEST when a cart has
+   * several capacity-bearing lines: the batch-level `orderLineId` stamps every
+   * allocation with the same id, which makes attribution a lie on every line but
+   * one. That matters because refund-by-line reads this column to decide which
+   * units to free — stamped wrong, refunding the GA line releases the VIP seats.
+   */
+  orderLineId?: string | null;
 };
 
 type Rpc = Pick<SupabaseClient, "rpc">;
@@ -92,9 +100,16 @@ export async function reserveCapacity(
 /**
  * Reserve across several pools, all or nothing: dinner plus show, table plus
  * two seats. Either every leg is held or nothing is written.
+ *
+ * A multi-line cart should pass `orderLineId` on each REQUEST rather than in
+ * `opts`, so every allocation is attributed to the line that bought it while the
+ * whole cart stays atomic. Before that was possible a caller had to choose
+ * between a correct ledger and a hand-rolled unwind; Orders 0.6 hit exactly that
+ * and left the question in a comment rather than working around it silently.
  */
 export async function reserveCapacityBatch(
   requests: readonly ReserveRequest[],
+  /** `orderLineId` here is the FALLBACK; a request's own value wins. */
   opts: { ttlSeconds?: number | null; orderLineId?: string | null; createdBy?: string | null } = {},
   admin?: Rpc,
 ): Promise<ReserveBatchResult> {
@@ -110,6 +125,7 @@ export async function reserveCapacityBatch(
       starts_at: r.startsAt ?? null,
       ends_at: r.endsAt ?? null,
       units: r.units ?? 1,
+      order_line_id: r.orderLineId ?? null,
     })),
     p_ttl_seconds: opts.ttlSeconds ?? null,
     p_order_line_id: opts.orderLineId ?? null,
