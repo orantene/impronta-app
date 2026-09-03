@@ -388,7 +388,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:words
 
-      - name: tests — front door (cart totals)
+      - name: tests — front door (cart totals, /me)
         if: ${{ !cancelled() }}
         run: npm run test:front-door
 
