@@ -51,6 +51,7 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantWords } from "@/lib/words/server";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -155,9 +156,10 @@ export async function AgencyChatLauncherMount({
         : true;
   if (!surfaceEnabled) return null;
 
-  const [identity, branding] = await Promise.all([
+  const [identity, branding, words] = await Promise.all([
     loadPublicIdentity(tenantId),
     loadPublicBranding(tenantId),
+    loadTenantWords(tenantId, locale === "es" ? "es" : "en"),
   ]);
 
   // W3 — Tulala Concierge framing. On a hub host the panel identity reads
@@ -175,10 +177,25 @@ export async function AgencyChatLauncherMount({
   const agencyName = isHub
     ? conciergeName
     : identity?.public_name?.trim() || fallbackName;
+  // THE CHAT'S VOICE, BY BUSINESS TYPE.
+  //
+  // Until this, the launcher greeted every tenant as an agency's booking
+  // assistant that would "line up the right talent". A restaurant guest met
+  // that, and so did a barber's client. The preset now supplies the opener a
+  // diner or a class member should actually read.
+  //
+  // OVERRIDE ONLY WHEN A PRESET WAS ACTUALLY PICKED. `parseIndustryPresetId`
+  // returns "custom" for an absent value, and every workspace that exists today
+  // predates presets, so treating "custom" as a voice would silently replace
+  // the agency opener on every live storefront. "custom" therefore keeps the
+  // shipped behaviour, exactly as an untouched terminology keeps it in
+  // `resolveWords`. An operator's own greeting still beats both.
+  const presetVoice =
+    words.preset.id === "custom" ? undefined : words.preset.chatVoice[words.locale];
   // Hub opener: prefer a tenant-configured greeting, else the concierge default.
   const greeting = isHub
     ? settings.greeting?.trim() || t("public.guestChat.hubConciergeGreeting")
-    : settings.greeting;
+    : settings.greeting?.trim() || presetVoice;
   const accentColor = branding?.primary_color ?? branding?.accent_color ?? null;
   const theme =
     typeof branding?.theme_json === "object" && branding.theme_json !== null
