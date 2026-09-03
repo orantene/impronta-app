@@ -79,6 +79,16 @@ Found by the Orders & Checkout Manager while staging 0.5's exit proof. **Indepen
 
 **Routed to the Finance, Payments & Accounting Director.** Their file, their decision. Orders has **not touched it** — their brief says feed the resolver, never fork it, and they held to that. **Orders 0.5c is deliberately held** until the fix lands, so the same error is not baked into the new path and made to look intentional.
 
+## OPEN FOLLOW-UP: the grain P0 is fixed but its NAME still lies
+
+The commission grain P0 is fixed and live — verified against `pg_proc`: `'units', 1` present, `li.total_price * 100` present, `li.unit_price * 100` gone. **Independently measured** by the Orders & Checkout Manager through the real staging path (real rows, real RPC, real convert trigger, compared against `order_lines` written by a different code path): order gross 30001¢ = context gross 30001¢, order talent cost 20000¢ = context talent cost 20000¢, `units` field 1. Before the fix the talent cost came through as 40000¢.
+
+**But the rename did not ship.** Verified: the JSON key is still `unit_price_cents`, and `line_total_cents` appears nowhere in the function.
+
+**The name is now MORE wrong than before the fix, not less.** Previously `unit_price_cents` held a unit price and only `talent_cost_cents` lied about its grain. Now both fields hold line totals and neither name says so. The next person to add a line-item consumer will multiply by `units` because the field is called `unit_price` — and it will look correct in review, which is precisely how the original bug survived. **The original bug had passing tests.**
+
+Finance's file and Finance's call. Recorded here as an **open follow-up rather than closed with the fix**, because the mechanism that let this survive is still fully in place. A correct implementation under a lying name is a trap rearmed rather than defused.
+
 ## Sequencing decisions the Director has made## Sequencing decisions the Director has made
 
 | Item | Decision | Reason |
