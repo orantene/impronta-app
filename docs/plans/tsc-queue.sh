@@ -1,0 +1,105 @@
+#!/bin/bash
+# Machine-wide serialiser for `tsc --noEmit`, for the Tulala multi-session repo.
+#
+# WHY: with 9+ sessions on one machine, concurrent full typechecks thrash each
+# other. Observed: 30 at once across 6 checkouts, top process at 38% CPU and the
+# rest in single digits, one branch waiting 58 minutes. Serialised they finish in
+# minutes each. This does NOT weaken the gate: it runs the SAME full
+# `tsc --noEmit` and exits with its real code.
+#
+# USE (from the web/ directory of your worktree):
+#   bash <path-to>/tsc-queue.sh
+#
+# READING THE RESULT LATER (e.g. after backgrounding it): the verdict file is
+# keyed by checkout. Use the path the script prints, or:
+#   grep " $(pwd) " /tmp/tulala-tsc.log | tail -1
+# NEVER read a bare /tmp/tulala-tsc.last - it does not exist any more, because
+# a machine-wide file gets clobbered by whichever worktree finished last.
+#
+# LOCK POLICY: a lock is reclaimed ONLY when its owner process is dead. There is
+# no age-based reclaim of any kind, on purpose. An earlier version also
+# reclaimed after 30 minutes, which inverted the tool exactly when it was
+# needed: under real contention a run exceeds 30 minutes, its lock is stolen,
+# runs re-parallelise, more runs exceed 30 minutes. A positive feedback loop
+# into the state the queue exists to prevent. A heartbeat backstop was tried and
+# rejected too: it robs a live owner whose heartbeat stalls, which is the same
+# bug in a milder form. The heartbeat that remains is informational only, so a
+# waiter can say how long ago the holder was seen.
+
+LOCK="/tmp/tulala-tsc.lock"
+WAITED=0
+HB_PID=""
+
+cleanup() {
+  [ -n "$HB_PID" ] && kill "$HB_PID" 2>/dev/null
+  rm -rf "$LOCK"
+}
+
+while true; do
+  if mkdir "$LOCK" 2>/dev/null; then
+    # Write the owner file atomically: a racing reader must never see it half
+    # written, so build it elsewhere and mv it in.
+    printf '%s %s %s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(pwd)" > "$LOCK/.owner.tmp"
+    mv "$LOCK/.owner.tmp" "$LOCK/owner"
+    break
+  fi
+
+  if [ -f "$LOCK/owner" ]; then
+    OWNER_PID=$(awk '{print $1}' "$LOCK/owner" 2>/dev/null)
+    OWNER_DIR=$(awk '{print $3}' "$LOCK/owner" 2>/dev/null)
+    HB_AGE=$(( $(date +%s) - $(stat -f %m "$LOCK/owner" 2>/dev/null || date +%s) ))
+
+    if ! kill -0 "$OWNER_PID" 2>/dev/null; then
+      echo "tsc-queue: owner pid $OWNER_PID is dead, reclaiming" >&2
+      rm -rf "$LOCK"; continue
+    fi
+    # DELIBERATELY NO AGE-BASED RECLAIM. A live typecheck is never stale, no
+    # matter how long it takes. Stealing a live lock is invisible and
+    # self-amplifying; a lock held forever by a wedged process is visible and a
+    # human can rm -rf it. Testing an age backstop showed it robs a live owner
+    # whose heartbeat stalls, which is the same bug in a milder form.
+    if [ "$WAITED" = 0 ]; then
+      echo "tsc-queue: waiting for $OWNER_DIR (pid $OWNER_PID), last seen ${HB_AGE}s ago." >&2
+      echo "tsc-queue: a live typecheck is never stale. If it is truly wedged: rm -rf $LOCK" >&2
+    fi
+  fi
+  sleep 10
+  WAITED=$((WAITED + 10))
+done
+
+trap cleanup EXIT INT TERM
+
+# Heartbeat: prove liveness to waiters for as long as we hold the lock.
+( while :; do sleep 60; touch "$LOCK/owner" 2>/dev/null || exit 0; done ) &
+HB_PID=$!
+
+[ "$WAITED" -gt 0 ] && echo "tsc-queue: waited ${WAITED}s, starting" >&2
+
+npx tsc --noEmit
+CODE=$?
+
+# The verdict must be unmistakable. A backgrounded run whose harness reports
+# "completed (exit code 0)" has told you about the WRAPPER, not about tsc: a
+# pipeline's exit status is its LAST command, and everyone wraps tsc in
+# something. An exit above 128 is a signal (143 = SIGTERM, someone killed it),
+# which is neither a pass nor a type error and must never be read as either.
+if [ "$CODE" -eq 0 ]; then
+  VERDICT="TSC PASS (exit 0)"
+elif [ "$CODE" -gt 128 ]; then
+  VERDICT="TSC KILLED by signal $((CODE - 128)) (exit $CODE) - NOT A RESULT, run it again"
+else
+  VERDICT="TSC FAIL (exit $CODE)"
+fi
+
+# Verdict file keyed BY CHECKOUT. One machine-wide file would be overwritten by
+# whichever run finished last from any worktree, so a reader could `cat` a real,
+# correct, honestly-produced verdict about SOMEONE ELSE'S branch.
+MINE="/tmp/tulala-tsc.$(pwd | shasum | cut -c1-8).last"
+
+printf '%s\n' "$VERDICT" >&2
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(pwd)" "$VERDICT" >> /tmp/tulala-tsc.log
+printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$VERDICT" > "$MINE"
+rm -f /tmp/tulala-tsc.last
+
+echo "tsc-queue: read this run again with -> cat $MINE" >&2
+exit $CODE
