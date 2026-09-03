@@ -4268,6 +4268,10 @@
       "wsTalentCategoriesDesc": "Categorías habilitadas del espacio para la lista y el registro",
       "bookingTermsLabel": "Términos de reserva",
       "bookingTermsDesc": "Depósito predeterminado, política de reembolso y reserva instantánea para nuevas ofertas.",
+      "industry": {
+        "label": "Industria y palabras",
+        "desc": "Elige qué eres. Define cómo se llaman las cosas en tu sitio, tu botón principal y cómo saluda el chat. Nada queda bloqueado."
+      },
       "appointments": {
         "label": "Citas",
         "desc": "Activa las reservas, elige la palabra publica y define horarios.",
