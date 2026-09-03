@@ -4679,7 +4679,30 @@
       "accountBillingTitle": "Cuenta y facturación",
       "accountBillingDesc": "Tu suscripción, facturas y método de pago, gestionados en Stripe.",
       "payoutBankTitle": "Cuenta bancaria de cobros",
-      "payoutBankDesc": "Conecta la cuenta bancaria que recibe los pagos de tus reservas."
+      "payoutBankDesc": "Conecta la cuenta bancaria que recibe los pagos de tus reservas.",
+      "venue": {
+        "label": "Sede y espacios",
+        "desc": "Dónde está este espacio de trabajo y qué hora es allí.",
+        "loading": "Cargando tu sede…",
+        "nameLabel": "Nombre de la sede",
+        "nameHint": "Como llamas al lugar al que llega la gente.",
+        "timezoneLabel": "Zona horaria",
+        "timezoneHint": "Los recordatorios, los horarios de reserva y los recibos se muestran en esta zona.",
+        "itIsNow": "Ahora mismo son las",
+        "useBrowserZone": "Usar la zona de este dispositivo:",
+        "notFromVenueYet": "Este espacio de trabajo aún no usa la zona horaria de una sede. Al guardar se establece una.",
+        "showAddress": "Agregar una dirección",
+        "hideAddress": "Ocultar la dirección",
+        "addressLine1": "Calle",
+        "addressLine2": "Departamento, oficina, piso",
+        "city": "Ciudad",
+        "region": "Estado o región",
+        "postalCode": "Código postal",
+        "countryCode": "Código de país",
+        "save": "Guardar sede",
+        "saving": "Guardando…",
+        "saved": "Guardado"
+      }
     },
     "adminBilling": {
       "affordanceOpen": "Abrir"

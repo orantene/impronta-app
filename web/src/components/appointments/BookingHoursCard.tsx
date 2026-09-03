@@ -109,7 +109,9 @@ export function BookingHoursCard({
     loadBookingHours(selectedId).then((res) => {
       if (cancelled) return;
       if (res.ok) {
-        setTimezone(res.hours?.timezone ?? "UTC");
+        // The workspace's zone when this person has no hours row yet, so the
+        // editor never opens on a timezone nobody chose.
+        setTimezone(res.hours?.timezone ?? res.defaultTimezone);
         setWeekly(res.hours?.weekly ?? emptyWeekly());
         setSlotMinutes(res.hours?.slotMinutes ?? DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
         setOptIn(res.directBookingOptIn);

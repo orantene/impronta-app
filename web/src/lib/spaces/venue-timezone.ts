@@ -79,3 +79,32 @@ export function localHourIn(instant: Date, timeZone: string): number | null {
   const hour = Number(raw);
   return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
 }
+
+/**
+ * Every zone the runtime knows, plus whatever this venue is actually set to.
+ *
+ * The union is not defensive tidiness, it is a bug fix. `supportedValuesOf`
+ * returns 418 canonical zones and **"UTC" is not one of them** (nor is
+ * "Etc/UTC"). Every workspace in production is on UTC, so a plain list left the
+ * <select> with no matching <option>, which silently falls back to the FIRST
+ * one — "Africa/Abidjan". The screen showed the wrong zone to everyone, and the
+ * first click of Save would have written it. Caught by opening the page.
+ *
+ * So the current value is always in the list, even if the runtime has never
+ * heard of it: the operator must be able to see what is stored before changing
+ * it, and a value we cannot render is a value we must not silently replace.
+ */
+export function timeZoneOptions(current: string): string[] {
+  let supported: string[] = [];
+  try {
+    const fn = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] })
+      .supportedValuesOf;
+    supported = typeof fn === "function" ? fn("timeZone") : [];
+  } catch {
+    supported = [];
+  }
+  const union = new Set<string>(supported);
+  union.add("UTC");
+  if (current) union.add(current);
+  return [...union].sort((a, b) => a.localeCompare(b));
+}

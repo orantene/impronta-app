@@ -8,11 +8,9 @@ import { proposeReservationTimeAction } from "@/lib/server-actions/reservation-p
 export function ProposeTimeButton({
   tenantSlug,
   inquiryId,
-  timezone = "UTC",
 }: {
   tenantSlug: string;
   inquiryId: string;
-  timezone?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -67,7 +65,6 @@ export function ProposeTimeButton({
                   inquiryId,
                   startsAt: starts,
                   endsAt: ends,
-                  timezone,
                 });
                 if (!r.ok) {
                   setError(r.error);

@@ -12,6 +12,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantTimezone } from "@/lib/spaces/venues";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { placeReservationHold, releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
@@ -66,7 +67,13 @@ export async function proposeReservationTimeAction(raw: {
   inquiryId: string;
   startsAt: string;
   endsAt: string;
-  timezone: string;
+  /**
+   * Ignored. The stamp's zone is resolved on the server from the venue, because
+   * a reservation stamp is a RECORD and a client-supplied zone is display. Kept
+   * in the signature so the existing caller still typechecks; it goes when the
+   * caller stops sending it.
+   */
+  timezone?: string;
   offeringId?: string | null;
   talentProfileId?: string | null;
 }): Promise<ReservationProposeResult> {
@@ -130,7 +137,10 @@ export async function proposeReservationTimeAction(raw: {
     offering_id: offeringId,
     starts_at: new Date(starts).toISOString(),
     ends_at: new Date(ends).toISOString(),
-    timezone: raw.timezone.trim() || "UTC",
+    // The venue's clock, never the browser's. The prop that used to feed this
+    // was never passed by the only caller, so every reservation ever proposed
+    // was stamped "UTC" regardless of where the workspace is.
+    timezone: await tenantTimezone(staff.tenantId),
     duration_minutes:
       typeof offering?.duration_minutes === "number" && offering.duration_minutes > 0
         ? offering.duration_minutes
