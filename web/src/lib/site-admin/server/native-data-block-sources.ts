@@ -274,19 +274,16 @@ export type WorkspaceMenuOffering = {
   /**
    * Units left, or null when this item is not stock-limited.
    *
-   * SEAM, with the exact swap named. Today `inventory_qty` is the only stock
-   * signal, so `!= null` is the correct "has stock" test. When PR #1520 lands,
-   * `capacity_pool_id` becomes authoritative and `inventory_qty` is a mirror the
-   * capacity RPCs maintain — at which point the test below becomes
-   * `offering.capacityPoolId != null` (the Capacity Engine's registered
-   * contract). The two agree under `set_offering_stock`, which nulls both
-   * together for an unlimited item, so this derive is correct on either side of
-   * that merge. Only this function reads the column: the island and the renderer
-   * consume `unitsLeft`, so the swap is one line here and nothing else moves.
+   * Stock is a POOL fact, not a kind fact. `capacityPoolId != null` means "this
+   * thing has stock", whatever it is called; null means genuinely unlimited.
    *
-   * Gated on stock PRESENCE, never on `kind`. instant-book reserves only when
-   * `kind === "product"`, and the live seat-limited class is `kind='package'`,
-   * so a kind gate leaves the one item that needs enforcement unenforced.
+   * Never gate on `kind`. `kind === "product"` is the predicate that caused the
+   * oversell: it silently excluded every seat-limited package, and the live
+   * "Posing course - 12 spots" is kind='package'. Five predicates moved off kind
+   * for exactly this reason (Capacity 0.3b).
+   *
+   * `inventoryQty` is the mirror the capacity RPCs maintain; reading it here is
+   * correct, writing it is not (it is out of offeringToRowPatch on purpose).
    */
   unitsLeft: number | null;
   /** Offering policy: may the customer settle in person? */
@@ -324,7 +321,9 @@ export function deriveWorkspaceMenuOfferings(
       priceDisplay: offering.priceDisplay,
       kind: offering.kind,
       unitsLeft:
-        typeof offering.inventoryQty === "number" && Number.isFinite(offering.inventoryQty)
+        offering.capacityPoolId != null &&
+        typeof offering.inventoryQty === "number" &&
+        Number.isFinite(offering.inventoryQty)
           ? Math.max(0, Math.trunc(offering.inventoryQty))
           : null,
       allowPayInPerson: offering.allowPayInPerson === true,

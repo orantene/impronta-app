@@ -24,6 +24,7 @@ import {
   fetchTenantTalentDisciplines,
   fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
+import { loadTenantWords } from "@/lib/words/server";
 import { fetchNativeDirectoryProfilesByNodeId } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
@@ -152,6 +153,7 @@ export async function loadBuilderNodeDataSources(
     tenantTalentCount,
     talentDisciplines,
     menuOfferings,
+    menuWords,
     directoryProfilesByNodeId,
   ] = await Promise.all([
     featuredLimit == null
@@ -201,6 +203,18 @@ export async function loadBuilderNodeDataSources(
     nativeNeeds.menuBoard
       ? fetchWorkspaceMenuOfferings(dataTenantId, locale)
       : Promise.resolve(undefined),
+    // The operator's menu nouns, same gate as the offerings. This must never
+    // reject: a words failure degrades the board to catalog copy, it does not
+    // blank it, and a board with no Order button is worse than a generic label.
+    nativeNeeds.menuBoard
+      ? loadTenantWords(dataTenantId, locale === "es" ? "es" : "en")
+          .then((w) => ({
+            soldOut: w.word("menu.sold_out"),
+            orderSent: w.word("menu.order_sent"),
+            cta: w.word("menu.cta"),
+          }))
+          .catch(() => undefined)
+      : Promise.resolve(undefined),
     // BUILDER 2027 · P2B — the native `directory` node's FALLBACK cards, one
     // list per node so two differently-scoped bands on a page cannot share (and
     // therefore swap) each other's people. Gated inside the fetcher by the same
@@ -241,6 +255,7 @@ export async function loadBuilderNodeDataSources(
     ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
     ...(menuOfferings === undefined ? {} : { menuOfferings }),
+    ...(menuWords === undefined ? {} : { menuWords }),
     ...(directoryProfilesByNodeId === undefined
       ? {}
       : { directoryProfilesByNodeId }),

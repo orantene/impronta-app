@@ -46,11 +46,27 @@ const KEYS = [
  */
 export function menuBoardCopy(
   contentLocale?: BuilderNodeContentLocaleOptions,
+  words?: { soldOut: string; orderSent: string; cta: string },
 ): MenuBoardCopy {
   const t = createTranslator(contentLocale?.locale ?? "en");
   const out = {} as Record<keyof MenuBoardCopy, string>;
   for (const key of KEYS) {
     out[key] = t(`public.menuBoard.${key}`);
+  }
+
+  // Three of these are NOUNS the operator owns, so the words engine wins over
+  // the catalog: a print shop's board and a taqueria's board are the same code
+  // and should not say the same words. `menu.sold_out`, `menu.order_sent` and
+  // `menu.cta` carry en/es fallbacks, so an operator who never opened Words
+  // still gets correct copy.
+  //
+  // Absent `words` (a load failure, or a render with no tenant) keeps the
+  // catalog value rather than blanking the control — a board with no Order
+  // button is worse than one with a generic label.
+  if (words) {
+    if (words.soldOut.trim()) out.soldOut = words.soldOut;
+    if (words.orderSent.trim()) out.sent = words.orderSent;
+    if (words.cta.trim()) out.submit = words.cta;
   }
   return out as MenuBoardCopy;
 }

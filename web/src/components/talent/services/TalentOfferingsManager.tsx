@@ -32,6 +32,7 @@ import {
   upsertWorkspaceMenuItem,
   deleteWorkspaceMenuItem,
   reorderWorkspaceMenuItems,
+  setMenuItemStockAction,
 } from "@/lib/talent/menu-offerings-actions";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
@@ -160,6 +161,85 @@ function makeStyles(saving: boolean) {
   return { inputStyle, labelStyle, pillStyle };
 }
 
+/**
+ * Stock for a workspace menu item.
+ *
+ * Its own control with its own save, deliberately NOT part of the offering
+ * patch: a stock edit is an RPC, not a column write. Typing 20 means twenty
+ * AVAILABLE, so the pool total becomes 20 + held under a row lock. Writing the
+ * number into the row would either shrink the ceiling below what live orders
+ * hold or desync the mirror the public board reads, which is why
+ * `inventory_qty` is absent from `offeringToRowPatch`'s return type.
+ *
+ * Held is shown only when it is non-zero. Without it the field looks broken on
+ * reload: set 20, the pool becomes 23, a bare field reads 20, and someone
+ * "fixes" it by typing 23 and oversells by three.
+ */
+function StockControl({
+  tenantId,
+  offeringId,
+  initialAvailable,
+  saving,
+  inputStyle,
+  labelStyle,
+}: {
+  tenantId: string;
+  offeringId: string;
+  initialAvailable: number | null;
+  saving: boolean;
+  inputStyle: React.CSSProperties;
+  labelStyle: React.CSSProperties;
+}) {
+  const [raw, setRaw] = useState(initialAvailable == null ? "" : String(initialAvailable));
+  const [held, setHeld] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function commit() {
+    const trimmed = raw.trim();
+    // Empty means UNLIMITED (null), not zero. Zero is a real value meaning sold
+    // out, so the two must never collapse.
+    const next = trimmed === "" ? null : Math.max(0, Math.trunc(Number(trimmed)));
+    if (trimmed !== "" && !Number.isFinite(next)) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await setMenuItemStockAction(tenantId, offeringId, next);
+      if (!res.ok) {
+        setNote(res.error);
+        return;
+      }
+      setHeld(res.held);
+      setRaw(res.available == null ? "" : String(res.available));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 1 190px" }}>
+      <span style={labelStyle}>Stock left</span>
+      <input
+        type="number"
+        min={0}
+        step={1}
+        inputMode="numeric"
+        placeholder="Unlimited"
+        disabled={saving || busy}
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        onBlur={() => void commit()}
+        style={{ ...inputStyle, width: "100%" }}
+      />
+      {note ? (
+        <span style={{ fontSize: 11, color: "#B0303A" }}>{note}</span>
+      ) : held != null && held > 0 ? (
+        <span style={{ fontSize: 11, opacity: 0.7 }}>{held} held by open orders</span>
+      ) : null}
+    </label>
+  );
+}
+
 /** The shared form body (draft-mode or edit-mode). MODULE-LEVEL on purpose. */
 function OfferingForm({
   value,
@@ -172,6 +252,7 @@ function OfferingForm({
   onCancelDraft,
   onImages,
   onOptionsSynced,
+  workspaceTenantId,
 }: {
   value: TalentOffering;
   onPatch: (p: Partial<TalentOffering>) => void;
@@ -187,6 +268,8 @@ function OfferingForm({
   onImages?: (offeringId: string, assets: { id: string; url: string }[]) => void;
   /** Local-state updater after variants/add-ons persist (child rows, not the row). */
   onOptionsSynced?: (offeringId: string, variants: OfferingVariant[], addOns: OfferingAddOn[]) => void;
+  /** Set for a workspace menu item; enables the stock control. */
+  workspaceTenantId?: string;
 }) {
   const { inputStyle, labelStyle, pillStyle } = makeStyles(saving);
   const mode = toPriceMode(value);
@@ -583,6 +666,16 @@ function OfferingForm({
                 ))}
               </select>
             </label>
+            {workspaceTenantId && value.id ? (
+              <StockControl
+                tenantId={workspaceTenantId}
+                offeringId={value.id}
+                initialAvailable={value.inventoryQty}
+                saving={saving}
+                inputStyle={inputStyle}
+                labelStyle={labelStyle}
+              />
+            ) : null}
             <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 1 170px" }}>
               <span style={labelStyle}>Who sees it</span>
               <select
@@ -1055,6 +1148,7 @@ export function TalentOfferingsManager(
                 {open && (
                   <div style={{ padding: "0 12px 14px" }}>
                     <OfferingForm
+                      workspaceTenantId={isWorkspace ? workspaceTenantId : undefined}
                       value={it}
                       isDraft={false}
                       saving={saving}

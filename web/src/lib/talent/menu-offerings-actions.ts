@@ -11,6 +11,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import { setOfferingStock } from "@/lib/capacity";
 import {
   blankOffering,
   offeringToRowPatch,
@@ -182,4 +183,71 @@ export async function blankWorkspaceMenuItem(
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
+}
+
+type StockResult =
+  | { ok: true; available: number | null; held: number; unitsTotal: number | null }
+  | { ok: false; error: string };
+
+/**
+ * Set a menu item's AVAILABLE stock. Empty / null means unlimited.
+ *
+ * A stock edit is NOT a number write, which is why this goes through
+ * `setOfferingStock` and why `inventory_qty` is absent from
+ * `offeringToRowPatch`'s return type. Typing "20" means twenty AVAILABLE, so the
+ * RPC computes `units_total = 20 + held` under the pool's row lock. Writing 20
+ * into the total would shrink the ceiling below what live orders already hold;
+ * writing `inventory_qty` alone would desync the mirror the public board reads.
+ *
+ * Reducing below what is held is allowed and never cancels a hold: availability
+ * goes to 0 and the buyers keep their seats. Taking a seat back from someone who
+ * paid is a refund decision, not a side effect of an editor field.
+ *
+ * The tenant + owner_kind check is not redundant with the RPC: `setOfferingStock`
+ * runs service-role and takes an offering id, so without this an authenticated
+ * staff member of ANY workspace could set stock on ANY offering, including a
+ * talent-owned one that merely carries their tenant id.
+ */
+export async function setMenuItemStockAction(
+  tenantId: string,
+  offeringId: string,
+  available: number | null,
+): Promise<StockResult> {
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Database not available." };
+
+    const { data: row, error: selErr } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .maybeSingle();
+    if (selErr || !row) return { ok: false, error: "Menu item not found." };
+
+    const result = await setOfferingStock(offeringId, available, admin);
+    if (!result.ok) {
+      const message =
+        result.reason === "negative_stock"
+          ? "Stock cannot be negative."
+          : result.reason === "offering_not_found"
+            ? "Menu item not found."
+            : "Could not update stock.";
+      return { ok: false, error: message };
+    }
+
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      available: result.available,
+      held: result.held,
+      unitsTotal: result.unitsTotal,
+    };
+  } catch (error) {
+    logServerError("menuOfferings.setStock", error);
+    return { ok: false, error: "Could not update stock." };
+  }
 }
