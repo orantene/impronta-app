@@ -48,13 +48,85 @@ const PHOTO = {
   room: pageDesignPhoto("studioDesk"),
 };
 
-/** Decorative starter list. An operator edits these; nothing reads them. */
+/**
+ * Decorative starter list. An operator edits these; nothing reads them, and a
+ * salon's REAL services arrive on /book once F8 lands. Emitted as static rows
+ * rather than a data-bound repeater: `dataSources` only carries the renderer's
+ * own named collections, and a starter list is meant to be edited in the
+ * builder, not resolved at render time.
+ */
 const SERVICE_ROWS = [
   { id: "s1", name: "Cut and finish", detail: "45 minutes", price: "$40" },
   { id: "s2", name: "Skin fade", detail: "30 minutes", price: "$28" },
   { id: "s3", name: "Beard shape", detail: "20 minutes", price: "$18" },
   { id: "s4", name: "Cut and beard", detail: "60 minutes", price: "$52" },
 ];
+
+function serviceRow(
+  row: { id: string; name: string; detail: string; price: string },
+  index: number,
+): BuilderNode {
+  return {
+    id: `services-row-${row.id}`,
+    kind: "container",
+    props: {
+      layout: "row",
+      align: "center",
+      style: {
+        width: "100%",
+        gap: "16px",
+        paddingTop: "22px",
+        paddingBottom: "22px",
+        borderWidth: "0 0 1px 0",
+        borderColor: LINE,
+        justifyContent: "space-between",
+      },
+    },
+    children: [
+      {
+        id: `services-row-copy-${row.id}`,
+        kind: "container",
+        props: { layout: "stack", style: { gap: "4px", minWidth: "0px" } },
+        children: [
+          {
+            id: `services-row-name-${row.id}`,
+            kind: "heading",
+            props: {
+              text: row.name,
+              level: 3,
+              layerLabel: `Service ${index + 1}`,
+              style: { fontFamily: INTER, fontSize: "18px", fontWeight: 600, textColor: INK },
+            },
+          },
+          {
+            id: `services-row-detail-${row.id}`,
+            kind: "paragraph",
+            props: {
+              text: row.detail,
+              layerLabel: "Detail",
+              style: { fontFamily: INTER, fontSize: "14px", textColor: MUTED },
+            },
+          },
+        ],
+      },
+      {
+        id: `services-row-price-${row.id}`,
+        kind: "paragraph",
+        props: {
+          text: row.price,
+          layerLabel: "Price",
+          style: {
+            fontFamily: INTER,
+            fontSize: "17px",
+            fontWeight: 600,
+            textColor: INK,
+            align: "right",
+          },
+        },
+      },
+    ],
+  };
+}
 
 const servicesTree: BuilderNode[] = [
   {
@@ -264,81 +336,11 @@ const servicesTree: BuilderNode[] = [
                 width: "100%",
                 maxWidthFree: "720px",
                 gap: "0px",
-                borderTopWidth: "1px",
-                borderTopColor: LINE,
+                borderWidth: "1px 0 0 0",
+                borderColor: LINE,
               },
-              repeat: { collection: "services", itemKey: "id" },
             },
-            children: [
-              {
-                id: "services-row",
-                kind: "container",
-                props: {
-                  layout: "row",
-                  align: "center",
-                  style: {
-                    width: "100%",
-                    gap: "16px",
-                    paddingTop: "22px",
-                    paddingBottom: "22px",
-                    borderBottomWidth: "1px",
-                    borderBottomColor: LINE,
-                    justifyContent: "space-between",
-                  },
-                },
-                children: [
-                  {
-                    id: "services-row-copy",
-                    kind: "container",
-                    props: { layout: "stack", style: { gap: "4px", minWidthFree: "0px" } },
-                    children: [
-                      {
-                        id: "services-row-name",
-                        kind: "heading",
-                        props: {
-                          text: "Cut and finish",
-                          level: 3,
-                          layerLabel: "Service",
-                          fieldBindings: { text: "name" },
-                          style: {
-                            fontFamily: INTER,
-                            fontSize: "18px",
-                            fontWeight: 600,
-                            textColor: INK,
-                          },
-                        },
-                      },
-                      {
-                        id: "services-row-detail",
-                        kind: "paragraph",
-                        props: {
-                          text: "45 minutes",
-                          layerLabel: "Detail",
-                          fieldBindings: { text: "detail" },
-                          style: { fontFamily: INTER, fontSize: "14px", textColor: MUTED },
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    id: "services-row-price",
-                    kind: "paragraph",
-                    props: {
-                      text: "$40",
-                      layerLabel: "Price",
-                      fieldBindings: { text: "price" },
-                      style: {
-                        fontFamily: INTER,
-                        fontSize: "17px",
-                        fontWeight: 600,
-                        textColor: INK,
-                        align: "right",
-                      },
-                    },
-                  },
-                ],
-              },
-            ],
+            children: SERVICE_ROWS.map((row, index) => serviceRow(row, index)),
           },
           {
             id: "services-list-cta",
@@ -397,7 +399,7 @@ const servicesTree: BuilderNode[] = [
                 paddingRight: "56px",
                 paddingBottom: "72px",
                 paddingLeft: "56px",
-                minWidthFree: "0px",
+                minWidth: "0px",
                 responsive: {
                   mobile: { width: "100%", paddingRight: "24px", paddingLeft: "24px" },
                 },
@@ -470,8 +472,8 @@ const servicesTree: BuilderNode[] = [
             paddingRight: "40px",
             paddingBottom: "40px",
             paddingLeft: "40px",
-            borderTopWidth: "1px",
-            borderTopColor: LINE,
+            borderWidth: "1px 0 0 0",
+            borderColor: LINE,
             justifyContent: "space-between",
             flexWrap: "wrap",
             backgroundColor: PAPER,
@@ -522,5 +524,4 @@ export const servicesDesign: PageDesign = {
     "A salon, barber, spa or clinic front door: a Fraunces hero, a priced service list, the room, and every call to action pointing at /book or the chat.",
   archetype: "services",
   tree: servicesTree,
-  dataSources: { services: SERVICE_ROWS },
 };
