@@ -241,6 +241,21 @@ The CEO's proposal, adopted: **a short weekly session where the owner walks ONE 
 **The standing rule this does not change:** a manager may not assert a UI path they have not clicked, and may not grant themselves an exemption from a repo rule. This list is how the obligation gets discharged by the one person who can discharge it.
 
 ## Department rules added in flight
+**A stacked PR whose base is squash-merged lands INSIDE its parent's commit, and the parent's subject then lies about its contents.**
+
+Found by the Spaces & Seating Manager about their own history, and verified: commit `05699209b` is titled *"fix(capacity): a registration without ON CONFLICT swallowed the next statement (#1568)"* and actually contains **nine files** — `SpacesEditor.tsx` (314 lines), `spaces/editor.ts`, `spaces/pools.ts`, `server-actions/spaces-editor.ts`, migration `…222`, and the en/es strings. All of S2b.
+
+Nothing is lost — GitHub concatenated both commit bodies, so the full message does describe both. **Only the subject line misleads**, and it misleads in the place people actually look: anyone running `git log --oneline` to find why `SpacesEditor.tsx` exists lands on a commit about a regex.
+
+**The safer pattern:** base a follow-up on `main` and accept the conflict, or wait for the parent to land first. Not worth rewriting history for once it has happened — worth avoiding next time.
+
+**Watch for a cap buying CPU with correctness.** Raised by the Orders & Checkout Manager when the CPU governor landed: *if managers start reporting FEWER gates rather than SLOWER ones, the cap will have bought CPU with correctness.* A slower pass is a cost; a shorter pass is a silent change in what "green" covers — **and it would look like discipline.** The signal in a review is a PR body listing three lanes where it used to list six, without saying why. Slower gates, never fewer; raise the cap before accepting a shorter pass.
+
+**Three of today's findings are one disease, and the Orders manager's phrasing is better than the three separate entries above:** a wrapper's exit standing in for the real one, a shared verdict file handing you a neighbour's green, and a 4 GB `tsc` abort reading as a clean pass are **all a green that is true about something other than what you asked.**
+
+**A `<select>` is not the only thing that types cannot check.** The Spaces manager's first S3 draft updated `capacity_allocations.space_id` — **a column that does not exist.** It typechecked, because the service-role client is not generically typed, so it would have failed at runtime against a field that was never there. Caught by reading `information_schema` rather than trusting the draft. **And the invented column would have been wrong even if it had existed:** a joined party sits at two tables, so one allocation occupies two spaces and a single `space_id` cannot say that — it would have forced a second allocation for the same guests, which is the double-count the area exists to prevent.
+
+
 **A guard that reads ONE file to check a registry that MANY files write to is measuring nothing — and it will read green while doing it.**
 
 Found by the Spaces & Seating Manager. `subject-registry.static.test.ts` read migration `…212` alone, while the registry it guards exists precisely so each feature owner registers their own kind in **their** migration. The instruction given was "register in YOUR migration" — and following it as written would have left `space` and `space_group` **reported as unregistered forever, while they were in fact validated.**
