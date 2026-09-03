@@ -35,7 +35,7 @@ import { revalidateTag } from "next/cache";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import {
   shouldSeedContactPage,
@@ -109,9 +109,11 @@ export function buildContactPageTree(identity: ContactDetailFields): BuilderNode
           },
           i18n: { es: { text: "Contáctanos" } },
         },
-        ...lines.map((line) => ({
+        // `align` is a literal union on BuilderNodeStyle, and a `.map()` widens
+        // it to `string`, so the node type is spelled out rather than inferred.
+        ...lines.map((line): BuilderNode => ({
           id: line.id,
-          kind: "paragraph" as const,
+          kind: "paragraph",
           props: {
             text: `${line.label}: ${line.value}`,
             layerLabel: line.label,

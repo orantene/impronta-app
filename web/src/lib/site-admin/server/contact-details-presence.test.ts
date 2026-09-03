@@ -88,3 +88,31 @@ test("non-string junk in the column cannot be mistaken for a value", () => {
     );
   }
 });
+
+// ─── The page the seeder actually builds ─────────────────────────────────
+
+test("the page renders only fields the operator supplied", async () => {
+  const { buildContactPageTree } = await import("./onboard-contact-page");
+  const tree = buildContactPageTree({
+    contact_email: "hola@casarizo.mx",
+    contact_phone: "   ",
+    address_city: "Tulum",
+  });
+  const json = JSON.stringify(tree);
+
+  assert.ok(json.includes("hola@casarizo.mx"), "the supplied email must render");
+  assert.ok(json.includes("Tulum"), "the supplied city must render");
+  // A blank field produces NO row rather than an empty "Phone: " line.
+  assert.ok(!json.includes("Phone:"), "a blank phone must not render a label");
+  assert.ok(!json.includes("WhatsApp:"), "an absent field must not render a label");
+});
+
+test("the page always offers a live way to start a conversation", async () => {
+  const { buildContactPageTree } = await import("./onboard-contact-page");
+  // Even the thinnest qualifying page carries the chat cue, so a contact page
+  // built from one email can never be a dead end. `?inquiry=open` is
+  // path-relative, so `prefixPublicHref` leaves it alone on every host shape.
+  const json = JSON.stringify(buildContactPageTree({ contact_email: "a@b.mx" }));
+  assert.ok(json.includes("?inquiry=open"));
+  assert.ok(!json.includes('"/contact"'), "the page must not link to itself");
+});
