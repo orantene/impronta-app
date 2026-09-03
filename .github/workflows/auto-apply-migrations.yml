@@ -20,10 +20,13 @@
 #   pattern the team already trusts, now run by CI.
 #
 # SAFETY POSTURE — idempotent + dormant-by-default; never applies something uncertain:
-#   • Dormant until activated: if the required secrets are absent the job is a
-#     NEUTRAL no-op (green), NOT a failure — so merging this workflow is harmless
-#     and `main` stays green until the owner adds the secrets on purpose. Until
-#     then, migrations keep being applied via the manual MCP / db:push flow.
+#   • UNARMED = LOUD FAILURE (changed 2026-09-03). If the required secrets are
+#     absent this job FAILS. It used to pass as a neutral no-op, and that was a
+#     trap: five runs reported "Auto-apply Supabase migrations: success" while
+#     touching nothing, and a reader of that check list would reasonably
+#     conclude their migration had been applied. It had not. The manual protocol
+#     in CLAUDE.md is still the real one; this job now says so instead of
+#     implying otherwise. Arm it or delete it — do not leave it silent.
 #   • Migration-only WARNING (not a block): this repo commonly bundles a migration
 #     with the code that needs it + regenerated database.types.ts in one PR, so a
 #     mixed push only logs a warning and still applies the pending migration(s).
@@ -188,9 +191,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] || [ -z "${SUPABASE_URL:-}" ]; then
-            echo "::notice title=Auto-apply dormant::SUPABASE_ACCESS_TOKEN and/or SUPABASE_URL not set — skipping auto-apply as a no-op. Add BOTH under Settings ▸ Secrets and variables ▸ Actions to activate. Until then migrations are applied via the manual MCP / db:push flow."
-            echo "APPLY=0" >> "$GITHUB_ENV"
-            exit 0
+            echo "::error title=Auto-apply is UNARMED::This workflow applied NOTHING. Your migration is NOT in production unless you applied it yourself with 'node web/scripts/apply-migration.mjs --apply-pending'. This job fails on purpose: a green check named 'Auto-apply Supabase migrations' that quietly does nothing is worse than no check at all, because it tells a human their migration landed when it did not. To silence this, either arm the workflow (add SUPABASE_ACCESS_TOKEN and SUPABASE_URL under Settings > Secrets and variables > Actions) or delete this file."
+            exit 1
           fi
           echo "Required secrets present."
 
