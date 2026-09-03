@@ -234,6 +234,44 @@ export function validateTargets(rules: readonly TargetRule[]): { ok: true } | { 
   return { ok: true };
 }
 
+/**
+ * Turn a rule's destination into a URL, refusing anything that leaves this site.
+ *
+ * WHY A PRINTED CODE NEEDS THIS MORE THAN A LINK DOES
+ * With an ordinary link a person can read the URL before they click, and a
+ * browser shows them where they landed. With a QR code they can do neither:
+ * the destination is unreadable ink, and by the time it is on screen they have
+ * already arrived. So a code that can be retargeted to an arbitrary origin is a
+ * phishing primitive stapled to a table, and the fact that only staff can write
+ * `targets` is not much comfort — a compromised staff account, or a support
+ * agent pasting something helpful, is exactly how this gets used.
+ *
+ * Returns `null` for a cross-origin destination and for anything unparseable,
+ * so the caller refuses rather than redirects. Same discipline as the rest of
+ * this module: absence is a distinct answer, never a fallback.
+ *
+ * `//evil.com` is the case worth naming. It is protocol-relative, so it looks
+ * like a path and resolves to another ORIGIN. `new URL()` handles it correctly
+ * and the origin comparison below catches it; a `startsWith("/")` check, which
+ * is the obvious way to write this, would wave it straight through.
+ */
+export function resolveDestinationUrl(to: string, base: string): URL | null {
+  let url: URL;
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(base);
+    url = new URL(to, base);
+  } catch {
+    return null;
+  }
+  if (url.origin !== baseUrl.origin) return null;
+  // A code may only send someone to a page. `javascript:` and `data:` cannot
+  // reach here through `new URL(to, base)` with an http base, but stating the
+  // allowed set means a future change to how `base` is derived cannot open it.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  return url;
+}
+
 /** Minutes since local midnight for an instant, in a named timezone. */
 export function zonedNowIn(instant: Date, timeZone: string): ZonedNow {
   // `en-GB` gives a 24-hour clock; `weekday: "short"` avoids parsing a locale

@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 
 import {
   isWithinWindow,
+  resolveDestinationUrl,
   resolveTarget,
   validateTargets,
   zonedNowIn,
@@ -251,4 +252,45 @@ test("a link resolved across a DST boundary uses the local clock on each side", 
   const after = zonedNowIn(new Date("2026-10-25T02:30:00Z"), "Europe/Madrid");
   assert.deepEqual(resolveTarget(rules, before), { ok: true, destination: MENU });
   assert.deepEqual(resolveTarget(rules, after), { ok: true, destination: MENU });
+});
+
+// ── A code cannot send someone off this site ────────────────────────────────
+
+test("a same-origin path resolves", () => {
+  const url = resolveDestinationUrl("/menu?table=7", "https://casarizo.com/q/t7");
+  assert.equal(url?.href, "https://casarizo.com/menu?table=7");
+});
+
+test("an absolute URL to THIS origin resolves", () => {
+  const url = resolveDestinationUrl("https://casarizo.com/menu", "https://casarizo.com/q/t7");
+  assert.equal(url?.href, "https://casarizo.com/menu");
+});
+
+test("a cross-origin destination is refused, not redirected to", () => {
+  // The whole point: a guest scanning ink cannot read where it points before
+  // they arrive, so a retargetable code is a phishing primitive on a table.
+  assert.equal(resolveDestinationUrl("https://evil.com/login", "https://casarizo.com/q/t7"), null);
+  assert.equal(resolveDestinationUrl("https://casarizo.com.evil.com/", "https://casarizo.com/q/t7"), null);
+});
+
+test("a protocol-relative destination is refused, because it only LOOKS like a path", () => {
+  // `//evil.com` passes any startsWith("/") check — which is the obvious way to
+  // write this guard — and resolves to another origin.
+  assert.equal(resolveDestinationUrl("//evil.com/login", "https://casarizo.com/q/t7"), null);
+  assert.equal(resolveDestinationUrl("//evil.com", "https://casarizo.com/q/t7"), null);
+});
+
+test("a different scheme on the same host is refused", () => {
+  // origin includes the scheme, so http vs https is a different origin.
+  assert.equal(resolveDestinationUrl("http://casarizo.com/menu", "https://casarizo.com/q/t7"), null);
+});
+
+test("a non-http scheme is refused", () => {
+  assert.equal(resolveDestinationUrl("javascript:alert(1)", "https://casarizo.com/q/t7"), null);
+  assert.equal(resolveDestinationUrl("data:text/html,<h1>hi", "https://casarizo.com/q/t7"), null);
+});
+
+test("an unparseable destination is refused rather than throwing at a guest", () => {
+  assert.equal(resolveDestinationUrl("", "not a url"), null);
+  assert.equal(resolveDestinationUrl("http://", "https://casarizo.com/q/t7"), null);
 });

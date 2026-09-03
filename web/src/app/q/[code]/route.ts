@@ -29,7 +29,7 @@ import {
   recordScan,
   scanSessionKey,
 } from "@/lib/links/link-store";
-import { resolveTarget, zonedNowIn } from "@/lib/links/resolve-target";
+import { resolveDestinationUrl, resolveTarget, zonedNowIn } from "@/lib/links/resolve-target";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +132,11 @@ export async function GET(
     return codeNotFound(request);
   }
 
-  const destination = new URL(resolved.destination.to, request.url);
+  // Refuse a destination that leaves this site. A guest scanning a code cannot
+  // read where it points before they arrive, so a retargetable code is a
+  // phishing primitive stapled to a table if this is not checked.
+  const destination = resolveDestinationUrl(resolved.destination.to, request.url);
+  if (!destination) return codeNotFound(request);
 
   // The link id rides on the destination so the draft order, inquiry or
   // admission created next can attribute itself (Q4). Only the ID travels: the
