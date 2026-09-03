@@ -1,23 +1,35 @@
-export const HELP_GUIDE_ROLES = ["operators", "agencies", "talents", "clients"] as const;
+import { RESTAURANTS, SALONS, SHOPS } from "./help-guides-businesses";
+import type { HelpGuideRoleContent } from "./help-guides-types";
+
+export type { HelpGuide, HelpGuideRoleContent, HelpGuideTranslation } from "./help-guides-types";
+
+/**
+ * Audiences /help is written for.
+ *
+ * The first four are the talent-agency shapes this product started as. The
+ * last three are businesses that sell their own work — the shape that is
+ * actually onboarding now, and which until these existed was handed roster and
+ * commission instructions for a business it does not run.
+ */
+export const HELP_GUIDE_ROLES = [
+  "operators",
+  "agencies",
+  "talents",
+  "clients",
+  "restaurants",
+  "salons",
+  "shops",
+] as const;
 export type HelpGuideRole = (typeof HELP_GUIDE_ROLES)[number];
 
 export function isHelpGuideRole(s: string): s is HelpGuideRole {
   return (HELP_GUIDE_ROLES as readonly string[]).includes(s);
 }
 
-export type HelpGuide = {
-  heading: string;
-  body: string;
-};
-
-export type HelpGuideRoleContent = {
-  title: string;
-  intro: string;
-  guides: HelpGuide[];
-  ctaPrimary: { label: string; href: string };
-};
-
-export const ROLE_LABELS: Record<HelpGuideRole, HelpGuideRoleContent> = {
+const AGENCY_ROLE_LABELS: Record<
+  "operators" | "agencies" | "talents" | "clients",
+  HelpGuideRoleContent
+> = {
   operators: {
     title: "Help for independent operators",
     intro:
@@ -160,4 +172,19 @@ export const ROLE_LABELS: Record<HelpGuideRole, HelpGuideRoleContent> = {
     ],
     ctaPrimary: { label: "Browse a directory", href: "https://improntamodels.com/directory" },
   },
+};
+
+/**
+ * Every audience, agency shapes and business shapes together.
+ *
+ * Consumers iterate this rather than the two halves: the /help pages, the
+ * cross-links between roles, and the guest AI grounding corpus all pick it up
+ * without knowing a business guide is a different kind of thing, because it
+ * is not.
+ */
+export const ROLE_LABELS: Record<HelpGuideRole, HelpGuideRoleContent> = {
+  ...AGENCY_ROLE_LABELS,
+  restaurants: RESTAURANTS,
+  salons: SALONS,
+  shops: SHOPS,
 };
