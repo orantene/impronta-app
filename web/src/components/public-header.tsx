@@ -30,6 +30,7 @@ import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantWords } from "@/lib/words/server";
 import {
   loadRegistrationSettings,
   registrationIsLive,
@@ -284,8 +285,32 @@ export async function PublicHeader() {
 
   // CTA pulled from identity (single source). Renders only when both
   // label and href are present and the placement token allows it.
-  const ctaLabel = identity?.primary_cta_label?.trim() || null;
-  const ctaHref = identity?.primary_cta_href?.trim() || null;
+  const explicitCtaLabel = identity?.primary_cta_label?.trim() || null;
+  const explicitCtaHref = identity?.primary_cta_href?.trim() || null;
+
+  // THE HEADER VERB.
+  //
+  // The operator's own CTA always wins. When they have not set one, the
+  // industry preset supplies the verb through the words layer: Reserve, Order,
+  // Tickets, Book, or Ask. It points at `?inquiry=open`, the chat cue, which
+  // needs no route and no seeded page, so the primary call to action on a
+  // brand-new site can never point somewhere that 404s. That was the whole
+  // failure F1a fixed in the page designs; this stops it recurring in the one
+  // button every storefront renders.
+  //
+  // "custom" (which is also what an absent preset resolves to) adds nothing, so
+  // every workspace predating presets keeps exactly today's header.
+  const presetVerb =
+    tenantIdForIdentity && !(explicitCtaLabel && explicitCtaHref)
+      ? await loadTenantWords(tenantIdForIdentity, locale === "es" ? "es" : "en")
+      : null;
+  const presetVerbLabel =
+    presetVerb && presetVerb.preset.id !== "custom"
+      ? presetVerb.headerVerbLabel().trim()
+      : "";
+
+  const ctaLabel = explicitCtaLabel || (presetVerbLabel || null);
+  const ctaHref = explicitCtaHref || (presetVerbLabel ? "?inquiry=open" : null);
   const hasCta = Boolean(ctaLabel && ctaHref);
   // Tenant Registration Engine — auto "Join the team" CTA. Renders only on a
   // tenant storefront where registration is live AND the operator hasn't set
