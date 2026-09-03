@@ -539,7 +539,11 @@ export function ClientProfileDrawer() {
         return;
       }
       // Edit path — client.id is the auth user_id (per WorkspaceClientRow).
-      // Synthetic mock ids fall through to the toast-and-close stub.
+      // Synthetic mock ids fall through to the toast-and-close stub, and so do
+      // account-less customers, whose id is `customer:<uuid>` rather than a
+      // bare uuid. That is deliberate: a customer id would pass this regex and
+      // update no rows, silently. Editing an account-less customer needs a
+      // path that writes `customers`, which does not exist yet.
       if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
         fallbackToast();
         return;
