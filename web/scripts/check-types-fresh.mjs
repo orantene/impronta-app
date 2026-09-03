@@ -98,8 +98,23 @@ try {
   process.exit(0);
 }
 
-/** Extract table names from the `public.Tables` block of a generated types file. */
+/**
+ * Extract declared relation names from a generated types file.
+ *
+ * Reads BOTH `public.Tables` and `public.Views`, because the live-schema side
+ * of this comparison can include views and this side must match it or the
+ * check reports permanent false positives. See the block comment on
+ * `blockNames` below for why that matters more than it sounds.
+ */
 function parseTypesTableNames(content) {
+  return new Set([
+    ...blockNames(content, "Tables"),
+    ...blockNames(content, "Views"),
+  ]);
+}
+
+/** Collect the entry names inside `public.<block>` of a generated types file. */
+function blockNames(content, block) {
   // Find the public schema block. It starts with `  public: {` (2-space indent)
   // and we need the `Tables: {` block within it (4-space indent).
   // Table entries sit at 6-space indent: `      <name>: {`
@@ -110,7 +125,7 @@ function parseTypesTableNames(content) {
   const publicStart = content.indexOf("\n  public: {");
   if (publicStart === -1) return new Set();
 
-  const tablesStart = content.indexOf("\n    Tables: {", publicStart);
+  const tablesStart = content.indexOf(`\n    ${block}: {`, publicStart);
   if (tablesStart === -1) return new Set();
 
   // Walk character-by-character from the `{` that opens Tables to find the
@@ -123,7 +138,7 @@ function parseTypesTableNames(content) {
 
   for (const line of lines) {
     if (!inTables) {
-      if (line.trimStart().startsWith("Tables: {")) {
+      if (line.trimStart().startsWith(`${block}: {`)) {
         inTables = true;
         depth = 1; // we're now inside the Tables: { block
       }
