@@ -454,6 +454,44 @@ Their corollary reframes clause 2: **GitHub cancels superseded runs**, so a stal
 
 **A code printed on a table tent is not a secret, and pretending otherwise costs a real feature.** Ruled 2026-09-03 for QR & Links, who departed from their own brief with evidence and were right to. The brief said codes must be HMAC-signed so they cannot be guessed. Unguessability protects nothing here — the code is printed in a public dining room — and it costs the link a guest can type and staff can recognise (`casarizo.com/q/door`). **The forgeable thing is the claim, not the code.** Context never appears in the URL and is never read from it; the resolver looks the code up and reads `context` off the row it owns, which is strictly stronger than signing a URL parameter, because there is nothing to tamper with. Enumeration is a rate limit, not a secret. **The one carve-out:** readable is the default, but any link whose target is something you would not hand to a stranger gets an opaque code. That is a per-link property, decided when the link is created, not an engine-wide choice.
 
+## P0 FOUND 2026-09-03 (evening): the orders pipeline has no completion path, and 0.6b-1 was about to make that live
+
+Found by the **Sessions & Classes Manager** while planning their phase exit, confirmed by the **Orders & Checkout Manager** against their own design, verified a third time by the Director before acting.
+
+**`markPaid` in `lib/bookings/transactions.ts` — the real Stripe-webhook seam — writes `inquiry_messages` and `agency_bookings`. It never touches `orders` and it never calls `commit_capacity`.** Every non-test hit for `orders.status='paid'` on main is a *reader*. Nothing writes it. Step 12 of the 0.6 design is designed and not built.
+
+**Why that made #1580 dangerous rather than merely incomplete.** 0.6b-1 deletes the old menu-order engine, which is what makes the pipeline live. The moment Menu re-homes: a real order gets `pending_payment`, staff take the money, `markPaid` flips the *transaction*, and **the order sits in `pending_payment` for ever on a completed sale** — a state that says money is owed on a sale that finished. On any path holding capacity, `commit_capacity` never runs, the hold lapses, and **the seat returns to inventory after the customer has paid.** The engine being deleted gets this right, because it force-writes its way to a completed booking.
+
+**#1580 was converted to draft by the Director on the author's own escalation.** Sequence reordered: the paid seam ships first, #1580 lands with or after it, 0.6b-2 behind both.
+
+**The transferable lesson, in the author's words:** *I shipped a pipeline whose completion path does not exist, and my tests all passed because every one of them asserts what `createPurchase` writes and none asks what completes it.* A test suite that only checks the entry point certifies a road with no far end.
+
+**Second lesson, same report: a guard you have not seen fail is not a guard.** The author's instinct was a dynamic-import smoke test; they broke the bug on purpose to check it and **it went green**, because a type-only import is erased at runtime. That guard would have been theatre. The one that works reads imports as text and asserts each target exists on disk. Both are kept — runtime catches value imports, text catches the type-only variety. This is the second time the type-only variety has bitten and the first time it has a detector that has actually failed once.
+
+
+## Rulings, 2026-09-03 evening
+
+**`service_window` stays in the session `kind` enum, and a session may exist with NO pool of its own.** Sessions & Classes dropped it as a duplicate of the band pool; the Director overruled on Reservations' argument. A service window is *time*; a table group is *capacity*. The window carries no pool and the party takes a unit of Spaces' `space_groups` pool windowed to the session range — that is the separation this department has already ruled twice, not a second implementation. The measured clincher: `hours-types.ts:65-68` rejects `endMin > 1440` and `endMin <= startMin`, so **23:00–05:00 is unrepresentable** in the weekly-hours shape. Dinner crosses midnight. Without this, Reservations must build a second time model to say what `sessions` already says correctly in timestamptz. Cost of agreeing now: one enum value and a nullable. Cost of agreeing later: a migration on a live status set.
+
+**`admissions.status` is `('valid','void','refunded')` with a separate `admitted_count int`; "checked in" is derived.** Sessions & Classes proposed it against their own brief and won against Reservations' `booked|seated|no_show|completed|cancelled`. **Is-this-commercially-good and has-the-guest-arrived are independent facts**, and one label holding both is the recorded *one label, three states* incident. Seated and no-show are door facts, carried as `seated_at` / `no_show_at`. This lets the table say "seated, then refunded", which neither enum could.
+
+**Carried in Sessions' Phase 1 migration so it is one migration and not two:** `party_size int null`, `assigned_space_id uuid null`, `order_line_id` **nullable** (a walk-in has no line), `seated_at`, `no_show_at`, `sessions.venue_id`, `kind` accepting `'service_window'`.
+
+**No `qr_token` column anywhere.** Derived HMAC, revocation via `status='void'`. Reached independently by Sessions & Classes and QR & Links on the same day. A stored token is a credential at rest in a table a door role reads.
+
+**`order_lines.session_id` is the binding, not `orders.session_id`.** One checkout, two classes is one order and two lines. `orders.session_id` survives as a box-office convenience and **must be commented as not the binding** — an unlabelled duplicate pointer is how two sources of truth start.
+
+**`client_stripe_customers` CANNOT hold a card on file, for two independent reasons**, so a tenant-scoped `customer_payment_methods` is approved (Reservations builds it in R5, Finance reviews the charge path, it enters the contracts registry before Events or Appointments touch it). (a) `user_id UUID PRIMARY KEY REFERENCES auth.users(id)` — the guest being protected against has no auth user. (b) It is a PLATFORM-account Stripe customer while charges are **Direct Charges on the connected account**; a payment method saved on the platform account cannot be charged on a connected one.
+
+**`host` and `door` are LATERAL roles, not rungs.** `capabilities.ts:19` documents the model as "lower roles are strict subsets of higher roles", which is the trap: built twice, we get two different answers to whether a host may see a guest's phone number. Events builds the operational-roles slice with `door`; Reservations adds `host` on top of that shape rather than forking it.
+
+**`builder-node/` split for native blocks.** A feature manager owns the data resolver and the island (the `menu-board-island.tsx` precedent); the registry wirings go to the Page Builder Director as one small PR against a contract the manager hands them. Feature managers still do not edit `builder-node/` directly.
+
+**Marketing copy for Tables is routed to the Creative Director, not to a feature manager.** `feature-tables.ts` leads with "Your floor plan online" and explains the product as "appointments with a floor plan on top". Layouts are Phase 4, and the mechanism is wrong besides — what Reservations shares with appointments is the POLICY layer, not the booking engine, which picks one subject of capacity per offering and cannot say "a table for four at eight".
+
+**DIRECTOR ERROR, corrected by Orders & Checkout: their click list is ONE line, not three.** *Set a tenant's words row to "Quote", confirm the card title follows.* `Pay now` and `Add line` are not unclicked paths — they **do not render**, because no call site passes their handlers. That is a missing wiring, not a QA item, and asking a real person to click a button that does not exist would have spent their evening on my mistake. The manager verified it rather than assuming.
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
@@ -556,3 +594,14 @@ Orders' already-claimed `20261228000142` and `…143` stay where they are: they 
 | 20261228000142 | Orders & Checkout | orders, order_lines | claimed |
 | 20261228000143 | Orders & Checkout | convert RPC | claimed |
 | 20261228000144 | Orders & Checkout | commission context | claimed |
+
+**Bands granted 2026-09-03 evening**, on the Reservations Manager's proposed split, verified free against the live ledger:
+
+| Manager | Band |
+|---|---|
+| Sessions & Classes | `20261229000340`–`20261229000359` |
+| Events & Ticketing | `20261229000360`–`20261229000379` |
+| Reservations | `20261229000380`–`20261229000399` |
+| QR & Links | `20261229000280`–`20261229000283` (claimed) |
+
+Announce each exact number on the board before applying it, and verify the object exists in production rather than reading the `db:check` green line.
