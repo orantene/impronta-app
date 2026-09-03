@@ -15,6 +15,16 @@
  *
  * Every writer of offering stock goes through here. Do not UPDATE
  * talent_offerings.inventory_qty directly.
+ *
+ * PASS `tenantId`. The RPC runs service-role and takes an offering id, so
+ * "service-role only" says nothing about WHICH workspace is asking — and the
+ * caller is a server action reachable by any authenticated staff member. Without
+ * the tenant, a staff member of any workspace can set stock on any offering.
+ * The Menu Workspace Manager caught this in their own action (#1535); the check
+ * now lives in the engine so it protects every caller instead of one.
+ *
+ * It is optional only so this change could land without breaking the call site
+ * that already exists. Treat it as required in new code.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -47,6 +57,8 @@ export async function setOfferingStock(
   offeringId: string,
   available: number | null,
   admin?: Rpc,
+  /** The workspace the caller is acting for. Refuses an offering owned elsewhere. */
+  tenantId?: string | null,
 ): Promise<SetOfferingStockResult> {
   const db = (admin ?? createServiceRoleClient()) as Rpc | null;
   if (!db) return { ok: false, reason: "unavailable" };
@@ -57,6 +69,7 @@ export async function setOfferingStock(
   const { data, error } = await db.rpc("set_offering_stock", {
     p_offering_id: offeringId,
     p_available: normalised,
+    p_tenant_id: tenantId ?? null,
   });
   if (error) {
     logServerError("capacity/set-offering-stock", error);
