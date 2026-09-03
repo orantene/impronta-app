@@ -158,7 +158,7 @@ const saasTree: BuilderNode[] = [
             kind: "button",
             props: {
               label: "Start free",
-              href: "/signup",
+              href: "?inquiry=open",
               tone: "primary",
               style: {
                 fontFamily: INTER,
@@ -269,7 +269,7 @@ const saasTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Create workspace",
-                  href: "/signup",
+                  href: "?inquiry=open",
                   tone: "primary",
                   style: {
                     fontFamily: INTER,
@@ -290,7 +290,7 @@ const saasTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Watch the demo",
-                  href: "/demo",
+                  href: "?inquiry=open",
                   tone: "secondary",
                   style: {
                     fontFamily: INTER,

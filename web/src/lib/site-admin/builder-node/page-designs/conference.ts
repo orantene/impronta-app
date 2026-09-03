@@ -275,7 +275,7 @@ const conferenceTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "Get your ticket",
-                  href: "/tickets",
+                  href: "?inquiry=open",
                   tone: "primary",
                   style: {
                     fontFamily: GEIST,
@@ -305,7 +305,7 @@ const conferenceTree: BuilderNode[] = [
                 kind: "button",
                 props: {
                   label: "View programme",
-                  href: "/program",
+                  href: "?inquiry=open",
                   tone: "secondary",
                   style: {
                     fontFamily: GEIST,

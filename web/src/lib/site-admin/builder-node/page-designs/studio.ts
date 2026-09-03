@@ -170,7 +170,7 @@ const studioTree: BuilderNode[] = [
             kind: "button",
             props: {
               label: "Start a project",
-              href: "/start",
+              href: "?inquiry=open",
               tone: "primary",
               style: {
                 fontFamily: INTER,
@@ -532,7 +532,7 @@ const studioTree: BuilderNode[] = [
             kind: "button",
             props: {
               label: "Say hello",
-              href: "/contact",
+              href: "?inquiry=open",
               tone: "primary",
               style: {
                 fontFamily: INTER,

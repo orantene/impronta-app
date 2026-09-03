@@ -704,7 +704,7 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
     showName: true,
     showBadge: false,
     cardChrome: "v11-noir",
-    requestCta: { href: "/contact", label: "Request" },
+    requestCta: { href: "?inquiry=open", label: "Request" },
     sourceMode: "manual_pick",
     actionStyle: "outline-duo",
     cardVariant: "editorial",

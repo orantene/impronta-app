@@ -8,9 +8,22 @@
  * the chat is enabled AND shown on the directory/home surface. Branding is read
  * server-side and passed to the (client) launcher as plain props, so the client
  * bundle imports no backend module — same seam as the talent mount.
+ *
+ * IT ALSO MOUNTS THE `?inquiry=open` CUE READER, and that pairing is the point.
+ * `DirectoryInquiryUrlSync` is what turns `?inquiry=open` into an open panel,
+ * and it used to be mounted only on `/directory` while the launcher itself was
+ * mounted on the home storefront and every CMS page too. So the documented
+ * "cross-surface fallback every repointed entry routes through" silently did
+ * nothing on the two surfaces a seeded design actually renders on. Binding the
+ * reader to the launcher here means the cue can never drift away from the thing
+ * it opens again: a surface with the launcher has the cue, and a surface
+ * without it no-ops, which is the harmless half that was always intended.
  */
 
+import { Suspense } from "react";
+
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
+import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
 import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
 import {
@@ -196,18 +209,24 @@ export async function AgencyChatLauncherMount({
   });
 
   return (
-    <TalentProfileChatLauncher
-      tenantSlug={tenantSlug}
-      tenantId={tenantId}
-      // Agency-level: no specific talent — the action builds a talent-less
-      // `agency_site` inquiry when these are empty.
-      talentProfileId=""
-      talentProfileCode=""
-      sourcePage={sourcePage}
-      // Hub host: drives the SEND-path copy (send button "Send", route-not-agency
-      // subline + notes). The roster picker resolves the hub source server-side.
-      isHub={isHub}
-      brand={{
+    <>
+      {/* Reads `?inquiry=open`, opens this launcher, then strips the param.
+          Suspense because it reads search params. */}
+      <Suspense fallback={null}>
+        <DirectoryInquiryUrlSync />
+      </Suspense>
+      <TalentProfileChatLauncher
+        tenantSlug={tenantSlug}
+        tenantId={tenantId}
+        // Agency-level: no specific talent — the action builds a talent-less
+        // `agency_site` inquiry when these are empty.
+        talentProfileId=""
+        talentProfileCode=""
+        sourcePage={sourcePage}
+        // Hub host: drives the SEND-path copy (send button "Send", route-not-agency
+        // subline + notes). The roster picker resolves the hub source server-side.
+        isHub={isHub}
+        brand={{
         agencyName,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").
         talentDisplayName: agencyName,
@@ -215,35 +234,36 @@ export async function AgencyChatLauncherMount({
         logoUrl,
         greeting,
         locale,
-      }}
-      label={t("public.guestChat.bookNow")}
-      existingInquiryId={active?.inquiryId ?? null}
-      existingContactPromoted={active?.contactPromoted ?? null}
-      prefill={active?.prefill ?? null}
-      onStartInquiry={startGuestChatInquiry}
-      onSendMessage={sendGuestMessageAction}
-      fetchMessages={getGuestThreadMessages}
-      onAddClaimEmail={sendGuestClaimToEmail}
-      onCheckClaimEmail={checkGuestClaimEmail}
-      onListGuestInquiries={listGuestInquiries}
-      onCaptureChip={captureGuestChip}
-      onEnsureInquiry={ensureGuestChatInquiry}
-      onLoadDetails={getGuestInquiryDetails}
-      onListRoster={listGuestTenantRoster}
-      onResolveCartPortraits={resolveGuestCartPortraits}
-      soundOnReply
-      openFullHref={null}
-      surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
-      activePhase={lifecycle.activePhase}
-      activeStatus={lifecycle.activeStatus}
-      coordinatorId={lifecycle.coordinatorId}
-      lastMessageRole={lifecycle.lastMessageRole}
-      lastActivityAt={lifecycle.lastActivityAt}
-      hasActiveDraft={lifecycle.hasActiveDraft}
-      draftInquiryId={lifecycle.draftInquiryId}
-      otherOpenInquiries={lifecycle.otherOpenInquiries}
-      unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
-      ctaIdentity="guest"
-    />
+        }}
+        label={t("public.guestChat.bookNow")}
+        existingInquiryId={active?.inquiryId ?? null}
+        existingContactPromoted={active?.contactPromoted ?? null}
+        prefill={active?.prefill ?? null}
+        onStartInquiry={startGuestChatInquiry}
+        onSendMessage={sendGuestMessageAction}
+        fetchMessages={getGuestThreadMessages}
+        onAddClaimEmail={sendGuestClaimToEmail}
+        onCheckClaimEmail={checkGuestClaimEmail}
+        onListGuestInquiries={listGuestInquiries}
+        onCaptureChip={captureGuestChip}
+        onEnsureInquiry={ensureGuestChatInquiry}
+        onLoadDetails={getGuestInquiryDetails}
+        onListRoster={listGuestTenantRoster}
+        onResolveCartPortraits={resolveGuestCartPortraits}
+        soundOnReply
+        openFullHref={null}
+        surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
+        activePhase={lifecycle.activePhase}
+        activeStatus={lifecycle.activeStatus}
+        coordinatorId={lifecycle.coordinatorId}
+        lastMessageRole={lifecycle.lastMessageRole}
+        lastActivityAt={lifecycle.lastActivityAt}
+        hasActiveDraft={lifecycle.hasActiveDraft}
+        draftInquiryId={lifecycle.draftInquiryId}
+        otherOpenInquiries={lifecycle.otherOpenInquiries}
+        unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
+        ctaIdentity="guest"
+      />
+    </>
   );
 }

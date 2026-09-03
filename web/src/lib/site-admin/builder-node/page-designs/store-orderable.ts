@@ -34,8 +34,8 @@ const storeOrderableTree: BuilderNode[] = [
           ariaLabel: "Primary",
           links: [
             { id: "n1", label: "Shop", href: "#menu" },
-            { id: "n2", label: "About", href: "/about" },
-            { id: "n3", label: "Contact", href: "/contact" },
+            { id: "n2", label: "About", href: "?inquiry=open" },
+            { id: "n3", label: "Contact", href: "?inquiry=open" },
           ],
           style: {
             width: "100%",

@@ -193,7 +193,7 @@ const editorialTree: BuilderNode[] = [
                     kind: "button",
                     props: {
                       label: "View the series",
-                      href: "/series",
+                      href: "?inquiry=open",
                       tone: "secondary",
                       style: {
                         fontFamily: INTER,
