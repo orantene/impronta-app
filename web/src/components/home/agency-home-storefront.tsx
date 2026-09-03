@@ -290,11 +290,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       {showPreviewBanner ? (
         <div
           role="status"
-          aria-label="Preview mode — showing draft"
+          aria-label="Preview mode, showing draft"
           className="sticky top-0 z-[60] flex items-center justify-center gap-2 bg-amber-400/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-950 shadow-sm"
         >
           <span className="size-1.5 rounded-full bg-zinc-950" aria-hidden />
-          Preview — showing draft. Publish from the composer to go live.
+          Preview: showing draft. Publish from the composer to go live.
         </div>
       ) : null}
       <PublicDiscoveryStateProvider
@@ -456,12 +456,26 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               locale={locale}
               initialFavoriteIdsCount={favoriteIds.length}
             />
+            {/* Floating "Message {agency}" guest-chat launcher — self-gates on
+                the tenant's guest-chat settings (enabled + show-on-directory).
+
+                MUST STAY INSIDE DirectoryInquiryModalProvider. This mount
+                renders DirectoryInquiryUrlSync, which calls
+                useDirectoryInquiryModal, and that hook THROWS when no provider
+                is above it. It used to sit four lines below the provider's
+                closing tag — outside the subtree — which killed this component
+                on hydration for every tenant storefront it renders.
+
+                The failure was invisible to everything except a browser: the
+                server HTML is complete and correct, so the response is a 200
+                with the right SEO title, and the error boundary only paints
+                after React hydrates. curl, deploy:smoke and CI all passed
+                throughout. See e2e/hydration-error-boundary.spec.ts, which
+                executes the page instead of reading the response. */}
+            <AgencyChatLauncherMount sourcePage="/" />
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
-      {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
-          tenant's guest-chat settings (enabled + show-on-directory). */}
-      <AgencyChatLauncherMount sourcePage="/" />
     </div>
   );
 }

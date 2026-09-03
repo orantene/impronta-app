@@ -6,16 +6,20 @@
  *
  * ─── WHY THIS EXISTS AND WHY NOTHING ELSE COULD CATCH IT ────────────────────
  *
- * SEV-1, 2026-09-03. `(marketing)` mounted no `DirectoryInquiryModalProvider`
- * while pages in that group rendered `AgencyChatLauncherMount` ->
- * `DirectoryInquiryUrlSync` -> `useDirectoryInquiryModal`. The hook threw on
- * hydration and the error boundary painted
+ * SEV-1, 2026-09-03. TWO separate defects, both `useDirectoryInquiryModal`
+ * thrown from a consumer with no provider above it, on two different routes:
  *
- *     "Something went wrong. Please try again. If this keeps happening,
- *      the agency may need to check configuration."
+ *   1. `(marketing)` mounted no `DirectoryInquiryModalProvider` while pages in
+ *      that group rendered `AgencyChatLauncherMount` -> `DirectoryInquiryUrlSync`
+ *      -> the hook. That killed `/global-directory`.
  *
- * over a page whose HTML had already been delivered correctly. Every
- * path-based tenant storefront (`/w/<slug>`) resolves through that group.
+ *   2. `agency-home-storefront.tsx` had `AgencyChatLauncherMount` FOUR LINES
+ *      BELOW the provider's closing tag, outside its subtree. That killed every
+ *      tenant storefront, which is what `/w/<slug>` actually renders — the proxy
+ *      strips the prefix and serves the ROOT `app/page.tsx`, not `(marketing)`.
+ *
+ * Both painted "Something went wrong… the agency may need to check
+ * configuration" over HTML that had already been delivered correctly.
  *
  * The server response was PERFECT throughout: HTTP 200, correct SEO title, up
  * to 2.7 MB of correct markup. So:
@@ -33,12 +37,14 @@
  * ─── WHY IT LOADS EACH PAGE MORE THAN ONCE ──────────────────────────────────
  *
  * The failure looked intermittent when first sampled: 3 of 3 loads on one
- * tenant, 2 of 4 on another. The likeliest explanation is content-dependence
- * (whether a given tenant's rendered tree contains a hook consumer) rather than
- * randomness, which would make it deterministic per page. But a guard that
- * assumes that and is wrong is a guard that passes on a coin flip, so each page
- * is loaded LOAD_COUNT times and every load must be clean. Cheap insurance
- * against the diagnosis being wrong.
+ * tenant, 2 of 4 on another. It was not intermittent. TWO DISTINCT ROUTES WERE
+ * FAILING FOR TWO DISTINCT REASONS and the sample mixed them, which is what
+ * randomness looks like from the outside. Content-dependence was offered as an
+ * explanation and then withdrawn once the second cause was found in source.
+ *
+ * Repeated loads are kept anyway. They cost nothing, and the reason to keep
+ * them is exactly the reason the first explanation was wrong: a guard built on
+ * a diagnosis, rather than on the symptom, fails the moment the diagnosis does.
  *
  * ─── NOT A CI GATE ──────────────────────────────────────────────────────────
  *
@@ -70,6 +76,18 @@ const PATHS = [
   "/w/travelpathshuttle",
 ];
 
+/**
+ * Host-based tenants, checked on their own origin.
+ *
+ * Added because assuming a host-based tenant was unaffected is precisely the
+ * error that made the first diagnosis half-right: `/global-directory` and
+ * `/w/<slug>` turned out to fail for two DIFFERENT reasons, and a sample that
+ * mixed them looked like flakiness. `improntamodels.com` renders the same
+ * `AgencyHomeStorefront` component that carried the second bug, so it gets
+ * measured rather than reasoned about.
+ */
+const ABSOLUTE_URLS = ["https://improntamodels.com/"];
+
 /** Copy the error boundary renders. Matching the heading is enough. */
 const ERROR_BOUNDARY_TEXT = /something went wrong|nos topamos con un obst/i;
 
@@ -84,17 +102,20 @@ function capture(page: Page): Captured {
   return out;
 }
 
-for (const path of PATHS) {
-  test(`${path} survives hydration on ${LOAD_COUNT} consecutive loads`, async ({
+for (const target of [...PATHS, ...ABSOLUTE_URLS]) {
+  test(`${target} survives hydration on ${LOAD_COUNT} consecutive loads`, async ({
     page,
   }) => {
+    const isAbsolute = /^https?:\/\//.test(target);
+    const path = target;
     for (let attempt = 1; attempt <= LOAD_COUNT; attempt += 1) {
       const seen = capture(page);
 
       // A cache-busting param per attempt: two identical loads can be served
       // from the bfcache without re-hydrating, which would make repeated loads
       // measure one hydration and report false confidence.
-      const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}__hydration_probe=${attempt}`;
+      const base = isAbsolute ? target : `${BASE}${path}`;
+      const url = `${base}${base.includes("?") ? "&" : "?"}__hydration_probe=${attempt}`;
       const response = await page.goto(url, { waitUntil: "networkidle" });
 
       expect(
