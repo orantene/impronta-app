@@ -10,6 +10,7 @@
  * for auditability.
  */
 
+import { completeOrderForTransaction } from "@/lib/orders/complete-order";
 import { improntaLog } from "@/lib/server/structured-log";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
@@ -850,6 +851,38 @@ export async function markPaid(
       }
     }
   }
+
+  // ── SETTLE THE ORDER, if this transaction belongs to one.
+  //
+  // Until now this seam flipped the TRANSACTION and stopped. An order created
+  // by `createPurchase` therefore sat in `pending_payment` for ever — a state
+  // asserting that a customer owes money on a sale that completed — and any
+  // capacity it held lapsed and returned the seat WHILE THE CUSTOMER HAD PAID.
+  //
+  // Deliberately AFTER the transfers and deliberately best-effort. A payment has
+  // completed and the talent may already have been paid; a failure to settle the
+  // order is a bookkeeping problem, and throwing here would turn it into a failed
+  // webhook that Stripe retries against work already done.
+  //
+  // A transaction with no `order_id` returns `no_order`, which is the normal
+  // pre-pipeline case rather than a fault: every quoted job before 0.5 has one.
+  if (result.ok) {
+    try {
+      const sbOrders = createServiceRoleClient();
+      if (sbOrders) {
+        const settled = await completeOrderForTransaction(sbOrders, result.data.id);
+        if (!settled.ok && settled.reason !== "no_order") {
+          logServerError(
+            "transactions.markPaid.completeOrder",
+            `transaction ${result.data.id} is paid but its order did not settle (${settled.reason})`,
+          );
+        }
+      }
+    } catch (orderErr) {
+      logServerError("transactions.markPaid.completeOrder", orderErr);
+    }
+  }
+
   return result;
 }
 

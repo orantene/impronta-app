@@ -38,13 +38,21 @@ test("menu_board public fetcher scopes by tenant_id and owner_kind=workspace", (
   assert.ok(!/loadMenu[\s\S]{0,800}listTalentIdsOnTenantRoster/.test(source));
 });
 
-test("menu order engine stamps service payout lane and order calendar lane", () => {
-  const source = readFileSync(
-    join(SRC, "lib/inquiry/menu-order-engine.ts"),
-    "utf8",
-  );
-  assert.ok(source.includes('booking_sub_type: "service"') || source.includes("booking_sub_type: 'service'"));
-  assert.ok(source.includes('calendar_lane: "order"') || source.includes("calendar_lane: 'order'"));
+test("the purchase pipeline stamps NO calendar placeholder", () => {
+  // INVERTED DELIBERATELY. This case used to require
+  // `calendar_lane: "order"` and `starts_at = ends_at = now()` on the menu
+  // engine — it pinned the placeholder as if it were a feature.
+  //
+  // It was a workaround: the calendar demanded a time, and a taco has none, so
+  // the engine invented one. The proposal's exit criterion is that the calendar
+  // reads fulfilment time instead, so the pipeline must NOT stamp a lane. The
+  // guard is kept and reversed rather than deleted, because silently dropping a
+  // guard while changing the behaviour it described is how a removed protection
+  // looks like a passing suite.
+  const source = readFileSync(join(SRC, "lib/orders/purchase.ts"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  assert.ok(!source.includes("calendar_lane"), "no calendar lane placeholder");
+  assert.ok(!/starts_at[\s:]/.test(source), "no invented start time");
   assert.ok(!source.includes('.from("talent_holds")'));
   assert.ok(!source.includes('.from("talent_bookings")'));
 });
