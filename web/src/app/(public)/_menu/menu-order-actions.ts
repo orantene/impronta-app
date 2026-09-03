@@ -9,10 +9,22 @@
 import { createPurchase } from "@/lib/orders/purchase";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import {
-  type MenuOrderLineInput,
-} from "@/lib/inquiry/menu-order-engine";
 import { logServerError } from "@/lib/server/safe-error";
+
+/**
+ * One line the board submits.
+ *
+ * Declared here rather than imported from the deleted engine. It was the last
+ * thing tying this action to `menu-order-engine.ts` — a TYPE-ONLY import, which
+ * is exactly the kind that survives a rewire: the runtime call was already on
+ * the pipeline, so every test lane stayed green while tsc saw a dangling module.
+ */
+export type MenuOrderLineInput = {
+  offeringId: string;
+  quantity: number;
+  variantId?: string | null;
+  addonIds?: string[];
+};
 
 export type SubmitMenuOrderInput = {
   tenantId: string;
@@ -25,7 +37,21 @@ export type SubmitMenuOrderInput = {
 };
 
 export type SubmitMenuOrderResult =
-  | { ok: true; inquiryId: string; bookingId: string }
+  /**
+   * `inquiryId` and `bookingId` are NULLABLE now, and that is the truth rather
+   * than a narrowing to satisfy the compiler.
+   *
+   * The old engine forced every menu order through the inquiry spine, so both
+   * always existed. On the pipeline a thread is opened best-effort and a
+   * booking exists only when there is money to collect — a free reserve has
+   * neither. Casting these to `string` would have made the type lie about the
+   * two cases the re-home was FOR.
+   *
+   * The only caller (`menu-board-island`) reads `ok` and `error`, so widening
+   * costs nothing today and stops a future caller assuming a booking it may
+   * not have.
+   */
+  | { ok: true; orderId: string; inquiryId: string | null; bookingId: string | null }
   | {
       ok: false;
       error: string;
