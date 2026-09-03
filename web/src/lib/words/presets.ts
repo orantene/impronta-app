@@ -172,7 +172,7 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: true },
     headerVerb: "book",
     chatVoice: { en: "Book a time or ask us", es: "Agenda una cita o pregúntanos" },
-    designId: "studio",
+    designId: "services",
     representsPeople: false,
   },
   salon_barber: {
@@ -190,7 +190,7 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: true },
     headerVerb: "book",
     chatVoice: { en: "Book a time or ask us", es: "Agenda una cita o pregúntanos" },
-    designId: "studio",
+    designId: "services",
     representsPeople: false,
   },
   clinic: {
@@ -211,7 +211,7 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: true },
     headerVerb: "book",
     chatVoice: { en: "Book a time or ask us", es: "Agenda una cita o pregúntanos" },
-    designId: "studio",
+    designId: "services",
     representsPeople: false,
   },
   studio_gym: {

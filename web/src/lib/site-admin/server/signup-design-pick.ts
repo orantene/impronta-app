@@ -33,6 +33,20 @@ const PAGE_DESIGN_ID_SET: ReadonlySet<string> = new Set(
 const KEYWORD_DESIGNS: ReadonlyArray<{ words: readonly string[]; designId: string }> =
   [
     { words: ["restaurant", "cafe", "café", "bistro", "kitchen", "dining", "bar"], designId: "restaurant" },
+    // Salon, barber, spa, clinic had no row, so all four fell through
+    // AUDIENCE_DEFAULT.business to `store` — the fine-art print storefront,
+    // whose nav said Shop and whose button said "Add to cart, $280" against a
+    // fabricated price. A barbershop was handed a shop with a cart in it.
+    // Above `shop`/`store` deliberately: "barber shop" contains "shop".
+    {
+      words: [
+        "salon", "barber", "barbershop", "barberia", "barbería",
+        "spa", "wellness", "massage", "masaje",
+        "clinic", "clinica", "clínica", "dental", "dentist",
+        "nails", "beauty", "estetica", "estética", "peluqueria", "peluquería",
+      ],
+      designId: "services",
+    },
     { words: ["shop", "store", "boutique", "retail", "print"], designId: "store" },
     { words: ["festival", "concert", "lineup", "band"], designId: "festival" },
     { words: ["conference", "summit", "congress", "meetup"], designId: "conference" },

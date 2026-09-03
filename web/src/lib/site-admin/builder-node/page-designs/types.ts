@@ -11,7 +11,9 @@ export type PageDesignArchetype =
   | "noir"
   | "restaurant"
   | "conference"
-  | "coach";
+  | "coach"
+  // Salon, barber, spa, clinic: a priced service list and a real /book CTA.
+  | "services";
 
 /**
  * A productised full-page design template.
