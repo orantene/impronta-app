@@ -220,6 +220,21 @@ It derives the version from the filename, applies via the Management API, record
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
 ## Department rules added in flight
+**BROWSER QA IS NOW ALLOWED, on Google Chrome, whenever you need it — owner-granted 2026-09-03.** With one condition: **check that the machine can afford it before you start.** This department OOM-killed several sessions this morning with eighteen concurrent typechecks; a browser is heavier than a typecheck. Look at the load, and if the machine is busy, wait. The permission is standing, not per-request — you do not need to ask me.
+
+This does not soften the rule it serves: **you still may not assert a UI path you have not clicked, and agents still may not do the clicking.** The permission removes the excuse, it does not remove the obligation.
+
+**A `<select>` whose value is not in its option list is silently the FIRST option.** Found by the Spaces & Seating Manager in the first screenshot after mounting the venue editor — and it is the single best argument for the click-it rule this department has produced.
+
+`Intl.supportedValuesOf("timeZone")` returns **418 canonical zones and "UTC" is not one of them** (nor is `Etc/UTC`). Verified independently: 418 entries, `UTC` absent, first entry `Africa/Abidjan`. **Every workspace in production is on UTC**, so the editor had no matching option and fell through to the first one — the screen would have shown **Africa/Abidjan** to every operator who ever opened it, and **the first click of Save would have written Abidjan into a live workspace's venue and `agencies.timezone`.**
+
+Nothing in the toolchain could catch it. Not a type error, not a lint error, not a failing assertion — **a correct program displaying a wrong value.** It typechecked, linted, and passed every lane.
+
+The rule it is pinned by: **a value we cannot render is a value we must not silently replace.** The test also asserts that the runtime really does omit UTC, so it cannot quietly become vacuous later.
+
+**A local-QA worktree setup note, so it costs nobody else two dead ends:** Turbopack rejects a `node_modules` symlink pointing outside the project root, and a preview worktree must live under `.claude/worktrees/` for the launch config to accept its cwd. Use a hardlinked copy — `cp -al`, about twenty seconds.
+
+
 ### Added 2026-09-03, from managers
 
 **Route contract questions back to the engine owner; do not resolve them at the surface.** Twice in one day a question about the capacity contract found a defect inside it, and both were invisible from inside the engine. Front Door asking what a refusal *says* found that a database outage was reaching customers as "this does not exist" — the one refusal a customer can act on, collapsed into one they cannot. Menu asking how to *call* `set_offering_stock` found it had no tenant check. The engine owner's words: "from inside the engine both strings are equally safe and the bug is invisible."
