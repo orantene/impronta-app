@@ -36,15 +36,15 @@ Off the critical path, blocking nothing, and worth starting first because they a
 | Manager | Go | Current | Next | Blocked on | Last message |
 |---|---|---|---|---|---|
 | Capacity Engine | A | **plan APPROVED, all 5 decisions upheld; building 0.2 in `wt-capacity-engine`, band `20261229000200`–`…219`** | 0.2 pools + allocations + reserve RPCs, then 0.3 | nothing. Spaces & Seating inherits the ancestor rule with a right to challenge it | Director ruling sent 2026-09-03 |
-| Spaces & Seating | A (S1 only) | **NO CHAT OPEN — ready for the owner to start** | mockups + plan, S1 | nothing. S1 (venue + timezone) is read by four other areas | none |
-| Orders & Checkout | A (0.4, 0.5, 0.8a) | **0.8a MERGED (#1511, sha 4be3ae9c4); 0.4 applied to prod (140+141)** | 0.5 orders and order_lines, then 0.6 | 0.6 waits on Capacity 0.2; 0.7 needs D4 (recommendation with owner); 0.8b proof blocked on P0-6 | chased for status 2026-09-03 |
+| Spaces & Seating | A (S1 only) | **NO CHAT OPEN — prompt DELIVERED to the owner 2026-09-03, paste-ready** | mockups + plan, S1 | nothing. S1 (venue + timezone) is read by four other areas | prompt now states the ancestor rule they inherit and their right to overturn it |
+| Orders & Checkout | A (0.4, 0.5, 0.8a) | **0.8a MERGED (#1511, sha 4be3ae9c4); 0.4 applied to prod (140+141)** | 0.5 orders and order_lines, then 0.6 | 0.6 waits on Capacity 0.2; 0.7 needs D4 (recommendation with owner); 0.8b proof blocked on P0-6 | band rebase sent; **status chased twice, no reply. CRITICAL PATH for Wave B** |
 | Front Door | A (F1, F2) | **F1a written (26 hrefs, new guard, cue reader fixed); F2a written; queue defect they found is fixed** | F2b/F2c, F1e verb, then F1a-2 and F1b | both branches await the full tsc; F1d blocked on D7; F1b behind the anchor answer | lock fix confirmed 2026-09-03 |
-| Menu Workspace (existing) | A (item 1) | **chat open, silent** | stock in editor, sold-out, payInPerson | re-home waits on Orders 0.6; **chased + re-briefed 2026-09-03** | none yet |
-| Appointments (existing) | A (items 1 to 4) | **chat open, silent** | click through the never-clicked screens, then items 1 to 4 | F8 waits on Capacity 0.3; **chased + re-briefed 2026-09-03** | none yet |
+| Menu Workspace (existing) | A (item 1) | **chat open, silent** | stock in editor, sold-out, payInPerson | re-home waits on Orders 0.6 | **ruling sent 2026-09-03: they own the stock editor UI; oversell is unbounded. Chased twice, no reply** |
+| Appointments (existing) | A (items 1 to 4) | **chat open, silent** | click through the never-clicked screens, then items 1 to 4 | F8 waits on Capacity 0.3 | **chased twice, no reply. Nothing waits on them, so silence costs schedule not blocking** |
 | Sessions & Classes | C | not started | plan + pure prototypes | Orders 0.6 | none |
 | Events & Ticketing | D | not started | designs + plan | Phase 1 | none |
 | Reservations | D | not started | designs + plan | Phase 1, Spaces S2 | none |
-| QR & Links | A (Q1, Q2) | **NO CHAT OPEN — ready for the owner to start** | plan doc, then Q1 | Q3 waits on Orders 0.5 + Page Builder Director; Q4 on Orders 0.6 | none |
+| QR & Links | A (Q1, Q2) | **NO CHAT OPEN — prompt DELIVERED to the owner 2026-09-03, paste-ready** | plan doc, then Q1 | Q3 waits on Orders 0.5 + Page Builder Director; Q4 on Orders 0.6 | none |
 | Workspace & Dashboards Director (separate department) | running | WP2 HQ regroup | WP3, WP4 | nothing | WP1 merged #1497 |
 
 ## Shipped
@@ -54,6 +54,8 @@ Off the critical path, blocking nothing, and worth starting first because they a
 | **Orders 0.8a** — idempotency key on hosted Checkout (`cs_txn_<transactionId>`), and the second deposit path retired | PR #1511, merged 2026-09-03, sha `4be3ae9c4` | All CI gates green including the structural quality gate, which the PR body had named as its authoritative type-check. Both guards proven to fail before they pass. |
 | **Orders 0.4** — `customers` table, backfill, `lib/customers/` | migrations `20261228000140` + `…141`, applied to production | 8 customers, 8 distinct emails, 7 correctly sharing one phone. |
 | **Migration history repair** — two duplicate auto-stamped rows removed, DDL preserved onto their correct twins | production, owner-authorised | `db:check` OK, 651 local migrations all applied, exit 0. |
+
+| **Department docs committed** — the board, all 11 manager prompts and the typecheck serialiser | PR #1512 | The operating rules told every manager to read `docs/plans/platform-features-board.md` before planning, but it was **untracked**, so no worktree branched off `origin/main` contained it. Director error, fixed. |
 
 ## Sequencing decisions the Director has made
 
@@ -93,6 +95,7 @@ Kept deliberately, because the pattern is the point: the verification culture is
 | 3 | The typecheck script wrote its verdict to a single machine-wide file, reproducing "measured the neighbour" inside the tool written to prevent "read the wrapper's exit". | Orders & Checkout | Shared mutable state, assumed private by its reader. |
 | 4 | F1 instructed seeding a `/contact` page, silently reversing an owner-ratified decision (#1395). | Front Door | Director wrote an instruction without checking whether the absence was deliberate. |
 | 5 | The typecheck serialiser reclaimed locks from **live, healthy** runs after 30 minutes (`||` with `STALE_SECONDS=1800`). Under contention this is a positive feedback loop: a run exceeds the deadline, its lock is stolen, runs re-parallelise, more runs exceed the deadline. It inverted exactly when it was needed. | Front Door | Director added an age-based backstop "for safety" without asking what happens when the deadline is wrong. **Fixed: reclaim on dead owner only, no age-based reclaim of any kind.** A first fix (heartbeat backstop) reintroduced the bug in milder form and was caught by the Director's own test before it shipped. |
+| 6 | The operating rules in every manager prompt told managers to read the board before planning, but the board was untracked in the shared checkout. Managers work in worktrees off `origin/main`, so the file did not exist for them. | Nobody — the Director found it while auditing why two managers had gone silent. | Writing a shared document in the one place that is not shared. Fixed by PR #1512. |
 
 ## Corrections accepted from managers
 
