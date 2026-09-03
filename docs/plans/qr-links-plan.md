@@ -282,6 +282,37 @@ the allow-list message.
 up to a printed code and confirm it lands on the right page with the right context. That
 is the only part curl cannot do.
 
+### Q1.5 — decompose `surface-allow-list.ts`  ·  assigned by the Director, BEFORE Q2
+
+Not my area; assigned because I had already read the file closely enough to reflow it
+safely. Three conditions, adopted as written:
+
+1. **Nobody else appends while it is in flight.** The Director holds that.
+2. **One commit, byte-stable barrel**, per the recorded god-file decomposition pattern
+   (surface → 6-15 modules → barrel → one commit).
+3. **It lands before Q2**, so the managers adding public paths this week are unblocked at
+   the start of their day rather than the end.
+
+Why it is needed: the file is AT 800 lines, not over, so any append must be **net zero** —
+trade a line of comment for a line of code, or hold the path. The suppression route was
+withdrawn after I flagged it: `ci.yml` gate 3 is a suppressions ratchet whose summed
+counts may only go down, `surface-allow-list.ts` appears nowhere in the 102 suppressed
+files, and an append would have made it the first file to break that rule while reddening
+a second unrelated gate.
+
+The reflow I did buys **one entry, not a budget** (the Spaces & Seating Manager's phrasing,
+and it is the right one). The next public path has no slack.
+
+Approach, so tomorrow starts from a brief rather than a blank file: the module seams are
+already visible in the constant groups — static/PWA/well-known, shared API, compliance,
+auth, agency storefront, app workspace, marketing, the reserved-slug sets, and the
+path-based tenant resolver. The barrel re-exports every current symbol so no importer
+changes, and `surface-allow-list.test.ts` plus
+`reserved-routes.collisions.static.test.ts` are the proof that behaviour did not move.
+A word-multiset guard over the comments, as used for the reflow, is worth reusing: a
+decomposition that silently drops a rationale is the failure mode here, not a broken
+import, because the imports fail loudly and the rationale does not.
+
 ### Q2 — Share popover and renderings  ·  go on the board
 
 - server-side QR generation, pinned library, **no client-only rendering for print**.
