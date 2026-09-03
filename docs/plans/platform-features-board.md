@@ -313,6 +313,29 @@ Their corollary reframes clause 2: **GitHub cancels superseded runs**, so a stal
 **The typecheck serialiser lives at `web/scripts/tsc-queue.sh`** (in the repo, as the Orders & Checkout Manager recommended: a session scratchpad dies with the session that wrote it, and the next manager gets a confusing "No such file"). Run it from your worktree's `web/` directory. `~/.claude/tulala-tsc-queue.sh` is the identical script for worktrees that predate PR #1512. It runs the same full `tsc --noEmit` and exits with its real code. It reclaims a lock only when the owner process is dead; there is no age-based reclaim, on purpose.
 
 ## Contracts registry
+### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
+
+Found by the Spaces & Seating Manager, applying the invariant Capacity handed them (**SS-1**: `parent_pool_id` is the pool of the nearest ancestor *that has a pool*) to their own plan — and finding their own plan was wrong.
+
+**The plan said "every bookable space AND every group gets a pool". SS-1 makes that a double-sell.** A table's nearest pooled ancestor is its **room**, so a `space_group` pool is not an ancestor of its members. The two never see each other's allocations, and **the same table sells twice.**
+
+**The obvious repair is unavailable:** making the group the parent fails because a table belongs to several groups at once. The mockup's Table 7 is in *Four-tops* **and** *Window*, and a pool has exactly one parent.
+
+**But groups are not a mistake, because one thing only a group pool can express:** `overbook_units` is a property of the band, not of the table. "We take 8 reservations against 6 four-tops" has no home on a per-table pool.
+
+**So there are two modes, and they must never both be live for the same tables:**
+
+| Mode | Who | Pools that exist | Why |
+|---|---|---|---|
+| **Band** | Reservations Phase 1, no floor plan | the **group only** | sells "a four-top at 8pm"; tables may not exist as rows yet; the only place `overbook_units` means anything |
+| **Assigned** | Reservations Phase 3, host stand | the **tables only** | the group demotes to a pure **selection** — pick an available member, reserve *its* pool. Overlapping groups become harmless, because a selection has no arithmetic. |
+
+**Registry line: `space_group` → band mode only.** Without it, a future session creates both kinds of pool for one venue and the only thing preventing a double-sold table is that nobody thought of it.
+
+**Band → assigned is a real migration and belongs on the Reservations Phase 3 critical path.** Capacity's trigger refuses to re-parent a pool holding live allocations, so it is *create the table pools, drain the group pool, deactivate it* — not a re-parent. **Reservations must know this before they plan**, not discover it in Phase 3.
+
+**Why this entry exists at all:** the manager applied another engine's invariant to their own design and found their own error before writing code. That is the cheapest place this could possibly have been found, and it is worth naming as the practice rather than only the outcome.
+
 
 | Object | Owner | Consumers | Status | Migration |
 |---|---|---|---|---|
