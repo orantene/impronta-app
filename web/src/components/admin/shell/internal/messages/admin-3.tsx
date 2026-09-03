@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard, ReservationCard } from "@/components/chat-cards/ChatCard";
+import { orderCardView, type OrderForCard } from "@/lib/orders/order-card";
+import { OrderCard, OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard, ReservationCard } from "@/components/chat-cards/ChatCard";
 import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -330,10 +331,53 @@ export function renderChatCardForMessage(
   kind: string,
   payload: Record<string, unknown>,
   toast: (s: string) => void,
-  ctx?: { inquiryId?: string; messageId?: string; suppressPayCta?: boolean },
+  ctx?: {
+    inquiryId?: string;
+    messageId?: string;
+    suppressPayCta?: boolean;
+    /**
+     * THE order this card describes, read live by the bridge when it loaded the
+     * messages.
+     *
+     * Threaded through rather than fetched here because this renderer is
+     * synchronous — and threaded as the order itself rather than baked into
+     * `card_payload` because an order changes after its card is written. The
+     * copy lives for one render, not in the database.
+     */
+    order?: OrderForCard | null;
+    /** The tenant's word for an order. Never hardcoded in a customer surface. */
+    orderNoun?: string | null;
+    viewerRole?: "staff" | "client" | "talent";
+    onOpenOrder?: (orderId: string) => void;
+    onPayOrder?: (orderId: string) => void;
+    onAddOrderLine?: (orderId: string) => void;
+  },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
   switch (kind) {
+    case "order": {
+      // `card_payload` carries { order_id } and NOTHING ELSE. Every figure is
+      // read from the order, so a card cannot drift from what it describes.
+      const orderId = get<string>("order_id", "");
+      const view = orderCardView(ctx?.order ?? null, {
+        viewerRole: ctx?.viewerRole ?? "staff",
+        noun: ctx?.orderNoun,
+      });
+      return (
+        <OrderCard
+          view={view}
+          onOpen={orderId && ctx?.onOpenOrder ? () => ctx.onOpenOrder?.(orderId) : undefined}
+          onPayNow={
+            orderId && ctx?.onPayOrder && !ctx?.suppressPayCta
+              ? () => ctx.onPayOrder?.(orderId)
+              : undefined
+          }
+          onAddLine={
+            orderId && ctx?.onAddOrderLine ? () => ctx.onAddOrderLine?.(orderId) : undefined
+          }
+        />
+      );
+    }
     case "offer_event": {
       const status = get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent");
       return (

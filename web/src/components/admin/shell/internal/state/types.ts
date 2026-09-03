@@ -154,6 +154,23 @@ export type ThreadMessage = {
   // Optional so mock rows (which omit them) still satisfy the type.
   messageKind?: string;
   cardPayload?: Record<string, unknown> | null;
+  /**
+   * For `messageKind === 'order'`: the order this card describes, read live by
+   * the bridge when it loaded the thread.
+   *
+   * NOT stored in `cardPayload`. An order changes — staff add a line, a deposit
+   * is paid, a line is refunded — so a payload holding a copy of the total
+   * silently disagrees with the order it describes from the next edit onward.
+   * This is a per-render read, not a stored copy.
+   */
+  order?: {
+    id: string;
+    status: string;
+    currency: string;
+    totalCents: number;
+    outstandingCents?: number | null;
+    lineCount: number;
+  } | null;
   /** Raw message metadata jsonb — carries the voice-note descriptor for
    *  messageKind='voice' (parsed via readVoiceMetaFromMessageMetadata). */
   metadata?: Record<string, unknown> | null;

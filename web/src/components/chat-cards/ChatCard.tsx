@@ -225,6 +225,60 @@ export function OfferCard(props: {
   );
 }
 
+/**
+ * The ORDER card. D4: internally "order", customer-facing noun from the words
+ * table.
+ *
+ * Takes a pre-derived view rather than raw figures, because an order CHANGES.
+ * Every other card here takes label strings out of `card_payload` — fine for
+ * something immutable, wrong for an order: staff add a line, a deposit is paid,
+ * a line is refunded, and a card holding a copy of the total silently disagrees
+ * with the order it describes. `lib/orders/order-card.ts` does the derivation
+ * and is tested without a DOM.
+ */
+export function OrderCard(props: {
+  view: {
+    state: string;
+    tone: CardTone;
+    title: string;
+    meta: string;
+    showPayNow: boolean;
+    staffCanAddLines: boolean;
+    unavailable: boolean;
+  };
+  onOpen?: () => void;
+  onPayNow?: () => void;
+  onAddLine?: () => void;
+}) {
+  const { view, onOpen, onPayNow, onAddLine } = props;
+  const actions: ChatCardShellProps["actions"] = [];
+  // The view decides WHETHER; the caller decides WHAT HAPPENS. A handler passed
+  // for a role that must not see it still renders nothing.
+  if (view.staffCanAddLines && onAddLine) {
+    actions.push({ label: "Add line", onClick: onAddLine, tone: "ghost" });
+  }
+  if (view.showPayNow && onPayNow) {
+    actions.push({ label: "Pay now", onClick: onPayNow, tone: "primary" });
+  }
+  return (
+    <ChatCardShell
+      tone={view.tone}
+      kind="Order"
+      title={view.title}
+      summary={view.unavailable ? "This is no longer available to view." : undefined}
+      meta={view.meta || undefined}
+      onOpen={view.unavailable ? undefined : onOpen}
+      actions={actions.length > 0 ? actions : undefined}
+      icon={
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2.5 4h9l-.8 6.2a1 1 0 0 1-1 .8H4.3a1 1 0 0 1-1-.8L2.5 4Z" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M5.2 4V3a1.8 1.8 0 0 1 3.6 0v1" stroke="currentColor" strokeWidth="1.4"/>
+        </svg>
+      }
+    />
+  );
+}
+
 export function PaymentRequestCard(props: {
   amountLabel: string;
   status: "requested" | "paid" | "failed" | "refunded";

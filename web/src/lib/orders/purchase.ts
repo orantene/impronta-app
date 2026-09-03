@@ -85,6 +85,19 @@ export type PurchaseInput = {
     units?: number;
   }>;
   locale?: string | null;
+  /**
+   * Open a conversation for this purchase and post the order card into it.
+   *
+   * "Any order can open a thread lazily" is the contract; this is the eager
+   * form, for channels where staff work the order in Messages today. A menu
+   * order takes it, because that is where a menu order is visible NOW, and
+   * removing the thread would be a regression dressed as an architecture change.
+   *
+   * What it does NOT do is run the inquiry state machine: no offer, no approval,
+   * no `status: 'approved'` forced under the service role, no version dance.
+   * The inquiry here is a CONVERSATION, which is all it was ever needed for.
+   */
+  openThread?: boolean;
 };
 
 export type PurchaseRefusalReason =
@@ -131,6 +144,8 @@ export type PurchaseResult =
       transactionId: string | null;
       /** The operations anchor. See the note at step 9. */
       bookingId: string | null;
+      /** The conversation, when one was opened. */
+      inquiryId: string | null;
     }
   | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
 
@@ -312,29 +327,44 @@ export async function createPurchase(
     }
 
     let shortestTtlSeconds: number | null = null;
+    const needs = input.capacity ?? [];
 
-    for (const need of input.capacity ?? []) {
-      const orderLineId = lineIdByOffering.get(need.offeringId) ?? null;
-
-      // TTL comes from THE POOL, not from this file. A ticket pool wants ten
-      // minutes and a table wants fifteen, and hardcoding one here would either
-      // strand seats or rush buyers. Falls back to the local default only if
-      // the pool cannot say.
-      const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
-      const ttlSeconds = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
-      shortestTtlSeconds =
-        shortestTtlSeconds == null ? ttlSeconds : Math.min(shortestTtlSeconds, ttlSeconds);
+    if (needs.length > 0) {
+      // ONE atomic batch for the whole cart.
+      //
+      // This used to be a loop, one batch per line, because
+      // `reserveCapacityBatch` took a single `orderLineId` for a whole batch and
+      // a per-line loop was the only way to attribute each allocation to its
+      // line. Capacity made `orderLineId` per-request (0.11) after I flagged it,
+      // so the loop is gone: a refused leg now writes ZERO rows again and the
+      // compensation below no longer has to cover a partially-held cart.
+      //
+      // Attribution is not cosmetic — `capacity_allocations.order_line_id` is
+      // what refund-by-line reads to decide which units to free, so a wrong
+      // stamp means refunding the GA line releases the VIP seats.
+      //
+      // TTL: one batch takes one TTL, so the cart uses the SHORTEST across its
+      // pools. That is the right behaviour anyway — a cart should expire as one
+      // thing rather than in pieces — and it is why the order's
+      // `hold_expires_at` matches the first allocation to lapse.
+      for (const need of needs) {
+        const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
+        const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
+        shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
+      }
 
       const reserved = await reserveCapacityBatch(
-        [
-          {
-            poolId: need.poolId,
-            startsAt: need.startsAt ?? null,
-            endsAt: need.endsAt ?? null,
-            units: need.units ?? 1,
-          },
-        ],
-        { ttlSeconds, orderLineId, createdBy: input.actorUserId },
+        needs.map((need) => ({
+          poolId: need.poolId,
+          startsAt: need.startsAt ?? null,
+          endsAt: need.endsAt ?? null,
+          units: need.units ?? 1,
+          orderLineId: lineIdByOffering.get(need.offeringId) ?? null,
+        })),
+        {
+          ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+          createdBy: input.actorUserId,
+        },
         admin,
       );
 
@@ -343,7 +373,7 @@ export async function createPurchase(
         return {
           ok: false,
           reason: mapCapacityRefusal(reserved.reason),
-          offeringId: need.offeringId,
+          offeringId: needs.find((n) => n.poolId === reserved.failedPoolId)?.offeringId,
         };
       }
       heldAllocationIds.push(...reserved.allocationIds);
@@ -376,6 +406,11 @@ export async function createPurchase(
       const { data: bookingRow, error: bookingErr } = await admin
         .from("agency_bookings")
         .insert({
+          // `tenant_id` is the ONLY NOT NULL column on agency_bookings, and
+          // omitting it is how the first live run failed with "Could not open
+          // the payment". The unit test's fake returned an id regardless, so
+          // this was invisible until the pipeline met a real database.
+          tenant_id: input.tenantId,
           tenant_id_snapshot: input.tenantId,
           // Set BEFORE insert on purpose: `bookings_write_order` fires AFTER
           // INSERT and returns early when `order_id` is already present, so
@@ -416,7 +451,13 @@ export async function createPurchase(
           net_amount_cents: collectCents,
           currency: "USD",
           provider: "stripe",
-          status: "payment_requested",
+          // MUST be 'draft'. A trigger on booking_transactions enforces the
+          // initial status, and the pipeline discovered it by being refused on
+          // a live insert rather than by reading the schema. It is the right
+          // invariant: a transaction becomes `payment_requested` when a payment
+          // is ACTUALLY requested, which is when the caller creates the Checkout
+          // session — not when the row is opened.
+          status: "draft",
           // A deposit is a PART payment against a known total, so the balance
           // can be collected later against the same order.
           checkout_type: policy.collect === "deposit" ? "deposit" : "full",
@@ -464,9 +505,56 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not confirm the order." };
     }
 
+    // ── 10. The conversation, when the channel wants one.
+    //
+    // AFTER the money leg and deliberately BEST-EFFORT: a thread that failed to
+    // open is a visibility problem, and cancelling a paid order to fix a
+    // visibility problem would be a far worse trade. The order is the record;
+    // the thread is where people talk about it.
+    let inquiryId: string | null = null;
+    if (input.openThread) {
+      const { data: inqRow, error: inqErr } = await admin
+        .from("inquiries")
+        .insert({
+          tenant_id: input.tenantId,
+          source_workspace_id: input.tenantId,
+          contact_name: input.contact.displayName ?? input.contact.email ?? "Guest",
+          contact_email: input.contact.email ?? "",
+          contact_phone: input.contact.phone ?? null,
+          client_user_id: input.actorUserId,
+        })
+        .select("id")
+        .single();
+
+      if (inqErr || !inqRow) {
+        logServerError("orders.createPurchase/thread", inqErr);
+      } else {
+        inquiryId = (inqRow as { id: string }).id;
+
+        const { error: linkErr } = await admin
+          .from("orders")
+          .update({ inquiry_id: inquiryId })
+          .eq("id", createdOrderId);
+        if (linkErr) logServerError("orders.createPurchase/thread-link", linkErr);
+
+        // The card carries { order_id } ONLY. Every figure is read from the
+        // order at render time, so it cannot drift from what it describes.
+        const { error: cardErr } = await admin.from("inquiry_messages").insert({
+          inquiry_id: inquiryId,
+          tenant_id: input.tenantId,
+          thread_type: "private",
+          message_kind: "order",
+          body: "",
+          card_payload: { order_id: createdOrderId },
+        });
+        if (cardErr) logServerError("orders.createPurchase/thread-card", cardErr);
+      }
+    }
+
     return {
       ok: true,
       orderId: createdOrderId,
+      inquiryId,
       customerId: customer.customerId,
       totalCents: priced.subtotalCents,
       collectCents,

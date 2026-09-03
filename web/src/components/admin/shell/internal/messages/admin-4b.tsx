@@ -119,6 +119,8 @@ export function AdminActivityStream({
         const node = renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, {
           inquiryId,
           messageId: m.id,
+          order: m.order ?? null,
+          viewerRole: "staff",
           // Admin sees money info but suppress pay CTAs here since this is
           // an informational timeline view (payment actions live in Payment tab).
           suppressPayCta: true,

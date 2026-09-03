@@ -100,10 +100,26 @@ export function AdminMessageStream({
      *  appropriate ChatCard via renderChatCardForMessage. */
     messageKind?: string;
     cardPayload?: Record<string, unknown> | null;
+    /**
+     * Carried through the projection, not dropped.
+     *
+     * This local array RE-TYPES the messages it projects, so a field added to
+     * ThreadMessage does not reach the renderer unless it is added here too.
+     * That is a hop the four-layer guard could not see — the guard checks the
+     * data bridge and the call site, and this sits between them.
+     */
+    order?: {
+      id: string;
+      status: string;
+      currency: string;
+      totalCents: number;
+      outstandingCents?: number | null;
+      lineCount: number;
+    } | null;
     metadata?: Record<string, unknown> | null;
   }> = [
     ...messages.map(m => ({
-      id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou,
+      id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou, order: m.order ?? null,
       // RichInquiry messages carry senderRole — when it's the
       // synthetic "workspace" role we coerce the rendered name to
       // the workspace identity so the bubble reads as System User.
@@ -306,7 +322,7 @@ export function AdminMessageStream({
                     swap the body for the inline audio player. */}
                 {m.messageKind && m.messageKind !== "text" && m.messageKind !== "voice" ? (
                   <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
-                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id })}
+                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id, order: m.order ?? null, viewerRole: "staff" })}
                   </div>
                 ) : (
                 <div style={{
