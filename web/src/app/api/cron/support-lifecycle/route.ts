@@ -178,16 +178,24 @@ export async function GET(request: Request) {
       // dedupe key, so nothing suppressed it. Production sent 61 identical
       // emails for a single ticket. A channel that repeats hourly teaches the
       // recipient to ignore it, and takes the next real alert down with it.
+      // `created_at` rides along because the cadence is spaced from the LAST
+      // nudge, not from the escalation: a ticket that was already days old when
+      // this rule started applying has passed every threshold at once, and
+      // measuring from the escalation would fire the whole allowance in five
+      // consecutive hours.
       const { data: priorReAlerts } = await supportFrom(admin, "support_ticket_events")
-        .select("id")
+        .select("id, created_at")
         .eq("ticket_id", ticket.id)
         .eq("event_type", "escalated")
-        .contains("new_value", { reAlert: true });
-      const priorReAlertCount = (priorReAlerts ?? []).length;
+        .contains("new_value", { reAlert: true })
+        .order("created_at", { ascending: false });
+      const priorRows = (priorReAlerts ?? []) as Array<{ created_at: string | null }>;
+      const priorReAlertCount = priorRows.length;
+      const lastReAlertAt = priorRows[0]?.created_at ?? null;
 
       if (
         !ticket.escalatedAt ||
-        !shouldReAlert({ escalatedAt: ticket.escalatedAt, priorReAlertCount })
+        !shouldReAlert({ escalatedAt: ticket.escalatedAt, priorReAlertCount, lastReAlertAt })
       ) {
         continue;
       }

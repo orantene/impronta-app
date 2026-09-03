@@ -500,7 +500,16 @@ export async function submitGetStartedSignup(
           workspaceSignupUrl: workspaceOnboardingUrl,
           locale: leadLocale,
         }),
-        replyTo: process.env.EMAIL_REPLY_TO,
+        // No Reply-To on purpose. This used to read EMAIL_REPLY_TO, which has
+        // never been set in any environment, so the value was always undefined
+        // and the header was simply omitted — dead code that read as intent.
+        // Leaving it looked like a reply path existed. It did not: replies land
+        // on the From address, noreply@tulala.digital, whose domain has no MX
+        // record, so they bounce into nothing. The honest fix is to stop
+        // implying a path, not to invent one; hello@impronta.group does receive
+        // mail (verified Google MX) and is the candidate, but pointing a reply
+        // at a mailbox before a named person reads it is worse than bouncing,
+        // because a bounce at least tells the sender.
       }),
       sendFounderDigest({
         leadId,
