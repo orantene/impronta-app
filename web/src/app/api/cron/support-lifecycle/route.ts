@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { MAX_RE_ALERTS, shouldReAlert, waitedLabel } from "@/lib/support/realert-schedule";
 import { supportFrom } from "@/lib/support/support-from";
 import { mapTicketRow } from "@/lib/support/support-types";
 import { loadTicketById, supportEngine } from "@/lib/support/support-engine";
@@ -171,6 +172,26 @@ export async function GET(request: Request) {
     for (const raw of staleEscalated ?? []) {
       const ticket = mapTicketRow(raw);
       if (!ticket) continue;
+
+      // How many times we have already chased this one. Without this the loop
+      // re-alerted on EVERY hourly run — a fresh event row each time, so a fresh
+      // dedupe key, so nothing suppressed it. Production sent 61 identical
+      // emails for a single ticket. A channel that repeats hourly teaches the
+      // recipient to ignore it, and takes the next real alert down with it.
+      const { data: priorReAlerts } = await supportFrom(admin, "support_ticket_events")
+        .select("id")
+        .eq("ticket_id", ticket.id)
+        .eq("event_type", "escalated")
+        .contains("new_value", { reAlert: true });
+      const priorReAlertCount = (priorReAlerts ?? []).length;
+
+      if (
+        !ticket.escalatedAt ||
+        !shouldReAlert({ escalatedAt: ticket.escalatedAt, priorReAlertCount })
+      ) {
+        continue;
+      }
+
       const { data: ev } = await supportFrom(admin, "support_ticket_events")
         .insert({
           ticket_id: ticket.id,
@@ -194,6 +215,13 @@ export async function GET(request: Request) {
           contactPhone: ticket.contactPhone,
           reason: ticket.escalationReason ?? "user_requested",
           deepLink: `/platform/admin/support?ticket=${ticket.id}`,
+          // Context the alert was missing. How long it has waited is the one
+          // fact that decides whether you open it now or later, and the nudge
+          // number tells you this is a repeat rather than something new.
+          waitedLabel: waitedLabel(ticket.escalatedAt),
+          reAlertNumber: priorReAlertCount + 1,
+          reAlertOf: MAX_RE_ALERTS,
+          isReAlert: true,
         },
       }).catch(() => undefined);
       stats.reAlerted += 1;
