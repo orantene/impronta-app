@@ -32,6 +32,24 @@
  * simply win.
  */
 
+/**
+ * A WALL CLOCK IS ONLY EVER AN INPUT. Resolve it ONCE, then stay in instants:
+ * every duration, turn and offset is added to the INSTANT, never to the clock.
+ *
+ * Adding to the clock and resolving afterwards is wrong on a DST day and wrong
+ * silently. Measured, Europe/Madrid 2027-03-28, a 01:30 seating with a 90-minute
+ * turn:
+ *
+ *   instant + 90m     -> 02:00Z = 04:00 local   the table is held 90 minutes
+ *   wall clock + 90m  -> 01:00Z = 03:00 local   the table is held THIRTY
+ *
+ * The second releases the table an hour early and frees its capacity unit while
+ * the party is still eating — and the arithmetic is correct throughout, so there
+ * is no anomaly to find afterwards. Found by the Reservations Manager.
+ *
+ * `zonedWindow` below does this correctly; prefer it to resolving twice.
+ */
+
 export type GapPolicy = "skip" | "next";
 
 /**
@@ -261,4 +279,35 @@ export function minutesToHmm(minutesOfDay: number): string {
   const h = Math.floor(minutesOfDay / 60);
   const m = minutesOfDay % 60;
   return `${pad2(h)}:${pad2(m)}`;
+}
+
+/**
+ * A start instant and an end instant for a local start time plus a DURATION.
+ *
+ * THE POINT IS THAT THERE IS NO SECOND WALL CLOCK. The end is the start INSTANT
+ * plus the duration, so a 90-minute turn is ninety real minutes on every day of
+ * the year. Computing an end wall clock (`start + 90` minutes past midnight) and
+ * resolving that is the bug this exists to make unnecessary: on a spring-forward
+ * day it silently returns a 30-minute window, releasing a table — and its
+ * capacity unit — while the party is still there.
+ *
+ * `kind` is the START's resolution and carries the same warning as
+ * `resolveWallClock`: under gap:"next" a `shifted` start can collide with another
+ * booking's start. Whoever chooses "next" owns the collision.
+ */
+export function zonedWindow(
+  ymd: string,
+  startMinutesOfDay: number,
+  durationMinutes: number,
+  timeZone: string,
+  options: { gap?: GapPolicy } = {},
+): { startsAt: Date; endsAt: Date; kind: Exclude<WallClockResolution["kind"], "nonexistent"> } | null {
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return null;
+  const start = resolveWallClock(ymd, startMinutesOfDay, timeZone, options);
+  if (start.kind === "nonexistent") return null;
+  return {
+    startsAt: start.instant,
+    endsAt: new Date(start.instant.getTime() + durationMinutes * 60_000),
+    kind: start.kind,
+  };
 }

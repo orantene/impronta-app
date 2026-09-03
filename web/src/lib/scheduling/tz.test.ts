@@ -22,6 +22,7 @@ import {
   utcToZonedYmd,
   weekdayUtc,
   zonedLocalToUtc,
+  zonedWindow,
 } from "./tz";
 
 const NY = "America/New_York";
@@ -204,4 +205,55 @@ test("zonedLocalToUtc stays the convenience wrapper and agrees with resolveWallC
     assert.equal(d?.toISOString() ?? null, r.kind === "nonexistent" ? null : r.instant.toISOString(),
       `${ymd} ${min} ${tz} ${gap}`);
   }
+});
+
+// ── zonedWindow: a duration is added to the INSTANT, never to the clock ─────
+
+test("a 90-minute turn is 90 REAL minutes on a spring-forward day", () => {
+  // The Reservations Manager's case, kept as the regression fixture. Computing
+  // an end WALL CLOCK and resolving it releases the table an hour early and
+  // frees its capacity unit while the party is still eating — and the arithmetic
+  // is correct throughout, so there is no anomaly to find afterwards.
+  const w = zonedWindow("2027-03-28", 1 * 60 + 30, 90, MADRID, { gap: "next" });
+  assert.ok(w);
+  assert.equal((w.endsAt.getTime() - w.startsAt.getTime()) / 60_000, 90, "ninety REAL minutes");
+  assert.equal(utcToZonedHmm(w.startsAt, MADRID), "01:30");
+  assert.equal(utcToZonedHmm(w.endsAt, MADRID), "04:00", "the clock jumped an hour under it");
+
+  // The wrong way, demonstrated so the test proves the bug and not just the fix.
+  const wrongEnd = zonedLocalToUtc("2027-03-28", 1 * 60 + 30 + 90, MADRID, { gap: "next" })!;
+  assert.equal((wrongEnd.getTime() - w.startsAt.getTime()) / 60_000, 30,
+    "wall clock + 90m holds the table THIRTY minutes");
+});
+
+test("an ordinary day is unaffected, so the fix is not a special case", () => {
+  const w = zonedWindow("2027-03-27", 19 * 60, 90, MADRID);
+  assert.ok(w);
+  assert.equal((w.endsAt.getTime() - w.startsAt.getTime()) / 60_000, 90);
+  assert.equal(utcToZonedHmm(w.startsAt, MADRID), "19:00");
+  assert.equal(utcToZonedHmm(w.endsAt, MADRID), "20:30");
+});
+
+test("zonedWindow carries the START's resolution, so a shifted start stays visible", () => {
+  assert.equal(zonedWindow("2027-03-28", 2 * 60 + 30, 60, MADRID, { gap: "next" })?.kind, "shifted");
+  assert.equal(zonedWindow("2027-03-27", 19 * 60, 60, MADRID)?.kind, "exact");
+  assert.equal(zonedWindow("2027-11-07", 1 * 60 + 30, 60, NY)?.kind, "ambiguous");
+});
+
+test("zonedWindow refuses rather than inventing a window", () => {
+  assert.equal(zonedWindow("2027-03-28", 2 * 60 + 30, 60, MADRID, { gap: "skip" }), null,
+    "a start that does not exist has no window");
+  for (const bad of [0, -30, 1.5, Number.NaN]) {
+    assert.equal(zonedWindow("2027-03-27", 19 * 60, bad, MADRID), null, `duration ${bad}`);
+  }
+  assert.equal(zonedWindow("2027-13-40", 0, 60, MADRID), null, "invalid date");
+});
+
+test("a fall-back day's window crosses the repeated hour and is still its full length", () => {
+  // 01:30 + 90m on the 25-hour day. The clock reads 02:00 at the end, not 03:00,
+  // because an hour is lived twice underneath it.
+  const w = zonedWindow("2027-10-31", 1 * 60 + 30, 90, MADRID);
+  assert.ok(w);
+  assert.equal((w.endsAt.getTime() - w.startsAt.getTime()) / 60_000, 90);
+  assert.equal(utcToZonedHmm(w.endsAt, MADRID), "02:00");
 });
