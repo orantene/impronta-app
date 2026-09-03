@@ -217,7 +217,10 @@ export async function createTalentCheckoutSession(opts: {
       ...discount.params,
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
-    });
+    },
+    // Idempotency: a double submit must not mint a SECOND Checkout session.
+    // One subscription per talent profile per plan; a second session risks a second sub.
+    { idempotencyKey: `cs_talent_${opts.talentProfileId}_${opts.planKey}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

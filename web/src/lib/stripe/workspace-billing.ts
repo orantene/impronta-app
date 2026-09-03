@@ -253,7 +253,10 @@ export async function createWorkspaceCheckoutSession(opts: {
       // Workspace owners can set a preferred_currency preference (stored in DB) which
       // will be used when multi-currency Stripe prices are added per currency.
       adaptive_pricing: { enabled: true },
-    });
+    },
+    // Idempotency: a double submit must not mint a SECOND Checkout session.
+    // One subscription per workspace per plan; a second session risks a second sub.
+    { idempotencyKey: `cs_ws_${opts.tenantId}_${opts.planKey}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
