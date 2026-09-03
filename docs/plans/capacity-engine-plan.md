@@ -411,3 +411,70 @@ can, and it says 12.
 branch. Shipping the whole regenerated file would have claimed their contract and guaranteed a
 conflict. Only the capacity entries were spliced in; the two Orders blocks were removed by hand.
 Whoever merges second regenerates cleanly.
+
+---
+
+## 9. Live in production — and the exact edge of that claim
+
+Verified 2026-09-03. All three capacity commits are ancestors of `origin/production`
+(`caccbda08` 0.2, `96ae6aaf2` 0.3a+0.3b, `0174da29a` 0.3c). `npm run deploy:smoke` exits 0 with
+"all checks passed" and, specifically, "Supabase migration drift: all local migrations applied to
+remote Supabase". The live course reads pool `d1070852`, `units_total` 12, remaining 12, mirror 12,
+zero allocations.
+
+**What is NOT proven, stated plainly rather than glossed.** Nobody has driven a real purchase
+through the deployed app. What exists is:
+
+| Layer | Proof |
+|---|---|
+| Database | the real RPCs, against the real row: sells exactly 12, refuses the 13th, a cancel returns exactly one seat, the seat resells, a 14th is refused |
+| Application predicate | unit + static tests, and the commit is an ancestor of the deployed pointer |
+| Deployment | `deploy:smoke` exit 0, zero migration drift |
+| End to end, a human clicking Buy | **not done** |
+
+The Director's ruling, and the reason it is right: a disposable order in production writes real rows
+into an append-only ledger, and this repo has a recorded incident for exactly that — probing
+invariants against production wrote rows that then blocked cleanup, and an `ALTER` failed on pending
+deferred events. The cost is not the order, it is residue that cannot be undone with a rollback.
+Every proof above was taken inside a transaction that was rolled back, and buying a seat is the one
+thing that cannot be.
+
+So the end-to-end proof is deferred to the first real customer who is refused the thirteenth seat.
+That costs nothing and is worth more than a synthetic order.
+
+**The remaining gap is a surface, not the engine.** The course is `owner_kind='workspace'` with no
+`talent_profile_id`, so it renders on the Menu island, which has no sold-out badge. The engine
+refuses the thirteenth sale correctly, but the board still shows the item as live — a customer
+clicks and is refused at checkout instead of seeing it greyed out. That badge belongs to the Menu
+Workspace Manager and they have the contract:
+`soldOut = capacityPoolId != null && inventoryQty === 0`.
+
+## 10. Agreed with the Spaces & Seating Manager (2026-09-03)
+
+**Not every space gets a pool.** Pools exist for bookable leaves (table, seat, cabana, booth, chair)
+and for levels that can be held whole (venue, room). `area` and `section` are organisational: they
+group and they render, they are never allocated against. A table's `parent_pool_id` therefore points
+at its **nearest pooled ancestor**, skipping any area or section between.
+
+This needs no change here, because `pool_path` was never a path through the spaces tree — it is a
+path through *pools*, built from `parent_pool_id` alone. The engine has no concept of a space. The
+rule is also strictly better than pooling everything: a pool nothing is ever allocated against is
+still locked and counted on every reserve passing through it, so it would buy nothing and cost
+contention. Real depth becomes 3 or 4 against a cap of 6.
+
+**The invariant that carries the risk:** `parent_pool_id` must always be the *nearest* pooled
+ancestor, never a higher one. If one table points at its room and a sibling points at the venue, the
+room under-counts that sibling forever, silently. Nothing in this schema can detect it — the engine
+cannot see the tree. It is asserted on the Spaces side.
+
+**`subject_id` integrity is mine, not theirs.** It is polymorphic, so there is no FK. Rather than a
+per-feature trigger (N triggers, N chances to diverge) or a `spaces` reference inside the engine's
+migration (which would invert the layering), `upsert_capacity_pool` gains a table-driven
+`subject_kind → table` registry checked with `to_regclass` plus a dynamic EXISTS. One mechanism for
+offering, space, space_group, session_tier and person. Tracked as 0.10.
+
+**Deleting a subject orphans its pool, deliberately.** No FK means no cascade, and the allocations
+are the record of what was sold in that room — a dispute is settled with them. The owning feature
+deactivates (`is_active = false`) rather than deletes. An inactive pool refuses every reserve through
+it, including for its children, which is the correct behaviour for a room taken out of service.
+`parent_pool_id` is `ON DELETE RESTRICT`, so deactivate-never-delete is the general rule.
