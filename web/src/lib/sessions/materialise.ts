@@ -79,10 +79,20 @@ export type SeriesInput = {
   isActive: boolean;
 };
 
-/** An occurrence that already exists in `sessions`, keyed as the DB keys it. */
+/**
+ * An occurrence that already exists in `sessions`.
+ *
+ * `hasPool` is not decoration. See the note on pool backfill below: a session
+ * whose INSERT landed and whose pool creation did not is a session nobody can
+ * ever buy, and it is invisible to any check that only asks whether the session
+ * exists.
+ */
 export type ExistingOccurrence = {
+  id: string;
   /** ISO instant, exactly as `sessions.starts_at` serialises. */
   startsAt: string;
+  /** Does a `session_tier` pool already exist for this session? */
+  hasPool: boolean;
 };
 
 export type MaterialiseRefusal =
@@ -104,6 +114,11 @@ export type MaterialiseDecision =
       create: Occurrence[];
       /** Occurrences already materialised. Counted, never re-created. */
       existing: number;
+      /**
+       * Existing sessions in the window that have NO pool, and therefore cannot
+       * be sold. The runner creates one for each. See the note below.
+       */
+      poolBackfill: string[];
       timeZone: string;
       seats: number;
     }
@@ -130,9 +145,45 @@ function utcDatePlus(from: Date, days: number): string {
  *
  * `now` is the floor: the past is never materialised, because a series edited
  * today must not conjure occurrences for last month, and because a re-run must
- * not resurrect an occurrence a human cancelled. `existing` is what is already
- * in `sessions` for this series — the unique index makes re-creating one a
- * no-op anyway, so this is for reporting an honest count, not for correctness.
+ * not resurrect an occurrence a human cancelled.
+ *
+ *
+ * WHY A RE-RUN MUST NEVER RE-ASSERT A POOL
+ * ════════════════════════════════════════
+ * The obvious runner calls `upsert_capacity_pool` for every occurrence every
+ * night, on the grounds that the RPC is idempotent. It is idempotent on the
+ * pool's IDENTITY and not on its contents: `ON CONFLICT … DO UPDATE SET
+ * units_total = EXCLUDED.units_total` (`20261229000200`). So a nightly re-run
+ * would write the SERIES' seat count over whatever the session's pool actually
+ * holds, and that is wrong twice over.
+ *
+ * It silently reverts an operator's per-session edit — "Sunday the 21st only
+ * seats 40, the rest of the room is a private party" — with no error and no
+ * trace, and they would find out from a customer who bought seat 41.
+ *
+ * And it writes a raw number where the arithmetic must be `available + held`
+ * under the pool's row lock. Writing the raw number shrinks the ceiling below
+ * what is already held, and the next release then pushes remaining ABOVE it.
+ * That is precisely the corruption `set_offering_stock` was written to prevent,
+ * and copying its shape means not calling around it.
+ *
+ * So: **a pool is created WITH its session and never re-asserted.** Changing
+ * seats afterwards is `set_session_seats`, which does the locked arithmetic.
+ *
+ *
+ * WHICH LEAVES ONE HOLE, AND IT IS WHY `hasPool` EXISTS
+ * ════════════════════════════════════════════════════
+ * If the session INSERT lands and the pool creation then fails — a timeout, a
+ * deploy mid-run — the session exists and cannot be sold. A re-run skips it,
+ * because it checks whether the SESSION exists, and it does. The class would sit
+ * on the public schedule for ever with no pool behind it, and the only symptom
+ * is that nobody can buy it.
+ *
+ * So the runner reconciles pools for every in-window session, not only for the
+ * ones it just created, and `poolBackfill` names the ones that need repair. The
+ * repair path is exercised on every run rather than only after the failure that
+ * needs it, which is the difference between a repair that works and one that
+ * has never been executed.
  */
 export function decideMaterialisation(
   series: SeriesInput,
@@ -200,11 +251,20 @@ export function decideMaterialisation(
 
   const create = expanded.filter((occ) => !already.has(Date.parse(occ.startsAt)));
 
+  // Existing sessions in this window that have no pool. Reported separately
+  // from `create` because they need a DIFFERENT write: the session row is
+  // already right, only the pool is missing.
+  const wanted = new Set<number>(expanded.map((o) => Date.parse(o.startsAt)));
+  const poolBackfill = existing
+    .filter((row) => !row.hasPool && wanted.has(Date.parse(row.startsAt)))
+    .map((row) => row.id);
+
   return {
     ok: true,
     seriesId: series.id,
     create,
     existing: expanded.length - create.length,
+    poolBackfill,
     timeZone,
     seats: series.seats,
   };

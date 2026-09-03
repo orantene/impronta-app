@@ -139,7 +139,7 @@ test("occurrences already in sessions are counted, not re-created", () => {
 
   const second = decideMaterialisation(
     series(),
-    first.create.map((o) => ({ startsAt: o.startsAt })),
+    first.create.map((o, i) => ({ id: `s${i}`, startsAt: o.startsAt, hasPool: true })),
     now,
   );
   assert.equal(second.ok, true);
@@ -155,8 +155,10 @@ test("an existing occurrence matches on the INSTANT, not the string", () => {
   if (!first.ok) return;
   // Postgres serialises timestamptz with an offset, not always as Z. The same
   // instant written two ways must not produce a duplicate session.
-  const asOffset = first.create.map((o) => ({
+  const asOffset = first.create.map((o, i) => ({
+    id: `s${i}`,
     startsAt: new Date(o.startsAt).toISOString().replace("Z", "+00:00"),
+    hasPool: true,
   }));
   const second = decideMaterialisation(series(), asOffset, now);
   assert.equal(second.ok === true && second.create.length, 0);
@@ -197,4 +199,61 @@ test("the horizon is honoured", () => {
   assert.ok(narrow.create.length < wide.create.length);
   assert.ok(narrow.create.length <= 2, "a week holds at most two Tuesdays");
   assert.equal(DEFAULT_HORIZON_DAYS, 90);
+});
+
+// ── Pool backfill: the hole a session-only existence check leaves ───────────
+
+test("an existing session with NO pool is reported for backfill, not skipped", () => {
+  // The failure this exists for: the session INSERT landed, the pool creation
+  // did not. A re-run that only asks "does the session exist" says yes and
+  // moves on, and the class sits on the schedule for ever with nothing to sell.
+  const now = new Date("2027-03-01T00:00:00Z");
+  const first = decideMaterialisation(series(), [], now);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+
+  const half = first.create.map((o, i) => ({
+    id: `s${i}`,
+    startsAt: o.startsAt,
+    hasPool: i % 2 === 0,
+  }));
+  const second = decideMaterialisation(series(), half, now);
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  assert.equal(second.create.length, 0, "nothing to create; every session exists");
+  assert.equal(
+    second.poolBackfill.length,
+    half.filter((h) => !h.hasPool).length,
+  );
+  assert.deepEqual(
+    second.poolBackfill,
+    half.filter((h) => !h.hasPool).map((h) => h.id),
+  );
+});
+
+test("a poolless session OUTSIDE the window is not backfilled", () => {
+  // Repairing a session the series no longer produces would resurrect capacity
+  // for a class that is not on the schedule.
+  const now = new Date("2027-03-01T00:00:00Z");
+  const d = decideMaterialisation(
+    series(),
+    [{ id: "ancient", startsAt: "2020-01-07T17:00:00.000Z", hasPool: false }],
+    now,
+  );
+  assert.equal(d.ok, true);
+  assert.equal(d.ok === true && d.poolBackfill.length, 0);
+});
+
+test("a fully materialised, fully pooled series asks for nothing", () => {
+  const now = new Date("2027-03-01T00:00:00Z");
+  const first = decideMaterialisation(series(), [], now);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const second = decideMaterialisation(
+    series(),
+    first.create.map((o, i) => ({ id: `s${i}`, startsAt: o.startsAt, hasPool: true })),
+    now,
+  );
+  assert.equal(second.ok === true && second.create.length, 0);
+  assert.equal(second.ok === true && second.poolBackfill.length, 0);
 });
