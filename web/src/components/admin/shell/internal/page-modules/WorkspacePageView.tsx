@@ -25,6 +25,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
+import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
 import { VenueSettingsCard } from "@/components/spaces/VenueSettingsCard";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
 import { StaffResourcesCard } from "@/components/appointments/StaffResourcesCard";
@@ -120,6 +121,9 @@ type GroupId =
   | "workspace"
   | "commercial-terms"
   | "venue"
+  // Industry and words: the sixteen presets. Sits above appointments
+  // because the preset supplies the nouns that screen then uses.
+  | "industry"
   | "appointments"
   | "pricing-defaults"
   | "domain"
@@ -446,6 +450,23 @@ export function WorkspacePageView() {
           {
             title: t("dashboard.adminWorkspace.venue.timezoneLabel"),
             desc: t("dashboard.adminWorkspace.venue.timezoneHint"),
+          },
+        ],
+      },
+      {
+        // Industry and words — the control for the sixteen presets. It sits
+        // ABOVE appointments because the preset supplies the nouns that screen
+        // then uses, including the terminology it reads.
+        id: "industry",
+        label: t("dashboard.adminWorkspace.industry.label"),
+        desc: t("dashboard.adminWorkspace.industry.desc"),
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? <IndustrySettingsCard /> : null,
+        extraSearch: [
+          {
+            title: t("dashboard.adminWorkspace.industry.label"),
+            desc: t("dashboard.adminWorkspace.industry.desc"),
           },
         ],
       },

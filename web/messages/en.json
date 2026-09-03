@@ -4268,6 +4268,10 @@
       "wsTalentCategoriesDesc": "Tenant-enabled categories for roster and registration",
       "bookingTermsLabel": "Booking terms",
       "bookingTermsDesc": "Default deposit, refund policy, and instant booking for new offers.",
+      "industry": {
+        "label": "Industry and words",
+        "desc": "Pick what you are. It sets what things are called on your site, your main button, and how the chat greets people. Nothing is locked."
+      },
       "appointments": {
         "label": "Appointments",
         "desc": "Turn on reservations, pick the public word, and set hours.",

@@ -52,6 +52,32 @@ const wordEditSchema = z.object({
   value: z.string().max(MAX_WORD_LENGTH),
 });
 
+/**
+ * The tenant's current industry choice, for the settings card.
+ *
+ * The card loads its own value rather than reading shell state: threading a new
+ * field through the workspace shell would touch the Dashboards Director's
+ * files for something only this one screen needs. Same shape as
+ * `loadTenantAppointmentsSettings`.
+ *
+ * Returns the RAW stored value, not a normalised one. The picker has to know
+ * what is actually in the column so it can show "Custom" for something
+ * unrecognised rather than silently displaying the first preset — see
+ * `picker-options.ts`.
+ */
+export async function loadIndustrySettings(): Promise<{
+  ok: true;
+  rawPresetId: unknown;
+} | { ok: false; error: string }> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const current = await readSettings(auth.supabase, auth.tenantId);
+  if (!current.ok) return { ok: false, error: CLIENT_ERROR.update };
+
+  return { ok: true, rawPresetId: current.settings.industry_preset };
+}
+
 export type IndustrySettingsResult =
   | { ok: true; data: WordsSettings }
   | { ok: false; error: string };
