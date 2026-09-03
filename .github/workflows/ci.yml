@@ -392,6 +392,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
+      # Sessions & Classes (Phase 1). Pure: the recurrence resolver, whose DST
+      # tests assert the naive 7x24h expansion DRIFTS while this one does not,
+      # and the tier-pool request builder that makes a timeless allocation
+      # impossible to construct.
+      - name: tests — sessions and classes
+        if: ${{ !cancelled() }}
+        run: npm run test:sessions
+
       # Spaces & Seating S1: the timezone ladder (venue, then workspace, then
       # the legacy appointments setting, then UTC) and the local-hour helper the
       # reminder cron gates on. Pure; the venue rows themselves are asserted in
