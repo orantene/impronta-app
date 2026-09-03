@@ -59,6 +59,13 @@ export default function GlobalError({
   reset: () => void;
 }) {
   const [isAgencyHost, setIsAgencyHost] = useState(false);
+  // Spanish is not a translation pass owed on this component, it was MISSING:
+  // both branches were English-only string literals while the businesses this
+  // card fronts work in Spanish. Detected client-side for the same reason
+  // isAgencyHost is — an error boundary has no server context — so the first
+  // paint is EN and it corrects on effect. A brief flash beats a card a
+  // visitor cannot read.
+  const [isSpanish, setIsSpanish] = useState(false);
 
   useEffect(() => {
     // Report with enough context to TRIAGE, not just to count.
@@ -87,6 +94,11 @@ export default function GlobalError({
     if (typeof window !== "undefined") {
       const h = window.location.hostname;
       setIsAgencyHost(!PLATFORM_HOSTS.has(h));
+      // `<html lang>` is set by the app's own locale resolution, so it is the
+      // most trustworthy signal available here; navigator.language is the
+      // fallback for the case where the document never finished setting up.
+      const docLang = document.documentElement.lang || navigator.language || "";
+      setIsSpanish(docLang.toLowerCase().startsWith("es"));
 
       if (isStaleClientError(error)) {
         let alreadyTried = false;
@@ -102,11 +114,33 @@ export default function GlobalError({
     }
   }, [error]);
 
+  // COPY RULE, worth keeping if this is ever revised: when a stranger meets a
+  // broken page on a small business's site, the one thing that must not happen
+  // is that they conclude the BUSINESS is broken. Never name a party to blame,
+  // never use a word the reader cannot act on, and say what to do first.
+  //
+  // The previous platform copy broke all three: "the agency may need to check
+  // configuration" blames our customer to our customer's customer, and
+  // "configuration" is not something a visitor can do anything about. On a
+  // path-based tenant (/w/<slug>) that visitor is a laundry's customer being
+  // told the laundry misconfigured something.
   const eyebrow = isAgencyHost ? "STUDIO" : "TULALA";
-  const heading = isAgencyHost ? "We hit a snag" : "Something went wrong";
+  const heading = isAgencyHost
+    ? isSpanish
+      ? "Algo no cargó"
+      : "We hit a snag"
+    : isSpanish
+      ? "Esta página no terminó de cargar"
+      : "This page didn't finish loading";
   const body = isAgencyHost
-    ? "The page didn't load this time. Please retry — if it keeps happening, reach out via the studio's contact form."
-    : "Please try again. If this keeps happening, the agency may need to check configuration.";
+    ? isSpanish
+      ? "La página no cargó esta vez. Inténtalo de nuevo y, si sigue pasando, escríbenos desde la página de contacto del estudio."
+      : "The page didn't load this time. Please retry, and if it keeps happening, reach out via the studio's contact form."
+    : isSpanish
+      ? "Es de nuestro lado, no del tuyo. Inténtalo de nuevo y normalmente carga."
+      : "This is on our side, not yours. Try again and it usually loads.";
+  const retryLabel = isSpanish ? "Reintentar" : "Try again";
+  const homeLabel = isSpanish ? "Ir al inicio" : "Go home";
 
   return (
     <div
@@ -205,7 +239,7 @@ export default function GlobalError({
               cursor: "pointer",
             }}
           >
-            Retry
+            {retryLabel}
           </button>
           <Link
             href="/"
@@ -214,7 +248,13 @@ export default function GlobalError({
               alignItems: "center",
               padding: "9px 18px",
               borderRadius: 999,
-              background: "#0F4F3E",
+              // NOT #0F4F3E. That is the ADMIN forest green, and this card
+              // renders on public pages for visitors who have never seen the
+              // admin. Inline hex is correct HERE — an error boundary must
+              // render when the stylesheet itself may have failed — but the
+              // VALUE has to be a neutral ink, because this component cannot
+              // know the tenant's brand and must not wear ours on their site.
+              background: "#18181B",
               color: "#ffffff",
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 13.5,
@@ -222,7 +262,7 @@ export default function GlobalError({
               textDecoration: "none",
             }}
           >
-            Go home
+            {homeLabel}
           </Link>
         </div>
 
