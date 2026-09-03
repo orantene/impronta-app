@@ -90,7 +90,29 @@ Not acted on unilaterally: those are other directors' worktrees and someone may 
 
 **`nice 20` costs nothing except under contention.** It is a yield-to-others flag, not a speed limit; on an unloaded machine a nice-20 process runs at full speed. So removing nicing and serialising the four bypassers *repaired* the job that was believed to be permanently ruined. `ps -o time,etime` twice, sixty seconds apart: **if `TIME` moves, it is working.** This is the department's own "a paused gate is queued, not hung" rule one level down, and it is easy to reason past when the account of the damage is specific and plausible.
 
-**The transferable rule: a throttle you cannot undo is not a throttle, it is damage.** `renice` is one-way for a non-root caller, so a governor that lowers priority is making a permanent decision about a process it does not own — and it made that decision about the one job every other job was waiting on. The recorded shape this belongs to is the typecheck serialiser reclaiming locks from live healthy runs "for safety": both are a backstop that inverts exactly when it is needed.
+**The transferable rule: a throttle you cannot undo is not a throttle, it is damage.**
+
+### THE GOVERNOR KILLS THE JOB THAT WAITED LONGEST, EVERY TIME, BY CONSTRUCTION
+
+**Found 23:22Z, after my own R1 typecheck was killed 90 seconds after winning a lock it had waited 24 minutes for.** Two orderings that disagree, with a kill at the bottom of one of them:
+
+1. `govern` allows `MAX_TSC=1` and SIGSTOPs everything past slot 1, ordered **most CPU consumed first**.
+2. A job that has **just started has consumed ~0 CPU**, so it is always last, always past slot 1, always SIGSTOPped.
+3. The emergency block, **in the same tick**, selects every stopped gate (`awk '$2 ~ /^T/'`) and kills it when free swap is under 1 GB.
+4. The loop sleeps 3 seconds.
+
+**So while swap is under 1 GB, every newly started gate is stopped for having done nothing yet and killed for being stopped, within about three seconds. Nothing can start at all.** Twelve `EMERGENCY KILL` lines in two minutes at *climbing* pids — 82034, 82462, 83738, **85401 (mine)**, 87058, 88900, 89667, 90399, 91211, 91824, 93598, 94779 — which is new processes being spawned and killed on sight. One gate survived on the whole machine: the one already running before the emergency began.
+
+**The comment justifying the kill is false for exactly the job it kills first.** It reads *"a queued gate has produced nothing, so killing costs a re-run and nothing else."* For a job that has just won the serialiser's lock, killing costs the **24 minutes it spent acquiring it** — and it will spend them again and be killed again, because the mechanism is deterministic. **The cost is unbounded, not one re-run.**
+
+**The general shape, and it is the third instance tonight in the same file:** a backstop that inverts exactly when it is needed, selecting its victim by *has done least work* — which, downstream of a serialiser, means **has waited longest**. The serialiser hands out a lock by seniority; the governor kills by juniority; the winner of the first is the first victim of the second.
+
+**Recommended fix, using machinery the script already has.** `lock_tree` is already computed to render `RUN-LOCK` / `QUEUED-LOCK` in the status file, so the governor already knows which process holds the tsc-queue lock and uses it nowhere that matters. (a) **Exempt the lock holder from both SIGSTOP and the emergency kill** — it is by definition the one job every other queued job is waiting on, so killing it cannot reduce contention, it only resets the queue. (b) Order `govern` so the lock holder is **slot 1**, never last. (c) If memory must be reclaimed, kill the longest-queued job that does **not** hold the lock, or refuse to kill and let the queue drain — never the holder.
+
+**A related statement that does not match its file.** Nicing was reported removed from the governor entirely. The pause path is indeed clean now. But the **main loop still renices every gate to 15 on every tick**, and the one surviving gate was measured at nice 15. Not asserted as harmful at 15 the way 20 was; asserted as **the statement and the file disagreeing, and the file winning.** `renice` is one-way for a non-root caller by the governor's own argument, so this is the irreversible-damage defect still armed one screen further down the same file.
+
+**Standing consequence for every manager:** an `exit 143` from a gate is **SIGTERM, not a result** — `tsc-queue` says so itself and refuses to report it. Re-run it; do not record it; and while free swap is under 1 GB, do not re-run at all, because the next attempt dies in three seconds and tells you only that the loop is still running.
+ `renice` is one-way for a non-root caller, so a governor that lowers priority is making a permanent decision about a process it does not own — and it made that decision about the one job every other job was waiting on. The recorded shape this belongs to is the typecheck serialiser reclaiming locks from live healthy runs "for safety": both are a backstop that inverts exactly when it is needed.
 
 ### A LANE CAN BE IN THE WORKFLOW AND ABSENT FROM `ci`, AND THE PARITY GUARD PASSES
 
