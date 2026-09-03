@@ -180,6 +180,33 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
       p_verified_email: user.email ?? "",
     });
   }
+  // Welcome the new client. The copy and template have existed since the
+  // notification engine shipped, but nothing ever dispatched them — no catalog
+  // entry referenced "client.welcome", so no client has ever been welcomed.
+  // Mirrors the talent path below: fire-and-forget, platform-scoped, and a
+  // failure here must never block onboarding (the redirect still happens).
+  const clientUserId = user.id;
+  const clientDisplayName =
+    (user.user_metadata?.full_name as string | undefined)?.trim() ||
+    (user.user_metadata?.name as string | undefined)?.trim() ||
+    null;
+  void (async () => {
+    try {
+      const { dispatchEventNotifications } = await import(
+        "@/lib/notifications/dispatcher"
+      );
+      await dispatchEventNotifications({
+        type: "account.client_onboarded",
+        tenantId: null,
+        userId: clientUserId,
+        eventId: `client-welcome:${clientUserId}`,
+        payload: { clientName: clientDisplayName },
+      });
+    } catch (err) {
+      logServerError("onboarding/client-welcome", err);
+    }
+  })();
+
   revalidatePath("/", "layout");
   const workspaceDestination = await ensureClientRelationshipForNext(user.id, nextPath);
   redirect(workspaceDestination ?? "/client");

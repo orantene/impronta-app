@@ -1,4 +1,20 @@
 /**
+ * STATUS (2026-09-03): UNWIRED SCAFFOLD, deliberately. Neither
+ * `findAbandonedDrafts` nor `runAbandonedDraftNudgeSweep` has a caller, and
+ * there is no cron entry for them — it shipped as a scaffold (commit 9d1fe876a,
+ * "abandoned-draft scaffold") and was never finished.
+ *
+ * Recorded here because a notification audit keeps rediscovering it as a
+ * "built but never sent" entry and spending time re-deriving that it is
+ * intentional. It is not a wiring bug.
+ *
+ * TO FINISH IT you need: a route under src/app/api/cron/, a `crons` entry in
+ * vercel.json, and a catalog entry for whatever event the sweep dispatches.
+ * Do NOT schedule it before `inquiry_drafts` actually carries rows (it has
+ * none in production today) — an email path that has never executed against
+ * real data should not go live on a cron nobody is watching.
+ */
+/**
  * abandoned-draft-nudge.ts — Phase 8 (returning-visitor nudges), part 3.
  *
  * SCAFFOLD + PLAN. This module holds the QUERY and the per-row nudge LOGIC for
