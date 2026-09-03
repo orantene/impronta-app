@@ -17,7 +17,11 @@ function isRole(s: string): s is Role {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { role } = await params;
   if (!isRole(role)) return { title: "Help · Tulala" };
-  const c = ROLE_LABELS[role];
+  // Title and description follow the body: a Spanish search result that
+  // promises Spanish and opens in English is a worse click than an honest one.
+  const locale = await getRequestLocale();
+  const entry = ROLE_LABELS[role];
+  const c = locale === "es" && entry.es ? entry.es : entry;
   return {
     title: `${c.title} · Tulala`,
     description: c.intro.slice(0, 160),
@@ -31,7 +35,13 @@ export default async function HelpRolePage({ params }: Props) {
   const locale = await getRequestLocale();
   if (!isRole(role)) notFound();
 
-  const c = ROLE_LABELS[role];
+  // Most roles are English-only; the business guides are authored in both. Show
+  // a Spanish reader the Spanish body where it exists rather than a Spanish
+  // chrome wrapped around an English guide — the guest AI already grounds on
+  // exactly this distinction, and the page disagreeing with it would be worse
+  // than either one alone.
+  const role_ = ROLE_LABELS[role];
+  const c = locale === "es" && role_.es ? { ...role_, ...role_.es } : role_;
 
   return (
     <main
@@ -160,7 +170,7 @@ export default async function HelpRolePage({ params }: Props) {
               textDecoration: "underline",
             }}
           >
-            {ROLE_LABELS[other].title}
+            {(locale === "es" && ROLE_LABELS[other].es ? ROLE_LABELS[other].es : ROLE_LABELS[other]).title}
           </Link>
         ))}
       </nav>

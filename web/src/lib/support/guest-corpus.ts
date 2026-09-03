@@ -339,33 +339,38 @@ function pricingEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
 /**
  * The /help role guides, as grounding.
  *
- * These are ENGLISH-ONLY: `ROLE_LABELS` has no locale dimension, unlike every
- * other source in this corpus. They were previously added to the Spanish corpus
- * verbatim, which is worse than leaving them out — the retriever is bag-of-words
- * over the entry text, so Spanish query tokens score ~0 against English bodies
- * and contribute nothing, while the English text still lands in the prompt and
- * invites the model to answer a Spanish visitor with English source material.
+ * Most of /help is ENGLISH-ONLY. Those guides were once added to the Spanish
+ * corpus verbatim, which is worse than leaving them out — the retriever is
+ * bag-of-words over the entry text, so Spanish query tokens score ~0 against
+ * English bodies and contribute nothing, while the English text still lands in
+ * the prompt and invites the model to answer a Spanish visitor with English
+ * source material.
  *
- * So the ES corpus omits them. The remaining three sources (features, pricing,
- * sales) are genuinely bilingual, and a thinner accurate corpus produces an
- * honest "let me get a person" rather than an answer the reader cannot check.
+ * So the guard was a blanket `locale !== "en" -> []`. That was right while no
+ * guide had Spanish, and wrong the moment one did: the business guides
+ * (restaurants, salons, shops) are authored in both languages, and a blanket
+ * rule would have hidden the only guides written for the businesses actually
+ * signing up from every Spanish visitor.
  *
- * Translating the 22 guide bodies is content work, not a code change: they carry
- * prices and URLs and belong to Marketing. When they gain an `es` field, drop
- * the locale guard here.
+ * The rule is now per-role and derived from the content: a role reaches the
+ * Spanish corpus if it HAS Spanish, and is skipped if it does not. No list to
+ * keep in sync — translating an existing role makes it appear here on its own.
  */
 function helpGuideEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
-  if (locale !== "en") return [];
-  return (Object.entries(ROLE_LABELS) as Array<[string, (typeof ROLE_LABELS)[keyof typeof ROLE_LABELS]]>).map(
-    ([role, content]) => ({
+  const entries: HelpCorpusEntry[] = [];
+  for (const [role, content] of Object.entries(ROLE_LABELS)) {
+    const text = locale === "en" ? content : content.es;
+    if (!text) continue;
+    entries.push({
       slug: `help:${role}`,
-      purpose: `${content.title}. ${content.intro}`,
-      youCanHere: content.guides.map((g) => g.heading),
-      faqs: content.guides.map((g) => ({ q: g.heading, a: g.body })),
+      purpose: `${text.title}. ${text.intro}`,
+      youCanHere: text.guides.map((g) => g.heading),
+      faqs: text.guides.map((g) => ({ q: g.heading, a: g.body })),
       category: "help",
       ticketCategory: role === "clients" ? "found" : "run",
-    }),
-  );
+    });
+  }
+  return entries;
 }
 
 /**
