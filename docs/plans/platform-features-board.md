@@ -33,19 +33,22 @@ Off the critical path, blocking nothing, and worth starting first because they a
 
 ## Status by manager
 
-| Manager | Go | Current | Next | Blocked on | Last message |
-|---|---|---|---|---|---|
-| Capacity Engine | A | **plan APPROVED, all 5 decisions upheld; building 0.2 in `wt-capacity-engine`, band `20261229000200`–`…219`** | 0.2 pools + allocations + reserve RPCs, then 0.3 | nothing. Spaces & Seating inherits the ancestor rule with a right to challenge it | Director ruling sent 2026-09-03 |
-| Spaces & Seating | A (S1 only) | **NO CHAT OPEN — prompt DELIVERED to the owner 2026-09-03, paste-ready** | mockups + plan, S1 | nothing. S1 (venue + timezone) is read by four other areas | prompt now states the ancestor rule they inherit and their right to overturn it |
-| Orders & Checkout | **Wave B** | **0.8a, 0.4 and 0.5 all merged and LIVE-VERIFIED. The Orders spine is in production.** Migrations `…140`–`…145` applied. | **0.6 — `lib/orders/purchase.ts` replacing both engines.** First slice that DELETES live code paths rather than adding beside them. | **0.6 has no remaining dependency**: 0.5 is live, Capacity 0.2 applied. 0.5c held on the grain P0 only. | 0.5 live-verified, starting 0.6, 2026-09-03 |
-| Front Door | A (F1, F2) | **F1a written (26 hrefs, new guard, cue reader fixed); F2a written; queue defect they found is fixed** | F2b/F2c, F1e verb, then F1a-2 and F1b | both branches await the full tsc; F1d blocked on D7; F1b behind the anchor answer | lock fix confirmed 2026-09-03 |
-| Menu Workspace (existing) | A (item 1) | **chat open, silent** | stock in editor, sold-out, payInPerson | re-home waits on Orders 0.6 | **ruling sent 2026-09-03: they own the stock editor UI; oversell is unbounded. Chased twice, no reply** |
-| Appointments (existing) | A (items 1 to 4) | **chat open, silent** | click through the never-clicked screens, then items 1 to 4 | F8 waits on Capacity 0.3 | **chased twice, no reply. Nothing waits on them, so silence costs schedule not blocking** |
-| Sessions & Classes | C | not started | plan + pure prototypes | Orders 0.6 | none |
-| Events & Ticketing | D | not started | designs + plan | Phase 1 | none |
-| Reservations | D | not started | designs + plan | Phase 1, Spaces S2 | none |
-| QR & Links | A (Q1, Q2) | **NO CHAT OPEN — prompt DELIVERED to the owner 2026-09-03, paste-ready** | plan doc, then Q1 | Q3 waits on Orders 0.5 + Page Builder Director; Q4 on Orders 0.6 | none |
-| Workspace & Dashboards Director (separate department) | running | WP2 HQ regroup | WP3, WP4 | nothing | WP1 merged #1497 |
+*Rewritten end of day 2026-09-03. The previous table described the morning and was eight PRs stale for Spaces alone — the manager flagged it rather than editing the Director's file, which was right.*
+
+| Manager | Current | Next | Blocked on |
+|---|---|---|---|
+| **Capacity Engine** | **Phase 0 COMPLETE and live** — 0.2, 0.3a/b/c, 0.9-cap, 0.10, 0.11, the unchecked-read ratchet and the registry guard. The oversell is closed. | **Sessions & Classes P1.1** — `session_series`, `sessions`, recurrence. Timestamp `20261229000214` verified free; `session_tier` closes the unregistered list. | nothing. **Needs a handoff decision if the Sessions chat opens** — they are already building it. |
+| **Spaces & Seating** | **S1, S2 and S3 all merged and live.** Venues + one timezone resolver, the rooms-and-tables editor, seating/moving/closing, both invariants under failing-first test. Eight PRs. | **A clean stop, on purpose.** S4–S6 (layouts, seat maps, minimum spend) are wave E, behind Events and Reservations, and neither manager exists. | nothing. Declined a dev-server lease on the grounds that a lease being available is not the work being ready. |
+| **Orders & Checkout** | **0.4, 0.5, 0.6a and 0.8a merged and live-verified.** The Orders spine and `createPurchase` are in production; both engines still present by design. | **0.7, the order card in the thread** — the visibility surface that makes 0.6b's deletions safe. Then 0.6b. | **#1561, two type errors**, both diagnosed: `WordsLookup` is a function-bearing object, so `words.word("menu.order")` not `words["menu.order"]`; and `admin-4.tsx:309` reads a second inline message type needing the same `order` extension. |
+| **Front Door** | **Twelve merged.** F1a, F1d, nav, F2a, F2b, F2c, F3a, F3b, F5, the services design, the Settings screen, F8's design and engine halves. **F2 is complete end to end.** | **F1e, the header verb** — the piece the whole F2 chain was built to make possible. Then the Sheet component, held for them. | F4 on Orders 0.8, F6 on 0.7, F7 behind F4, F9 behind Phases 1–3. |
+| **Menu Workspace** | **Three merged** — the unpayable card request (#1528), the sold-out board and stock editor (#1535), the words wiring (#1559). **Not silent; the Director reported them so wrongly this morning and corrected it.** | The sold-out badge's remaining surface. | **Unresponsive since ~18:20** through two full unblocks and a direct question. **If still silent, the badge reassigns to Capacity**, who offered and correctly deferred. |
+| **Appointments** | **First PR of the day merged** (`cdf3bfc3b`) after eight hours silent — *clearing the timezone box inherits, it does not write UTC.* A real bug, and the same "an absent value is not a default" rule three other managers reached independently. | `BookingHoursCard`, one of five surfaces that hardcoded UTC. | Front Door's open question: **is a house offering's booking mode the same question as a talent's, given a chair has no `booking_terms` and no agency relationship?** Not blocking either side. |
+| **Sessions & Classes** | **READY TO OPEN** — P1.1–P1.3 need nothing from Orders 0.6, verified against the shipped schema. | Prompt 6. | **A collision, not a dependency:** Capacity is already building P1.1. Open it *with* a handoff of their branch, or two sessions write `lib/sessions/`. |
+| **Reservations** | **READY TO OPEN** — Phase 1 is band mode, which Spaces shipped today. | Prompt 8. First slice: the reservation flow against a band pool, no floor plan needed. | nothing for Phase 1. Phase 3 (host stand) waits on Spaces' band→assigned migration. |
+| **Events & Ticketing** | **BLOCKED.** `admissions` does not exist anywhere in the repo — zero references. Ticketing is orders + admissions + a door app. | Prompt 7, after the dependency clears. | One migration for `admissions` (~half a day), plus Orders 0.7 landed so a ticket purchase is visible. |
+| **QR & Links** | **READY TO OPEN**, no dependency. | Prompt 10. Q1/Q2 have a Wave A go. | nothing. Will append `/q/<code>` to `AGENCY_STOREFRONT_PREFIXES` — a one-line merge with Front Door's `/me`. |
+
+**Director capacity, stated honestly:** six managers is at the limit, and what broke today was **the message channel, not review throughput** — one ruling took eight delivery attempts and blocked a manager for hours while the decision had already been made. A decision that cannot be delivered is indistinguishable from one that has not been made. **Recommendation: a second director takes Sessions, Events and Reservations as one cluster** — they share a spine and carry no history to inherit.
 
 ## Shipped
 
@@ -241,6 +244,9 @@ The CEO's proposal, adopted: **a short weekly session where the owner walks ONE 
 **The standing rule this does not change:** a manager may not assert a UI path they have not clicked, and may not grant themselves an exemption from a repo rule. This list is how the obligation gets discharged by the one person who can discharge it.
 
 ## Department rules added in flight
+**A sort cannot tell a preference from a hard constraint.** Found by the Spaces & Seating Manager, by a test rather than a review: ordering seating placements longest-window-first let an unseated party take a table **a guest was already sitting at**, because the sort had no way to know one of those was a person mid-meal. **Seating is a hard constraint; duration is only a preference.** The code was wrong, not the test — which is the opposite of the three fixture-versus-code calls made earlier today, and worth having both directions on the record.
+
+
 **A stacked PR whose base is squash-merged lands INSIDE its parent's commit, and the parent's subject then lies about its contents.**
 
 Found by the Spaces & Seating Manager about their own history, and verified: commit `05699209b` is titled *"fix(capacity): a registration without ON CONFLICT swallowed the next statement (#1568)"* and actually contains **nine files** — `SpacesEditor.tsx` (314 lines), `spaces/editor.ts`, `spaces/pools.ts`, `server-actions/spaces-editor.ts`, migration `…222`, and the en/es strings. All of S2b.
