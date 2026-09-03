@@ -15,6 +15,7 @@ import {
   hubMayListTalent,
   mapTenantDiscoverExposure,
 } from "@/lib/saas/discover-exposure";
+import { logServerError } from "@/lib/server/safe-error";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import {
   parseTenantAppointmentSettings,
@@ -299,12 +300,15 @@ export async function resolveTalentBooking(
   // whose first rung is the venue the workspace actually operates from.
   let venueTimezone: string | null = null;
   if (channelAgency) {
-    const { data: venueRow } = await admin
+    const { data: venueRow, error: venueError } = await admin
       .from("venues")
       .select("timezone")
       .eq("tenant_id", channelAgency.id)
       .eq("is_default", true)
       .maybeSingle();
+    // A failed read is not "no venue". Falling silently to the next rung would
+    // hide a denied policy behind a plausible-looking UTC.
+    if (venueError) logServerError("booking-surface.venue-timezone", venueError);
     venueTimezone = (venueRow as { timezone: string | null } | null)?.timezone ?? null;
   }
 
