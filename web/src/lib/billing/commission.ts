@@ -81,11 +81,37 @@ export type CommissionResolvedFrom =
 /** Shape of one row in `inquiry_offer_line_items`, projected to the
  *  fields the resolver actually needs. */
 export interface OfferLineItemForResolver {
-  /** How many units of this line (hours, days, events). >= 1. */
+  /**
+   * Multiplier for this line. The resolver computes `units * unit_price_cents`
+   * and `units * talent_cost_cents`, so the two amount fields must be stated at
+   * whatever grain `units` implies.
+   *
+   * GRAIN WARNING — read before changing a caller. On
+   * `inquiry_offer_line_items`, `unit_price` is PER UNIT but `talent_cost` is
+   * the LINE TOTAL. Passing both through as per-unit multiplied the talent's
+   * cost by units a SECOND time, which inflated `talent_net_cents`; that value
+   * is paid straight through as a transfer amount, so it moved real money.
+   * Fixed 2026-09-02 (migration 20261226000017).
+   *
+   * `engine_load_commission_context` therefore passes LINE TOTALS with
+   * `units = 1`. Dividing `talent_cost` by units to reach a per-unit figure was
+   * rejected deliberately: it reintroduces rounding drift ($200.00 over 3 units
+   * is 6667c x 3 = 20001c) which the lane reconciler would then absorb into
+   * platform_fee, hiding an inexactness rather than avoiding it.
+   */
   units: number;
-  /** What the client pays per unit, in cents of the offer's presentment currency. */
+  /**
+   * What the CLIENT pays for this line, in cents of the offer's presentment
+   * currency, at the grain `units` implies. The SQL context passes the line's
+   * `total_price` with `units = 1`, because `total_price` is the figure the
+   * client actually agreed to and `round(unit_price * 100) * units` can differ
+   * from it by a cent.
+   */
   unit_price_cents: number;
-  /** What the talent gets per unit (workspace margin = unit_price - talent_cost). */
+  /**
+   * What the TALENT is owed for this line, at the same grain. Workspace margin
+   * for the line is `unit_price_cents - talent_cost_cents`.
+   */
   talent_cost_cents: number;
 }
 

@@ -191,7 +191,10 @@ export async function createClientVerificationCheckoutSession(opts: {
       },
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
-    });
+    },
+    // Idempotency: a double submit must not mint a SECOND Checkout session.
+    // Verification happens once per user per workspace, so identity IS the key.
+    { idempotencyKey: `cs_verify_${opts.userId}_${opts.tenantId}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
@@ -278,7 +281,12 @@ export async function createClientBalanceTopupCheckoutSession(opts: {
       },
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
-    });
+    },
+    // Idempotency: a double submit must not mint a SECOND Checkout session.
+    // A top-up is legitimately repeatable, unlike the others, so the key carries a
+    // 10-minute bucket: a double click inside one bucket is deduped, while a
+    // deliberate second top-up of the same amount later still gets its own session.
+    { idempotencyKey: `cs_topup_${opts.userId}_${opts.tenantId}_${opts.amountCents}_${Math.floor(Date.now() / 600_000)}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
@@ -347,7 +355,10 @@ export async function createClientProCheckoutSession(opts: {
       },
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
-    });
+    },
+    // Idempotency: a double submit must not mint a SECOND Checkout session.
+    // One client Pro subscription per user; a second session would mean a second sub.
+    { idempotencyKey: `cs_clientpro_${opts.userId}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
