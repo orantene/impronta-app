@@ -126,11 +126,15 @@ test("the unregistered kinds are named, so the coverage gap cannot hide", () => 
   // These are UNVALIDATED today: a pool of this kind may point at nothing.
   // Each is registered by its owner when their table ships. When one is
   // registered, delete it from this list in the same commit.
-  //   space, space_group — registered by Spaces & Seating in 20261229000221.
-  //   session_tier       — still owed by Sessions & Classes.
+  // EMPTY for the first time: every kind in the CHECK constraint now has a
+  // backing table, so upsert_capacity_pool validates all of them.
+  //   offering, person   — 20261229000212
+  //   space, space_group — Spaces & Seating, 20261229000221
+  //   session_tier       — Sessions & Classes, 20261229000214
+  // If this list grows again, a kind was added to the CHECK without a table.
   assert.deepEqual(
     unregistered.sort(),
-    ["session_tier"],
+    [],
     "the set of unvalidated subject kinds changed — update this list deliberately",
   );
 });
