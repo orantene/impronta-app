@@ -155,6 +155,26 @@ CREATE TABLE public.admissions (
 );
 ```
 
+**PERMIT THE UNKNOWN, BUT ENUMERATE IT.** A `num_nonnulls(...) >= 1` check across four nullable
+columns is very close to no constraint: it refuses only a row that names nothing at all. That is
+deliberate — a stricter guard is what refused every band-mode reservation in the first draft — but a
+permissive check with no statement of intent means the next person adding a case *discovers* rather
+than *decides*. So the legitimate combinations are enumerated here and in the migration, following
+the department's own precedent: `capacity_subject_kinds` permits an unregistered kind so the engine
+never blocks a feature, and a test enumerates the unregistered set so the gap is a decision.
+
+| Case | allocation | session | space | order_line |
+|---|---|---|---|---|
+| Class seat or ticket, capped | yes | yes | — | yes |
+| Comp or guest list on a capped session | yes | yes | — | **no** (no order) |
+| **Uncapped RSVP or free registration** | **no** (no pool ⇒ no allocation) | yes | — | yes |
+| Band-mode table reservation, before the host seats it | yes | — | **no** (unassigned is valid) | yes |
+| Walk-in, seated against the same pool | yes | — | assigned later | **no** (no order) |
+
+Read down the columns and every one of the four is absent in at least one legitimate case, which is
+precisely why the anchor cannot be any single column and why the check is weak on purpose. A test
+pins this table, so adding a sixth case is a visible edit rather than a silent widening.
+
 **On `allocation_id NOT NULL`, which the Director has ruled for and I have contested once.** The
 case for it is strong: class seat, ticket, table and walk-in are all backed by a capacity allocation
 by construction, and a NOT NULL on the thing that is always there beats a CHECK over two things that
