@@ -4,12 +4,110 @@
  * PURE. Slots are UTC instants. Wall-clock math happens only here, via Intl,
  * and is never re-derived from a stored string later.
  *
- * DST policy (locked in the appointments plan):
- *   - nonexistent local times (spring-forward gap) → skip (return null)
- *   - ambiguous local times (fall-back overlap) → first occurrence (earliest UTC)
+ * DST policy:
+ *   - ambiguous local times (fall-back overlap) → first occurrence (earliest UTC).
+ *     Not configurable: both instants are real, and the earlier one is the answer
+ *     for every caller we have.
+ *   - nonexistent local times (spring-forward gap) → THE CALLER CHOOSES, because
+ *     the right answer genuinely differs by caller and a shared default would be
+ *     silently wrong for one of them:
+ *
+ *       gap: "skip" (default)  return null. Correct for an appointment SLOT:
+ *                              there is no such moment to offer, and the next
+ *                              slot covers it. Every pre-existing caller.
+ *       gap: "next"            return the instant the clock reaches. Correct for
+ *                              a recurring CLASS: the studio opens and the
+ *                              teacher turns up on the gap day. Returning null
+ *                              there deletes one occurrence a year in every DST
+ *                              zone — no session, no pool, no seat, and no error
+ *                              raised anywhere, which is quieter than a wrong
+ *                              time and therefore worse.
+ *
+ * This parameter exists because two resolvers with OPPOSITE gap policies briefly
+ * shipped — this one and a duplicate in lib/sessions/recurrence.ts — which is the
+ * two-guards-asserting-opposite-things shape. The fix is not to pick a winner and
+ * silently change a caller's behaviour; it is one implementation with the choice
+ * NAMED AT THE CALL SITE. Proposed by the Sessions & Classes Manager, whose
+ * argument that null is the quieter failure is the reason the default did not
+ * simply win.
  */
 
+/**
+ * A WALL CLOCK IS ONLY EVER AN INPUT. Resolve it ONCE, then stay in instants:
+ * every duration, turn and offset is added to the INSTANT, never to the clock.
+ *
+ * Adding to the clock and resolving afterwards is wrong on a DST day and wrong
+ * silently. Measured, Europe/Madrid 2027-03-28, a 01:30 seating with a 90-minute
+ * turn:
+ *
+ *   instant + 90m     -> 02:00Z = 04:00 local   the table is held 90 minutes
+ *   wall clock + 90m  -> 01:00Z = 03:00 local   the table is held THIRTY
+ *
+ * The second releases the table an hour early and frees its capacity unit while
+ * the party is still eating — and the arithmetic is correct throughout, so there
+ * is no anomaly to find afterwards. Found by the Reservations Manager.
+ *
+ * `zonedWindow` below does this correctly; prefer it to resolving twice.
+ */
+
+export type GapPolicy = "skip" | "next";
+
+/**
+ * HOW a wall clock resolved, not just what it resolved to.
+ *
+ * `zonedLocalToUtc` returns a bare Date, so a caller cannot tell an instant that
+ * genuinely reads back as the requested clock from one that was SHIFTED out of a
+ * spring-forward gap. That distinction is not cosmetic — under gap:"next" two
+ * different wall clocks collapse onto ONE instant:
+ *
+ *   Europe/Madrid, 2027-03-28, gap:"next"
+ *     02:30 requested -> 2027-03-28T01:30:00.000Z  (03:30 local)
+ *     03:30 requested -> 2027-03-28T01:30:00.000Z  (03:30 local)  <- same instant
+ *
+ * A club with a 02:30 show and a 03:30 show gets two sessions at one instant on
+ * gap night, each with its own capacity pool, each selling the same room. Nothing
+ * refuses it while those pools are parentless. Found by the Reservations Manager
+ * and reproduced by Sessions & Classes; the same collapse makes a booking page
+ * offer one instant twice under two labels.
+ *
+ * A caller cannot defend against that if it cannot SEE the shift, so this reports
+ * it. `shifted` is the only outcome that needs handling; the rest behave normally.
+ */
+export type WallClockResolution =
+  | { kind: "exact"; instant: Date }
+  /** Fall-back overlap: the clock reads this twice. The EARLIER instant is given. */
+  | { kind: "ambiguous"; instant: Date }
+  /** Spring-forward gap under gap:"next". The instant does NOT read back as asked. */
+  | { kind: "shifted"; instant: Date }
+  /** Spring-forward gap under gap:"skip", or unusable inputs. */
+  | { kind: "nonexistent" };
+
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * A real calendar date, or null.
+ *
+ * The shape check is NOT enough. `Date.UTC(2027, 12, 40)` does not fail, it rolls
+ * over into 2028-02-09 — so `weekdayUtc("2027-13-40")` returned 3, a confident
+ * answer about a date that does not exist, and `addUtcDays` walked off the same
+ * cliff. Callers already handle null (`if (weekday == null) continue`), so this
+ * can only turn a wrong answer into a skip.
+ *
+ * Same family as the DST gap this module already refuses: a function should say
+ * "there is no answer" rather than invent a plausible one. The round trip also
+ * rejects dates that do not exist, like 31 February.
+ */
+function parseYmd(ymd: string): { y: number; m: number; d: number } | null {
+  const match = YMD_RE.exec(ymd);
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const at = new Date(Date.UTC(y, m - 1, d));
+  if (at.getUTCFullYear() !== y || at.getUTCMonth() !== m - 1 || at.getUTCDate() !== d) return null;
+  return { y, m, d };
+}
 
 export function isValidIanaTimeZone(timeZone: string): boolean {
   if (typeof timeZone !== "string" || timeZone.trim().length === 0) return false;
@@ -60,21 +158,22 @@ function formatInZone(
  * (0..1439). Returns null when the local time does not exist (DST gap) or
  * the zone/inputs are unusable.
  */
-export function zonedLocalToUtc(
+export function resolveWallClock(
   ymd: string,
   minutesOfDay: number,
   timeZone: string,
-): Date | null {
-  if (!isValidIanaTimeZone(timeZone)) return null;
-  const match = YMD_RE.exec(ymd);
-  if (!match) return null;
+  options: { gap?: GapPolicy } = {},
+): WallClockResolution {
+  if (!isValidIanaTimeZone(timeZone)) return { kind: "nonexistent" };
+  const parsed = parseYmd(ymd);
+  if (!parsed) return { kind: "nonexistent" };
   if (!Number.isInteger(minutesOfDay) || minutesOfDay < 0 || minutesOfDay > 1439) {
-    return null;
+    return { kind: "nonexistent" };
   }
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
+  const year = parsed.y;
+  const month = parsed.m;
+  const day = parsed.d;
   const hour = Math.floor(minutesOfDay / 60);
   const minute = minutesOfDay % 60;
 
@@ -98,20 +197,68 @@ export function zonedLocalToUtc(
     );
   };
 
-  let ms = utcAsIf - offsetAt(utcAsIf);
-  ms = utcAsIf - offsetAt(ms);
+  // DERIVE the transition, never assume it.
+  //
+  // Sampling the offset a day either side gives the two candidate instants for
+  // this wall clock. On an ordinary day they are the same instant; across a
+  // transition they differ BY THE SIZE OF THE SHIFT, whatever that is.
+  //
+  // Earlier versions probed a hardcoded 3_600_000 ms, which is wrong wherever a
+  // zone does not shift by an hour: Australia/Lord_Howe shifts by THIRTY minutes,
+  // so a genuinely ambiguous 01:45 was reported "exact" AND returned the later
+  // instant — silently breaking the "fall-back → earliest UTC" rule this module
+  // documents as unconditional. Found in review by the Sessions & Classes
+  // Manager. Deriving the delta covers half-hour zones, 45-minute zones, and any
+  // future zone that changes its DST amount, which has happened before.
+  // DEDUPED, and that is load-bearing: on an ordinary day both samples give the
+  // same offset, so both candidates are the SAME instant. Without the dedupe
+  // `matching.length` is 2 and every ordinary time reports "ambiguous".
+  const candidates = [
+    ...new Set([
+      utcAsIf - offsetAt(utcAsIf - 86_400_000),
+      utcAsIf - offsetAt(utcAsIf + 86_400_000),
+    ]),
+  ]
+    .filter((ms) => Number.isFinite(ms))
+    .sort((a, b) => a - b);
+  if (candidates.length === 0) return { kind: "nonexistent" };
 
-  if (!matches(ms)) {
-    const nearby = [ms - 3_600_000, ms + 3_600_000, ms - 7_200_000, ms + 7_200_000];
-    const hit = nearby.find((candidate) => matches(candidate));
-    if (hit == null) return null;
-    ms = hit;
+  // The round trip IS the test: does this instant read back as the clock asked
+  // for? Zero matches means a gap, two means the clock reads twice.
+  const matching = candidates.filter(matches);
+
+  if (matching.length === 0) {
+    if ((options.gap ?? "skip") === "skip") return { kind: "nonexistent" };
+    // "next": the instant the clock actually reaches. That is the LATER of the
+    // two candidates in every zone, positive or negative offset alike — the
+    // later candidate is the one built from the pre-transition offset, which is
+    // the side the requested clock falls off. Verified in both signs:
+    // America/New_York (negative) and Europe/Madrid (positive) both land after
+    // the gap.
+    return { kind: "shifted", instant: new Date(candidates[candidates.length - 1]) };
   }
 
-  // Ambiguous wall times: keep the earliest UTC instant (first occurrence).
-  if (matches(ms - 3_600_000)) ms -= 3_600_000;
+  // Ambiguous: the clock reads this at more than one instant. Earliest wins.
+  if (matching.length > 1) return { kind: "ambiguous", instant: new Date(matching[0]) };
 
-  return new Date(ms);
+  return { kind: "exact", instant: new Date(matching[0]) };
+}
+
+/**
+ * The instant for a local civil time, or null when it does not exist.
+ *
+ * The convenient form. Use `resolveWallClock` when you need to know WHETHER the
+ * answer was shifted out of a gap — a shifted instant can equal another wall
+ * clock's instant, and only the caller knows whether that matters.
+ */
+export function zonedLocalToUtc(
+  ymd: string,
+  minutesOfDay: number,
+  timeZone: string,
+  options: { gap?: GapPolicy } = {},
+): Date | null {
+  const r = resolveWallClock(ymd, minutesOfDay, timeZone, options);
+  return r.kind === "nonexistent" ? null : r.instant;
 }
 
 /** Local YYYY-MM-DD for an instant in `timeZone`, or null. */
@@ -130,24 +277,53 @@ export function utcToZonedHmm(instant: Date, timeZone: string): string | null {
 
 /** Add `days` civil days to a YYYY-MM-DD string (UTC calendar, not zone). */
 export function addUtcDays(ymd: string, days: number): string | null {
-  const match = YMD_RE.exec(ymd);
-  if (!match || !Number.isInteger(days)) return null;
-  const dt = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days));
+  const parsed = parseYmd(ymd);
+  if (!parsed || !Number.isInteger(days)) return null;
+  const dt = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d + days));
   if (Number.isNaN(dt.getTime())) return null;
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 /** JS weekday 0=Sunday for a civil date (independent of timezone). */
 export function weekdayUtc(ymd: string): number | null {
-  const match = YMD_RE.exec(ymd);
-  if (!match) return null;
-  return new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
-  ).getUTCDay();
+  const parsed = parseYmd(ymd);
+  if (!parsed) return null;
+  return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d)).getUTCDay();
 }
 
 export function minutesToHmm(minutesOfDay: number): string {
   const h = Math.floor(minutesOfDay / 60);
   const m = minutesOfDay % 60;
   return `${pad2(h)}:${pad2(m)}`;
+}
+
+/**
+ * A start instant and an end instant for a local start time plus a DURATION.
+ *
+ * THE POINT IS THAT THERE IS NO SECOND WALL CLOCK. The end is the start INSTANT
+ * plus the duration, so a 90-minute turn is ninety real minutes on every day of
+ * the year. Computing an end wall clock (`start + 90` minutes past midnight) and
+ * resolving that is the bug this exists to make unnecessary: on a spring-forward
+ * day it silently returns a 30-minute window, releasing a table — and its
+ * capacity unit — while the party is still there.
+ *
+ * `kind` is the START's resolution and carries the same warning as
+ * `resolveWallClock`: under gap:"next" a `shifted` start can collide with another
+ * booking's start. Whoever chooses "next" owns the collision.
+ */
+export function zonedWindow(
+  ymd: string,
+  startMinutesOfDay: number,
+  durationMinutes: number,
+  timeZone: string,
+  options: { gap?: GapPolicy } = {},
+): { startsAt: Date; endsAt: Date; kind: Exclude<WallClockResolution["kind"], "nonexistent"> } | null {
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return null;
+  const start = resolveWallClock(ymd, startMinutesOfDay, timeZone, options);
+  if (start.kind === "nonexistent") return null;
+  return {
+    startsAt: start.instant,
+    endsAt: new Date(start.instant.getTime() + durationMinutes * 60_000),
+    kind: start.kind,
+  };
 }

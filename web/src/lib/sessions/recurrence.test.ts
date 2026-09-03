@@ -174,14 +174,28 @@ test("several weekdays expand in date order, not weekday order", () => {
   );
 });
 
-test("a spring-forward GAP time does not invent an instant that never existed", () => {
-  // 02:30 does not exist in New York on the day the clocks jump 02:00 -> 03:00.
+test("a spring-forward GAP day still HAS its class — it does not vanish", () => {
+  // The studio opens and the teacher turns up on the gap day, so the occurrence
+  // must exist. Sessions pass gap:"next"; the resolver shifts the class forward by
+  // the width of the gap rather than deleting it.
+  //
+  // The opposite policy — return null, skip the occurrence — is correct for an
+  // APPOINTMENT SLOT and lives in the same function behind gap:"skip", which is
+  // the default. Both are right for their caller, which is why the choice is
+  // named at the call site instead of one silently winning.
   const at = zonedWallClockToUtc(SPRING_FORWARD, 2 * 60 + 30, NY);
-  assert.ok(at, "must resolve to something rather than null");
-  assert.equal(localDateIn(at, NY), SPRING_FORWARD, "must stay on the intended day");
-  // It lands on the instant the zone actually reaches. Recorded so the choice is
-  // deliberate: a class scheduled in a gap runs at the moment the clock arrives.
-  assert.equal(localTimeIn(at, NY), "03:30");
+  assert.ok(at, "the occurrence must exist, not be skipped");
+  assert.equal(localDateIn(at, NY), SPRING_FORWARD, "on the intended day");
+  assert.equal(localTimeIn(at, NY), "03:30", "shifted by the width of the gap");
+
+  // A weekly class whose local time falls in the gap keeps every occurrence.
+  const occ = expandSeries(
+    tuesdays({ localTime: "02:30", weekdays: [7], startsOn: "2027-03-07", endsOn: "2027-03-21" }),
+    "2027-03-07",
+    "2027-03-21",
+  );
+  assert.deepEqual(occDates(occ), ["2027-03-07", SPRING_FORWARD, "2027-03-21"],
+    "no Sunday may be missing, including the gap day");
 });
 
 test("garbage in returns nothing rather than throwing", () => {

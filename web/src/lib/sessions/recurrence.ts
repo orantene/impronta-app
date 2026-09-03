@@ -11,21 +11,43 @@
  *     next = new Date(previous.getTime() + 7 * 24 * 60 * 60 * 1000)
  *
  * — silently produces a class at 17:00 or 19:00 local for half the year. It is
- * silent because every date it produces is a valid date, the series looks
- * correct in UTC, and nobody notices until a customer arrives an hour late.
+ * silent because every date it produces is valid, the series looks correct in
+ * UTC, and nobody notices until a customer arrives an hour late.
  *
- * So an occurrence is computed by resolving the LOCAL wall-clock time against
- * the venue's IANA zone, per occurrence, never by adding a duration to the
- * previous one. `venues.timezone` exists as of Spaces S1; `agencies.timezone` is
- * the fallback.
+ * So an occurrence resolves its LOCAL wall clock against the venue's IANA zone,
+ * per occurrence, never by adding a duration to the previous one.
  *
- * No dependency: `Intl.DateTimeFormat` with a `timeZone` can report what a given
- * instant looks like in a zone, and inverting that gives the instant for a
- * wanted wall-clock. That inversion is `zonedWallClockToUtc` below.
+ * THE ZONE MATH IS NOT DONE HERE. It is `lib/scheduling/tz.ts`, which Appointments
+ * already shipped, and this module delegates to it.
  *
- * Pure by design — no Supabase import — so it runs in every test lane. The
- * database stores the resolved `timestamptz`; this is what resolves it.
+ * That is a correction. This file originally carried its own resolver — a second
+ * implementation of the same conversion, with a DIFFERENT and undocumented DST
+ * gap policy: it returned the instant the clock reaches (02:30 on a spring-forward
+ * day became 03:30), where `tz.ts` returns null and the caller skips. Both are
+ * defensible in isolation. Two of them in one codebase is the shape this repo has
+ * an incident file about — two guards asserting opposite things — and the one that
+ * had already shipped, with its policy locked in the appointments plan, is the one
+ * that wins.
+ *
+ * Skipping is also the better answer for a class: a session at a wall-clock time
+ * that does not exist should not run, rather than run at a time nobody scheduled.
+ *
+ * DST policy, inherited from tz.ts and now single-sourced:
+ *   - spring-forward gap → the occurrence RUNS when the clock reaches it (gap: "next").
+ *     Skipping would delete one class a year in every DST zone, silently.
+ *   - fall-back ambiguity (it happens twice) → the FIRST occurrence, earliest UTC
+ *
+ * Pure — no Supabase import — so it runs in every test lane.
  */
+
+import {
+  addUtcDays,
+  isValidIanaTimeZone,
+  utcToZonedHmm,
+  utcToZonedYmd,
+  weekdayUtc,
+  zonedLocalToUtc,
+} from "@/lib/scheduling/tz";
 
 /** ISO weekday: 1 = Monday … 7 = Sunday, matching Postgres `isodow`. */
 export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -51,7 +73,6 @@ export type Occurrence = {
 };
 
 const MINUTE_MS = 60_000;
-const DAY_MS = 86_400_000;
 
 /** Parse "18:00" / "18:00:00" into minutes past local midnight. */
 export function parseLocalTime(localTime: string): number | null {
@@ -64,115 +85,38 @@ export function parseLocalTime(localTime: string): number | null {
 }
 
 /**
- * What `instant` reads as on the wall clock in `timeZone`, as the epoch ms of
- * the same wall-clock reading interpreted as UTC. The difference between this
- * and `instant` is the zone's offset at that moment — which is how we invert.
+ * ISO weekday (Mon=1 … Sun=7, matching Postgres `isodow`) of a civil date.
+ *
+ * `weekdayUtc` returns JS 0=Sunday; the shift to ISO happens here because the
+ * database column is `isodow` and a mismatch would put every Sunday class on a
+ * Monday. Invalid dates return null rather than a weekday, because `Date.UTC`
+ * rolls 2027-13-40 into a real date a year away.
  */
-function wallClockAsUtcMs(instant: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(instant);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  // `hour12: false` can report midnight as 24 in some ICU versions.
-  const hour = get("hour") % 24;
-  return Date.UTC(get("year"), get("month") - 1, get("day"), hour, get("minute"), get("second"));
+export function isoWeekdayOf(localDate: string): IsoWeekday | null {
+  const js = weekdayUtc(localDate);
+  if (js == null) return null;
+  return (js === 0 ? 7 : js) as IsoWeekday;
 }
 
 /**
- * The instant at which the wall clock in `timeZone` reads the given local date
- * and time. Returns null for an unknown zone.
- *
- * Two candidates are computed, using the zone's offset a day either side, and
- * the one that ROUND-TRIPS is correct. That check — does the instant read back
- * as the wall clock we asked for — is what makes the two edge cases right:
- *
- * SPRING-FORWARD GAP. On the day a zone skips 02:00→03:00, a 02:30 wall clock
- * does not exist and NEITHER candidate round-trips. An earlier version of this
- * function converged on 01:30, which is the dangerous answer: a class would run
- * an hour EARLY and silently, with customers arriving to find it over. We take
- * the later candidate instead, so the class runs at the moment the clock
- * actually reaches, 03:30 local. Chosen deliberately; matched to RFC 5545.
- *
- * AUTUMN FALL-BACK AMBIGUITY. When the clock repeats 01:00→02:00, a 01:30 wall
- * clock happens TWICE and both candidates round-trip. We take the earlier, which
- * is the first time the clock reads 01:30.
+ * The instant at which the wall clock in `timeZone` reads this local date and
+ * time, or null when it does not exist (spring-forward gap) or the zone is
+ * unknown. Delegates to the shipped resolver; see the header for why.
  */
 export function zonedWallClockToUtc(
   localDate: string,
   minutesPastMidnight: number,
   timeZone: string,
 ): Date | null {
-  const parsed = parseLocalDate(localDate);
-  if (!parsed) return null;
-  const asUtc = Date.UTC(parsed.y, parsed.m - 1, parsed.d, 0, minutesPastMidnight, 0);
-  try {
-    const offsetAt = (at: Date) => wallClockAsUtcMs(at, timeZone) - at.getTime();
-    // Sample the offset a day either side, so a transition between them yields
-    // two distinct candidates rather than one that depends on where we guessed.
-    const candidates = [
-      asUtc - offsetAt(new Date(asUtc - DAY_MS)),
-      asUtc - offsetAt(new Date(asUtc + DAY_MS)),
-    ]
-      .filter((ms) => Number.isFinite(ms))
-      .sort((a, b) => a - b)
-      .map((ms) => new Date(ms));
-    if (candidates.length === 0) return null;
-
-    // The round trip IS the correctness test: does this instant read back as the
-    // wall clock we asked for? Earliest match wins (fall-back ambiguity).
-    for (const c of candidates) {
-      if (wallClockAsUtcMs(c, timeZone) === asUtc) return c;
-    }
-    // Nothing round-trips: the wall clock is inside a spring-forward gap.
-    // Take the LATER candidate — the instant the clock actually reaches.
-    return candidates[candidates.length - 1];
-  } catch {
-    return null; // unknown IANA zone
-  }
-}
-
-/**
- * Parse "YYYY-MM-DD" into real calendar parts, or null.
- *
- * The shape check is not enough: `Date.UTC` happily rolls 2027-13-40 over into
- * 2028-02-09, so a malformed date became a valid instant a year away rather
- * than an error. The round-trip below rejects both out-of-range months and
- * dates that do not exist, like 31 February.
- */
-function parseLocalDate(localDate: string): { y: number; m: number; d: number } | null {
-  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
-  if (!dm) return null;
-  const y = Number(dm[1]);
-  const m = Number(dm[2]);
-  const d = Number(dm[3]);
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const at = new Date(Date.UTC(y, m - 1, d));
-  if (at.getUTCFullYear() !== y || at.getUTCMonth() !== m - 1 || at.getUTCDate() !== d) return null;
-  return { y, m, d };
-}
-
-/** ISO weekday of a "YYYY-MM-DD" local date. */
-export function isoWeekdayOf(localDate: string): IsoWeekday | null {
-  const parsed = parseLocalDate(localDate);
-  if (!parsed) return null;
-  const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
-  if (!Number.isFinite(d.getTime())) return null;
-  const js = d.getUTCDay(); // 0 = Sunday
-  return (js === 0 ? 7 : js) as IsoWeekday;
+  // gap: "next" — a recurring CLASS happens on the gap day; the studio opens and
+  // the teacher turns up. "skip" would delete one occurrence a year in every DST
+  // zone with no error anywhere. An appointment slot wants the opposite, which is
+  // why the policy is named here rather than baked into the resolver.
+  return zonedLocalToUtc(localDate, minutesPastMidnight, timeZone, { gap: "next" });
 }
 
 function addLocalDays(localDate: string, days: number): string {
-  const parsed = parseLocalDate(localDate);
-  if (!parsed) return localDate;
-  const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d) + days * DAY_MS);
-  return d.toISOString().slice(0, 10);
+  return addUtcDays(localDate, days) ?? localDate;
 }
 
 /** Guard: a runaway `through` must not spin forever. Five years of dailies. */
@@ -195,6 +139,7 @@ export function expandSeries(
   if (minutes == null) return [];
   if (spec.durationMinutes <= 0) return [];
   if (spec.weekdays.length === 0) return [];
+  if (!isValidIanaTimeZone(spec.timeZone)) return [];
 
   const wanted = new Set<number>(spec.weekdays);
   let cursor = spec.startsOn > from ? spec.startsOn : from;
@@ -220,28 +165,10 @@ export function expandSeries(
 
 /** The local "YYYY-MM-DD" that `instant` falls on in `timeZone`. */
 export function localDateIn(instant: Date, timeZone: string): string | null {
-  try {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(instant);
-  } catch {
-    return null;
-  }
+  return utcToZonedYmd(instant, timeZone);
 }
 
 /** The local "HH:MM" that `instant` reads in `timeZone`. Used by the tests. */
 export function localTimeIn(instant: Date, timeZone: string): string | null {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone,
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(instant);
-  } catch {
-    return null;
-  }
+  return utcToZonedHmm(instant, timeZone);
 }
