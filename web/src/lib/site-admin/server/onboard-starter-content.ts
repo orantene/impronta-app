@@ -51,6 +51,7 @@ import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
 import { ensureNotFoundPage } from "./onboard-notfound-page";
 import { ensureBookingPage } from "./onboard-booking-page";
 import { ensureContactPageIfDetailsExist } from "./onboard-contact-page";
+import { ensureSeededNavigation } from "./onboard-navigation";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
 // single import site for the seed's public surface.
@@ -654,6 +655,31 @@ export async function onboardStarterContent(
       logServerError(
         "onboardStarterContent.ensureContactPageIfDetailsExist (non-fatal)",
         new Error(contactResult.error),
+      );
+    }
+
+    // NAV, seeded last because it must know whether /contact actually exists.
+    // A nav item for a page D7 skipped is a dead link by another name, which is
+    // the whole failure F1a unwound.
+    //
+    // The table is `cms_navigation_items` — `cms_navigation_links`, which the
+    // shell backfill used to query, does not exist in this database.
+    const navSettings = await client
+      .from("agencies")
+      .select("settings, workspace_type")
+      .eq("id", input.tenantId)
+      .maybeSingle<{ settings: unknown; workspace_type: string | null }>();
+    const navResult = await ensureSeededNavigation({
+      admin: client,
+      tenantId: input.tenantId,
+      settings: navSettings.data?.settings ?? null,
+      workspaceType: navSettings.data?.workspace_type ?? null,
+      hasContactPage: contactResult.ok && !("skipped" in contactResult),
+    });
+    if (!navResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureSeededNavigation (non-fatal)",
+        new Error(navResult.error),
       );
     }
 
