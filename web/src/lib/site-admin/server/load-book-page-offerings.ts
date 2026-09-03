@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
 import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
+import { houseBookingModeFor } from "@/lib/booking/house-booking";
 import {
   rowToOffering,
   type TalentOffering,
@@ -46,8 +47,23 @@ export async function loadPublicBookableOfferings(args: {
     const kept: Array<TalentOffering & { bookingMode: TalentBookingMode }> = [];
     for (const offering of offerings) {
       if (!isSlotEligibleOffering(offering)) continue;
-      // Slot booking is talent-owned only; workspace menu items never land here.
-      if (!offering.talentProfileId) continue;
+
+      // HOUSE-OWNED offerings (F8). Slot booking used to skip anything without
+      // a talent, which is why a salon, a barber, a spa and a clinic all got a
+      // blank /book page: a "Fade, 30 minutes" is a house service on a chair,
+      // not a person's calendar. Capacity 0.2 made "N units of a chair over a
+      // window" expressible, so the house path is now real.
+      //
+      // The house resolver lives in `lib/booking/house-booking.ts` and CALLS
+      // the Appointments Manager's primitives rather than reimplementing them,
+      // so this is one rule with two entry points. `booking-surface.ts` stays
+      // person-shaped and untouched.
+      if (!offering.talentProfileId) {
+        const houseMode = houseBookingModeFor(offering, host);
+        if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode });
+        continue;
+      }
+
       const mode = await resolveTalentBookingMode(admin, {
         talentProfileId: offering.talentProfileId,
         offeringId: offering.id,
