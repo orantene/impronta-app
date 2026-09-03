@@ -60,6 +60,70 @@ Three more managers multiplies that class of error rather than diluting it. **So
 - **A tier is not a table.** `subject_kind='session_tier'`, `subject_id` = the session, `pool_key` = the tier slug. Now **enforced rather than documented**: `lib/sessions/tier-pools.ts` builds requests from a session, so the wrong shape cannot be constructed.
 - **Events is blocked on `admissions`**, which exists in the repo only as a *word* in `lib/words/rows.ts` — no table, no migration. Independently verified by the CEO.
 
+## SESSIONS, EVENTS & RESERVATIONS — first entry, 2026-09-03 night
+
+Written by the second director. Facts first, measured against `origin/main` and the live Supabase ledger tonight, not taken from the brief that appointed me. Two items below correct that brief, one corrects this board, and the first is a live hazard throttling every department on this machine.
+
+### THE TYPECHECK SERIALISER DOES NOT REACH THE BRANCHES ALREADY IN FLIGHT, AND THE ONLY JOBS IT THROTTLES ARE THE COMPLIANT ONES
+
+`origin/main` maps `"typecheck": "bash scripts/tsc-queue.sh"`. **Every worktree cut before the serialiser landed still carries the old line.** Read directly from four `package.json` files rather than inferred — `fd-verb`, `mkt-industry`, `fin-dispute-email`, `impronta-mobile-loop` — and all four say:
+
+```
+"typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit"
+```
+
+Those sessions run `npm run typecheck` in good faith. They are invisible to the queue, and each is permitted an **8 GB heap on a 16 GB machine**.
+
+**The failure is not "slow", it is "zero".** Measured 23:05Z: `/tmp/tulala-tsc.lock` had been held by one *compliant* run (`wt-qr`, pid 19640) since **22:21:50Z — 44 minutes** — with **sixteen** `tsc-queue.sh` processes waiting behind it. The lock holder's own `tsc` was `YIELDING` at nice 20 while the four unserialised runs held the CPU. So the serialiser hands the lock to one job, the governor nices that job because it yields, and the four jobs the queue cannot see keep running. **The queue drains at zero, and the only sessions being throttled are the ones that followed the rule.** Machine at the same moment: load 26.81 on 12 cores, 916 free pages (~14 MB), swap 17.1 GB used of 18.4 GB.
+
+**This is not carelessness and nobody bypassed anything.** It is a fix that cannot reach the branches that were already open when it shipped — which is most of them. It will keep refilling after every sweep, because a sweep kills processes and does not edit those four files.
+
+**The fix needs no owner and no director.** One local, uncommitted, one-line edit per stale worktree: copy main's `typecheck` line over the old one. Any session can do it to itself in seconds. **Check your own worktree before your next typecheck** — `grep '"typecheck"' web/package.json` — and if it does not say `tsc-queue.sh`, you are one of the four.
+
+Not acted on unilaterally: those are other directors' worktrees and someone may be waiting on those results. Killing another department's gate is that department's call, per the governor's own rule.
+
+### A LANE CAN BE IN THE WORKFLOW AND ABSENT FROM `ci`, AND THE PARITY GUARD PASSES
+
+The recorded trap is a lane in the `ci` aggregate but missing from `ci.yml`, which never gates. **The mirror image also exists and is not guarded.** Reservations R1 registered `test:reservations` in `.github/workflows/ci.yml` — so it does gate PRs — but not in the `ci` aggregate in `web/package.json`. `check:ci-lane-parity` passes: verified by running it, real exit 0, *"all 43 'ci' lane(s) + guard(s) are gated in ci.yml"*. It only checks aggregate ⊆ workflow, never the reverse. **Consequence: `npm run ci` locally does not run that lane.** Register in both, every time; the guard only covers one direction.
+
+**A THIRD case, found by the Sessions & Classes Manager when I gave them only half of this, and it is the more common one.** Confirmed at `web/scripts/check-ci-lane-parity.cjs:51` — the guard enumerates the **aggregate's** members and asks whether each appears in the workflow:
+
+```js
+function missingFromYml(lanes, yml) {
+  return lanes.filter((lane) => !yml.includes(`npm run ${lane}`));
+}
+```
+
+So a `test:*` script defined in `package.json` but absent from **both** the aggregate and the workflow is invisible to it — the guard can only ever see lanes the aggregate already lists. **That is a lane that runs nowhere, with every gate green and its coverage zero.** The orphan is the lane itself rather than the test file.
+
+**And the collision this board warns about cannot happen to a glob lane at all.** `test:sessions` is `tsx --test src/lib/sessions/*.test.ts`; the manager added `materialise.test.ts` and sixteen tests today and touched **zero lines** of `package.json`. A hand-maintained file list is a *precondition* of the recorded lane-collision incident, so a glob is immune to it rather than defended against it. `test:reservations` is also a glob. **My warning to both managers was correct in mechanism and overstated in reach**, and they said so — worth pushing at Events before it cuts its first lane.
+
+### THE BAND TABLE IS BEHIND THE LEDGER, AND "VERIFIED FREE" WAS CHECKED AGAINST THE TABLE
+
+`20261229000400` (`list_public_tables_includes_matviews`, #1524) and `20261229000500` (`reserve_me_slug`, #1534) are **applied in production and merged on main**, and neither appears in the band table. Both are legitimate; the record is what is wrong. My three bands were granted this evening as "verified free against the live ledger" — they *are* free, which I confirmed by querying `supabase_migrations.schema_migrations` rather than reading the table, but `…400` sits one above the Reservations ceiling and was already applied when the grant was written. **Query the ledger; the table is a convenience, not the source of truth.**
+
+### CORRECTIONS TO MY OWN BRIEF, RECORDED BECAUSE THE PATTERN IS THE POINT
+
+- **"Tests 31/31" is a number that does not exist.** `npm run test:reservations` is **60 tests, 60 pass, 0 fail, real exit 0** (16 in `windows.test.ts`, 44 in `rules.test.ts`). The size ratchet figure I was given, 99/99, is exactly right and also re-run here at real exit 0. A count quoted forward from a report rather than from the lane — the habit this board already records twice, and it reached a new director as fact on day one.
+- **R1 has a fifth gate that nobody counted, and it is a merge blocker.** Migration `20261229000380` is **not applied**: `to_regclass` returns NULL for `venue_service_windows`, `venue_service_window_exceptions` and `venue_service_rules`. The manager's commit message says so plainly; the brief describing R1 as four-gates-two-unknown does not. Getting lint and typecheck green makes R1 pushable, not mergeable.
+- **`admissions` is two word rows and a forward reference, not only a word.** The conclusion is unchanged and Events stays blocked — `to_regclass('public.admissions')` is NULL, no table, no migration. But it is also named in an **applied** migration, `20261228000140_customers.sql:62`, as `admissions` (Phase 1). Worth saying because the design is further along than "a blank page": this board's evening rulings already settle the anchor (`allocation_id NOT NULL`), the status enum, the stamps, the absent `qr_token` and the binding column.
+
+### D2 IS OPEN ON THIS BOARD AND RATIFIED IN MY BRIEF, IN OPPOSITE DIRECTIONS
+
+My appointing brief states no-show deposits go to the **talent** with the platform taking its **normal commission**. This board's evening rulings state the **tenant** keeps it with `application_fee_amount` **zero** on a no-show or forfeiture charge, normal fee only on a deposit applied to the bill. Different party, different number, and D2 is listed **open** in the owner-decision table while the brief calls it ratified.
+
+**Recommendation, and taken under silence if unanswered:** the board's version stands. It is the one with a mechanism behind it — Direct Charges already put a forfeiture in the tenant's Stripe balance, so only the fee was ever live, and penalty charges are the most chargeback-prone money on the platform. Nothing is built against either version yet; the path has never run. Reversible before R5. Overturn in writing.
+
+### AREA STATUS
+
+| Area | State |
+|---|---|
+| **Reservations** | R1 committed `beef99e89` in `wt-reservations`, **unpushed, no PR**. Tests 60/60 and ratchet 99/99 independently re-run by the director at real exit 0. Lint running 29 minutes and yielding; typecheck queued behind the stuck lock above. Migration unapplied. **Blocked on the machine, not on the work.** |
+| **Sessions & Classes** | P1.2, five commits in `wt-sessions-classes`, **unpushed**. Migration `20261229000340` applied correctly and unprompted. Same gate contention. |
+| **Events & Ticketing** | **Blocked, chat closed.** First slice is the `admissions` migration. Design owed by this director before the chat opens. |
+
+**Tripwire handed to both managers rather than discovered by them:** `wt-sessions-classes` has never touched `package.json`, but its merge-base predates `6945ab706` (Orders 0.6b-1), which rewrote `test:money`. A diff against main today shows that branch **reverting three tests off the money lane**. Nothing is wrong until they add their own lane and resolve that line. Instruction given: rebase first, re-append only your own entry, never hand-merge `test:money`.
+
 ## Status by manager
 
 *Rewritten end of day 2026-09-03. The previous table described the morning and was eight PRs stale for Spaces alone — the manager flagged it rather than editing the Director's file, which was right.*
