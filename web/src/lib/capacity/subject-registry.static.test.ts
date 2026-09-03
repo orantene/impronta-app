@@ -52,16 +52,67 @@ function allowedKinds(): string[] {
 }
 
 /** The kinds seeded into the registry today. */
+/**
+ * A registration block ends at `ON CONFLICT` **or at the statement terminator,
+ * whichever comes first**.
+ *
+ * The `;` alternative is not tidiness. Reading the whole migrations directory
+ * means the corpus is one long string, so a registration written WITHOUT an
+ * `ON CONFLICT` — perfectly valid SQL — would otherwise run past the end of its
+ * own statement and capture everything up to the next `ON CONFLICT` anywhere in
+ * the corpus. Reproduced before fixing:
+ *
+ *   INSERT INTO public.capacity_subject_kinds (subject_kind, table_name)
+ *     VALUES ('space', 'spaces');                    -- no ON CONFLICT
+ *   INSERT INTO public.some_other_table (a, b)
+ *     VALUES ('session_tier', 'nonsense') ON CONFLICT DO NOTHING;
+ *
+ *   reported: ["session_tier", "space"]      truth: ["space"]
+ *
+ * It lies in the DANGEROUS direction — a kind reported validated when it is
+ * not, silently shrinking the unregistered list, which is the one thing that
+ * list exists to prevent. Nothing triggers it today because both existing
+ * registrations use ON CONFLICT; it was a trap laid for whoever writes the
+ * third. Found by the Capacity Engine Manager reviewing my own repair.
+ */
+const REGISTRATION_BLOCK =
+  /INSERT INTO public\.capacity_subject_kinds[\s\S]*?VALUES([\s\S]*?)(?:ON CONFLICT|;)/g;
+
+function kindsIn(sql: string): string[] {
+  const blocks = [...sql.matchAll(REGISTRATION_BLOCK)];
+  const kinds = blocks.flatMap((m) => [...m[1].matchAll(/\('([a-z_]+)',/g)].map((x) => x[1]));
+  return [...new Set(kinds)].sort();
+}
+
 function registeredKinds(): string[] {
-  const blocks = [
-    ...MIGRATION.matchAll(
-      /INSERT INTO public\.capacity_subject_kinds[\s\S]*?VALUES([\s\S]*?)ON CONFLICT/g,
-    ),
-  ];
+  const blocks = [...MIGRATION.matchAll(REGISTRATION_BLOCK)];
   assert.ok(blocks.length > 0, "could not read any registry seed");
   const kinds = blocks.flatMap((m) => [...m[1].matchAll(/\('([a-z_]+)',/g)].map((x) => x[1]));
   return [...new Set(kinds)].sort();
 }
+
+test("a registration without ON CONFLICT does not swallow the next statement", () => {
+  // The guard guarding its own regex. Without the `;` alternative this reports
+  // session_tier as registered, which would silently shrink the unregistered
+  // list below — the exact failure that list exists to prevent.
+  const corpus = [
+    "INSERT INTO public.capacity_subject_kinds (subject_kind, table_name)",
+    "  VALUES ('space', 'spaces');",
+    "INSERT INTO public.some_other_table (a, b)",
+    "  VALUES ('session_tier', 'nonsense') ON CONFLICT DO NOTHING;",
+  ].join("\n");
+  assert.deepEqual(kindsIn(corpus), ["space"]);
+});
+
+test("a normal multi-row registration with ON CONFLICT still reads every row", () => {
+  const corpus = [
+    "INSERT INTO public.capacity_subject_kinds (subject_kind, table_name, registered_by)",
+    "VALUES ('space', 'spaces', 'spaces-S2'),",
+    "       ('space_group', 'space_groups', 'spaces-S2')",
+    "ON CONFLICT (subject_kind) DO NOTHING;",
+  ].join("\n");
+  assert.deepEqual(kindsIn(corpus), ["space", "space_group"]);
+});
 
 test("every registered kind is one the engine actually allows", () => {
   const allowed = new Set(allowedKinds());
