@@ -35,7 +35,7 @@ export function ProUpgradeButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenantSlug }),
       });
-      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (res.ok && typeof json.url === "string") {
         window.location.href = json.url;
         return;
