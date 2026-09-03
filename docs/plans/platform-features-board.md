@@ -175,7 +175,7 @@ It derives the version from the filename, applies via the Management API, record
 - **Verify the destination, never the comment that describes it.** Three findings in two days were things documented as wired that resolve to nothing.
 - **`builder-node/` belongs to the Page Builder Director**, a separate department. No Platform Features manager edits those files. Route engine requests through the Director.
 
-**The typecheck serialiser lives at `~/.claude/tulala-tsc-queue.sh`** (executable, stable path, outside the repo and outside any session scratchpad). Run it from your worktree's `web/` directory. It runs the same full `tsc --noEmit` and exits with its real code. It reclaims a lock only when the owner process is dead; there is no age-based reclaim, on purpose.
+**The typecheck serialiser lives at `web/scripts/tsc-queue.sh`** (in the repo, as the Orders & Checkout Manager recommended: a session scratchpad dies with the session that wrote it, and the next manager gets a confusing "No such file"). Run it from your worktree's `web/` directory. `~/.claude/tulala-tsc-queue.sh` is the identical script for worktrees that predate PR #1512. It runs the same full `tsc --noEmit` and exits with its real code. It reclaims a lock only when the owner process is dead; there is no age-based reclaim, on purpose.
 
 ## Contracts registry
 

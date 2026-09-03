@@ -13,8 +13,10 @@
 # READING THE RESULT LATER (e.g. after backgrounding it): the verdict file is
 # keyed by checkout. Use the path the script prints, or:
 #   grep " $(pwd) " /tmp/tulala-tsc.log | tail -1
-# NEVER read a bare /tmp/tulala-tsc.last - it does not exist any more, because
-# a machine-wide file gets clobbered by whichever worktree finished last.
+# NEVER read the result from a task notification's summary: that reports the
+# WRAPPER's exit, not tsc's. And never read a bare /tmp/tulala-tsc.last - it is
+# deleted on every run, because a machine-wide file gets clobbered by whichever
+# worktree finished last.
 #
 # LOCK POLICY: a lock is reclaimed ONLY when its owner process is dead. There is
 # no age-based reclaim of any kind, on purpose. An earlier version also
@@ -29,6 +31,15 @@
 LOCK="/tmp/tulala-tsc.lock"
 WAITED=0
 HB_PID=""
+KEY=$(pwd | shasum | cut -c1-8)
+MINE="/tmp/tulala-tsc.${KEY}.last"
+
+# Clear BEFORE the run, not only after it. A verdict from this checkout's
+# previous run must not survive a run that gets killed, or the reader sees a
+# real verdict for the right branch from the wrong commit. Kill the unkeyed
+# path here too, so nobody can read a neighbour's verdict from the old name
+# even if a stale copy of this script recreates it.
+rm -f "$MINE" /tmp/tulala-tsc.last
 
 cleanup() {
   [ -n "$HB_PID" ] && kill "$HB_PID" 2>/dev/null
@@ -90,11 +101,6 @@ elif [ "$CODE" -gt 128 ]; then
 else
   VERDICT="TSC FAIL (exit $CODE)"
 fi
-
-# Verdict file keyed BY CHECKOUT. One machine-wide file would be overwritten by
-# whichever run finished last from any worktree, so a reader could `cat` a real,
-# correct, honestly-produced verdict about SOMEONE ELSE'S branch.
-MINE="/tmp/tulala-tsc.$(pwd | shasum | cut -c1-8).last"
 
 printf '%s\n' "$VERDICT" >&2
 printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(pwd)" "$VERDICT" >> /tmp/tulala-tsc.log
