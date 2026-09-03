@@ -17,6 +17,7 @@ import {
   addUtcDays,
   isValidIanaTimeZone,
   minutesToHmm,
+  resolveWallClock,
   utcToZonedHmm,
   utcToZonedYmd,
   weekdayUtc,
@@ -151,4 +152,56 @@ test("round trip: an instant reads back as the wall clock it was built from", ()
 test("weekdayUtc is JS 0=Sunday, and callers converting to isodow must shift", () => {
   assert.equal(weekdayUtc("2027-03-14"), 0, "Sunday");
   assert.equal(weekdayUtc("2027-03-09"), 2, "Tuesday");
+});
+
+// ── resolveWallClock: the shift has to be visible ───────────────────────────
+
+test("gap:next COLLAPSES two wall clocks onto one instant — the reason shift is reported", () => {
+  // Found by the Reservations Manager, reproduced by Sessions & Classes, and
+  // reproduced again here so the collapse is pinned rather than remembered.
+  const at0230 = zonedLocalToUtc("2027-03-28", 2 * 60 + 30, MADRID, { gap: "next" })!;
+  const at0330 = zonedLocalToUtc("2027-03-28", 3 * 60 + 30, MADRID, { gap: "next" })!;
+  assert.equal(at0230.getTime(), at0330.getTime(), "two clocks, one instant");
+  assert.equal(utcToZonedHmm(at0230, MADRID), "03:30");
+
+  // A caller holding only Dates cannot tell these apart. resolveWallClock can:
+  // the 02:30 one was SHIFTED out of the gap, the 03:30 one is EXACT. That is
+  // the difference between a club selling one room twice on gap night and
+  // refusing the second show.
+  assert.equal(resolveWallClock("2027-03-28", 2 * 60 + 30, MADRID, { gap: "next" }).kind, "shifted");
+  assert.equal(resolveWallClock("2027-03-28", 3 * 60 + 30, MADRID, { gap: "next" }).kind, "exact");
+});
+
+test("resolveWallClock names every outcome", () => {
+  assert.equal(resolveWallClock("2027-03-09", 18 * 60, NY).kind, "exact");
+  assert.equal(resolveWallClock("2027-11-07", 1 * 60 + 30, NY).kind, "ambiguous",
+    "the clock reads 01:30 twice that day");
+  assert.equal(resolveWallClock("2027-03-14", 2 * 60 + 30, NY, { gap: "skip" }).kind, "nonexistent");
+  assert.equal(resolveWallClock("2027-03-14", 2 * 60 + 30, NY, { gap: "next" }).kind, "shifted");
+  assert.equal(resolveWallClock("2027-13-40", 0, NY).kind, "nonexistent", "invalid date");
+  assert.equal(resolveWallClock("2027-03-09", 0, "Not/AZone").kind, "nonexistent", "unknown zone");
+});
+
+test("the ambiguous instant is the EARLIER one, and it genuinely reads back", () => {
+  const r = resolveWallClock("2027-11-07", 1 * 60 + 30, NY);
+  assert.equal(r.kind, "ambiguous");
+  if (r.kind !== "ambiguous") return;
+  assert.equal(r.instant.toISOString(), "2027-11-07T05:30:00.000Z");
+  assert.equal(utcToZonedHmm(r.instant, NY), "01:30");
+});
+
+test("zonedLocalToUtc stays the convenience wrapper and agrees with resolveWallClock", () => {
+  const probes: Array<[string, number, string, "skip" | "next"]> = [
+    ["2027-03-09", 18 * 60, NY, "skip"],
+    ["2027-03-14", 2 * 60 + 30, NY, "skip"],
+    ["2027-03-14", 2 * 60 + 30, NY, "next"],
+    ["2027-11-07", 1 * 60 + 30, NY, "skip"],
+    ["2027-03-28", 2 * 60 + 30, MADRID, "next"],
+  ];
+  for (const [ymd, min, tz, gap] of probes) {
+    const r = resolveWallClock(ymd, min, tz, { gap });
+    const d = zonedLocalToUtc(ymd, min, tz, { gap });
+    assert.equal(d?.toISOString() ?? null, r.kind === "nonexistent" ? null : r.instant.toISOString(),
+      `${ymd} ${min} ${tz} ${gap}`);
+  }
 });

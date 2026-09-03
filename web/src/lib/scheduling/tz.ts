@@ -34,6 +34,36 @@
 
 export type GapPolicy = "skip" | "next";
 
+/**
+ * HOW a wall clock resolved, not just what it resolved to.
+ *
+ * `zonedLocalToUtc` returns a bare Date, so a caller cannot tell an instant that
+ * genuinely reads back as the requested clock from one that was SHIFTED out of a
+ * spring-forward gap. That distinction is not cosmetic — under gap:"next" two
+ * different wall clocks collapse onto ONE instant:
+ *
+ *   Europe/Madrid, 2027-03-28, gap:"next"
+ *     02:30 requested -> 2027-03-28T01:30:00.000Z  (03:30 local)
+ *     03:30 requested -> 2027-03-28T01:30:00.000Z  (03:30 local)  <- same instant
+ *
+ * A club with a 02:30 show and a 03:30 show gets two sessions at one instant on
+ * gap night, each with its own capacity pool, each selling the same room. Nothing
+ * refuses it while those pools are parentless. Found by the Reservations Manager
+ * and reproduced by Sessions & Classes; the same collapse makes a booking page
+ * offer one instant twice under two labels.
+ *
+ * A caller cannot defend against that if it cannot SEE the shift, so this reports
+ * it. `shifted` is the only outcome that needs handling; the rest behave normally.
+ */
+export type WallClockResolution =
+  | { kind: "exact"; instant: Date }
+  /** Fall-back overlap: the clock reads this twice. The EARLIER instant is given. */
+  | { kind: "ambiguous"; instant: Date }
+  /** Spring-forward gap under gap:"next". The instant does NOT read back as asked. */
+  | { kind: "shifted"; instant: Date }
+  /** Spring-forward gap under gap:"skip", or unusable inputs. */
+  | { kind: "nonexistent" };
+
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
@@ -110,17 +140,17 @@ function formatInZone(
  * (0..1439). Returns null when the local time does not exist (DST gap) or
  * the zone/inputs are unusable.
  */
-export function zonedLocalToUtc(
+export function resolveWallClock(
   ymd: string,
   minutesOfDay: number,
   timeZone: string,
   options: { gap?: GapPolicy } = {},
-): Date | null {
-  if (!isValidIanaTimeZone(timeZone)) return null;
+): WallClockResolution {
+  if (!isValidIanaTimeZone(timeZone)) return { kind: "nonexistent" };
   const parsed = parseYmd(ymd);
-  if (!parsed) return null;
+  if (!parsed) return { kind: "nonexistent" };
   if (!Number.isInteger(minutesOfDay) || minutesOfDay < 0 || minutesOfDay > 1439) {
-    return null;
+    return { kind: "nonexistent" };
   }
 
   const year = parsed.y;
@@ -157,21 +187,44 @@ export function zonedLocalToUtc(
     const hit = nearby.find((candidate) => matches(candidate));
     if (hit == null) {
       // Nothing reads back as the requested wall clock: it is inside a gap.
-      if ((options.gap ?? "skip") === "skip") return null;
+      if ((options.gap ?? "skip") === "skip") return { kind: "nonexistent" };
       // "next": the instant the clock actually reaches. Take the candidate built
       // from the POST-transition offset — the later of the two — which shifts the
       // request forward by exactly the width of the gap.
       const after = utcAsIf - offsetAt(utcAsIf + 86_400_000);
       const before = utcAsIf - offsetAt(utcAsIf - 86_400_000);
-      return new Date(Math.max(after, before));
+      return { kind: "shifted", instant: new Date(Math.max(after, before)) };
     }
     ms = hit;
   }
 
-  // Ambiguous wall times: keep the earliest UTC instant (first occurrence).
-  if (matches(ms - 3_600_000)) ms -= 3_600_000;
+  // Ambiguous wall times: the clock reads this twice, so BOTH instants match.
+  // Test both directions — the two-pass above can land on either one, and the
+  // original code only noticed when it happened to land on the later, so a
+  // genuinely ambiguous time was reported as exact half the time.
+  const earlier = ms - 3_600_000;
+  const later = ms + 3_600_000;
+  if (matches(earlier)) return { kind: "ambiguous", instant: new Date(earlier) };
+  if (matches(later)) return { kind: "ambiguous", instant: new Date(ms) };
 
-  return new Date(ms);
+  return { kind: "exact", instant: new Date(ms) };
+}
+
+/**
+ * The instant for a local civil time, or null when it does not exist.
+ *
+ * The convenient form. Use `resolveWallClock` when you need to know WHETHER the
+ * answer was shifted out of a gap — a shifted instant can equal another wall
+ * clock's instant, and only the caller knows whether that matters.
+ */
+export function zonedLocalToUtc(
+  ymd: string,
+  minutesOfDay: number,
+  timeZone: string,
+  options: { gap?: GapPolicy } = {},
+): Date | null {
+  const r = resolveWallClock(ymd, minutesOfDay, timeZone, options);
+  return r.kind === "nonexistent" ? null : r.instant;
 }
 
 /** Local YYYY-MM-DD for an instant in `timeZone`, or null. */
