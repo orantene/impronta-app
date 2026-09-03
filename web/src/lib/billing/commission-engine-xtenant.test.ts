@@ -99,7 +99,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           workspace_plan: "studio",
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 },
+            { units: 1, line_total_cents: 200_000, talent_cost_total_cents: 150_000 },
           ],
         },
         {
@@ -112,7 +112,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           workspace_plan: "agency",
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 400_000, talent_cost_cents: 300_000 },
+            { units: 1, line_total_cents: 400_000, talent_cost_total_cents: 300_000 },
           ],
         },
       ],
@@ -181,7 +181,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           workspace_plan: "studio",
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 },
+            { units: 1, line_total_cents: 200_000, talent_cost_total_cents: 150_000 },
           ],
         },
         {
@@ -193,7 +193,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           workspace_plan: "agency",
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 400_000, talent_cost_cents: 300_000 },
+            { units: 1, line_total_cents: 400_000, talent_cost_total_cents: 300_000 },
           ],
         },
       ],
@@ -237,7 +237,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           // Studio negotiated a 3% rate.
           tenant_override: { platform_take_bps: 300, platform_take_floor_cents: null },
           offer_line_items: [
-            { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 },
+            { units: 1, line_total_cents: 200_000, talent_cost_total_cents: 150_000 },
           ],
         },
         {
@@ -249,7 +249,7 @@ describe("xtenant commission — two participants on different owning tenants", 
           workspace_plan: "agency",
           tenant_override: null, // no override
           offer_line_items: [
-            { units: 1, unit_price_cents: 400_000, talent_cost_cents: 300_000 },
+            { units: 1, line_total_cents: 400_000, talent_cost_total_cents: 300_000 },
           ],
         },
       ],
@@ -296,7 +296,7 @@ describe("xtenant commission — independent talent (owning_party_type='talent')
           workspace_plan: null,
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 },
+            { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
           ],
         },
       ],
@@ -347,7 +347,7 @@ describe("xtenant commission — independent talent (owning_party_type='talent')
           workspace_plan: null,
           tenant_override: null,
           offer_line_items: [
-            { units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 },
+            { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
           ],
         },
       ],

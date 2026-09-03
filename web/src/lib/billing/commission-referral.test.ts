@@ -43,7 +43,7 @@ const baseInput = (
   tenantId: HOME,
   workspacePlan: "agency",
   // Subtotal 1000.00, talent 800.00, margin 200.00.
-  offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+  offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
   currencyCode: "MXN",
   paymentMethod: "card",
   platformConfig: platformConfig(),
@@ -126,7 +126,7 @@ describe("hub referral lane (b) on + rate>0 + channel != managing", () => {
     // 125 bps of 100123 -> exercise rounding: subtotal 100123, 125bps = 1251.5375 -> 1252.
     const r = resolveBookingCommissions(
       baseInput({
-        offerLineItems: [{ units: 1, unit_price_cents: 100_123, talent_cost_cents: 50_000 }],
+        offerLineItems: [{ units: 1, line_total_cents: 100_123, talent_cost_total_cents: 50_000 }],
         hubReferralBps: 125,
         channelPartyId: CHANNEL,
         homeTenantId: HOME,

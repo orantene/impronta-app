@@ -573,13 +573,13 @@ try {
     tenant_override: WorkspaceCommissionOverride | null;
     offer_id: string;
     currency_code: string;
-    offer_line_items: Array<{ units: number; unit_price_cents: number; talent_cost_cents: number }>;
+    offer_line_items: Array<{ units: number; line_total_cents: number; talent_cost_total_cents: number }>;
   };
   const ctx = ctxRaw as CommissionCtx;
   ok("engine_load_commission_context", `offer_id=${ctx.offer_id}  plan=${ctx.workspace_plan}`);
   info(
     "line items from context",
-    ctx.offer_line_items.map((li) => `${li.units}×$${li.unit_price_cents / 100}`).join(", "),
+    ctx.offer_line_items.map((li) => `${li.units}×$${li.line_total_cents / 100}`).join(", "),
   );
 
   // 6b. Resolve commission (pure function, no I/O).

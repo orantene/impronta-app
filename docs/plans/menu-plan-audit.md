@@ -57,7 +57,7 @@ was checked in the real codebase. Blunt verdicts only.
 5. `booking_sub_type='product'` without fulfilment path → workspace never paid
 6. `ensureGuestClientByEmail` null → zero approvals, order stalls
 7. `ensureOfferTalentsOnLineup` early return skips house → snapshot has nothing
-8. Read `talent_cost_cents` on house line instead of forcing 0 → shrinks workspace payout
+8. Read `talent_cost_total_cents` on house line instead of forcing 0 → shrinks workspace payout
 9. `ALTER TYPE … ADD VALUE` same file as first use → half-applied migration
 10. Workspace guards only `.eq("tenant_id")` → edit talent-owned offerings
 11. `tenant_id ON DELETE SET NULL` vs new CHECK → 500 on agency delete

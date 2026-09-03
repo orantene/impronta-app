@@ -43,7 +43,7 @@ const baseInput = (
   tenantId: TENANT,
   workspacePlan: "agency",
   offerLineItems: [
-    { units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 },
+    { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 },
   ],
   currencyCode: "MXN",
   paymentMethod: "card",
@@ -96,8 +96,8 @@ describe("resolveBookingCommissions — happy path (talent-protected)", () => {
   it("sums multiple line items correctly", () => {
     const result = resolveBookingCommissions(baseInput({
       offerLineItems: [
-        { units: 2, unit_price_cents: 50_000, talent_cost_cents: 40_000 }, // 1000 sub, 200 margin
-        { units: 1, unit_price_cents: 80_000, talent_cost_cents: 60_000 }, // 800 sub, 200 margin
+        { units: 2, line_total_cents: 50_000, talent_cost_total_cents: 40_000 }, // 1000 sub, 200 margin
+        { units: 1, line_total_cents: 80_000, talent_cost_total_cents: 60_000 }, // 800 sub, 200 margin
       ],
     }));
     assert.equal(result.gross_cents, 180_000);        // 1800 subtotal
@@ -120,8 +120,8 @@ describe("the canonical example (6% = 3% client + 3% seller)", () => {
         client_surcharge_bps: 300,    // 3% from the client; the other 3% from the seller
       }),
       offerLineItems: [
-        { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 }, // girl 1
-        { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 }, // girl 2
+        { units: 1, line_total_cents: 200_000, talent_cost_total_cents: 150_000 }, // girl 1
+        { units: 1, line_total_cents: 200_000, talent_cost_total_cents: 150_000 }, // girl 2
       ],
     }));
     assert.equal(result.gross_cents, 400_000);          // MX$4,000 service subtotal
@@ -151,7 +151,7 @@ describe("independent talent bears the seller-side fee", () => {
       }),
       offerLineItems: [
         // Independent talent sells direct — quote == price, no markup.
-        { units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 },
+        { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 100_000 },
       ],
     }));
     assert.equal(result.gross_cents, 100_000);
@@ -170,7 +170,7 @@ describe("thin / zero-margin workspace — platform absorbs, talent stays whole"
     const result = resolveBookingCommissions(baseInput({
       workspacePlan: "free",
       offerLineItems: [
-        { units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 },
+        { units: 1, line_total_cents: 100_000, talent_cost_total_cents: 100_000 },
       ],
     }));
     assert.equal(result.workspace_fee_cents, 0);
@@ -224,7 +224,7 @@ describe("workspace base reservation fee", () => {
   it("an independent-talent sale has no base fee (workspace-only)", () => {
     const r = resolveBookingCommissions(baseInput({
       sellerOfRecord: "talent",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 100_000 }],
       tenantOverride: overrideWith({ base_reservation_fee_cents: 2_000 }),
     }));
     assert.equal(r.base_reservation_fee_cents, 0);
@@ -292,7 +292,7 @@ describe("floor enforcement (topped up via the client surcharge)", () => {
     // 1% on a small 1000-cent booking = 10 cents; floor = 50 cents → floor wins
     const result = resolveBookingCommissions(baseInput({
       offerLineItems: [
-        { units: 1, unit_price_cents: 1_000, talent_cost_cents: 500 },
+        { units: 1, line_total_cents: 1_000, talent_cost_total_cents: 500 },
       ],
       platformConfig: defaultPlatformConfig({
         default_take_bps: 100,
@@ -317,7 +317,7 @@ describe("floor enforcement (topped up via the client surcharge)", () => {
   it("tenant override floor overrides platform floor", () => {
     const result = resolveBookingCommissions(baseInput({
       offerLineItems: [
-        { units: 1, unit_price_cents: 1_000, talent_cost_cents: 500 },
+        { units: 1, line_total_cents: 1_000, talent_cost_total_cents: 500 },
       ],
       platformConfig: defaultPlatformConfig({
         default_take_bps: 100,
@@ -336,7 +336,7 @@ describe("floor enforcement (topped up via the client surcharge)", () => {
     // negative). Talent-protected: the client covers the floor instead.
     const result = resolveBookingCommissions(baseInput({
       offerLineItems: [
-        { units: 1, unit_price_cents: 100, talent_cost_cents: 100 },
+        { units: 1, line_total_cents: 100, talent_cost_total_cents: 100 },
       ],
       platformConfig: defaultPlatformConfig({
         default_take_floor_cents: 200,
@@ -383,7 +383,7 @@ describe("input validation", () => {
   it("throws negative_line_item on negative units", () => {
     expectCode(
       () => resolveBookingCommissions(baseInput({
-        offerLineItems: [{ units: -1, unit_price_cents: 100, talent_cost_cents: 50 }],
+        offerLineItems: [{ units: -1, line_total_cents: 100, talent_cost_total_cents: 50 }],
       })),
       "negative_line_item",
     );
@@ -392,7 +392,7 @@ describe("input validation", () => {
   it("throws talent_cost_exceeds_price when talent paid more than client pays", () => {
     expectCode(
       () => resolveBookingCommissions(baseInput({
-        offerLineItems: [{ units: 1, unit_price_cents: 100, talent_cost_cents: 200 }],
+        offerLineItems: [{ units: 1, line_total_cents: 100, talent_cost_total_cents: 200 }],
       })),
       "talent_cost_exceeds_price",
     );
@@ -424,20 +424,20 @@ describe("lane-sum invariant", () => {
       baseInput(),
       baseInput({
         offerLineItems: [
-          { units: 3, unit_price_cents: 12_345, talent_cost_cents: 7_890 },
-          { units: 5, unit_price_cents: 99_999, talent_cost_cents: 80_000 },
+          { units: 3, line_total_cents: 12_345, talent_cost_total_cents: 7_890 },
+          { units: 5, line_total_cents: 99_999, talent_cost_total_cents: 80_000 },
         ],
       }),
       baseInput({
         platformConfig: defaultPlatformConfig({ default_take_bps: 333 }),
       }),
       baseInput({
-        offerLineItems: [{ units: 1, unit_price_cents: 1, talent_cost_cents: 0 }],
+        offerLineItems: [{ units: 1, line_total_cents: 1, talent_cost_total_cents: 0 }],
         platformConfig: defaultPlatformConfig({ default_take_floor_cents: 0 }),
       }),
       baseInput({
         sellerOfRecord: "talent",
-        offerLineItems: [{ units: 4, unit_price_cents: 25_000, talent_cost_cents: 25_000 }],
+        offerLineItems: [{ units: 4, line_total_cents: 25_000, talent_cost_total_cents: 25_000 }],
       }),
     ];
     for (const input of cases) {
@@ -490,7 +490,7 @@ describe("A2 — instant-book client gross matches the offer path (shared resolv
       currencyCode: "USD",
       platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 300 }),
       offerLineItems: [
-        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: FIXED_RATE_CENTS },
+        { units: 1, line_total_cents: FIXED_RATE_CENTS, talent_cost_total_cents: FIXED_RATE_CENTS },
       ],
     }));
     assert.equal(instantBook.gross_cents, FIXED_RATE_CENTS);          // subtotal == fixed rate
@@ -509,7 +509,7 @@ describe("A2 — instant-book client gross matches the offer path (shared resolv
       currencyCode: "USD",
       platformConfig: cfg,
       offerLineItems: [
-        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: FIXED_RATE_CENTS },
+        { units: 1, line_total_cents: FIXED_RATE_CENTS, talent_cost_total_cents: FIXED_RATE_CENTS },
       ],
     }));
     // Offer path for the SAME fixed-rate subtotal (here with an agency margin —
@@ -518,7 +518,7 @@ describe("A2 — instant-book client gross matches the offer path (shared resolv
       currencyCode: "USD",
       platformConfig: cfg,
       offerLineItems: [
-        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: 80_000 },
+        { units: 1, line_total_cents: FIXED_RATE_CENTS, talent_cost_total_cents: 80_000 },
       ],
     }));
     assert.equal(instantBook.gross_charged_cents, offerPath.gross_charged_cents);
@@ -541,12 +541,12 @@ describe("(c) multi-talent rounding — booking lanes reconcile exactly", () => 
   const girl1 = resolveBookingCommissions(baseInput({
     currencyCode: "USD",
     platformConfig: cfg,
-    offerLineItems: [{ units: 3, unit_price_cents: 33_333, talent_cost_cents: 21_111 }],
+    offerLineItems: [{ units: 3, line_total_cents: 33_333, talent_cost_total_cents: 21_111 }],
   }));
   const girl2 = resolveBookingCommissions(baseInput({
     currencyCode: "USD",
     platformConfig: cfg,
-    offerLineItems: [{ units: 7, unit_price_cents: 14_287, talent_cost_cents: 9_991 }],
+    offerLineItems: [{ units: 7, line_total_cents: 14_287, talent_cost_total_cents: 9_991 }],
   }));
   const rows: BookingLaneRow[] = [
     { participant_id: "p1", talent_net_cents: girl1.talent_net_cents, workspace_fee_cents: girl1.workspace_fee_cents, platform_fee_cents: girl1.platform_fee_cents, gross_charged_cents: girl1.gross_charged_cents },
@@ -606,7 +606,7 @@ describe("P3 — odd-cents rounding holds the per-row invariant", () => {
     // Math.round seams. The lane-sum invariant must still hold exactly.
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 99_999, talent_cost_cents: 70_001 }],
+      offerLineItems: [{ units: 1, line_total_cents: 99_999, talent_cost_total_cents: 70_001 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 333 }),
     }));
     assert.equal(r.gross_cents, 99_999);
@@ -626,7 +626,7 @@ describe("P3 — odd-cents rounding holds the per-row invariant", () => {
   it("multi-unit odd unit_price (units * price re-rounded) still balances", () => {
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 7, unit_price_cents: 14_287, talent_cost_cents: 9_991 }],
+      offerLineItems: [{ units: 7, line_total_cents: 14_287, talent_cost_total_cents: 9_991 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 617, client_surcharge_bps: 311 }),
     }));
     assert.equal(r.gross_cents, 7 * 14_287); // 100,009
@@ -645,7 +645,7 @@ describe("P3 — client/seller split ratio (client_surcharge_bps)", () => {
     // bears the full take from its margin.
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 0 }),
     }));
     assert.equal(r.client_surcharge_cents, 0);
@@ -659,7 +659,7 @@ describe("P3 — client/seller split ratio (client_surcharge_bps)", () => {
   it("a client share at the FULL take puts everything on the client surcharge (margin untouched)", () => {
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 600 }),
     }));
     assert.equal(r.client_surcharge_cents, 6_000);
@@ -674,7 +674,7 @@ describe("P3 — client/seller split ratio (client_surcharge_bps)", () => {
     // clientShareBps clamps to min(900, 600) = 600; seller share floors at 0.
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 900 }),
     }));
     assert.equal(r.client_surcharge_cents, 6_000); // clamped to the 6% take
@@ -690,7 +690,7 @@ describe("P3 — client/seller split ratio (client_surcharge_bps)", () => {
   it("a negative client share is clamped to 0 (never reduces the gross below subtotal)", () => {
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 80_000 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: -100 }),
     }));
     assert.equal(r.client_surcharge_cents, 0); // floored at 0
@@ -707,7 +707,7 @@ describe("P3 — thin-margin seller deduction is talent-protective", () => {
     // the talent is NEVER clawed below its 99,000 quote.
     const r = resolveBookingCommissions(baseInput({
       currencyCode: "USD",
-      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 99_000 }],
+      offerLineItems: [{ units: 1, line_total_cents: 100_000, talent_cost_total_cents: 99_000 }],
       platformConfig: defaultPlatformConfig({ default_take_bps: 1_000 }),
     }));
     assert.equal(r.talent_net_cents, 99_000); // protected — full quote
@@ -734,7 +734,7 @@ describe("P3 — multi-participant largest-remainder reconciliation (Σ lanes ==
     resolveBookingCommissions(baseInput({
       currencyCode: "USD",
       platformConfig: cfg,
-      offerLineItems: [{ units, unit_price_cents: price, talent_cost_cents: cost }],
+      offerLineItems: [{ units, line_total_cents: price, talent_cost_total_cents: cost }],
     }));
   const people = [
     mk(1, 33_333, 21_111),

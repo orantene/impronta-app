@@ -229,9 +229,14 @@ interface ResolveInput {
   workspacePlan: "free" | "studio" | "agency" | "network";
   // From the accepted offer
   offerLineItems: Array<{
+    // GRAIN: both amounts below are LINE TOTALS, not per-unit prices, and
+    // `units` is always 1 in production (`engine_load_commission_context`
+    // hard-codes it). Passing a line total in a per-unit field, then
+    // multiplying by units a second time, was a P0 that inflated what the
+    // talent was paid — see migrations 20261226000017 / 20261226000018.
     units: number;
-    unit_price_cents: number;
-    talent_cost_cents: number;  // what the talent gets — workspace margin = (unit_price - talent_cost) * units
+    line_total_cents: number;
+    talent_cost_total_cents: number;  // the talent's share of this line; workspace margin = line_total_cents - talent_cost_total_cents
   }>;
   currencyCode: string;
   paymentMethod: PaymentMethod;
@@ -275,11 +280,11 @@ function resolveBookingCommissions(input: ResolveInput): ResolveOutput {
 
   // 2. Compute gross + workspace fee from line items
   const grossCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * li.unit_price_cents),
+    (sum, li) => sum + Math.round(li.units * li.line_total_cents),
     0
   );
   const workspaceFeeCents = input.offerLineItems.reduce(
-    (sum, li) => sum + Math.round(li.units * (li.unit_price_cents - li.talent_cost_cents)),
+    (sum, li) => sum + Math.round(li.units * (li.line_total_cents - li.talent_cost_total_cents)),
     0
   );
 

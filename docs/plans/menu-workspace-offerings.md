@@ -37,7 +37,7 @@ existing product-fulfilment UI cannot release a house order (no `booking_talent`
 2. **XOR payee on every priced line** — talent XOR `owner_tenant_id`, never both/neither.
 3. **`house` participant role** — fail-safe (existing filters are role=talent|client|coordinator).
    Do **not** fake a talent profile. Do **not** null `participant_id` on the snapshot PK.
-4. **`resolveBookingCommissions` needs zero edits** — feed `talent_cost_cents: 0` and
+4. **`resolveBookingCommissions` needs zero edits** — feed `talent_cost_total_cents: 0` and
    `sellerOfRecord: "workspace"`. Characterization tests only.
 5. **Builder node, not section** — registry is frozen; work goes to `builder-node/`.
 
