@@ -3,6 +3,7 @@
 Owner: the Spaces & Seating Manager. Reports to the Platform Features Director.
 Status page for this area. What shipped, what is next, what is blocked.
 Created 2026-09-03. Migration band: `20261229000220` to `…239`.
+**S1a and S1b are merged and live** (PRs #1537, #1539; production pointer `eae0548ad`).
 
 Design source: the mockups canvas (artboards `SettingsVenue`, `Main` seating designer,
 `SeatingTab`, `HostStand`, `SeatMapDesigner`, `PublicSeatPicker`, `SetupDrawer`).
@@ -54,8 +55,9 @@ Everything below was checked on 2026-09-03 against the live database
 
 | Slice | Delivers | Depends on | Wave |
 |---|---|---|---|
-| S1a | `agencies.timezone`, `venues`, one default venue per workspace, `resolveTenantTimezone()`, the five UTC surfaces converted | nothing | A (go given) |
-| S1b | the day-of reminder fires at 8am venue-local | S1a | A |
+| S1a | `agencies.timezone`, `venues`, one default venue per workspace, `resolveTenantTimezone()` | nothing | **SHIPPED #1537** |
+| S1b | the day-of reminder fires at 8am venue-local | S1a | **SHIPPED #1539** |
+| S1c | the four remaining UTC-deciding surfaces, and a venue editor so a zone can actually be set | S1a | A, next |
 | S2 | `spaces` tree, `space_groups`, pool binding, the plain "Venue and spaces" editor | S1a, Capacity 0.2 (on main) | D |
 | S3 | `assign` / `move`, combinable tables, out of service, host-stand data | S2, Reservations Phase 3 | D |
 | S4 | `layouts`, `layout_spaces`, the floor plan editor | S3 | E |
@@ -174,6 +176,86 @@ CREATE TABLE public.space_group_members (
 );
 ```
 
+### The pool binding, as agreed with the Capacity Engine Manager
+
+**INVARIANT SS-1 — nearest pooled ancestor.** For every pooled space,
+`capacity_pools.parent_pool_id` is the pool of the **nearest ancestor that has a pool** — not the
+nearest ancestor, and not the root.
+
+This invariant lives here, and its test lives on my side, because **the capacity engine physically
+cannot hold it**. `pool_path` is built from whatever `parent_pool_id` I pass and is correct by
+construction for every value I could pass, so there is no wrong-looking row for the engine to
+refuse. If table A points at its room while sibling table B points at the venue because a level was
+skipped, **the room under-counts B forever, silently, and nothing anywhere can detect it.** The test
+is a fixture tree with an area and a section in the middle: the skipped-level case is the only one
+that breaks, and it only appears once a venue has rooms with areas with tables.
+
+**Which spaces get a pool** (agreed 2026-09-03, in the registry): bookable leaves (table, seat,
+chair, booth, cabana, court, lane, desk, bed, bay, unit) and the levels that can be held whole
+(venue, room). **`area` and `section` get none.** A pool that nothing is ever allocated against is
+still locked and counted on every reserve passing through it, so pooling organisational furniture
+buys nothing and costs contention. Real depth becomes 3 or 4 against the cap of 6.
+
+**How a pool is created.** `select public.upsert_capacity_pool(...)`, never an INSERT: there is no
+INSERT policy on `capacity_pools` and the table grants are revoked from `anon` and `authenticated`.
+The BEFORE trigger maintains `pool_path`, enforces same-tenant parenting, refuses cycles, enforces
+the depth cap, and **refuses to re-parent a pool that has live allocations** — so a pool is rebuilt,
+never moved, once it has sold anything. Idempotent on
+`(tenant_id, subject_kind, subject_id, pool_key)`.
+
+**`pool_key` is how one subject carries two pools.** A table sold as four seats *and* as a
+whole-table buy-out is `'default'` and `'buyout'` on one `space_id`. S6 needs this; S2 should not
+invent a second table row for it.
+
+**Deleting a space orphans its pool, on purpose.** `subject_id` is polymorphic, so there is no FK
+and no cascade, and the surviving allocations are the record of what was sold in that room —
+a dispute is settled with them. **My delete path therefore sets `is_active = false` and never
+deletes.** An inactive pool refuses every reserve through it with `pool_inactive`, *including for
+its children*, which is exactly what a room going out of service should do. `parent_pool_id` is
+`ON DELETE RESTRICT` besides. **Deactivate, never delete** is the rule for the whole area.
+
+**Registering the subject kind is part of my S2 migration**, not a later chore:
+
+```sql
+INSERT INTO public.capacity_subject_kinds (subject_kind, table_name, registered_by)
+VALUES ('space', 'spaces', 'spaces-S2') ON CONFLICT (subject_kind) DO NOTHING;
+```
+
+and `space` is deleted from the unregistered-kinds list in
+`web/src/lib/capacity/subject-registry.static.test.ts` **in the same commit**. Until then a wrong
+`subject_id` makes an orphan pool that holds nothing and refuses nothing: untidy, not dangerous.
+
+**What I get for free and must not rebuild.** `capacity_remaining_public(pool_id, starts_at,
+ends_at)` is granted to `anon`, returns one integer and never a row, and already gives the tightest
+answer across the whole ancestor chain — a table inside a bought-out room reports 0 without the
+caller knowing my tree exists. Refusal reasons are stable: `sold_out`, `ancestor_full`,
+`pool_not_found`, `pool_inactive`, `invalid_units`, `invalid_window`, `invalid_ttl`, `empty_batch`,
+`unavailable`. **`ancestor_full` is the one to design for** — the table is empty and you still
+cannot sit at it. Front Door owns the wording; I write no customer strings.
+
+### OPEN, and it must be settled before S2 ships: a table must not be counted twice
+
+My own plan said "every bookable space and every group gets a pool". Working through INVARIANT SS-1
+shows that cannot be true as written.
+
+A table's `parent_pool_id` must be its **room** (SS-1). So a group pool is **not** an ancestor of
+its members. That means an allocation on a group pool and an allocation on a member table's pool
+**do not see each other**, and the same table is sold twice. Nor can the group be the parent
+instead: a table belongs to more than one group (the seating designer shows Table 7 in *Four-tops*
+**and** *Window*) and a pool has exactly one parent.
+
+The resolution is not "groups never get pools". It is that **a group pool and its members' pools are
+two modes and must never be live at the same time for the same tables**:
+
+| Mode | Who uses it | Pools that exist | Why |
+|---|---|---|---|
+| **Band** | Reservations Phase 1, no floor plan | the group only | "a four-top at 8pm" sells a band; individual tables may not exist as rows yet. Also the only place `overbook_units` can express a no-show buffer, because the band is the unit of overbooking policy, not the table. |
+| **Assigned** | Reservations Phase 3, host stand | the tables only | the group becomes a pure **selection**: pick an available member, reserve *its* pool. Overlapping groups are then free, because a selection has no arithmetic. |
+
+So S2 ships band mode, S3 migrates a venue to assigned mode, and **the migration between them is a
+real deliverable with a real risk** (live allocations against a group pool must be re-seated onto
+table pools). Naming it now is the whole point; discovering it in Phase 3 is the expensive version.
+
 **Pool binding.** I create no pools by hand and write no allocation. On insert of a bookable
 space or a group, the editor calls the Capacity Engine's create-pool path with
 `subject_kind='space'` / `'space_group'`, `subject_id` = my row, `units_total` = 1 for a table
@@ -263,8 +345,9 @@ walk-in path are the same code.
 
 | PR | Scope | Exit proof |
 |---|---|---|
-| S1a | migration `…220`, `lib/spaces/venues.ts`, `resolveTenantTimezone`, the five UTC surfaces | 13 venues, 13 defaults, queried in production; a unit lane covers the resolution ladder; the appointment policy for a Cancun workspace reports `America/Cancun` |
-| S1b | hourly reminder cron gated on venue-local hour | a workspace on `America/Cancun` gets the day-of reminder at 8am local, shown from the dispatch log |
+| S1a | migration `…220`, `lib/spaces/venues.ts`, `resolveTenantTimezone`, the booking surface | **DONE.** 13 venues, 13 defaults, 0 invalid zones in production; both live rungs exercised through the real resolver and reverted |
+| S1b | hourly reminder cron gated on venue-local hour | **DONE.** The real route handler, against production: one workspace selected at its own 8am, zero when restored to UTC |
+| S1c | the four remaining UTC surfaces plus a venue editor | an operator sets a zone in the UI and the reminder moves with it. **Every workspace in production is on UTC and there is no UI to change that**, so until S1c the ladder resolves correctly and nothing can exercise it |
 | S2a | `spaces`, `space_groups`, combinations, pool binding | four two-tops and six four-tops defined in under two minutes; the ancestor tests above green |
 | S2b | the plain "Venue and spaces" editor under Settings | clicked by me on localhost, screenshot in the PR |
 | S3 | assign / move / combine | a party of six seated on T8+T9, the two-top pool unchanged |
