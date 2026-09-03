@@ -571,6 +571,27 @@ The shell fix itself is queued with the Creative Director's developer as J1. It 
 **The fix, and why the parameter is not a compromise.** `zonedLocalToUtc(ymd, minutes, tz, { gap?: "skip" | "next" })`, default `"skip"` so every pre-existing caller is byte-identical; `recurrence.ts` delegates and its duplicate is deleted (#1592). **One area needs BOTH policies**, which is what proves it had to be a parameter: a service *window's* boundaries want `next`, because `skip` closes a restaurant whose doors are open; an offered *seating* wants `skip`, because under `next` a 02:30 seating silently becomes 03:30 where the real 03:30 seating already is — **the page then offers one instant twice under two labels, and two parties are told different times for the same moment.** Also: `tz.ts`, the resolver four features depend on, **had no test file at all** until #1592, and carried a `weekdayUtc("2027-13-40")` rollover bug.
 
 
+## ANSWERS TO THE CEO, 2026-09-03 21:30 UTC — on the board first, per the new protocol
+
+**Q1: the six BLOCKED PRs are checks still running. Not review-required, and NOT your CPU caps. Do not change the caps for this.**
+
+**The structural gate runs on GitHub's runners, not on this machine.** `.github/workflows/ci.yml:60` is `runs-on: ubuntu-latest`. Local CPU caps cannot starve it, cannot slow it, and raising them would buy nothing. Measured at 21:31 UTC: `fix/one-zone-resolver` gate started 21:29, `docs/board-capacity-findings` 21:21, `feat/front-door-header-verb` 21:22 — all `in_progress`, all inside the normal 11–19 minute run. `BLOCKED` in the GitHub API means "a required check has not reported yet", which is the same word it uses for a failing one. **That is a `one label, several states` reading, and it is why six PRs look stuck when they are simply young.**
+
+**Where the caps DO bite is local `tsc` and lint**, which is a different queue and a real one: six `tsc --noEmit` were live on this machine an hour ago, and the Sessions & Classes Manager has had two jobs waiting on the serialiser lock producing zero bytes. That is worth a cap change if you want one — but it changes how fast managers can self-verify before pushing, not how fast the gates report.
+
+**Q2: I can hold all nine tonight. Do not open the second director chat now; open it in the morning.**
+
+Holding is cheap right now for a specific reason: **eight of the nine are self-directing and three of tonight's best findings came from managers correcting each other without me in the loop** — Sessions found the `allocation_id` counter-case, Reservations verified it in the shipped schema and retracted their own request, Capacity answered the semantics underneath both. My load is arbitration, not supervision.
+
+**But I am not going to claim I held nine cleanly.** I made three ruling errors tonight and they share one signature: **I ruled without opening the file.** I told a manager to add a value to an enum that does not exist; I gave a clincher argument that does not discriminate between the two designs it was meant to decide; I ruled on a plan document without reading its current revision. Each was caught by a manager within the hour, and each cost someone else a cycle. That is what being spread across nine areas looks like from the inside — not missed messages, but rulings issued at the speed of a summary instead of the speed of a file.
+
+**The reason to wait until morning is concrete, not stoic.** Three managers are mid-migration or mid-slice right now (`20261229000340` announced and about to apply, `20261229000380` announced, QR Q1 underway). Introducing a new director at 21:30 means re-briefing three sessions on context that is currently only in this one, while they hold uncommitted work. **The handover is cheap tomorrow and expensive tonight.**
+
+**What I would ask for instead, and it is smaller:** when the second director opens, give them Sessions, Events and Reservations as a block — they share `admissions`, `sessions` and the capacity contracts, and every cross-area argument tonight was inside that triangle. Splitting them across two directors is what would actually cost.
+
+**Adopting the protocol as written.** It is what this board already does, and points 1 and 2 are worth having in writing: a decision that cannot be delivered is indistinguishable from one that has not been made. **Note for the record:** cross-session messaging in this session rate-pauses after roughly ten sends until the OWNER types — not until a peer replies. Loop-generated prompts do not reset it. So for stretches tonight the board and PR comments were the only channels out of here, which is the same failure you are describing from the other end.
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
