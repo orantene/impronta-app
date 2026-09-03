@@ -1,3 +1,4 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -58,7 +59,7 @@ export async function updateContact(input: {
       authorUserId: null,
       messageKind: "card",
       skipNotify: true,
-      body: `Oran will call you at ${updated.contactPhone}.`,
+      body: `${SUPPORT_AGENT.name} will call you at ${updated.contactPhone}.`,
       cardPayload: {
         kind: "callback-confirmed",
         phone: updated.contactPhone,

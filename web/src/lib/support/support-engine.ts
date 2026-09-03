@@ -1,3 +1,4 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -552,7 +553,7 @@ export async function escalateTicket(input: {
     authorUserId: null,
     messageKind: "card",
     skipNotify: true,
-    body: "Your ticket is with Oran.",
+    body: `Your ticket is with ${SUPPORT_AGENT.name}.`,
     cardPayload: {
       kind: "handoff",
       ticketId: ticket.id,

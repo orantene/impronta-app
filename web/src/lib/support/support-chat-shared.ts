@@ -1,3 +1,4 @@
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import type { SupportEscalationReason } from "./support-types";
 
 export const SUPPORT_CHAT_SCHEMA = {
@@ -47,7 +48,7 @@ export const SUPPORT_CHAT_REASONS = new Set<SupportEscalationReason>([
 ]);
 
 export const SUPPORT_CHAT_FAIL_OPEN_BODY =
-  "I'm having trouble right now. Want me to get Oran?";
+  `I'm having trouble right now. Want me to get ${SUPPORT_AGENT.name}?`;
 
 /**
  * Fail-open copy for the GUEST (marketing) surface.
@@ -64,7 +65,7 @@ export const SUPPORT_CHAT_FAIL_OPEN_BODY =
  * the email. Same escalation path underneath, same ai_unavailable reason.
  */
 export const SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY =
-  "Oran answers these himself. Leave your email and he'll come back to you, usually the same day.";
+  `${SUPPORT_AGENT.name} answers these himself. Leave your email and he'll come back to you, usually the same day.`;
 
 export type SupportChatModelOut = {
   answer: string;

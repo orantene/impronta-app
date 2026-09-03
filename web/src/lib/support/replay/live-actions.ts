@@ -1,5 +1,6 @@
 "use server";
 
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import { z } from "zod";
 
 import { logPlatformAdminAction } from "@/lib/platform/audit";
@@ -26,7 +27,7 @@ export async function hqRequestLiveViewAction(raw: { ticketId: string }): Promis
     cardPayload: {
       kind: "live-view",
       ticketId: parsed.data.ticketId,
-      title: "Oran would like to view your screen",
+      title: `${SUPPORT_AGENT.name} would like to view your screen`,
       description: "This tab only. Inputs stay hidden. You can stop any time.",
     },
     asHq: true,
