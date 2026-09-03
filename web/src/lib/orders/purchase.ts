@@ -312,29 +312,44 @@ export async function createPurchase(
     }
 
     let shortestTtlSeconds: number | null = null;
+    const needs = input.capacity ?? [];
 
-    for (const need of input.capacity ?? []) {
-      const orderLineId = lineIdByOffering.get(need.offeringId) ?? null;
-
-      // TTL comes from THE POOL, not from this file. A ticket pool wants ten
-      // minutes and a table wants fifteen, and hardcoding one here would either
-      // strand seats or rush buyers. Falls back to the local default only if
-      // the pool cannot say.
-      const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
-      const ttlSeconds = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
-      shortestTtlSeconds =
-        shortestTtlSeconds == null ? ttlSeconds : Math.min(shortestTtlSeconds, ttlSeconds);
+    if (needs.length > 0) {
+      // ONE atomic batch for the whole cart.
+      //
+      // This used to be a loop, one batch per line, because
+      // `reserveCapacityBatch` took a single `orderLineId` for a whole batch and
+      // a per-line loop was the only way to attribute each allocation to its
+      // line. Capacity made `orderLineId` per-request (0.11) after I flagged it,
+      // so the loop is gone: a refused leg now writes ZERO rows again and the
+      // compensation below no longer has to cover a partially-held cart.
+      //
+      // Attribution is not cosmetic — `capacity_allocations.order_line_id` is
+      // what refund-by-line reads to decide which units to free, so a wrong
+      // stamp means refunding the GA line releases the VIP seats.
+      //
+      // TTL: one batch takes one TTL, so the cart uses the SHORTEST across its
+      // pools. That is the right behaviour anyway — a cart should expire as one
+      // thing rather than in pieces — and it is why the order's
+      // `hold_expires_at` matches the first allocation to lapse.
+      for (const need of needs) {
+        const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
+        const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
+        shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
+      }
 
       const reserved = await reserveCapacityBatch(
-        [
-          {
-            poolId: need.poolId,
-            startsAt: need.startsAt ?? null,
-            endsAt: need.endsAt ?? null,
-            units: need.units ?? 1,
-          },
-        ],
-        { ttlSeconds, orderLineId, createdBy: input.actorUserId },
+        needs.map((need) => ({
+          poolId: need.poolId,
+          startsAt: need.startsAt ?? null,
+          endsAt: need.endsAt ?? null,
+          units: need.units ?? 1,
+          orderLineId: lineIdByOffering.get(need.offeringId) ?? null,
+        })),
+        {
+          ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+          createdBy: input.actorUserId,
+        },
         admin,
       );
 
@@ -343,7 +358,7 @@ export async function createPurchase(
         return {
           ok: false,
           reason: mapCapacityRefusal(reserved.reason),
-          offeringId: need.offeringId,
+          offeringId: needs.find((n) => n.poolId === reserved.failedPoolId)?.offeringId,
         };
       }
       heldAllocationIds.push(...reserved.allocationIds);
