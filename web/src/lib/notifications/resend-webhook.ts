@@ -65,6 +65,33 @@ export function suppressionReasonFor(event: ResendWebhookEvent): SuppressionReas
   return null;
 }
 
+/**
+ * The bounce vocabulary the provider actually used, persisted alongside the stamp.
+ *
+ * Suppression has never written a row in production. The first blocker was the
+ * write path (guest bounces were dropped for having no user id); that is fixed,
+ * and a bounce on 2026-09-03 with a valid user id STILL suppressed nothing. So
+ * the remaining blocker is above: `suppressionReasonFor` only fires on a
+ * Permanent bounce, and we have no idea whether Resend has ever sent us one,
+ * because the payload was read once and discarded.
+ *
+ * That is the actual defect — not the strictness, the blindness. Loosening the
+ * rule on a hunch would suppress live customers on transient blips, which is
+ * the failure this conservatism exists to prevent. So keep the rule and record
+ * the input: the next real bounce settles it with evidence.
+ *
+ * Returns an empty object for non-bounce events so the spread is a no-op.
+ */
+export function bounceDetailColumns(event: ResendWebhookEvent): Record<string, string> {
+  if (event.type !== "email.bounced") return {};
+  const bounce = event.data?.bounce;
+  const detail: Record<string, string> = {};
+  if (bounce?.type) detail.bounce_type = bounce.type;
+  if (bounce?.subType) detail.bounce_subtype = bounce.subType;
+  if (bounce?.message) detail.bounce_message = bounce.message.slice(0, 500);
+  return detail;
+}
+
 function eventTimestamp(event: ResendWebhookEvent): string {
   const raw = event.created_at ?? event.data?.created_at;
   if (raw) {
@@ -170,7 +197,7 @@ export async function applyResendEvent(
   if (emailId) {
     const { data, error } = await admin
       .from("notification_dispatch_log")
-      .update({ [column]: ts })
+      .update({ [column]: ts, ...bounceDetailColumns(event) })
       .eq("provider_reference", emailId)
       .select("recipient_user_id, recipient_email, tenant_id");
     if (error) {
@@ -188,7 +215,14 @@ export async function applyResendEvent(
 
   const reason = suppressionReasonFor(event);
   if (!reason) {
-    return { status: "stamped", detail: `${event.type}:${emailId ?? "no-id"}` };
+    // A bounce that did not suppress is the case we are trying to understand,
+    // so say why in the log line rather than leaving it indistinguishable from
+    // an ordinary delivery stamp.
+    const unsuppressed =
+      event.type === "email.bounced"
+        ? `:bounce-type=${event.data?.bounce?.type ?? "absent"}`
+        : "";
+    return { status: "stamped", detail: `${event.type}:${emailId ?? "no-id"}${unsuppressed}` };
   }
 
   // The address is the real grain. A user id is preferred (a user who changed
