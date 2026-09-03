@@ -296,6 +296,7 @@ const AGENCY_STOREFRONT_PREFIXES = [
   // visitor. Tenant scope is enforced inside the route handler via the
   // signed `tid` claim cross-checked against the resolved host.
   "/share",
+  "/me", // F5 customer home; storefront surface, tenant-scoped in lib/me/load-me.ts
 ] as const;
 
 const AGENCY_API_PREFIXES = [

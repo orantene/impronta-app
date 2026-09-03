@@ -101,6 +101,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "p",
   // Guest full-window conversation (/c/<inquiryId>).
   "c",
+  // Customer home (F5). Resolves on every tenant host, so a CMS page slugged
+  // "me" could never open. Mirrored in 20261229000500_reserve_me_slug.sql.
+  "me",
   // Host-agnostic surfaces that resolve on EVERY host kind.
   "checkout",
   "embed",
