@@ -209,6 +209,7 @@
     "gates": "npm run typecheck && npm run lint && npm run test:size-ratchet && npm run test:phase1-i18n",
     "typecheck:incremental": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
     "qa:appointments": "node scripts/qa-appointments.mjs",
+    "qa:links": "node scripts/qa-links.mjs",
     "worktree:claim": "node scripts/worktree-guard.mjs claim",
     "worktree:check": "node scripts/worktree-guard.mjs check",
     "check:builder-2027-gate": "node scripts/check-builder-2027-gate.cjs",
