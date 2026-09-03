@@ -118,6 +118,19 @@ export type PurchaseResult =
       /** True when the order is reserved with no card. */
       payInPerson: boolean;
       allocationIds: string[];
+      /**
+       * The transaction to charge, when there is money to collect. Null for a
+       * free reserve or pay-in-person.
+       *
+       * Stripe is deliberately NOT called from this pipeline: the caller passes
+       * this to `createCheckoutSessionForTransaction`, which already carries the
+       * `cs_txn_<id>` idempotency key. Keeping the network call out of the
+       * orchestrator is what makes the orchestrator testable, and it means there
+       * is still exactly one place that talks to Checkout.
+       */
+      transactionId: string | null;
+      /** The operations anchor. See the note at step 9. */
+      bookingId: string | null;
     }
   | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
 
@@ -133,6 +146,7 @@ export async function createPurchase(
   // the "compensates on some paths" asymmetry the old engines have.
   const heldAllocationIds: string[] = [];
   let createdOrderId: string | null = null;
+  let createdTransactionId: string | null = null;
 
   const unwind = async (why: string) => {
     if (heldAllocationIds.length > 0) {
@@ -141,6 +155,17 @@ export async function createPurchase(
         "orders.createPurchase/unwind",
         `${why}: released ${released.released} allocation(s), ${released.alreadyReleased} already released`,
       );
+    }
+    // The transaction, before the order: a live `payment_requested` row against
+    // a cancelled order is worse than either alone, because the money lanes
+    // read transactions and would see a payment in flight for an order nobody
+    // can pay.
+    if (createdTransactionId) {
+      const { error } = await admin
+        .from("booking_transactions")
+        .update({ status: "failed", failed_at: new Date().toISOString(), failure_reason: why })
+        .eq("id", createdTransactionId);
+      if (error) logServerError("orders.createPurchase/unwind/txn", error);
     }
     if (createdOrderId) {
       const { error } = await admin
@@ -324,12 +349,96 @@ export async function createPurchase(
       heldAllocationIds.push(...reserved.allocationIds);
     }
 
-    // ── 8. The payment decision, derived in step 2 and applied here.
+    // ── 8/9. The payment leg.
     //
+    // WHY A BOOKING EXISTS HERE AT ALL. `booking_transactions.booking_id` is
+    // NOT NULL, so a payment cannot exist without a booking — that is the
+    // structural reason both old engines create a booking for a taco, and it is
+    // not incidental. Making it nullable means reworking
+    // `idx_booking_transactions_booking_active` and `booking_payouts_unique_leg`,
+    // which are the indexes this track deliberately left alone.
+    //
+    // WHAT IS DIFFERENT FROM THE ENGINES: the booking is created with NO
+    // INQUIRY. `agency_bookings.source_inquiry_id` is nullable — only
+    // `tenant_id` is required — so a purchase gets its money anchor without
+    // being dragged through the inquiry state machine. That deletes the whole
+    // reason menu-order-engine force-writes `status: 'approved'` under the
+    // service role twice, re-reads `version` five times, and stamps
+    // `starts_at = ends_at = now()` as a calendar placeholder.
+    //
+    // The ORDER is the commercial record; the booking is the operations anchor
+    // the money spine still requires. When Finance makes `booking_id` nullable,
+    // this block is the one place to change.
+    let transactionId: string | null = null;
+    let bookingId: string | null = null;
+
+    if (collectCents > 0) {
+      const { data: bookingRow, error: bookingErr } = await admin
+        .from("agency_bookings")
+        .insert({
+          tenant_id_snapshot: input.tenantId,
+          // Set BEFORE insert on purpose: `bookings_write_order` fires AFTER
+          // INSERT and returns early when `order_id` is already present, so
+          // stamping it here is what stops the trigger writing a SECOND order
+          // for the order we just made.
+          order_id: createdOrderId,
+          source_inquiry_id: null,
+          title: priced.lines[0]?.label?.slice(0, 120) ?? "Order",
+          status: "confirmed",
+          contact_name: input.contact.displayName ?? null,
+          contact_email: input.contact.email ?? null,
+          contact_phone: input.contact.phone ?? null,
+          total_client_revenue: priced.subtotalCents / 100,
+          currency_code: "USD",
+        })
+        .select("id")
+        .single();
+
+      if (bookingErr || !bookingRow) {
+        logServerError("orders.createPurchase/booking", bookingErr);
+        await unwind("booking insert failed");
+        return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+      }
+      bookingId = (bookingRow as { id: string }).id;
+
+      const { data: txnRow, error: txnErr } = await admin
+        .from("booking_transactions")
+        .insert({
+          booking_id: bookingId,
+          order_id: createdOrderId,
+          source_tenant_id: input.tenantId,
+          source_inquiry_id: null,
+          payer_user_id: input.actorUserId,
+          payer_email: input.contact.email ?? null,
+          gross_amount_cents: collectCents,
+          platform_fee_basis_points: 0,
+          platform_fee_cents: 0,
+          net_amount_cents: collectCents,
+          currency: "USD",
+          provider: "stripe",
+          status: "payment_requested",
+          // A deposit is a PART payment against a known total, so the balance
+          // can be collected later against the same order.
+          checkout_type: policy.collect === "deposit" ? "deposit" : "full",
+          requested_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (txnErr || !txnRow) {
+        logServerError("orders.createPurchase/transaction", txnErr);
+        await unwind("transaction insert failed");
+        return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+      }
+      transactionId = (txnRow as { id: string }).id;
+      createdTransactionId = transactionId;
+    }
+
     // `paid` is reachable ONLY from a webhook or an explicit staff
     // pay-in-person action. Nothing in this function writes it — which is the
     // single rule the menu engine breaks when it force-writes state to get past
-    // a gate.
+    // a gate. A zero-collect order is `paid` because there is nothing to
+    // collect, not because a charge succeeded.
     const nextStatus = collectCents > 0 ? "pending_payment" : "paid";
 
     const { error: statusErr } = await admin
@@ -363,6 +472,8 @@ export async function createPurchase(
       collectCents,
       payInPerson: policy.payInPerson,
       allocationIds: heldAllocationIds,
+      transactionId,
+      bookingId,
     };
   } catch (err) {
     logServerError("orders.createPurchase", err);

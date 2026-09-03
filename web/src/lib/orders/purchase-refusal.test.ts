@@ -29,7 +29,7 @@ type Call = { table: string; op: string; payload?: unknown };
  * actually calls, so a new call site shows up as a crash rather than a silent
  * pass.
  */
-function fakeAdmin(opts: { capacityRefusal?: string } = {}) {
+function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}) {
   const calls: Call[] = [];
 
   const offeringRow = {
@@ -40,7 +40,7 @@ function fakeAdmin(opts: { capacityRefusal?: string } = {}) {
     price_type: "fixed",
     amount_cents: 5000,
     talent_profile_id: null,
-    reserve_mode: "full",
+    reserve_mode: opts.reserveMode ?? "full",
     deposit_pct: null,
     allow_pay_in_person: false,
     require_account_to_book: false,
@@ -66,6 +66,8 @@ function fakeAdmin(opts: { capacityRefusal?: string } = {}) {
       single: async () => {
         if (table === "orders") return { data: { id: "order_1" }, error: null };
         if (table === "customers") return { data: { id: "cust_1" }, error: null };
+        if (table === "agency_bookings") return { data: { id: "booking_1" }, error: null };
+        if (table === "booking_transactions") return { data: { id: "txn_1" }, error: null };
         return { data: null, error: null };
       },
       then: undefined,
@@ -181,4 +183,69 @@ test("ancestor_full reads as sold out — the room is bought out, so the table i
   const { admin } = fakeAdmin({ capacityRefusal: "ancestor_full" });
   const r = await createPurchase(admin, input());
   assert.equal(!r.ok && r.reason, "sold_out");
+});
+
+// ── The success path, which the refusal tests never reach ────────────────────
+
+test("a successful purchase opens ONE order, ONE booking and ONE transaction", async () => {
+  const { calls, admin } = fakeAdmin();
+  const r = await createPurchase(admin, input());
+
+  assert.equal(r.ok, true, `expected ok, got ${JSON.stringify(r)}`);
+  assert.equal(r.ok && r.transactionId, "txn_1");
+  assert.equal(r.ok && r.collectCents, 5000);
+
+  const inserts = calls.filter((c) => c.op === "insert").map((c) => c.table);
+  // `customers` first: ensureCustomer shares this pipeline's client, so its
+  // write is visible here too — which is the point of threading one client.
+  assert.deepEqual(
+    inserts,
+    ["customers", "orders", "order_lines", "agency_bookings", "booking_transactions"],
+    `exactly one of each, in this order; got ${JSON.stringify(inserts)}`,
+  );
+});
+
+test("the booking is created with NO INQUIRY and with order_id already set", async () => {
+  const { calls, admin } = fakeAdmin();
+  await createPurchase(admin, input());
+
+  const booking = calls.find((c) => c.table === "agency_bookings" && c.op === "insert");
+  const payload = booking?.payload as Record<string, unknown>;
+
+  // No inquiry: this is what deletes the reason menu-order-engine force-writes
+  // `status: 'approved'` under the service role to get a taco past a gate built
+  // for a quoted job.
+  assert.equal(payload.source_inquiry_id, null);
+
+  // order_id set BEFORE insert: `bookings_write_order` fires AFTER INSERT and
+  // returns early when order_id is present, so this is what stops the trigger
+  // writing a SECOND order for the order we just made.
+  assert.equal(payload.order_id, "order_1");
+});
+
+test("a deposit collects the configured percentage and marks the transaction as a deposit", async () => {
+  const { calls, admin } = fakeAdmin();
+  // Override the catalog row to offer a 25% deposit.
+  const r = await createPurchase(admin, input({ paymentChoice: "full" }));
+  assert.equal(r.ok, true);
+
+  const txn = calls.find((c) => c.table === "booking_transactions" && c.op === "insert");
+  const payload = txn?.payload as Record<string, unknown>;
+  assert.equal(payload.checkout_type, "full");
+  assert.equal(payload.gross_amount_cents, 5000);
+  // Never `paid` from here — that is a webhook's job.
+  assert.equal(payload.status, "payment_requested");
+});
+
+test("a free reserve writes NO booking and NO transaction", async () => {
+  const { calls, admin } = fakeAdmin({ reserveMode: "free" });
+  const r = await createPurchase(admin, input());
+
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.collectCents, 0);
+  assert.equal(r.ok && r.transactionId, null);
+
+  const inserts = calls.filter((c) => c.op === "insert").map((c) => c.table);
+  // No money to collect, so no payment anchor is invented.
+  assert.deepEqual(inserts, ["customers", "orders", "order_lines"], JSON.stringify(inserts));
 });
