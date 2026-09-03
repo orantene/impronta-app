@@ -304,3 +304,29 @@ test("the gap answer is the later candidate in BOTH offset signs", () => {
   assert.equal(madrid.kind, "shifted");
   if (madrid.kind === "shifted") assert.equal(utcToZonedHmm(madrid.instant, MADRID), "03:30");
 });
+
+test("a THIRTY-MINUTE spring GAP is handled too — the mirror of the overlap", () => {
+  // Lord Howe's gap is 30 minutes: on 2027-10-03 the clock jumps 02:00 -> 02:30.
+  // The old ±1h/±2h probe would have missed a hole that size entirely. Nobody
+  // reported this case; it fell out of deriving the delta rather than being
+  // special-cased, which is the argument for fixing causes over symptoms.
+  const LH = "Australia/Lord_Howe";
+
+  // Prove the gap is real first, or the rest asserts nothing.
+  assert.equal(utcToZonedHmm(new Date("2027-10-02T15:15:00.000Z"), LH), "01:45");
+  assert.equal(utcToZonedHmm(new Date("2027-10-02T15:30:00.000Z"), LH), "02:30",
+    "the clock skips straight from 02:00 to 02:30");
+
+  for (const minutes of [120, 135, 145]) {
+    assert.equal(resolveWallClock("2027-10-03", minutes, LH, { gap: "skip" }).kind, "nonexistent",
+      `${minutes} minutes past midnight is inside the hole`);
+  }
+  // Under "next" the shift is exactly the width of the gap — 30 minutes, not 60.
+  const r = resolveWallClock("2027-10-03", 2 * 60 + 15, LH, { gap: "next" });
+  assert.equal(r.kind, "shifted");
+  if (r.kind === "shifted") assert.equal(utcToZonedHmm(r.instant, LH), "02:45");
+
+  // Either side of the hole is untouched.
+  assert.equal(resolveWallClock("2027-10-03", 2 * 60 + 30, LH).kind, "exact");
+  assert.equal(resolveWallClock("2027-10-03", 1 * 60 + 45, LH).kind, "exact");
+});
