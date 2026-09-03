@@ -40,7 +40,22 @@ export type BuilderCapabilityKey =
 const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
   free: {
     plan: "free",
-    maxPublicPages: 1,
+    // RATIFIED 2026-09-03, raised from 1. The rationale is the shape of the
+    // incoming cohort, NOT current usage: a local business's normal site is
+    // home, menu, about, contact, and since homepage and contact are
+    // platform-provisioned and quota-exempt that is two counted pages. A cap of
+    // one blocked them on day one, on the plan we had just recommended.
+    //
+    // Current usage does NOT support this number either way, and the honest
+    // record is that an earlier reading which appeared to support it was a
+    // measurement error: it counted `cms_pages` rows rather than what
+    // `isQuotaCountedPage` counts, so the platform's own homepage, contact,
+    // directory and 404 were being charged to the operator's allowance. Every
+    // Free tenant is actually at ZERO counted pages. Judgment, not evidence.
+    //
+    // Read the enforcement path before changing this: the number means
+    // quota-counted pages (see isQuotaCountedPage), not rows in cms_pages.
+    maxPublicPages: 5,
     maxVisibleRosterProfiles: PLAN_SEAT_CAPS.free,
     workspaceTemplateLibrary: false,
     starterTemplateMode: "free-only",
@@ -317,14 +332,37 @@ export async function loadQuotaCountedPageCount(
 export function cmsAdditionalPageDeniedReason(
   planTier: string | null | undefined,
   countedPages?: number | null,
+  /**
+   * Display name of the cheapest tier that is BOTH sellable today and lifts
+   * this cap. Resolved by the server caller from the live catalog; omitted in
+   * pure contexts, where the copy falls back to plan-neutral wording.
+   */
+  lifterPlanName?: string | null,
 ): string | null {
   const policy = getBuilderPlanPolicy(planTier);
   const max = policy.maxPublicPages;
   if (max === null) return null;
   if (typeof countedPages === "number" && countedPages < max) return null;
-  return max === 1
-    ? "Free workspaces include one page of your own, on top of your homepage and 404. Upgrade to Studio to add more."
-    : `Your plan includes ${max} pages of your own. Upgrade to Studio to add more.`;
+  // The named plan is INJECTED, not hard-coded. Two bugs live in that sentence
+  // if you write a literal:
+  //
+  //   1. It said "Upgrade to Studio". Every paid tier sets maxPublicPages null,
+  //      so the cheapest lift is Website at $12, and Studio is $29. We were
+  //      telling a shop to spend $17 a month more than it needed, for roster
+  //      machinery it will never open.
+  //   2. Naming Website is only correct while Website is SELLABLE. Its tier is
+  //      `is_active = false` today, so a literal "Website" would point at a
+  //      plan that refuses checkout — a dead CTA, which is the failure class
+  //      this codebase has spent a lot of effort removing.
+  //
+  // So the caller resolves the cheapest ACTIVE tier that lifts the cap and
+  // passes its display name. With no name resolved the copy stays plan-neutral,
+  // which is always true and can never be a dead end.
+  const noun = max === 1 ? "one page" : `${max} pages`;
+  const lift = lifterPlanName
+    ? `Every paid plan adds unlimited pages, starting with ${lifterPlanName}.`
+    : "Every paid plan adds unlimited pages.";
+  return `Your plan includes ${noun} of your own, on top of your homepage and 404. ${lift}`;
 }
 
 export function clampFeaturedRosterLimitForPlan(

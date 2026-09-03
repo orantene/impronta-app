@@ -23,6 +23,7 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 
 import { readTenantPageRoles } from "./page-roles";
+import { resolveCheapestPageLifterName } from "./page-lifter";
 import { PAGE_ROLES } from "./page-roles-shape";
 
 /**
@@ -47,5 +48,9 @@ export async function resolveAdditionalPageDenial(
     ),
   );
   const counted = await loadQuotaCountedPageCount(supabase, tenantId, roleSlugs);
-  return cmsAdditionalPageDeniedReason(workspacePlan, counted);
+
+  // Resolve the named plan from the live catalog rather than a literal, so the
+  // upsell can never point at a tier that is not sellable. See page-lifter.ts.
+  const lifter = await resolveCheapestPageLifterName();
+  return cmsAdditionalPageDeniedReason(workspacePlan, counted, lifter);
 }

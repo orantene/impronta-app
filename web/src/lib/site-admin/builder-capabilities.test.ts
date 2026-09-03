@@ -23,9 +23,11 @@ test("normalizeBuilderWorkspacePlan defaults unknown values to free", () => {
   assert.equal(normalizeBuilderWorkspacePlan("studio"), "studio");
 });
 
-test("free plan policy enforces one page and five roster profile cap", () => {
+test("free plan policy allows five pages and a five roster profile cap", () => {
   const policy = getBuilderPlanPolicy("free");
-  assert.equal(policy.maxPublicPages, 1);
+  // Raised from 1 on 2026-09-03. The number is QUOTA-COUNTED pages, so the
+  // platform's own homepage / contact / directory / 404 do not consume it.
+  assert.equal(policy.maxPublicPages, 5);
   assert.equal(policy.maxVisibleRosterProfiles, 5);
   assert.equal(policy.shellEditMode, "locked");
   assert.equal(policy.brandedSubdomainEligible, false);
@@ -70,7 +72,7 @@ test("resolveStarterTemplateSlugs keeps free plan on free starter only", () => {
 
 test("cmsAdditionalPageDeniedReason blocks free without a count, allows paid plans", () => {
   // No count supplied means "unmetered" — fail closed, as before.
-  assert.match(cmsAdditionalPageDeniedReason("free") ?? "", /one page of your own/i);
+  assert.match(cmsAdditionalPageDeniedReason("free") ?? "", /5 pages of your own/i);
   assert.equal(cmsAdditionalPageDeniedReason("studio"), null);
 });
 
@@ -97,7 +99,11 @@ test("the seeded default pages do not count against the quota", () => {
   assert.equal(cmsAdditionalPageDeniedReason("free", 0), null);
 });
 
-test("a Free workspace gets exactly one operator page on top of the defaults", () => {
+test("the platform's own pages never bill against a Free allowance", () => {
+  // The counting rule is the load-bearing half, and misreading it is how an
+  // earlier usage audit concluded that half of all Free tenants were over the
+  // cap when every one of them was at zero. homepage is exempt by template key,
+  // 404 by its role pointer, so only `about` is the operator's.
   const roleSlugs = new Set(["404"]);
   const rows = [
     { slug: "", system_template_key: "homepage", status: "published" },
@@ -105,10 +111,41 @@ test("a Free workspace gets exactly one operator page on top of the defaults", (
     { slug: "about", system_template_key: null, status: "draft" },
   ];
   assert.equal(countQuotaCountedPages(rows, roleSlugs), 1);
+  // One counted page is now well inside the allowance of 5.
+  assert.equal(cmsAdditionalPageDeniedReason("free", 1), null);
+});
+
+test("the Free allowance denies at 5 counted pages, not before", () => {
+  assert.equal(cmsAdditionalPageDeniedReason("free", 4), null);
   assert.match(
-    cmsAdditionalPageDeniedReason("free", 1) ?? "",
-    /one page of your own/i,
+    cmsAdditionalPageDeniedReason("free", 5) ?? "",
+    /5 pages of your own/i,
   );
+});
+
+test("the page-cap upsell names whatever lifter it is given, and never Studio by default", () => {
+  // The plan name is INJECTED by the server from the live catalog, not typed
+  // here. Two separate bugs are pinned by this:
+  //
+  //   the original literal "Upgrade to Studio" charged a shop $17/mo more than
+  //   it needed, because every paid tier lifts the cap and Website is cheapest;
+  //
+  //   a literal "Website" would have been a DEAD CTA, because that tier is
+  //   is_active=false and its checkout refuses.
+  //
+  // So the assertion is on the SHAPE — it names the lifter it was handed —
+  // rather than on any particular plan, which is the thing that changes.
+  assert.match(cmsAdditionalPageDeniedReason("free", 5, "Studio") ?? "", /starting with Studio\./);
+  assert.match(cmsAdditionalPageDeniedReason("free", 5, "Website") ?? "", /starting with Website\./);
+  assert.doesNotMatch(cmsAdditionalPageDeniedReason("free", 5, "Website") ?? "", /Upgrade to Studio/i);
+});
+
+test("with no lifter resolved the upsell stays plan-neutral, never a dead CTA", () => {
+  // A catalog read failure must not produce a confidently wrong upsell. The
+  // fallback names nothing, which is always true.
+  const reason = cmsAdditionalPageDeniedReason("free", 5) ?? "";
+  assert.match(reason, /Every paid plan adds unlimited pages\./);
+  assert.doesNotMatch(reason, /starting with/);
 });
 
 test("promoting a page to a role stops it billing against the quota", () => {

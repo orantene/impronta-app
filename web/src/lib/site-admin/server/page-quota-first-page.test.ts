@@ -28,11 +28,30 @@ import { test } from "node:test";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { cmsAdditionalPageDeniedReason } from "@/lib/site-admin/builder-capabilities";
+import {
+  cmsAdditionalPageDeniedReason,
+  getBuilderPlanPolicy,
+} from "@/lib/site-admin/builder-capabilities";
 
 import { resolveAdditionalPageDenial } from "./page-quota";
 
 const SRC = path.join(process.cwd(), "src");
+
+/**
+ * Read from the policy, never written as a literal. These tests assert that the
+ * allowance is ENFORCED, which is the invariant; the number itself is a product
+ * decision that has already moved once (one page to five) and took two tests
+ * with it when it did.
+ */
+const FREE_MAX_PUBLIC_PAGES = (() => {
+  const max = getBuilderPlanPolicy("free").maxPublicPages;
+  assert.equal(
+    typeof max,
+    "number",
+    "Free must have a finite page cap for this suite to mean anything",
+  );
+  return max as number;
+})();
 
 type PageRow = {
   slug: string;
@@ -118,7 +137,7 @@ test("a fresh Free workspace may create its first operator page", async () => {
   );
 });
 
-test("the Free allowance is one page, and the second is refused", async () => {
+test("a Free workspace inside the allowance may still create another", async () => {
   const denial = await resolveAdditionalPageDenial(
     fakeClient({
       planTier: "free",
@@ -127,7 +146,22 @@ test("the Free allowance is one page, and the second is refused", async () => {
     "tenant-1",
     "test",
   );
-  assert.match(String(denial), /one page of your own/);
+  assert.equal(denial, null, "one operator page is inside the Free allowance of five");
+});
+
+test("the Free allowance is enforced: the page after the last one is refused", async () => {
+  // Fixture sized from the policy, not from a literal: fill the allowance
+  // exactly, so this test follows `maxPublicPages` if the number moves again
+  // instead of pinning today's copy.
+  const filled = Array.from({ length: FREE_MAX_PUBLIC_PAGES }, (_, i) =>
+    operatorPage(`page-${i + 1}`),
+  );
+  const denial = await resolveAdditionalPageDenial(
+    fakeClient({ planTier: "free", pages: [...SEEDED_SYSTEM_PAGES, ...filled] }),
+    "tenant-1",
+    "test",
+  );
+  assert.notEqual(denial, null, "the page after the allowance must be refused");
 });
 
 test("a page promoted to a role stops consuming the allowance", async () => {
@@ -146,8 +180,21 @@ test("a page promoted to a role stops consuming the allowance", async () => {
 test("THE BUG: the same helper answers oppositely with and without a count", () => {
   // Not a hypothetical. `upsertPage` called the left-hand form; every real
   // caller had already computed the right-hand one.
-  assert.match(String(cmsAdditionalPageDeniedReason("free")), /Upgrade to Studio/);
-  assert.equal(cmsAdditionalPageDeniedReason("free", 0), null);
+  //
+  // Asserted on the SHAPE of the disagreement, never on the copy. The wording
+  // moved when the Free allowance became five and the upsell stopped naming a
+  // plan; the bug did not move at all. A test that pins the sentence reports a
+  // copy change as if the defect were fixed.
+  assert.notEqual(
+    cmsAdditionalPageDeniedReason("free"),
+    null,
+    "no count still fails closed and denies",
+  );
+  assert.equal(
+    cmsAdditionalPageDeniedReason("free", 0),
+    null,
+    "the same helper, given the count every real caller already has, allows",
+  );
 });
 
 test("the CREATE branch of upsertPage routes through the counted gate", () => {
