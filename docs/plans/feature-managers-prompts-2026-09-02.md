@@ -658,6 +658,22 @@ How you work.
 
 ---
 
+DECIDED BEFORE YOU ARRIVED, AND YOUR RIGHT TO OVERTURN IT
+
+The Capacity Engine Manager started before this chat existed and had to decide the ancestor rule without you. You inherit it, and you inherit an explicit right to challenge it with evidence. Do not treat it as settled just because it is written down.
+
+What they decided:
+- A pool's ancestors are a materialised `pool_path` column, queried with `@>` containment, rather than a recursive CTE walked at reserve time.
+- Reserving a child locks its ancestors ROOT FIRST. That ordering is deliberate: two reserves on sibling tables cannot deadlock on the room they share.
+- Re-parenting a pool is REFUSED while it holds allocations, because moving a node would silently change what every existing allocation consumed.
+- Remaining capacity is DERIVED from allocation rows, never stored as a counter, and a release is a soft `released` state rather than a delete. A double release is therefore a no-op by construction.
+- One subject can carry more than one pool, keyed by `pool_key`. A table sold both as four seats and as a whole-table buy-out is the case this exists for.
+
+Why it matters to you: your venue → room → table → seat tree IS the pool tree. If the containment model is wrong for real floor plans (a table that belongs to two zones, a divider that splits one room into two sellable rooms, a seat sold in two different layouts), say so with a concrete floor plan that breaks it, message the Capacity Engine Manager directly, and copy the Director. Coming back a phase later to say the model never fitted is the expensive version of this conversation.
+
+---
+
+
 ## PROMPT 10: QR & Links Manager
 
 ```
