@@ -355,17 +355,14 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13 — without setting the locale cookie here, the
-    // redirected page renders in the DEFAULT locale even though the
-    // operator's URL was `/es/<tenant>`. The downstream
-    // `syncLocaleCookieForPath` calls only fire after this early-return,
-    // so they never see the original `/es/` prefix and never set the
-    // cookie. Result: clicking the ES locale switcher pushed
-    // `/es/impronta?edit=1` → server 308'd to `/impronta?edit=1` →
-    // page rendered in EN. The switcher appeared broken.
-    //
-    // Set the cookie on the redirect response so the followed URL
-    // serves with the right locale.
+    // QA 2026-05-13 — without setting the locale cookie here, the redirected
+    // page renders in the DEFAULT locale even though the operator's URL was
+    // `/es/<tenant>`. The downstream `syncLocaleCookieForPath` calls only fire
+    // after this early-return, so they never see the original `/es/` prefix
+    // and never set the cookie. Result: clicking the ES locale switcher pushed
+    // `/es/impronta?edit=1` → server 308'd to `/impronta?edit=1` → page
+    // rendered in EN. The switcher appeared broken.  Set the cookie on the
+    // redirect response so the followed URL serves with the right locale.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     return res;
   }
@@ -373,15 +370,14 @@ export async function proxy(request: NextRequest) {
   // Phase 5 / M1 — per-tenant locale enforcement. A tenant publishes a subset
   // of platform locales (`agency_business_identity.supported_locales`). When
   // the URL carries an explicit locale prefix that the tenant does NOT
-  // support, redirect to the tenant's default locale instead of serving
-  // a page that would 404 or fall back silently. This is temporary safety
-  // — M7+ Site Health surfaces missing-locale warnings to operators.
-  //
-  // 2026-08-16 — this was gated on `hostContext.kind === "agency"`, so hub
-  // tenants AND every path-based `/w/<slug>` tenant got NO enforcement at all:
-  // an unsupported `/fr/w/<slug>` fell through to the surface allow-list and
-  // 404'd instead of redirecting to the tenant's own default locale. Gate on the
-  // EFFECTIVE tenant context instead (`agency` or `hub`, host- or path-resolved).
+  // support, redirect to the tenant's default locale instead of serving a page
+  // that would 404 or fall back silently. This is temporary safety — M7+ Site
+  // Health surfaces missing-locale warnings to operators.  2026-08-16 — this
+  // was gated on `hostContext.kind === "agency"`, so hub tenants AND every
+  // path-based `/w/<slug>` tenant got NO enforcement at all: an unsupported
+  // `/fr/w/<slug>` fell through to the surface allow-list and 404'd instead of
+  // redirecting to the tenant's own default locale. Gate on the EFFECTIVE
+  // tenant context instead (`agency` or `hub`, host- or path-resolved).
   // Non-tenant contexts (marketing / app) still skip it, exactly as before.
   if (isTenantHostContext(effectiveHostContext) && effectiveTenantLocaleSettings) {
     const firstSegment = parts[1];
@@ -473,17 +469,21 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Phase 9 v2 — share-link viewer rate limit. Token verification is
-  // cheap (HMAC + a single supabase read), but a fuzzer hammering
-  // `/share/<random>` 100×/sec would still consume edge cycles + DB
-  // round-trips against a guaranteed-invalid token. 60 requests / minute
-  // / IP is comfortably above any realistic visitor pattern (a real
-  // recipient opens the link once, maybe refreshes a few times) and
-  // catches drive-by scanning. Per-page asset reads load through the
-  // CMS section dispatcher with their own caching so they don't re-hit
-  // this gate.
-  if (pathname.startsWith("/share/") && request.method === "GET") {
-    if (!tryConsumeRateLimit(`share:${ip}`, 60, 60_000)) {
+  // Phase 9 v2 — share-link viewer rate limit. Token verification is cheap
+  // (HMAC + a single supabase read), but a fuzzer hammering `/share/<random>`
+  // 100×/sec would still consume edge cycles + DB round-trips against a
+  // guaranteed-invalid token. 60 requests / minute / IP is comfortably above
+  // any realistic visitor pattern (a real recipient opens the link once, maybe
+  // refreshes a few times) and catches drive-by scanning. Per-page asset reads
+  // load through the CMS section dispatcher with their own caching so they
+  // don't re-hit this gate. `/q/` joins this budget (QR & Links Q1): a printed
+  // link code is short and typeable, therefore deliberately guessable, so
+  // enumeration is answered by a rate limit rather than by a secrecy the code
+  // cannot have. Separate bucket keys so a scanner cannot exhaust a share
+  // recipient's allowance, or vice versa.
+  if ((pathname.startsWith("/share/") || pathname.startsWith("/q/")) && request.method === "GET") {
+    const bucket = pathname.startsWith("/q/") ? "link-scan" : "share";
+    if (!tryConsumeRateLimit(`${bucket}:${ip}`, 60, 60_000)) {
       return rateLimitHtmlResponse();
     }
   }
@@ -782,15 +782,13 @@ export const config = {
     // must serve host-agnostically — without these exclusions the proxy runs
     // host resolution + the surface allow-list on them and 404s every PWA
     // asset on tenant hosts (the service worker then can't register). Mirrors
-    // the `favicon.ico` skip.
-    //
-    // `/offline` is deliberately NOT excluded here: it is a rendered route
-    // under the `force-dynamic` root layout, so it MUST go through the proxy
-    // to receive the locale + host headers the layout's data loads depend on
-    // (bypassing the proxy made it 500). It is instead allow-listed for every
-    // host kind in `surface-allow-list.ts`.
-    // `api/media/asset` is excluded because next/image's internal fetch carries
-    // no `Host`; safe, and why, in `@/lib/media/private-access`.
+    // the `favicon.ico` skip.  `/offline` is deliberately NOT excluded here:
+    // it is a rendered route under the `force-dynamic` root layout, so it MUST
+    // go through the proxy to receive the locale + host headers the layout's
+    // data loads depend on (bypassing the proxy made it 500). It is instead
+    // allow-listed for every host kind in `surface-allow-list.ts`.
+    // `api/media/asset` is excluded because next/image's internal fetch
+    // carries no `Host`; safe, and why, in `@/lib/media/private-access`.
     "/((?!_next/static|_next/image|api/media/asset|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

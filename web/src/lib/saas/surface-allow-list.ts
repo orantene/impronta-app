@@ -97,47 +97,40 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
 
 /**
  * API paths reachable on every surface:
- *   - `/api/cron/*`          → scheduler bearer-token protected
- *   - `/api/analytics/events`→ write-only, name allow-listed
- *   - `/api/stripe/*`        → Stripe webhook signature-protected; must NOT be
- *                              gated by host-resolution because Stripe sends
- *                              events to whatever public endpoint we register
- *                              and the originating Host header may not match
- *                              any seeded `agency_domains` row.
- *   - `/api/health/*`        → read-only deploy diagnostics (e.g.
- *                              `/api/health/guest-chat` reports only the BOOLEAN
- *                              presence of the Upstash KV env vars — no secret
- *                              values, no tenant data). Intentionally
- *                              unauthenticated so `deploy:smoke` can probe the
- *                              deployed runtime without a session; without this
- *                              entry the proxy rewrote it to a 404 and the
- *                              smoke check could never read the anti-spam signal.
+ *   - `/api/cron/*` → scheduler bearer-token protected
+ *   - `/api/analytics/events` → write-only, name allow-listed
+ *   - `/api/stripe/*` → Stripe webhook signature-protected; must NOT be gated
+ *        by host-resolution because Stripe sends events to whatever public
+ *        endpoint we register and the originating Host header may not match
+ *        any seeded `agency_domains` row.
+ *   - `/api/health/*` → read-only deploy diagnostics (e.g.
+ *        `/api/health/guest-chat` reports only the BOOLEAN presence of the
+ *        Upstash KV env vars — no secret values, no tenant data).
+ *        Intentionally unauthenticated so `deploy:smoke` can probe the
+ *        deployed runtime without a session; without this entry the proxy
+ *        rewrote it to a 404 and the smoke check could never read the
+ *        anti-spam signal.
  *   - `/api/dev/reset-guest` → QA/E2E fresh-guest-session reset (W0-H). Unlike
- *                              the rest of `/api/dev/*` (bypassed in proxy.ts
- *                              for dev + preview ONLY), this single route is
- *                              also allowed through on production hosts
- *                              because its own gate accepts either dev/preview
- *                              OR an authenticated staff session — production
- *                              staff need it to get a clean guest cookie while
- *                              QA-ing the live guest chat panel. It clears only
- *                              the `impronta_guest` cookie (no DB writes) and
- *                              404s (never 403) when neither gate passes, so
- *                              listing it here does not advertise a capability.
- *   - `/api/media/asset/*`   → gated media reads (execution plan 2026-08-15
- *                              §1 P0-1). Host-agnostic on purpose: the surface
- *                              a photo is being requested FOR is HMAC-signed
- *                              into the URL, not inferred from the Host, so
- *                              that a tenant reached at `tulala.digital/<slug>`
- *                              and a `next/image` server-side refetch both
- *                              evaluate against the right surface. The gate is
- *                              the two-key predicate inside the route; an
- *                              unsigned or tampered URL 404s, and the whole
- *                              route 404s while gated media access is off
- *                              (`platform_settings.media_private_access_enabled`,
- *                              default false). Scoped to `/asset` rather than
- *                              `/api/media` so the staff-only
- *                              `/api/media/bake-watermark` keeps exactly the
- *                              reachability it has today.
+ *        the rest of `/api/dev/*` (bypassed in proxy.ts for dev + preview
+ *        ONLY), this single route is also allowed through on production hosts
+ *        because its own gate accepts either dev/preview OR an authenticated
+ *        staff session — production staff need it to get a clean guest cookie
+ *        while QA-ing the live guest chat panel. It clears only the
+ *        `impronta_guest` cookie (no DB writes) and 404s (never 403) when
+ *        neither gate passes, so listing it here does not advertise a
+ *        capability.
+ *   - `/api/media/asset/*` → gated media reads (execution plan 2026-08-15 §1
+ *        P0-1). Host-agnostic on purpose: the surface a photo is being
+ *        requested FOR is HMAC-signed into the URL, not inferred from the
+ *        Host, so that a tenant reached at `tulala.digital/<slug>` and a
+ *        `next/image` server-side refetch both evaluate against the right
+ *        surface. The gate is the two-key predicate inside the route; an
+ *        unsigned or tampered URL 404s, and the whole route 404s while gated
+ *        media access is off
+ *        (`platform_settings.media_private_access_enabled`, default false).
+ *        Scoped to `/asset` rather than `/api/media` so the staff-only
+ *        `/api/media/bake-watermark` keeps exactly the reachability it has
+ *        today.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
@@ -390,33 +383,22 @@ const CANONICAL_TALENT_PREFIX = "/t" as const;
 const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
 
 /**
- * QR & Links Q1 — the tracked-link resolver (`/q/[code]`).
- *
- * Reachable on the two host kinds that carry a tenant, because a code is
- * meaningless without an owner to look it up under: `casarizo.com/q/t7` and
- * `otherplace.com/q/t7` are different links that share a code. On app and
- * marketing hosts there is no tenant, so the handler could only 404 anyway,
- * and allow-listing a path that can never resolve would be a lie in the one
- * table that is supposed to answer "does this path exist on this host?".
- *
- * The route handler resolves the tenant from the host itself; this entry only
- * lets the path reach it. Without it the proxy rewrites every scan to
- * `/_page-not-found` BEFORE Next routing runs, and the symptom is an HTML 404
- * from a route file that exists and is correct.
+ * QR & Links Q1 — the tracked-link resolver (`/q/[code]`). Agency and hub only:
+ * those carry a tenant, and a code means nothing without an owner to look it up
+ * under (`casarizo.com/q/t7` and `otherplace.com/q/t7` differ). Without this
+ * entry the proxy 404s every scan before Next routing runs.
  */
 const CANONICAL_LINK_PREFIX = "/q" as const;
 
 /**
- * Phase 3 — multi-tenant workspace surface on the app host.
- * Pattern: `/<tenantSlug>/<surface>` where surface ∈ {admin, talent, client, platform}.
- *
+ * Phase 3 — multi-tenant workspace surface on the app host. Pattern:
+ * `/<tenantSlug>/<surface>` where surface ∈ {admin, talent, client, platform}.
  * The first path segment is the tenant's URL slug (e.g. "impronta") and the
  * second is the workspace surface. Exact tenant-slug validation happens inside
  * the route handler via `getTenantScopeBySlug()`. The allow-list only needs to
- * confirm the shape matches the canonical workspace URL pattern.
- *
- * Reserved first segments (existing top-level routes) are excluded explicitly
- * so this check can't shadow `/api/admin`, `/t/slug`, auth paths, etc.
+ * confirm the shape matches the canonical workspace URL pattern. Reserved
+ * first segments (existing top-level routes) are excluded explicitly so this
+ * check can't shadow `/api/admin`, `/t/slug`, auth paths, etc.
  */
 const WORKSPACE_SLUG_SURFACES = ["admin", "talent", "client", "platform", "admin-preview"] as const;
 const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
@@ -428,8 +410,7 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "t",
   // Guest full-window conversation (/c/[inquiryId]) — U1 mini→full expansion.
   "c",
-  // QR & Links (/q/[code]) — the tracked-link resolver. Reserved so a tenant
-  // whose slug is "q" cannot shadow every printed code on the platform.
+  // QR & Links (/q/[code]); reserved so no tenant slug shadows every printed code.
   "q",
   // Static
   "sitemap.xml", "robots.txt",
@@ -529,15 +510,12 @@ export function resolvePathBasedTenantPublicPath(
 
 /**
  * Canonical public parent segment for path-based (free-tier) workspaces:
- *
- *     tulala.digital/w/<tenantSlug>/...
- *
- * Workspaces used to live flat at the apex root (`/<tenantSlug>`), which put
- * every tenant slug in the same namespace as every marketing route — the
- * reason PATH_BASED_TENANT_RESERVED_PREFIXES has to exist at all. Moving them
- * under `/w` frees the root namespace permanently: no workspace can shadow a
- * marketing page, and new marketing routes can be added without checking for
- * slug collisions.
+ * tulala.digital/w/<tenantSlug>/... Workspaces used to live flat at the apex
+ * root (`/<tenantSlug>`), which put every tenant slug in the same namespace as
+ * every marketing route — the reason PATH_BASED_TENANT_RESERVED_PREFIXES has
+ * to exist at all. Moving them under `/w` frees the root namespace
+ * permanently: no workspace can shadow a marketing page, and new marketing
+ * routes can be added without checking for slug collisions.
  */
 export const WORKSPACE_PATH_SEGMENT = "w" as const;
 
@@ -679,10 +657,9 @@ const MARKETING_PAGE_PREFIXES = [
   // metadata file-routes under the internal path: the og:image resolves to
   // `/global-directory/opengraph-image-<hash>`. Without this entry that asset
   // 404s and the directory unfurls with no card at all (same failure mode as
-  // the root `/opengraph-image` before it was allow-listed).
-  // Serving the page itself at both paths is safe: it emits a canonical of
-  // `/directory`, so crawlers consolidate, and only `/directory` is in the
-  // sitemap.
+  // the root `/opengraph-image` before it was allow-listed). Serving the page
+  // itself at both paths is safe: it emits a canonical of `/directory`, so
+  // crawlers consolidate, and only `/directory` is in the sitemap.
   "/global-directory",
   // "Agencia de talento" landing page — Spanish-first demand keyword page
   // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
@@ -755,10 +732,8 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, EMBED_PREFIX)) return true;
   if (anyExact(pathname, EMBED_EXACT_PATHS)) return true;
 
-  // A tracked link resolves only where a tenant exists to own the code.
-  if (hasPrefix(pathname, CANONICAL_LINK_PREFIX) && (kind === "agency" || kind === "hub")) {
-    return true;
-  }
+  // A tracked link resolves only where a tenant owns the code.
+  if (hasPrefix(pathname, CANONICAL_LINK_PREFIX)) return kind === "agency" || kind === "hub";
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the

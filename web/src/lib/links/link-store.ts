@@ -18,6 +18,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 import type { TargetRule } from "./resolve-target";
 import { validateTargets } from "./resolve-target";
+import { type CodeMode, validateCode } from "./code";
 
 export type LinkKind =
   | "table" | "event" | "session" | "appointment" | "campaign"
@@ -36,6 +37,7 @@ export type LinkRow = {
   id: string;
   tenant_id: string;
   code: string;
+  code_mode: CodeMode;
   name: string;
   kind: LinkKind;
   targets: TargetRule[];
@@ -68,7 +70,7 @@ export async function findActiveLinkByCode(
 
   const { data, error } = await admin
     .from("links")
-    .select("id, tenant_id, code, name, kind, targets, context, status, printed_count")
+    .select("id, tenant_id, code, code_mode, name, kind, targets, context, status, printed_count")
     .eq("tenant_id", tenantId)
     .eq("code", code.trim().toLowerCase())
     .eq("status", "active")
@@ -170,6 +172,8 @@ export function readCountry(header: string | null): string | null {
 export type CreateLinkInput = {
   tenantId: string;
   code: string;
+  /** Defaults to "readable". Pass "opaque" for a link that grants rather than shows. */
+  codeMode?: CodeMode;
   name: string;
   kind: LinkKind;
   targets: TargetRule[];
@@ -186,12 +190,13 @@ export async function createLink(
   input: CreateLinkInput,
 ): Promise<{ ok: true; link: LinkRow } | { ok: false; reason: string }> {
   const code = input.code.trim().toLowerCase();
-  if (!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(code)) {
-    return {
-      ok: false,
-      reason: "A code can use letters, numbers and hyphens, and cannot start or end with a hyphen.",
-    };
-  }
+  const codeMode: CodeMode = input.codeMode ?? "readable";
+
+  // Checked here as well as by the database constraints so the caller gets a
+  // sentence instead of a constraint name. A short opaque code is the one
+  // failure in this file that would otherwise look like it worked.
+  const codeCheck = validateCode(code, codeMode);
+  if (!codeCheck.ok) return { ok: false, reason: codeCheck.reason };
 
   const targetsCheck = validateTargets(input.targets);
   if (!targetsCheck.ok) return { ok: false, reason: targetsCheck.reason };
@@ -204,13 +209,14 @@ export async function createLink(
     .insert({
       tenant_id: input.tenantId,
       code,
+      code_mode: codeMode,
       name: input.name.trim(),
       kind: input.kind,
       targets: input.targets,
       context: input.context ?? {},
       created_by: input.createdBy ?? null,
     })
-    .select("id, tenant_id, code, name, kind, targets, context, status, printed_count")
+    .select("id, tenant_id, code, code_mode, name, kind, targets, context, status, printed_count")
     .single();
 
   if (error) {
