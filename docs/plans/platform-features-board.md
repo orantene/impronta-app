@@ -206,6 +206,20 @@ It derives the version from the filename, applies via the Management API, record
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
 ## Department rules added in flight
+**READ `mergeStateStatus` BEFORE YOU READ CHECKS.** Proposed by the Orders & Checkout Manager after nearly shipping a false green on #1513, sharpened by the Director after measuring every open PR. One command:
+
+```
+gh pr view <n> --json mergeStateStatus,mergeable
+```
+
+`DIRTY` / `CONFLICTING` means **the checks you are looking at do not describe what would land**, and it has TWO faces:
+
+1. **The absence.** #1513 showed `Vercel: pass`, `Vercel Preview Comments: pass`, `Re-alias: skipping` — two passes and a skip, nothing red. The structural gate, admin boot, fidelity goldens and perf budget were not pending, not failing, not queued. **They had never fired.** A conflicting PR fires nothing, which this repo already records in `reference_ci_and_ratchet_traps` as "a CONFLICTING PR fires NOTHING while reporting all done". The manager caught it only because the gates were green implausibly early for a PR that normally takes a 16-minute structural gate.
+2. **The stale green, which is worse.** Measured 2026-09-03: PR #1506 (`feat/finance-ledger-writer`) is `DIRTY` / `CONFLICTING` and shows a **complete green check set**, structural quality gate included, passing in 16m16s. Those runs measured a merge ref from before `main` moved. There is no absence to notice and nothing looks early. Related recorded lesson: `incident_rerun_replays_stale_merge_ref` — a stale PR needs a **rebase**, never a re-run.
+
+**Why this hits this department specifically:** every manager branched off a fast-moving `main`, and `web/package.json`'s curated lane list is the one file we all touch, because "a new test file runs nowhere until you add it to a lane" funnels all nine of us into the same line. Resolve that conflict as the **union** of both sides, never either one — the manager's rebase went from 282 tests to 295 by taking both.
+
+
 **A migration that is only safe because of a measurement must assert the measurement.** Proposed by the Orders & Checkout Manager's practice, adopted 2026-09-03. "Zero rows today, so this retype is free" is true today and silently false the moment it is not. Their `source_service_id` TEXT → uuid migration carries a row-count assertion so the no-backfill path cannot run against real data later. Do the same wherever a Director ruling rests on a count.
 
 
