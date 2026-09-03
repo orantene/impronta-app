@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import {
   applyResendEvent,
+  bounceDetailColumns,
   verifyResendSignature,
   suppressionReasonFor,
   type ResendWebhookEvent,
@@ -146,6 +147,8 @@ function stubAdmin(opts: {
   stampRows?: Array<{ recipient_user_id: string | null; tenant_id: string | null }>;
   resolvedUserId?: string | null;
   upserts: UpsertCall[];
+  /** Captures every column payload sent to .update(), for the bounce-detail tests. */
+  updates?: Array<Record<string, unknown>>;
 }) {
   const chain = (table: string): Record<string, unknown> => {
     const self: Record<string, unknown> = {};
@@ -158,8 +161,9 @@ function stubAdmin(opts: {
         return ret();
       };
     }
-    self.update = () => {
+    self.update = (row: Record<string, unknown>) => {
       self.__isUpdate = true;
+      opts.updates?.push(row);
       return self;
     };
     self.maybeSingle = () =>
@@ -236,4 +240,75 @@ test("applyResendEvent cannot suppress without an address", async () => {
   });
   assert.equal(res.status, "unmatched");
   assert.equal(upserts.length, 0);
+});
+
+// ─── Bounce detail is observable ──────────────────────────────────────────────
+//
+// Suppression has written zero rows in production across every bounce we have
+// ever received. The first blocker (guest bounces dropped for having no user
+// id) was fixed and did not fix this: a bounce on 2026-09-03 with a valid user
+// id still suppressed nothing. The classifier only fires on a Permanent bounce,
+// and until these columns existed there was no way to know whether Resend has
+// ever told us a bounce was permanent — the payload was read once and dropped.
+//
+// So these tests pin the observability, not a new rule. The rule stays strict
+// on purpose: suppressing a live customer over a transient blip is the worse
+// error, and guessing our way out of this twice is enough.
+
+test("a bounce records the provider's own classification alongside the stamp", async () => {
+  const updates: Array<Record<string, unknown>> = [];
+  await applyResendEvent(stubAdmin({ stampRows: [], upserts: [], updates }), {
+    type: "email.bounced",
+    data: {
+      email_id: "re_obs",
+      to: "someone@example.com",
+      bounce: { type: "Transient", subType: "General", message: "mailbox is full" },
+    },
+  });
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].bounce_type, "Transient");
+  assert.equal(updates[0].bounce_subtype, "General");
+  assert.equal(updates[0].bounce_message, "mailbox is full");
+  assert.ok(updates[0].bounced_at, "the delivery stamp still happens");
+});
+
+test("bounce columns are absent, not null, when the provider sends no detail", () => {
+  // A shape-less bounce is itself the finding — writing nulls would erase the
+  // difference between "provider said nothing" and "we never looked".
+  assert.deepEqual(bounceDetailColumns({ type: "email.bounced", data: { email_id: "x" } }), {});
+});
+
+test("non-bounce events write no bounce columns", () => {
+  for (const type of ["email.delivered", "email.opened", "email.clicked", "email.complained"]) {
+    assert.deepEqual(
+      bounceDetailColumns({ type, data: { bounce: { type: "Permanent" } } }),
+      {},
+      `${type} must not be recorded as a bounce`,
+    );
+  }
+});
+
+test("a long provider message is truncated rather than stored unbounded", () => {
+  const detail = bounceDetailColumns({
+    type: "email.bounced",
+    data: { bounce: { type: "Permanent", message: "x".repeat(5000) } },
+  });
+  assert.equal((detail.bounce_message as string).length, 500);
+});
+
+test("a bounce that did NOT suppress says so in its log detail", async () => {
+  const res = await applyResendEvent(stubAdmin({ stampRows: [], upserts: [] }), {
+    type: "email.bounced",
+    data: { email_id: "re_q", to: "someone@example.com", bounce: { type: "Transient" } },
+  });
+  assert.equal(res.status, "stamped");
+  assert.match(res.detail, /bounce-type=Transient/);
+});
+
+test("a bounce with no type at all is logged as absent, not as a missing field", async () => {
+  const res = await applyResendEvent(stubAdmin({ stampRows: [], upserts: [] }), {
+    type: "email.bounced",
+    data: { email_id: "re_r", to: "someone@example.com" },
+  });
+  assert.match(res.detail, /bounce-type=absent/);
 });
