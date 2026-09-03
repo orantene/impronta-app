@@ -219,6 +219,25 @@ It derives the version from the filename, applies via the Management API, record
 
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
+## THE ONE SCREEN EACH AREA NEEDS A HUMAN TO CLICK
+
+**Why this list exists.** `web/AGENTS.md:76` says *"Agents do not browser-QA. The integrator does live checks."* But **the integrator is also an agent, and every screen worth checking is behind a login no agent may type a password into.** So today nobody in the loop could perform an authenticated live check — and both `<select>` bugs found today were caught by construction, not by that rule.
+
+The CEO's proposal, adopted: **a short weekly session where the owner walks ONE path per area**, from a list each manager keeps current. Not a QA plan — one screen, the one where a wrong render costs the most.
+
+**Managers: keep your line current. One screen, one sentence on what would be wrong if it were wrong.**
+
+| Area | The one screen | What a wrong render costs |
+|---|---|---|
+| **Front Door** | Settings › Industry, the preset picker | A stored preset absent from the option list renders as the first option and **saves on the next click — silently rebranding a live storefront.** Guarded by `presetPickerModel` and asserted across every input a real column can hold; never yet seen by a human. |
+| **Spaces & Seating** | Venue › timezone select | The same shape, already caught once: `Intl.supportedValuesOf("timeZone")` omits UTC, every workspace is on UTC, so it showed `Africa/Abidjan` and the first Save would have written it live. **Found in the first screenshot.** Now guarded; the rooms-and-tables editor beside it has been clicked once, by its author. |
+| **Menu Workspace** | The menu board, sold-out state | The engine refuses a thirteenth sale, but if the badge does not render the customer clicks a live-looking item and is refused at checkout. **The last gap in the oversell story.** |
+| **Orders & Checkout** | The order card in a real thread | A menu order is visible to staff today only because the old engine forces it through the inquiry spine. The card is what makes deleting that engine safe — so it must be *seen* working, not inferred. |
+| **Appointments** | `BookingHoursCard` | One of the five surfaces that hardcoded UTC. Every workspace has been on UTC since creation, so **every "8am" this product ever showed was 8am somewhere else.** |
+| **Capacity Engine** | *(none — no user-facing surface)* | Its proofs are rolled-back transactions against the real schema. Correctly has no line here. |
+
+**The standing rule this does not change:** a manager may not assert a UI path they have not clicked, and may not grant themselves an exemption from a repo rule. This list is how the obligation gets discharged by the one person who can discharge it.
+
 ## Department rules added in flight
 **A guard that reads ONE file to check a registry that MANY files write to is measuring nothing — and it will read green while doing it.**
 
