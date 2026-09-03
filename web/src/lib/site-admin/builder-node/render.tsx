@@ -252,6 +252,10 @@ export interface BuilderNodeRenderDataSources {
     soldOut: string;
     orderSent: string;
     cta: string;
+    /** menu.item — a restaurant preset makes this "Dish". */
+    noun: string;
+    /** menu.items */
+    nounPlural: string;
   };
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
   /**

@@ -35,6 +35,8 @@ const KEYS = [
   "sent",
   "failed",
   "soldOutError",
+  "noun",
+  "nounPlural",
 ] as const satisfies ReadonlyArray<keyof MenuBoardCopy>;
 
 /**
@@ -44,9 +46,21 @@ const KEYS = [
  * test harnesses omit it), so an absent locale falls back to the catalog's
  * default rather than throwing — a menu board must never blank a page.
  */
+
+/** Substitute the operator's noun tokens, leaving {count} for the island. */
+function fillNoun(template: string, noun: string, nounPlural: string): string {
+  return template.split("{nounPlural}").join(nounPlural).split("{noun}").join(noun);
+}
+
 export function menuBoardCopy(
   contentLocale?: BuilderNodeContentLocaleOptions,
-  words?: { soldOut: string; orderSent: string; cta: string },
+  words?: {
+    soldOut: string;
+    orderSent: string;
+    cta: string;
+    noun: string;
+    nounPlural: string;
+  },
 ): MenuBoardCopy {
   const t = createTranslator(contentLocale?.locale ?? "en");
   const out = {} as Record<keyof MenuBoardCopy, string>;
@@ -67,6 +81,25 @@ export function menuBoardCopy(
     if (words.soldOut.trim()) out.soldOut = words.soldOut;
     if (words.orderSent.trim()) out.sent = words.orderSent;
     if (words.cta.trim()) out.submit = words.cta;
+
+    // Three catalog sentences had the English noun BAKED IN ("1 item selected").
+    // A Restaurant preset renames menu.item to "Dish", so the board said "items"
+    // while every other surface said dishes. They are now interpolations over
+    // the operator's own nouns.
+    //
+    // The phrasings deliberately avoid an article and any agreeing adjective:
+    // WordRow carries no gender, so "un {noun}" breaks on a feminine Spanish
+    // noun and "{n} {plural} seleccionados" breaks the adjective. A colon-led
+    // list dodges both.
+    if (words.noun.trim()) out.noun = words.noun;
+    if (words.nounPlural.trim()) out.nounPlural = words.nounPlural;
+  }
+
+  // ALWAYS substitute, words or not. The catalog defaults (`noun`,
+  // `nounPlural`) are real per-locale copy, so a words load failure renders
+  // "In your order: 3 items" rather than leaking a literal {nounPlural}.
+  for (const key of ["itemsSelected", "itemsSelectedOne", "selectAtLeastOne"] as const) {
+    out[key] = fillNoun(out[key], out.noun, out.nounPlural);
   }
   return out as MenuBoardCopy;
 }

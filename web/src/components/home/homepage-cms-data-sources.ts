@@ -212,6 +212,8 @@ export async function loadBuilderNodeDataSources(
             soldOut: w.word("menu.sold_out"),
             orderSent: w.word("menu.order_sent"),
             cta: w.word("menu.cta"),
+            noun: w.word("menu.item"),
+            nounPlural: w.word("menu.items"),
           }))
           .catch(() => undefined)
       : Promise.resolve(undefined),
