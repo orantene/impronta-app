@@ -11,14 +11,18 @@
  * tenant alongside it — guessing a venue id from another workspace matches no
  * row.
  *
- * A KNOWN WEAKNESS, STATED RATHER THAN HIDDEN. This uses the same default
- * staff gate every other settings page uses, which is role-blind: a viewer
- * passes it. That is wrong here in a way it is not for most settings, because
- * these fields include the deposit, the no-show fee and the cancellation
- * window — money policy. The proper fix is a capability, and capabilities are
- * being touched right now by the operational-roles slice; adding a second,
- * different answer in parallel is how a permission model ends up with two.
- * Raised with the Director rather than solved here.
+ * WHY THIS PASSES A CAPABILITY WHEN THE NEIGHBOURING SETTINGS PAGES DO NOT.
+ * `requireWorkspaceStaffAction()` defaults to `agency.workspace.view`, the
+ * weakest capability there is, so the usual call site is role-blind by
+ * OMISSION rather than by design: a viewer passes it. That is tolerable for
+ * most settings and wrong here, because these fields are the deposit, the
+ * no-show fee and the cancellation window. Money policy.
+ *
+ * `manage_agency_settings` already existed, already granted to admin and owner
+ * and withheld from viewer, so this needed an ARGUMENT and not a new
+ * capability. Inventing one would have forked the permission model against the
+ * operational-roles slice being built in parallel, which is the second answer
+ * a permission model must never end up with.
  *
  * Validation is server-side and total: the form's own bounds are a display
  * concern, and anything reaching this file is untrusted.
@@ -73,7 +77,7 @@ const rulesSchema = z.object({
 });
 
 export async function saveReservationRules(input: unknown): Promise<ActionResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const parsed = rulesSchema.safeParse(input);
@@ -133,7 +137,7 @@ const windowSchema = z.object({
 });
 
 export async function saveReservationWindow(input: unknown): Promise<ActionResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const parsed = windowSchema.safeParse(input);
@@ -180,7 +184,7 @@ export async function saveReservationWindow(input: unknown): Promise<ActionResul
 }
 
 export async function closeReservationWindow(input: unknown): Promise<ActionResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const parsed = z
