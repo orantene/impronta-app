@@ -244,6 +244,34 @@ The CEO's proposal, adopted: **a short weekly session where the owner walks ONE 
 **The standing rule this does not change:** a manager may not assert a UI path they have not clicked, and may not grant themselves an exemption from a repo rule. This list is how the obligation gets discharged by the one person who can discharge it.
 
 ## Department rules added in flight
+### STANDING RULE FOR CALENDAR-SHAPED FEATURES: a function that answers instead of refusing
+
+Named by the Capacity Engine Manager after collecting four bugs in one day that turned out to be **one bug**. Each returned a **plausible value where the honest output was "there is no answer"** — and each failed silently, because **a plausible value is indistinguishable from a correct one downstream.**
+
+**Sessions, Reservations, Events and Appointments will all hit this.** Inherit it rather than rediscovering it.
+
+**The three places a scheduler quietly invents an answer:**
+
+**1. Empty recurrences.** Verified in production:
+```
+array_length(ARRAY[]::int[], 1)          -> NULL
+NULL BETWEEN 1 AND 7                     -> NULL
+a CHECK constraint ACCEPTS that           -> true
+cardinality(ARRAY[]::int[]) BETWEEN 1 AND 7 -> false   <- refuses, correctly
+```
+Their constraint silently permitted a series that expands to **no occurrences at all**. **Use `cardinality()`, never `array_length()`**, when zero is a meaningful answer.
+
+**2. Invalid date components.** Verified: `Date.UTC(2027, 13, 40)` returns `2028-03-11T00:00:00.000Z` — **a valid instant more than a year away.** A two-digit month is not a month; `Date.UTC` does not care. **Round-trip the components back out and compare**, rather than trusting that construction succeeded.
+
+**3. DST gap and overlap times.** A spring-forward gap time resolved to **01:30 — an hour early, before the class** — because the resolver converged on something instead of refusing. **This one reaches a customer**: not a crash, but a wrong answer delivered confidently to somebody standing outside a locked door. **Verify by converting back**, not by checking the conversion returned something.
+
+**A fourth, non-calendar, same shape:** an unset timestamp read as `0` flowed into `now - last > 300`, so a monitor's alert was swallowed for five minutes after every restart. **`IS NULL`, not a comparison against a sentinel.**
+
+**The fix is identical in all four: make absence STRUCTURALLY distinct from a value.** NULL not 0. `cardinality()` not `array_length()`. A round-trip check not a convergence. `IS NULL` not a comparison.
+
+**Related shapes already on this board**, because this is the family the department keeps finding: a read whose failure is indistinguishable from empty; a `<select>` whose value is absent from its options rendering as the first option; a parameter nobody passes; a guard whose warning can never reach zero; a green that is true about something other than what you asked.
+
+
 **Writing the click list finds bugs that reviewing the code does not.** Asked to name the one screen a human must check, the Orders & Checkout Manager went to verify their own entry and found that **Pay now and Add line do not render at all** — zero non-test call sites pass their handlers, and the card only draws an action when one is supplied. The unit tests assert *when* the buttons should appear, correctly, and nothing connects them to a behaviour. **Fifth instance of the week's recurring shape**, and the only one found by asking "what would a person actually click?" rather than by reading the code.
 
 The cost avoided is concrete: the owner would have been sent to click a button that does not exist and reported back "I can't find it", which reads as a QA failure rather than a wiring gap.
