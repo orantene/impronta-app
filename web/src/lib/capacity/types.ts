@@ -59,6 +59,16 @@ export type CapacityWindow = {
  * These strings are a CONTRACT: Orders, Front Door and Menu branch on them.
  */
 export type CapacityRefusalReason =
+  /**
+   * The engine could not be reached at all — NOT a refusal by the engine.
+   *
+   * It is separated from `pool_not_found` because it is the one outcome a
+   * customer can act on: a person told a thing does not exist leaves, a person
+   * told to try again tries again. Collapsing the two also hid outages from
+   * every reason-based metric, so the graph stayed flat while the product was
+   * down. Never synthesised by SQL; only lib/capacity/reserve.ts returns it.
+   */
+  | "unavailable"
   | "sold_out"
   | "ancestor_full"
   | "pool_not_found"

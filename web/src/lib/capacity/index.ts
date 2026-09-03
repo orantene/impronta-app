@@ -13,6 +13,7 @@ export {
   remainingUnits,
 } from "./remaining";
 export {
+  capacityHoldTtlSeconds,
   capacityRemaining,
   commitCapacity,
   releaseCapacity,

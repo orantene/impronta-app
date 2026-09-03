@@ -32,6 +32,7 @@ import {
   sumBookingGrossChargedCents,
   sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
+import { capacityHoldTtlSeconds } from "@/lib/capacity";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import {
   attachReservationHoldToInquiry,
@@ -313,11 +314,8 @@ export async function createInstantBooking(
       ? Math.max(1, Math.min(999, Math.round(input.quantity ?? 1)))
       : 1;
 
-    // W3-8 / capacity 0.3b — STOCK: reserve units before any money step; a
-    // sold-out offering refuses cleanly. Released on any later failure here.
-    // The gate is the POOL, not the kind: `kind === "product"` excluded every
-    // seat-limited package, so the live 12-spot course never decremented and
-    // could be sold without limit. See lib/capacity/offering-stock-gate.test.ts.
+    // W3-8 / 0.3b — reserve units before money; released on failure.
+    // Gate is the POOL, not the kind: `product` excluded the 12-spot course.
     let stockReserved = false;
     if (offering && offering.capacityPoolId != null) {
       const { data: got } = await admin.rpc("reserve_offering_stock", {
@@ -370,12 +368,14 @@ export async function createInstantBooking(
     const reservationWindow = input.reservation ?? null;
     const offeringIdForStamp = offering?.id ?? input.offeringId ?? null;
     if (reservationWindow && offeringIdForStamp) {
+      // Capacity 0.9 — a pooled offering holds the slot on its POOL's clock.
       const hold = await placeReservationHold(admin, {
         talentProfileId: input.talentProfileId,
         tenantId: input.tenantId,
         startsAt: reservationWindow.startsAt,
         endsAt: reservationWindow.endsAt,
         title: offering?.title ?? "Reservation",
+        ttlSeconds: await capacityHoldTtlSeconds(offering?.capacityPoolId ?? null, admin),
         createdByUserId: input.clientUserId,
       });
       if (!hold.ok) {
