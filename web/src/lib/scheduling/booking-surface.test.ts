@@ -77,6 +77,8 @@ function fakeOffering(partial: Partial<TalentOffering> & Pick<TalentOffering, "i
     durationMinutes: 30,
     category: null,
     inventoryQty: null,
+    capacityPoolId: null,
+    consumesUnits: 1,
     status: "published",
     visibility: "public",
     moderationState: "approved",

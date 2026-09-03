@@ -95,9 +95,16 @@ export function OfferingInstantMount({
 
   // D5 — quantity applies to per-unit price types and stocked products.
   const qtyEligible =
-    (QUANTITY_UNITS as readonly string[]).includes(d.priceType) || d.kind === "product";
+    (QUANTITY_UNITS as readonly string[]).includes(d.priceType) ||
+    d.kind === "product" ||
+    d.capacityPoolId != null;
+  // Cap the picker at what actually remains, for anything selling from a pool.
+  // Keyed on the pool rather than the kind so a seat-limited package cannot
+  // offer a quantity the engine is about to refuse.
   const qtyMax =
-    d.kind === "product" && d.inventoryQty != null ? Math.max(1, Math.min(MAX_QTY, d.inventoryQty)) : MAX_QTY;
+    d.capacityPoolId != null && d.inventoryQty != null
+      ? Math.max(1, Math.min(MAX_QTY, d.inventoryQty))
+      : MAX_QTY;
   const effQty = qtyEligible ? Math.max(1, Math.min(qtyMax, qty)) : 1;
 
   // Live total: (variant price ?? base) × qty + selected extras.

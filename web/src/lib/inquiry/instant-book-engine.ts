@@ -305,16 +305,21 @@ export async function createInstantBooking(
     // D5 — quantity: per-unit price types and products only; everything else 1.
     const qtyEligible =
       offering != null &&
-      ((QUANTITY_UNITS as readonly string[]).includes(offering.priceType) || offering.kind === "product");
+      ((QUANTITY_UNITS as readonly string[]).includes(offering.priceType) ||
+        offering.kind === "product" ||
+        // Anything selling from a pool is countable by definition.
+        offering.capacityPoolId != null);
     const quantity = qtyEligible
       ? Math.max(1, Math.min(999, Math.round(input.quantity ?? 1)))
       : 1;
 
-    // W3-8 — PRODUCT stock: atomically reserve the units before any money step;
-    // a sold-out product refuses cleanly (no inquiry/offer/charge is created).
-    // Compensation: released on any later engine failure in this call.
+    // W3-8 / capacity 0.3b — STOCK: reserve units before any money step; a
+    // sold-out offering refuses cleanly. Released on any later failure here.
+    // The gate is the POOL, not the kind: `kind === "product"` excluded every
+    // seat-limited package, so the live 12-spot course never decremented and
+    // could be sold without limit. See lib/capacity/offering-stock-gate.test.ts.
     let stockReserved = false;
-    if (offering && offering.kind === "product" && offering.inventoryQty != null) {
+    if (offering && offering.capacityPoolId != null) {
       const { data: got } = await admin.rpc("reserve_offering_stock", {
         p_offering_id: offering.id,
         p_qty: quantity,

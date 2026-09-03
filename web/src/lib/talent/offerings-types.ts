@@ -102,8 +102,24 @@ export type TalentOffering = {
   freeReserveExpiresDays: number | null;
   durationMinutes: number | null;
   category: string | null;
-  /** null = unlimited (services); int = stock (products; Phase-3 checkout). */
+  /**
+   * Remaining stock. null = unlimited.
+   *
+   * Since capacity 0.3a this is a MIRROR of the offering's capacity pool, kept
+   * in step by reserve_offering_stock / release_offering_stock. The pool is the
+   * truth; this column is what the storefront reads until it is dropped.
+   */
   inventoryQty: number | null;
+  /**
+   * The capacity pool this offering sells from, or null for unlimited.
+   *
+   * THIS, not `kind`, is what says an offering is stock-limited. The previous
+   * design inferred it from `kind === "product"`, which silently excluded every
+   * seat-limited package — including the one live course on the platform.
+   */
+  capacityPoolId: string | null;
+  /** Units of the pool one purchase consumes. A "table for 4" consumes 4. */
+  consumesUnits: number;
   status: OfferingStatus;
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
@@ -144,6 +160,8 @@ export type TalentOfferingRow = {
   duration_minutes: number | null;
   category: string | null;
   inventory_qty: number | null;
+  capacity_pool_id?: string | null;
+  consumes_units?: number | null;
   status: string;
   visibility: string;
   moderation_state: string;
@@ -218,6 +236,11 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
       typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty) && row.inventory_qty >= 0
         ? Math.round(row.inventory_qty)
         : null,
+    capacityPoolId: typeof row.capacity_pool_id === "string" && row.capacity_pool_id ? row.capacity_pool_id : null,
+    consumesUnits:
+      typeof row.consumes_units === "number" && Number.isFinite(row.consumes_units) && row.consumes_units > 0
+        ? Math.round(row.consumes_units)
+        : 1,
     status: isOneOf(row.status, ["draft", "published", "archived"] as const) ? row.status : "draft",
     visibility: isOneOf(row.visibility, ["public", "agency_only", "on_request"] as const)
       ? row.visibility
@@ -383,6 +406,8 @@ export function blankOffering(
     durationMinutes: null,
     category: null,
     inventoryQty: null,
+    capacityPoolId: null,
+    consumesUnits: 1,
     status: "published",
     visibility: "public",
     moderationState: "approved",

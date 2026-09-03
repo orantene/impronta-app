@@ -13686,6 +13686,8 @@ export type Database = {
       talent_offering_variants: {
         Row: {
           amount_cents: number | null
+          capacity_pool_id: string | null
+          consumes_units: number
           created_at: string
           id: string
           label: string
@@ -13695,6 +13697,8 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number | null
+          capacity_pool_id?: string | null
+          consumes_units?: number
           created_at?: string
           id?: string
           label: string
@@ -13704,6 +13708,8 @@ export type Database = {
         }
         Update: {
           amount_cents?: number | null
+          capacity_pool_id?: string | null
+          consumes_units?: number
           created_at?: string
           id?: string
           label?: string
@@ -13728,7 +13734,9 @@ export type Database = {
           attributes: Json
           booking_mode: string
           cancellation_hours: number | null
+          capacity_pool_id: string | null
           category: string | null
+          consumes_units: number
           created_at: string
           currency: string
           deposit_pct: number | null
@@ -13761,7 +13769,9 @@ export type Database = {
           attributes?: Json
           booking_mode?: string
           cancellation_hours?: number | null
+          capacity_pool_id?: string | null
           category?: string | null
+          consumes_units?: number
           created_at?: string
           currency?: string
           deposit_pct?: number | null
@@ -13794,7 +13804,9 @@ export type Database = {
           attributes?: Json
           booking_mode?: string
           cancellation_hours?: number | null
+          capacity_pool_id?: string | null
           category?: string | null
+          consumes_units?: number
           created_at?: string
           currency?: string
           deposit_pct?: number | null
