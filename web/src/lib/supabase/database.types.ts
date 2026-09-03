@@ -3460,6 +3460,135 @@ export type Database = {
           },
         ]
       }
+      capacity_allocations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          expires_at: string | null
+          id: string
+          order_line_id: string | null
+          pool_id: string
+          pool_path: string[]
+          released_at: string | null
+          starts_at: string | null
+          state: string
+          tenant_id: string
+          units: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          expires_at?: string | null
+          id?: string
+          order_line_id?: string | null
+          pool_id: string
+          pool_path: string[]
+          released_at?: string | null
+          starts_at?: string | null
+          state?: string
+          tenant_id: string
+          units: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          expires_at?: string | null
+          id?: string
+          order_line_id?: string | null
+          pool_id?: string
+          pool_path?: string[]
+          released_at?: string | null
+          starts_at?: string | null
+          state?: string
+          tenant_id?: string
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capacity_allocations_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capacity_allocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capacity_pools: {
+        Row: {
+          created_at: string
+          hold_ttl_seconds: number
+          id: string
+          is_active: boolean
+          overbook_units: number
+          parent_pool_id: string | null
+          pool_key: string
+          pool_path: string[]
+          subject_id: string
+          subject_kind: string
+          tenant_id: string
+          unit_label: string | null
+          units_total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hold_ttl_seconds?: number
+          id?: string
+          is_active?: boolean
+          overbook_units?: number
+          parent_pool_id?: string | null
+          pool_key?: string
+          pool_path: string[]
+          subject_id: string
+          subject_kind: string
+          tenant_id: string
+          unit_label?: string | null
+          units_total: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hold_ttl_seconds?: number
+          id?: string
+          is_active?: boolean
+          overbook_units?: number
+          parent_pool_id?: string | null
+          pool_key?: string
+          pool_path?: string[]
+          subject_id?: string
+          subject_kind?: string
+          tenant_id?: string
+          unit_label?: string | null
+          units_total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capacity_pools_parent_pool_id_fkey"
+            columns: ["parent_pool_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capacity_pools_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_account_contacts: {
         Row: {
           archived_at: string | null
@@ -17833,6 +17962,38 @@ export type Database = {
       }
     }
     Functions: {
+      _capacity_reserve_locked: {
+        Args: {
+          p_created_by: string
+          p_ends_at: string
+          p_order_line_id: string
+          p_pool_id: string
+          p_starts_at: string
+          p_ttl_seconds: number
+          p_units: number
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          expires_at: string | null
+          id: string
+          order_line_id: string | null
+          pool_id: string
+          pool_path: string[]
+          released_at: string | null
+          starts_at: string | null
+          state: string
+          tenant_id: string
+          units: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "capacity_allocations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _clamp_workspace_to_plan_limit: {
         Args: { p_limit: number; p_tenant_id: string }
         Returns: number
@@ -17877,6 +18038,10 @@ export type Database = {
           template_id: string
           tenant_count: number
         }[]
+      }
+      capacity_remaining_public: {
+        Args: { p_ends_at?: string; p_pool_id: string; p_starts_at?: string }
+        Returns: number
       }
       claim_talent_profile: {
         Args: { p_email?: string; p_invitation_id: string }
@@ -18063,6 +18228,10 @@ export type Database = {
       cms_section_revisions_trim: {
         Args: { p_keep?: number; p_section_id: string; p_tenant_id: string }
         Returns: number
+      }
+      commit_capacity: {
+        Args: { p_allocation_ids: string[]; p_order_line_id?: string }
+        Returns: Json
       }
       complete_client_onboarding: { Args: never; Returns: undefined }
       complete_talent_onboarding: { Args: never; Returns: string }
@@ -18723,6 +18892,7 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      reap_capacity_allocations: { Args: { p_limit?: number }; Returns: number }
       recompute_talent_height_gender: {
         Args: { p_talent_profile_id: string }
         Returns: undefined
@@ -18776,6 +18946,7 @@ export type Database = {
         Returns: undefined
       }
       refresh_talent_skill_metrics_all: { Args: never; Returns: number }
+      release_capacity: { Args: { p_allocation_ids: string[] }; Returns: Json }
       release_offering_stock: {
         Args: { p_offering_id: string; p_qty?: number }
         Returns: undefined
@@ -18787,6 +18958,27 @@ export type Database = {
       require_staff_of_tenant: {
         Args: { target_tenant_id: string }
         Returns: undefined
+      }
+      reserve_capacity: {
+        Args: {
+          p_created_by?: string
+          p_ends_at?: string
+          p_order_line_id?: string
+          p_pool_id: string
+          p_starts_at?: string
+          p_ttl_seconds?: number
+          p_units?: number
+        }
+        Returns: Json
+      }
+      reserve_capacity_batch: {
+        Args: {
+          p_created_by?: string
+          p_order_line_id?: string
+          p_requests: Json
+          p_ttl_seconds?: number
+        }
+        Returns: Json
       }
       reserve_offering_stock: {
         Args: { p_offering_id: string; p_qty?: number }
@@ -18904,6 +19096,21 @@ export type Database = {
         Returns: boolean
       }
       toggle_inquiry_pin: { Args: { p_inquiry_id: string }; Returns: boolean }
+      upsert_capacity_pool: {
+        Args: {
+          p_hold_ttl_seconds?: number
+          p_is_active?: boolean
+          p_overbook_units?: number
+          p_parent_pool_id?: string
+          p_pool_key?: string
+          p_subject_id: string
+          p_subject_kind: string
+          p_tenant_id: string
+          p_unit_label?: string
+          p_units_total: number
+        }
+        Returns: string
+      }
       usage_audit_metrics: { Args: never; Returns: Json }
       user_notifications_mark_all_read: {
         Args: { p_tenant_id: string }

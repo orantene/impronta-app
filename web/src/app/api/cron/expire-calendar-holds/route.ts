@@ -3,11 +3,22 @@
  *
  * Endpoint: GET /api/cron/expire-calendar-holds  (CRON_SECRET bearer auth)
  *
- * Deletes talent_holds whose expires_at has passed. Required because the
- * firm-hold gist exclusion constraint cannot see expires_at: a lapsed firm
- * hold would otherwise deadlock the slot until someone deleted it by hand.
- * Idempotent. Scheduled every 5 minutes in web/vercel.json. The BEFORE INSERT
- * trigger on talent_holds is the lazy half of the same reaper.
+ * Two reapers, one schedule.
+ *
+ * 1. talent_holds. Deletes holds whose expires_at has passed. Required for
+ *    CORRECTNESS: the firm-hold gist exclusion constraint cannot see
+ *    expires_at, so a lapsed firm hold deadlocks the slot until someone
+ *    deletes it by hand. The BEFORE INSERT trigger on talent_holds is the
+ *    lazy half of the same reaper.
+ *
+ * 2. capacity_allocations (Sell the Room 0.2). Marks lapsed holds released.
+ *    HYGIENE ONLY: the remaining-units rule already ignores an expired hold,
+ *    so a late sweep costs table size and never a wrong answer. The lazy half
+ *    runs inside the pool lock at the top of every reserve.
+ *
+ * Idempotent. Scheduled every minute in web/vercel.json — raised from five
+ * because a ticket pool's TTL is ten minutes, and a sweep five minutes coarse
+ * against a ten-minute hold leaves half a window of stale rows in the table.
  *
  *   curl -H "Authorization: Bearer $CRON_SECRET" \
  *        http://localhost:3000/api/cron/expire-calendar-holds
@@ -78,8 +89,22 @@ export async function GET(request: Request) {
     }
 
     const deleted = (data ?? []).length;
-    void improntaLog("calendar.cron.expire_holds", { deleted });
-    return NextResponse.json({ ok: true, deleted });
+
+    // Capacity allocations. Best-effort and deliberately AFTER the talent_holds
+    // delete: that one is a correctness guarantee, this one is housekeeping, so
+    // a failure here must never cost us the sweep above.
+    let allocationsReleased = 0;
+    const { data: reaped, error: reapErr } = await admin.rpc("reap_capacity_allocations", {
+      p_limit: 500,
+    });
+    if (reapErr) {
+      logServerError("cron/expire-calendar-holds/capacity", reapErr);
+    } else {
+      allocationsReleased = typeof reaped === "number" ? reaped : 0;
+    }
+
+    void improntaLog("calendar.cron.expire_holds", { deleted, allocationsReleased });
+    return NextResponse.json({ ok: true, deleted, allocationsReleased });
   } catch (err) {
     logServerError("cron/expire-calendar-holds", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
