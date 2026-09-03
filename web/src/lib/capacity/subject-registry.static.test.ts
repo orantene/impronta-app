@@ -13,7 +13,7 @@
  * guards that were green while measuring nothing.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -24,10 +24,21 @@ const MIGRATIONS = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "..", "..", "..", "..", "supabase", "migrations",
 );
-const MIGRATION = readFileSync(
-  join(MIGRATIONS, "20261229000212_capacity_tenant_and_subject_integrity.sql"),
-  "utf8",
-);
+// EVERY migration, not just the one that created the table.
+//
+// This used to read `20261229000212` alone, which made the guard blind to the
+// exact flow the registry was designed for: a feature owner registers their own
+// kind in THEIR migration when their table ships. Spaces & Seating registered
+// `space` and `space_group` in `20261229000221` and this guard could not see
+// it — it would have reported them as unregistered forever while they were in
+// fact validated, which is a guard scanning one of several trees and reporting
+// green. Reading the whole directory means the guard sees a registration
+// wherever its owner put it.
+const MIGRATION = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+  .join("\n");
 const ENGINE = readFileSync(
   join(MIGRATIONS, "20261229000200_capacity_engine.sql"),
   "utf8",
@@ -42,11 +53,14 @@ function allowedKinds(): string[] {
 
 /** The kinds seeded into the registry today. */
 function registeredKinds(): string[] {
-  const m = /INSERT INTO public\.capacity_subject_kinds[\s\S]*?VALUES([\s\S]*?)ON CONFLICT/.exec(
-    MIGRATION,
-  );
-  assert.ok(m, "could not read the registry seed");
-  return [...m[1].matchAll(/\('([a-z_]+)',/g)].map((x) => x[1]);
+  const blocks = [
+    ...MIGRATION.matchAll(
+      /INSERT INTO public\.capacity_subject_kinds[\s\S]*?VALUES([\s\S]*?)ON CONFLICT/g,
+    ),
+  ];
+  assert.ok(blocks.length > 0, "could not read any registry seed");
+  const kinds = blocks.flatMap((m) => [...m[1].matchAll(/\('([a-z_]+)',/g)].map((x) => x[1]));
+  return [...new Set(kinds)].sort();
 }
 
 test("every registered kind is one the engine actually allows", () => {
@@ -59,12 +73,13 @@ test("every registered kind is one the engine actually allows", () => {
 test("the unregistered kinds are named, so the coverage gap cannot hide", () => {
   const unregistered = allowedKinds().filter((k) => !registeredKinds().includes(k));
   // These are UNVALIDATED today: a pool of this kind may point at nothing.
-  // Each is registered by its owner when their table ships — Spaces & Seating
-  // for space and space_group, Sessions & Classes for session_tier. When one is
+  // Each is registered by its owner when their table ships. When one is
   // registered, delete it from this list in the same commit.
+  //   space, space_group — registered by Spaces & Seating in 20261229000221.
+  //   session_tier       — still owed by Sessions & Classes.
   assert.deepEqual(
     unregistered.sort(),
-    ["session_tier", "space", "space_group"],
+    ["session_tier"],
     "the set of unvalidated subject kinds changed — update this list deliberately",
   );
 });
