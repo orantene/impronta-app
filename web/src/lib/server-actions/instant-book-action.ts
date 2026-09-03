@@ -91,7 +91,23 @@ export async function createInstantBookingAction(
           return { ok: false, reason: "no_fixed_rate" as const, error: "No offering to book." };
         }
 
-        const poolId = await loadOfferingCapacityPoolId(convertClient, offeringId);
+        // A read failure REFUSES rather than resolving to "no pool". `null`
+        // means unlimited, so treating an error as null would sell unlimited
+        // seats on a transient database fault. A failed read is a retry; an
+        // oversold event is a person turned away at a door.
+        const pool = await loadOfferingCapacityPoolId(convertClient, offeringId);
+        if (!pool.ok) {
+          logServerError(
+            "instantBookAction.poolLookup",
+            new Error(`could not confirm availability for offering ${offeringId}`),
+          );
+          return {
+            ok: false as const,
+            reason: "engine_error" as const,
+            error: "We could not confirm availability. Please try again.",
+          };
+        }
+        const poolId = pool.poolId;
 
         const booked = await createPurchase(convertClient, {
           tenantId: engineInput.tenantId,

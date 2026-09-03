@@ -252,3 +252,35 @@ test("a free reserve writes NO booking and NO transaction", async () => {
   // No money to collect, so no payment anchor is invented.
   assert.deepEqual(inserts, ["customers", "orders", "order_lines"], JSON.stringify(inserts));
 });
+
+// ── Absence is not a value ───────────────────────────────────────────────────
+
+test("a FAILED pool lookup is distinguishable from 'no pool'", async () => {
+  const { loadOfferingCapacityPoolId } = await import("@/lib/orders/purchase");
+
+  // Genuinely unlimited: the row exists and carries no pool.
+  const noPool = {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { capacity_pool_id: null }, error: null }) }) }),
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const a = await loadOfferingCapacityPoolId(noPool, "off_1");
+  assert.equal(a.ok, true);
+  assert.equal(a.ok && a.poolId, null);
+
+  // Could not find out.
+  const readFails = {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "boom" } }) }) }),
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const b = await loadOfferingCapacityPoolId(readFails, "off_1");
+
+  // THE WHOLE POINT. The first version returned `null` for BOTH, and `null`
+  // means UNLIMITED — so a transient database error during a sold-out event
+  // produced unlimited sales. A caller that cannot tell "no cap" from "could
+  // not find out" picks the interpretation that sells.
+  assert.equal(b.ok, false, "a read failure must NOT resolve to 'no pool'");
+});

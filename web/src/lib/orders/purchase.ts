@@ -861,17 +861,30 @@ function mapCapacityRefusal(reason: CapacityRefusalReason): PurchaseRefusalReaso
 }
 
 /**
- * The capacity pool an offering draws from, or null when it is unlimited.
+ * The capacity pool an offering draws from.
  *
- * Lives here rather than in the caller so every channel asks the same question
- * the same way. The instant-book engine read `offering.capacityPoolId` off a
- * loader of its own and the menu engine did not ask at all — which is how one
- * path could oversell and the other could not.
+ * ABSENCE IS NOT A VALUE, and this function exists in this shape because I got
+ * that wrong first. The original returned `string | null` and resolved a READ
+ * ERROR to null — which I labelled "fail closed". It is the opposite. `null`
+ * here means UNLIMITED, so a transient database error during a sold-out event
+ * would have produced unlimited sales: the exact defect this phase spent its
+ * life closing, arriving through a failed read instead of a missing predicate.
+ *
+ * The caller could not tell "this offering genuinely has no cap" from "I could
+ * not find out", and the collapsed answer was the one that sells.
+ *
+ * So the result is a discriminated union. A read failure is `ok: false` and the
+ * purchase REFUSES — a failed read is a retry, and an oversold event is a person
+ * turned away at a door. Corrected on the Director's ruling.
  */
+export type OfferingPoolLookup =
+  | { ok: true; poolId: string | null }
+  | { ok: false };
+
 export async function loadOfferingCapacityPoolId(
   admin: SupabaseClient,
   offeringId: string,
-): Promise<string | null> {
+): Promise<OfferingPoolLookup> {
   const { data, error } = await admin
     .from("talent_offerings")
     .select("capacity_pool_id")
@@ -879,11 +892,11 @@ export async function loadOfferingCapacityPoolId(
     .maybeSingle();
 
   if (error) {
-    // Fail CLOSED to "no pool" rather than guessing one. A wrong pool id
-    // reserves someone else's units; no pool reserves nothing and the purchase
-    // proceeds unlimited, which is what an offering without a pool means.
     logServerError("orders.loadOfferingCapacityPoolId", error);
-    return null;
+    return { ok: false };
   }
-  return (data as { capacity_pool_id?: string | null } | null)?.capacity_pool_id ?? null;
+  return {
+    ok: true,
+    poolId: (data as { capacity_pool_id?: string | null } | null)?.capacity_pool_id ?? null,
+  };
 }
