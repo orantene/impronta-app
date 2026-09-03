@@ -2,15 +2,40 @@
  * Service-role firm hold for a public reservation request.
  *
  * placeTalentHold requires workspace staff auth — guests cannot call it.
- * This module inserts the same talent_holds row as the staff path, with a
- * 48h default expiry, and maps the gist exclusion (SQLSTATE 23P01) to a
- * friendly "slot just taken" result. Staff placeTalentHold is not reused.
+ * This module inserts the same talent_holds row as the staff path and maps the
+ * gist exclusion (SQLSTATE 23P01) to a friendly "slot just taken" result. Staff
+ * placeTalentHold is not reused.
+ *
+ * HOLD TTL (capacity 0.9). The 48h below is a DEFAULT, not a rule. It suits a
+ * quoted job, where a human is deciding; it is absurd for a ticket, where ten
+ * minutes is generous. Callers holding capacity pass that pool's
+ * `hold_ttl_seconds` as `ttlSeconds`, so the calendar hold and the capacity
+ * allocation lapse together instead of the slot sitting blocked for two days
+ * after the units came back. `expiresAt` still wins when given, and an explicit
+ * null still means "never lapses".
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 
+/** Fallback when a caller has no pool to take a TTL from. */
 export const RESERVATION_HOLD_TTL_MS = 48 * 60 * 60 * 1000;
+
+/** Bounds match capacity_pools.hold_ttl_seconds, so the two cannot disagree. */
+const MIN_HOLD_TTL_SECONDS = 30;
+const MAX_HOLD_TTL_SECONDS = 604800;
+
+/**
+ * Milliseconds a hold should live. Out-of-range or unparseable values fall back
+ * to the default rather than throwing: a nonsense TTL must not cost someone the
+ * slot they were mid-way through booking.
+ */
+export function holdTtlMs(ttlSeconds?: number | null): number {
+  if (ttlSeconds == null || !Number.isFinite(ttlSeconds)) return RESERVATION_HOLD_TTL_MS;
+  const secs = Math.round(ttlSeconds);
+  if (secs < MIN_HOLD_TTL_SECONDS || secs > MAX_HOLD_TTL_SECONDS) return RESERVATION_HOLD_TTL_MS;
+  return secs * 1000;
+}
 
 export type PlaceReservationHoldInput = {
   talentProfileId: string;
@@ -20,6 +45,11 @@ export type PlaceReservationHoldInput = {
   endsAt: Date | string;
   title?: string;
   expiresAt?: Date | string | null;
+  /**
+   * Seconds this hold should live, normally a pool's `hold_ttl_seconds`.
+   * Ignored when `expiresAt` is given. Omit for the 48h default.
+   */
+  ttlSeconds?: number | null;
   createdByUserId?: string | null;
 };
 
@@ -79,7 +109,7 @@ export async function placeReservationHold(
   if (input.expiresAt === null) {
     expiresAt = null;
   } else if (input.expiresAt === undefined) {
-    expiresAt = new Date(Date.now() + RESERVATION_HOLD_TTL_MS).toISOString();
+    expiresAt = new Date(Date.now() + holdTtlMs(input.ttlSeconds)).toISOString();
   } else {
     expiresAt = toIso(input.expiresAt);
     if (!expiresAt) return { ok: false, code: "invalid", error: "Invalid hold expiry." };

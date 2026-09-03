@@ -37,16 +37,19 @@ function client(given?: Rpc): Rpc | null {
 }
 
 /**
- * A transport failure is not a refusal, but it has to be reported as one, because
+ * A transport failure is not a refusal, but it must be reported as one, because
  * the alternative is a caller that treats "unknown" as "available".
  *
- * "pool_not_found" is the safest reason to synthesise: it never oversells, and it
- * never tells a buyer something is free when we could not find out. The log line
- * is what distinguishes it from a genuine refusal for whoever is on call.
+ * It reports `unavailable`, NOT `pool_not_found`. Both are safe — neither can
+ * oversell, and neither claims availability we could not verify — but they are
+ * different sentences to a customer. "This does not exist" ends the visit;
+ * "something went wrong, try again" does not. That is the only refusal in this
+ * enum a person can act on, and the earlier version collapsed it into one they
+ * cannot. It also kept outages out of every reason-based metric.
  */
 function transportFailure(scope: string, err: unknown): CapacityRefusalReason {
   logServerError(scope, err);
-  return "pool_not_found";
+  return "unavailable";
 }
 
 /** Reserve units on one pool. Returns a hold that expires unless committed. */
@@ -81,7 +84,7 @@ export async function reserveCapacity(
   }
   return {
     ok: false,
-    reason: (r?.reason as CapacityRefusalReason) ?? "pool_not_found",
+    reason: (r?.reason as CapacityRefusalReason) ?? "unavailable",
     blockingPoolId: (r?.blocking_pool_id as string | null) ?? null,
   };
 }
@@ -125,7 +128,7 @@ export async function reserveCapacityBatch(
   }
   return {
     ok: false,
-    reason: (r?.reason as CapacityRefusalReason) ?? "pool_not_found",
+    reason: (r?.reason as CapacityRefusalReason) ?? "unavailable",
     failedPoolId: (r?.failed_pool_id as string | null) ?? null,
   };
 }
@@ -203,4 +206,32 @@ export async function capacityRemaining(
     return null;
   }
   return data == null ? null : Number(data);
+}
+
+/**
+ * A pool's configured hold TTL in seconds, or null when there is no pool.
+ *
+ * Callers that place a calendar hold AND consume units read this so the two
+ * lapse together. Without it the units come back in fifteen minutes while the
+ * calendar slot stays blocked for two days, and the slot looks booked to
+ * everyone while the thing that was booked is on sale again.
+ */
+export async function capacityHoldTtlSeconds(
+  poolId: string | null | undefined,
+  admin?: Pick<SupabaseClient, "from">,
+): Promise<number | null> {
+  if (!poolId) return null;
+  const db = (admin ?? createServiceRoleClient()) as Pick<SupabaseClient, "from"> | null;
+  if (!db) return null;
+  const { data, error } = await db
+    .from("capacity_pools")
+    .select("hold_ttl_seconds")
+    .eq("id", poolId)
+    .maybeSingle();
+  if (error) {
+    logServerError("capacity/hold-ttl", error);
+    return null;
+  }
+  const secs = (data as { hold_ttl_seconds?: number } | null)?.hold_ttl_seconds;
+  return typeof secs === "number" && Number.isFinite(secs) ? Math.round(secs) : null;
 }
