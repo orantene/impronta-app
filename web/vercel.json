@@ -158,7 +158,7 @@
     },
     {
       "path": "/api/cron/expire-calendar-holds",
-      "schedule": "*/5 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/refresh-demand-scores",

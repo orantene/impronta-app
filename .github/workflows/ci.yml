@@ -366,6 +366,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:scheduling
 
+      # Capacity engine (Sell the Room 0.2). Pure: the TypeScript half of the
+      # remaining-units rule, which must agree with the SQL half in
+      # 20261229000200_capacity_engine.sql. The 200-concurrent oversell proof is
+      # NOT here — it needs a real Postgres. It lives in
+      # `npm run verify:capacity-concurrency` and is deliberately outside the
+      # `ci` aggregate so lane parity stays honest about what actually gates.
+      - name: tests — capacity engine
+        if: ${{ !cancelled() }}
+        run: npm run test:capacity
+
       # ── Component test gate (10th test step) ─────────────────────────
       # Vitest + @testing-library/react + jsdom. Smoke tests for the
       # top god-files (primitives, profile-shell-internal, WorkspacePageView,
