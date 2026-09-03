@@ -51,7 +51,7 @@ Off the critical path, blocking nothing, and worth starting first because they a
 
 | What | Where | Evidence |
 |---|---|---|
-| **Orders 0.8a** — idempotency key on hosted Checkout (`cs_txn_<transactionId>`), and the second deposit path retired | PR #1511, merged 2026-09-03, sha `4be3ae9c4` | All CI gates green including the structural quality gate, which the PR body had named as its authoritative type-check. Both guards proven to fail before they pass. |
+| **Orders 0.8a** — idempotency key on hosted Checkout (`cs_txn_<transactionId>`), and the second deposit path retired | PR #1511, merged 2026-09-03, sha `4be3ae9c4`. **LIVE-VERIFIED, chain complete.** | All CI gates green including the structural quality gate. Production verification done by the manager and **independently re-verified by the Director**: `origin/production` head IS `4be3ae9c4`; the live page serves `sentry-release=4be3ae9c46bae2d6906d8ca5082db7923ddb52e3`, the exact merge commit, which is what distinguishes deployed from pointer-moved; `deploy:smoke` real exit 0 with no Supabase migration drift; `tulala.digital` and `app.tulala.digital` both 200. On `origin/production`: `stripe-checkout.ts:163` carries the key and `server-actions/bank-link.ts` is absent. |
 | **Orders 0.4** — `customers` table, backfill, `lib/customers/` | migrations `20261228000140` + `…141`, applied to production | 8 customers, 8 distinct emails, 6 correctly sharing one phone (measured by the manager; an earlier 7 here was mine and wrong). |
 | **Migration history repair** — two duplicate auto-stamped rows removed, DDL preserved onto their correct twins | production, owner-authorised | `db:check` OK, 651 local migrations all applied, exit 0. |
 
@@ -206,6 +206,9 @@ It derives the version from the filename, applies via the Management API, record
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
 ## Department rules added in flight
+**Before proposing a link table, ask: can two of the left thing legitimately share one of the right thing?** The Orders & Checkout Manager's framing of Director error 7, and it is better than the error itself. If the answer is no, the relationship is one-to-many, the link belongs on the many side, and a join table silently **permits** the very thing you were protecting against. The trap is that a join table answers a real requirement — integrity plus an indexed lookup — and answering a real requirement is what makes a wrong shape feel safe. **Adding integrity in the wrong shape removes a guarantee.**
+
+
 **READ `mergeStateStatus` BEFORE YOU READ CHECKS.** Proposed by the Orders & Checkout Manager after nearly shipping a false green on #1513, sharpened by the Director after measuring every open PR. One command:
 
 ```
