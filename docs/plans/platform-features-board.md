@@ -544,6 +544,13 @@ The shell fix itself is queued with the Creative Director's developer as J1. It 
 **The general form, now a standing rule:** *the industry preset today configures words and feature flags, nothing visual.* Any copy anywhere implying that picking your industry sets up your site is false in exactly the way the Tables floor-plan copy is. Expect a third and fourth instance; every one found is in scope.
 
 
+**Prefer a GLOB test lane. It is the one shape of the lane-name collision that cannot happen.** Found by the Sessions & Classes Manager, verified on main: `"test:sessions": "tsx --test src/lib/sessions/*.test.ts"`, wired into the `ci` chain. **A new test file in that directory gates automatically without touching `web/package.json`.** The recorded incident in this repo is a lane-name collision that lost coverage silently while reporting green, and it needs a hand-maintained file list to happen at all. A glob lane is structurally immune, and it removes the `package.json` conflict that every parallel manager otherwise fights over. When you define a new lane, glob the directory.
+
+**Separate "nothing right now" from "nothing ever", at the decision layer and not in the pure function.** Same manager, writing `expandSeries`: it returns `[]` both for a malformed series and for a well-formed one with nothing in the window. **That is correct for an expander and wrong for a cron** — "nothing this week" is a Tuesday; "can never produce anything" is a workspace whose schedule silently never appears and nobody finds out. The expander stays pure and total; the decision layer above it turns the second case into a refusal with a reason. And the reasons stay unmerged: `timezone_unconfirmed` and `timezone_unknown` are different problems with different fixes, and one label for both sends the operator to the wrong screen. This is `a function that answers instead of refusing` applied one level up, plus `one label, three states` applied to its reasons.
+
+**The surface allow-list does NOT bite a builder block.** Correction from the Sessions & Classes Manager, and it is a correction of the Director. I broadcast the allow-list warning to four managers as though it were imminent for all of them. A native block renders inside an existing tenant page and **claims no route**, so nothing in Sessions P1.2–P1.6 touches it. It bites at P1.7: the staff check-in workspace route, and any per-session public schedule page, which would be a top segment (`/schedule`, `/classes`) and therefore the reserve-the-slug-in-both-prefix-lists case. **A warning delivered to everyone at the same urgency is a warning nobody can schedule.**
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
