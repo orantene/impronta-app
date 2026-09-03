@@ -21,8 +21,30 @@ import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
 // ─── Workspace clients (admin pov) ────────────────────────────────────────────
 
 export type WorkspaceClientRow = {
-  /** user_id from auth */
+  /**
+   * The auth `user_id` when this customer has an account, otherwise
+   * `customer:<uuid>`.
+   *
+   * DO NOT change this to the customer id. The client edit drawer
+   * (`drawers/light-06.tsx`) posts `id` as `user_id` to
+   * `updateAdminClientProfile`, guarded only by a bare-uuid regex. A customer
+   * id is also uuid-shaped, so it would pass the guard and update nothing,
+   * silently — the "I save and nothing changes" failure this repo has recorded
+   * before. The `customer:` prefix is deliberately NOT a bare uuid so that
+   * guard rejects an account-less customer and falls through to its stub
+   * instead of writing to a row that does not exist.
+   */
   id: string;
+  /** `customers.id` — the canonical row. Stable whether or not there is an account. */
+  customerId: string;
+  /** Present only when the customer has an account. */
+  userId: string | null;
+  /**
+   * The customer's email. Previously unavailable to this page at all: neither
+   * `client_profiles` nor `profiles` carries an email column, so the only copy
+   * in the schema lives in `auth.users`.
+   */
+  email: string | null;
   /** Display name from profiles table */
   name: string;
   /** Company / business name from client_profiles */
@@ -40,9 +62,19 @@ export type WorkspaceClientRow = {
 };
 
 /**
- * Load the client list for a tenant. Scoped via inquiries.client_user_id —
- * only returns clients who have placed at least one inquiry with this tenant.
- * Ordered by most-recent-inquiry descending.
+ * Load the client list for a tenant, from `customers`.
+ *
+ * This used to derive the list by scanning `inquiries` for distinct
+ * `client_user_id` values, because there was nowhere else to look: neither
+ * `agency_client_relationships` nor `client_profiles` carries an email or a
+ * name, and a client who had never filed an inquiry did not appear at all.
+ *
+ * `customers` is now the spine. The inquiry scan remains, but only to compute
+ * the per-client aggregates (inquiry count, bookings YTD, latest thread) that
+ * still live on inquiries. The consequence that matters: a customer with no
+ * account — the guest who buys with an email — is representable here for the
+ * first time. There are none yet; the purchase pipeline (0.6) produces the
+ * first one.
  *
  * Returns [] on error. Never falls back to mock data.
  */
@@ -91,16 +123,43 @@ export async function loadWorkspaceClients(
       }
     }
 
-    const userIds = [...clientStats.keys()];
-    if (userIds.length === 0) return [];
+    // Step 2: the customer spine. This is the list; the inquiry aggregates
+    // above only decorate it.
+    const { data: customerRows, error: customerErr } = await supabase
+      .from("customers")
+      .select("id, user_id, email, display_name, last_seen_at")
+      .eq("tenant_id", tenantId)
+      .is("merged_into_id", null)
+      .order("last_seen_at", { ascending: false, nullsFirst: false });
 
-    // Step 2: Fetch client_profiles + profiles + trust states in parallel.
+    if (customerErr) {
+      logServerError("workspace.loadClients.customers", customerErr);
+      return [];
+    }
+
+    type CustomerRow = {
+      id: string;
+      user_id: string | null;
+      email: string | null;
+      display_name: string | null;
+      last_seen_at: string | null;
+    };
+    const customers = (customerRows ?? []) as unknown as CustomerRow[];
+    if (customers.length === 0) return [];
+
+    const userIds = customers.map((c) => c.user_id).filter((u): u is string => !!u);
+
+    // Step 3: profile + trust decoration, for the customers that have accounts.
     const [profileResult, trustMap] = await Promise.all([
-      supabase
-        .from("client_profiles")
-        .select("user_id, company_name, profiles!inner(display_name, account_status)")
-        .in("user_id", userIds),
-      loadClientTrustStatesForTenant(userIds, tenantId, supabase),
+      userIds.length > 0
+        ? supabase
+            .from("client_profiles")
+            .select("user_id, company_name, profiles!inner(display_name, account_status)")
+            .in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+      userIds.length > 0
+        ? loadClientTrustStatesForTenant(userIds, tenantId, supabase)
+        : Promise.resolve(new Map<string, "basic" | "verified" | "silver" | "gold">()),
     ]);
 
     const { data: profileRows, error: profileErr } = profileResult;
@@ -124,27 +183,38 @@ export async function loadWorkspaceClients(
       profileByUserId.set(row.user_id, row);
     }
 
-    // Step 3: Assemble output, sorted by most-recent inquiry desc
+    // Step 4: assemble. Ordered by the customer's own last_seen_at, which for a
+    // customer with inquiries is their latest inquiry and for an account-less
+    // buyer is their latest order.
     const out: WorkspaceClientRow[] = [];
-    const sorted = [...clientStats.entries()].sort(
-      ([, a], [, b]) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime(),
-    );
-
-    for (const [uid, stats] of sorted) {
-      const row = profileByUserId.get(uid);
+    for (const customer of customers) {
+      const uid = customer.user_id;
+      const stats = uid ? clientStats.get(uid) : undefined;
+      const row = uid ? profileByUserId.get(uid) : undefined;
       const profileJoin = row?.profiles;
       const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
-      const name = profile?.display_name?.trim() || uid.slice(0, 8);
+
+      // Name precedence: the account's display name, then what the customer
+      // gave us at checkout, then the local part of their email. The old
+      // `uid.slice(0, 8)` fallback showed a uuid fragment to a human.
+      const name =
+        profile?.display_name?.trim() ||
+        customer.display_name?.trim() ||
+        customer.email?.split("@")[0] ||
+        customer.id.slice(0, 8);
+
       out.push({
-        id: uid,
+        id: uid ?? `customer:${customer.id}`,
+        customerId: customer.id,
+        userId: uid,
+        email: customer.email,
         name,
         company: row?.company_name ?? null,
         accountStatus: profile?.account_status ?? null,
-        inquiryCount: stats.count,
-        bookingsYTD: stats.bookingsYTD,
-        // Phase 3.7 — trust level from client_trust_state; null if no record yet.
-        trustLevel: trustMap.get(uid) ?? null,
-        latestInquiryId: stats.latestInquiryId,
+        inquiryCount: stats?.count ?? 0,
+        bookingsYTD: stats?.bookingsYTD ?? 0,
+        trustLevel: (uid ? trustMap.get(uid) : null) ?? null,
+        latestInquiryId: stats?.latestInquiryId ?? null,
       });
     }
 
