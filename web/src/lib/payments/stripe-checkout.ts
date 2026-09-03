@@ -92,12 +92,17 @@ export type CheckoutSessionResult =
  *
  * When STRIPE_SECRET_KEY is missing, returns a mock URL pointing back
  * to the success page so the prototype demo still works end-to-end.
+ *
+ * `deps.stripe` exists only so the idempotency contract below can be asserted
+ * without a network call, mirroring `disburse`'s injected client. Production
+ * callers pass nothing and get the shared singleton.
  */
 export async function createCheckoutSessionForTransaction(
   input: CheckoutSessionInput,
+  deps: { stripe?: Stripe | null } = {},
 ): Promise<CheckoutSessionResult> {
   try {
-    const stripe = getStripe();
+    const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
     if (!stripe) {
       // Mock mode: skip Stripe entirely. The "session id" is synthetic so
       // the calling action can still echo something back. Webhook delivery
@@ -145,7 +150,18 @@ export async function createCheckoutSessionForTransaction(
 
     // Always the PLATFORM account. See the module header for why the
     // connected-account (Direct Charge) branch was removed.
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    //
+    // Idempotent at the booking-transaction grain, mirroring the embedded
+    // Payment Element lane (`stripe-payment-intent.ts`, key `pi_txn_<id>`).
+    // Without a key, a double-tapped Pay button or a retried server action
+    // mints TWO Checkout sessions against one `booking_transactions` row, and
+    // a client who opens both can be charged twice for one invoice. The
+    // transaction id is the right grain: a deposit and its balance are
+    // separate rows with separate ids, so they never collide, and a genuine
+    // resume of an abandoned checkout correctly returns the same session.
+    const session = await stripe.checkout.sessions.create(sessionParams, {
+      idempotencyKey: `cs_txn_${input.transactionId}`,
+    });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
