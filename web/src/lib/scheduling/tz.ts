@@ -4,12 +4,62 @@
  * PURE. Slots are UTC instants. Wall-clock math happens only here, via Intl,
  * and is never re-derived from a stored string later.
  *
- * DST policy (locked in the appointments plan):
- *   - nonexistent local times (spring-forward gap) → skip (return null)
- *   - ambiguous local times (fall-back overlap) → first occurrence (earliest UTC)
+ * DST policy:
+ *   - ambiguous local times (fall-back overlap) → first occurrence (earliest UTC).
+ *     Not configurable: both instants are real, and the earlier one is the answer
+ *     for every caller we have.
+ *   - nonexistent local times (spring-forward gap) → THE CALLER CHOOSES, because
+ *     the right answer genuinely differs by caller and a shared default would be
+ *     silently wrong for one of them:
+ *
+ *       gap: "skip" (default)  return null. Correct for an appointment SLOT:
+ *                              there is no such moment to offer, and the next
+ *                              slot covers it. Every pre-existing caller.
+ *       gap: "next"            return the instant the clock reaches. Correct for
+ *                              a recurring CLASS: the studio opens and the
+ *                              teacher turns up on the gap day. Returning null
+ *                              there deletes one occurrence a year in every DST
+ *                              zone — no session, no pool, no seat, and no error
+ *                              raised anywhere, which is quieter than a wrong
+ *                              time and therefore worse.
+ *
+ * This parameter exists because two resolvers with OPPOSITE gap policies briefly
+ * shipped — this one and a duplicate in lib/sessions/recurrence.ts — which is the
+ * two-guards-asserting-opposite-things shape. The fix is not to pick a winner and
+ * silently change a caller's behaviour; it is one implementation with the choice
+ * NAMED AT THE CALL SITE. Proposed by the Sessions & Classes Manager, whose
+ * argument that null is the quieter failure is the reason the default did not
+ * simply win.
  */
 
+export type GapPolicy = "skip" | "next";
+
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * A real calendar date, or null.
+ *
+ * The shape check is NOT enough. `Date.UTC(2027, 12, 40)` does not fail, it rolls
+ * over into 2028-02-09 — so `weekdayUtc("2027-13-40")` returned 3, a confident
+ * answer about a date that does not exist, and `addUtcDays` walked off the same
+ * cliff. Callers already handle null (`if (weekday == null) continue`), so this
+ * can only turn a wrong answer into a skip.
+ *
+ * Same family as the DST gap this module already refuses: a function should say
+ * "there is no answer" rather than invent a plausible one. The round trip also
+ * rejects dates that do not exist, like 31 February.
+ */
+function parseYmd(ymd: string): { y: number; m: number; d: number } | null {
+  const match = YMD_RE.exec(ymd);
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const at = new Date(Date.UTC(y, m - 1, d));
+  if (at.getUTCFullYear() !== y || at.getUTCMonth() !== m - 1 || at.getUTCDate() !== d) return null;
+  return { y, m, d };
+}
 
 export function isValidIanaTimeZone(timeZone: string): boolean {
   if (typeof timeZone !== "string" || timeZone.trim().length === 0) return false;
@@ -64,17 +114,18 @@ export function zonedLocalToUtc(
   ymd: string,
   minutesOfDay: number,
   timeZone: string,
+  options: { gap?: GapPolicy } = {},
 ): Date | null {
   if (!isValidIanaTimeZone(timeZone)) return null;
-  const match = YMD_RE.exec(ymd);
-  if (!match) return null;
+  const parsed = parseYmd(ymd);
+  if (!parsed) return null;
   if (!Number.isInteger(minutesOfDay) || minutesOfDay < 0 || minutesOfDay > 1439) {
     return null;
   }
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
+  const year = parsed.y;
+  const month = parsed.m;
+  const day = parsed.d;
   const hour = Math.floor(minutesOfDay / 60);
   const minute = minutesOfDay % 60;
 
@@ -104,7 +155,16 @@ export function zonedLocalToUtc(
   if (!matches(ms)) {
     const nearby = [ms - 3_600_000, ms + 3_600_000, ms - 7_200_000, ms + 7_200_000];
     const hit = nearby.find((candidate) => matches(candidate));
-    if (hit == null) return null;
+    if (hit == null) {
+      // Nothing reads back as the requested wall clock: it is inside a gap.
+      if ((options.gap ?? "skip") === "skip") return null;
+      // "next": the instant the clock actually reaches. Take the candidate built
+      // from the POST-transition offset — the later of the two — which shifts the
+      // request forward by exactly the width of the gap.
+      const after = utcAsIf - offsetAt(utcAsIf + 86_400_000);
+      const before = utcAsIf - offsetAt(utcAsIf - 86_400_000);
+      return new Date(Math.max(after, before));
+    }
     ms = hit;
   }
 
@@ -130,20 +190,18 @@ export function utcToZonedHmm(instant: Date, timeZone: string): string | null {
 
 /** Add `days` civil days to a YYYY-MM-DD string (UTC calendar, not zone). */
 export function addUtcDays(ymd: string, days: number): string | null {
-  const match = YMD_RE.exec(ymd);
-  if (!match || !Number.isInteger(days)) return null;
-  const dt = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days));
+  const parsed = parseYmd(ymd);
+  if (!parsed || !Number.isInteger(days)) return null;
+  const dt = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d + days));
   if (Number.isNaN(dt.getTime())) return null;
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 /** JS weekday 0=Sunday for a civil date (independent of timezone). */
 export function weekdayUtc(ymd: string): number | null {
-  const match = YMD_RE.exec(ymd);
-  if (!match) return null;
-  return new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
-  ).getUTCDay();
+  const parsed = parseYmd(ymd);
+  if (!parsed) return null;
+  return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d)).getUTCDay();
 }
 
 export function minutesToHmm(minutesOfDay: number): string {
