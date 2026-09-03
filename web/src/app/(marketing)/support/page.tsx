@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MarketingContainer, MarketingSection } from "@/components/marketing/container";
 import { MarketingCta } from "@/components/marketing/cta-link";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
-import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
+import { SUPPORT_EMAIL, SUPPORT_EMAIL_CAN_RECEIVE } from "@/lib/platform/support-contact";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -67,12 +67,24 @@ export default async function SupportPage() {
           ? "Abres soporte desde tu panel y el mensaje llega con tu cuenta, tu página y lo que estabas haciendo ya adjuntos. No tienes que explicar quién eres ni reconstruir el problema desde cero."
           : "You open support from your dashboard and the message arrives with your account, your page and what you were doing already attached. You do not have to explain who you are or rebuild the problem from scratch.",
       },
-      {
-        name: es ? "Correo" : "Email",
-        body: es
-          ? `Escribe a ${SUPPORT_EMAIL} desde donde estés. Va al mismo lugar, lo lee la misma gente.`
-          : `Write to ${SUPPORT_EMAIL} from wherever you are. It goes to the same place and the same people read it.`,
-      },
+      // The email channel is listed ONLY while the address can actually
+      // receive mail. Today it cannot: the domain has no MX record, so a
+      // reader who follows this instruction gets a bounce from the very page
+      // promising that a person answers. The form below writes straight to
+      // our support queue and needs no mailbox at all.
+      SUPPORT_EMAIL_CAN_RECEIVE
+        ? {
+            name: es ? "Correo" : "Email",
+            body: es
+              ? `Escribe a ${SUPPORT_EMAIL} desde donde estés. Va al mismo lugar, lo lee la misma gente.`
+              : `Write to ${SUPPORT_EMAIL} from wherever you are. It goes to the same place and the same people read it.`,
+          }
+        : {
+            name: es ? "El formulario de contacto" : "The contact form",
+            body: es
+              ? "Escríbenos desde la página de contacto. Llega directo a la misma cola de soporte, sin necesidad de que tengas cuenta."
+              : "Write to us from the contact page. It lands in the same support queue, and you do not need an account to use it.",
+          },
     ],
 
     honestTitle: es ? "Lo que no vamos a hacer" : "What we will not do",
@@ -99,10 +111,14 @@ export default async function SupportPage() {
       : "In Spanish or in English, whichever you prefer. We are not going to make you translate your own problem.",
 
     ctaTitle: es ? "¿Necesitas algo ahora?" : "Need something now?",
+    // Careful here: this used to say "no qualifying form", which stopped being
+    // true the moment the CTA started opening one. The promise worth keeping
+    // is that nobody screens you before a person reads it, not that no form
+    // exists.
     ctaBody: es
-      ? "Escríbenos. No hay formulario de calificación ni cuestionario previo."
-      : "Write to us. There is no qualifying form and no questionnaire first.",
-    emailCta: es ? "Escríbenos por correo" : "Email us",
+      ? "Escríbenos y una persona lo lee. Nadie te filtra antes, y no necesitas cuenta."
+      : "Write to us and a person reads it. Nobody screens you first, and you do not need an account.",
+    emailCta: es ? "Escríbenos" : "Write to us",
     featureCta: es ? "Cómo funciona el soporte premium" : "How premium support works",
     helpCta: es ? "Ver las guías" : "Browse the guides",
   };
@@ -267,9 +283,26 @@ export default async function SupportPage() {
                 {t.ctaBody}
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-                <MarketingCta href={`mailto:${SUPPORT_EMAIL}`} variant="primary" external eventSource="support" eventIntent="support-email">
-                  {t.emailCta}
-                </MarketingCta>
+                {SUPPORT_EMAIL_CAN_RECEIVE ? (
+                  <MarketingCta
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    variant="primary"
+                    external
+                    eventSource="support"
+                    eventIntent="support-email"
+                  >
+                    {t.emailCta}
+                  </MarketingCta>
+                ) : (
+                  <MarketingCta
+                    href={L("/contact")}
+                    variant="primary"
+                    eventSource="support"
+                    eventIntent="support-contact-form"
+                  >
+                    {t.emailCta}
+                  </MarketingCta>
+                )}
                 <Link
                   href={L("/features/premium-support")}
                   className="text-[0.9375rem] font-medium transition-colors hover:underline"
