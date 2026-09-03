@@ -11,6 +11,7 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import {
   PLATFORM_FALLBACK_TIMEZONE,
   pickTimezone,
@@ -44,12 +45,16 @@ export async function loadDefaultVenue(tenantId: string): Promise<VenueRow | nul
   if (!tenantId) return null;
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("venues")
     .select(VENUE_COLUMNS)
     .eq("tenant_id", tenantId)
     .eq("is_default", true)
     .maybeSingle();
+  if (error) {
+    logServerError("spaces/loadDefaultVenue", error);
+    return null;
+  }
   return (data as VenueRow | null) ?? null;
 }
 
@@ -57,12 +62,16 @@ export async function listVenues(tenantId: string): Promise<VenueRow[]> {
   if (!tenantId) return [];
   const admin = createServiceRoleClient();
   if (!admin) return [];
-  const { data } = await admin
+  const { data, error } = await admin
     .from("venues")
     .select(VENUE_COLUMNS)
     .eq("tenant_id", tenantId)
     .order("is_default", { ascending: false })
     .order("name", { ascending: true });
+  if (error) {
+    logServerError("spaces/listVenues", error);
+    return [];
+  }
   return (data as VenueRow[] | null) ?? [];
 }
 
@@ -103,6 +112,12 @@ export async function resolveTenantTimezone(
           .maybeSingle(),
     admin.from("agencies").select("timezone, settings").eq("id", tenantId).maybeSingle(),
   ]);
+
+  // A failed read here is not "no venue" and not "UTC". It is a rung we could
+  // not consult, and it must be visible: falling through to UTC in silence is
+  // how a workspace ends up sending mail at 3am and nobody knows why.
+  if (venueResult.error) logServerError("spaces/resolveTenantTimezone.venue", venueResult.error);
+  if (agencyResult.error) logServerError("spaces/resolveTenantTimezone.agency", agencyResult.error);
 
   const agency = agencyResult.data as
     | { timezone: string | null; settings: unknown }
