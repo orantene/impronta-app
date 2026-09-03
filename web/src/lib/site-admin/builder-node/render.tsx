@@ -238,6 +238,21 @@ export interface BuilderNodeRenderDataSources {
     /** Offering policy: may the customer settle in person? */
     allowPayInPerson: boolean;
   }>;
+  /**
+   * The tenant's operator-editable menu nouns, resolved through the words
+   * engine. Absent falls back to the message catalog, so a tenant that never
+   * touched Words still reads correctly and a load failure cannot blank a board.
+   *
+   * These are nouns the operator owns (a print shop's "Sold out" may differ from
+   * a restaurant's), which is why they come from `menu.*` word rows rather than
+   * the i18n catalog. Loaded in the same branch that loads `menuOfferings`;
+   * builder nodes never fetch.
+   */
+  menuWords?: {
+    soldOut: string;
+    orderSent: string;
+    cta: string;
+  };
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
   /**
    * Phase 3 — cached Instagram/TikTok media for THIS tenant, keyed by provider.
@@ -5445,7 +5460,7 @@ function renderBuilderNodeElement(
           <MenuBoardIsland
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
-            copy={menuBoardCopy(options.contentLocale)}
+            copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
           />
         </section>
       );

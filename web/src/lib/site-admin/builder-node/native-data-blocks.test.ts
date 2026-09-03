@@ -108,6 +108,10 @@ function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }):
     duration_minutes: overrides.duration_minutes ?? null,
     category: overrides.category ?? null,
     inventory_qty: overrides.inventory_qty ?? null,
+    // Stock is a POOL fact: the derive requires capacity_pool_id, so a fixture
+    // that omits it is an UNLIMITED item however its inventory_qty reads.
+    capacity_pool_id: overrides.capacity_pool_id ?? null,
+    consumes_units: overrides.consumes_units ?? 1,
     status: overrides.status ?? "published",
     visibility: overrides.visibility ?? "public",
     moderation_state: overrides.moderation_state ?? "approved",
@@ -407,10 +411,10 @@ test("STOCK: unitsLeft is carried for ANY kind, not just kind='product'", () => 
   // enforcement unenforced: the page keeps advertising 12 seats while any
   // number of people order it, with no error anywhere.
   const rows: TalentOfferingRow[] = [
-    menuRow({ id: "course", tenant_id: "t", kind: "package", inventory_qty: 12 }),
-    menuRow({ id: "merch", tenant_id: "t", kind: "product", inventory_qty: 3 }),
+    menuRow({ id: "course", tenant_id: "t", kind: "package", inventory_qty: 12, capacity_pool_id: "p1" }),
+    menuRow({ id: "merch", tenant_id: "t", kind: "product", inventory_qty: 3, capacity_pool_id: "p2" }),
     menuRow({ id: "studio", tenant_id: "t", kind: "service", inventory_qty: null }),
-    menuRow({ id: "gone", tenant_id: "t", kind: "package", inventory_qty: 0 }),
+    menuRow({ id: "gone", tenant_id: "t", kind: "package", inventory_qty: 0, capacity_pool_id: "p3" }),
   ];
   const derived = deriveWorkspaceMenuOfferings(rows, "t");
   assert.deepEqual(
@@ -420,6 +424,24 @@ test("STOCK: unitsLeft is carried for ANY kind, not just kind='product'", () => 
       ["merch", 3],
       ["studio", null],
       ["gone", 0],
+    ],
+  );
+});
+
+test("STOCK: unitsLeft requires a POOL, not merely an inventory number", () => {
+  // capacityPoolId is the authoritative "has stock" test (Capacity 0.3). An
+  // inventory_qty with no pool is a stale mirror from before the migration, and
+  // treating it as stock would grey out an item nothing is actually limiting.
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "pooled", tenant_id: "t", inventory_qty: 0, capacity_pool_id: "pool-1" }),
+    menuRow({ id: "stale", tenant_id: "t", inventory_qty: 0, capacity_pool_id: null }),
+  ];
+  const derived = deriveWorkspaceMenuOfferings(rows, "t");
+  assert.deepEqual(
+    derived.map((d) => [d.id, d.unitsLeft]),
+    [
+      ["pooled", 0],
+      ["stale", null],
     ],
   );
 });

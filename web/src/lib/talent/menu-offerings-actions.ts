@@ -11,6 +11,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import { setOfferingStock } from "@/lib/capacity";
 import {
   blankOffering,
   offeringToRowPatch,
@@ -182,4 +183,83 @@ export async function blankWorkspaceMenuItem(
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
+}
+
+type StockResult =
+  | { ok: true; available: number | null; held: number; unitsTotal: number | null }
+  | { ok: false; error: string };
+
+/**
+ * Set a menu item's AVAILABLE stock. Empty / null means unlimited.
+ *
+ * A stock edit is NOT a number write, which is why this goes through
+ * `setOfferingStock` and why `inventory_qty` is absent from
+ * `offeringToRowPatch`'s return type. Typing "20" means twenty AVAILABLE, so the
+ * RPC computes `units_total = 20 + held` under the pool's row lock. Writing 20
+ * into the total would shrink the ceiling below what live orders already hold;
+ * writing `inventory_qty` alone would desync the mirror the public board reads.
+ *
+ * Reducing below what is held is allowed and never cancels a hold: availability
+ * goes to 0 and the buyers keep their seats. Taking a seat back from someone who
+ * paid is a refund decision, not a side effect of an editor field.
+ *
+ * THE TENANT + owner_kind CHECK BELOW IS THE ONLY GUARD. Do not remove it.
+ *
+ * Measured on production: `set_offering_stock` is SECURITY DEFINER and neither
+ * `authenticated` nor `anon` may execute it, so no client reaches the RPC
+ * directly. That does not make this check redundant — it makes it load-bearing.
+ * THIS ACTION is what a client reaches: it is a `"use server"` export, callable
+ * by any authenticated staff member, and it hands the RPC an offering id under
+ * service role. Without the check below, this function is itself the
+ * cross-tenant write, with nothing behind it.
+ *
+ * When the Capacity Engine adds `p_tenant_id` (their 0.10), this becomes belt
+ * and braces rather than the only brace — but the two assert DIFFERENT things
+ * and both are still needed. Theirs: the offering belongs to that tenant.
+ * Ours: the CALLER is staff of that tenant, and the row is owner_kind
+ * 'workspace'. A talent-owned offering carrying this tenant's id passes theirs
+ * and must still fail ours.
+ */
+export async function setMenuItemStockAction(
+  tenantId: string,
+  offeringId: string,
+  available: number | null,
+): Promise<StockResult> {
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Database not available." };
+
+    const { data: row, error: selErr } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .maybeSingle();
+    if (selErr || !row) return { ok: false, error: "Menu item not found." };
+
+    const result = await setOfferingStock(offeringId, available, admin);
+    if (!result.ok) {
+      const message =
+        result.reason === "negative_stock"
+          ? "Stock cannot be negative."
+          : result.reason === "offering_not_found"
+            ? "Menu item not found."
+            : "Could not update stock.";
+      return { ok: false, error: message };
+    }
+
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      available: result.available,
+      held: result.held,
+      unitsTotal: result.unitsTotal,
+    };
+  } catch (error) {
+    logServerError("menuOfferings.setStock", error);
+    return { ok: false, error: "Could not update stock." };
+  }
 }
