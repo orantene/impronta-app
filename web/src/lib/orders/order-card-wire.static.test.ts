@@ -83,6 +83,47 @@ test("layer 4 — every render call site passes it", () => {
   }
 });
 
+test("no renderer RE-PROJECTS messages and drops the order on the way", () => {
+  // The fifth hop, and the one both earlier versions of this guard missed.
+  //
+  // `admin-4.tsx` builds a local array with its OWN inline message type and
+  // projects the thread's messages into it. A field added to ThreadMessage does
+  // not reach the renderer unless it is added there too — and this sits BETWEEN
+  // the two places the guard was looking, so checking the bridge and the call
+  // site both passed while the card had no order.
+  //
+  // tsc caught it, which is the honest account: this assertion exists so the
+  // next field does not need a 17-minute CI round trip to find the same hop.
+  for (const rel of [
+    "components/admin/shell/internal/messages/admin-4.tsx",
+    "components/admin/shell/internal/messages/admin-4b.tsx",
+  ]) {
+    const body = read(rel);
+    if (!/\bid: m\.id,/.test(body)) continue; // no local projection in this file
+
+    // COUNT, do not match. `order: m.order` also appears at the render call
+    // site, so a bare match passes while the projection drops it — which is
+    // exactly what the first version of this assertion did: it went green with
+    // the hop deliberately broken. A file that both projects and renders needs
+    // the field in BOTH places.
+    const occurrences = (body.match(/order:\s*m\.order/g) ?? []).length;
+    assert.ok(
+      occurrences >= 2,
+      `${rel} re-projects messages AND renders a card, so \`order: m.order\` must appear in both `
+        + `the projection and the render ctx — found ${occurrences}`,
+    );
+
+    // And the projection's own inline type must declare it, or a dropped field
+    // is invisible to tsc: an OPTIONAL property missing from an object literal
+    // is not an error, which is why this needs a guard rather than a compiler.
+    assert.match(
+      body,
+      /order\?:\s*\{/,
+      `${rel}'s local message type must declare \`order\``,
+    );
+  }
+});
+
 test("the renderer accepts an order and derives the view rather than reading a label", () => {
   const s = read("components/admin/shell/internal/messages/admin-3.tsx");
   assert.match(s, /case "order":/, "the renderer must handle the 'order' kind");

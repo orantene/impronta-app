@@ -79,7 +79,11 @@ export async function loadOrdersForThread(
   if (opts.tenantId) {
     try {
       const words = await loadTenantWords(opts.tenantId, opts.locale ?? "en");
-      noun = words["menu.order"] ?? null;
+      // `word()` returns the KEY itself when the registry has no such row, so a
+      // missing row would render "menu.order" on the card. Treat that as no
+      // noun and let the neutral fallback take over.
+      const resolved = words.word("menu.order");
+      noun = resolved && resolved !== "menu.order" ? resolved : null;
     } catch (err) {
       logServerError("orders.loadOrdersForThread/words", err);
     }
