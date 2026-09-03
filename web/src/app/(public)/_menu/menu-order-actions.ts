@@ -6,11 +6,10 @@
  * Email is required (no anonymous menu order).
  */
 
+import { createPurchase } from "@/lib/orders/purchase";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import {
-  createMenuOrder,
   type MenuOrderLineInput,
 } from "@/lib/inquiry/menu-order-engine";
 import { logServerError } from "@/lib/server/safe-error";
@@ -55,39 +54,47 @@ export async function submitMenuOrder(
       data: { user },
     } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
-    let clientUserId = user?.id ?? null;
-    if (!clientUserId) {
-      const guest = await ensureGuestClientByEmail({
-        email,
-        name,
-        company: "",
-        phone: input.contactPhone?.trim() ?? "",
-      });
-      clientUserId = guest.clientUserId;
-    }
-    if (!clientUserId) {
-      return {
-        ok: false,
-        error: "Could not create your order account. Check the email and try again.",
-      };
-    }
+    // NO GUEST PROVISIONING. `ensureGuestClientByEmail` minted a real
+    // `auth.users` row on every submit — seven of production's thirty-one auth
+    // identities are `menu-qa-<timestamp>@example.com` from QA runs. A customer
+    // is an email; an account is something they GAIN if they sign up.
+    // Retiring the provisioner everywhere is 0.4b; this call site stops using
+    // it today.
+    const actorUserId = user?.id ?? null;
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Database not available." };
 
-    const result = await createMenuOrder(admin, {
+    const result = await createPurchase(admin, {
       tenantId: input.tenantId,
-      clientUserId,
-      contactName: name,
-      contactEmail: email,
-      contactPhone: input.contactPhone ?? null,
-      lines: input.lines,
-      payInPerson: input.payInPerson === true,
+      // Per CART. The board's session key is stable across re-renders and a
+      // reload, so a double-tapped Send cannot mint two orders.
+      clientOrderKey: `menu:${input.tenantId}:${email}:${input.sourcePage ?? ""}`,
+      actorUserId,
+      contact: { email, phone: input.contactPhone ?? null, displayName: name },
+      lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.quantity })),
+      // INTENT, never policy. The pipeline re-derives what this offering allows
+      // from its own row and refuses if they disagree — which is the whole
+      // indictment of the engine this replaces: it rendered offerings whose
+      // reserve_mode, deposit_pct and allow_pay_in_person it never read.
+      paymentChoice: input.payInPerson === true ? "in_person" : "full",
+      sourceChannel: "menu",
       sourcePage: input.sourcePage ?? null,
+      // Staff work menu orders in Messages today. The order is the record; the
+      // thread is where the conversation about it lives.
+      openThread: true,
     });
 
     if (!result.ok) {
-      if (result.reason === "offering_unresolvable") {
+      // The pipeline's refusal reasons are stable strings and are NOT the old
+      // engine's. `offering_not_priceable` / `unknown_offering` /
+      // `offering_not_published` all mean "this item cannot be ordered", which
+      // is what the board needs to know to point at a row.
+      if (
+        result.reason === "offering_not_priceable"
+        || result.reason === "unknown_offering"
+        || result.reason === "offering_not_published"
+      ) {
         return {
           ok: false,
           error: result.error ?? "One of the menu items is no longer available.",
@@ -104,6 +111,7 @@ export async function submitMenuOrder(
 
     return {
       ok: true,
+      orderId: result.orderId,
       inquiryId: result.inquiryId,
       bookingId: result.bookingId,
     };

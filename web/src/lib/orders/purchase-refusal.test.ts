@@ -234,7 +234,10 @@ test("a deposit collects the configured percentage and marks the transaction as 
   assert.equal(payload.checkout_type, "full");
   assert.equal(payload.gross_amount_cents, 5000);
   // Never `paid` from here — that is a webhook's job.
-  assert.equal(payload.status, "payment_requested");
+  // A transaction opens as `draft` — a DB trigger enforces it, and the
+  // semantics are right: it becomes `payment_requested` when a payment is
+  // actually requested, i.e. when the caller creates the Checkout session.
+  assert.equal(payload.status, "draft");
 });
 
 test("a free reserve writes NO booking and NO transaction", async () => {
