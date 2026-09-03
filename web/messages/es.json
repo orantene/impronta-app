@@ -5721,7 +5721,13 @@
         "builderLab": "Builder Lab",
         "settings": "Ajustes",
         "auditLog": "Registro de auditoría",
-        "support": "Soporte"
+        "support": "Soporte",
+        "group": {
+          "accounts": "Cuentas",
+          "money": "Dinero",
+          "product": "Producto",
+          "system": "Sistema"
+        }
       },
       "switcher": {
         "workspaces": "Espacios de trabajo",
