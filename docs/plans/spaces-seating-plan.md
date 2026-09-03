@@ -233,7 +233,7 @@ caller knowing my tree exists. Refusal reasons are stable: `sold_out`, `ancestor
 `unavailable`. **`ancestor_full` is the one to design for** — the table is empty and you still
 cannot sit at it. Front Door owns the wording; I write no customer strings.
 
-### OPEN, and it must be settled before S2 ships: a table must not be counted twice
+### SETTLED with the Capacity Engine Manager: a table must not be counted twice
 
 My own plan said "every bookable space and every group gets a pool". Working through INVARIANT SS-1
 shows that cannot be true as written.
@@ -249,19 +249,58 @@ two modes and must never be live at the same time for the same tables**:
 
 | Mode | Who uses it | Pools that exist | Why |
 |---|---|---|---|
-| **Band** | Reservations Phase 1, no floor plan | the group only | "a four-top at 8pm" sells a band; individual tables may not exist as rows yet. Also the only place `overbook_units` can express a no-show buffer, because the band is the unit of overbooking policy, not the table. |
-| **Assigned** | Reservations Phase 3, host stand | the tables only | the group becomes a pure **selection**: pick an available member, reserve *its* pool. Overlapping groups are then free, because a selection has no arithmetic. |
+| **Band** | Reservations Phase 1, no floor plan | the group only, **parentless** | "a four-top at 8pm" sells a band; individual tables may not exist as rows yet. Also the only place `overbook_units` can express a no-show buffer, because the band is the unit of overbooking policy, not the table. |
+| **Assigned** | Reservations Phase 3, host stand | the tables only, parented to the room | the group becomes a pure **selection**: pick an available member, reserve *its* pool. Overlapping groups are then free, because a selection has no arithmetic. |
 
-So S2 ships band mode, S3 migrates a venue to assigned mode, and **the migration between them is a
-real deliverable with a real risk** (live allocations against a group pool must be re-seated onto
-table pools). Naming it now is the whole point; discovering it in Phase 3 is the expensive version.
+**The band pool is PARENTLESS, not parented to the room.** This is the Capacity Engine Manager's
+correction and it is the difference between a migration that works and one that jams halfway through
+a live service. During a band → assigned migration both pools exist at once; if the group hangs under
+the room, reserving each replacement table pool **charges the room a second time** and the migration
+refuses itself with `ancestor_full`, on a live venue, mid-way. A parentless group shares no ancestor
+with the table pools, so the two sets never contend and the migration is monotonic. Nothing is lost:
+in band mode the tables do not exist as rows, so there is no table count for a room pool to enforce,
+and the group's own `units_total` **is** the capacity.
+
+Parenting the group to the room was tested and **is not the answer** even outside a migration. It
+closes the hole only when the room contains exactly that group's tables. A room of 10 (six four-tops
+plus four two-tops) with a band of 6: the band sells 6, the room reads 6/10, Table 7 then sells
+directly and the room allows 7/10 — **seven four-tops promised against six.** Parenting narrows the
+hole; the two modes close it.
+
+**INVARIANT SS-2 — mode exclusivity.** *A `space_group` pool and its member table pools are never
+both active.* Like SS-1, this is mine to hold and cannot be pushed down: the engine has no idea which
+tables belong to which group, because membership is my table, so there is no row it could look at and
+refuse. It is expressible entirely with `is_active` and it needs a test, because the failure is
+silent and surfaces only as a double-booked table on a busy night. **The `capacity_subject_kinds`
+registry does not cover it** — that maps a kind to a backing table and has no notion of modes;
+registering `space_group` says the subject id must be a real group row, not that the group should
+currently be selling.
+
+**The band → assigned migration, four steps, and the order is the point.** No new RPC is needed.
+
+1. Create the table pools, parented to the room.
+2. For each live group allocation: `reserve_capacity(table)` → `commit_capacity(that allocation)`.
+3. **Only then** `release_capacity(the group allocation)`.
+4. When the group pool is drained, `is_active = false`. Never delete it.
+
+**Reserve the replacement before releasing the original, never the reverse.** Release-then-reserve
+opens a window in which the guest holds nothing and a walk-in can take their table. If step 2 fails
+for one guest, stop: their band allocation is still held, which is the safe failure.
+
+**Selection is any-of in application code, and it does not race.** Each `reserve_capacity` is atomic
+under the pool's row lock and either holds units or writes nothing, so trying candidates in sequence
+and treating `sold_out` / `ancestor_full` as "next candidate" cannot oversell — the same property the
+200-concurrent proof demonstrates. No any-of RPC is being requested; it would buy one round trip and
+cost the engine a concept it does not need. **Rotate or randomise the candidate order**: a
+deterministic order makes every concurrent booker fight over Table 1, then Table 2, paying lock
+contention on every attempt.
 
 **Pool binding.** I create no pools by hand and write no allocation. On insert of a bookable
 space or a group, the editor calls the Capacity Engine's create-pool path with
 `subject_kind='space'` / `'space_group'`, `subject_id` = my row, `units_total` = 1 for a table
 or a seat and the member count for a group, and `parent_pool_id` = the enclosing room's pool.
-A pool is created for a venue, a room, every bookable leaf, and every group. **Areas and
-sections get no pool** (see challenge 1). Deleting a space is refused while its pool has live
+A pool is created for a venue, a room, and every bookable leaf. **Areas and sections get no pool**
+(see challenge 1). A `space_group` gets one **only in band mode, and parentless** (see SS-2 below). Deleting a space is refused while its pool has live
 allocations; `capacity_pools.parent_pool_id` is `ON DELETE RESTRICT`, so this is enforced
 below me as well as above.
 
@@ -348,9 +387,9 @@ walk-in path are the same code.
 | S1a | migration `…220`, `lib/spaces/venues.ts`, `resolveTenantTimezone`, the booking surface | **DONE.** 13 venues, 13 defaults, 0 invalid zones in production; both live rungs exercised through the real resolver and reverted |
 | S1b | hourly reminder cron gated on venue-local hour | **DONE.** The real route handler, against production: one workspace selected at its own 8am, zero when restored to UTC |
 | S1c | the four remaining UTC surfaces plus a venue editor | an operator sets a zone in the UI and the reminder moves with it. **Every workspace in production is on UTC and there is no UI to change that**, so until S1c the ladder resolves correctly and nothing can exercise it |
-| S2a | `spaces`, `space_groups`, combinations, pool binding | four two-tops and six four-tops defined in under two minutes; the ancestor tests above green |
+| S2a | `spaces`, `space_groups`, combinations, pool binding (band mode), `capacity_subject_kinds` registration | four two-tops and six four-tops defined in under two minutes; the ancestor tests green; **SS-1 and SS-2 each have a failing-then-passing test** |
 | S2b | the plain "Venue and spaces" editor under Settings | clicked by me on localhost, screenshot in the PR |
-| S3 | assign / move / combine | a party of six seated on T8+T9, the two-top pool unchanged |
+| S3 | assign / move / combine, and the band → assigned migration | a party of six seated on T8+T9, the two-top pool unchanged; a venue migrated band → assigned with a live allocation, guest never unheld at any step |
 | S4 | layouts + floor plan editor | the same room is dinner Friday and theatre Saturday, no double allocation |
 | S5 | seat maps | 120 seats in Section A sell to 120 admissions, each with a seat code |
 | S6 | minimum spend, private hire | a $400 minimum on a VIP table becomes credit on the tab |
