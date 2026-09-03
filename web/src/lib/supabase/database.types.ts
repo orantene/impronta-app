@@ -558,6 +558,7 @@ export type Database = {
           suspended_reason: string | null
           talent_seat_limit: number | null
           template_key: string
+          timezone: string
           updated_at: string
           workspace_type: string
         }
@@ -590,6 +591,7 @@ export type Database = {
           suspended_reason?: string | null
           talent_seat_limit?: number | null
           template_key?: string
+          timezone?: string
           updated_at?: string
           workspace_type?: string
         }
@@ -622,6 +624,7 @@ export type Database = {
           suspended_reason?: string | null
           talent_seat_limit?: number | null
           template_key?: string
+          timezone?: string
           updated_at?: string
           workspace_type?: string
         }
@@ -3625,6 +3628,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      capacity_subject_kinds: {
+        Row: {
+          created_at: string
+          registered_by: string | null
+          subject_kind: string
+          table_name: string
+        }
+        Insert: {
+          created_at?: string
+          registered_by?: string | null
+          subject_kind: string
+          table_name: string
+        }
+        Update: {
+          created_at?: string
+          registered_by?: string | null
+          subject_kind?: string
+          table_name?: string
+        }
+        Relationships: []
       }
       client_account_contacts: {
         Row: {
@@ -8907,8 +8931,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
-          customer_id: string
+          customer_id: string | null
           discount_cents: number
+          guest_session_id: string | null
           hold_expires_at: string | null
           id: string
           inquiry_id: string | null
@@ -8929,8 +8954,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
-          customer_id: string
+          customer_id?: string | null
           discount_cents?: number
+          guest_session_id?: string | null
           hold_expires_at?: string | null
           id?: string
           inquiry_id?: string | null
@@ -8951,8 +8977,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
-          customer_id?: string
+          customer_id?: string | null
           discount_cents?: number
+          guest_session_id?: string | null
           hold_expires_at?: string | null
           id?: string
           inquiry_id?: string | null
@@ -17522,6 +17549,80 @@ export type Database = {
           },
         ]
       }
+      venues: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country_code: string | null
+          created_at: string
+          google_place_id: string | null
+          hours: Json
+          id: string
+          is_default: boolean
+          latitude: number | null
+          longitude: number | null
+          name: string
+          postal_code: string | null
+          region: string | null
+          slug: string | null
+          status: string
+          tenant_id: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country_code?: string | null
+          created_at?: string
+          google_place_id?: string | null
+          hours?: Json
+          id?: string
+          is_default?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          postal_code?: string | null
+          region?: string | null
+          slug?: string | null
+          status?: string
+          tenant_id: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country_code?: string | null
+          created_at?: string
+          google_place_id?: string | null
+          hours?: Json
+          id?: string
+          is_default?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          postal_code?: string | null
+          region?: string | null
+          slug?: string | null
+          status?: string
+          tenant_id?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venues_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_audit_events: {
         Row: {
           action: string
@@ -19384,7 +19485,11 @@ export type Database = {
         }[]
       }
       set_offering_stock: {
-        Args: { p_available: number; p_offering_id: string }
+        Args: {
+          p_available: number
+          p_offering_id: string
+          p_tenant_id?: string
+        }
         Returns: Json
       }
       set_primary_agency_domain: {
