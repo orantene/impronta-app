@@ -122,6 +122,31 @@ create index link_scans_link_at_idx on public.link_scans (link_id, scanned_at de
 "analytics_events.tenant_id written by every producer" (proposal 0.9) is the same
 mistake, and a join through `links` for every analytics read is the slower answer anyway.
 
+### 1.2b Rules agreed with other managers
+
+**`createLinkForSpace()` must not derive the code from `spaces.code`.** Agreed with the
+Spaces & Seating Manager 2026-09-03. `spaces.code` is a HUMAN LABEL — "T7", what the host
+says out loud and what is painted on the table — unique per venue, not secret, not signed,
+and never resolvable. The lazy implementation (`code = space.code.toLowerCase()`)
+reproduces that enumerability inside `links`: eleven tables become `/q/t1` through
+`/q/t11` and a stranger walks the floor plan from a phone. So the helper takes the code
+as an argument, defaulting to a UI *suggestion* the operator can change, and
+`context.space_id` holds the space's `id`. The label and the token stay separate objects
+even when an operator chooses to make them look alike.
+
+Proportionality, so neither area over-reacts: a guessable TABLE code is not a breach.
+`/q/t7` resolves to "the menu with Table 7 attached"; a guest who guesses it opens a tab
+at the wrong table, which a host fixes in ten seconds. It is a bad default, not a hole —
+and defaults ship a thousand times. A guessable DOOR code is a different matter, which is
+what `code_mode = 'opaque'` exists for.
+
+**Key on `spaces.id`, never on `spaces.code`.** Spaces confirmed `id` is stable across
+rename, layout change and going out of service, and that a layout is a view over the tree
+(`layout_spaces.included = false`), never a delete. Their caveat is the one that matters:
+a deleted-and-recreated space takes a new `id` but can reuse a freed `code`. They have
+turned "we do not delete spaces" into a written rule (retire, never DELETE) with this
+reason attached.
+
 ### 1.3 `context` — what rides along
 
 ```jsonc
@@ -234,6 +259,12 @@ Allow-list work per §0 contradiction 2.
 - rate limit in `proxy.ts` alongside the `/share/` one.
 - new lane in `web/package.json` (union-merge the lane list on rebase; it is the one file
   all nine of us touch).
+- **`code_mode`** (`readable` | `opaque`), migration `20261229000281`, per the Director's
+  carve-out on ruling 4. Readable is the default. A code that GRANTS rather than SHOWS —
+  a staff door, a comped ticket — gets 16+ random characters, and
+  `links_opaque_code_is_long_enough` refuses the combination that would make the mode a
+  lie. Built now because `links` has zero rows: added later it needs an audit of every row
+  written in between, and intent is not recoverable from a code string.
 
 **Exit proof:** a seeded event-night link, scanned at 19:00 venue-local, resolves to
 tickets; the same code at 23:30 resolves to the menu; both scans are rows on the link
@@ -306,6 +337,7 @@ colour picked. Every customer-facing string in en and es.
 | Stamp | Purpose | State |
 |---|---|---|
 | `20261229000280` | `links`, `link_scans`, `platform_reserved_slugs` seed for `q` (Q1) | **APPLIED to production 2026-09-03, objects verified** |
+| `20261229000281` | `links.code_mode` (Q1, the opaque carve-out) | **APPLIED to production 2026-09-03, verified** |
 | `20261229000282` | `orders.link_id`, `inquiries.link_id` (Q4) | reserved |
 | `20261229000283` | `ADD VALUE 'qr'`, alone in its file (Q4) | reserved |
 
@@ -328,3 +360,15 @@ a collision, so the green line is never the evidence.
 - **Correction to §0:** the "spaces/orders do not exist" audit row was true of the shared
   checkout and false of `origin/main`. Caught by reading the migrations directory in a
   fresh worktree rather than the one this session started in.
+- **2026-09-03** — Director ruled all five my way; `code_mode` carve-out added and applied
+  (`20261229000281`), constraints probed live and rolled back. Spaces & Seating agreed the
+  ownership split; their `spaces.code` warning became §1.2b.
+- **2026-09-03** — Dead QR and PDF buttons removed from `PublishCelebrationModal` on a
+  separate branch, per the Director's "pull it now".
+- **DEPARTMENT BLOCKER FOUND:** `surface-allow-list.ts` is exactly 800 lines on
+  `origin/main` and sits on the `max-lines` cap, so it can absorb no new lines and the
+  next manager to add a public path is blocked by lint. `proxy.ts` had 4 lines of
+  headroom. Freed room in both by reflowing wrapped prose comments in place — same words,
+  fewer lines, guarded by a word-multiset comparison that refuses on any change. No
+  sentence was removed and my entry cost net zero lines. Raising the budget or adding a
+  suppression is not available: the ratchet only goes down.
