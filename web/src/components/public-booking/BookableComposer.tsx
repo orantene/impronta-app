@@ -121,7 +121,13 @@ export function BookableComposer({
         talentProfileId: active.talentProfileId,
         tenantId,
         offeringId: active.offeringId,
-        payInPerson: true,
+        // Honour what the offering actually sells. This was `true` for every
+        // booking, so a deposit or full-prepay service booked through the slot
+        // picker silently became a free reservation and no card was ever
+        // charged. `reserveMode: "free"` is the only shape that means pay later,
+        // and only when the offering also allows it.
+        payInPerson:
+          active.reserveMode === "free" && active.allowPayInPerson !== false,
         reservation: {
           startsAt: slot.startsAt,
           endsAt: slot.endsAt,

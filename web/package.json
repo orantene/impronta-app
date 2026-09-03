@@ -53,7 +53,7 @@
     "test:reviews": "tsx --test src/lib/reviews/review-eligibility.test.ts",
     "test:words": "tsx --test src/lib/words/words.test.ts src/lib/words/read-path.test.ts src/lib/words/settings-merge.test.ts src/lib/words/picker-options.test.ts",
     "test:front-door": "tsx --test src/lib/cart/totals.test.ts src/lib/cart/sheet-steps.test.ts src/lib/me/shape-me.test.ts src/lib/cart/refusal-copy.test.ts src/lib/booking/house-booking.test.ts",
-    "test:scheduling": "tsx --test src/lib/scheduling/*.test.ts",
+    "test:scheduling": "tsx --test src/lib/scheduling/*.test.ts src/components/public-booking/instant-pay-in-person.test.ts",
     "test:capacity": "tsx --test src/lib/capacity/*.test.ts",
     "test:sessions": "tsx --test src/lib/sessions/*.test.ts",
     "test:spaces": "tsx --test src/lib/spaces/*.test.ts",

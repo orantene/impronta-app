@@ -1,4 +1,7 @@
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import type {
+  OfferingReserveMode,
+  TalentOffering,
+} from "@/lib/talent/offerings-types";
 
 export type BookableOffering = {
   offeringId: string;
@@ -7,6 +10,13 @@ export type BookableOffering = {
   locationLabel?: string | null;
   talentProfileId?: string | null;
   requireAccountToBook?: boolean;
+  /**
+   * How the offering collects money, carried so the instant path can honour it.
+   * Dropping these was how a deposit offering became a free reservation: the
+   * composer had no way to know, so it said `payInPerson: true` for everything.
+   */
+  reserveMode?: OfferingReserveMode;
+  allowPayInPerson?: boolean;
 };
 
 /** An offering that can actually produce public slots (duration + not a product). */
@@ -31,5 +41,7 @@ export function pickBookableOffering(
     locationLabel: opts?.locationLabel ?? null,
     talentProfileId: pick.talentProfileId,
     requireAccountToBook: pick.requireAccountToBook === true,
+    reserveMode: pick.reserveMode,
+    allowPayInPerson: pick.allowPayInPerson === true,
   };
 }
