@@ -57,6 +57,9 @@ export type MenuBoardCopy = {
   sent: string;
   failed: string;
   soldOutError: string;
+  /** The operator's noun for one item / several, already substituted. */
+  noun: string;
+  nounPlural: string;
 };
 
 export interface MenuBoardIslandProps {
