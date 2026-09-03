@@ -370,6 +370,53 @@ prepaid credit line. Money does not live here.
 Walk-ins: the host stand reserves against the pool with no order, then assigns. Rule 9 and the
 walk-in path are the same code.
 
+## 3b. How SS-1 and SS-2 are proven, and what that proof is worth
+
+Agreed with the Capacity Engine Manager, who answered the honest version of the question rather
+than the flattering one.
+
+**The invariant is a FUNCTION, not a query.** `nearestPooledAncestor(tree, spaceId)` and
+`modeIsExclusive(group, members)` are pure functions over a fixture tree. CI unit-tests the
+functions on every change, forever. The rolled-back probe then asserts **once** that the real
+schema, triggers and constraints agree with the function. So the probe checks the *model* against
+reality; CI checks every future change against the model. That split is the same one Capacity used:
+`remaining.ts` is a second implementation of the SQL rule, unit-tested in CI, and the concurrency
+probe is what proves the two agree.
+
+**The probe is evidence, not a gate, and the PR body must say so.** CI carries no service-role
+credentials, so a probe cannot run there. Capacity's 200-concurrent oversell proof — the strongest
+evidence produced in the whole engine — **gates nowhere** for exactly this reason, and is
+deliberately outside the `ci` aggregate because a lane in the aggregate but absent from `ci.yml`
+never runs while `check:ci-lane-parity` still reports green. The sentence that has to appear in the
+PR is *"this is proven by a probe that does not run in CI"*, because it is what stops the next
+reader assuming coverage that is not there.
+
+**The tool is `npm run sql:dry-run -- <file>`** (`web/scripts/sql-dry-run.mjs`, merged as
+`a56b10878`). Verified by reading it rather than taking it on trust: the dry run is the default,
+`--commit` must be typed, `--commit` is **refused** for a file with no COMMIT of its own so a bare
+probe cannot be persisted by a mistyped flag, and two COMMITs are refused outright because rolling
+back the last transaction would leave the earlier one applied while the tool reported a dry run it
+never performed.
+
+**The COMMIT rule splits in two, and my first version of it was wrong.** I proposed "a probe file
+should never contain the string COMMIT". That is right for a **probe** and wrong for a **migration
+dry-run**, whose entire point is that a real migration runs verbatim — so it must contain its
+COMMIT, which the tool swaps. The grep belongs on probe files only. And only a COMMIT that is **its
+own statement** counts: this repo's plpgsql contains the allocation state `'committed'`, and a naive
+match would have rewritten three function bodies (`_capacity_reserve_locked`, `commit_capacity`,
+`capacity_remaining_public`). The shipped regex is line-anchored for that reason.
+
+**Nothing in the capacity engine escapes a rollback** — verified by Capacity against the list of
+things that actually do: zero identity or serial columns on their three tables, no dblink/http/pg_net
+extension installed, no `pg_notify` or advisory locks in any capacity function, and exactly one plain
+BEFORE ROW trigger on `capacity_pools`. They then ran the SS-1 broken shape through it and confirmed
+zero residue.
+
+**The same caveat checked on my side:** a rolled-back insert still advances a sequence, so a table
+with a serial or identity column does not leave *literally* nothing behind. `venues` has **zero**
+such columns (checked in production), and every table in the DDL above uses
+`UUID PRIMARY KEY DEFAULT gen_random_uuid()`, so this area has no sequence to burn.
+
 ## 4. Ancestor-rule test cases (S2 exit proof)
 
 1. Room hold over 20:00 to 23:00 refuses a table reservation at 21:00 inside that room.
