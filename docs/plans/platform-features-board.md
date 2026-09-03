@@ -220,6 +220,21 @@ It derives the version from the filename, applies via the Management API, record
 **Repair is NOT a manager's call and is not done.** It is a production write to shared migration history and two rows are other managers' work. Proposal with the owner: delete the two auto-stamped duplicate rows (the DDL is already recorded under the future-dated twins, so this removes duplicate history, not schema); **leave `20261227000000` alone**, because marking it reverted risks a double-apply when `mkt-recovery` merges.
 
 ## Department rules added in flight
+**A guard that reads ONE file to check a registry that MANY files write to is measuring nothing — and it will read green while doing it.**
+
+Found by the Spaces & Seating Manager. `subject-registry.static.test.ts` read migration `…212` alone, while the registry it guards exists precisely so each feature owner registers their own kind in **their** migration. The instruction given was "register in YOUR migration" — and following it as written would have left `space` and `space_group` **reported as unregistered forever, while they were in fact validated.**
+
+**What makes it worth recording is who wrote it and when.** The guard was written the same day, by the manager who had just argued that coverage nobody can see is how six green-but-empty guards shipped here. It is not a lapse in care; it is evidence the failure mode is genuinely invisible from inside. The author of a guard is the person least able to see what it cannot reach.
+
+Fixed generically — every migration, every `INSERT INTO capacity_subject_kinds`, de-duped — rather than special-cased, because Sessions & Classes will hit the identical wall with `session_tier`.
+
+**Related boundary rule, adopted with it:** you may fix another manager's **guard or test** when it is demonstrably blind, it blocks you, and your fix is general — provided you tell its owner immediately and the fix makes the guard see *more*, never less. Engine code, migrations and money paths stay off-limits without agreement. **A guard that cannot see is not a boundary worth respecting; it is a bug in the boundary.**
+
+**Prove the PROBE red before you trust it green.** The same manager broke the SS-1 binding deliberately — T7's parent pool set to NULL instead of the room — and watched it fail with `expected pool depth 2 for T7, got 1` before it passed on the corrected shape. **A probe that has never failed proves nothing**, and that discipline belongs on the probe itself, not only on the unit tests it accompanies.
+
+**The structural gate runs longer under load than the board says.** Measured 2026-09-03: **19m51s** against the usual 16-17 minutes. Worth knowing before anyone tightens a timeout on it.
+
+
 **BROWSER QA IS NOW ALLOWED, on Google Chrome, whenever you need it — owner-granted 2026-09-03.** With one condition: **check that the machine can afford it before you start.** This department OOM-killed several sessions this morning with eighteen concurrent typechecks; a browser is heavier than a typecheck. Look at the load, and if the machine is busy, wait. The permission is standing, not per-request — you do not need to ask me.
 
 This does not soften the rule it serves: **you still may not assert a UI path you have not clicked, and agents still may not do the clicking.** The permission removes the excuse, it does not remove the obligation.
