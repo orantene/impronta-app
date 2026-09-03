@@ -25,26 +25,56 @@ export const RE_ALERT_SCHEDULE_HOURS = [4, 12, 24, 48, 96] as const;
 /** Total nudges an escalation can produce before it goes quiet. */
 export const MAX_RE_ALERTS = RE_ALERT_SCHEDULE_HOURS.length;
 
+/**
+ * Gap before the NEXT nudge, measured from the last one rather than from the
+ * escalation.
+ *
+ * The first version measured every threshold from `escalatedAt`, which is
+ * correct for a ticket that escalates while the system is running and wrong for
+ * one that is already old. A ticket escalated four days ago has passed all five
+ * thresholds, so on the first cron run it is "due" for nudge 1, an hour later
+ * for nudge 2, and so on: the whole allowance burns in five consecutive hours.
+ * Five emails is not sixty-one, but it is still a burst, and a burst is the
+ * shape of the failure we just fixed — arriving in a clump is most of what made
+ * the original storm read as broken.
+ *
+ * Spacing from the previous nudge makes the cadence hold no matter how old the
+ * ticket is when the rule starts applying. These are the gaps BETWEEN the
+ * original 4/12/24/48/96 marks, so a ticket that escalates under the new code
+ * gets exactly the same timeline as before.
+ */
+const RE_ALERT_GAP_HOURS = [4, 8, 12, 24, 48] as const;
+
 export function shouldReAlert(input: {
   /** When the ticket was escalated to a human. */
   escalatedAt: string | Date;
   /** How many re-alerts have already been sent for this ticket. */
   priorReAlertCount: number;
+  /**
+   * When the most recent re-alert was sent, if any. Absent means none has been,
+   * and the clock runs from the escalation.
+   */
+  lastReAlertAt?: string | Date | null;
   nowMs?: number;
 }): boolean {
   const { priorReAlertCount } = input;
   if (priorReAlertCount >= MAX_RE_ALERTS) return false;
   if (priorReAlertCount < 0) return false;
 
-  const escalatedMs =
-    input.escalatedAt instanceof Date
-      ? input.escalatedAt.getTime()
-      : Date.parse(input.escalatedAt);
-  if (!Number.isFinite(escalatedMs)) return false;
+  // With no prior nudge the clock starts at the escalation; after one, it
+  // starts at that nudge. If a nudge is known to have been sent but its time is
+  // missing, refuse rather than fall back to the escalation: the fallback would
+  // treat an already-nudged old ticket as freshly due, which is the burst this
+  // whole module exists to prevent. Both values come from the same rows, so in
+  // practice one cannot be present without the other.
+  if (priorReAlertCount > 0 && !input.lastReAlertAt) return false;
+  const since = priorReAlertCount > 0 ? input.lastReAlertAt! : input.escalatedAt;
+  const sinceMs = since instanceof Date ? since.getTime() : Date.parse(String(since));
+  if (!Number.isFinite(sinceMs)) return false;
 
   const now = input.nowMs ?? Date.now();
-  const dueAfterHours = RE_ALERT_SCHEDULE_HOURS[priorReAlertCount];
-  return now - escalatedMs >= dueAfterHours * 3_600_000;
+  const gapHours = RE_ALERT_GAP_HOURS[priorReAlertCount];
+  return now - sinceMs >= gapHours * 3_600_000;
 }
 
 /**

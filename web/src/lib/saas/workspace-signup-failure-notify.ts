@@ -81,7 +81,13 @@ export async function sendProvisioningFailureEmailOnce(params: {
         kind: params.kind,
         supportEmail: SUPPORT_EMAIL,
       }),
-      replyTo: process.env.EMAIL_REPLY_TO ?? SUPPORT_EMAIL,
+      // EMAIL_REPLY_TO is unset everywhere, so this always resolves to
+      // SUPPORT_EMAIL. Unlike the platform From address, that one is real:
+      // impronta.group publishes Google Workspace MX and a valid SPF record,
+      // so a reply is delivered rather than bounced. Kept deliberately — this
+      // mail goes to somebody whose signup just failed, which is the single
+      // most reply-worthy message we send.
+      replyTo: SUPPORT_EMAIL,
     });
   } catch (err) {
     logServerError("workspace-signup.provisionFailureEmail", err);
