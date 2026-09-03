@@ -18,8 +18,10 @@ test("resolveAddPageDenialMessage returns null when the plan allows creating pag
 });
 
 test("resolveAddPageDenialMessage surfaces the server's plan-gate hint", () => {
+  // The panel is a pass-through: it renders whatever hint the server sent, so
+  // this string only has to be representative, not the live copy.
   const hint =
-    "Free workspaces include one landing page. Upgrade to Studio to add more pages.";
+    "Your plan includes 5 pages of your own. Every paid plan adds unlimited pages, starting with Website.";
   assert.equal(
     resolveAddPageDenialMessage({ canCreatePages: false, createPageHint: hint }),
     hint,
