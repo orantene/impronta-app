@@ -509,6 +509,29 @@
     "profile": {
       "securePayments": "Toutes les demandes sont traitées en toute sécurité via Tulala",
       "moreFromRoster": "Plus de ce roster"
+    },
+    "menuBoard": {
+      "contactRequired": "Le nom, l'e-mail et le telephone sont obligatoires.",
+      "decrease": "Retirer un {item}",
+      "email": "E-mail",
+      "failed": "Impossible d'envoyer la commande.",
+      "formTitle": "Envoyez votre commande",
+      "from": "a partir de {price}",
+      "increase": "Ajouter un {item}",
+      "itemsSelected": "{count} articles selectionnes",
+      "itemsSelectedOne": "1 article selectionne",
+      "name": "Nom",
+      "onlyLeft": "Il en reste {count}",
+      "payInPerson": "Vous payez sur place au retrait.",
+      "phone": "Telephone",
+      "quoteOnRequest": "Prix sur demande",
+      "selectAtLeastOne": "Choisissez au moins un article",
+      "selectQuantities": "Choisissez les quantites",
+      "sending": "Envoi",
+      "sent": "Commande envoyee.",
+      "soldOut": "Epuise",
+      "soldOutError": "{item} est epuise.",
+      "submit": "Envoyer la commande"
     }
   },
   "dashboard": {

@@ -271,6 +271,26 @@ export type WorkspaceMenuOffering = {
   priceType: string;
   priceDisplay: string;
   kind: string;
+  /**
+   * Units left, or null when this item is not stock-limited.
+   *
+   * SEAM, with the exact swap named. Today `inventory_qty` is the only stock
+   * signal, so `!= null` is the correct "has stock" test. When PR #1520 lands,
+   * `capacity_pool_id` becomes authoritative and `inventory_qty` is a mirror the
+   * capacity RPCs maintain — at which point the test below becomes
+   * `offering.capacityPoolId != null` (the Capacity Engine's registered
+   * contract). The two agree under `set_offering_stock`, which nulls both
+   * together for an unlimited item, so this derive is correct on either side of
+   * that merge. Only this function reads the column: the island and the renderer
+   * consume `unitsLeft`, so the swap is one line here and nothing else moves.
+   *
+   * Gated on stock PRESENCE, never on `kind`. instant-book reserves only when
+   * `kind === "product"`, and the live seat-limited class is `kind='package'`,
+   * so a kind gate leaves the one item that needs enforcement unenforced.
+   */
+  unitsLeft: number | null;
+  /** Offering policy: may the customer settle in person? */
+  allowPayInPerson: boolean;
 };
 
 /**
@@ -303,6 +323,11 @@ export function deriveWorkspaceMenuOfferings(
       priceType: offering.priceType,
       priceDisplay: offering.priceDisplay,
       kind: offering.kind,
+      unitsLeft:
+        typeof offering.inventoryQty === "number" && Number.isFinite(offering.inventoryQty)
+          ? Math.max(0, Math.trunc(offering.inventoryQty))
+          : null,
+      allowPayInPerson: offering.allowPayInPerson === true,
     });
   }
   return out;

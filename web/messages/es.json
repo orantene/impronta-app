@@ -1415,6 +1415,29 @@
       "accept": "Ver en español",
       "dismiss": "No, gracias",
       "regionLabel": "Sugerencia de idioma"
+    },
+    "menuBoard": {
+      "contactRequired": "El nombre, el correo y el telefono son obligatorios.",
+      "decrease": "Quitar uno de {item}",
+      "email": "Correo",
+      "failed": "No se pudo enviar el pedido.",
+      "formTitle": "Envia tu pedido",
+      "from": "desde {price}",
+      "increase": "Anadir uno de {item}",
+      "itemsSelected": "{count} articulos seleccionados",
+      "itemsSelectedOne": "1 articulo seleccionado",
+      "name": "Nombre",
+      "onlyLeft": "Solo quedan {count}",
+      "payInPerson": "Pagas en persona al recoger.",
+      "phone": "Telefono",
+      "quoteOnRequest": "Precio a consultar",
+      "selectAtLeastOne": "Selecciona al menos un articulo",
+      "selectQuantities": "Selecciona las cantidades",
+      "sending": "Enviando",
+      "sent": "Pedido enviado.",
+      "soldOut": "Agotado",
+      "soldOutError": "{item} esta agotado.",
+      "submit": "Enviar pedido"
     }
   },
   "dashboard": {

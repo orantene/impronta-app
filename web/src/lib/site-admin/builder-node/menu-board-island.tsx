@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import {
+  MAX_QTY,
+  fill,
+  isSoldOut,
+  maxAddableQty,
+  shouldPayInPerson,
+} from "./menu-board-stock";
 
 // Do NOT statically import menu-order-actions — that file is "use server" and
 // pulls server-only into render.tsx → fidelity/perf Node runners blow up with
@@ -16,15 +23,49 @@ export type MenuBoardOffering = {
   priceType: string;
   priceDisplay: string;
   kind: string;
+  /** Units left, or null when this item is not stock-limited. */
+  unitsLeft: number | null;
+  /** Offering policy: may the customer settle in person? */
+  allowPayInPerson: boolean;
+};
+
+/**
+ * Every visible string, resolved SERVER-SIDE against the page's contentLocale
+ * and passed in. The island is a client component inside the builder render
+ * tree, so it cannot reach the request locale itself; hardcoding English here
+ * is what shipped a Spanish menu board that spoke English.
+ */
+export type MenuBoardCopy = {
+  decrease: string;
+  increase: string;
+  selectQuantities: string;
+  quoteOnRequest: string;
+  from: string;
+  soldOut: string;
+  onlyLeft: string;
+  formTitle: string;
+  itemsSelected: string;
+  itemsSelectedOne: string;
+  selectAtLeastOne: string;
+  name: string;
+  email: string;
+  phone: string;
+  contactRequired: string;
+  payInPerson: string;
+  sending: string;
+  submit: string;
+  sent: string;
+  failed: string;
+  soldOutError: string;
 };
 
 export interface MenuBoardIslandProps {
   tenantId: string;
   offerings: ReadonlyArray<MenuBoardOffering>;
+  copy: MenuBoardCopy;
 }
 
 const STORAGE_PREFIX = "impronta.menu-order.";
-const MAX_QTY = 99;
 
 function storageKey(tenantId: string): string {
   return `${STORAGE_PREFIX}${tenantId}`;
@@ -66,7 +107,7 @@ function formatMenuMoney(amountCents: number, currency: string): string {
   }
 }
 
-export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
+export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -114,14 +155,19 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
     setError(null);
     setStatus(null);
     if (selectedLines.length === 0) {
-      setError("Select at least one item.");
+      setError(copy.selectAtLeastOne);
       return;
     }
     const name = contactName.trim();
     const email = contactEmail.trim();
     const phone = contactPhone.trim();
     if (!name || !email || !phone) {
-      setError("Name, email, and phone are required.");
+      setError(copy.contactRequired);
+      return;
+    }
+    const soldOutLine = selectedLines.find(({ offering }) => isSoldOut(offering));
+    if (soldOutLine) {
+      setError(fill(copy.soldOutError, { item: soldOutLine.offering.title }));
       return;
     }
 
@@ -140,6 +186,11 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
             offeringId: offering.id,
             quantity,
           })),
+          // A HINT ONLY. The engine re-derives this from the trusted offering
+          // rows and ignores a value the policy does not permit, so this cannot
+          // be used to stamp a card-only item as pay-in-person. Sending it keeps
+          // the UI promise and the request in agreement for the honest case.
+          payInPerson: shouldPayInPerson(selectedLines.map((l) => l.offering)),
           sourcePage:
             typeof window !== "undefined" ? window.location.pathname : null,
         });
@@ -149,7 +200,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
           return;
         }
 
-        setStatus("Order sent.");
+        setStatus(copy.sent);
         setQuantities({});
         setContactName("");
         setContactEmail("");
@@ -160,7 +211,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
           // Ignore storage failures.
         }
       } catch {
-        setError("Could not send the order.");
+        setError(copy.failed);
       }
     } finally {
       setIsPending(false);
@@ -169,7 +220,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
 
   return (
     <div className="site-builder-node--menu-board-island">
-      <div className="site-builder-node--menu-board-stepper-group" aria-label="Select quantities">
+      <div className="site-builder-node--menu-board-stepper-group" aria-label={copy.selectQuantities}>
         {offerings.map((offering) => {
           const quantity = clampQty(quantities[offering.id] ?? 0);
           return (
@@ -185,7 +236,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
               <div className="site-builder-node--menu-board-stepper-controls">
                 <button
                   type="button"
-                  aria-label={`Decrease ${offering.title}`}
+                  aria-label={fill(copy.decrease, { item: offering.title })}
                   onClick={() =>
                     setQuantities((current) => ({
                       ...current,
@@ -199,14 +250,14 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
                 <output aria-live="polite">{quantity}</output>
                 <button
                   type="button"
-                  aria-label={`Increase ${offering.title}`}
+                  aria-label={fill(copy.increase, { item: offering.title })}
                   onClick={() =>
                     setQuantities((current) => ({
                       ...current,
                       [offering.id]: clampQty((current[offering.id] ?? 0) + 1),
                     }))
                   }
-                  disabled={isPending || quantity >= MAX_QTY}
+                  disabled={isPending || quantity >= maxAddableQty(offering)}
                 >
                   +
                 </button>
@@ -214,11 +265,22 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
                   {offering.amountCents == null ||
                   offering.priceDisplay === "quote" ||
                   offering.priceType === "custom"
-                    ? "Quote on request"
+                    ? copy.quoteOnRequest
                     : offering.priceDisplay === "from"
-                      ? `from ${formatMenuMoney(offering.amountCents, offering.currency)}`
+                      ? fill(copy.from, {
+                          price: formatMenuMoney(offering.amountCents, offering.currency),
+                        })
                       : formatMenuMoney(offering.amountCents, offering.currency)}
                 </span>
+                {isSoldOut(offering) ? (
+                  <span className="site-builder-node--menu-board-stepper-stock" data-sold-out="true">
+                    {copy.soldOut}
+                  </span>
+                ) : offering.unitsLeft != null ? (
+                  <span className="site-builder-node--menu-board-stepper-stock">
+                    {fill(copy.onlyLeft, { count: offering.unitsLeft })}
+                  </span>
+                ) : null}
               </div>
             </div>
           );
@@ -227,16 +289,18 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
 
       <form className="site-builder-node--menu-board-form" onSubmit={handleSubmit}>
         <div className="site-builder-node--menu-board-form-head">
-          <p className="site-builder-node--menu-board-form-title">Send your order</p>
+          <p className="site-builder-node--menu-board-form-title">{copy.formTitle}</p>
           <p className="site-builder-node--menu-board-form-meta">
             {selectedCount > 0
-              ? `${selectedItemCount} item${selectedItemCount === 1 ? "" : "s"} selected`
-              : "Select at least one item"}
+              ? selectedItemCount === 1
+                ? copy.itemsSelectedOne
+                : fill(copy.itemsSelected, { count: selectedItemCount })
+              : copy.selectAtLeastOne}
           </p>
         </div>
 
         <label className="site-builder-node--menu-board-field">
-          <span>Name</span>
+          <span>{copy.name}</span>
           <input
             type="text"
             required
@@ -247,7 +311,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
         </label>
 
         <label className="site-builder-node--menu-board-field">
-          <span>Email</span>
+          <span>{copy.email}</span>
           <input
             type="email"
             required
@@ -258,7 +322,7 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
         </label>
 
         <label className="site-builder-node--menu-board-field">
-          <span>Phone</span>
+          <span>{copy.phone}</span>
           <input
             type="tel"
             required
@@ -279,12 +343,16 @@ export function MenuBoardIsland({ tenantId, offerings }: MenuBoardIslandProps) {
           </p>
         ) : null}
 
+        {shouldPayInPerson(selectedLines.map((l) => l.offering)) ? (
+          <p className="site-builder-node--menu-board-form-note">{copy.payInPerson}</p>
+        ) : null}
+
         <button
           type="submit"
           className="site-builder-node--menu-board-submit"
           disabled={isPending || selectedCount === 0}
         >
-          {isPending ? "Sending" : "Send order"}
+          {isPending ? copy.sending : copy.submit}
         </button>
       </form>
     </div>

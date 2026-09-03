@@ -1415,6 +1415,29 @@
       "accept": "Switch to English",
       "dismiss": "No thanks",
       "regionLabel": "Language suggestion"
+    },
+    "menuBoard": {
+      "contactRequired": "Name, email, and phone are required.",
+      "decrease": "Decrease {item}",
+      "email": "Email",
+      "failed": "Could not send the order.",
+      "formTitle": "Send your order",
+      "from": "from {price}",
+      "increase": "Increase {item}",
+      "itemsSelected": "{count} items selected",
+      "itemsSelectedOne": "1 item selected",
+      "name": "Name",
+      "onlyLeft": "Only {count} left",
+      "payInPerson": "You pay in person when you collect.",
+      "phone": "Phone",
+      "quoteOnRequest": "Quote on request",
+      "selectAtLeastOne": "Select at least one item",
+      "selectQuantities": "Select quantities",
+      "sending": "Sending",
+      "sent": "Order sent.",
+      "soldOut": "Sold out",
+      "soldOutError": "{item} is sold out.",
+      "submit": "Send order"
     }
   },
   "dashboard": {
