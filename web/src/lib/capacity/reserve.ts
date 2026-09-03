@@ -36,12 +36,17 @@ function client(given?: Rpc): Rpc | null {
   return (given ?? createServiceRoleClient()) as Rpc | null;
 }
 
-/** A transport failure is not a refusal. It gets its own reason and a log line. */
-function transportFailure(scope: string, err: unknown): { ok: false; reason: CapacityRefusalReason } {
+/**
+ * A transport failure is not a refusal, but it has to be reported as one, because
+ * the alternative is a caller that treats "unknown" as "available".
+ *
+ * "pool_not_found" is the safest reason to synthesise: it never oversells, and it
+ * never tells a buyer something is free when we could not find out. The log line
+ * is what distinguishes it from a genuine refusal for whoever is on call.
+ */
+function transportFailure(scope: string, err: unknown): CapacityRefusalReason {
   logServerError(scope, err);
-  // "pool_not_found" is the safest refusal to synthesise: it never oversells,
-  // and it never tells a buyer something is available when we do not know.
-  return { ok: false, reason: "pool_not_found" };
+  return "pool_not_found";
 }
 
 /** Reserve units on one pool. Returns a hold that expires unless committed. */
@@ -50,7 +55,9 @@ export async function reserveCapacity(
   admin?: Rpc,
 ): Promise<ReserveResult> {
   const db = client(admin);
-  if (!db) return transportFailure("capacity/reserve", "no service-role client");
+  if (!db) {
+    return { ok: false, reason: transportFailure("capacity/reserve", "no service-role client"), blockingPoolId: null };
+  }
   const { data, error } = await db.rpc("reserve_capacity", {
     p_pool_id: req.poolId,
     p_starts_at: req.startsAt ?? null,
@@ -60,7 +67,9 @@ export async function reserveCapacity(
     p_order_line_id: req.orderLineId ?? null,
     p_created_by: req.createdBy ?? null,
   });
-  if (error) return transportFailure("capacity/reserve", error);
+  if (error) {
+    return { ok: false, reason: transportFailure("capacity/reserve", error), blockingPoolId: null };
+  }
   const r = data as Record<string, unknown> | null;
   if (r?.ok === true) {
     return {
@@ -88,7 +97,10 @@ export async function reserveCapacityBatch(
 ): Promise<ReserveBatchResult> {
   if (requests.length === 0) return { ok: false, reason: "empty_batch", failedPoolId: null };
   const db = client(admin);
-  if (!db) return { ...transportFailure("capacity/reserve-batch", "no service-role client"), failedPoolId: null };
+  if (!db) {
+    const reason = transportFailure("capacity/reserve-batch", "no service-role client");
+    return { ok: false, reason, failedPoolId: null };
+  }
   const { data, error } = await db.rpc("reserve_capacity_batch", {
     p_requests: requests.map((r) => ({
       pool_id: r.poolId,
@@ -100,7 +112,9 @@ export async function reserveCapacityBatch(
     p_order_line_id: opts.orderLineId ?? null,
     p_created_by: opts.createdBy ?? null,
   });
-  if (error) return { ...transportFailure("capacity/reserve-batch", error), failedPoolId: null };
+  if (error) {
+    return { ok: false, reason: transportFailure("capacity/reserve-batch", error), failedPoolId: null };
+  }
   const r = data as Record<string, unknown> | null;
   if (r?.ok === true) {
     return {
