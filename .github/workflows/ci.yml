@@ -408,6 +408,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:spaces
 
+      # Reservations R1. Pure: the fail-closed rules parser and the service
+      # window resolver. The DST cases are the point of this lane — a seating
+      # inside a spring-forward gap must be DROPPED rather than moved onto the
+      # real one an hour later, and every turn time must be added to the INSTANT,
+      # because adding it to the wall clock holds a table for 30 real minutes
+      # instead of 90 on the one night a year that loses an hour.
+      - name: tests — reservations
+        if: ${{ !cancelled() }}
+        run: npm run test:reservations
+
       - name: tests — words and industry presets
         if: ${{ !cancelled() }}
         run: npm run test:words
