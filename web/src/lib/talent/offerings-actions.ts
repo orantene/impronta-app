@@ -29,6 +29,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { setOfferingStock, stockChanged } from "@/lib/capacity";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
@@ -266,6 +267,19 @@ export async function upsertTalentOffering(
       }
     }
     if (!saved) return { ok: false, error: "Failed to save." };
+
+    // STOCK. Never written through the row patch: it is the mirror of a capacity
+    // pool, and "20" means twenty AVAILABLE, so the pool total has to become
+    // 20 + whatever is already held. Only call the RPC when the editor actually
+    // moved the number, so an unrelated save cannot disturb a live pool.
+    if (stockChanged(saved.inventory_qty, offering.inventoryQty)) {
+      const stock = await setOfferingStock(saved.id, offering.inventoryQty ?? null, admin);
+      if (!stock.ok) {
+        logServerError("talent.offerings.stock", stock.reason);
+        return { ok: false, error: "Saved, but the stock number could not be applied." };
+      }
+      saved = { ...saved, inventory_qty: stock.available, capacity_pool_id: stock.poolId };
+    }
 
     revalidatePath("/talent/services");
     return { ok: true, item: rowToOffering(saved, "en", offering.imageUrls ?? []) };

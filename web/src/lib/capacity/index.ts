@@ -20,3 +20,8 @@ export {
   reserveCapacityBatch,
   type ReserveRequest,
 } from "./reserve";
+export {
+  setOfferingStock,
+  stockChanged,
+  type SetOfferingStockResult,
+} from "./offering-stock-admin";
