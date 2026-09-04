@@ -137,6 +137,39 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## THE `surface-allow-list.ts` QUEUE WAS LARGELY IMAGINARY — a server action needs no entry
+
+**Found by the Reservations Manager by checking a constraint their director had handed them three times.** Verified here by reading the file header rather than relaying it:
+
+> *"SaaS P2 — per-host-kind **PATH** allow-list. Middleware resolves the host kind via `resolveTenantContext` and then calls `isPathAllowedForHostKind` to decide whether this path may render on this surface at all."*
+
+**A server action POSTs to the page's own, already-allowed URL. It adds no path, so it needs no entry.** The public menu board already reaches `submitMenuOrder` exactly this way.
+
+So R3 shipped with **zero lines** in a file that is frozen at its 800-line cap, and the sequencing problem three managers were queued behind does not exist for them. **The test is what the work needs, not which area it belongs to:** *data in and out of a surface that already exists* needs nothing; a **genuinely new path** still needs an entry. Events' `/events` page and door route are new paths and still need them. Sessions' P1.7 may not.
+
+**The director had named this a hard dependency three times.** It was never checked, and the manager removed themselves from the queue by opening the file. **A constraint inherited from your director is still a claim.**
+
+## D2 FINAL MECHANISM — nobody writes `application_fee_amount`
+
+**Outcome unchanged, mechanism replaced, and the CEO corrected the board's premise at source rather than leaving a true conclusion resting on a false reason.** Build to this:
+
+- The forfeiture **lands on the platform account**, like every other charge.
+- It reaches the tenant via **`stripe.transfers.create`** — see `booking-payouts-ledger.ts:297` for the existing shape, and note its `transfer_group` convention because reversals key off it.
+- **The tenant NETS the card processing fee.** They keep the forfeiture minus processing; the platform takes **zero commission**.
+- **The receipt shows the processing line explicitly.** A fee they can see is a fee they accept; never deduct it silently.
+
+**Why netted rather than absorbed**, in the order that decided it: *"we take zero"* stays literally true, because we take zero **commission** and a processing fee is the card network's take rather than ours; the platform does not pay a card fee for someone else's no-show, on the one flow whose volume **rises when customers behave badly**; and it is the only option that **does not change with scale**, which is what makes it safe to promise now and still true at a thousand tenants.
+
+**Do not stage a real card charge to test a forfeiture.** The first real charge must not be the first test, and a forfeiture is the most chargeback-prone money on the platform.
+
+### Two R3 decisions worth copying, both the same rule
+
+**A failed config read refuses with `unavailable`, never an empty list** — an empty list is indistinguishable from a full house, so a guest would be told the restaurant is booked when we simply could not look. And **candidate times come from `seatingTimesFor`, the function the decision layer already uses**, rather than a second grid free to drift from it. The first is *make absence structurally distinct from a value*; the second is *one source of truth, not two that agree today*.
+
+### Extension adopted: stamp shas on CODE claims, not only gate results
+
+*"The seam exists at `6945ab706`"* is the form that survives. From the Reservations Manager, with the sharper half being their own example: a true measurement, stale on arrival, **with a culprit attached**. A stale claim about a machine is recoverable; **a stale claim about a person is not.**
+
 ## D2 IS UNBUILDABLE AS WRITTEN — it rules on a field this codebase deleted two days earlier
 
 **FOR FINANCE AND ORDERS, not only for this cluster.** D2 reads: *"the tenant keeps it, `application_fee_amount` ZERO on a no-show or forfeiture charge"*, and its stated reason is *"Direct Charges already put a forfeiture in the tenant's Stripe balance, so the only live question was the fee."*
