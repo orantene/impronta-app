@@ -325,7 +325,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-modals.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 81
+      "count": 80
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-photos.tsx": {

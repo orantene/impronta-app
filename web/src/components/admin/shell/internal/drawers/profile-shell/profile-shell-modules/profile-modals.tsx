@@ -506,11 +506,6 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, profileUr
       }
     }
   };
-  // Web Share Files (level 2) — for the "model card PDF" CTA. Detected
-  // separately because Files-level support is narrower than basic share.
-  const supportsShareFiles = supportsShare
-    && typeof navigator !== "undefined"
-    && typeof (navigator as Navigator & { canShare?: (data: ShareData) => boolean }).canShare === "function";
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 240,
@@ -542,12 +537,11 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, profileUr
             📲 {supportsShare ? copy.t("Share") : copy.t("Copy")}
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-          <button type="button" onClick={onShare} style={celebrationBtnStyle()}>▦ {copy.t("QR code")}</button>
-          <button type="button" onClick={onShare} style={celebrationBtnStyle()}
-            title={supportsShareFiles ? copy.t("Share PDF via system sheet") : copy.t("Download PDF")}
-          >📄 {copy.t("PDF model card")}</button>
-        </div>
+        {/* Removed 2026-09-03: a "QR code" and a "PDF model card" button sat
+            here, both onClick={onShare} — which the drawer defines as a toast.
+            Neither feature exists. QR & Links Q2 brings the QR one back for
+            real; the PDF card is Directory & Profile Engine's to restore or
+            retire. Until a button does something, it should not be lit. */}
         <button type="button" onClick={onClose} style={{
           padding: "10px 18px", borderRadius: 999, border: "none",
           background: COLORS.fill, color: "#fff",
