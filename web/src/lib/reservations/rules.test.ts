@@ -134,3 +134,19 @@ test("a max party below the min widens to the min rather than offering nothing",
   assert.equal(rules.partySizeMin, 4);
   assert.equal(rules.partySizeMax, 4);
 });
+
+test("a venue with no reservation offering parses as not-bookable, not as broken", () => {
+  // Rules and windows can exist before a catalog row does, and they should:
+  // the settings page is usable and only the BOOKING refuses, with a reason.
+  assert.equal(parseServiceRules({}, "v1").reservationOfferingId, null);
+  assert.equal(parseServiceRules({ reservation_offering_id: "" }, "v1").reservationOfferingId, null);
+  assert.equal(
+    parseServiceRules({ reservation_offering_id: 12345 }, "v1").reservationOfferingId,
+    null,
+  );
+  assert.equal(
+    parseServiceRules({ reservation_offering_id: "f0b1c2d3-0000-4000-8000-000000000001" }, "v1")
+      .reservationOfferingId,
+    "f0b1c2d3-0000-4000-8000-000000000001",
+  );
+});

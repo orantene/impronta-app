@@ -70,6 +70,7 @@ type RulesRow = {
   deposit_from_party?: unknown;
   deposit_cents_per_person?: unknown;
   free_cancel_hours?: unknown;
+  reservation_offering_id?: unknown;
   waitlist_enabled?: unknown;
   walkins_enabled?: unknown;
   notes_enabled?: unknown;
@@ -135,6 +136,10 @@ export function parseServiceRules(row: unknown, venueId: string): ServiceRules {
         : typeof r.free_cancel_hours === "string" && /^\d+(\.\d+)?$/.test(r.free_cancel_hours)
           ? Number(r.free_cancel_hours)
           : 2,
+    reservationOfferingId:
+      typeof r.reservation_offering_id === "string" && r.reservation_offering_id
+        ? r.reservation_offering_id
+        : null,
     waitlistEnabled: bool(r.waitlist_enabled, false),
     walkinsEnabled: bool(r.walkins_enabled, true),
     notesEnabled: bool(r.notes_enabled, true),
