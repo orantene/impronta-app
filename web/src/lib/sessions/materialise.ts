@@ -95,6 +95,41 @@ export type ExistingOccurrence = {
   hasPool: boolean;
 };
 
+/**
+ * Instants already occupied at this venue by sessions of OTHER series.
+ *
+ * Needed because the collision below is cross-series by nature: one series
+ * cannot know that another lands on the same instant, so the runner supplies
+ * the venue's occupied set and this layer decides.
+ */
+export type VenueOccupancy = ReadonlyArray<{
+  sessionId: string;
+  startsAt: string;
+  /** For the refusal message. The series title, or the session's own. */
+  title: string | null;
+}>;
+
+/**
+ * An occurrence the materialiser refuses to create, and WHAT IT COLLIDED WITH.
+ *
+ * Naming the other side is not cosmetic and it is the whole difference between
+ * an acceptable false positive and this area's recorded defect. The venue scope
+ * below is deliberately coarse, so it can refuse an occurrence that is genuinely
+ * fine at a two-room venue. That is tolerable ONLY while the operator can see
+ * why and act: "cannot schedule" is the mistake; "collides with Salsa at 03:30,
+ * same instant" is a decision they can make. A refusal a human cannot
+ * distinguish from a different refusal is the same failure as a value a caller
+ * cannot distinguish from a different value.
+ */
+export type SkippedOccurrence = {
+  startsAt: string;
+  localDate: string;
+  reason: "gap_shift_collision";
+  /** The session already holding that instant. */
+  collidesWithSessionId: string;
+  collidesWithTitle: string | null;
+};
+
 export type MaterialiseRefusal =
   | "series_inactive"
   /** No confirmed timezone. The one that matters. */
@@ -119,6 +154,12 @@ export type MaterialiseDecision =
        * be sold. The runner creates one for each. See the note below.
        */
       poolBackfill: string[];
+      /**
+       * Occurrences NOT created, with a reason. Never silently dropped: a class
+       * missing from a schedule an operator reads every day is visible; a room
+       * quietly sold twice is not.
+       */
+      skipped: SkippedOccurrence[];
       timeZone: string;
       seats: number;
     }
@@ -190,6 +231,8 @@ export function decideMaterialisation(
   existing: ReadonlyArray<ExistingOccurrence>,
   now: Date = new Date(),
   horizonDays: number = DEFAULT_HORIZON_DAYS,
+  /** Instants held by OTHER series at this venue. See the note on collisions. */
+  venueOccupancy: VenueOccupancy = [],
 ): MaterialiseDecision {
   const refuse = (reason: MaterialiseRefusal): MaterialiseDecision => ({
     ok: false,
@@ -249,7 +292,66 @@ export function decideMaterialisation(
     if (Number.isFinite(at)) already.add(at);
   }
 
-  const create = expanded.filter((occ) => !already.has(Date.parse(occ.startsAt)));
+  const wantedNew = expanded.filter((occ) => !already.has(Date.parse(occ.startsAt)));
+
+  // ── The gap collision ────────────────────────────────────────────────────
+  // Under gap:"next" resolution is MANY-TO-ONE: on the day the clock jumps, a
+  // 02:30 series and a 03:30 series both land on 03:30 local, one instant. Two
+  // sessions at that instant means two session_tier pools, each selling the same
+  // room, and while tier pools are parentless the ancestor rule cannot see it.
+  //
+  // Only a `shifted` occurrence can cause it, which is why the kind is carried
+  // up rather than re-derived.
+  //
+  // SCOPED TO THE VENUE, NOT THE ROOM — and dated, so it is not rediscovered as
+  // a bug report. 2026-09-04: the venue is the coarsest thing this phase knows
+  // about rooms. Spaces shipped venues, spaces, groups and assignments
+  // (20261229000220-223) but ROOM-LEVEL POOLS are S4-S6, wave E, and do not
+  // exist. So today this can refuse an occurrence that is genuinely fine at a
+  // two-room venue. Accepted deliberately, with the Director, on the asymmetry
+  // below. TIGHTEN THE SCOPE FROM VENUE TO ROOM WHEN SPACES' ROOM POOLS LAND.
+  //
+  // REFUSED, NOT PREVENTED BY A CONSTRAINT. A unique index on (venue, starts_at)
+  // would refuse two classes legitimately running at once in two different
+  // rooms, which is the refuse-a-valid-state mistake this area has already made
+  // twice on `admissions`. And refusing is safe in the direction that matters
+  // here: a class absent from a schedule the operator reads daily is visible,
+  // while a room quietly sold twice is visible nowhere until two crowds arrive.
+  // Choosing WHICH of two real shows moves is an operator decision, not ours.
+  // Keyed by instant, valued by WHAT holds it, because a refusal that cannot
+  // name the other side is not actionable.
+  const occupied = new Map<number, { sessionId: string; title: string | null }>();
+  for (const row of venueOccupancy) {
+    const at = Date.parse(row.startsAt);
+    if (Number.isFinite(at) && !occupied.has(at)) {
+      occupied.set(at, { sessionId: row.sessionId, title: row.title });
+    }
+  }
+  // A shifted occurrence can also collide with another occurrence of THIS
+  // series in the same run, so the set grows as we go.
+  const create: Occurrence[] = [];
+  const skipped: SkippedOccurrence[] = [];
+  for (const occ of wantedNew) {
+    const at = Date.parse(occ.startsAt);
+    const holder = occ.kind === "shifted" ? occupied.get(at) : undefined;
+    if (holder) {
+      skipped.push({
+        startsAt: occ.startsAt,
+        localDate: occ.localDate,
+        reason: "gap_shift_collision",
+        collidesWithSessionId: holder.sessionId,
+        collidesWithTitle: holder.title,
+      });
+      continue;
+    }
+    // A later occurrence of THIS series can collide with an earlier one, so the
+    // map grows as we go. `series.id` names it honestly rather than pretending
+    // the clash came from elsewhere.
+    if (!occupied.has(at)) {
+      occupied.set(at, { sessionId: `pending:${series.id}`, title: series.title });
+    }
+    create.push(occ);
+  }
 
   // Existing sessions in this window that have no pool. Reported separately
   // from `create` because they need a DIFFERENT write: the session row is
@@ -263,8 +365,9 @@ export function decideMaterialisation(
     ok: true,
     seriesId: series.id,
     create,
-    existing: expanded.length - create.length,
+    existing: expanded.length - wantedNew.length,
     poolBackfill,
+    skipped,
     timeZone,
     seats: series.seats,
   };
