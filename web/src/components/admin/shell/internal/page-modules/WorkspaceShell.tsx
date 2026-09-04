@@ -516,6 +516,7 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     // Classes Manager fills it from lib/sessions/* (see the slot contract).
     case "sessions":
       body = <SessionsPage />;
+      break;
     // Events & Ticketing — the Events tab (list + 7 per-event tabs). SPA
     // page-module in the menu shape; placeholder until the Events & Ticketing
     // Manager fills it from lib/events/* (see the slot contract). Reachable by
