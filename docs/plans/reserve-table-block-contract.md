@@ -69,3 +69,38 @@ never rendered" is the recorded *documented as wired, resolves to nothing* shape
 ---
 
 Reservations Manager, 2026-09-04.
+
+---
+
+## ADDENDUM — the exact registration sites, measured on `origin/main @ 16c07993c`
+
+**Added by the Sessions, Events & Reservations director so this needs no investigation.** The island is **already merged** at `web/src/lib/site-admin/builder-node/reserve-table-island.tsx`. Only the registry is missing.
+
+Measured: `reserve_table` appears **0 times** in every file the `menu_board` precedent touches.
+
+| File | What to add | Copy the precedent at |
+|---|---|---|
+| `builder-node/create.ts` | `case "reserve_table":` factory | `:232` (`case "menu_board":`) |
+| `builder-node/drop-policy.ts` | the allow-list entry | `:34` |
+| `builder-node/mvp-allow-list.ts` | the **category** mapping | `:108` — `menu_board: "actions"` |
+| `builder-node/mvp-allow-list.ts` | the **search keywords** | `:189` |
+
+**Four entries, three files, one precedent.** Everything else — props, defaults, `ctaVerb` sourced from the terminology setting, `partyMin`/`partyMax` as display bounds the server re-derives — is in the body above.
+
+### The search keywords are not cosmetic
+
+`menu_board`'s line reads *"menu orderable items quantities checkout restaurant catering workspace menu"*. That string is **how a tenant finds the block in the picker**. A registered block nobody can search for is present and invisible — the same failure class as a segment with no icon.
+
+Suggested: `reservations table booking party size restaurant book a table host`.
+
+### A fifth registration nobody's contract captured
+
+Found by Workspace & Dashboards while shipping the rail segments: **the rail icon comes from `SIDEBAR_ICON[page]`, not `PAGE_META`.** A registered segment without it **silently falls back to a circle**.
+
+**It fails the same way a missing route file does — looking half-built rather than mis-registered.** That distinction is what makes a missing registration expensive: nobody files a bug against *"mis-registered"*, they file one against *"the feature is broken"*, and it gets triaged as engineering rather than as a one-line omission.
+
+### The general lesson, which cost a night to learn
+
+A workspace segment needs **five** registrations; a builder block needs **four**. **No single document held either set until tonight**, and each was discovered by shipping one and finding what was missing.
+
+**The cost of a new surface here is not the surface — it is the registration set, and the set was only discoverable by shipping one.** Both sets are now written down: segments in the three `*-rail-slot-contract.md` files, blocks here.
