@@ -168,4 +168,15 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Shown only when your venue asks for a card":
     "Se muestra solo cuando tu local pide una tarjeta",
   "Your venue": "Tu local",
+  // C11 — the anchor field on the Data panel. Lives in the Builder 2027
+  // catalog rather than editor-i18n-es-inspectors.ts, which sits at exactly
+  // the 800-line max-lines budget: adding here keeps the budget intact
+  // without grandfathering new growth into the suppressions baseline.
+  // "Anchor" is NOT defined here: editor-i18n-es-section-panels.ts:112 already
+  // has it with the same value ("Ancla"). Two definitions would make the spread
+  // order in editor-i18n-es.ts decide the winner, which is invisible at runtime
+  // because both look Spanish.
+  "Anchor name": "Nombre del ancla",
+  "Link to this block from elsewhere on the page":
+    "Enlaza a este bloque desde otra parte de la página",
 };

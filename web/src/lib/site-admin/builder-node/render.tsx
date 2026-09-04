@@ -63,6 +63,7 @@ import {
   collectPresentNodeKinds,
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
+import { anchorIdAttrs } from "./anchor-id";
 import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
@@ -4344,6 +4345,7 @@ function renderBuilderNodeElement(
       return (
         <ContainerTag
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4372,6 +4374,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4386,6 +4389,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4412,6 +4416,7 @@ function renderBuilderNodeElement(
       return (
         <details
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4440,6 +4445,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4464,6 +4470,7 @@ function renderBuilderNodeElement(
               return (
                 <span
                   key={`${panel.id}:tab`}
+                  {...anchorIdAttrs(panel)}
                   data-builder-node-id={panel.id}
                   data-builder-node-kind={panel.kind}
                   {...panelCue.attrs}
@@ -4495,6 +4502,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4722,6 +4730,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-builder-carousel-variant="hero"
@@ -4825,6 +4834,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4856,6 +4866,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4872,6 +4883,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-card-variant={node.props.variant ?? "elevated"}
@@ -4886,6 +4898,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-cta-layout={node.props.layout ?? "row"}
@@ -4909,6 +4922,7 @@ function renderBuilderNodeElement(
       return (
         <Tag
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4937,6 +4951,7 @@ function renderBuilderNodeElement(
       return (
         <p
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4977,6 +4992,7 @@ function renderBuilderNodeElement(
       return (
         <a
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...buttonStateAttrs(node)}
@@ -5112,6 +5128,7 @@ function renderBuilderNodeElement(
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-media-id={node.props.mediaId}
@@ -5185,6 +5202,7 @@ function renderBuilderNodeElement(
       return (
         <video
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5218,6 +5236,7 @@ function renderBuilderNodeElement(
       return (
         <iframe
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-embed-provider={node.props.provider ?? "url"}
@@ -5285,6 +5304,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-hero-layout={layout}
@@ -5448,6 +5468,7 @@ function renderBuilderNodeElement(
         return (
           <section
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             {...builderNodeStyleAttrs(undefined)}
@@ -5462,6 +5483,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(undefined)}
@@ -5509,6 +5531,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(p.style)}
@@ -5586,6 +5609,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-discipline-mode={dynamic ? "dynamic" : "manual"}
@@ -5703,6 +5727,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             {...builderNodeStyleAttrs(node.props.style)}
@@ -5731,6 +5756,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5774,6 +5800,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-social-post-empty=""
@@ -5871,6 +5898,7 @@ function renderBuilderNodeElement(
       return (
         <span
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-icon={icon.name}
@@ -5919,6 +5947,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5995,6 +6024,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -6039,6 +6069,7 @@ function renderBuilderNodeElement(
       return (
         <hr
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-divider-tone={node.props.tone ?? "default"}
@@ -6051,6 +6082,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -6093,6 +6125,7 @@ function renderBuilderNodeElement(
       return (
         <form
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(formProps.style)}
@@ -6595,6 +6628,7 @@ function renderBuilderNodeElement(
       return (
         <nav
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(navProps.style)}
@@ -6729,6 +6763,7 @@ function renderBuilderNodeElement(
       return (
         <ul
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(socialProps.style)}
@@ -6787,6 +6822,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-marquee-speed={p.speed ?? "medium"}
@@ -6861,6 +6897,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-bn-directory-mode="live"
@@ -6901,6 +6938,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-directory-scope={p.scope ?? "all"}
@@ -7064,6 +7102,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-featured-variant={p.variant ?? "grid"}
@@ -7183,6 +7222,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-map-side={p.overlaySide ?? "card-left"}
@@ -7346,6 +7386,7 @@ function renderBuilderNodeElement(
         return (
           <form
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-header-widget="header_search"
@@ -7379,6 +7420,7 @@ function renderBuilderNodeElement(
       return (
         <a
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_search"
@@ -7417,6 +7459,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_account"
@@ -7458,6 +7501,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_inquiry"
@@ -7520,6 +7564,7 @@ function renderBuilderNodeElement(
       return (
         <nav
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_language"
@@ -7570,6 +7615,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-sticky-side={p.side ?? "media-left"}
@@ -7653,6 +7699,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-reveal-effect={p.effect ?? "rise"}
@@ -7698,6 +7745,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-stats-variant={p.variant ?? "row"}
@@ -7791,6 +7839,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-ba-ratio={p.ratio ?? "16/9"}

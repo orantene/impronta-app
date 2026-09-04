@@ -3,6 +3,7 @@ import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { normalizeBuilderVisibilityCondition } from "./visibility";
 import { normalizeNodeI18nOverlay } from "./i18n-overlay";
 import { normalizeNodeExperimentConfig } from "./experiment";
+import { normalizeAnchorId } from "./anchor-id";
 import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import { isBuilderNodeRole } from "./role-bindings";
 import type { BuilderNode, BuilderNodeTree } from "./types";
@@ -58,6 +59,16 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   {
     key: "experiment",
     normalize: (value) => normalizeNodeExperimentConfig(value) ?? undefined,
+  },
+  // C11 — the optional DOM `id` that makes an in-page anchor resolve. Any node
+  // can be an anchor target, so this is a base field rather than 47 per-kind
+  // props. Slugified defensively: the value reaches the DOM as an `id` and is
+  // targeted by `href="#…"`, so junk must become something that works rather
+  // than something that half-works. Normalizes to undefined (carried on
+  // NEITHER) when empty — a node with no anchor renders byte-identically.
+  {
+    key: "anchorId",
+    normalize: (value) => normalizeAnchorId(value),
   },
   // EJECT PROVENANCE — the curated role an ejected child was minted from.
   // Written by `ejectSectionInTree`; read by `section-eject-repair.ts` so

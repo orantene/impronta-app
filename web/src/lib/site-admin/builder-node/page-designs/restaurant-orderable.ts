@@ -350,6 +350,13 @@ const restaurantOrderableTree: BuilderNode[] = [
       {
         id: "restaurant-orderable-menu",
         kind: "container",
+        // C11 — the target of this design's `#menu` primary button. Before
+        // anchorId existed the renderer emitted no DOM `id` at all, so that
+        // button was INERT on every tenant that picked this design. Set on the
+        // node BASE, not in props: props is a per-kind discriminated union that
+        // does not declare it, while BuilderNodeBase does. validate mirrors it
+        // into props on the next pass, so both paths still agree.
+        anchorId: "menu",
         props: {
           layout: "stack",
           align: "center",

@@ -28,6 +28,7 @@ import { listCollectionsAction } from "@/lib/site-admin/collections/actions";
 import { collectionSourceKey } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
+import { normalizeAnchorId } from "@/lib/site-admin/builder-node/anchor-id";
 import { CHROME } from "../kit/tokens";
 import {
   ABTestCard,
@@ -276,6 +277,44 @@ function DataPanelInner({
       {lockedDataPaths.length > 0 ? (
         <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
       ) : null}
+      {/* C11 — the DOM id that makes an in-page anchor resolve. Lives here
+          rather than in Content because it is a base field on every kind, not a
+          per-kind prop. Without this the anchorId schema + renderer would be a
+          capability wired at 3 of 4 layers: a design author could set one in
+          code and an operator never could. */}
+      <InspectorSection
+        title="Anchor"
+        description="Link to this block from elsewhere on the page"
+      >
+        <Field flush>
+          <FieldLabel>Anchor name</FieldLabel>
+          <input
+            className={KIT.input}
+            type="text"
+            placeholder="menu"
+            defaultValue={
+              normalizeAnchorId(
+                (selectedBuilderNode.props as Record<string, unknown>).anchorId,
+              ) ?? ""
+            }
+            onBlur={(event) => {
+              // Commit on blur, not per keystroke: every character would
+              // otherwise be a separate patch + validate pass, and the
+              // slugifier rewriting the value mid-word makes the field
+              // unusable to type in.
+              const next = normalizeAnchorId(event.currentTarget.value);
+              event.currentTarget.value = next ?? "";
+              void onPatchBuilderNodeProps(selectedBuilderNode.id, {
+                anchorId: next,
+              });
+            }}
+          />
+          <Helper>
+            Lowercase letters, numbers and dashes. A button elsewhere can then
+            link to <code>#{"{name}"}</code> and jump here.
+          </Helper>
+        </Field>
+      </InspectorSection>
       {device !== "desktop" ? (
         <InspectorNotice tone="info">
           Data binding uses desktop settings on {device === "tablet" ? "Tablet" : "Mobile"}. Per-device binding is not available yet.
