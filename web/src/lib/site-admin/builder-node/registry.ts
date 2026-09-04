@@ -999,6 +999,31 @@ const menuBoardPropsSchema = z.object({
 });
 
 /**
+ * RESERVATIONS — `reserve_table`. Props ONLY: the island dynamically imports
+ * its own server action and loads availability client-side, so there is no data
+ * loader and deliberately no `native-data-block-needs` entry.
+ *
+ * `tenantId` is NOT a prop. The renderer injects it from
+ * `options.dataSources.tenantId`, the same way `menu_board` does — an operator
+ * cannot type a tenant id and must never be asked to.
+ *
+ * `partyMin`/`partyMax` are DISPLAY BOUNDS, not a gate: the server re-derives
+ * both from `venue_service_rules` and refuses anything outside them. The caps
+ * here only stop the stepper offering obvious nonsense. `cardNotice` is
+ * nullable rather than optional because "no notice" is a real, chosen state
+ * distinct from "not configured".
+ */
+const reserveTablePropsSchema = z.object({
+  venueName: z.string().max(120).optional(),
+  ctaVerb: z.string().max(40).optional(),
+  partyMin: z.number().int().min(1).max(99).optional(),
+  partyMax: z.number().int().min(1).max(99).optional(),
+  cardNotice: z.string().max(240).nullable().optional(),
+  notesEnabled: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+/**
  * WS7 Phase 0 — NATIVE `talent_type_grid`. Same relationship to the frozen
  * curated `talent_type_grid` schema: the authoring fields survive, the section
  * presentation envelope does not. `items` is OPTIONAL and may be empty — a
@@ -1868,6 +1893,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Workspace-owned menu items with quantity steppers and an order form. Renders from live tenant data, never from child nodes.",
       children: { type: "none" },
       propsSchema: menuBoardPropsSchema,
+    },
+    reserve_table: {
+      kind: "reserve_table",
+      label: "Reserve a table",
+      description:
+        "A guest picks party size, date and time and books a real table. Availability comes from your venue's service windows; the booking is held as an order the host stand can see.",
+      children: { type: "none" },
+      propsSchema: reserveTablePropsSchema,
     },
     talent_type_grid: {
       kind: "talent_type_grid",

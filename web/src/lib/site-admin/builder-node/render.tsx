@@ -125,6 +125,7 @@ import { isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
+import { ReserveTableIsland } from "./reserve-table-island";
 import { menuBoardCopy } from "./menu-board-copy";
 
 export interface BuilderNodeRenderDataSources {
@@ -5486,6 +5487,44 @@ function renderBuilderNodeElement(
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
           />
         </section>
+      );
+    }
+    /**
+     * RESERVATIONS — the guest-facing booking block.
+     *
+     * `tenantId` comes from the render data sources, NEVER from props: an
+     * operator cannot type a tenant id. Everything else is authored.
+     *
+     * No data loader and no `native-data-block-needs` entry on purpose — the
+     * island imports its server action dynamically and loads availability
+     * client-side. A static import of a "use server" module would pull it into
+     * the client bundle; `menu_board` solves it the same way.
+     */
+    case "reserve_table": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--reserve-table"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <ReserveTableIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            venueName={text("venueName", p.venueName)}
+            ctaVerb={text("ctaVerb", p.ctaVerb) || "Reserve"}
+            partyMin={p.partyMin ?? 1}
+            partyMax={p.partyMax ?? 8}
+            cardNotice={p.cardNotice ?? null}
+            notesEnabled={p.notesEnabled ?? true}
+          />
+        </div>
       );
     }
     // WS7 Phase 0 — NATIVE `talent_type_grid`. Dynamic mode reads the
