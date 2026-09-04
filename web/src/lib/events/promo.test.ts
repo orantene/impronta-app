@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyPromo, discountFor, type PromoCode, type PromoContext } from "./promo";
+import { applyPromo, discountFor, type PromoCode, type PromoContext, type PromoResult } from "./promo";
 
 const NOW = "2026-09-10T12:00:00.000Z";
+
+/**
+ * Read `reason` off a refusal.
+ *
+ * `reason` lives only on the refusal arm of `PromoResult`, so the union must be
+ * NARROWED before it is read. `assert.equal(r.ok, false)` does not narrow -- it
+ * is a runtime check with no assertion signature -- and CI caught exactly that,
+ * five times, while every test passed: `tsx --test` executes and does not
+ * typecheck. Keeping the narrowing in one helper means the next refusal test
+ * cannot reintroduce it.
+ */
+function refusal(r: PromoResult): string {
+  assert.equal(r.ok, false, "expected a refusal");
+  return r.ok ? "UNREACHABLE" : r.reason;
+}
 
 function code(over: Partial<PromoCode> = {}): PromoCode {
   return {
@@ -51,16 +66,14 @@ test("a fixed discount larger than the order is CLAMPED, not written as-is", () 
 
 test("expired and not-yet-started are different sentences, and neither is 'invalid'", () => {
   const early = applyPromo(code({ startsAt: "2026-09-15T00:00:00.000Z" }), ctx());
-  assert.equal(early.ok, false);
-  assert.equal(early.reason, "not_started");
+  assert.equal(refusal(early), "not_started");
 
   const late = applyPromo(code({ endsAt: "2026-09-01T00:00:00.000Z" }), ctx());
-  assert.equal(late.ok, false);
-  assert.equal(late.reason, "expired");
+  assert.equal(refusal(late), "expired");
 
   // "Invalid code" for an early-bird that ended on Sunday is untrue and
   // unhelpful: they typed it correctly.
-  assert.notEqual(late.reason, "inactive");
+  assert.notEqual(refusal(late), "inactive");
 
   assert.deepEqual(applyPromo(code({ isActive: false }), ctx()), { ok: false, reason: "inactive" });
 });
@@ -76,8 +89,7 @@ test("limits are counted from rows the caller passes, never from a stored counte
 
   const perCustomer = applyPromo(code({ perCustomerLimit: 2 }),
     ctx({ counts: { total: 5, forThisCustomer: 2 } }));
-  assert.equal(perCustomer.ok, false);
-  assert.equal(perCustomer.reason, "customer_limit_reached");
+  assert.equal(refusal(perCustomer), "customer_limit_reached");
 });
 
 test("scope narrows: workspace, then event, then tier", () => {
@@ -105,9 +117,9 @@ test("a free order refuses rather than burning a redemption on nothing", () => {
 });
 
 test("nonsense refuses instead of computing a wrong number", () => {
-  assert.equal(applyPromo(code({ value: 0 }), ctx()).reason, "bad_input");
-  assert.equal(applyPromo(code({ value: 150 }), ctx()).reason, "bad_input");
-  assert.equal(applyPromo(code(), ctx({ subtotalCents: -100 })).reason, "bad_input");
-  assert.equal(applyPromo(code(), ctx({ subtotalCents: 30.5 })).reason, "bad_input");
-  assert.equal(applyPromo(code(), ctx({ now: "not a date" })).reason, "bad_input");
+  assert.equal(refusal(applyPromo(code({ value: 0 }), ctx())), "bad_input");
+  assert.equal(refusal(applyPromo(code({ value: 150 }), ctx())), "bad_input");
+  assert.equal(refusal(applyPromo(code(), ctx({ subtotalCents: -100 }))), "bad_input");
+  assert.equal(refusal(applyPromo(code(), ctx({ subtotalCents: 30.5 }))), "bad_input");
+  assert.equal(refusal(applyPromo(code(), ctx({ now: "not a date" }))), "bad_input");
 });
