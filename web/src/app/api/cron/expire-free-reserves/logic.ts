@@ -22,7 +22,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadActiveBookingTransaction, cancelTransaction } from "@/lib/bookings/transactions";
-import { releaseReservedOfferingStock, readInquiryOfferingContext } from "@/lib/talent/offering-stock";
+import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -141,7 +141,6 @@ export async function sweepExpiredFreeReserves(
     try {
       const txn = await loadActiveBookingTransaction(b.id, admin);
       if (txn) await cancelTransaction(txn.id);
-      await releaseReservedOfferingStock(inquiryId, admin);
       await admin
         .rpc("inquiry_audit_emit", {
           p_inquiry_id: inquiryId,
