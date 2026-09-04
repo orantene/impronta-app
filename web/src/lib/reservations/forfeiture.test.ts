@@ -59,7 +59,7 @@ test("the rate is injectable, so a pricing change is not a code change", () => {
 
 // ─── no-show detection ───────────────────────────────────────────────────────
 
-const AT = new Date("2026-09-05T02:00:00Z"); // 20:00 in Cancun
+const AT = new Date("2026-09-06T01:00:00Z"); // Sat 5 Sept, 20:00 Cancun (UTC-5)
 
 test("NOT YET ARRIVED and NEVER CAME are told apart by the grace period alone", () => {
   // They are identical in admitted_count, which is the whole reason no_show_at
