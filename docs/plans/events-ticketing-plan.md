@@ -747,6 +747,37 @@ Named so nobody reads the mockups and believes it is coming in this wave.
 
 ---
 
+## 6a. E4's THREE BLOCKS: declare needs, do not self-fetch. Decided before building.
+
+`event_list`, `event_hero` and `ticket_picker` all want tenant-scoped data, so the decision is
+*upstream of any default*, and it is made now rather than at the keyboard.
+
+**The mechanism, verified on `origin/main` in
+`lib/site-admin/builder-node/native-data-block-needs.ts`:** a native block either **declares what it
+needs** and the server resolves it into props, or it **fetches its own** and must then own its scope
+validation. `menu_board` does the first — its `offerings` arrive as a resolved prop, which is why
+`options.dataSources.tenantId ?? ""` costs it nothing worse than a cart forgetting its quantities.
+
+**COPYING THAT DEFAULT INTO A BLOCK THAT FETCHES CHANGES WHAT IT MEANS.** The identical line is a
+*cosmetic* default in `menu_board` and a *data-scope* default in a self-fetching block, where an empty
+id scopes a query and produces a total silent failure that reads as a network blip. Copy the check, not
+just the default.
+
+**And the needs are PER NODE, not per block type**, which is the part that decides my design. The file's
+own reason: two directory nodes on one page can be scoped differently, and a single shared array
+*"would paint one of them with the other's people."* **A festival page with two `ticket_picker` nodes is
+exactly that failure** — one picker rendering the other event's tiers and prices, at the moment of
+purchase. Not hypothetical: the festival design ships multiple ticket sections.
+
+So E4 adds `NativeTicketPickerNeed { nodeId, eventId, sessionId? }` and friends to that file rather
+than reading a page-level `dataSources.events`. **One node, one event, one resolution.**
+
+**Trace the render path before writing the block, not after.** `mountBodyCanvas` is named for its effect
+on the DOM rather than for who is looking, so the `? null :` branch reads as the bug when it is the
+editor path. And `dataTenantId = previewSubject?.id ?? tenantId`, so a self-fetching block queries the
+**previewed** tenant in preview — correct for a picker, and wrong for a door, which would ask about a
+venue it is not standing in.
+
 ## 6b. Where this area actually stands, 2026-09-04
 
 **Everything buildable without another department's file is built.** Eight of ten slices have shipped

@@ -107,15 +107,27 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
       ),
     ];
 
-    const { data: sessionRows } = await supabase
+    // ERROR IS DESTRUCTURED AND ACTED ON. PostgREST does not throw: an RLS
+    // refusal, a missing column or a dropped table all return
+    // `{ data: null, error }`. Ignoring it here would render "No date yet" and
+    // "0 sessions" on EVERY event and look like a workspace that has not
+    // scheduled anything — the failure indistinguishable from the empty state.
+    const { data: sessionRows, error: sessionErr } = await supabase
       .from("sessions")
       .select("id, event_id, starts_at, status")
       .in("event_id", eventIds)
       .order("starts_at", { ascending: true });
 
+    if (sessionErr) {
+      logServerError("events.loadWorkspaceEvents/sessions", sessionErr);
+      return { ok: false, error: "Could not load event sessions." };
+    }
+
     // Tiers are catalog variants. `pool_key` is what binds one to its pools, and
     // a variant without one is an ordinary product option rather than a tier.
-    const { data: variantRows } = offeringIds.length
+    // Same rule: a refusal here would silently render every event as having no
+    // ticket tiers, which is a sellable event that looks unsellable.
+    const { data: variantRows, error: variantErr } = offeringIds.length
       ? await supabase
           .from("talent_offering_variants")
           .select(
@@ -123,7 +135,12 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
           )
           .in("offering_id", offeringIds)
           .order("sort_order", { ascending: true })
-      : { data: [] as Array<Record<string, unknown>> };
+      : { data: [] as Array<Record<string, unknown>>, error: null };
+
+    if (variantErr) {
+      logServerError("events.loadWorkspaceEvents/variants", variantErr);
+      return { ok: false, error: "Could not load ticket tiers." };
+    }
 
     const nowIso = new Date().toISOString();
 
