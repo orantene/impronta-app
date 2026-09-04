@@ -50,7 +50,15 @@ function fakeAdmin(opts: {
             error: null,
           });
         }
-        if (table === "order_lines") return resolve({ data: [{ id: "line_1" }], error: null });
+        if (table === "order_lines") {
+          // `units` as a STRING is not laziness in the fake — NUMERIC(12,3)
+          // really arrives that way from PostgREST, and a subscriber minting
+          // one admission per unit would iterate the characters of "4.000".
+          return resolve({
+            data: [{ id: "line_1", units: "4.000", session_id: "s1", variant_id: "v1" }],
+            error: null,
+          });
+        }
         if (table === "capacity_allocations") {
           return resolve({
             data: (opts.allocations ?? []).map((id) => ({ id, order_line_id: "line_1" })),
@@ -166,4 +174,59 @@ test("the flip is version-guarded, so a concurrent write cannot be clobbered", a
   const { updates, admin } = fakeAdmin({ orderId: "o1", order: order({ version: 7 }), paidTxns: [10000] });
   await completeOrderForTransaction(admin, "t1");
   assert.equal(updates.find((u) => u.table === "orders")?.version, 8);
+});
+
+
+// ── The onOrderPaid seam ────────────────────────────────────────────────────
+
+test("onOrderPaid fires after the flip, with numeric units", async () => {
+  const seen: Array<{ orderId: string; tenantId: string; lines: unknown[] }> = [];
+  const { admin } = fakeAdmin({
+    orderId: "o1",
+    order: { id: "o1", status: "pending_payment", total_cents: 1000, version: 1, tenant_id: "t9" },
+    paidTxns: [1000],
+  });
+  const r = await completeOrderForTransaction(admin, "t1", {
+    onOrderPaid: async (ctx) => { seen.push(ctx); },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(seen.length, 1, "the seam must fire exactly once on a settle");
+  assert.equal(seen[0]?.tenantId, "t9");
+  const line = seen[0]?.lines[0] as { units: number; sessionId: string | null };
+  assert.equal(line.units, 4, "units must be a NUMBER, not the string PostgREST sends");
+  assert.equal(typeof line.units, "number");
+  assert.equal(line.sessionId, "s1");
+});
+
+test("a THROWING subscriber cannot un-settle the order", async () => {
+  // The whole contract. A ticketing failure must not turn a completed payment
+  // into a failed webhook that Stripe retries against work already done.
+  const { admin } = fakeAdmin({
+    orderId: "o1",
+    order: { id: "o1", status: "pending_payment", total_cents: 1000, version: 1, tenant_id: "t9" },
+    paidTxns: [1000],
+  });
+  const r = await completeOrderForTransaction(admin, "t1", {
+    onOrderPaid: async () => { throw new Error("minting exploded"); },
+  });
+  assert.equal(r.ok, true, "a subscriber's failure must not fail the settle");
+  if (r.ok) assert.equal(r.status, "paid");
+});
+
+test("onOrderPaid does NOT fire when the order did not settle", async () => {
+  // A deposit does not complete a sale, so nothing downstream should think it
+  // did. Minting tickets for a part-paid order is the mirror of the bug this
+  // whole seam exists to avoid.
+  let fired = 0;
+  const { admin } = fakeAdmin({
+    orderId: "o1",
+    order: { id: "o1", status: "pending_payment", total_cents: 5000, version: 1, tenant_id: "t9" },
+    paidTxns: [1000],
+  });
+  const r = await completeOrderForTransaction(admin, "t1", {
+    onOrderPaid: async () => { fired += 1; },
+  });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.status, "pending_payment");
+  assert.equal(fired, 0, "a part-paid order must not mint anything");
 });
