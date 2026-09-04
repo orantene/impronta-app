@@ -592,3 +592,54 @@ Wording only; I do not own the file.
   does not reopen. A window is two small tables in this area and needs nothing from anyone else's schema;
   five asks on Sessions & Classes withdrawn. `admissions.allocation_id` ruled for me. **R1 to R3 have a
   go.** Plan on PR #1591; no implementation code written yet.
+
+## 10. Seeding a venue — the four ways it looks seeded and is not
+
+Written after seeding `zero-test-studio` and `impronta` by hand on 2026-09-04.
+Every item below cost real time or produced a screen that lied.
+
+**A venue with rules and windows but NO published offering is the worst
+shape available.** `createReservation` refuses with `no_offering_configured`
+only at the moment of booking, so the guest is offered times, picks one, fills
+in their name, taps the button, and is refused. That is worse than "we are
+closed", because everything up to the click looks like it works. Seed
+`venue_service_rules.reservation_offering_id` in the same transaction as the
+rules, or do not seed the rules.
+
+**The offering must be workspace-owned, published, and payable in person.**
+`talent_offerings_owner_exclusivity` requires `owner_kind='workspace'` with a
+NULL `talent_profile_id`, and the purchase pipeline re-derives `status` and
+`allow_pay_in_person` and refuses the booking if either disagrees with what
+`reserve.ts` chose. Set `visibility='on_request'` so the row does not also
+surface as a purchasable service card on the tenant's page.
+
+**`booking_mode` stays `'request'`, and that is not a compromise.**
+`talent_offerings_instant_needs_price` forbids `'instant'` on a zero-price
+offering, and the reservation path never reads `booking_mode` at all — it is
+not in the catalog select. A free table reservation is `'request'` because
+that column is describing a different mechanism.
+
+**`upsert_capacity_pool` takes ten arguments and will not match a positional
+call.** Use named parameters. The whole `DO` block rolls back on the mismatch,
+so a failed seed leaves nothing behind — which is the one merciful part.
+
+**Set the venue timezone explicitly.** Every venue in production was on UTC,
+because nothing ever set it. A venue on UTC resolves its windows in UTC, and
+the wall clock a restaurant means by "dinner at seven" is not UTC's.
+
+**Verifying a seed is three questions, not one.** Does the object exist, are
+its guards on it, and can anyone reach it who should not. A row count answers
+only the first. Ask the engine instead: `capacity_remaining_public` returning
+the band's real unit count proves the pool is reachable and live, which a
+`SELECT count(*)` over `capacity_pools` does not.
+
+### Environment facts that look like routing bugs
+
+**localhost QA is port-locked.** `agency_domains` holds `localhost`,
+`localhost:3000` and `localhost:3001`. The Host header carries the port, so a
+dev server on any other port 404s every path — including `/` — before routing
+runs. This is indistinguishable from a broken route.
+
+**A git worktree needs its own `.env.local`.** Without it the app boots, serves
+200s, and 404s every tenant path, because middleware cannot read
+`agency_domains` at all.

@@ -24,6 +24,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "messages",
   "calendar",
   "sessions",
+  "reservations", // host stand; context.tsx filters it out when takes_reservations is false
   "menu",
   "roster",
   "clients",
@@ -282,10 +283,6 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
  * sections do NOT show up as top-level tabs.
  */
 export const TALENT_PAGES_ALL = Object.keys(TALENT_PAGE_META) as TalentPage[];
-
-
-
-
 
 export function meetsPlan(current: Plan, required: Plan): boolean {
   return PLAN_META[current].rank >= PLAN_META[required].rank;
