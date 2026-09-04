@@ -4,11 +4,14 @@ import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
+import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
+
 function isSpanish(locale: string): boolean {
   return locale.toLowerCase().startsWith("es");
 }
 
 const ES_TEXT: Record<string, string> = {
+  ...LINKS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -2140,21 +2143,6 @@ const ES_TEXT: Record<string, string> = {
   "Share sheet unavailable, will copy link": "Menú de compartir no disponible, se copiará el enlace",
   "Share": "Compartir",
   "QR code": "Código QR",
-  "Share this link": "Comparte este enlace",
-  "QR code for {name}": "Código QR de {name}",
-  "Tracked link": "Enlace con seguimiento",
-  "scans · 30d": "escaneos · 30 d",
-  "WhatsApp": "WhatsApp",
-  "PNG": "PNG",
-  "Print PDF": "PDF para imprimir",
-  "Copy the link, then paste it into your Story": "Copia el enlace y pégalo en tu historia",
-  "Design it": "Diséñalo",
-  "The print designer is not built yet": "El diseñador de impresión todavía no existe",
-  "Coming soon. For now, use Print PDF.": "Muy pronto. Por ahora usa PDF para imprimir.",
-  "Table tent": "Portamenú de mesa",
-  "Flyer": "Volante",
-  "Sticker": "Calcomanía",
-  "Story": "Historia",
   "Share PDF via system sheet": "Compartir PDF por el menú del sistema",
   "Download PDF": "Descargar PDF",
   "PDF model card": "Ficha del modelo en PDF",
@@ -2890,10 +2878,9 @@ const ES_TEXT: Record<string, string> = {
   "Work": "Trabajo",
   "Presence": "Presencia",
 
-  // ══ Lane P, i18n sweep: literals that were wrapped in copy.t() but had
-  //    no ES entry, so the map returned them unchanged (English leak in the
-  //    talent profile editor drawer, the slot panels and the plan badge).
-  //    Keys MUST stay byte-identical to the literal in the component.
+  // ══ Lane P, i18n sweep: literals that were wrapped in copy.t() but had no ES entry, so the map
+  // returned them unchanged (English leak in the talent profile editor drawer, the slot panels and
+  // the plan badge). Keys MUST stay byte-identical to the literal in the component.
 
   // ── Best-fit contexts (context-add-search / context-slot-panel) ──
   "Add best-fit contexts": "Agregar contextos ideales",
@@ -2993,12 +2980,10 @@ const ES_TEXT: Record<string, string> = {
   "Universal": "Universal",
   "Global": "Global",
 
-  // ── Workspace plan badge ──
-  // NOTE: several keys below are SENTENCE FRAGMENTS concatenated in
-  // WorkspacePlanBadge.tsx template literals (e.g. `${t("Ended")} ${n}
-  // ${t("days ago")}`). Their Spanish is written to compose correctly in
-  // that fixed word order, so it is NOT a standalone translation of the
-  // English word. Each has exactly one call site: do not reuse these keys
+  // ── Workspace plan badge ── NOTE: several keys below are SENTENCE FRAGMENTS concatenated in
+  // WorkspacePlanBadge.tsx template literals (e.g. `${t("Ended")} ${n} ${t("days ago")}`). Their
+  // Spanish is written to compose correctly in that fixed word order, so it is NOT a standalone
+  // translation of the English word. Each has exactly one call site: do not reuse these keys
   // elsewhere, and re-check them if the template literals change.
   "trial ended": "· prueba finalizada",
   "Free trial": "Prueba gratis",

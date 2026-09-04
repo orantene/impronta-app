@@ -12,12 +12,24 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
 const here = dirname(fileURLToPath(import.meta.url));
-const component = readFileSync(join(here, "ShareLinkPopover.tsx"), "utf8");
-const i18n = readFileSync(
-  join(here, "../admin/shell/internal/dashboard-i18n.ts"),
-  "utf8",
-);
+/**
+ * Comments blanked before any source match, using the repo's own helper.
+ *
+ * `assert.match(component, /disabled/)` is satisfied by a COMMENT containing
+ * the word — so the assertion would keep passing after someone removed the
+ * attribute and left the explanation behind. `guard-reads-source` exists for
+ * exactly this shape and it caught this file; `blankComments` is the fix it
+ * names, and it is string-aware, which a regex over `//` is not.
+ */
+const component = blankComments(readFileSync(join(here, "ShareLinkPopover.tsx"), "utf8"));
+// Spanish now lives in a module of its own; read both so the check does not
+// silently pass by looking only where the strings used to be.
+const i18n =
+  readFileSync(join(here, "../admin/shell/internal/dashboard-i18n.ts"), "utf8") +
+  readFileSync(join(here, "../admin/shell/internal/dashboard-i18n-links.ts"), "utf8");
 
 /** Every `copy.t("...")` literal the component renders. */
 function translatedStrings(src: string): string[] {
@@ -51,14 +63,15 @@ test("the unbuilt print designer is disabled, not merely styled to look disabled
   // The sibling PR removed two buttons from the publish screen that promised a
   // QR and a PDF and only fired a toast. Shipping another lit-but-dead button
   // here would be the same broken promise in a new place.
-  assert.match(component, /disabled/, "the Design it templates must be disabled");
-  assert.match(component, /Coming soon/, "and must say why");
+  // The attribute on a real element, not the word anywhere in the file.
+  assert.match(component, /<button[^>]*\bdisabled\b/s, "the Design it templates must carry the disabled attribute");
+  assert.match(component, /copy\.t\("Coming soon\./, "and must say why, as a rendered string");
 });
 
 test("Instagram does not pretend to have a share URL", () => {
   // instagramHref() returns null on purpose; the control copies instead.
   assert.doesNotMatch(component, /instagram\.com\/\?/, "no invented Instagram share URL");
-  assert.match(component, /paste it into your Story/, "tells the user what to do instead");
+  assert.match(component, /copy\.t\("Copy the link, then paste it into your Story"\)/, "tells the user what to do instead");
 });
 
 test("the QR is requested as SVG, so it stays sharp at any size", () => {
