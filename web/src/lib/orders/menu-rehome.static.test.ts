@@ -29,15 +29,39 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import path from "node:path";
 
 /** Pin behaviour, not prose. A guard that reads comments fires on its own docs. */
-const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+/**
+ * `blankComments` from `lib/quality`, not a local regex.
+ *
+ * The local one this replaces could not tell a `//` inside a string literal
+ * from a comment, and a second comment-stripper is the duplication this phase
+ * has been removing. Same helper the capacity stock guard now uses.
+ */
+const stripComments = blankComments;
 
-const PIPELINE = stripComments(
-  readFileSync(path.join(process.cwd(), "src/lib/orders/purchase.ts"), "utf8"),
-);
+/**
+ * The WHOLE pipeline, not one named file.
+ *
+ * This read `src/lib/orders/purchase.ts` by name, and the 800-line split moved
+ * half the pipeline into `purchase-catalog.ts` — so every assertion below
+ * silently narrowed to the half that stayed. A `release_offering_stock` call,
+ * a `talent_holds` write or a `starts_at` stamp added to the sibling would
+ * have passed every test in this file.
+ *
+ * The split caused it, but the weakness predates the split: a guard pinned to
+ * a filename measures a LOCATION, not an invariant. Fourth instance tonight,
+ * and the one I should have caught, because I had just fixed the identical
+ * bug in `capacity/offering-stock-gate.test.ts` two directories away.
+ */
+const PIPELINE_DIR = path.join(process.cwd(), "src/lib/orders");
+const PIPELINE = readdirSync(PIPELINE_DIR)
+  .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+  .map((f) => stripComments(readFileSync(path.join(PIPELINE_DIR, f), "utf8")))
+  .join("\n");
 
 test("the engine and its call site are gone", () => {
   for (const gone of ["src/lib/inquiry/menu-order-engine.ts"]) {
@@ -88,9 +112,21 @@ test("the pipeline never touches talent holds or booking slots", () => {
 });
 
 test("the pipeline does not reach for the lossy stock shim", () => {
-  // `release_offering_stock` frees a QUANTITY newest-first and can release a
-  // DIFFERENT allocation than the caller reserved. Capacity labelled it lossy
-  // and is waiting on the last caller to delete it.
+  // `release_offering_stock` frees a QUANTITY newest-first, so it can release a
+  // DIFFERENT allocation than the caller reserved. That is the invariant: this
+  // pipeline releases BY ALLOCATION ID, never by quantity.
+  //
+  // Deliberately phrased as a property of the code and not as a fact about
+  // anyone's queue. The previous wording said Capacity "is waiting on the last
+  // caller to delete it", which stops being true the moment they drop the RPCs
+  // — and a reader following a false reason goes looking for a caller that no
+  // longer exists. A stale comment is a nuisance; a false one sends someone on
+  // an errand.
+  //
+  // The assertions stay after the drop even though the names will exist
+  // nowhere. Nearly tautological is not worthless: quantity-based release is a
+  // shape someone could rebuild under a new name, and this is the file that
+  // records why nobody should.
   assert.ok(
     !PIPELINE.includes("release_offering_stock"),
     "release by allocation ids, never by quantity",

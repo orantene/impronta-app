@@ -14,7 +14,8 @@
  * failure mode is a predicate quietly regaining a `kind` term.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -55,10 +56,38 @@ test("no offering stamp at all is not a release", () => {
 });
 
 test("the reserve gate keys on the pool, not the kind", () => {
-  const src = read("lib/inquiry/instant-book-engine.ts");
+  // REPOINTED at the purchase pipeline. `instant-book-engine.ts` was deleted in
+  // 0.6b-2; the behaviour this guards moved to `createPurchase`, which asks
+  // `loadOfferingCapacityPoolId` and reserves only when a pool exists. The
+  // assertion is kept because the BUG it guards is still possible — gating on
+  // `kind === 'product'` is what let the 12-spot course oversell.
+  // Reads the WHOLE pipeline, not one file. This guard named
+  // `lib/orders/purchase.ts` and went red the moment that file was split for
+  // the 800-line cap — the pool resolution simply moved to a sibling. The
+  // assertion below was right both before and after; only its subject moved.
+  // Concatenating the directory means the next split cannot break it either,
+  // and a `kind === "product"` reintroduced ANYWHERE in the pipeline is caught
+  // rather than only in the file this line happened to name.
+  const dir = join(WEB_SRC, "lib", "orders");
+  const src = readdirSync(dir)
+    .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+    // Comments BLANKED before asserting. Raw contents would redden main the
+    // moment someone documents the bug — and `lib/orders/` is exactly where a
+    // person explains why the gate keys on the pool, most naturally by naming
+    // the predicate they are avoiding. The comment in this very test does it.
+    // Worse than a false red: it could then be "fixed" by editing prose.
+    // Reusing `blankComments` rather than inlining a regex because it already
+    // handles a `//` inside a string literal, and two comment-strippers is the
+    // duplication this phase has been removing, not adding.
+    .map((f) => blankComments(readFileSync(join(dir, f), "utf8")))
+    .join("\n");
   assert.ok(
-    src.includes("if (offering && offering.capacityPoolId != null) {"),
-    "instant-book must gate stock on capacityPoolId",
+    src.includes("capacity_pool_id"),
+    "the pipeline must resolve a pool id rather than infer one from kind",
+  );
+  assert.ok(
+    !src.includes('kind === "product"') && !src.includes("kind === 'product'"),
+    "stock must never be gated on the offering kind",
   );
   assert.ok(
     !/offering\.kind === "product" && offering\.inventoryQty/.test(src),

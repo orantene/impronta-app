@@ -15,7 +15,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createInstantBooking } from "../src/lib/inquiry/instant-book-engine";
+import { createInstantBooking } from "./qa-instant-book-compat";
 import { sweepExpiredFreeReserves } from "../src/app/api/cron/expire-free-reserves/logic";
 import { releaseReservedOfferingStock } from "../src/lib/talent/offering-stock";
 

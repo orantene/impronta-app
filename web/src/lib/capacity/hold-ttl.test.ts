@@ -50,9 +50,17 @@ test("a transport failure reports unavailable, never pool_not_found", () => {
 });
 
 test("a pooled offering's calendar hold uses the pool clock", () => {
-  const src = read("lib/inquiry/instant-book-engine.ts");
+  // REPOINTED at the purchase pipeline (0.6b-2 deleted the engine). The rule is
+  // unchanged and is the Capacity Engine Manager's: hold the slot on its own
+  // timer and the units come back in fifteen minutes while the slot stays
+  // blocked for two days.
+  const src = read("lib/orders/purchase.ts");
   assert.ok(
-    src.includes("ttlSeconds: await capacityHoldTtlSeconds(offering?.capacityPoolId ?? null, admin)"),
-    "instant-book must pass the pool TTL so the slot and the units lapse together",
+    src.includes("capacityHoldTtlSeconds(input.reservation.poolId"),
+    "the slot hold must take the POOL's TTL so the slot and the units lapse together",
+  );
+  assert.ok(
+    src.includes("shortestTtlSeconds"),
+    "a multi-pool cart must expire as one thing, on its shortest hold",
   );
 });

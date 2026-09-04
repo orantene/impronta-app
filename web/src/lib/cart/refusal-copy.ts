@@ -51,6 +51,8 @@ export type RefusalReason =
   | "amount_out_of_range"
   | "no_contact"
   | "sold_out"
+  | "slot_taken"
+  | "slot_required"
   | "capacity_unavailable"
   | "engine_error"
   // Capacity engine refusals, surfaced through the same path.
@@ -76,6 +78,23 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
     kind: "absence",
     en: "That is sold out.",
     es: "Eso está agotado.",
+  },
+  // NOT `sold_out`, and the difference is the whole sentence. Seats remain;
+  // someone else simply holds this time. Telling this person "sold out" would
+  // send a paying customer away from a business that can still serve them, so
+  // the copy points at the one thing that fixes it: another time.
+  slot_taken: {
+    kind: "absence",
+    en: "Someone just took that time. Please pick another one.",
+    es: "Alguien acaba de tomar ese horario. Elige otro.",
+  },
+  // Reached when a timed offering arrives with no slot — a caller bug, or a
+  // stale tab whose picker never ran. Either way the person did nothing wrong
+  // and the fix is theirs to make, so this is `input` rather than `fault`.
+  slot_required: {
+    kind: "input",
+    en: "Please choose a time before you book.",
+    es: "Elige un horario antes de reservar.",
   },
   ancestor_full: {
     kind: "absence",
