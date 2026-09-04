@@ -126,11 +126,19 @@ export function refundDecision(args: {
  * May this event be hard-deleted?
  *
  * The ratified rule: only a draft with zero admissions. Everything else is a
- * cancellation, which preserves the sessions people bought. This is enforced
- * here rather than by a BEFORE DELETE trigger because `events.tenant_id`
- * cascades from `agencies`, so a trigger would also fire on every row of a
- * tenant being deleted and block tenant deletion -- a guard firing where it was
- * never aimed.
+ * cancellation, which preserves the sessions people bought.
+ *
+ * ALSO ENFORCED IN THE DATABASE, by `trg_events_block_destructive_delete`
+ * (migration `20261229000362`). I first rejected a trigger on the grounds that
+ * `events.tenant_id` cascades from `agencies`, so it would fire on every row of
+ * a tenant being deleted and block tenant deletion. That reason was wrong: the
+ * trigger asks whether the parent still exists, and during a cascade the parent
+ * is already gone, so it skips itself. Proven empirically before it shipped,
+ * both halves, rather than inferred from the precedent it copies.
+ *
+ * This function is NOT the enforcement of last resort, then -- it is the surface
+ * that gives a usable error before the attempt, so a person is told "cancel it
+ * instead" rather than being handed a constraint violation.
  */
 export function canHardDelete(args: {
   status: EventStatus;
