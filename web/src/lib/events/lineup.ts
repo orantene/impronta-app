@@ -19,8 +19,70 @@
  * negotiating position and reputation, and it is unrecoverable once indexed.
  */
 
-/** Where an inquiry has got to, mapped to what a lineup means by it. */
-export type LineupState = "invited" | "quoted" | "booked" | "declined" | "cancelled";
+/**
+ * THE LINEUP'S OWN AXIS. Derived, never read off a column.
+ *
+ * This looked like a spine vocabulary and is not one. There are TWO enums and
+ * this type belongs to neither:
+ *
+ *   inquiry_participant_status : invited, active, declined, removed
+ *   inquiry_status             : new ... offer_pending, approved, booked, ...
+ *
+ * `invited` is a PARTICIPANT'S status on `inquiry_participants`. `booked` is
+ * the INQUIRY'S status on `inquiries`. My first version put both in one field
+ * and sorted them against each other, which has no defined answer for the most
+ * common row a venue will have: **a performer who is `invited` as a participant
+ * on an inquiry whose status is `booked`** -- the DJ you invited, on the booking
+ * you closed. Each word was individually correct and the comparison between them
+ * was meaningless.
+ *
+ * So the lineup declares its own axis and states the derivation. `resolveLineupState`
+ * is the only place the two enums meet.
+ */
+export type LineupState = "invited" | "negotiating" | "booked" | "declined" | "cancelled";
+
+/** The spine values this derives from. Strings, not enums, so this stays pure. */
+export type SpineStatuses = {
+  /** `inquiry_participants.status` for this performer, if they are a participant. */
+  participantStatus?: string | null;
+  /** `inquiries.status` for the inquiry carrying `event_id`. */
+  inquiryStatus?: string | null;
+};
+
+/**
+ * Collapse the two spine vocabularies into the one axis a lineup panel needs.
+ *
+ * THE INQUIRY WINS WHERE IT IS DECISIVE, because it is the fact about the
+ * ENGAGEMENT, while the participant status is a fact about a PERSON'S place in
+ * a conversation. A closed booking with a still-`invited` participant row is
+ * booked: the deal is done and the participant row simply never moved.
+ *
+ * Anything not decisive falls back to the participant, and anything unknown is
+ * `invited` rather than `booked` -- the safe direction, because `booked` is the
+ * only value that publishes.
+ */
+export function resolveLineupState(s: SpineStatuses): LineupState {
+  const inquiry = s.inquiryStatus ?? null;
+  const participant = s.participantStatus ?? null;
+
+  // Terminal on the engagement, whatever the participant row says.
+  if (inquiry === "booked" || inquiry === "converted") return "booked";
+  if (inquiry === "rejected" || inquiry === "closed_lost") return "declined";
+  if (inquiry === "expired" || inquiry === "archived" || inquiry === "closed") return "cancelled";
+
+  // Terminal on the person.
+  if (participant === "declined") return "declined";
+  if (participant === "removed") return "cancelled";
+
+  // A live negotiation: an offer is out, or the participant has engaged.
+  if (inquiry === "offer_pending" || inquiry === "approved") return "negotiating";
+  if (participant === "active") return "negotiating";
+
+  // Unknown resolves to `invited`, never `booked`. `booked` is the only value
+  // that publishes a performer's name, and guessing it wrong announces someone
+  // who has not agreed.
+  return "invited";
+}
 
 export type LineupEntry = {
   inquiryId: string;
@@ -45,7 +107,7 @@ export type EventForLineup = {
 /**
  * ONLY a confirmed booking is public, and this is the load-bearing rule.
  *
- * `invited` and `quoted` are NEGOTIATIONS. Publishing them announces an act that
+ * `invited` and `negotiating` are NOT AGREEMENTS. Publishing them announces an act that
  * has not agreed, which damages the performer's leverage on the fee still being
  * discussed and their reputation if it falls through. `declined` and `cancelled`
  * are self-evidently private.
@@ -120,13 +182,13 @@ export function crossListing(
  * The staff view: everyone, negotiations included, ordered so the ones needing
  * a human come first.
  *
- * `invited` outranks `quoted` because an invitation with no reply is the entry
+ * `invited` outranks `negotiating` because an invitation with no reply is the entry
  * most likely to be forgotten, and a show with an unfilled slot two days out is
  * the failure this tab exists to prevent.
  */
 const STAFF_PRIORITY: Record<LineupState, number> = {
   invited: 0,
-  quoted: 1,
+  negotiating: 1,
   booked: 2,
   declined: 3,
   cancelled: 4,
@@ -143,5 +205,5 @@ export function staffLineup(entries: readonly LineupEntry[]): LineupEntry[] {
 
 /** Slots still needing a human before the doors open. */
 export function openSlots(entries: readonly LineupEntry[]): number {
-  return entries.filter((e) => e.state === "invited" || e.state === "quoted").length;
+  return entries.filter((e) => e.state === "invited" || e.state === "negotiating").length;
 }

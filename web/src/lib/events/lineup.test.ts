@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   crossListing,
+  resolveLineupState,
   isPubliclyVisible,
   openSlots,
   publicLineup,
@@ -36,6 +37,34 @@ function entry(over: Partial<LineupEntry> = {}): LineupEntry {
   };
 }
 
+test("the lineup axis is DERIVED from two enums, and the common row is the trap", () => {
+  // The most common row a venue will have: a performer still `invited` as a
+  // PARTICIPANT on an inquiry whose own status is `booked` -- the DJ you invited,
+  // on the booking you closed. Sorting one enum against the other has no defined
+  // answer for it; deriving does.
+  assert.equal(resolveLineupState({ participantStatus: "invited", inquiryStatus: "booked" }), "booked");
+
+  // The inquiry wins where it is decisive: it is a fact about the ENGAGEMENT,
+  // while a participant status is a fact about a person's place in a conversation.
+  assert.equal(resolveLineupState({ participantStatus: "active", inquiryStatus: "rejected" }), "declined");
+  assert.equal(resolveLineupState({ participantStatus: "invited", inquiryStatus: "expired" }), "cancelled");
+
+  // Terminal on the person, when the engagement is not decisive.
+  assert.equal(resolveLineupState({ participantStatus: "declined", inquiryStatus: "coordination" }), "declined");
+  assert.equal(resolveLineupState({ participantStatus: "removed", inquiryStatus: "coordination" }), "cancelled");
+
+  // A live negotiation.
+  assert.equal(resolveLineupState({ inquiryStatus: "offer_pending" }), "negotiating");
+  assert.equal(resolveLineupState({ participantStatus: "active", inquiryStatus: "coordination" }), "negotiating");
+
+  // UNKNOWN RESOLVES TO `invited`, NEVER `booked`. `booked` is the only value
+  // that publishes a performer's name, so guessing it wrong announces somebody
+  // who has not agreed -- the one failure in this file that harms a real person.
+  assert.equal(resolveLineupState({}), "invited");
+  assert.equal(resolveLineupState({ inquiryStatus: "some_future_status" }), "invited");
+  assert.equal(resolveLineupState({ participantStatus: "who_knows" }), "invited");
+});
+
 test("only a CONFIRMED booking is public — a negotiation is not an announcement", () => {
   const e = ev();
   assert.equal(isPubliclyVisible(entry({ state: "booked" }), e), true);
@@ -44,7 +73,7 @@ test("only a CONFIRMED booking is public — a negotiation is not an announcemen
   // leverage on a fee still being discussed, and their reputation if it falls
   // through. Neither is recoverable once a search engine has it.
   assert.equal(isPubliclyVisible(entry({ state: "invited" }), e), false);
-  assert.equal(isPubliclyVisible(entry({ state: "quoted" }), e), false);
+  assert.equal(isPubliclyVisible(entry({ state: "negotiating" }), e), false);
   assert.equal(isPubliclyVisible(entry({ state: "declined" }), e), false);
   assert.equal(isPubliclyVisible(entry({ state: "cancelled" }), e), false);
 });
@@ -73,7 +102,7 @@ test("the public lineup is running order, and negotiations never appear in it", 
       entry({ inquiryId: "c", displayName: "Sofía Rey", sortOrder: 2 }),
       entry({ inquiryId: "a", displayName: "DJ Malú", sortOrder: 0 }),
       entry({ inquiryId: "b", displayName: "Orquesta Caribe", sortOrder: 1 }),
-      entry({ inquiryId: "x", displayName: "Unconfirmed Act", sortOrder: 0, state: "quoted" }),
+      entry({ inquiryId: "x", displayName: "Unconfirmed Act", sortOrder: 0, state: "negotiating" }),
     ],
     ev(),
   );
@@ -87,7 +116,7 @@ test("cross-listing onto a PERFORMER'S page is stricter than the event page", ()
   const listed = crossListing(entry(), ev(), NOW);
   assert.deepEqual(listed, { listed: true, upcoming: true });
 
-  assert.deepEqual(crossListing(entry({ state: "quoted" }), ev(), NOW),
+  assert.deepEqual(crossListing(entry({ state: "negotiating" }), ev(), NOW),
     { listed: false, reason: "not_public" });
   assert.deepEqual(crossListing(entry(), ev({ status: "draft" }), NOW),
     { listed: false, reason: "not_public" });
@@ -112,7 +141,7 @@ test("the staff view puts unanswered invitations first, not confirmed acts", () 
     entry({ inquiryId: "1", displayName: "Booked Act", state: "booked", sortOrder: 0 }),
     entry({ inquiryId: "2", displayName: "Declined Act", state: "declined", sortOrder: 0 }),
     entry({ inquiryId: "3", displayName: "Invited Act", state: "invited", sortOrder: 5 }),
-    entry({ inquiryId: "4", displayName: "Quoted Act", state: "quoted", sortOrder: 9 }),
+    entry({ inquiryId: "4", displayName: "Quoted Act", state: "negotiating", sortOrder: 9 }),
   ]);
 
   // An invitation with no reply is the entry most likely to be forgotten, and a
