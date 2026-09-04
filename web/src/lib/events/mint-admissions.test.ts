@@ -79,6 +79,28 @@ test("named attendees attach per row, and a partial list is refused", () => {
   assert.deepEqual(short, { ok: false, reason: "holder_count_mismatch", expected: 3, got: 1 });
 });
 
+test("PostgREST's NUMERIC string is a real count, and a fractional one is not", () => {
+  // `order_lines.units` is NUMERIC(12,3), so PostgREST sends "4.000" — a STRING.
+  // Requiring a number made this module depend on the caller remembering to
+  // coerce; it then failed closed on EVERY mint with a vague `not_a_count`,
+  // which names the symptom and not the cause.
+  const fromDb = planAdmissions({ ...BASE, units: "4.000", admitsPerUnit: "1" });
+  assert.ok(fromDb.ok);
+  assert.equal(fromDb.rows.length, 4);
+  assert.equal(fromDb.totalPeople, 4);
+
+  // A VIP table arriving the same way.
+  const vip = planAdmissions({ ...BASE, units: "2.000", admitsPerUnit: "6" });
+  assert.ok(vip.ok);
+  assert.deepEqual(vip.rows.map((r) => r.partySize), [6, 6]);
+
+  // Strict about MEANING: half a ticket is not a count of things.
+  assert.deepEqual(planAdmissions({ ...BASE, units: "4.500", admitsPerUnit: 1 }),
+    { ok: false, reason: "not_a_count" });
+  assert.deepEqual(planAdmissions({ ...BASE, units: "not a number", admitsPerUnit: 1 }),
+    { ok: false, reason: "not_a_count" });
+});
+
 test("a nonsense count refuses instead of emitting an empty or fractional plan", () => {
   assert.deepEqual(planAdmissions({ ...BASE, units: 0, admitsPerUnit: 1 }),
     { ok: false, reason: "not_a_count" });
