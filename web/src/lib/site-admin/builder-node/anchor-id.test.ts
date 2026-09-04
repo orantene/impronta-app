@@ -80,9 +80,16 @@ test("anchorId survives a validate round-trip on props AND base", () => {
     {
       id: "n1",
       kind: "container",
+      // props IS the runtime patch landing zone — `onPatchBuilderNodeProps`
+      // takes a Record<string, unknown>, so the inspector writes anchorId here
+      // at runtime. The per-kind props union does not declare it (that is what
+      // BuilderNodeBase is for), so the cast models reality rather than hiding
+      // a type error.
       props: { layout: "stack", anchorId: "Our Menu" },
       children: [],
-    },
+      // The cast is on the NODE, not on props: casting props alone widens it to
+      // the whole union, which then no longer narrows against kind:"container".
+    } as unknown as BuilderNode,
   ];
   const result = validateBuilderNodeTree(tree);
   assert.equal(result.ok, true, "tree should validate");
@@ -104,7 +111,7 @@ test("clearing an anchor removes it from BOTH props and base", () => {
       kind: "container",
       props: { layout: "stack", anchorId: "   " },
       children: [],
-    },
+    } as unknown as BuilderNode,
   ];
   const result = validateBuilderNodeTree(tree);
   assert.equal(result.ok, true);
