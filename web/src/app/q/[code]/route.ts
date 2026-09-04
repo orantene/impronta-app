@@ -18,7 +18,7 @@
  * file at a correct path still 404s without an entry there, and the symptom
  * looks like a routing bug rather than an allow-list one. See `/q` in that file.
  */
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
@@ -147,10 +147,22 @@ export async function GET(
   const response = NextResponse.redirect(destination, 302);
   response.headers.set("cache-control", "no-store");
 
-  // Fire and forget. A guest standing at a table does not wait for analytics,
-  // and a failed insert must not cost them their menu. `recordScan` swallows
-  // and logs its own errors; the catch here is for the promise itself.
-  void recordScan({
+  // Deferred past the response flush with `after()`, NOT fire-and-forget.
+  //
+  // A bare `void recordScan(...)` is the obvious way to write this and it
+  // silently loses rows: the serverless instance is free to freeze once the
+  // response is sent, and a floating promise dies with it. Measured on
+  // production before this fix — three scans of the same code recorded TWO
+  // rows. Not zero, which is the dangerous part: a feature that drops an
+  // unpredictable fraction looks like it works, and the QR page would have
+  // under-reported every code forever with nothing to show for it.
+  //
+  // `after()` keeps the instance alive for the work while still letting the
+  // guest have their redirect immediately, which is the whole point: a person
+  // standing at a table does not wait for analytics. The inline fallback is
+  // for non-request contexts where `after()` throws, matching
+  // `support-engine-emit.ts` and `scheduleWorkspaceAudit`.
+  const record = () => recordScan({
     linkId: link.id,
     tenantId: host.tenantId,
     deviceClass: classifyDevice(request.headers.get("user-agent")),
@@ -160,6 +172,12 @@ export async function GET(
     sessionKey: scanSessionKey(clientIp(request), request.headers.get("user-agent")),
     resolvedTo: resolved.destination.label,
   }).catch(() => {});
+
+  try {
+    after(record);
+  } catch {
+    void record();
+  }
 
   return response;
 }
