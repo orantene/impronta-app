@@ -50,6 +50,8 @@ type Props = {
   cardNotice?: string | null;
   /** The venue allows a note on the reserve step. */
   notesEnabled?: boolean;
+  /** The page's content locale. Everything a guest reads has en and es. */
+  locale?: string;
   onAskFirst?: () => void;
 };
 
@@ -59,40 +61,132 @@ type Props = {
  * tapping, someone else can take the last four-top, and telling them that
  * plainly is better than a generic failure they will read as our fault.
  */
-const SUBMIT_REFUSAL_COPY: Record<string, string> = {
-  time_not_offered: "That time just went. Pick another and we will hold it.",
-  sold_out: "Somebody took the last table for that time. Try another.",
-  capacity_unavailable: "We could not reach the book just now. Nothing was booked. Try again.",
-  no_offering_configured: "This restaurant is not taking bookings online yet.",
-  reservations_off: "This restaurant is not taking bookings online right now.",
-  no_contact: "We need an email to hold the table.",
-  invalid_request: "Something about that booking did not look right. Try again.",
-  engine_error: "We could not complete that just now. Nothing was booked.",
-  unavailable: "We could not reach the book just now. Nothing was booked.",
+type Locale = "en" | "es";
+
+const SUBMIT_REFUSAL_COPY: Record<Locale, Record<string, string>> = {
+  en: {
+    time_not_offered: "That time just went. Pick another and we will hold it.",
+    sold_out: "Somebody took the last table for that time. Try another.",
+    capacity_unavailable: "We could not reach the book just now. Nothing was booked. Try again.",
+    no_offering_configured: "This restaurant is not taking bookings online yet.",
+    reservations_off: "This restaurant is not taking bookings online right now.",
+    no_contact: "We need an email to hold the table.",
+    invalid_request: "Something about that booking did not look right. Try again.",
+    engine_error: "We could not complete that just now. Nothing was booked.",
+    unavailable: "We could not reach the book just now. Nothing was booked.",
+  },
+  es: {
+    time_not_offered: "Esa hora se acaba de ocupar. Elige otra y te la guardamos.",
+    sold_out: "Alguien tomó la última mesa a esa hora. Prueba con otra.",
+    capacity_unavailable: "No pudimos consultar la agenda en este momento. No se reservó nada. Inténtalo de nuevo.",
+    no_offering_configured: "Este restaurante todavía no acepta reservas en línea.",
+    reservations_off: "Este restaurante no está aceptando reservas en línea por ahora.",
+    no_contact: "Necesitamos un correo para guardarte la mesa.",
+    invalid_request: "Algo en esa reserva no se veía bien. Inténtalo de nuevo.",
+    engine_error: "No pudimos completarla en este momento. No se reservó nada.",
+    unavailable: "No pudimos consultar la agenda en este momento. No se reservó nada.",
+  },
 };
 
-const REFUSAL_COPY: Record<string, string> = {
-  reservations_off: "This restaurant is not taking bookings online right now.",
-  closed: "We are closed that day.",
-  party_below_minimum: "That party is smaller than we take online.",
-  party_above_maximum: "For a party that size, message us and we will sort it out.",
-  no_band_fits_this_party: "We have no table that size. Message us and we will see what we can do.",
-  beyond_booking_horizon: "That is further ahead than we take bookings.",
-  inside_minimum_notice: "Too late to book that online. Message us and we will see what we can do.",
-  fully_booked: "Fully booked that day. Try another date, or message us.",
-  unavailable: "We could not load the times just now. Try again in a moment.",
+const REFUSAL_COPY: Record<Locale, Record<string, string>> = {
+  en: {
+    reservations_off: "This restaurant is not taking bookings online right now.",
+    closed: "We are closed that day.",
+    party_below_minimum: "That party is smaller than we take online.",
+    party_above_maximum: "For a party that size, message us and we will sort it out.",
+    no_band_fits_this_party: "We have no table that size. Message us and we will see what we can do.",
+    beyond_booking_horizon: "That is further ahead than we take bookings.",
+    inside_minimum_notice: "Too late to book that online. Message us and we will see what we can do.",
+    fully_booked: "Fully booked that day. Try another date, or message us.",
+    unavailable: "We could not load the times just now. Try again in a moment.",
+  },
+  es: {
+    reservations_off: "Este restaurante no está aceptando reservas en línea por ahora.",
+    closed: "Ese día cerramos.",
+    party_below_minimum: "Ese grupo es más pequeño de lo que aceptamos en línea.",
+    party_above_maximum: "Para un grupo así, escríbenos y lo resolvemos.",
+    no_band_fits_this_party: "No tenemos una mesa de ese tamaño. Escríbenos y vemos qué podemos hacer.",
+    beyond_booking_horizon: "Eso es más adelante de lo que aceptamos reservas.",
+    inside_minimum_notice: "Ya es tarde para reservar eso en línea. Escríbenos y vemos qué podemos hacer.",
+    fully_booked: "Ese día está lleno. Prueba otra fecha, o escríbenos.",
+    unavailable: "No pudimos cargar los horarios en este momento. Inténtalo en un momento.",
+  },
 };
 
-function ymdInZone(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/**
+ * The block's own words. Sentences, not nouns: the NOUN for a table is the
+ * tenant's (`ctaVerb` and the words layer own that), but the sentence telling a
+ * guest what happened to their booking is not something a rename may rewrite.
+ */
+const UI: Record<Locale, Record<string, string>> = {
+  en: {
+    heading: "a table",
+    partyOf: "Party of",
+    fewer: "Fewer people",
+    more: "More people",
+    today: "Today",
+    checking: "Checking the book…",
+    lastTable: "last table",
+    name: "Name",
+    email: "Email",
+    note: "Anything we should know?",
+    noteAria: "Special requests",
+    booking: "Booking",
+    pickTime: "Pick a time",
+    bookedFor: "You are booked for",
+    nothingToPay: "Nothing to pay now. We have sent a confirmation to your email.",
+  },
+  es: {
+    heading: "una mesa",
+    partyOf: "Personas",
+    fewer: "Menos personas",
+    more: "Más personas",
+    today: "Hoy",
+    checking: "Consultando la agenda…",
+    lastTable: "última mesa",
+    name: "Nombre",
+    email: "Correo",
+    note: "¿Algo que debamos saber?",
+    noteAria: "Peticiones especiales",
+    booking: "Reservando",
+    pickTime: "Elige una hora",
+    bookedFor: "Tu reserva es para",
+    nothingToPay: "No hay nada que pagar ahora. Te enviamos la confirmación por correo.",
+  },
+};
+
+/**
+ * A deposit line, in the reader's language and with the amount formatted for
+ * it. Money is integer cents everywhere behind this; this is the only place it
+ * becomes a sentence.
+ */
+export function depositLine(locale: Locale, cents: number): string {
+  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
+  return locale === "es"
+    ? `Se requiere un depósito de ${amount}; te enviamos el enlace.`
+    : `A deposit of ${amount} is due; we have sent you the link.`;
 }
 
-function dayLabel(d: Date, index: number): string {
-  if (index === 0) return "Today";
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
+/**
+ * A date chip, in the VENUE's zone and the reader's language.
+ *
+ * The zone is not decoration. `Intl` given a bare Date formats in the reader's
+ * zone, so a Cancun venue read from Madrid would label the wrong night — and
+ * because a ymd has no time, the parsed midnight lands on the previous day for
+ * any reader west of UTC unless the zone is named. Both are named here.
+ */
+export function dayLabel(ymd: string, timeZone: string, locale: Locale, isToday: boolean): string {
+  if (isToday) return UI[locale].today;
+  const d = new Date(`${ymd}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", {
+    weekday: "short",
+    day: "numeric",
+    timeZone,
+  }).format(d);
 }
 
 const C = {
@@ -125,17 +219,20 @@ export function ReserveTableIsland({
   partyMax = 8,
   cardNotice = null,
   notesEnabled = true,
+  locale: localeProp,
   onAskFirst,
 }: Props) {
-  const today = new Date();
-  const dates = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const locale: Locale = localeProp === "es" ? "es" : "en";
+  const t = UI[locale];
 
   const [party, setParty] = useState(Math.min(2, partyMax));
-  const [dateIndex, setDateIndex] = useState(0);
+  // NULL means "the venue decides what today is", and the first load asks it.
+  // The browser's calendar is not the venue's: a guest in Madrid at 01:00 is on
+  // tomorrow's date while a Cancun kitchen is still serving tonight, and the
+  // old code built this strip from `new Date()` — so it offered the wrong five
+  // days and called the wrong one Today. Dates now come back from the server in
+  // the venue's zone and this holds only the guest's CHOICE among them.
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [windowKey, setWindowKey] = useState<string | null>(null);
   const [slot, setSlot] = useState<ReserveSlot | null>(null);
   const [state, setState] = useState<
@@ -149,7 +246,6 @@ export function ReserveTableIsland({
   const [done, setDone] = useState<{ label: string; collectCents: number } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const onDate = ymdInZone(dates[dateIndex]!);
 
   // No useCallback. The React Compiler refuses to preserve a manual memo whose
   // dependency it cannot prove stable, and `onDate` derives from a `dates`
@@ -168,7 +264,12 @@ export function ReserveTableIsland({
         const { loadReserveAvailability } = await import(
           "@/app/(public)/_reserve/reserve-actions"
         );
-        const data = await loadReserveAvailability({ tenantId, partySize: party, onDate });
+        const data = await loadReserveAvailability({
+          tenantId,
+          partySize: party,
+          // Omitted on the first load, so the venue names its own today.
+          ...(selectedDate ? { onDate: selectedDate } : {}),
+        });
         if (cancelled) return;
         setState({ status: "ready", data });
         if (data.ok) {
@@ -178,16 +279,29 @@ export function ReserveTableIsland({
         }
       } catch {
         if (cancelled) return;
-        setState({ status: "ready", data: { ok: false, reason: "unavailable" } });
+        // A thrown load knows nothing about the venue, so it carries no dates
+        // and no zone. That is the honest shape: the strip disappears and the
+        // panel says we could not reach the book, rather than showing five days
+        // this browser invented.
+        setState({
+          status: "ready",
+          data: { ok: false, timezone: null, onDate: null, dates: [], reason: "unavailable" },
+        });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [tenantId, party, onDate]);
+  }, [tenantId, party, selectedDate]);
 
   const available = state.status === "ready" && state.data.ok ? state.data : null;
   const shown = available?.windows.find((w) => w.key === windowKey) ?? available?.windows[0];
+  // The date strip rides on BOTH branches, so "we are closed that day" still
+  // leaves the guest able to pick a different day. Empty only when we never
+  // reached the venue — a different sentence, and the panel says that one.
+  const ctx = state.status === "ready" ? state.data : null;
+  const dates = ctx?.dates ?? [];
+  const activeDate = selectedDate ?? ctx?.onDate ?? null;
 
   return (
     <div style={{ maxWidth: 460, fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -203,7 +317,7 @@ export function ReserveTableIsland({
         {venueName}
       </p>
       <h2 style={{ fontSize: 26, fontWeight: 500, margin: "0 0 18px", color: C.ink }}>
-        {ctaVerb} a table
+        {ctaVerb} {t.heading}
       </h2>
 
       <div
@@ -214,13 +328,13 @@ export function ReserveTableIsland({
           marginBottom: 16,
         }}
       >
-        <span style={{ fontSize: 13, color: C.muted }}>Party of</span>
+        <span style={{ fontSize: 13, color: C.muted }}>{t.partyOf}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             type="button"
             onClick={() => setParty((p) => Math.max(partyMin, p - 1))}
             style={{ ...chip(false), width: 36 }}
-            aria-label="Fewer people"
+            aria-label={t.fewer}
           >
             &minus;
           </button>
@@ -234,26 +348,28 @@ export function ReserveTableIsland({
             type="button"
             onClick={() => setParty((p) => Math.min(partyMax, p + 1))}
             style={{ ...chip(false), width: 36 }}
-            aria-label="More people"
+            aria-label={t.more}
           >
             +
           </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6, marginBottom: 14 }}>
-        {dates.map((d, i) => (
-          <button
-            key={i}
-            type="button"
-            style={chip(i === dateIndex)}
-            onClick={() => setDateIndex(i)}
-            aria-pressed={i === dateIndex}
-          >
-            {dayLabel(d, i)}
-          </button>
-        ))}
-      </div>
+      {dates.length > 0 && ctx?.timezone ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6, marginBottom: 14 }}>
+          {dates.map((ymd, i) => (
+            <button
+              key={ymd}
+              type="button"
+              style={chip(ymd === activeDate)}
+              onClick={() => setSelectedDate(ymd)}
+              aria-pressed={ymd === activeDate}
+            >
+              {dayLabel(ymd, ctx.timezone!, locale, i === 0)}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {available && available.windows.length > 1 ? (
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
@@ -276,7 +392,7 @@ export function ReserveTableIsland({
 
       <div style={{ minHeight: 84, marginBottom: 14 }} aria-live="polite">
         {state.status === "loading" ? (
-          <p style={{ fontSize: 13.5, color: C.dim, margin: 0 }}>Checking the book…</p>
+          <p style={{ fontSize: 13.5, color: C.dim, margin: 0 }}>{t.checking}</p>
         ) : state.data.ok && shown ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
             {shown.slots.map((s) => (
@@ -291,7 +407,7 @@ export function ReserveTableIsland({
                 {s.isLastSeating ? (
                   <>
                     <br />
-                    <span style={{ fontSize: 10, color: "#8A6A00" }}>last table</span>
+                    <span style={{ fontSize: 10, color: "#8A6A00" }}>{t.lastTable}</span>
                   </>
                 ) : null}
               </button>
@@ -299,8 +415,8 @@ export function ReserveTableIsland({
           </div>
         ) : (
           <p style={{ fontSize: 13.5, color: C.muted, margin: 0, lineHeight: 1.6 }}>
-            {REFUSAL_COPY[state.data.ok ? "unavailable" : state.data.reason] ??
-              REFUSAL_COPY.unavailable}
+            {REFUSAL_COPY[locale][state.data.ok ? "unavailable" : state.data.reason] ??
+              REFUSAL_COPY[locale].unavailable}
           </p>
         )}
       </div>
@@ -321,24 +437,24 @@ export function ReserveTableIsland({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            aria-label="Name"
+            placeholder={t.name}
+            aria-label={t.name}
             style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
           />
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t.email}
             type="email"
-            aria-label="Email"
+            aria-label={t.email}
             style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
           />
           {notesEnabled ? (
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Anything we should know?"
-              aria-label="Special requests"
+              placeholder={t.note}
+              aria-label={t.noteAria}
               style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
             />
           ) : null}
@@ -358,25 +474,28 @@ export function ReserveTableIsland({
             color: C.accent,
           }}
         >
-          <strong>You are booked for {done.label}.</strong>
+          <strong>{t.bookedFor} {done.label}.</strong>
           <br />
-          {done.collectCents > 0
-            ? `A deposit of $${(done.collectCents / 100).toFixed(2)} is due; we have sent you the link.`
-            : "Nothing to pay now. We have sent a confirmation to your email."}
+          {done.collectCents > 0 ? depositLine(locale, done.collectCents) : t.nothingToPay}
         </div>
       ) : (
         <>
           {submitError ? (
             <p role="alert" style={{ fontSize: 13, color: "#A8471B", margin: "0 0 10px" }}>
-              {SUBMIT_REFUSAL_COPY[submitError] ?? SUBMIT_REFUSAL_COPY.engine_error}
+              {SUBMIT_REFUSAL_COPY[locale][submitError] ??
+                SUBMIT_REFUSAL_COPY[locale].engine_error}
             </p>
           ) : null}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              disabled={!slot || submitting || !name.trim() || !email.trim()}
+              disabled={!slot || !activeDate || submitting || !name.trim() || !email.trim()}
               onClick={async () => {
-                if (!slot) return;
+                // REFUSE rather than send a date we do not have. `activeDate`
+                // is the venue's, and a booking posted without one would be
+                // priced against whatever the server guessed — the exact
+                // failure this change exists to remove.
+                if (!slot || !activeDate) return;
                 setSubmitting(true);
                 setSubmitError(null);
                 try {
@@ -386,7 +505,7 @@ export function ReserveTableIsland({
                   const result = await submitReservation({
                     tenantId,
                     partySize: party,
-                    onDate,
+                    onDate: activeDate,
                     startsAtIso: slot.startsAtIso,
                     name: name.trim(),
                     email: email.trim(),
@@ -423,7 +542,11 @@ export function ReserveTableIsland({
                 cursor: slot && !submitting ? "pointer" : "default",
               }}
             >
-              {submitting ? "Booking" : slot ? `${ctaVerb} at ${slot.label}` : "Pick a time"}
+              {submitting
+                ? t.booking
+                : slot
+                  ? `${ctaVerb} ${locale === "es" ? "a las" : "at"} ${slot.label}`
+                  : t.pickTime}
             </button>
             {onAskFirst ? (
               <button
