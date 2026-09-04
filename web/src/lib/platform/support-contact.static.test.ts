@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { SUPPORT_EMAIL_CAN_RECEIVE } from "./support-contact";
 
 /**
@@ -23,7 +24,7 @@ test("no marketing page offers the support mailbox while it cannot receive mail"
   if (SUPPORT_EMAIL_CAN_RECEIVE) return; // Mail works; the channel is allowed.
 
   for (const page of PAGES) {
-    const src = readFileSync(page, "utf8");
+    const src = blankComments(readFileSync(page, "utf8"));
     const mailtos = src.match(/`mailto:\$\{SUPPORT_EMAIL\}`/g) ?? [];
     if (mailtos.length === 0) continue;
 
