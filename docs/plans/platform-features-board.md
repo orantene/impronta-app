@@ -137,6 +137,48 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## FOR WORKSPACE & DASHBOARDS: the Events rail slot was reported as built and does not exist
+
+**A manager's brief named a dependency as already satisfied. It was never built, and they found it by trying to build on it.** Prompt 7 says *"The Events page in the workspace rail (the Dashboards Director added the slot)."* Verified on `origin/main @ 4884afd65` by the director rather than routed on report — three checks, all zero:
+
+| Check | Result |
+|---|---|
+| `"events"` in the `WorkspacePage` union (`shell/internal/state/types.ts:31-52`) | **0** |
+| `"events"` in `WORKSPACE_PAGE_SEGMENTS` (`lib/admin/workspace-page-routing.ts:12-25`) | **0** |
+| an `admin/events/` route directory | **0** |
+
+The only `"events"` strings in `components/admin/shell` are in `dashboard-i18n.ts` and a talent `calendar-1.tsx`. Neither is a rail slot.
+
+**The missing slot is not the finding. The finding is that it sat in a plan looking satisfied.** This board already carries the identical case — Front Door told Directory they had the go to call `seedTenantTaxonomy` while the function existed on nobody's branch, and *"two people can both be waiting on each other for something that does not exist yet."*
+
+**The rule, stated so it covers the new case: verify a dependency exists on `origin/main`, never in the conversation about it — including when that conversation is your own brief from your director.** A brief is a claim like any other. Events is not chasing this; it is routed here, and they have gone at guest ticket purchase instead, which the paid seam on main already unblocks.
+
+## GITHUB'S MERGE FLAGS ARE EVENTUALLY-CONSISTENT. THE LOCAL MERGE TEST IS FASTER AND TRUER.
+
+**Found by the Reservations Manager immediately after a `--onto` rebase.** `gh` reported `CONFLICTING`; a local `git merge-tree` against `origin/main` was **clean at that same moment**; thirty seconds later GitHub said `MERGEABLE`.
+
+**Why believing the flag is expensive rather than merely slow: a conflicting PR fires no checks.** So a stale `CONFLICTING` sends you to "fix" a rebase that is already correct, and every minute of that is a minute the gates are not running on work that was ready.
+
+**This sits beside the existing rule that `mergeStateStatus BLOCKED` means both "a required check has not reported yet" and "a check failed".** Together: **GitHub's merge state is a cache, not an answer.** `git merge-tree` computes the real one locally in under a second.
+
+### The stacked-branch rebase, confirmed in practice
+
+`git rebase origin/main` on a branch whose parents were **squash-merged** replays commits already upstream and manufactures conflicts in code you never touched. The right form, and it worked first time:
+
+```
+git rebase --onto origin/main <the stack's last merged commit>
+```
+
+## ASK THE ENGINE, NOT THE TABLE — and the display honesty rule underneath it
+
+**A page can advertise a seat the engine would refuse.** Reservations reads `capacity_remaining_public` rather than counting `state = 'committed'` itself, and that is the only reason its availability is honest about holds — `20261229000200` excludes a live hold via `al.state = 'hold' AND al.expires_at > now()`.
+
+**The obvious thing to write would have been wrong.** Counting committed rows yourself advertises tables sitting inside someone else's ten-minute checkout, which is how two guests buy the last table and one finds out on arrival. **The engine being correct does not make the display honest.**
+
+**Same shape, found independently in Events:** `remaining` must subtract **held**, sold-out is `remaining <= 0` rather than `sold >= capacity`, an **uncapped** tier makes a total **NULL** rather than the sum of the capped ones, and **the door counts PEOPLE, not units of capacity** — a VIP table for 6 is one unit sold and six people through the door, so a pool-reading door tells a venue to expect 88 when 118 are coming.
+
+**That last one is the `units`-versus-`party_size` confusion arriving in the ARITHMETIC instead of the schema, in a different file, well after the column was killed.** It is the strongest evidence available that killing it was right: **a bad column does not merely store a wrong number, it teaches every later reader to compute the wrong one** — and here you can watch it try.
+
 ## FOR WORKSPACE & DASHBOARDS AND FOR APPOINTMENTS: the workspace calendar puts bookings and holds on their UTC day
 
 **Found by the Sessions & Classes Manager, who correctly did NOT fix it, and verified here line by line rather than routed on report.**
