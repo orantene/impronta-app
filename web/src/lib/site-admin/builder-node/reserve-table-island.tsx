@@ -21,7 +21,7 @@
  * told, and a guest who reads the wrong one goes somewhere else.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReserveAvailability, ReserveSlot } from "@/app/(public)/_reserve/reserve-actions";
 
 type Props = {
@@ -108,24 +108,40 @@ export function ReserveTableIsland({
 
   const onDate = ymdInZone(dates[dateIndex]!);
 
-  const load = useCallback(async () => {
+  // No useCallback. The React Compiler refuses to preserve a manual memo whose
+  // dependency it cannot prove stable, and `onDate` derives from a `dates`
+  // array rebuilt every render — so the memo was never buying anything and the
+  // compiler said so. The effect owns the fetch, keyed on three primitives.
+  //
+  // `cancelled` is not ceremony: a guest tapping party sizes fires overlapping
+  // loads, and without it a slow first response lands after a fast second one
+  // and shows times for a party they are no longer booking.
+  useEffect(() => {
+    let cancelled = false;
     setState({ status: "loading" });
     setSlot(null);
-    try {
-      const { loadReserveAvailability } = await import(
-        "@/app/(public)/_reserve/reserve-actions"
-      );
-      const data = await loadReserveAvailability({ tenantId, partySize: party, onDate });
-      setState({ status: "ready", data });
-      if (data.ok) setWindowKey((k) => (data.windows.some((w) => w.key === k) ? k : data.windows[0]?.key ?? null));
-    } catch {
-      setState({ status: "ready", data: { ok: false, reason: "unavailable" } });
-    }
+    void (async () => {
+      try {
+        const { loadReserveAvailability } = await import(
+          "@/app/(public)/_reserve/reserve-actions"
+        );
+        const data = await loadReserveAvailability({ tenantId, partySize: party, onDate });
+        if (cancelled) return;
+        setState({ status: "ready", data });
+        if (data.ok) {
+          setWindowKey((k) =>
+            data.windows.some((w) => w.key === k) ? k : (data.windows[0]?.key ?? null),
+          );
+        }
+      } catch {
+        if (cancelled) return;
+        setState({ status: "ready", data: { ok: false, reason: "unavailable" } });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [tenantId, party, onDate]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const available = state.status === "ready" && state.data.ok ? state.data : null;
   const shown = available?.windows.find((w) => w.key === windowKey) ?? available?.windows[0];
