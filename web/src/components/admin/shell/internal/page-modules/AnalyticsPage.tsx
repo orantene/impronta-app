@@ -117,6 +117,23 @@ function MoneyTab() {
       >
         {t("dashboard.adminAnalytics.moneyCta")}
       </a>
+      {/*
+        The Orders desk sits beside Financials because both are canonical
+        server routes, and a plain <a> is deliberate: `setPage` flips the SPA's
+        page state BEFORE the route commits, and a canonical route has no
+        page-module to render in that frame, so a rail entry would flash an
+        empty surface. Financials is off the rail for the same reason. Where
+        Orders finally belongs in the rail is a product decision, not this PR's.
+      */}
+      <p className="m-0 mb-[16px] mt-[20px] max-w-[520px] text-admin-13 leading-[1.6] text-admin-ink-muted">
+        {t("dashboard.adminAnalytics.ordersBody")}
+      </p>
+      <a
+        href={`${adminBasePath}/orders`}
+        className="inline-flex items-center gap-[6px] rounded-[9px] border border-admin-border-soft px-[16px] py-[9px] text-admin-13 font-semibold text-admin-ink no-underline"
+      >
+        {t("dashboard.adminAnalytics.ordersCta")}
+      </a>
     </div>
   );
 }
