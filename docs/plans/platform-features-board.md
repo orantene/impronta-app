@@ -808,6 +808,18 @@ Nobody had written this down. The Sessions & Classes Manager runs `test:capacity
 **And prefer a GLOB lane when you define one.** `test:sessions` and `test:reservations` are globs, so a new test file gates automatically. The recorded lane-collision incident **requires a hand-maintained file list to happen at all** — a glob is structurally immune rather than defended, and it removes the `package.json` conflict every parallel manager fights over.
 
 
+## THE BATCHED QA LIST
+
+Human click-verification, batched at the phase boundary rather than per slice. One row per screen.
+**Nobody edits anyone else's row.** A row is a deliverable: it says what to open, what to do, and what
+correct looks like, so a reader can check it without knowing how the thing is built.
+
+| Surface | Steps | What correct looks like |
+|---|---|---|
+| Workspace → Settings → Reservations, on a venue with at least one band group | Switch reservations on, set party size 1 to 8, set card-on-file from 6, save, then reload | The toggle and both numbers survive the reload. With card-on-file unchecked the row reads **"never"**, not 0. On a workspace with **no venue** the page says so instead of rendering an empty form. On a venue with **no bands** it still saves but says nothing is bookable yet. |
+| The `reserve_table` block on a tenant's public page | Pick a party of 2, then 6, then 12, across today and four following days | A party of 6 is offered nothing when only two-tops and four-tops exist, and offered times when an eight-top band is free. A party of 12 gets "message us", not an empty grid. A closed day says "we are closed that day", not "fully booked". The last offered time carries "last table" and no sold-out time does. Times are the venue's clock, not the browser's. |
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
