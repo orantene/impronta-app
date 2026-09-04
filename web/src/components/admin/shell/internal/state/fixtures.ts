@@ -24,12 +24,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "messages",
   "calendar",
   "sessions",
-  // The host stand. In the LIST because the rail is a projection of it — the
-  // `takes_reservations` filter in context.tsx removes it for workspaces with
-  // no service window, and a filter can only remove what the list contains.
-  // Leaving it out made that filter a no-op against a list it was never in,
-  // which is why the flag flipped true and no link appeared.
-  "reservations",
+  "reservations", // host stand; context.tsx filters it out when takes_reservations is false
   "menu",
   "roster",
   "clients",
@@ -288,10 +283,6 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
  * sections do NOT show up as top-level tabs.
  */
 export const TALENT_PAGES_ALL = Object.keys(TALENT_PAGE_META) as TalentPage[];
-
-
-
-
 
 export function meetsPlan(current: Plan, required: Plan): boolean {
   return PLAN_META[current].rank >= PLAN_META[required].rank;
