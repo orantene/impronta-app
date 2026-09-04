@@ -7,7 +7,7 @@ import {
   type RemindableReservation,
 } from "./reminders";
 
-const AT = new Date("2026-09-05T02:00:00Z"); // 20:00 Cancun
+const AT = new Date("2026-09-06T01:00:00Z"); // Sat 5 Sept, 20:00 Cancun (UTC-5)
 const min = (n: number) => new Date(AT.getTime() + n * 60_000);
 
 const r = (over: Partial<RemindableReservation> = {}): RemindableReservation => ({
