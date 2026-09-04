@@ -102,13 +102,32 @@ export type ExistingOccurrence = {
  * cannot know that another lands on the same instant, so the runner supplies
  * the venue's occupied set and this layer decides.
  */
-export type VenueOccupancy = ReadonlyArray<{ startsAt: string }>;
+export type VenueOccupancy = ReadonlyArray<{
+  sessionId: string;
+  startsAt: string;
+  /** For the refusal message. The series title, or the session's own. */
+  title: string | null;
+}>;
 
-/** An occurrence the materialiser refuses to create, and why. */
+/**
+ * An occurrence the materialiser refuses to create, and WHAT IT COLLIDED WITH.
+ *
+ * Naming the other side is not cosmetic and it is the whole difference between
+ * an acceptable false positive and this area's recorded defect. The venue scope
+ * below is deliberately coarse, so it can refuse an occurrence that is genuinely
+ * fine at a two-room venue. That is tolerable ONLY while the operator can see
+ * why and act: "cannot schedule" is the mistake; "collides with Salsa at 03:30,
+ * same instant" is a decision they can make. A refusal a human cannot
+ * distinguish from a different refusal is the same failure as a value a caller
+ * cannot distinguish from a different value.
+ */
 export type SkippedOccurrence = {
   startsAt: string;
   localDate: string;
   reason: "gap_shift_collision";
+  /** The session already holding that instant. */
+  collidesWithSessionId: string;
+  collidesWithTitle: string | null;
 };
 
 export type MaterialiseRefusal =
@@ -284,6 +303,14 @@ export function decideMaterialisation(
   // Only a `shifted` occurrence can cause it, which is why the kind is carried
   // up rather than re-derived.
   //
+  // SCOPED TO THE VENUE, NOT THE ROOM — and dated, so it is not rediscovered as
+  // a bug report. 2026-09-04: the venue is the coarsest thing this phase knows
+  // about rooms. Spaces shipped venues, spaces, groups and assignments
+  // (20261229000220-223) but ROOM-LEVEL POOLS are S4-S6, wave E, and do not
+  // exist. So today this can refuse an occurrence that is genuinely fine at a
+  // two-room venue. Accepted deliberately, with the Director, on the asymmetry
+  // below. TIGHTEN THE SCOPE FROM VENUE TO ROOM WHEN SPACES' ROOM POOLS LAND.
+  //
   // REFUSED, NOT PREVENTED BY A CONSTRAINT. A unique index on (venue, starts_at)
   // would refuse two classes legitimately running at once in two different
   // rooms, which is the refuse-a-valid-state mistake this area has already made
@@ -291,10 +318,14 @@ export function decideMaterialisation(
   // here: a class absent from a schedule the operator reads daily is visible,
   // while a room quietly sold twice is visible nowhere until two crowds arrive.
   // Choosing WHICH of two real shows moves is an operator decision, not ours.
-  const occupied = new Set<number>();
+  // Keyed by instant, valued by WHAT holds it, because a refusal that cannot
+  // name the other side is not actionable.
+  const occupied = new Map<number, { sessionId: string; title: string | null }>();
   for (const row of venueOccupancy) {
     const at = Date.parse(row.startsAt);
-    if (Number.isFinite(at)) occupied.add(at);
+    if (Number.isFinite(at) && !occupied.has(at)) {
+      occupied.set(at, { sessionId: row.sessionId, title: row.title });
+    }
   }
   // A shifted occurrence can also collide with another occurrence of THIS
   // series in the same run, so the set grows as we go.
@@ -302,11 +333,23 @@ export function decideMaterialisation(
   const skipped: SkippedOccurrence[] = [];
   for (const occ of wantedNew) {
     const at = Date.parse(occ.startsAt);
-    if (occ.kind === "shifted" && occupied.has(at)) {
-      skipped.push({ startsAt: occ.startsAt, localDate: occ.localDate, reason: "gap_shift_collision" });
+    const holder = occ.kind === "shifted" ? occupied.get(at) : undefined;
+    if (holder) {
+      skipped.push({
+        startsAt: occ.startsAt,
+        localDate: occ.localDate,
+        reason: "gap_shift_collision",
+        collidesWithSessionId: holder.sessionId,
+        collidesWithTitle: holder.title,
+      });
       continue;
     }
-    occupied.add(at);
+    // A later occurrence of THIS series can collide with an earlier one, so the
+    // map grows as we go. `series.id` names it honestly rather than pretending
+    // the clash came from elsewhere.
+    if (!occupied.has(at)) {
+      occupied.set(at, { sessionId: `pending:${series.id}`, title: series.title });
+    }
     create.push(occ);
   }
 

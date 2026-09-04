@@ -193,11 +193,11 @@ export async function GET(request: Request) {
       // collision. Scoped to the venue because two classes at one instant in
       // two different rooms is normal; only the same room is a problem, and the
       // venue is the coarsest thing this phase knows about rooms.
-      let venueOccupancy: Array<{ startsAt: string }> = [];
+      let venueOccupancy: Array<{ sessionId: string; startsAt: string; title: string | null }> = [];
       if (row.venue_id) {
         const { data: venueRows, error: venueError } = await admin
           .from("sessions")
-          .select("starts_at, series_id")
+          .select("id, starts_at, series_id, title")
           .eq("venue_id", String(row.venue_id))
           .eq("status", "scheduled")
           .gte("starts_at", now.toISOString())
@@ -208,7 +208,11 @@ export async function GET(request: Request) {
         }
         venueOccupancy = (venueRows ?? [])
           .filter((r) => String(r.series_id ?? "") !== series.id)
-          .map((r) => ({ startsAt: String(r.starts_at) }));
+          .map((r) => ({
+            sessionId: String(r.id),
+            startsAt: String(r.starts_at),
+            title: typeof r.title === "string" ? r.title : null,
+          }));
       }
 
       const decision = decideMaterialisation(
@@ -228,6 +232,14 @@ export async function GET(request: Request) {
       }
 
       skipped += decision.skipped.length;
+      // Every refusal names what it collided with. The venue scope is coarse on
+      // purpose (see materialise.ts), so a refusal an operator cannot act on
+      // would turn an accepted false positive into this area's recorded defect.
+      for (const s of decision.skipped) {
+        improntaLog({
+          message: `[cron.materialise-sessions] REFUSED ${series.title} on ${s.localDate} at ${s.startsAt}: a daylight-saving shift put it on the same instant as ${s.collidesWithTitle ?? "another session"} (${s.collidesWithSessionId}) at this venue. Move one of them.`,
+        });
+      }
 
       for (const occ of decision.create) {
         const { data: inserted, error: insertError } = await admin

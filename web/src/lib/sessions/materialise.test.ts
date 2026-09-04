@@ -280,7 +280,7 @@ test("a SHIFTED occurrence colliding with an instant another series holds is ref
     [],
     now,
     DEFAULT_HORIZON_DAYS,
-    [{ startsAt: at0330.create[0]!.startsAt }],
+    [{ sessionId: "sess-0330", startsAt: at0330.create[0]!.startsAt, title: "Salsa" }],
   );
   assert.equal(at0230.ok, true);
   if (!at0230.ok) return;
@@ -288,6 +288,10 @@ test("a SHIFTED occurrence colliding with an instant another series holds is ref
   // the wrong reason the day the resolver changes.
   assert.equal(at0230.skipped.length, 1, "the shifted occurrence was not refused");
   assert.equal(at0230.skipped[0]!.reason, "gap_shift_collision");
+  // The refusal must NAME what it collided with. A refusal a human cannot
+  // distinguish from a different refusal is the defect this scope risks.
+  assert.equal(at0230.skipped[0]!.collidesWithSessionId, "sess-0330");
+  assert.equal(at0230.skipped[0]!.collidesWithTitle, "Salsa");
   assert.equal(at0230.create.length, 0);
   assert.equal(
     Date.parse(at0230.skipped[0]!.startsAt),
@@ -308,7 +312,7 @@ test("an EXACT occurrence on an occupied instant is NOT refused", () => {
     [],
     now,
     DEFAULT_HORIZON_DAYS,
-    first.create.map((o) => ({ startsAt: o.startsAt })),
+    first.create.map((o, i) => ({ sessionId: `other-${i}`, startsAt: o.startsAt, title: "Vinyasa B" })),
   );
   assert.equal(second.ok, true);
   if (!second.ok) return;
