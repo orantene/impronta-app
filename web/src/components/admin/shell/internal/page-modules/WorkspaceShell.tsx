@@ -106,7 +106,7 @@ export function WorkspaceShell() {
 // the agency plan at the rail (the in-page gate stays as the backstop).
 const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "sessions", "clients"] },
+  { label: "Operate", pages: ["messages", "calendar", "sessions", "reservations", "clients"] },
   { label: "Sell and grow", pages: ["menu", "roster", "pitches", "reviews", "analytics"] },
   { label: "Site", pages: ["website", "media"] },
 ];
@@ -136,6 +136,7 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   menu: "layers",
   roster: "team",
   clients: "briefcase",
+  reservations: "calendar",
   pitches: "send",
   reviews: "star",
   analytics: "chart",

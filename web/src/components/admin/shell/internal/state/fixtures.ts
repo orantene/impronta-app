@@ -24,6 +24,12 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "messages",
   "calendar",
   "sessions",
+  // The host stand. In the LIST because the rail is a projection of it — the
+  // `takes_reservations` filter in context.tsx removes it for workspaces with
+  // no service window, and a filter can only remove what the list contains.
+  // Leaving it out made that filter a no-op against a list it was never in,
+  // which is why the flag flipped true and no link appeared.
+  "reservations",
   "menu",
   "roster",
   "clients",
