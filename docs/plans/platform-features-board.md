@@ -427,17 +427,15 @@ A buyer-paid fee is a new order line with the platform as payee, a new commissio
 
 **Out of Phase 2 deliberately**, so nobody plans against them: seat maps and layouts (Spaces S4/S5, wave E — `events.layout_id` ships nullable and unread, though the **VIP-table tier survives** on a `space_group` pool S2 already shipped), wallet passes, PDF tickets, tier add-ons, transfers, waitlist, embed, walk-up card sales, and **offline door scanning** (E8 is online-first with the scanned list cached, degrading to a warning).
 
-## THE BATCHED QA LIST — every manager APPENDS, nobody clicks per slice
+## THE BATCHED QA LIST LIVES IN ONE FILE: `docs/plans/phase-boundary-qa.md`
 
-**Human QA is batched at the phase boundary, not requested per slice.** Development runs to completion, then one full pass. **This list is the deliverable.** Format: surface · exact steps · what correct looks like. Append your own; do not edit anyone else's.
+**Consolidated 2026-09-04, because three of them had started forming** — a section in this board, a manager's branch, and a file the CEO seeded — **and none was on `main`.** Managers were told to batch their click-verification with nowhere to batch it to, so in practice it evaporated. Three lists for one purpose is the duplicate-write shape this board keeps recording; it is now **one file**, carried into git here.
 
-| Area | Surface | Steps | What correct looks like | Owner |
-|---|---|---|---|---|
-| **Sessions & Classes** | P1.3, the workspace Sessions surface | *(to be appended when P1.3 lands)* | — | Sessions & Classes |
-| **Reservations** | R2 settings page · R3 availability endpoint and block | *(to be appended; both shipped labelled **unclicked by design**)* | — | Reservations |
-| **Events & Ticketing** | door app / check-in | *(after the `admissions` migration)* | — | Events & Ticketing |
+**The rule, unchanged:** a manager does **not** ask the owner to click a slice. Items go on that list with **exact steps and the exact thing that would falsify them**, written for someone who has never seen the code. The owner runs the list **once** at the phase boundary. A slice ships on tests and CI; it is **not called finished** until its line is ticked.
 
-**Standing, and it does not soften:** nobody asserts a UI path they have not clicked. Batching changes *when* the click happens, never *whether* an unclicked path may be described as working. Anything shipped before its pass is labelled **unclicked by design** in its PR body.
+**Falsification is the column that does the work.** "Check the settings page works" is not an item. *"Unchecked card-on-file reads **never**, not 0"* is — it names the thing that would be wrong, so a reader who has never seen the code can tell a pass from a plausible-looking failure. Every row this cluster has added carries one.
+
+**Do not add a row for something a human cannot yet exercise.** A cron with no screen and a calendar with nothing on it are not QA rows; a row that proves nothing is exactly what batching exists to avoid.
 
 ## SESSIONS, EVENTS & RESERVATIONS — first entry, 2026-09-03 night
 
