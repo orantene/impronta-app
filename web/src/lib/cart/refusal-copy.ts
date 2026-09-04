@@ -53,6 +53,13 @@ export type RefusalReason =
   | "sold_out"
   | "slot_taken"
   | "slot_required"
+  | "promo_unknown"
+  | "promo_not_started"
+  | "promo_expired"
+  | "promo_exhausted"
+  | "promo_customer_limit"
+  | "promo_not_applicable"
+  | "promo_unavailable"
   | "capacity_unavailable"
   | "engine_error"
   // Capacity engine refusals, surfaced through the same path.
@@ -159,6 +166,49 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
   // Everything below is a bug, a race or an outage. A person must never be
   // sent hunting for a problem that is not theirs, so none of these suggest
   // changing the order.
+  // ── Promo codes. A buyer who typed a code is OWED a reason: the purchase
+  // refuses rather than charging full price, so this copy is the only thing
+  // standing between them and a screen that says no without saying why.
+  promo_unknown: {
+    kind: "input",
+    en: "We do not recognise that code.",
+    es: "No reconocemos ese código.",
+  },
+  // "It starts Friday" and "it ended Sunday" are the two things most worth
+  // telling someone holding a code that is otherwise perfect.
+  promo_not_started: {
+    kind: "absence",
+    en: "That code is not active yet.",
+    es: "Ese código aún no está activo.",
+  },
+  promo_expired: {
+    kind: "absence",
+    en: "That code has expired.",
+    es: "Ese código ya venció.",
+  },
+  promo_exhausted: {
+    kind: "absence",
+    en: "That code has been fully claimed.",
+    es: "Ese código ya se agotó.",
+  },
+  // Distinct from exhausted on purpose: the code is alive and someone else can
+  // still use it. Telling this person it is "used up" would be false.
+  promo_customer_limit: {
+    kind: "absence",
+    en: "You have already used that code.",
+    es: "Ya usaste ese código.",
+  },
+  promo_not_applicable: {
+    kind: "input",
+    en: "That code does not apply to this order.",
+    es: "Ese código no aplica a este pedido.",
+  },
+  // OURS, not theirs. The code may be perfectly good; we could not check it.
+  promo_unavailable: {
+    kind: "fault",
+    en: "We could not check that code just now. Please try again.",
+    es: "No pudimos verificar ese código. Inténtalo de nuevo.",
+  },
   capacity_unavailable: {
     kind: "fault",
     en: "We could not confirm availability just now. Please try again.",

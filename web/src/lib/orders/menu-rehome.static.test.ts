@@ -105,9 +105,25 @@ test("the pipeline never touches talent holds or booking slots", () => {
   // only because the spine it was forced through demanded one.
   assert.ok(!PIPELINE.includes('.from("talent_holds")'), "pipeline must not write talent_holds");
   assert.ok(!PIPELINE.includes('.from("talent_bookings")'), "pipeline must not write talent_bookings");
+  // Pinned to the PLACEHOLDER, not to the token.
+  //
+  // This forbade `starts_at` anywhere in `lib/orders/`, and went red the moment
+  // the promo resolver SELECTed `starts_at` from `tenant_promo_codes` — a
+  // column read that has nothing to do with calendars. The widening I did to
+  // this file (scan the directory, not one named file) enlarged the surface the
+  // token could appear on, so a rule that was merely coarse became a false
+  // positive waiting to happen.
+  //
+  // The bug was never the word. It was stamping a time a taco does not have:
+  // `starts_at` SET EQUAL TO `ends_at`, or set to `now()`, to satisfy a
+  // calendar the order never belonged on. That is what is pinned now.
   assert.ok(
-    !/starts_at[\s:]/.test(PIPELINE),
+    !/starts_at\s*:\s*(new Date\(\)|now\(\)|Date\.now|nowIso|ends_at|endsAt)/.test(PIPELINE),
     "pipeline must not stamp a calendar placeholder — that was the bug",
+  );
+  assert.ok(
+    !/(starts_at|ends_at)\s*:\s*[^,\n]*\bnow/i.test(PIPELINE),
+    "pipeline must not stamp now() as a booking window",
   );
 });
 
