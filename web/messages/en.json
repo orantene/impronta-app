@@ -4044,7 +4044,7 @@
       "holdLabel": "Hold",
       "bookingLabel": "Booking",
       "orderLabel": "Orders",
-      "sessionLabel": "Class",
+      "sessionLabel": "Session",
       "noEventsDay": "Nothing scheduled this day."
     },
     "adminWork": {

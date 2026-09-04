@@ -4044,7 +4044,7 @@
       "holdLabel": "Retencion",
       "bookingLabel": "Reserva",
       "orderLabel": "Pedidos",
-      "sessionLabel": "Clase",
+      "sessionLabel": "Sesión",
       "noEventsDay": "Nada agendado este dia."
     },
     "adminWork": {
