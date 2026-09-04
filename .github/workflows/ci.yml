@@ -392,6 +392,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
+      # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
+      # the status moves (cancelled is terminal), doors as an OFFSET so it never
+      # acquires a second wall clock, and the refund decision, which returns a
+      # reason so "nobody set a policy" cannot be served to a customer as "the
+      # window closed". A GLOB lane on purpose: the hand-maintained file list is
+      # what made the lane-name collision lose coverage silently.
+      - name: tests — events and ticketing
+        if: ${{ !cancelled() }}
+        run: npm run test:events
+
       # Sessions & Classes (Phase 1). Pure: the recurrence resolver, whose DST
       # tests assert the naive 7x24h expansion DRIFTS while this one does not,
       # and the tier-pool request builder that makes a timeless allocation
