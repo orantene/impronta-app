@@ -131,6 +131,7 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   overview: "home",
   messages: "mail",
   calendar: "calendar",
+  sessions: "layers",
   menu: "layers",
   roster: "team",
   clients: "briefcase",
