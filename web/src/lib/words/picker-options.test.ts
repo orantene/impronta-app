@@ -16,7 +16,7 @@ import { presetPickerModel, presetSummary } from "./picker-options";
  */
 
 test("the selected value is ALWAYS present in the options", () => {
-  // Every input a real column can hold: the sixteen valid ids, plus everything
+  // Every input a real column can hold: every valid id, plus everything
   // that could have reached the JSONB by any other route.
   const inputs: unknown[] = [
     ...INDUSTRY_PRESET_IDS,
@@ -68,10 +68,10 @@ test("every option has a non-blank label and blurb, in both languages", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("all sixteen presets are offered, with no duplicates", () => {
+test("all nineteen presets are offered, with no duplicates", () => {
   const { options } = presetPickerModel(null, "en");
-  assert.equal(options.length, 16);
-  assert.equal(new Set(options.map((o) => o.value)).size, 16);
+  assert.equal(options.length, 19);
+  assert.equal(new Set(options.map((o) => o.value)).size, 19);
 });
 
 test("the summary says what the choice turns on, before it is made", () => {

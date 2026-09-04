@@ -140,6 +140,15 @@ export const WORD_ROWS: ReadonlyArray<WordRow> = [
     fallback: { en: "Order now", es: "Pedir ahora" },
   },
   {
+    // The defining fact of a drop-off business, and the first question every one
+    // of their customers has. No other preset asks for it; `dropoff_service`
+    // exists partly because nothing could express it.
+    key: "menu.turnaround",
+    feature: "menu",
+    where: { en: "How long it takes", es: "Cuánto tarda" },
+    fallback: { en: "Turnaround", es: "Tiempo de entrega" },
+  },
+  {
     key: "menu.sold_out",
     feature: "menu",
     where: { en: "Sold out", es: "Agotado" },
