@@ -137,6 +137,37 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## E0 APPLIED AND VERIFIED — `admissions` exists, and the `units` column would have broken the VIP tier
+
+**`20261229000360_admissions` applied to production and verified by the director independently of the manager's report**, past existence and past shape:
+
+```
+cols 19 · units column ABSENT · party_size PRESENT · 5 CHECK constraints
+RLS enabled · anon SELECT = false · in ledger · 0 rows left behind by the probe
+```
+
+**Three independent paths reached the same answer on `units`, which is about as much confidence as a schema decision gets here.** The director reversed their own approval; Sessions & Classes refuted the column on grain; and **the owning manager found the killing case while trying to defend it.**
+
+**The killing case is the feature's own headline tier.** A **VIP table for 6 is ONE allocation of ONE unit admitting SIX people.** With `units` present, `CHECK (admitted_count <= units)` caps a six-person table at **one guest through the door.** So `units` was not merely a duplicate of `party_size` — it was **actively wrong for the case Events owns**. Asked for a row where the two counts must differ, the manager went looking for one to defend their column and found the one that killed it.
+
+**The grain now lives in the schema, in the column's own words**, which is what stops the commission P0 recurring:
+
+> *"How many PEOPLE this one admission admits, and the only count the door asks for. Not capacity consumed: a VIP table for 6 is one allocation of 1 unit admitting 6. The capacity side is the allocation's job; a second count column here would differ in grain under a name that hides it."*
+
+**A landed constraint is not an enforcing one, so the manager proved the guards REFUSE** — a `DO` block raising at the end so nothing persists: `refused=3 accepted=0` against anchored-to-nothing, 3-of-2, and party-0, with `count(*) = 0` afterwards. That is the Reservations `COALESCE` lesson generalised: **existence is not shape, and shape is not behaviour.**
+
+**And the wrapper trap fired again, in the hands of someone who had been warned about it ten minutes earlier:** their first apply reported `REAL_EXIT=0` from `tail` while the script had failed on a missing env var. Read node's exit directly, never through a pipe.
+
+### RATIFIED: deleting or cancelling an event must not orphan its nights
+
+`20261229000214:159-160` grants `anon` a `SELECT` on `sessions USING (status = 'scheduled')`. So `sessions.event_id ON DELETE SET NULL` would leave a deleted show's nights **publicly selectable as standalone schedule entries**, with the event that explained them gone. Found by Sessions & Classes, **extended by Events and the extension is the half that matters**: cancelling an event must cancel its sessions too, or the show is cancelled and its nights stay on sale — and cancellation is the path that actually gets used. `DELETE` is permitted only for a `draft` event with zero admissions, so the FK clause becomes **a backstop that never fires**, which is the correct job for one.
+
+### STAMP A CLAIM ABOUT *ABSENCE* HARDER THAN A CLAIM ABOUT PRESENCE
+
+Extension to the sha rule, from Events & Ticketing, and it is sharper than the rule it extends. **Absence is the claim that decays silently**, because the thing that falsifies it arrives later and nobody re-runs the search. Presence claims mostly stay true. *"Nothing on main moves an order to `paid`"* was true at `7c4642377` and false sixteen minutes later, and had reached three documents before anyone re-checked.
+
+**Companion to it, covering both of the director's errors tonight:** the grep was *right target, wrong query*; the `units` approval was *right reasoning, no object*. Both felt like verification because something was genuinely examined — just not the thing the claim was about. **The tell is identical: you can perform the check without the artefact in front of you. If a verification never opens the object, it is a review of a sentence.**
+
 ## ATTACH THE SHA TO EVERY MEASURED CLAIM — an undated measurement decays into a false claim
 
 **Named by the Sessions & Classes Manager about their own finding, caught by Events & Ticketing, and propagated one hop further by this director.**
