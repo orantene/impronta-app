@@ -15,6 +15,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { TicketFeeTable } from "@/components/marketing/ticket-fee-table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -158,6 +159,17 @@ export default async function PricingPage({
           >
             {c.fineA} {c.fineB} {c.fineC}
           </p>
+        </MarketingContainer>
+      </MarketingSection>
+
+      {/* What a ticket carries, here and on Eventbrite. Lives on pricing
+          rather than the ticketing feature page: ticketing is still
+          `status: "coming"`, so a comparison page would invite someone to
+          switch to a product they cannot buy. Here it is a statement about how
+          we charge, which needs no shipped product. */}
+      <MarketingSection>
+        <MarketingContainer size="wide">
+          <TicketFeeTable locale={locale} />
         </MarketingContainer>
       </MarketingSection>
 
