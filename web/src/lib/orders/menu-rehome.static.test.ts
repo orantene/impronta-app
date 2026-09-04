@@ -112,9 +112,21 @@ test("the pipeline never touches talent holds or booking slots", () => {
 });
 
 test("the pipeline does not reach for the lossy stock shim", () => {
-  // `release_offering_stock` frees a QUANTITY newest-first and can release a
-  // DIFFERENT allocation than the caller reserved. Capacity labelled it lossy
-  // and is waiting on the last caller to delete it.
+  // `release_offering_stock` frees a QUANTITY newest-first, so it can release a
+  // DIFFERENT allocation than the caller reserved. That is the invariant: this
+  // pipeline releases BY ALLOCATION ID, never by quantity.
+  //
+  // Deliberately phrased as a property of the code and not as a fact about
+  // anyone's queue. The previous wording said Capacity "is waiting on the last
+  // caller to delete it", which stops being true the moment they drop the RPCs
+  // — and a reader following a false reason goes looking for a caller that no
+  // longer exists. A stale comment is a nuisance; a false one sends someone on
+  // an errand.
+  //
+  // The assertions stay after the drop even though the names will exist
+  // nowhere. Nearly tautological is not worthless: quantity-based release is a
+  // shape someone could rebuild under a new name, and this is the file that
+  // records why nobody should.
   assert.ok(
     !PIPELINE.includes("release_offering_stock"),
     "release by allocation ids, never by quantity",
