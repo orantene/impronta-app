@@ -175,7 +175,13 @@ export async function createReservation(
   }
 
   try {
-    const { data: line } = await admin
+    // Destructure `error` and act on it. PostgREST does not throw: a missing
+    // table, a denied policy and a bad column all arrive as `data: null`, so a
+    // dropped error becomes an empty result that reads as success. Here that
+    // would be worse than a crash — a null `order_line_id` is the shape of a
+    // WALK-IN, so a failed read would silently turn a booked, possibly paid
+    // reservation into one that looks like nobody bought anything.
+    const { data: line, error: lineError } = await admin
       .from("order_lines")
       .select("id")
       .eq("order_id", purchase.orderId)
@@ -183,12 +189,19 @@ export async function createReservation(
       .limit(1)
       .maybeSingle();
 
+    if (lineError || !line?.id) {
+      // The order and its hold STAND, for the same reason as below: the guest
+      // holds a real table and a repairable record beats a released one.
+      logServerError("reservations.createReservation/orderLine", lineError);
+      return { ok: false, reason: "engine_error", error: "order_line_not_found" };
+    }
+
     const { data: admission, error } = await admin
       .from("admissions")
       .insert({
         tenant_id: input.tenantId,
         allocation_id: purchase.allocationIds[0] ?? null,
-        order_line_id: line?.id ?? null,
+        order_line_id: line.id as string,
         space_id: null, // unassigned is a valid state; the host seats them
         customer_id: purchase.customerId,
         holder_name: input.contact.displayName ?? null,
