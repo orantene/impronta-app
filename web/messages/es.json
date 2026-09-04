@@ -7059,7 +7059,10 @@
           "ageDays": "{days} d",
           "retry": "Reintentar",
           "retryResult": "Reintento: {released} liberados, {stillHeld} aún retenidos, {failed} fallidos.",
-          "retryFailed": "Reintento fallido: {error}"
+          "retryFailed": "Reintento fallido: {error}",
+          "summaryWithScheduled": "{held} esperando cuenta · {scheduled} programados · {failed} fallidos",
+          "scheduledBadge": "Programado",
+          "scheduledHint": "Aún no vence. Se libera el {date}, no antes."
         },
         "commission": {
           "title": "Configuración de comisiones",

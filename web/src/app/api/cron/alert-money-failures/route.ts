@@ -75,11 +75,22 @@ export async function GET(request: Request) {
       .limit(50);
     if (staleFailedErr) throw staleFailedErr;
 
-    // 2. Held payout legs older than 24 h.
+    // 2. Held payout legs older than 24 h AND ACTUALLY DUE.
+    //
+    // The `release_after` clause is not a refinement, it is what keeps this
+    // alarm honest. A ticket payout correctly gated to a show three weeks out
+    // is `held` and older than 24 hours from the day after it is created, so
+    // without this it would fire every day for twenty days on a leg that is
+    // behaving exactly as designed. An alarm that cries wolf on the happy path
+    // gets muted, and a muted alarm is worse than no alarm.
+    //
+    // Stale-held therefore means "held longer than expected AND the money is
+    // due", not merely "held for a while".
     const { data: staleHeld, error: staleHeldErr } = await admin
       .from("booking_payouts")
-      .select("id, party, talent_profile_id, tenant_id, created_at")
+      .select("id, party, talent_profile_id, tenant_id, created_at, release_after")
       .eq("status", "held")
+      .or(`release_after.is.null,release_after.lte.${now.toISOString()}`)
       .lt("created_at", twentyFourHoursAgo)
       .order("created_at", { ascending: true })
       .limit(50);
