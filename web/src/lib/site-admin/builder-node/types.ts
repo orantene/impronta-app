@@ -44,6 +44,7 @@ export type BuilderNodeKind =
   // data-driven blocks. Structural leaves (`children: { type: "none" }`).
   | "hero_search"
   | "menu_board"
+  | "reserve_table"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
   // registry Impronta's live pages reach through `section_embed` bridges.
@@ -1099,6 +1100,34 @@ export interface BuilderHeroSearchNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * RESERVATIONS — the public block a guest books a table from. Party, date,
+ * service window, time, name, email. NO floor plan and no table picking: a
+ * guest books "a table for four at eight", and which table that becomes is the
+ * host's job at the door.
+ *
+ * `tenantId` is NOT here: the renderer injects it from
+ * `options.dataSources.tenantId`, exactly as `menu_board` does. An operator
+ * cannot type a tenant id and must never be asked to.
+ *
+ * `partyMin` / `partyMax` are DISPLAY BOUNDS ONLY. The server re-derives them
+ * from `venue_service_rules` and refuses anything outside, so a block edited to
+ * `partyMax: 500` would offer times and then refuse the booking with a reason.
+ * They exist so the stepper does not offer obvious nonsense, not as a gate.
+ */
+export interface BuilderReserveTableNode extends BuilderNodeBase {
+  kind: "reserve_table";
+  props: {
+    venueName?: string;
+    ctaVerb?: string;
+    partyMin?: number;
+    partyMax?: number;
+    cardNotice?: string | null;
+    notesEnabled?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderMenuBoardNode extends BuilderNodeBase {
   kind: "menu_board";
   props: {
@@ -2035,6 +2064,7 @@ export type BuilderNode =
   | BuilderSocialFeedNode
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
+  | BuilderReserveTableNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode

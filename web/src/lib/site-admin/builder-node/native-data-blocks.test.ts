@@ -126,10 +126,30 @@ function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }):
   } as TalentOfferingRow;
 }
 
+/**
+ * The blocks this file guards. Extracted to ONE constant because the same list
+ * was hardcoded inline in THREE separate places, and a block added to two of
+ * them and missed in the third would be guarded by two assertions out of three
+ * with nothing failing — the same silent-partial-registration shape this file
+ * exists to catch.
+ *
+ * `reserve_table` is here despite having NO `native-data-block-needs` entry: it
+ * loads its availability client-side through a dynamically imported server
+ * action, so it needs no server provisioning, but it is still a registry leaf
+ * that must be insertable and must seed a valid tree. Those are what the
+ * assertions below actually check.
+ */
+const NATIVE_DATA_BLOCK_KINDS = [
+  "hero_search",
+  "menu_board",
+  "talent_type_grid",
+  "reserve_table",
+] as const;
+
 // ── registry + insertability ────────────────────────────────────────────────
 
 test("all native data blocks are registered as structural leaves", () => {
-  for (const kind of ["hero_search", "menu_board", "talent_type_grid"] as const) {
+  for (const kind of NATIVE_DATA_BLOCK_KINDS) {
     const entry = BUILDER_NODE_REGISTRY[kind];
     assert.ok(entry, `missing registry entry for ${kind}`);
     assert.equal(
@@ -142,13 +162,13 @@ test("all native data blocks are registered as structural leaves", () => {
 
 test("all native data blocks are in the shipped insert catalog", () => {
   const shipped = new Set(SHIPPED_ELEMENT_INSERT_KINDS);
-  assert.ok(shipped.has("hero_search"));
-  assert.ok(shipped.has("menu_board"));
-  assert.ok(shipped.has("talent_type_grid"));
+  for (const kind of NATIVE_DATA_BLOCK_KINDS) {
+    assert.ok(shipped.has(kind), `${kind} is not in the shipped insert catalog`);
+  }
 });
 
 test("createBuilderNode seeds a VALID tree for every native data block", () => {
-  for (const kind of ["hero_search", "menu_board", "talent_type_grid"] as const) {
+  for (const kind of NATIVE_DATA_BLOCK_KINDS) {
     const node = createBuilderNode(kind);
     assert.equal(node.kind, kind);
     const result = validateBuilderNodeTree([node]);

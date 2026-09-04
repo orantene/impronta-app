@@ -85,6 +85,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Search hero";
     case "menu_board":
       return "Menu · orderable items";
+    case "reserve_table":
+      return "Reserve · books a real table";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

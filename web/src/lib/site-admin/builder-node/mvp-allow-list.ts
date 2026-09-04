@@ -106,6 +106,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     nav: "layout",
     social_links: "utility",
     menu_board: "actions",
+    reserve_table: "actions",
     carousel: "layout",
     masonry: "layout",
     accordion: "structure",
@@ -186,7 +187,13 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     icon: "svg symbol pictogram check star heart arrow sparkle",
     pricing_table: "pricing plans tiers packages features check marks conversion",
     rich_text: "body copy rich text bold italic inline links markdown",
+    // Found by gallery-native-kind-registration.test.ts: hero_search had a
+    // category and a shipped-list entry but NO search terms, so it sat in the
+    // picker and could not be found by typing its name. Pre-existing.
+    hero_search: "hero search find talent directory discovery search bar landing",
+    talent_type_grid: "talent disciplines categories roster taxonomy grid cards by discipline",
   menu_board: "menu orderable items quantities checkout restaurant catering workspace menu",
+  reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
     form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
@@ -265,6 +272,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // MVP_ELEMENT_LIBRARY_KINDS and only need to survive the shipped filter.
     "hero_search",
     "menu_board",
+    "reserve_table",
     "talent_type_grid",
     // BUILDER 2027 · P2A — all twelve are shipped + droppable. The four roster
     // bands reach the picker through the CONNECTED tab and the four `header_*`
