@@ -5523,6 +5523,7 @@ function renderBuilderNodeElement(
             partyMax={p.partyMax ?? 8}
             cardNotice={p.cardNotice ?? null}
             notesEnabled={p.notesEnabled ?? true}
+            locale={options.contentLocale?.locale}
           />
         </div>
       );
