@@ -21,6 +21,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { recordCronHeartbeat } from "@/lib/ops/cron-heartbeat";
 import * as Sentry from "@sentry/nextjs";
 import { runLedgerProjection } from "@/lib/ledger/run-projection";
 import { logServerError } from "@/lib/server/safe-error";
@@ -83,6 +84,23 @@ export async function GET(request: Request) {
       // Observability must not affect the response.
     }
   }
+
+  // Heartbeat on BOTH paths. A run that failed is still a run: the job is
+  // alive and its own Sentry alert covers the failure. Recording only successes
+  // would make a hard-failing job indistinguishable from a stopped one, and
+  // they need different responses.
+  await recordCronHeartbeat({
+    job: "project-ledger",
+    ok: result.ok,
+    detail: result.ok
+      ? `projected=${
+          result.bookingPayments.projected +
+          result.processingFees.projected +
+          result.invoices.projected +
+          result.payouts.projected
+        } refused=${refusedTotal}`
+      : `failed: ${result.error ?? "unknown"}`,
+  });
 
   if (!result.ok) {
     return NextResponse.json(result, { status: 500 });
