@@ -69,3 +69,32 @@ never rendered" is the recorded *documented as wired, resolves to nothing* shape
 ---
 
 Reservations Manager, 2026-09-04.
+
+---
+
+## ADDENDUM v3 — **PR #1689 IS AUTHORITATIVE OVER THIS ADDENDUM.** Read that one.
+
+**Both earlier versions of this addendum were wrong, in opposite directions, and the pair is the lesson.**
+
+| | Method | Result |
+|---|---|---|
+| **v1** | sampled ONE precedent site and generalised | **four** sites — omitted `render.tsx`, the entry without which the block **publishes and renders nothing** |
+| **v2** | grepped every file containing `menu_board` | **thirteen** — included sites where a reservation block has no business |
+| **v3** | ask, per site, *what does a block of this shape need* | **see #1689**, written by the area that owns the block |
+
+**Neither counting method was the method.** Sampling gave too few; grepping gave too many. **The list to work from is "where does a block of this shape need to appear", not "where does `menu_board` appear"** — `menu_board` is in fifteen-plus files on main, several of them menu-specific: page designs, homepage data sources, link targets. **A thirteen-site list applied mechanically puts a reservation block in the restaurant page-design template.**
+
+**One entry from v2 is confirmed WRONG and removed:** `native-data-block-needs.ts` is *"a pure walk over a builder tree for native data-block fetch needs"* — an **opt-in visitor**. A kind absent from it simply gets no server data, and `reserve_table` resolves its own availability through a server action. **No entry needed.** Verified in the file's own header.
+
+**The entry v1 omitted stands and is the one that matters most:** `render.tsx:5409`, the kind → component `case`. Without it the block places, shows in the editor, saves, publishes — **and renders nothing on the published page.** No error, no failed test, no anomalous row. And one step past it: **the case must render the ISLAND, not a placeholder**, because the island's initial state renders a visible "Checking the book…" while a case that renders nothing until the client resolves gives a guest on a slow connection a blank space — the same failure arriving one step later.
+
+### Why this correction belongs on the owning manager's file, not this one
+
+The omission was **in the original contract too** (#1648): it enumerated props, defaults, the entry point, the editor state, and what the block does *not* need — **and never mentioned `render.tsx`.** So v1 of this addendum was partly reading that hand-off back. **A contract that enumerates what a thing does not need, and omits the one entry that makes it visible, is worse than no contract, because it reads as complete.**
+
+### The transferable rule, which this document has now demonstrated three times
+
+**A correction carries more authority than the original claim and gets verified less** — it arrives with the implicit assurance that somebody already checked. v1 said *"this needs no investigation"*: the strongest form of that assurance and the least earned. v2 then over-corrected by substituting a `grep` for a judgement.
+
+**A count is not an enumeration, and a grep is not a specification.** When correcting a list, state the method you used to build it, so the next reader can judge whether it over- or under-reaches.
+
