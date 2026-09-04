@@ -38,9 +38,36 @@ export type CompleteOrderResult =
  * is a sale, and one payment does not always complete a sale (a deposit does
  * not).
  */
+/**
+ * Called once, AFTER the order is `paid`, with the lines already read.
+ *
+ * A seam, not a dependency: Orders imports nothing from Events or anywhere
+ * else, and the wiring happens at the call site in `markPaid`, which already
+ * knows about both. Lines are passed rather than an order id so a subscriber
+ * does not re-read what has just been read.
+ *
+ * It CANNOT block the settle. A throw or rejection is caught and logged and
+ * `ok` is returned regardless — the flip has already happened and nothing
+ * after it rolls back. Anything whose absence would be a defect needs its own
+ * reconciler; see the shortfall view Events built for admissions. That pairing
+ * is the whole design: this gives immediacy, the reconciler gives correctness,
+ * and neither is sufficient alone.
+ */
+export type OnOrderPaid = (ctx: {
+  orderId: string;
+  tenantId: string;
+  lines: Array<{
+    id: string;
+    units: number;
+    sessionId: string | null;
+    variantId: string | null;
+  }>;
+}) => Promise<void>;
+
 export async function completeOrderForTransaction(
   admin: SupabaseClient,
   transactionId: string,
+  deps: { onOrderPaid?: OnOrderPaid } = {},
 ): Promise<CompleteOrderResult> {
   try {
     const { data: txn, error: txnErr } = await admin
@@ -62,7 +89,7 @@ export async function completeOrderForTransaction(
 
     const { data: order, error: orderErr } = await admin
       .from("orders")
-      .select("id, status, total_cents, version")
+      .select("id, status, total_cents, version, tenant_id")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -72,7 +99,10 @@ export async function completeOrderForTransaction(
     }
     if (!order) return { ok: false, reason: "not_found" };
 
-    const row = order as { id: string; status: string; total_cents: number; version: number };
+    const row = order as {
+      id: string; status: string; total_cents: number; version: number;
+      tenant_id: string;
+    };
 
     // Already settled. Idempotent because webhooks redeliver, and a second
     // delivery must not re-commit capacity or re-emit anything.
@@ -160,6 +190,44 @@ export async function completeOrderForTransaction(
     if (flipErr) {
       logServerError("orders.completeOrder/flip", flipErr);
       return { ok: false, reason: "unavailable", error: "Could not settle the order." };
+    }
+
+    // ── The seam. After the flip, never before, and never able to stop it.
+    if (deps.onOrderPaid) {
+      try {
+        const { data: lineRows, error: lineErr } = await admin
+          .from("order_lines")
+          .select("id, units, session_id, variant_id")
+          .eq("order_id", orderId);
+        if (lineErr) {
+          logServerError("orders.completeOrder/onOrderPaid/lines", lineErr);
+        } else {
+          await deps.onOrderPaid({
+            orderId,
+            tenantId: row.tenant_id,
+            lines: (lineRows ?? []).map((l) => {
+              const r = l as {
+                id: string; units: number | string;
+                session_id: string | null; variant_id: string | null;
+              };
+              return {
+                id: r.id,
+                // `units` is NUMERIC(12,3) and arrives as a string from
+                // PostgREST. A subscriber minting one admission per unit would
+                // otherwise iterate the characters of "4.000".
+                units: Number(r.units),
+                sessionId: r.session_id,
+                variantId: r.variant_id,
+              };
+            }),
+          });
+        }
+      } catch (hookErr) {
+        // Swallowed on purpose. A subscriber's failure must not turn a
+        // completed payment into a failed webhook that Stripe retries against
+        // work that is already done.
+        logServerError("orders.completeOrder/onOrderPaid", hookErr);
+      }
     }
 
     return { ok: true, orderId, status: "paid", committed };
