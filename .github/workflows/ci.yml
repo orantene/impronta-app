@@ -417,6 +417,13 @@ jobs:
       - name: tests — reservations
         if: ${{ !cancelled() }}
         run: npm run test:reservations
+      # QR & Links Q1: which destination a printed code resolves to, at the
+      # hour it is actually scanned. Pure — a wall clock in the venue timezone
+      # and a rule list, no database. The rows and the redirect are asserted in
+      # production after the migration, not here.
+      - name: tests — qr and links
+        if: ${{ !cancelled() }}
+        run: npm run test:links
 
       - name: tests — words and industry presets
         if: ${{ !cancelled() }}

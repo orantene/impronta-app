@@ -613,3 +613,40 @@ test("staff watermark-bake repair route lives under /api/admin and is reachable 
     assert.equal(isPathAllowedForHostKind(kind, "/api/media/bake-watermark"), false, kind);
   }
 });
+
+// ── QR & Links Q1: /q/<code>, the tracked-link resolver ─────────────────────
+//
+// This gate is the reason the engine works at all. A route file at
+// src/app/q/[code]/route.ts that is correct in every respect still 404s if the
+// allow-list does not know the path, because the proxy rewrites unrecognised
+// paths to /_page-not-found BEFORE Next routing runs. These four assertions are
+// what stands between a printed table tent and a dead code.
+
+test("/q resolves on the two host kinds that carry a tenant", () => {
+  for (const path of ["/q/t7", "/q/door", "/q/reserve"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+  }
+});
+
+test("/q does NOT resolve on app or marketing, where no tenant owns the code", () => {
+  // Not an oversight. A code is meaningless without an owner to look it up
+  // under, so the handler could only 404 there anyway; allow-listing a path
+  // that can never resolve would make this table lie about what exists.
+  assert.equal(isPathAllowedForHostKind("app", "/q/t7"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/q/t7"), false);
+});
+
+test('a tenant cannot claim the slug "q" and shadow every printed code', () => {
+  // Without the reservation, /q/admin would parse as tenant "q" on the admin
+  // surface, and one workspace's slug would silently swallow the resolver for
+  // the whole platform.
+  assert.equal(isPathAllowedForHostKind("app", "/q/admin"), false);
+  assert.equal(resolvePathBasedTenantPublicPath("/q/t7"), null);
+});
+
+test("/q is not confused with a tenant slug that merely starts with q", () => {
+  // The reservation is on the exact segment, not a prefix: a workspace called
+  // "quinta-real" must keep working.
+  assert.equal(isPathAllowedForHostKind("app", "/quinta-real/admin"), true);
+});

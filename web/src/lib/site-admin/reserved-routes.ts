@@ -65,6 +65,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   // Public parent segment for path-based workspaces (tulala.digital/w/<slug>).
   // Reserved so a workspace can never claim "w" and shadow the parent.
   "w",
+  // QR & Links: /q/<code> is the tracked-link resolver and resolves on every
+  // tenant host, so a CMS page at this slug could never open.
+  "q",
   "sitemap.xml",
   "robots.txt",
   "_next",
