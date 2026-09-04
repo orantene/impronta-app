@@ -51,9 +51,37 @@ The block is useless without a venue, a service window and at least one band gro
 grid is the failure mode to avoid** — it looks broken rather than unconfigured. Preferred: the editor
 preview says which of the three is missing and links to Settings → Reservations.
 
+## THE ENTRY THAT MAKES OR BREAKS IT: the kind-to-component case in `render.tsx`
+
+**Added after the first version of this contract omitted it.** Without this entry the block
+places in the builder, shows in the editor, saves, publishes — **and renders nothing on the published
+page.** A guest gets an empty space. No error, no failed test, no anomalous row. It is the exact defect
+this contract exists to prevent, and the first draft would have caused it.
+
+`render.tsx` has a `case "<kind>":` mapping a node kind to what actually renders. `reserve_table` needs
+one, and it is simpler than `menu_board`'s: **it takes nothing from `options.dataSources`**, because the
+island fetches its own availability through a dynamically imported server action.
+
+**But it must still render the island, not a placeholder, and here is the trap:** the published page is
+server-rendered first. The island's initial state is `{ status: "loading" }`, which renders *"Checking
+the book…"* — a visible state. **If the case renders nothing until the client resolves, a guest on a slow
+connection sees a blank space**, which is the same failure as omitting the case entirely, arriving one
+step later. `menu_board`'s own comment says it: *an absent or empty source must still produce a visible
+empty state rather than a blank page.*
+
 ## What it does NOT need
 
-- No `native-data-block-needs` entry — it fetches its own data client-side through the action.
+- **No `native-data-block-needs` entry — verified, not assumed.** That file is an opt-in visitor
+  (`if (node.kind === ...)`), so a kind that is absent simply gets no server data, which is exactly
+  right here. Absence is safe **because** the island fetches its own.
+
+- **This contract is not a count of sites.** An earlier hand-off listed four registration entries and
+  was corrected to thirteen. Neither number is the thing to copy: `menu_board` appears in fifteen-plus
+  files on main, and several are menu-specific — page designs, homepage data sources, link targets —
+  where `reserve_table` has no business. **The list to work from is "where does a block of this shape
+  need to appear", not "where does `menu_board` appear"**, and the difference is the same
+  over-generalisation that turned one real security fix into a rule that would have broken a working
+  view.
 - No new path in `surface-allow-list.ts`. **A server action posts to the page's own URL**, so this block
   adds no surface. Worth stating loudly, because three managers queued for that file this week and this
   one did not need to.
