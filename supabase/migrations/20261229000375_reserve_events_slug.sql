@@ -32,8 +32,16 @@ BEGIN;
 -- `reason` is NOT NULL and has no default, on purpose: a reserved slug with no
 -- stated reason is one nobody can ever safely un-reserve, because the next
 -- reader cannot tell whether the route still exists.
+-- THE TUPLE MUST START A LINE. `reserved-routes.collisions.static.test.ts:139`
+-- reads layer 2 out of the migration FILES with `/^\s*\('([^']+)',/gm`, because
+-- nothing else in CI can see the SQL. A tuple sharing a line with `VALUES` is
+-- semantically identical and invisible to that regex — so a correct migration
+-- fails the guard, and the DB and the guard disagree about a database that is
+-- actually right. Formatting is load-bearing here; that is worth knowing before
+-- someone "tidies" it back.
 INSERT INTO public.platform_reserved_slugs (slug, reason)
-VALUES ('events', 'Events & Ticketing: /events and /events/<slug> resolve on every tenant host, so a CMS page at this slug could never open.')
+VALUES
+  ('events', 'Events & Ticketing: /events and /events/<slug> resolve on every tenant host, so a CMS page at this slug could never open.')
 ON CONFLICT (slug) DO NOTHING;
 
 COMMIT;
