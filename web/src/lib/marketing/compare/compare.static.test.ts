@@ -86,6 +86,17 @@ test("slugs and paths are unique and well formed", () => {
   }
 });
 
+test("a sourcing caveat, when present, is written in both languages", () => {
+  for (const c of COMPARISONS) {
+    if (!c.sourceCaveat) continue;
+    assert.ok(
+      c.sourceCaveat.en.trim().length > 0 && c.sourceCaveat.es.trim().length > 0,
+      `${c.key}: a caveat that only appears in one language hides the limitation ` +
+        `from half the readers it was written for.`,
+    );
+  }
+});
+
 test("both languages carry the same comparison rows", () => {
   for (const c of COMPARISONS) {
     assert.equal(
