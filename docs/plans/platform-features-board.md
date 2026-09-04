@@ -137,6 +137,169 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## EVERY `CREATE TABLE` IN `public` ARRIVES WITH `anon` HOLDING EVERYTHING
+
+**FOR QR & LINKS, AND FOR ANY DEPARTMENT THAT CREATED A TABLE THIS WEEK.** Found by the Reservations Manager on their own table, generalised by the director across all ten this cluster has created, and independently re-verified by the Sessions & Classes Manager on theirs.
+
+Supabase's default privileges grant **ALL** on every new `public` table, so `anon` and `authenticated` arrive holding SELECT, INSERT, UPDATE and DELETE. Measured in production:
+
+| Table | anon INSERT/UPDATE/DELETE | Owner |
+|---|---|---|
+| `venue_service_windows` | **present** | Reservations — fix assigned |
+| `venue_service_window_exceptions` | **present** | Reservations — fix assigned |
+| `venue_service_rules` | **present** | Reservations — fix assigned |
+| `links` | **present** | **QR & Links** |
+| `link_scans` | **present** | **QR & Links** |
+| `admissions`, `customer_payment_methods`, `events`, `sessions`, `session_series` | clean | — |
+
+**Not an active breach, and that was checked rather than assumed:** all five have RLS enabled with exactly **one** policy — SELECT, `{authenticated}` only — so anon writes and reads are both refused today. **It is defence in depth.** But it is one accidental permissive policy, or one `DISABLE ROW LEVEL SECURITY`, from being live, and **nobody adding a policy later will think to check the grant underneath it.**
+
+### CORRECTION, and it reverses what this director told three people: FOR TABLES, `REVOKE ... FROM PUBLIC` IS THE NO-OP
+
+**Caught by the Platform Features Director by measuring, after this director asserted the opposite three times and the CEO repeated it.** Measured in production:
+
+```
+table grants in `public` by grantee:
+  postgres 2037 · service_role 2037 · authenticated 1799 · anon 785 · PUBLIC 0
+functions in `public` carrying EXECUTE for PUBLIC:  600 of 707
+```
+
+**`PUBLIC` holds ZERO table grants.** Supabase grants **directly** to `anon` and `authenticated`, so on a table **`REVOKE ... FROM anon` is what works** and `REVOKE ... FROM PUBLIC` changes nothing while reading exactly like a fix.
+
+**TABLES AND FUNCTIONS DEFAULT OPPOSITELY, and that is the whole lesson:**
+
+| | Default grant holder | The command that works | The no-op that looks like a fix |
+|---|---|---|---|
+| **Tables** | `anon` / `authenticated` directly | `REVOKE … FROM anon` | `REVOKE … FROM PUBLIC` |
+| **Functions** | `PUBLIC` (600 of 707) | `REVOKE … FROM PUBLIC` | `REVOKE … FROM anon` |
+
+**The recorded `REVOKE FROM anon is a no-op` incident is about FUNCTIONS.** This director pattern-matched it onto tables and inverted the advice, then repeated it to two managers, a peer department and this board. **A recorded lesson applied to the wrong object class is a new defect wearing an old lesson's authority** — and it is harder to catch than an original mistake, because it arrives with a citation.
+
+**The check that settles it either way, and the only instruction worth carrying: verify with `has_table_privilege` / `has_function_privilege`, never with the absence of an error.** That was right in both versions and it is what makes the direction recoverable.
+
+**Also a hard condition on the platform migration: do not touch `authenticated` writes.** 240 tables carry them and the app writes as `authenticated` for every signed-in user.
+
+**Two checks after every apply, neither of which `to_regclass` covers:** `has_table_privilege` for the grants, and the policy list for what RLS actually permits. **Existence is not correctness, and neither is RLS-is-on.**
+
+**How it was found is the transferable part.** The manager ran `has_table_privilege` on a table they had *just applied*, instead of stopping at `to_regclass`. The finding generalised because they made it **checkable**, not because they made it once. And three managers each measuring their own tables beats one director's ten-table sweep — a single typo in that query's table list would have read as clean.
+
+**A legitimate anon SELECT, stated so the grant list is readable later:** `sessions` grants it deliberately — a published session is public information, RLS-gated to `status='scheduled'` — and it is safe rather than merely intended **because remaining seats never come from a row**; `capacity_remaining_public` returns one integer, so a public read cannot infer capacity from what it can see.
+
+## CALL THE FUNCTION, DO NOT PERSIST THE ANSWER
+
+**Sessions & Classes, on how to surface a materialisation refusal to an operator.** The obvious design is a table or column the cron writes and the editor reads. They refused it, and the reasoning generalises past this feature.
+
+`decideMaterialisation` is **pure**, so the editor calls **the same function the cron calls**, against current data, at read time. No migration, no band number, no schema growth for a read surface.
+
+**The surface cannot drift from the sweep's behaviour, because it is not a copy of the behaviour — it is the behaviour.**
+
+**Every other choice in this cluster tonight was between two things that agree today** — two seating grids, two denominators, two timezone resolvers, two hand-duplicated calendar unions, three QA lists. This is the option where **the second thing does not exist at all**, and it is only available because the decision layer was kept pure.
+
+**And the staleness argument is the one to use on anyone who wants the table:** a persisted refusal records what was true at 04:20, while the operator is reading it because something is wrong **now**. A stored answer that was correct when written and is wrong when read is **indistinguishable from a correct one** — the same shape as a claim without a sha, one layer up.
+
+**A feature that needs a table to explain itself usually needs a function.**
+
+## OPERATIONAL: a PR touching `.github/workflows/ci.yml` ROUTES TO A DIRECTOR. The discriminator is unknown.
+
+**Written down deliberately without an explanation, because the next manager to register a test lane will hit the failure, not the success, and will reasonably conclude they need an auth change. They do not.**
+
+A manager's merge of a `ci.yml` PR was refused:
+
+```
+GraphQL: refusing to allow an OAuth App to create or update workflow
+`.github/workflows/ci.yml` without `workflow` scope (mergePullRequest)
+```
+
+**The same merge, by a director, went through with no error.** Both tokens are `gho_`; both carry `gist, read:org, repo`; neither has `workflow`.
+
+**Both obvious theories are dead and were killed by checking rather than arguing.** *Squash versus merge commit* — `git rev-list --parents -n 1` on the successful one returned a single parent, so it was a squash, the same operation. *OAuth-token type* — identical prefixes on both sides. Nobody has named the real discriminator and this entry does not pretend to.
+
+**The operational answer is the whole answer: route `ci.yml` PRs to a director.** One line of handoff, costs nobody a permission, and **it never reached the owner.**
+
+**Why it stayed off the owner's desk is worth more than the workaround.** The manager first sized the fix as *"five seconds of typing"* — `gh auth refresh -s workflow` — then corrected themselves: *five seconds of typing and a permission grant on the owner's account are not the same thing.* **THE COST OF AN OWNER ASK IS THE PERMISSION, NOT THE KEYSTROKES.** That cuts directly against what makes an escalation feel cheap, which is that the asking is cheap. Prove the cheaper path fails first; then ask once, framed as removing a recurring block rather than unblocking one PR.
+
+### Do not apply the `--onto` remedy where a plain rebase is correct
+
+`git rebase --onto origin/main <last-merged-commit>` is for a branch **whose parents were squash-merged underneath it** — commits now upstream in a different shape, which a plain rebase replays and turns into conflicts in code you never touched. **A branch cut straight from `origin/main` carrying only its own commits takes the plain `git rebase origin/main`**, and using `--onto` there is its own small mess. **Check which case you are in before reaching for the remedy** — a fix applied to the wrong shape is still a defect.
+
+### The glob lane's ordering dependency, now demonstrated in the good direction
+
+After `test:events` was registered and the follow-up branch rebased onto it, the lane ran **26 tests, real exit 0** — the manager's 21 plus 5 picked up from an already-merged sibling file, **with no edit to any list anywhere.** That is the mechanism working correctly, and it is exactly what would have **run nowhere while reporting green** had the branches merged in the other order.
+
+## FOR FINANCE: holding a ticket payout as `'held'` RELEASES IT BEFORE THE SHOW, silently
+
+**Found by the Events & Ticketing Manager at design time, verified independently by this director and again by the CEO. Nothing was built; nothing shipped.**
+
+The Events brief said *"reuse `booking_payouts` status `'held'` and `releaseHeldPayouts`; add the `on_session_end` rule."* That does the opposite of what it reads like.
+
+**Measured, production schema:** `booking_payouts` has **20 columns and ZERO time-gate columns** — no `release_after`, `hold_reason`, `order_id`, `hold_until` or `available_at`.
+
+**Measured, `origin/main`:** the release query has **no time predicate at either site** — `booking-payouts-ledger.ts:247` and `:399` are both `.in("status", ["held", "failed"])` and nothing more. The function's own header names its triggers: *"Called when an account flips to payouts-enabled (account.updated webhook) and by the reconcile cron."*
+
+**So a ticket payout marked `'held'` releases on the next account flip or the next reconcile — before the show. Nothing errors**, because "held then released" is exactly what that path exists to do. The money leaves early and the only signal is that it worked.
+
+**Why it is unarguable rather than a judgement call.** `'held'` **already means** *the payee's account cannot receive yet*, which an account flip legitimately resolves. *"The show has not happened yet"* is resolved by **time**. **Two states under one label with OPPOSITE correct behaviour on the SAME trigger.** This is `one label, three states` again and **worse than the recorded case** — that one was a label hiding a defect; this one has a live trigger doing the wrong thing to half the rows it matches.
+
+**Fix, Finance's file and Finance's call:** `booking_payouts.release_after timestamptz`, **nullable so NULL means due now** and every existing leg is untouched, plus `release_after IS NULL OR release_after <= now()` in the release query.
+
+**CEO's condition, and it is the part most likely to be dropped: the clause goes at BOTH sites (`:247` and `:399`).** A half-applied fix **holds on one path and releases on the other**, which is worse than none — it produces a hold that works whenever anyone tests it and fails on the path nobody exercised. *When a predicate is missing from N call sites, the fix is N edits or it is not a fix.*
+
+**E7 is parked and its exit proof is honestly unreachable until the column exists.** The manager refused to produce a proof by holding money in a way that does not hold — **a green test over a hold that silently releases is worse than an unfinished feature**, and the completion push does not authorise faking a proof.
+
+### A BRIEF IS A CLAIM — including your own brief from your own director
+
+**Three items in one manager's brief did not survive contact with `origin/main` in a single session:** the `admissions` shape (superseded, because the correction sat in an unmerged PR), the Events rail slot (never built), and this payout hold (a status that means something else).
+
+**All three were written by this director**, describing an *intended end state*, and read — reasonably — as a description of the code. The CEO reports the same failure at their level, having briefed the same manager off the superseded `admissions` shape.
+
+**Three for three is the brief, not the manager.** Verify a dependency exists on `origin/main`, never in the conversation about it, and treat a brief with the same suspicion as any other claim about the code.
+
+### Routing correction: cross-department findings go to the CEO, not through a manager
+
+Using a manager both sides could reach was **good improvisation while nothing better existed**, and it is how the `is_staff_of_tenant` finding actually travelled. But it **puts a finding through a third party who did not measure it.** The CEO's channel reaches every session; a director's does not. **Send cross-department findings to the CEO, who verifies and routes** — that is a CEO function, not a workaround.
+
+## FOR WORKSPACE & DASHBOARDS: the Events rail slot was reported as built and does not exist
+
+**A manager's brief named a dependency as already satisfied. It was never built, and they found it by trying to build on it.** Prompt 7 says *"The Events page in the workspace rail (the Dashboards Director added the slot)."* Verified on `origin/main @ 4884afd65` by the director rather than routed on report — three checks, all zero:
+
+| Check | Result |
+|---|---|
+| `"events"` in the `WorkspacePage` union (`shell/internal/state/types.ts:31-52`) | **0** |
+| `"events"` in `WORKSPACE_PAGE_SEGMENTS` (`lib/admin/workspace-page-routing.ts:12-25`) | **0** |
+| an `admin/events/` route directory | **0** |
+
+The only `"events"` strings in `components/admin/shell` are in `dashboard-i18n.ts` and a talent `calendar-1.tsx`. Neither is a rail slot.
+
+**The missing slot is not the finding. The finding is that it sat in a plan looking satisfied.** This board already carries the identical case — Front Door told Directory they had the go to call `seedTenantTaxonomy` while the function existed on nobody's branch, and *"two people can both be waiting on each other for something that does not exist yet."*
+
+**The rule, stated so it covers the new case: verify a dependency exists on `origin/main`, never in the conversation about it — including when that conversation is your own brief from your director.** A brief is a claim like any other. Events is not chasing this; it is routed here, and they have gone at guest ticket purchase instead, which the paid seam on main already unblocks.
+
+## GITHUB'S MERGE FLAGS ARE EVENTUALLY-CONSISTENT. THE LOCAL MERGE TEST IS FASTER AND TRUER.
+
+**Found by the Reservations Manager immediately after a `--onto` rebase.** `gh` reported `CONFLICTING`; a local `git merge-tree` against `origin/main` was **clean at that same moment**; thirty seconds later GitHub said `MERGEABLE`.
+
+**Why believing the flag is expensive rather than merely slow: a conflicting PR fires no checks.** So a stale `CONFLICTING` sends you to "fix" a rebase that is already correct, and every minute of that is a minute the gates are not running on work that was ready.
+
+**This sits beside the existing rule that `mergeStateStatus BLOCKED` means both "a required check has not reported yet" and "a check failed".** Together: **GitHub's merge state is a cache, not an answer.** `git merge-tree` computes the real one locally in under a second.
+
+### The stacked-branch rebase, confirmed in practice
+
+`git rebase origin/main` on a branch whose parents were **squash-merged** replays commits already upstream and manufactures conflicts in code you never touched. The right form, and it worked first time:
+
+```
+git rebase --onto origin/main <the stack's last merged commit>
+```
+
+## ASK THE ENGINE, NOT THE TABLE — and the display honesty rule underneath it
+
+**A page can advertise a seat the engine would refuse.** Reservations reads `capacity_remaining_public` rather than counting `state = 'committed'` itself, and that is the only reason its availability is honest about holds — `20261229000200` excludes a live hold via `al.state = 'hold' AND al.expires_at > now()`.
+
+**The obvious thing to write would have been wrong.** Counting committed rows yourself advertises tables sitting inside someone else's ten-minute checkout, which is how two guests buy the last table and one finds out on arrival. **The engine being correct does not make the display honest.**
+
+**Same shape, found independently in Events:** `remaining` must subtract **held**, sold-out is `remaining <= 0` rather than `sold >= capacity`, an **uncapped** tier makes a total **NULL** rather than the sum of the capped ones, and **the door counts PEOPLE, not units of capacity** — a VIP table for 6 is one unit sold and six people through the door, so a pool-reading door tells a venue to expect 88 when 118 are coming.
+
+**That last one is the `units`-versus-`party_size` confusion arriving in the ARITHMETIC instead of the schema, in a different file, well after the column was killed.** It is the strongest evidence available that killing it was right: **a bad column does not merely store a wrong number, it teaches every later reader to compute the wrong one** — and here you can watch it try.
+
 ## FOR WORKSPACE & DASHBOARDS AND FOR APPOINTMENTS: the workspace calendar puts bookings and holds on their UTC day
 
 **Found by the Sessions & Classes Manager, who correctly did NOT fix it, and verified here line by line rather than routed on report.**
