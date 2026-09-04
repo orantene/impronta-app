@@ -26,6 +26,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_SURFACE_FUNCTIONS } from "./public-surface-functions";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(HERE, "..", "..", "..", "..", "supabase", "migrations");
@@ -55,13 +56,9 @@ const POLICY_PREDICATES: ReadonlyArray<readonly [string, number]> = [
 ];
 
 /** Functions the app reaches with an anon-key client. Revoking anon blanks them. */
-const PUBLIC_SURFACE_FUNCTIONS: readonly string[] = [
-  "ensure_guest_session",
-  "guest_add_saved_talent",
-  "guest_list_saved_talent_ids",
-  "guest_remove_saved_talent",
-  "talent_public_site_for_profile_code",
-];
+// Moved to its own module so the DB-backed complement check
+// (scripts/check-anon-function-grants.mjs) reads the SAME list. Two copies of a
+// security boundary is two boundaries, and they drift.
 
 test("every function REVOKE in the hardening migration names PUBLIC", () => {
   const sql = readMigration(REVOKE_MIGRATION);

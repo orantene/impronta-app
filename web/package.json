@@ -219,7 +219,8 @@
     "check:dead-facets": "node scripts/check-dead-facets.mjs",
     "verify:no-embed-bridges": "tsx --env-file=.env.local scripts/verify-no-embed-bridges.ts",
     "verify:no-embed-bridges:selftest": "tsx scripts/verify-no-embed-bridges.ts --selftest",
-    "test:e2e:hydration": "playwright test e2e/hydration-error-boundary.spec.ts"
+    "test:e2e:hydration": "playwright test e2e/hydration-error-boundary.spec.ts",
+    "check:anon-grants": "node scripts/check-anon-function-grants.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
