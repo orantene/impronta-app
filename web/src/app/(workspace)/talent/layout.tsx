@@ -73,6 +73,9 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   // The platform talent surface is not a tenant workspace at all; "talent"
   // is the every-surface-visible default and changes nothing here.
   workspaceType: "talent",
+  // The platform talent surface has no venue and no service rules, so this is
+  // false as a fact, not as a default.
+  takesReservations: false,
   logoUrl: null,
   accentColor: null,
   verifiedDomain: null,
