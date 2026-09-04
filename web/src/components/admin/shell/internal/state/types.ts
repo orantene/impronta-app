@@ -42,6 +42,7 @@ export type WorkspacePage =
   | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
   | "financials" // L46 — business financials. Canonical server-rendered route; NOT a SPA nav tab.
   | "orders"     // 0.10 — the Orders desk. Canonical server-rendered route; NOT a SPA nav tab.
+  | "reservations" // R3 — the host stand (reservations book). Canonical server route like orders; NOT a SPA nav tab. Rail entry + is_active visibility gate are a follow-up (see docs/plans/reservations-rail-slot-contract.md).
   | "payouts"    // Stripe Connect payout onboarding + base reservation fee. In-shell SPA section (not in nav).
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
