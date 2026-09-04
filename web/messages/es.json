@@ -4044,6 +4044,7 @@
       "holdLabel": "Retencion",
       "bookingLabel": "Reserva",
       "orderLabel": "Pedidos",
+      "sessionLabel": "Clase",
       "noEventsDay": "Nada agendado este dia."
     },
     "adminWork": {
@@ -11889,7 +11890,43 @@
       "avgRating": "Calificación media",
       "publishedReviews": "Reseñas publicadas",
       "talentRated": "Talento calificado",
-      "hidden": "Ocultas"
+      "hidden": "Ocultas",
+      "ordersCta": "Abrir el panel de pedidos",
+      "ordersBody": "Todos los pedidos de este espacio de trabajo, con el saldo pendiente de cada uno."
+    },
+    "orders": {
+      "bucketAll": "Todos",
+      "bucketOpen": "En curso",
+      "bucketReversed": "Cancelados y reembolsados",
+      "bucketSettled": "Pagados",
+      "bucketToPay": "Pendiente de pago",
+      "colChannel": "Origen",
+      "colCustomer": "Cliente",
+      "colOrder": "Pedido",
+      "colOutstanding": "Saldo pendiente",
+      "colStatus": "Estado",
+      "colTotal": "Total",
+      "emptyBody": "Cuando alguien pida desde tu menú o reserve un horario, aparecerá aquí.",
+      "emptyTitle": "Aún no hay pedidos",
+      "lineCount": "artículos",
+      "noCustomer": "Sin nombre registrado",
+      "openThread": "Abrir conversación",
+      "pageIntro": "Todos los pedidos de este espacio de trabajo, en un solo lugar.",
+      "pageTitle": "Pedidos",
+      "statusCancelled": "Cancelado",
+      "statusDraft": "Borrador",
+      "statusFulfilled": "Completado",
+      "statusPaid": "Pagado",
+      "statusPartiallyRefunded": "Reembolsado en parte",
+      "statusPendingPayment": "Pendiente de pago",
+      "statusQuoted": "Cotizado",
+      "statusRefunded": "Reembolsado",
+      "totalsCount": "pedidos mostrados",
+      "totalsOutstanding": "Saldo pendiente",
+      "totalsScopeNote": "Estos totales describen los pedidos mostrados, no todo el espacio de trabajo.",
+      "totalsSettled": "Pagado",
+      "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
+      "unavailableTitle": "No pudimos cargar tus pedidos"
     }
   },
   "admin": {

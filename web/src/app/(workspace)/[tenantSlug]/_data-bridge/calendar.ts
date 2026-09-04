@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { utcToZonedYmd } from "@/lib/scheduling/tz";
 
 /**
  * _data-bridge/calendar.ts — calendar page data loader.
@@ -10,7 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
  * Empty array stays blank (no RICH_INQUIRIES mock).
  */
 
-export type CalendarEventKind = "inquiry" | "booking" | "hold" | "order";
+export type CalendarEventKind = "inquiry" | "booking" | "hold" | "order" | "session";
 
 export type CalendarEvent = {
   id: string;
@@ -29,6 +30,26 @@ function ymdFromInstant(iso: string): string {
 }
 
 /**
+ * The LOCAL day an instant falls on, for a row that knows its zone.
+ *
+ * `ymdFromInstant` above takes the UTC date by slicing the string, which is
+ * wrong for any row whose zone is not UTC and wrong *silently*: a 20:00 class in
+ * Cancun is 01:00 UTC the NEXT day, so it lands on tomorrow's column; a 01:00
+ * show in Madrid is 23:00 UTC the previous day and lands on yesterday's. The
+ * error is invisible except at the edges of a day, which is exactly where a
+ * late class or an early show lives.
+ *
+ * Sessions carry a venue zone, so they get the honest answer. The existing
+ * booking and hold rows are left on the slice deliberately — changing how other
+ * features' rows land on the calendar is not this slice's business, and it is
+ * reported rather than fixed in passing.
+ */
+function localYmd(iso: string, timeZone: string | null): string {
+  if (!timeZone) return ymdFromInstant(iso);
+  return utcToZonedYmd(new Date(iso), timeZone) ?? ymdFromInstant(iso);
+}
+
+/**
  * Load calendar rows for the workspace: dated inquiries, timed bookings,
  * and unexpired firm holds. Dedupes an inquiry when a booking or hold
  * already carries that inquiry's time.
@@ -42,7 +63,7 @@ export async function loadCalendarEvents(
 
     const nowIso = new Date().toISOString();
 
-    const [inqRes, bookRes, holdRes] = await Promise.all([
+    const [inqRes, bookRes, holdRes, sessionRes] = await Promise.all([
       supabase
         .from("inquiries")
         .select("id, contact_name, company, event_date, status")
@@ -65,11 +86,22 @@ export async function loadCalendarEvents(
         .eq("hold_strength", "firm")
         .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
         .limit(500),
+      // Sessions & Classes P1.3. Scheduled occurrences only: a cancelled session
+      // is history and does not belong on a forward-looking calendar.
+      supabase
+        .from("sessions")
+        .select("id, title, starts_at, ends_at, status, venue_id, series_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "scheduled")
+        .gte("starts_at", nowIso)
+        .order("starts_at", { ascending: true })
+        .limit(500),
     ]);
 
     if (inqRes.error) logServerError("workspace.loadCalendarEvents.inquiries", inqRes.error);
     if (bookRes.error) logServerError("workspace.loadCalendarEvents.bookings", bookRes.error);
     if (holdRes.error) logServerError("workspace.loadCalendarEvents.holds", holdRes.error);
+    if (sessionRes.error) logServerError("workspace.loadCalendarEvents.sessions", sessionRes.error);
 
     const out: CalendarEvent[] = [];
     const coveredInquiryIds = new Set<string>();
@@ -138,6 +170,63 @@ export async function loadCalendarEvents(
         status: row.status,
         kind: "inquiry",
       });
+    }
+
+    // ── Sessions ────────────────────────────────────────────────────────────
+    // Titles and zones come from the series when the occurrence does not carry
+    // its own. One round trip rather than one per row.
+    const sessionRows = (sessionRes.data ?? []) as Array<{
+      id: string;
+      title: string | null;
+      starts_at: string;
+      ends_at: string;
+      venue_id: string | null;
+      series_id: string | null;
+    }>;
+    if (sessionRows.length > 0) {
+      const seriesIds = [...new Set(sessionRows.map((r) => r.series_id).filter((v): v is string => !!v))];
+      const venueIds = [...new Set(sessionRows.map((r) => r.venue_id).filter((v): v is string => !!v))];
+      const seriesTitles = new Map<string, string>();
+      const venueZones = new Map<string, string>();
+
+      if (seriesIds.length > 0) {
+        const { data, error } = await supabase
+          .from("session_series")
+          .select("id, title, timezone")
+          .in("id", seriesIds);
+        if (error) logServerError("workspace.loadCalendarEvents.series", error);
+        for (const r of data ?? []) {
+          if (typeof r.title === "string") seriesTitles.set(String(r.id), r.title);
+        }
+      }
+      if (venueIds.length > 0) {
+        const { data, error } = await supabase
+          .from("venues")
+          .select("id, timezone")
+          .in("id", venueIds);
+        if (error) logServerError("workspace.loadCalendarEvents.venues", error);
+        for (const r of data ?? []) {
+          if (typeof r.timezone === "string") venueZones.set(String(r.id), r.timezone);
+        }
+      }
+
+      for (const row of sessionRows) {
+        const zone = row.venue_id ? venueZones.get(row.venue_id) ?? null : null;
+        out.push({
+          id: row.id,
+          contact_name:
+            row.title ??
+            (row.series_id ? seriesTitles.get(row.series_id) ?? "Session" : "Session"),
+          company: null,
+          // The LOCAL day, not the UTC slice. See localYmd.
+          event_date: localYmd(row.starts_at, zone),
+          status: "scheduled",
+          starts_at: row.starts_at,
+          ends_at: row.ends_at,
+          timezone: zone,
+          kind: "session",
+        });
+      }
     }
 
     out.sort((a, b) => (a.starts_at ?? a.event_date).localeCompare(b.starts_at ?? b.event_date));

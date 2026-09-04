@@ -89,3 +89,44 @@ test("every local import in the orders area resolves to a real file", () => {
       + "erased at runtime, so every lane stays green and only tsc notices",
   );
 });
+
+/**
+ * The same tripwire, one directory over.
+ *
+ * The guard above walks `src/`. Deleting `instant-book-engine.ts` broke seven
+ * `qa-*.mts` harnesses in `scripts/`, and nothing here noticed — my third
+ * miscount of the same kind in one night, each one "I grepped the tree" where
+ * the tree was smaller than the repo.
+ *
+ * `scripts/` reaches `src/` by RELATIVE path and its files are `.mts`, so the
+ * `@/`-only scan above could never have seen them. This resolves both.
+ */
+test("every import in scripts/ resolves to a real file", () => {
+  const dir = path.join(process.cwd(), "scripts");
+  const offenders: string[] = [];
+
+  for (const entry of readdirSync(dir)) {
+    if (!/\.(m?tsx?)$/.test(entry)) continue;
+    if (/\.test\.[cm]?tsx?$/.test(entry)) continue;
+    const body = readFileSync(path.join(dir, entry), "utf8")
+      .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+
+    for (const m of body.matchAll(/from\s+"((?:\.\.?\/|@\/)[^"]+)"/g)) {
+      const raw = m[1];
+      const base = raw.startsWith("@/")
+        ? path.join(process.cwd(), raw.replace(/^@\//, "src/"))
+        : path.resolve(dir, raw);
+      // An explicit extension is the whole specifier; otherwise try the
+      // extensions this tree actually uses, plus a directory index.
+      const candidates = /\.[cm]?tsx?$/.test(base)
+        ? [base]
+        : [
+            `${base}.ts`, `${base}.tsx`, `${base}.mts`,
+            path.join(base, "index.ts"), path.join(base, "index.tsx"),
+          ];
+      if (!candidates.some((c) => existsSync(c))) offenders.push(`scripts/${entry} -> ${raw}`);
+    }
+  }
+
+  assert.deepEqual(offenders, [], "these script imports point at files that do not exist");
+});

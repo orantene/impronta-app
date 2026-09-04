@@ -116,7 +116,7 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
-import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
+import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";

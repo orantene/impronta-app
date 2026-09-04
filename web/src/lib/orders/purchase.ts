@@ -8,12 +8,21 @@ import {
   releaseCapacity,
   capacityHoldTtlSeconds,
 } from "@/lib/capacity";
+import {
+  placeReservationHold,
+  releaseReservationHold,
+} from "@/lib/scheduling/reservation-hold";
+import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import {
   resolvePurchasePolicy,
   type OfferingPolicy,
   type PaymentChoice,
 } from "@/lib/orders/purchase-policy";
+import {
+  loadCatalog,
+  mapCapacityRefusal,
+} from "@/lib/orders/purchase-catalog";
 import {
   pricePurchase,
   amountToCollectCents,
@@ -98,6 +107,26 @@ export type PurchaseInput = {
    * The inquiry here is a CONVERSATION, which is all it was ever needed for.
    */
   openThread?: boolean;
+  /**
+   * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
+   *
+   * Capacity answers "are there seats left"; a slot answers "is this person
+   * free at this time". A timed appointment needs both, and the instant-book
+   * engine held them separately with its own compensation — the one thing it
+   * did that Menu never needed.
+   *
+   * The TTL comes from the POOL, not from this file, so the two clocks agree.
+   * Capacity's warning: hold the slot on its own timer and the units come back
+   * in fifteen minutes while the slot stays blocked for two days.
+   */
+  reservation?: {
+    talentProfileId: string;
+    startsAt: string;
+    endsAt: string;
+    title?: string | null;
+    /** The pool whose TTL governs both holds. */
+    poolId?: string | null;
+  } | null;
 };
 
 export type PurchaseRefusalReason =
@@ -118,6 +147,10 @@ export type PurchaseRefusalReason =
   | "sold_out"
   /** The capacity engine could not be REACHED. A retry, not an absence. */
   | "capacity_unavailable"
+  /** Someone else holds that time. Distinct from sold_out: seats remain. */
+  | "slot_taken"
+  /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
+  | "slot_required"
   | "engine_error";
 
 export type PurchaseResult =
@@ -146,6 +179,8 @@ export type PurchaseResult =
       bookingId: string | null;
       /** The conversation, when one was opened. */
       inquiryId: string | null;
+      /** The calendar hold, when a slot was taken. */
+      reservationHoldId: string | null;
     }
   | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
 
@@ -162,8 +197,18 @@ export async function createPurchase(
   const heldAllocationIds: string[] = [];
   let createdOrderId: string | null = null;
   let createdTransactionId: string | null = null;
+  let placedHoldId: string | null = null;
 
   const unwind = async (why: string) => {
+    // The slot first: it blocks a PERSON's calendar, so leaving it held is the
+    // most visible kind of leak — a talent looks booked for a purchase that
+    // never happened.
+    if (placedHoldId) {
+      const released = await releaseReservationHold(admin, placedHoldId);
+      if (!released.ok) {
+        logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+      }
+    }
     if (heldAllocationIds.length > 0) {
       const released = await releaseCapacity(heldAllocationIds, admin);
       logServerError(
@@ -379,6 +424,66 @@ export async function createPurchase(
       heldAllocationIds.push(...reserved.allocationIds);
     }
 
+    // ── 7a. A TIMED offering may not be bought without a slot.
+    //
+    // This gate lived in `instant-book-engine.ts` and my first rewire DROPPED
+    // it — a timed service with bookable hours would have been purchasable with
+    // no time attached, producing a paid appointment nobody could attend. It
+    // was caught by a Capacity guard that pinned the engine's source, which is
+    // the argument for repointing guards rather than deleting them: the guard
+    // outlived the file and was still right.
+    if (input.reservation === null || input.reservation === undefined) {
+      for (const line of input.lines) {
+        const offering = catalog.rawOfferings.get(line.offeringId);
+        if (!offering) continue;
+        const missing = await timedInstantMissingSlot(
+          admin,
+          { kind: offering.kind, durationMinutes: offering.durationMinutes },
+          offering.talentProfileId ?? "",
+          false,
+        );
+        if (missing) {
+          await unwind("timed offering booked with no slot");
+          return { ok: false, reason: "slot_required", offeringId: line.offeringId };
+        }
+      }
+    }
+
+    // ── 7b. The calendar slot, when the purchase takes someone's time.
+    //
+    // AFTER capacity and BEFORE money, so a sold-out purchase never blocks a
+    // calendar and a slot conflict never charges a card. Both holds are on the
+    // unwind ledger, so either failing releases the other.
+    if (input.reservation) {
+      const ttlSeconds =
+        (await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin))
+        ?? shortestTtlSeconds
+        ?? FALLBACK_HOLD_TTL_SECONDS;
+
+      const hold = await placeReservationHold(admin, {
+        talentProfileId: input.reservation.talentProfileId,
+        tenantId: input.tenantId,
+        startsAt: input.reservation.startsAt,
+        endsAt: input.reservation.endsAt,
+        title: input.reservation.title ?? priced.lines[0]?.label ?? "Reservation",
+        ttlSeconds,
+        createdByUserId: input.actorUserId,
+      });
+
+      if (!hold.ok) {
+        await unwind(`slot refused: ${hold.code}`);
+        return {
+          ok: false,
+          // `slot_taken` is NOT sold_out. Seats remain; that TIME is gone. A
+          // buyer told "sold out" stops looking, one told the time is taken
+          // picks another.
+          reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
+          error: hold.error,
+        };
+      }
+      placedHoldId = hold.holdId;
+    }
+
     // ── 8/9. The payment leg.
     //
     // WHY A BOOKING EXISTS HERE AT ALL. `booking_transactions.booking_id` is
@@ -562,6 +667,7 @@ export async function createPurchase(
       allocationIds: heldAllocationIds,
       transactionId,
       bookingId,
+      reservationHoldId: placedHoldId,
     };
   } catch (err) {
     logServerError("orders.createPurchase", err);
@@ -571,175 +677,3 @@ export async function createPurchase(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-type Catalog =
-  | {
-      ok: true;
-      policies: Map<string, OfferingPolicy>;
-      offerings: Map<string, PricedOffering>;
-      variants: Map<string, PricedVariant>;
-      addons: Map<string, PricedAddon>;
-    }
-  | { ok: false; error: string };
-
-async function loadCatalog(admin: SupabaseClient, offeringIds: string[]): Promise<Catalog> {
-  const { data: offeringRows, error: offeringErr } = await admin
-    .from("talent_offerings")
-    .select(
-      "id, tenant_id, title, status, price_type, amount_cents, talent_profile_id, " +
-        "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours",
-    )
-    .in("id", offeringIds);
-
-  if (offeringErr) {
-    logServerError("orders.loadCatalog/offerings", offeringErr);
-    return { ok: false, error: "Could not load the items." };
-  }
-
-  const [variantResult, addonResult] = await Promise.all([
-    admin
-      .from("talent_offering_variants")
-      .select("id, offering_id, label, amount_cents")
-      .in("offering_id", offeringIds),
-    admin
-      .from("talent_offering_addons")
-      .select("id, offering_id, label, amount_cents")
-      .in("offering_id", offeringIds),
-  ]);
-
-  if (variantResult.error) {
-    logServerError("orders.loadCatalog/variants", variantResult.error);
-    return { ok: false, error: "Could not load the options." };
-  }
-  if (addonResult.error) {
-    logServerError("orders.loadCatalog/addons", addonResult.error);
-    return { ok: false, error: "Could not load the extras." };
-  }
-
-  type OfferingRow = {
-    id: string;
-    tenant_id: string | null;
-    title: string | null;
-    status: string | null;
-    price_type: string | null;
-    amount_cents: number | null;
-    talent_profile_id: string | null;
-    reserve_mode: string | null;
-    deposit_pct: number | null;
-    allow_pay_in_person: boolean | null;
-    require_account_to_book: boolean | null;
-    cancellation_hours: number | null;
-  };
-
-  const policies = new Map<string, OfferingPolicy>();
-  const offerings = new Map<string, PricedOffering>();
-
-  for (const row of (offeringRows ?? []) as unknown as OfferingRow[]) {
-    policies.set(row.id, {
-      offeringId: row.id,
-      status:
-        row.status === "published" || row.status === "draft" || row.status === "archived"
-          ? row.status
-          : "draft",
-      tenantId: row.tenant_id ?? "",
-      reserveMode:
-        row.reserve_mode === "deposit" || row.reserve_mode === "free" ? row.reserve_mode : "full",
-      depositPct:
-        typeof row.deposit_pct === "number" && row.deposit_pct > 0 && row.deposit_pct < 100
-          ? Math.round(row.deposit_pct)
-          : null,
-      allowPayInPerson: row.allow_pay_in_person === true,
-      requireAccountToBook: row.require_account_to_book === true,
-      cancellationHours:
-        typeof row.cancellation_hours === "number" && row.cancellation_hours >= 0
-          ? row.cancellation_hours
-          : null,
-    });
-
-    offerings.set(row.id, {
-      offeringId: row.id,
-      label: row.title ?? "Item",
-      amountCents: row.amount_cents,
-      priceType: row.price_type ?? "fixed",
-      talentProfileId: row.talent_profile_id,
-      ownerTenantId: row.talent_profile_id ? null : row.tenant_id,
-      talentCostCents: row.talent_profile_id ? (row.amount_cents ?? 0) : 0,
-    });
-  }
-
-  type VariantRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
-  type AddonRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
-
-  const variants = new Map<string, PricedVariant>();
-  for (const row of (variantResult.data ?? []) as unknown as VariantRow[]) {
-    variants.set(row.id, {
-      variantId: row.id,
-      offeringId: row.offering_id,
-      label: row.label ?? "",
-      amountCents: row.amount_cents,
-    });
-  }
-
-  const addons = new Map<string, PricedAddon>();
-  for (const row of (addonResult.data ?? []) as unknown as AddonRow[]) {
-    if (typeof row.amount_cents !== "number" || row.amount_cents < 0) continue;
-    addons.set(row.id, {
-      addonId: row.id,
-      offeringId: row.offering_id,
-      label: row.label ?? "",
-      amountCents: row.amount_cents,
-    });
-  }
-
-  return { ok: true, policies, offerings, variants, addons };
-}
-
-/**
- * Capacity refusal → what the buyer is told.
- *
- * Three classes, and collapsing them is a real bug the Capacity Engine Manager
- * found in production: an outage was reaching customers as "this does not
- * exist". A person told a thing is gone leaves; a person told to try again
- * tries again.
- *
- *   sold_out / ancestor_full / pool_not_found / pool_inactive
- *       → genuinely not available. `ancestor_full` means a parent is booked out
- *         (the room is bought out, so its tables are gone), which is a sold-out
- *         state however it reads internally.
- *
- *   unavailable
- *       → the engine could not be REACHED. Not a refusal at all, and the one
- *         outcome a buyer can act on.
- *
- *   invalid_units / invalid_window / invalid_ttl / empty_batch
- *       → CALLER BUGS. A well-formed pipeline cannot produce them, so they must
- *         alert rather than render. Showing a customer "invalid window" tells
- *         them nothing and tells us nothing either.
- */
-function mapCapacityRefusal(reason: CapacityRefusalReason): PurchaseRefusalReason {
-  switch (reason) {
-    case "sold_out":
-    case "ancestor_full":
-    case "pool_not_found":
-    case "pool_inactive":
-      return "sold_out";
-    case "unavailable":
-      return "capacity_unavailable";
-    case "invalid_units":
-    case "invalid_window":
-    case "invalid_ttl":
-    case "empty_batch":
-      logServerError(
-        "orders.createPurchase/capacity-caller-bug",
-        `capacity refused with ${reason} — a well-formed pipeline cannot produce this`,
-      );
-      return "engine_error";
-    default: {
-      // Exhaustiveness: a reason added upstream must not silently become
-      // "sold out". This fails the typecheck instead.
-      const unhandled: never = reason;
-      logServerError("orders.createPurchase/capacity-unknown", `unhandled reason ${String(unhandled)}`);
-      return "engine_error";
-    }
-  }
-}

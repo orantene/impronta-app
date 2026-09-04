@@ -83,6 +83,8 @@ export type ServiceRules = {
   depositFromParty: number | null;
   depositCentsPerPerson: number;
   freeCancelHours: number;
+  /** The offering a booking's order line hangs on. `null` = not bookable yet. */
+  reservationOfferingId: string | null;
   waitlistEnabled: boolean;
   walkinsEnabled: boolean;
   notesEnabled: boolean;
