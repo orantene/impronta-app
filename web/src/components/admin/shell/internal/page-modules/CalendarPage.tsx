@@ -53,6 +53,11 @@ export function CalendarPage() {
         ev.kind === "hold" ? `${t("dashboard.adminCalendar.holdLabel")}: `
         : ev.kind === "order" ? `${t("dashboard.adminCalendar.orderLabel")}: `
         : ev.kind === "booking" ? `${t("dashboard.adminCalendar.bookingLabel")}: `
+        // Sessions & Classes P1.3. Without this arm a session still appears —
+        // the chain falls through to "" — but unlabelled, indistinguishable
+        // from an inquiry. The customer-facing word for an occurrence comes
+        // from the words table (`events.session`); this is the STAFF rail label.
+        : ev.kind === "session" ? `${t("dashboard.adminCalendar.sessionLabel")}: `
         : "";
       const label = `${kindPrefix}${ev.company ?? ev.contact_name}`;
       events[day] = events[day] ?? [];
