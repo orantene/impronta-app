@@ -141,7 +141,15 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
       );
       const upcoming = mySessions.find((s) => (s.starts_at as string) >= nowIso) ?? null;
 
-      const variants = (variantsByOffering.get((e.offering_id as string) ?? "") ?? []).filter(
+      // NO SENTINEL KEY. `variantsByOffering.get(offering_id ?? "")` reads
+      // harmlessly and is safe only because `offering_id` is a uuid FK, so no
+      // variant can ever be filed under "". That is the fallback being fine
+      // ONLY because something downstream refuses it — and an event with no
+      // offering would otherwise inherit whatever ended up in that bucket.
+      // An absent offering has no tiers; it does not have the tiers of the
+      // empty string.
+      const offeringId = typeof e.offering_id === "string" ? e.offering_id : null;
+      const variants = (offeringId ? (variantsByOffering.get(offeringId) ?? []) : []).filter(
         (v) => typeof v.pool_key === "string" && v.pool_key,
       );
 
