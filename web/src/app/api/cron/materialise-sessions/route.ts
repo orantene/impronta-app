@@ -235,9 +235,17 @@ export async function GET(request: Request) {
       // Every refusal names what it collided with. The venue scope is coarse on
       // purpose (see materialise.ts), so a refusal an operator cannot act on
       // would turn an accepted false positive into this area's recorded defect.
-      for (const s of decision.skipped) {
-        improntaLog({
-          message: `[cron.materialise-sessions] REFUSED ${series.title} on ${s.localDate} at ${s.startsAt}: a daylight-saving shift put it on the same instant as ${s.collidesWithTitle ?? "another session"} (${s.collidesWithSessionId}) at this venue. Move one of them.`,
+      for (const clash of decision.skipped) {
+        void improntaLog("sessions.cron.materialise_refused_occurrence", {
+          seriesId: series.id,
+          seriesTitle: series.title,
+          localDate: clash.localDate,
+          startsAt: clash.startsAt,
+          reason: clash.reason,
+          collidesWithSessionId: clash.collidesWithSessionId,
+          collidesWithTitle: clash.collidesWithTitle,
+          // The sentence an operator acts on, not just the fields.
+          detail: `A daylight-saving shift put this occurrence on the same instant as ${clash.collidesWithTitle ?? "another session"} at this venue. Move one of them.`,
         });
       }
 
@@ -311,8 +319,12 @@ export async function GET(request: Request) {
       }
     }
 
-    improntaLog({
-      message: `[cron.materialise-sessions] series=${(seriesRows ?? []).length} sessions=${created} pools=${poolsCreated} skipped=${skipped} refused=${refusals.length}`,
+    void improntaLog("sessions.cron.materialise", {
+      series: (seriesRows ?? []).length,
+      sessionsCreated: created,
+      poolsCreated,
+      skippedCollisions: skipped,
+      refused: refusals.length,
     });
 
     return NextResponse.json({
