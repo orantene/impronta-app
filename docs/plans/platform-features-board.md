@@ -137,6 +137,45 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## EVERY `CREATE TABLE` IN `public` ARRIVES WITH `anon` HOLDING EVERYTHING
+
+**FOR QR & LINKS, AND FOR ANY DEPARTMENT THAT CREATED A TABLE THIS WEEK.** Found by the Reservations Manager on their own table, generalised by the director across all ten this cluster has created, and independently re-verified by the Sessions & Classes Manager on theirs.
+
+Supabase's default privileges grant **ALL** on every new `public` table, so `anon` and `authenticated` arrive holding SELECT, INSERT, UPDATE and DELETE. Measured in production:
+
+| Table | anon INSERT/UPDATE/DELETE | Owner |
+|---|---|---|
+| `venue_service_windows` | **present** | Reservations — fix assigned |
+| `venue_service_window_exceptions` | **present** | Reservations — fix assigned |
+| `venue_service_rules` | **present** | Reservations — fix assigned |
+| `links` | **present** | **QR & Links** |
+| `link_scans` | **present** | **QR & Links** |
+| `admissions`, `customer_payment_methods`, `events`, `sessions`, `session_series` | clean | — |
+
+**Not an active breach, and that was checked rather than assumed:** all five have RLS enabled with exactly **one** policy — SELECT, `{authenticated}` only — so anon writes and reads are both refused today. **It is defence in depth.** But it is one accidental permissive policy, or one `DISABLE ROW LEVEL SECURITY`, from being live, and **nobody adding a policy later will think to check the grant underneath it.**
+
+**The fix has a trap this board already records: `REVOKE ... FROM anon` IS A NO-OP.** `anon` inherits through `PUBLIC`, so only `REVOKE ... FROM PUBLIC` does anything — and the no-op version reads exactly like a fix. **Verify with `has_table_privilege`, never with the absence of an error.**
+
+**Two checks after every apply, neither of which `to_regclass` covers:** `has_table_privilege` for the grants, and the policy list for what RLS actually permits. **Existence is not correctness, and neither is RLS-is-on.**
+
+**How it was found is the transferable part.** The manager ran `has_table_privilege` on a table they had *just applied*, instead of stopping at `to_regclass`. The finding generalised because they made it **checkable**, not because they made it once. And three managers each measuring their own tables beats one director's ten-table sweep — a single typo in that query's table list would have read as clean.
+
+**A legitimate anon SELECT, stated so the grant list is readable later:** `sessions` grants it deliberately — a published session is public information, RLS-gated to `status='scheduled'` — and it is safe rather than merely intended **because remaining seats never come from a row**; `capacity_remaining_public` returns one integer, so a public read cannot infer capacity from what it can see.
+
+## CALL THE FUNCTION, DO NOT PERSIST THE ANSWER
+
+**Sessions & Classes, on how to surface a materialisation refusal to an operator.** The obvious design is a table or column the cron writes and the editor reads. They refused it, and the reasoning generalises past this feature.
+
+`decideMaterialisation` is **pure**, so the editor calls **the same function the cron calls**, against current data, at read time. No migration, no band number, no schema growth for a read surface.
+
+**The surface cannot drift from the sweep's behaviour, because it is not a copy of the behaviour — it is the behaviour.**
+
+**Every other choice in this cluster tonight was between two things that agree today** — two seating grids, two denominators, two timezone resolvers, two hand-duplicated calendar unions, three QA lists. This is the option where **the second thing does not exist at all**, and it is only available because the decision layer was kept pure.
+
+**And the staleness argument is the one to use on anyone who wants the table:** a persisted refusal records what was true at 04:20, while the operator is reading it because something is wrong **now**. A stored answer that was correct when written and is wrong when read is **indistinguishable from a correct one** — the same shape as a claim without a sha, one layer up.
+
+**A feature that needs a table to explain itself usually needs a function.**
+
 ## OPERATIONAL: a PR touching `.github/workflows/ci.yml` ROUTES TO A DIRECTOR. The discriminator is unknown.
 
 **Written down deliberately without an explanation, because the next manager to register a test lane will hit the failure, not the success, and will reasonably conclude they need an auth change. They do not.**
