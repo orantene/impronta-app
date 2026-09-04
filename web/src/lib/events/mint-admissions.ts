@@ -61,6 +61,26 @@ export type MintRow = {
   startsAt: string | null;
 };
 
+/**
+ * Coerce a count that may arrive as PostgREST's NUMERIC string.
+ *
+ * `order_lines.units` is `NUMERIC(12,3)`, so PostgREST sends `"4.000"` — a
+ * STRING. Requiring a number here made this module depend on the caller
+ * remembering to coerce, which is a dependency on a stranger's strictness: it
+ * fails closed (every mint refused with a vague `not_a_count`) rather than
+ * loudly, and the reason names the symptom rather than the cause.
+ *
+ * So the boundary coerces and stays strict about MEANING: `"4.000"` is four,
+ * `"4.500"` is not a count of things and is refused. Accepting the shape the
+ * database actually sends is not laxity; pretending it sends something else is.
+ */
+function toWholeCount(value: unknown): number | null {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (typeof n !== "number" || !Number.isFinite(n)) return null;
+  if (!Number.isInteger(n)) return null;
+  return n;
+}
+
 export type MintRefusal =
   | { ok: false; reason: "not_a_count" }
   | { ok: false; reason: "not_anchored" }
@@ -68,8 +88,10 @@ export type MintRefusal =
 
 export type MintInput = {
   orderLineId: string;
-  units: number;
-  admitsPerUnit: number;
+  /** May arrive as PostgREST's NUMERIC string (`"4.000"`); coerced here. */
+  units: number | string;
+  /** Same: an int column, but coerced so the boundary owns the shape. */
+  admitsPerUnit: number | string;
   sessionId?: string | null;
   spaceId?: string | null;
   allocationId?: string | null;
@@ -90,10 +112,11 @@ export type MintInput = {
  * writes real rows that a human meets at a door.
  */
 export function planAdmissions(input: MintInput): ({ ok: true } & MintPlan) | MintRefusal {
-  const { units, admitsPerUnit } = input;
+  const units = toWholeCount(input.units);
+  const admitsPerUnit = toWholeCount(input.admitsPerUnit);
 
-  if (!Number.isInteger(units) || units <= 0) return { ok: false, reason: "not_a_count" };
-  if (!Number.isInteger(admitsPerUnit) || admitsPerUnit <= 0) {
+  if (units === null || units <= 0) return { ok: false, reason: "not_a_count" };
+  if (admitsPerUnit === null || admitsPerUnit <= 0) {
     return { ok: false, reason: "not_a_count" };
   }
 
