@@ -13,6 +13,7 @@ import {
   stepNumber,
   type SheetPolicy,
   type SheetState,
+  visibleStep,
 } from "./sheet-steps";
 
 const TIMED: SheetPolicy = {
@@ -188,4 +189,57 @@ test("Ask first is available even when the policy forbids guest booking", () => 
   // require_account_to_book stops a PURCHASE. It must not stop a question.
   assert.equal(canAskFirst(state()), true);
   assert.equal(canSubmit(state(), { ...TIMED, requireAccount: true }), false);
+});
+
+test("the cursor is derived: a step whose precondition lapses cannot be stood on", () => {
+  // The Sheet's only rule of its own. A stored cursor is how a checkout ends up
+  // submittable with nothing in it, so `viewing` is a request and this decides.
+  const policy: SheetPolicy = {
+    needsWhen: false,
+    requireAccount: false,
+    allowPayInPerson: false,
+    depositPct: null,
+    captchaRequired: false,
+  };
+  const ready: SheetState = {
+    lineCount: 2,
+    whenChosen: false,
+    partySize: null,
+    email: "guest@example.com",
+    signedIn: false,
+    captchaToken: "",
+    honeypot: "",
+    paymentChoice: null,
+  };
+  // Standing on pay, legitimately.
+  assert.equal(visibleStep("pay", ready, policy), "pay");
+
+  // Now the cart empties underneath them. They must not still be on pay.
+  const emptied: SheetState = { ...ready, lineCount: 0 };
+  assert.equal(visibleStep("pay", emptied, policy), "lines");
+
+  // Asking to jump ahead is refused too: a request is not an entitlement.
+  assert.equal(visibleStep("pay", { ...ready, email: "" }, policy), "who");
+});
+
+test("a request for a step this cart does not have shows the start, not a crash", () => {
+  const untimed: SheetPolicy = {
+    needsWhen: false,
+    requireAccount: false,
+    allowPayInPerson: false,
+    depositPct: null,
+    captchaRequired: false,
+  };
+  const state: SheetState = {
+    lineCount: 1,
+    whenChosen: false,
+    partySize: null,
+    email: "",
+    signedIn: false,
+    captchaToken: "",
+    honeypot: "",
+    paymentChoice: null,
+  };
+  // "when" does not exist on an untimed cart.
+  assert.equal(visibleStep("when", state, untimed), "lines");
 });

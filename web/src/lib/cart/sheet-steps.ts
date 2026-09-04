@@ -187,3 +187,33 @@ export function canSubmit(state: SheetState, policy: SheetPolicy): boolean {
 export function canAskFirst(state: SheetState): boolean {
   return state.lineCount > 0;
 }
+
+/**
+ * The step actually shown, given the step the customer ASKED to see.
+ *
+ * The Sheet holds `viewing` as a request, never as truth. What renders is the
+ * earlier of that request and what the state has genuinely earned, recomputed
+ * on every render. Empty the cart while standing on pay and the panel returns
+ * to lines by itself, because pay's precondition stopped holding.
+ *
+ * This lives here rather than inline in the component for the reason the rest
+ * of this file exists: it is a rule about whether a purchase may proceed, and a
+ * rule a component owns privately is a rule nothing can test. It is also the
+ * only rule the Sheet has of its own, so it is the one worth pinning.
+ *
+ * A step outside this policy's applicable set (a `when` request on an untimed
+ * cart) resolves to the first step rather than throwing. The customer asked for
+ * somewhere that does not exist; showing them the start is the honest answer.
+ */
+export function visibleStep(
+  viewing: SheetStep,
+  state: SheetState,
+  policy: SheetPolicy,
+): SheetStep {
+  const steps = applicableSteps(policy);
+  const furthest = furthestReachableStep(state, policy);
+  const wanted = steps.indexOf(viewing);
+  const earned = steps.indexOf(furthest);
+  if (wanted === -1) return steps[0] ?? "lines";
+  return wanted > earned ? furthest : viewing;
+}
