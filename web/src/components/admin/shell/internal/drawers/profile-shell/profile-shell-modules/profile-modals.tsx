@@ -537,20 +537,11 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, profileUr
             📲 {supportsShare ? copy.t("Share") : copy.t("Copy")}
           </button>
         </div>
-        {/* Removed 2026-09-03: a "QR code" button and a "PDF model card"
-            button sat here, side by side, and BOTH were onClick={onShare} —
-            which the drawer defines as a toast. Neither feature exists: there
-            is no QR engine in the codebase (the marketing plate is status
-            `coming`) and no model-card PDF export. Two buttons, one toast, at
-            the single moment a talent is proudest of the product.
-
-            The two buttons above are real and stay: Copy link writes to the
-            clipboard, Share opens the native share sheet.
-
-            QR & Links Q2 brings the QR one back for real, as the Share
-            popover mounted on every bookable thing. The PDF model card is the
-            Directory & Profile Engine's to restore or retire. Until a button
-            does something, it should not be lit. */}
+        {/* Removed 2026-09-03: a "QR code" and a "PDF model card" button sat
+            here, both onClick={onShare} — which the drawer defines as a toast.
+            Neither feature exists. QR & Links Q2 brings the QR one back for
+            real; the PDF card is Directory & Profile Engine's to restore or
+            retire. Until a button does something, it should not be lit. */}
         <button type="button" onClick={onClose} style={{
           padding: "10px 18px", borderRadius: 999, border: "none",
           background: COLORS.fill, color: "#fff",
