@@ -114,11 +114,25 @@ export async function loadWorkspaceOverviewMetrics(
         .eq("tenant_id", tenantId)
         .neq("status", "removed"),
 
-      // Open inquiries
+      // Open inquiries.
+      //
+      // `.is("event_id", null)` EXCLUDES LINEUP BOOKINGS, and the direction is
+      // the point. This number is read as INBOUND DEMAND -- people asking to
+      // buy. A lineup inquiry is the workspace's own OUTBOUND supply: the venue
+      // asking a performer to play. Same table, same column, opposite direction
+      // of intent.
+      //
+      // Without the filter, a venue publishing an event with eight performers
+      // watches "open inquiries" jump by eight overnight, for bookings it
+      // initiated itself, and reasonably concludes eight people enquired about a
+      // night nobody enquired about.
+      //
+      // Consent from the Workspace & Dashboards Director, who own this file.
       supabase
         .from("inquiries")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
+        .is("event_id", null)
         .in("status", ["submitted", "coordination", "offer_pending", "approved"]),
 
       // Active team members
