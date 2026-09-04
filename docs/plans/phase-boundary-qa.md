@@ -47,6 +47,10 @@ Write items so someone who has never seen the code can execute them. One line pe
 | Orders 0.7 | Open a thread with an order as a **client**, then as **staff** | The client sees **Pay now**; staff never do, and staff can add lines only while the order is draft/quoted | A Pay-now button in front of staff, or an add-line control on a paid order |
 | Orders 0.7 | Find an order that is **part paid** and read the card | It shows what is **still owed**, not the total | It shows the full total on a part-paid order — a customer reads that as "my deposit did not register" |
 | Orders 0.7 | Make the card's order **fail to load** (bad id, or kill the request) | The card renders a neutral "unavailable" state | It renders **$0.00** — a price of zero is a claim, and this one tells a customer their order is free |
+| Menu | On the live tenant, set the **Posing course** stock to **0** in Menu → the item's Stock field, then open the public menu board **in a normal browser tab** (not the builder preview) | The item renders a **Sold out** badge, its + stepper will not increment, and submitting refuses by name before any network call | The item looks live and orderable. **This is the last gap in the oversell story:** the engine already refuses the thirteenth sale, so a customer clicking a live-looking item is refused **at checkout** instead of seeing it greyed out. A test cannot cross this hop — the badge reads a **server-rendered snapshot** of pool stock, so only a real page load proves the deployed board sees the pool |
+| Menu | Set that item's stock to **20** while at least one order is holding units, then reload the editor | The field reads **20** with a quiet **"N held by open orders"** beneath it | The field reads **23** (available + held), or reads 20 with no held line. Either is how an operator "fixes" it by typing 23 and oversells. A test proves the RPC arithmetic; only a human proves the **field shows what the RPC returned** rather than what was typed |
+| Menu | Place a menu order **signed out**, on an item whose offering allows pay in person | The confirmation says the order is **pay in person**, and **no card payment request appears** anywhere in the thread | A card request appears. A guest **cannot complete** one today — both payment actions require a session, the pay sheet mounts only inside the account dashboard, and the guest thread renders payment cards read-only. This shipped broken once (#1528); the falsifier is the customer having a button that cannot work |
+| Menu | Switch the workspace's industry preset to **Restaurant** in Settings → Words, then reload the public menu board | Board copy reads the operator's noun — **"In your order: 3 dishes"** — matching the chat and the rail | A literal **`{nounPlural}`** on screen (the words load failed and substitution was skipped), or the board saying "items" while another surface says "dishes". Only a human can see the **two surfaces disagree**; each passes its own test alone |
 
 ## Owner-hands items (not clicks — these need an account or a bank)
 Kept separate so the QA pass is not blocked behind them.
@@ -58,3 +62,24 @@ Kept separate so the QA pass is not blocked behind them.
 - Stripe Tax head office.
 - **The card-mix answer:** will these eleven businesses' customers pay mostly with Mexican cards or
   mostly foreign — above or below ~2/3? Unsure defaults to staying put, which is safe.
+
+## Parked by the Menu Workspace Manager, with reasons
+
+Not QA rows — these are named as unfinished so nothing here is mistaken for shipped.
+
+- **The Menu board UI** (page views Items / Orders / Kitchen / Tabs, columns rendered from the
+  pipeline, grouped by table when `space_id` is set). The stage model it renders shipped in #1660;
+  the board itself did not. Menu's stated definition of done is "a pizza maker and a laundry each
+  have a working board" — **the stages that make both boards possible exist and are tested; the
+  board does not.** Half met, and not called finished.
+- **Rekeying `booking_fulfillment` onto orders**, with `status` becoming the stage key. Needs the
+  Orders & Checkout Manager: it is their table's grain, not mine to change unilaterally.
+- **Menu orders produce no commission snapshot.** `lib/orders/purchase.ts` has zero references to
+  `persistBookingCommissionSnapshot`; the engine deleted in #1580 called it and treated failure as
+  fatal. **Not yet realised** — `orders` is empty in production, checked — so nothing has been lost,
+  but the first real menu order loses attribution silently, with nothing erroring. Migration
+  `20261229000241` already made the commission context read `order_lines`, so the reading half was
+  built and nothing invokes it. Not patched into the feature action on purpose: money belongs in the
+  engine, and putting it back into a feature is what the re-home existed to end. **Owner: Orders.**
+- **Table QR context** (`space_id` on the draft order). Waiting on QR & Links #1658 to merge; the
+  popover component lands with it. Not started rather than half-started.
