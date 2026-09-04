@@ -808,6 +808,64 @@ Nobody had written this down. The Sessions & Classes Manager runs `test:capacity
 **And prefer a GLOB lane when you define one.** `test:sessions` and `test:reservations` are globs, so a new test file gates automatically. The recorded lane-collision incident **requires a hand-maintained file list to happen at all** — a glob is structurally immune rather than defended, and it removes the `package.json` conflict every parallel manager fights over.
 
 
+## STOP-WORK HANDOVER, 2026-09-03 ~23:40 UTC — Platform Features
+
+Work stopped on the owner's instruction: their Claude app was failing to display chats with ~14.5 MB of free RAM and swap exhausted across 63 agent processes. **Nothing here was caused by anyone's code, and no `143`, truncated log or missing verdict from that window means anything about a branch.**
+
+**Machine at handover:** zero gates alive, `tsc-queue` lock free, free RAM recovered 14.5 MB → 60+ MB, swap free 414 MB → 953 MB.
+
+**MERGED TONIGHT** (all gated, all verified): the orders **paid seam** and the menu-engine deletion (#1580) · both **tenant SEV-1 causes** — the marketing provider mount (#1599) and the launcher-outside-provider fix (#1606), the second **reproduced on production before merging** · the **one zone resolver** with the DST gap policy named at the call site (#1592) · **cross-tenant double-booking** (#1593) · **pool TTL honoured on every hold** (#1594) · **`npm run typecheck` IS the queue** with a CI bypass (#1605) · Free page allowance (#1600) · Front Door F1e (#1596) · plus board records.
+
+**UNGATED AND UNPUSHED — treat every one of these as UNVERIFIED.** No full typecheck exists for any of them; every attempt died in the emergency-kill window.
+- **QR & Links:** Q1 links engine + `/q/<code>` resolver (`docs/qr-links-plan` @ `29ad42df4`, lint green, 37 tests) · **`surface-allow-list.ts` decomposition** (`refactor/surface-allow-list-decomposition` @ `d55d41231`, stacked on Q1, single commit, drops cleanly if unwound) · dead-button removal (`fix/no-dead-share-buttons` @ `43d039dca`).
+- **Sessions & Classes:** six commits @ `5e11731d2`; migration `20261229000340` applied and verified; `test:sessions` 43/43 and `test:capacity` 43/43 real exit 0; **no lint result for the current tree.**
+- **Reservations:** R1 + pure layers on `feat/reservation-windows`; migration `20261229000380` applied and verified **down to the constraints**; 60 tests exit 0; lint and tsc unknown.
+
+**OPEN PRs, all mid-gate, none failed:** #1607 (delete instant-book engine), #1608, #1609, #1610 (**signup derives the industry preset** — the one to merge first).
+
+**THE DECOMPOSITION IS DONE AND NEEDS ONE TYPECHECK.** Six modules plus a byte-stable barrel; script at `scratchpad/decompose.py`, map at `scratchpad/decomposition-map.md`. Measured before splitting: function graph is a **DAG with no cycles**, **zero orphan constants**, **20 importers pulling 6 of 10 exports and none reaching past the barrel** — so no importer changes and no internal needed exporting. Both behavioural test files unchanged and green (36 pass, exit 0). **The `surface-allow-list.ts` / `proxy.ts` freeze stays in force until it lands.**
+
+## THE RULE OF THE NIGHT: a true measurement of the wrong thing
+
+Five instances in one evening, each a real number pointing at the wrong referent. This is a better rule than any of them separately.
+
+1. **A PID accurate when taken and dead when acted on.** Killing it would have killed whatever inherited the number. *Re-verify a PID at the moment of the kill, never from a report — and a report about a process should carry the command to re-check it, not the number.*
+2. **A diff that was correct but crossed a rebase boundary**, describing 36 files of other people's work as one manager's scoped run.
+3. **A dependency edge that was really a comment** in the next declaration, which would have forced two modules into one.
+4. **Presence without placement.** A word-multiset guard proved nothing was *lost* in the decomposition and passed first try — while a 55-line system header had been swallowed into the wrong module. Caught by reading the barrel, not by trusting the green check.
+5. **A process count that counted its own grep.** The Director measured "3 gates alive" from a command matching itself; the listing showed zero.
+
+Adjacent, same family: `%CPU` cannot distinguish *starved* from *stopped*, and the manager who hit that noted the sharper half — **they reached for the explanation that had a culprit.** A mismeasurement that produces a green light is caught by reality eventually. One that produces an accusation gets believed, because it arrives with a story.
+
+**And the machine itself was the largest instance.** Three configuration fixes in one night — caps, then load-awareness, then lower-only rules — each *moved* the memory problem rather than removing it, because each measured what it controlled. The lever that worked was reducing process count. **63 agent processes on one laptop was the cause the whole time.**
+
+
+### All six managers reported a clean stop. Their lines, verbatim where it matters.
+
+**Capacity Engine** — 14 PRs merged, 0.2–0.11 live, Sessions P1.1 and the zone-resolver consolidation in. **Subject-kind registry list EMPTY: all five validated.** Nothing committed-unpushed across ten worktrees; nothing of theirs unverified, because the two local typechecks they could not finish were each superseded by a CI pass on the same code.
+
+**CORRECTION THEY MADE THAT PREVENTS A PRODUCTION BREAK — carry this into tomorrow.** Orders reported the lossy shim was free to drop. **It is not yet.** `#1607` is **OPEN, not merged**, so `instant-book-engine.ts` is still on `origin/main` calling both RPCs — **and four files reach `release_offering_stock`, not the two counted**, because three go through the `offering-stock.ts` wrapper: `admin/_pipeline-actions.ts`, `api/cron/expire-free-reserves`, `lib/bookings/transactions.ts`. Order of work: Orders merges #1607, then retires the wrapper; Capacity drops the RPCs third. **Dropping earlier would have left the expiry cron throwing with nobody watching.**
+
+**Front Door** — 15 PRs merged; F2 complete end to end, F8 both halves. Nothing owed: the one local commit on `fd-book` is the pre-rebase original of an already-merged PR, superseded rather than outstanding. **#1610 is their only unverified PR** — tests green with real exit codes, typecheck EMERGENCY KILLed twice, so CI is its sole gate rather than its confirming one. *(An uncommitted `typecheck` → `tsc-queue.sh` edit may appear in several worktrees whose branches predate that merge. It is nobody's local work; do not commit it onto a merged branch.)*
+
+**Spaces & Seating** — S1–S3 live, migrations `…220`–`…223` applied, twelve PRs each verified **on production** rather than at merge. S4–S6 parked behind Reservations and Events. The Reservations handoff is on main at `docs/plans/spaces-handoff-to-reservations.md`. **Their correction to my allow-list record: adding a public root path needs FOUR registrations, not the two I wrote.** Corrected detail in `docs/plans/spaces-seating-plan.md`.
+
+**QR & Links, Sessions & Classes, Reservations** — as recorded above; all three hold ungated work.
+
+### The sharpest lesson of the night belongs to Front Door, about their own work
+
+They shipped the same defect twice in escalating form, and found it only because someone else's blocker exposed it.
+
+- **First:** a words engine with no write path. The unasked question was *who writes this?*
+- **Second:** a write path **and** a settings screen, both built and both verified working — and `industry_preset` was still unset on **13 of 13** tenants, because nothing in the product ever set it unprompted. The unasked question was *does anything do this without a human going looking?*
+
+**A door a human has to find is not a door the product walks through.** Four merged PRs looked complete and delivered nothing to a single real tenant. That is the better question and it belongs above the first.
+
+### One correction to a stop-work instinct, because it will recur
+
+Two managers declined to update the board on the grounds that a PR triggers CI, and CI is load. **The reasoning is right and the machine is wrong.** `ci.yml` is `runs-on: ubuntu-latest` — every gate runs on GitHub's runners and costs the owner's laptop nothing. What costs the laptop is a **local** typecheck, lint, test lane or dev server. **During a memory stop: pushing and documenting are free; running anything locally is not.**
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
