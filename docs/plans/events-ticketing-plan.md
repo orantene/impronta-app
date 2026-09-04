@@ -522,12 +522,144 @@ of the same conflict.
 | PR | Delivers | Migration | Exit proof |
 |---|---|---|---|
 | **E4** | Public: `event_list`, `event_hero`, `ticket_picker` blocks following the `menu_board` pattern; `/events` and `/events/<slug>` with **all four registrations** (V-7); the conference and festival designs' dead `/tickets`, `/passes`, `/lineup`, `/schedule`, `/program`, `/venue` made real. | none | A signed-out visitor sees real remaining seats and a sold-out tier on a published event, on localhost, screenshotted. The F1a dead-href tripwire passes with those six routes live. |
-| **E5** | Guest ticket purchase through `createPurchase` with a **ten-minute** hold; admissions minted on paid lines; the receipt shows one QR per admission (Front Door owns `/r`). **The paid seam is NOT a blocker — see below.** | none | **Two guests with no account buy GA and VIP for the same night; the pools go to zero and the next buyer is refused.** One receipt, three QRs, three admission rows. |
+| **E5** | Guest ticket purchase through `createPurchase` with a **ten-minute** hold; admissions minted on paid lines; **a web receipt carrying one QR per admission, which is NOT deferrable** — the QR must live somewhere a buyer can open on a phone at the door. **The paid seam is NOT a blocker; `/r` ownership IS a live dependency — see below.** | none | **Two guests with no account buy GA and VIP for the same night; the pools go to zero and the next buyer is refused.** One receipt, three QRs, three admission rows. |
 | **E6** | Tenant promo codes: the object, the order-time application, the `TicketsTab` manager. Comps are a 100% code on a hidden tier. | `…363` | `SALSA10` takes $3 off a $30 ticket, `orders.discount_cents` is 300, and the **same code created by a second tenant does not collide** (V-3). A 20-comp code refuses the 21st under concurrency. |
 | **E7** | Payout held to session end: the `on_session_end` rule on `booking_payouts`, released by the existing `releaseHeldPayouts`. | none | A ticket order paid today shows `held`; after the session's `ends_at` passes, the release path moves it. Proven against a real session window, not a mocked clock. |
-| **E8** | The door: `/door/<event>` staff PWA, `check_in(token)`, cached already-scanned list, walk-up look-up by name. **No new membership role** (V-6). | none | **I scan a real QR on a phone**: valid goes green, the same QR again goes red as already scanned, a refunded ticket goes red with the reason. Screenshots. |
+| **E8** | **PHASE 2 EXIT ITEM, not a tail-ender — the owner named it.** The door: `/door/<event>` staff PWA, `check_in(token)`, cached already-scanned list, walk-up look-up by name, **walk-up sales at the door in card AND cash**, and the end-of-night report (sold, scanned, not scanned, door sales split cash vs card). **No new membership role** (V-6). | none | **I scan a real QR on a phone**: valid goes green, the same QR again goes red as already scanned, a refunded ticket goes red with the reason. Screenshots. |
 | **E9** | Lineup: `inquiries.event_id`, "book talent for this event", the `LineupTab`, cross-listing on the performer's page and Discover as upcoming. | `…364` | A performer booked through the spine appears on the event page and the event appears on their public page; the two orders (tickets in, fee out) are separate rows with separate snapshots. |
 | **E10** | `SalesTab`: sold, remaining, revenue, channel. Bulk refund on cancellation as a batch over orders (needs Orders 0.8b). | none | Cancelling an event refunds every order by policy in one batch and emails every buyer; **one real refund exercised**, per the Phase 2 exit. |
+
+**THE DOOR RE-RANK, AND THE CASH RULING (owner, via the CEO, 2026-09-03).** Tickets get a receipt, a
+QR and a PDF; anyone with a phone can scan them; entries are registered; and day-of sales happen at the
+door by card **or cash**. Absorbed as a re-ranking plus two additions, not a redesign:
+
+- **E8 becomes a Phase 2 exit item.** It is the feature that makes an event real on the night.
+- **Walk-up sales move INTO E8 and are no longer "additive".** Card at the door is not a new money path
+  — it is the existing checkout on the door staff's phone, and it earns normally.
+- **A cash door sale records the admission and takes ZERO commission.** We never touch the money, so
+  there is nothing to take a fee from, and invoicing a venue afterwards for 6% of cash we never saw is
+  a collections problem we lose and a relationship we poison. The UI says so plainly. The evasion risk
+  (marking card as cash) is an accepted, watched number after launch, not a thing to design against
+  with zero paying customers.
+- **The end-of-night report** — sold, scanned, not scanned, door sales split cash versus card — is the
+  artifact a venue owner asks for the next morning. In E8, since it is the same screen's data.
+
+**THE CASH SALE IS REPRESENTABLE ONLY BECAUSE THE ANCHOR GUARD STAYED WEAK.** A cash walk-up is an
+admission with a session and an allocation and **no `order_line_id`**, because no order exists. That is
+case 5 of the five enumerated in `20261229000360`. Had the guard been tightened to require an order
+line — which is the obvious shape if you assume every admission was bought — the owner's cash sale
+would have been unrepresentable, and it would have been discovered at a door on a Saturday night.
+**Third time a strong guard on that table would have refused a real case, and the first time it was
+caught before rather than after.** It still consumes capacity: `capacity_allocations.order_line_id` is
+nullable, so a door sale holds a seat without an order and the venue cannot oversell.
+
+**THE ONE THING IN THE RULING THAT IS NOT MINE TO ABSORB: `/r` IS FRONT DOOR'S F4, AND F4 IS BEHIND
+ORDERS 0.8.** "The web receipt is not deferrable" is right — a QR with nowhere to live is not a ticket
+— but it makes my E5 exit proof depend on another department's slice that has its own blocker. Raised
+rather than absorbed. Two ways out, and it is the Director's call, not mine: sequence F4 ahead of the
+rest of Front Door's queue, or I render the admission QRs on a minimal view I own and Front Door
+replaces it when F4 lands. **I recommend the second**: it is smaller, it makes nobody wait, and a
+receipt that shows a QR and is later upgraded is strictly better than a ticket with no page.
+
+**E8 CONTRACT, agreed with Reservations before a line is written.**
+
+```
+check_in(token)                        -- door: the buyer's QR
+check_in(actor, admission_id, count?)  -- host stand: tapping Seat beside a name
+```
+
+`count` defaults to **the remainder** (`party_size - admitted_count`), which unifies the two modes
+rather than special-casing them: a single ticket admits 1 because its remainder is 1, a VIP table for 6
+scanned once admits 6, and a host seating two of a four-top passes `2`. Without the count argument a
+four-top is four calls and four row-lock round trips at the busiest moment of the night.
+
+**THE DEFAULT HAS A TRAP AND IT IS THE WHOLE REASON THE RETURN TYPE MATTERS.** On a second scan the
+remainder is 0, so a naive implementation admits zero units and **succeeds** — and the door shows green
+for a ticket that has already walked in. That is this repo's recorded *a function that answers instead
+of refusing*, arriving through the convenience default. So `check_in` **refuses** when the remainder is
+zero rather than admitting nothing, and returns a discriminated result:
+
+```
+{ ok: true,  admitted: n, remaining: m }
+{ ok: false, reason: 'already_admitted' | 'not_valid' | 'unknown_token' | 'exceeds_party' }
+```
+
+`not_valid` carries the `status` so a refunded ticket goes red **with the reason** rather than as a
+generic failure, which is what the `DoorScanner` artboard shows and what stops an argument at the door.
+
+**The host stand's six states are DERIVED from columns that already exist — no new ones.** Reservations'
+table: `no_show_at` set is No-show; `completed_at` set is Completed; `admitted_count = party_size` is
+Seated; `0 < admitted_count < party_size` is **Part seated** (2 of 4); past `starts_at + grace` with a
+zero count is Late; otherwise Booked. **Nothing derives from `status`** — `valid`/`void`/`refunded` is
+commercial and renders as a separate badge, because "seated, then refunded" is a real sentence that one
+label could not say.
+
+**"Part seated" is a fourth independent justification for `party_size`**, after the VIP-table case, the
+grain argument, and the two covers numbers (`sum(admitted_count)` is arrivals, `sum(party_size)` is
+booked, and one column would have made one of Reservations' two screens wrong).
+
+**A boundary, so I do not build it: creating a walk-in is Reservations', not mine.** A walk-in has no
+admission row until the host makes one — an allocation with a null order line — and then calls my
+function on it. **E8 admits people to rows that exist**; it does not grow a create-a-walk-in mode.
+
+**`check_in` DOES NOT EXIST, AND WHEN I BUILD IT IT NEEDS TWO ENTRY MODES, NOT ONE.** I told the
+Reservations Manager that "`check_in(token)` works on a table already". It does not: I queried `pg_proc`
+after they challenged it and the only matching function in `public` is `admissions_touch`. My own error,
+of exactly the class I spent the evening catching in other people — an inherited plan line repeated as a
+statement about main. Sessions' plan lists it at P1.5 and it has not been written.
+
+**The signature must not be token-only, and Reservations found the reason before a line was written.**
+A diner scans nothing. The host taps *Seat* beside a name, and for a walk-in there is **no booking, no
+receipt and no token in existence**. A token-only `check_in` leaves them minting a token nobody will
+ever scan, or writing `admitted_count` directly and becoming a second implementation of the invariant.
+So: **one function, two ways in** — a signed token for the door, and an actor plus an admission id for a
+host looking at the person. Same row, same arithmetic, same `<= party_size` bound, one enforcement site.
+
+**And the door and the host stand are one surface with two entry modes, not two surfaces.** They are the
+same question asked twice — *has this person arrived, and how many of them* — and the differences are
+cosmetic: I scan and show a tier, they tap and show a table. Agreed with Reservations that I shape E8
+for both now rather than retrofit, and that they consume it rather than mirror it.
+
+**A CORRECTION TO MY OWN PROSE, WHICH THE SCHEMA HAD RIGHT.** I described their walk-in as having
+"session or space set". It has **neither**: only an allocation. No order line (nothing was bought), no
+space (unassigned is valid until the host seats them), and **no session — a service window is not a
+`sessions` row** in their area at all. The migration's enumerated case 5 already says exactly this
+(`allocation yes, session -, space later, order_line NO`); only my message was sloppy.
+
+**Which produces a seventh case I did not know about when I refused to tighten the guard.** Had anyone
+required a **session** for a timed admission — an entirely reasonable-sounding constraint — **every
+restaurant reservation on the platform would have been unrepresentable.** I held the line on a sixth
+case nobody could name; there were at least two.
+
+**`/r` IS UNREGISTERED AND WILL 404. Confirmed on `origin/main`, with two corrections to how I was
+told it.** `surface-allow-list.ts:391` has `CANONICAL_LINK_PREFIX = "/q"` and `:736` gates it; **there
+is no `/r` anywhere.** So the receipt page would exist on disk and serve an HTML 404 from a working
+handler, which reads as a routing bug and is not one.
+
+- **The prefix collision I was warned about does not exist.** `hasPrefix` (`:695`) is
+  `pathname === prefix || pathname.startsWith(prefix + "/")`, so `/r` cannot shadow `/review` or
+  `/register`: neither equals `/r` nor starts with `/r/`. Segment-safe by construction. Checked rather
+  than assumed, because designing around an imaginary collision would have cost a worse path than `/r`.
+- **`reserved-routes.ts` does not exist.** Both reserved lists live inside `surface-allow-list.ts`
+  (`:404` and `:427`), and `PATH_BASED_TENANT_RESERVED_PREFIXES` spreads
+  `WORKSPACE_SLUG_RESERVED_PREFIXES`, so **one Set entry satisfies both**. They are keyed on the tenant
+  slug (`:480` is `.has(tenantSlug)`), so the entry is `"r"`, not `"/r"`. Four registrations, three
+  edits, one file.
+
+**BUILD THE INTERIM RECEIPT AT THE FINAL PATH `/r/<code>`, NOT A TEMPORARY ONE.** Approved to build it
+myself rather than wait on Front Door's F4, on this condition, and the condition is the whole value:
+**a QR is not a link on a page you can update.** It is on someone's phone or on paper. Ship the interim
+view at a different path and every ticket issued before F4 points at a dead URL, with no way to reach
+those buyers. Same path, swappable view, and F4 becomes a replacement rather than a migration.
+
+**This slice is therefore gated on the `surface-allow-list.ts` decomposition (#1631), not on Orders.**
+That file is at exactly its 800-line error ceiling with zero headroom. No appending, and **no
+suppression** — the ratchet counts suppressions in aggregate, so working around it reddens main.
+
+**CAMERA SCANNING CANNOT BE SELF-VERIFIED AND GOES ON THE PHASE-BOUNDARY QA LIST.** The condition is a
+real iPhone in Safari or the installed PWA, not desktop Chrome with a webcam, and not the simulator:
+camera capture is exactly where mobile browsers differ, and the iOS Simulator has no camera. I cannot
+produce this evidence myself. It is the owner's click, and I will write the exact steps.
 
 **THE `paid` SEAM EXISTS AND IS WIRED — I was told otherwise and checked.** Sessions & Classes
 warned me that "nothing on main moves an order to `paid`" and that `markPaid` touches neither
@@ -567,14 +699,18 @@ Named so nobody reads the mockups and believes it is coming in this wave.
   tier). Spaces S5, wave E. V-5.
 - **Layouts** on an event. Spaces S4, wave E. The column ships unread.
 - **Wallet passes, PDF tickets, ticket design.** `SettingsEvents` and `TicketsTab` show all three.
-  They are a real feature and none of them is load-bearing for the exit proof. Wave E or later.
+  **The web receipt is NOT in this list any more** — it moved into E5, because a phone screen is what
+  actually gets scanned and a QR needs somewhere to live. PDF stays parked and stays in the plan: it is
+  for the person who prints or who loses the email, and it is a small render on top of a receipt that
+  will already exist. Nobody calls this feature finished while a buyer has nothing to show at the door.
 - **Add-ons on a tier** ("Welcome drink + $8"). `talent_offering_addons` exists and this is small,
   but it is a second money path through the ticket picker and I would rather ship the first one
   correctly. Immediately after E5 if the Director wants it.
 - **Transfers** ("send a ticket to a friend"). Needs an admission-holder change and a second token
   issue; a genuine v2.
-- **Waitlist when sold out**, **embed on another site**, **walk-up card sales at the door**. All
-  three appear in the mockups. All three are additive to a working box office.
+- **Waitlist when sold out** and **embed on another site**. Both appear in the mockups and both are
+  additive to a working box office. **Walk-up sales are no longer in this list** — card and cash both
+  moved into E8 by the owner's ruling.
 - **Offline door scanning.** My brief says it is not a v1 goal, and I agree: E8 is online-first with
   the already-scanned list cached so a dropped signal degrades to a warning rather than a turnstile.
   **The marketing FAQ must be edited in the E8 PR**, not before — it currently says the offline
