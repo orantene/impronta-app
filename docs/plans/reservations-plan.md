@@ -460,15 +460,34 @@ and evidenced on production.
 
 ---
 
-## 5. Roles
+## 5. Roles — `host` must NOT be a membership role
 
-`host` is the first **lateral** role in a model documented as strictly hierarchical (C5), and Events needs
-`door` with the same shape. Built twice we get two answers to "may a host see a guest's phone number".
-Proposal: Events builds one operational-roles slice; I add `host` on top. Capabilities I need:
+**Corrected 2026-09-04 after reading the function rather than assuming it.**
+[`is_staff_of_tenant`](../../supabase/migrations/20260602100000_saas_p2_rls_tenant_isolation.sql#L43)
+is the predicate under **every RLS policy on every tenantised table**, and its body is:
+
+```sql
+SELECT public.is_platform_admin()
+  OR EXISTS (SELECT 1 FROM public.agency_memberships m
+              WHERE m.profile_id = auth.uid()
+                AND m.tenant_id  = target_tenant_id
+                AND m.status IN ('active','pending_acceptance'));
+```
+
+**It never reads `role`.** So adding `host` to the membership role CHECK would not create a narrow
+role; it would grant a host read access to the entire workspace — the roster, the clients, the money —
+through every policy in the schema. My earlier plan said "Events builds the `door` slice and I add
+`host` on top", which was right about not forking and wrong about the mechanism.
+
+The pattern is a **SECURITY DEFINER function plus app-layer gating**, not a membership row. Events is
+building the `door` shape first; I build `host` on that shape. Capabilities the host stand needs:
 `view_reservation_book`, `seat_guest`, `mark_no_show`, `create_walkin`, and read of name, party size and
 notes — **not** email, phone, spend, or notes marked private.
 
----
+**A related trap, same source:** `product_discounts.code` is **globally unique**
+([`20260527213552:133`](../../supabase/migrations/20260527213552_product_discounts.sql#L133)). If
+Reservations ever grows promo or comp codes, that shape must not be copied — the first venue to create
+`SALSA10` would take it from every other venue on the platform.
 
 ## 6. Invariants I hold, and will refuse to break
 
