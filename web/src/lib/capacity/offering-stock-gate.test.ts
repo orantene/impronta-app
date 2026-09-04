@@ -14,7 +14,7 @@
  * failure mode is a predicate quietly regaining a `kind` term.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -60,7 +60,18 @@ test("the reserve gate keys on the pool, not the kind", () => {
   // `loadOfferingCapacityPoolId` and reserves only when a pool exists. The
   // assertion is kept because the BUG it guards is still possible — gating on
   // `kind === 'product'` is what let the 12-spot course oversell.
-  const src = read("lib/orders/purchase.ts");
+  // Reads the WHOLE pipeline, not one file. This guard named
+  // `lib/orders/purchase.ts` and went red the moment that file was split for
+  // the 800-line cap — the pool resolution simply moved to a sibling. The
+  // assertion below was right both before and after; only its subject moved.
+  // Concatenating the directory means the next split cannot break it either,
+  // and a `kind === "product"` reintroduced ANYWHERE in the pipeline is caught
+  // rather than only in the file this line happened to name.
+  const dir = join(WEB_SRC, "lib", "orders");
+  const src = readdirSync(dir)
+    .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+    .map((f) => readFileSync(join(dir, f), "utf8"))
+    .join("\n");
   assert.ok(
     src.includes("capacity_pool_id"),
     "the pipeline must resolve a pool id rather than infer one from kind",
