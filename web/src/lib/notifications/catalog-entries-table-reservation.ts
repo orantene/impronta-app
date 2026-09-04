@@ -11,13 +11,19 @@ import { logServerError } from "@/lib/server/safe-error";
 /**
  * A TABLE reservation's confirmation.
  *
+ * IF YOU ARE HERE BECAUSE YOU FOUND TWO RESERVATION CATALOGS AND ASSUMED ONE IS
+ * A DUPLICATE: they are not. Do not merge them. Read the next paragraph.
+ *
  * WHY THIS IS A SEPARATE FILE FROM `catalog-entries-reservation.ts`. That one
  * rides the INQUIRY SPINE — `loadInquiryView`, `event.inquiryId` — because it
  * serves the appointments product, where a "reservation" is a request that
  * becomes a conversation. A table booking is an ORDER plus an ADMISSION and has
  * no inquiry at all, so every audience resolver and hydrator over there returns
  * nothing for it. Two products, one word; that collision is why the plan says
- * never to name a table booking after the word "reservation" in code.
+ * never to name a table booking after the word "reservation" in code. This file
+ * is the cheapest bill that collision will ever send; merging the two would be
+ * the expensive one, because the resolvers are incompatible rather than merely
+ * different and the failure is a confirmation that silently never sends.
  *
  * THE COPY LIVES IN `lib/reservations/confirmation.ts` AND IS TESTED THERE.
  * This file resolves the venue's timezone and hands it over. The email and the
