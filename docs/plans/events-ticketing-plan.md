@@ -792,9 +792,19 @@ named people, not on judgment.
    *refuse*.
 3. **A green lane is not a green branch.** `tsx --test` executes and does not typecheck; seven tests
    passed over five type errors.
-4. **A privilege sweep catches what a careful reading cannot.** I wrote a true sentence about view
-   ownership, drew the wrong conclusion from it, and shipped a cross-tenant read. The comment recording
-   the error read like diligence.
+4. **A privilege sweep catches what a careful reading cannot** — *and the sweep itself needs a
+   discriminator, or it becomes the next bug.* I wrote a true sentence about view ownership, drew the
+   wrong conclusion from it, and shipped a cross-tenant read; the comment recording the error read like
+   diligence. But the rule I then published would have **broken** a correct view:
+   `inquiry_offer_line_items_talent_view` is in the identical state mine was — `security_invoker` unset,
+   running as owner, bypassing RLS — and is **right**, because it carries its own `auth.uid()` scope and
+   the base table's policies do not admit a talent by `talent_profile_id` at all. It exists *because*
+   RLS refuses that access. Setting the invoker flag returns zero rows for every talent, silently,
+   since an empty result is what a correctly-filtered view looks like. **The two are indistinguishable
+   by shape and opposite in correctness.** The discriminator: *does the view carry its own scope, and
+   would RLS have granted this access anyway?* A sweep that flags both for a human is useful; one that
+   auto-fixes, or whose message says "set security_invoker", is worse than none.
+
 5. **One authority per fact.** The units-versus-people confusion surfaced five times in five different
    costumes — a column, a detector, a constraint, a door count, a reconciler predicate. A bad column
    does not just store a wrong number; it teaches every later reader to compute one.
