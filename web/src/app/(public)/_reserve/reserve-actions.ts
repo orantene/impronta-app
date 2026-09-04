@@ -32,6 +32,8 @@ import {
 import type { AvailabilityRefusal } from "@/lib/reservations";
 import { capacityRemaining } from "@/lib/capacity/reserve";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
 
 const inputSchema = z.object({
   tenantId: z.string().uuid(),
@@ -168,5 +170,112 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
   } catch (err) {
     logServerError("reserve-actions.loadReserveAvailability", err);
     return { ok: false, reason: "unavailable" };
+  }
+}
+
+// ─── submitting ──────────────────────────────────────────────────────────────
+
+const submitSchema = z.object({
+  tenantId: z.string().uuid(),
+  partySize: z.number().int().min(1).max(1000),
+  onDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** An instant the guest was SHOWN. Re-derived here, never trusted. */
+  startsAtIso: z.string().min(20).max(40),
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(200),
+  phone: z.string().trim().max(40).optional(),
+  note: z.string().trim().max(500).optional(),
+  /** Per CART, not per click — the idempotency anchor. */
+  clientOrderKey: z.string().uuid(),
+  sourcePage: z.string().max(300).nullable().optional(),
+});
+
+export type SubmitReservationResult =
+  | {
+      ok: true;
+      orderId: string;
+      admissionId: string;
+      /** Integer cents being collected now. 0 for a table with no deposit. */
+      collectCents: number;
+      /** Present when there is money to collect; the caller takes it to checkout. */
+      transactionId: string | null;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Take the reservation.
+ *
+ * THE INSTANT IS RE-DERIVED. The guest sends a time they were shown, and
+ * `findOfferedTime` recomputes what this venue actually offers that party on
+ * that date and refuses anything absent from it — including choosing the BAND,
+ * because a client-sent pool id would be the whole exploit.
+ *
+ * Whether that specific table is still free is NOT decided here. It is decided
+ * by `reserve_capacity` under the pool's row lock, inside the purchase
+ * pipeline, so two guests racing the last four-top cannot both win. One
+ * authority, and this is not it.
+ */
+export async function submitReservation(input: unknown): Promise<SubmitReservationResult> {
+  const parsed = submitSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid_request" };
+  const d = parsed.data;
+
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+
+    const venue = await loadDefaultVenue(d.tenantId);
+    if (!venue) return { ok: false, reason: "reservations_off" };
+
+    const config = await loadVenueServiceConfig(d.tenantId, venue.id, {
+      fromDate: d.onDate,
+      toDate: d.onDate,
+    });
+    // A failed read is not an open venue, and it is certainly not a booking.
+    if (!config) return { ok: false, reason: "unavailable" };
+
+    const tz = await resolveTenantTimezone(d.tenantId, venue.id);
+    const timeZone = tz?.timezone ?? venue.timezone;
+
+    const offered = findOfferedTime({
+      startsAtIso: d.startsAtIso,
+      partySize: d.partySize,
+      rules: config.rules,
+      windows: config.windows,
+      exceptions: config.exceptions,
+      bands: config.bands,
+      onDate: d.onDate,
+      timeZone,
+      now: new Date(),
+      // The public path upsizes only when the venue said so. A guest cannot
+      // opt into a bigger table by asking for one.
+      allowUpsize: config.rules.allowPublicUpsize,
+    });
+    if (!offered) return { ok: false, reason: "time_not_offered" };
+
+    const outcome = await createReservation(admin, {
+      tenantId: d.tenantId,
+      venueId: venue.id,
+      rules: config.rules,
+      offered,
+      partySize: d.partySize,
+      clientOrderKey: d.clientOrderKey,
+      actorUserId: null, // a guest; never invented
+      contact: { email: d.email, phone: d.phone ?? null, displayName: d.name },
+      note: d.note ?? null,
+      sourcePage: d.sourcePage ?? null,
+    });
+
+    if (!outcome.ok) return { ok: false, reason: outcome.reason };
+    return {
+      ok: true,
+      orderId: outcome.orderId,
+      admissionId: outcome.admissionId,
+      collectCents: outcome.collectCents,
+      transactionId: outcome.transactionId,
+    };
+  } catch (err) {
+    logServerError("reserve-actions.submitReservation", err);
+    return { ok: false, reason: "engine_error" };
   }
 }

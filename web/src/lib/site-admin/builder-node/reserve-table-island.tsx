@@ -24,6 +24,21 @@
 import { useEffect, useState } from "react";
 import type { ReserveAvailability, ReserveSlot } from "@/app/(public)/_reserve/reserve-actions";
 
+/**
+ * Per CART, not per click. A double-tapped Reserve button must produce ONE
+ * booking, and the key is what makes the second call idempotent rather than a
+ * second table. Regenerated only when the guest starts a different booking.
+ */
+function newOrderKey(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    // A browser without randomUUID still needs a stable key for this cart.
+    const r = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, "0");
+    return `${r()}${r()}-${r()}-4${r().slice(1)}-a${r().slice(1)}-${r()}${r()}${r()}`;
+  }
+}
+
 type Props = {
   tenantId: string;
   venueName: string;
@@ -33,7 +48,27 @@ type Props = {
   partyMax?: number;
   /** Rendered above the button when the venue asks for a card. */
   cardNotice?: string | null;
+  /** The venue allows a note on the reserve step. */
+  notesEnabled?: boolean;
   onAskFirst?: () => void;
+};
+
+/**
+ * A refused BOOKING says something different from a refused SEARCH. "That time
+ * just went" is the one that matters: between the page rendering and the guest
+ * tapping, someone else can take the last four-top, and telling them that
+ * plainly is better than a generic failure they will read as our fault.
+ */
+const SUBMIT_REFUSAL_COPY: Record<string, string> = {
+  time_not_offered: "That time just went. Pick another and we will hold it.",
+  sold_out: "Somebody took the last table for that time. Try another.",
+  capacity_unavailable: "We could not reach the book just now. Nothing was booked. Try again.",
+  no_offering_configured: "This restaurant is not taking bookings online yet.",
+  reservations_off: "This restaurant is not taking bookings online right now.",
+  no_contact: "We need an email to hold the table.",
+  invalid_request: "Something about that booking did not look right. Try again.",
+  engine_error: "We could not complete that just now. Nothing was booked.",
+  unavailable: "We could not reach the book just now. Nothing was booked.",
 };
 
 const REFUSAL_COPY: Record<string, string> = {
@@ -89,6 +124,7 @@ export function ReserveTableIsland({
   partyMin = 1,
   partyMax = 8,
   cardNotice = null,
+  notesEnabled = true,
   onAskFirst,
 }: Props) {
   const today = new Date();
@@ -105,6 +141,13 @@ export function ReserveTableIsland({
   const [state, setState] = useState<
     { status: "loading" } | { status: "ready"; data: ReserveAvailability }
   >({ status: "loading" });
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [orderKey, setOrderKey] = useState(newOrderKey);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState<{ label: string; collectCents: number } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const onDate = ymdInZone(dates[dateIndex]!);
 
@@ -271,34 +314,129 @@ export function ReserveTableIsland({
         </p>
       ) : null}
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          disabled={!slot}
+      {/* Who. Asked for only once a time is chosen, so the page is a price
+          list until the guest has actually decided something. */}
+      {slot ? (
+        <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+            aria-label="Name"
+            style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            type="email"
+            aria-label="Email"
+            style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
+          />
+          {notesEnabled ? (
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Anything we should know?"
+              aria-label="Special requests"
+              style={{ padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 14 }}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      {done ? (
+        <div
+          role="status"
           style={{
-            flex: 1,
-            background: slot ? C.accent : "rgba(11,11,13,0.08)",
-            color: slot ? "#fff" : C.dim,
-            border: "none",
-            borderRadius: 9,
-            padding: "12px 16px",
+            border: `1px solid ${C.accent}`,
+            background: C.accentSoft,
+            borderRadius: 10,
+            padding: "14px 16px",
             fontSize: 14,
-            fontWeight: 600,
-            cursor: slot ? "pointer" : "default",
+            lineHeight: 1.6,
+            color: C.accent,
           }}
         >
-          {slot ? `${ctaVerb} at ${slot.label}` : `Pick a time`}
-        </button>
-        {onAskFirst ? (
-          <button
-            type="button"
-            onClick={onAskFirst}
-            style={{ ...chip(false), padding: "12px 16px" }}
-          >
-            Ask first
-          </button>
-        ) : null}
-      </div>
+          <strong>You are booked for {done.label}.</strong>
+          <br />
+          {done.collectCents > 0
+            ? `A deposit of $${(done.collectCents / 100).toFixed(2)} is due; we have sent you the link.`
+            : "Nothing to pay now. We have sent a confirmation to your email."}
+        </div>
+      ) : (
+        <>
+          {submitError ? (
+            <p role="alert" style={{ fontSize: 13, color: "#A8471B", margin: "0 0 10px" }}>
+              {SUBMIT_REFUSAL_COPY[submitError] ?? SUBMIT_REFUSAL_COPY.engine_error}
+            </p>
+          ) : null}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              disabled={!slot || submitting || !name.trim() || !email.trim()}
+              onClick={async () => {
+                if (!slot) return;
+                setSubmitting(true);
+                setSubmitError(null);
+                try {
+                  const { submitReservation } = await import(
+                    "@/app/(public)/_reserve/reserve-actions"
+                  );
+                  const result = await submitReservation({
+                    tenantId,
+                    partySize: party,
+                    onDate,
+                    startsAtIso: slot.startsAtIso,
+                    name: name.trim(),
+                    email: email.trim(),
+                    note: note.trim() || undefined,
+                    clientOrderKey: orderKey,
+                    sourcePage:
+                      typeof window !== "undefined" ? window.location.pathname : null,
+                  });
+                  if (result.ok) {
+                    setDone({ label: slot.label, collectCents: result.collectCents });
+                  } else {
+                    setSubmitError(result.reason);
+                    // A refused booking starts a NEW cart. Reusing the key would
+                    // make a retry idempotent against a booking that does not
+                    // exist, and the guest would tap Reserve to no effect.
+                    setOrderKey(newOrderKey());
+                  }
+                } catch {
+                  setSubmitError("engine_error");
+                  setOrderKey(newOrderKey());
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              style={{
+                flex: 1,
+                background: slot && !submitting ? C.accent : "rgba(11,11,13,0.08)",
+                color: slot && !submitting ? "#fff" : C.dim,
+                border: "none",
+                borderRadius: 9,
+                padding: "12px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: slot && !submitting ? "pointer" : "default",
+              }}
+            >
+              {submitting ? "Booking" : slot ? `${ctaVerb} at ${slot.label}` : "Pick a time"}
+            </button>
+            {onAskFirst ? (
+              <button
+                type="button"
+                onClick={onAskFirst}
+                style={{ ...chip(false), padding: "12px 16px" }}
+              >
+                Ask first
+              </button>
+            ) : null}
+          </div>
+        </>
+      )}
     </div>
   );
 }
