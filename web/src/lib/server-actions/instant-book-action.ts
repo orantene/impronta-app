@@ -10,7 +10,8 @@
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { createPurchase, loadOfferingCapacityPoolId } from "@/lib/orders/purchase";
+import { createPurchase } from "@/lib/orders/purchase";
+import { loadOfferingCapacityPoolId } from "@/lib/orders/purchase-catalog";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
   convertClientForActor,

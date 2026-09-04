@@ -256,7 +256,7 @@ test("a free reserve writes NO booking and NO transaction", async () => {
 // ── Absence is not a value ───────────────────────────────────────────────────
 
 test("a FAILED pool lookup is distinguishable from 'no pool'", async () => {
-  const { loadOfferingCapacityPoolId } = await import("@/lib/orders/purchase");
+  const { loadOfferingCapacityPoolId } = await import("@/lib/orders/purchase-catalog");
 
   // Genuinely unlimited: the row exists and carries no pool.
   const noPool = {

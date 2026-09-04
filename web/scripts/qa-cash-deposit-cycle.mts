@@ -19,7 +19,7 @@ import { assignCoordinator } from "../src/lib/inquiry/inquiry-engine-coordinator
 import { createOffer, updateOfferDraft, sendOffer } from "../src/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer, talentRespondToOffer } from "../src/lib/inquiry/inquiry-engine-approvals";
 import { convertToBooking } from "../src/lib/inquiry/inquiry-engine-booking";
-import { createInstantBooking } from "../src/lib/inquiry/instant-book-engine";
+import { createInstantBooking } from "./qa-instant-book-compat.mts";
 import { persistBookingCommissionSnapshot } from "../src/lib/billing/commission-engine";
 import { createBookingTransaction, requestPayment, markPaid, loadActiveBookingTransaction } from "../src/lib/bookings/transactions";
 
