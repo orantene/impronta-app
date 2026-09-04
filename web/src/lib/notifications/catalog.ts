@@ -35,6 +35,7 @@ import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
 import { REVIEWS_CATALOG_ENTRIES } from "./catalog-entries-reviews";
 import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
 import { RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-reservation";
+import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reservation";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -758,6 +759,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...REVIEWS_CATALOG_ENTRIES,
   ...SUPPORT_CATALOG_ENTRIES,
   ...RESERVATION_CATALOG_ENTRIES,
+  ...TABLE_RESERVATION_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,
