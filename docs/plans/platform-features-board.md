@@ -137,6 +137,56 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## A NEW MEMBERSHIP ROLE GRANTS THE ENTIRE WORKSPACE — `is_staff_of_tenant` never reads `role`
+
+**Found by the Events & Ticketing Manager on their first day, verified line by line by the director rather than relayed.** This constrains Events, Reservations and Sessions & Classes simultaneously and it is the most consequential thing found tonight.
+
+`20260602100000_saas_p2_tenant_helpers.sql:43-58`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_staff_of_tenant(target_tenant_id UUID)
+... SELECT public.is_platform_admin()
+    OR EXISTS (SELECT 1 FROM public.agency_memberships m
+               WHERE m.profile_id = auth.uid() AND m.tenant_id = target_tenant_id
+                 AND m.status IN ('active', 'pending_acceptance'));
+```
+
+**It asks only whether an active membership row exists. It never references `role`** — and every RLS policy on every tenantised table is built on it. So adding `'door'` (or `'host'`, or any operational role) to the `agency_memberships` role CHECK is one line that grants that person **clients, orders, revenue and messages** — the exact inverse of "sees only that mode".
+
+**The shape instead, approved and now the department's pattern:** a `SECURITY DEFINER` function for the operation (`check_in(token)`) plus a scoped read, gated in the app layer, and **no new membership role**. Nobody gains RLS they did not have. Events builds it with `door`; **Reservations adds `host` on that shape rather than forking it**, and Sessions & Classes' P1.7 staff check-in route takes the same shape rather than inventing a parallel one.
+
+**Checked and NOT a finding, recorded so nobody re-investigates:** `pending_acceptance` granting full staff access looks wrong beside the function's comment *"Invited / expired / removed memberships do NOT grant access"*, but `'invited'` and `'pending_acceptance'` are distinct states in the CHECK and `'invited'` genuinely does not grant. The comment is imprecise, not false.
+
+**Two more from the same review, both verified:** `product_discounts.code` is **globally UNIQUE** (`20260527213552:133`) with no tenant scoping — the first venue to create `SALSA10` takes it from every other venue, surfacing as an unexplained "code already exists" in a stranger's workspace; and its `redemption_count int` is unlocked, so two simultaneous checkouts on the last comp both read 19 and both write 20. Tenant promo codes are unique on `(tenant_id, upper(code))` and count redemptions **by rows**. And `talent_offering_variants.capacity_pool_id` (`20261229000210:47`) invites the wrong conclusion for events — a twelve-Sunday series is **twelve pools per tier** and a variant is one row — so it stays NULL for event tiers and the pool resolves per session as `(session_tier, session.id, pool_key)`.
+
+### A GREP FOR A PHRASE IS NOT A SEARCH FOR A FACT
+
+**The director's error, caught by the Events & Ticketing Manager within an hour of being hired.** Told that the `admissions` overturn was not yet on `origin/main`, they fetched and read rather than relaying — and it *was* there. #1609 had landed it at `ffdc19e4c`.
+
+**The director had checked.** The check was `grep -c "OVERTURNED"`, which returned 0 — because #1609 recorded the same ruling in different words (*"The Director ruled NOT NULL; Sessions & Classes produced the fifth case"*) and never uses that word. **Grepping for your own wording and reporting the absence of your phrasing as the absence of the fact.** The miss is silent: zero hits reads exactly like nothing is there.
+
+Same family as *measured the wrong store* and *a guard pinning source text*. **Search for the object, not for the sentence you would have written about it** — and when the answer is "not present", that is the one answer worth confirming a second way.
+
+### ROUTED OUT, NOT RULED HERE: the split platform fee (V-2)
+
+The `TicketsTab`, `EventSettingsTab` and `SettingsEvents` mockups all carry **"Buyer pays 3%, you 3%"**. The shipped rail is **one 6% seller-side commission**, and `feature-ticketing.ts` FAQ 2 commits in **EN and ES** to "the same platform fee as other booked work rather than a separate ticketing rate" — so shipping the split makes live marketing copy false in two languages.
+
+A buyer-paid fee is a new order line with the platform as payee, a new commission input, a change to what "gross" means, and a dispute surface — landing on a snapshot path Finance still has a live P0 against. **Commerce + Finance + owner.** The manager's recommendation, endorsed by this director: **ship the existing single-sided fee and CUT the control from Settings rather than render it inert** — a disabled control describing a fee structure the rail does not have is a promise the UI makes and the money refuses.
+
+### Events & Ticketing — ownership move and claimed timestamps
+
+**`admissions` is Events' table, not Sessions'.** The manager reversed their own position and said so: they had declined it because Sessions owns the check-in RPC, then saw that inverted the dependency — Sessions *and* Reservations both wait on `admissions`, so parking it behind either **blocks two areas to spare one**. Events owns the table; **Sessions keeps the check-in RPC and the token precedent.**
+
+**Accepted additions to the settled shape:** `units int NOT NULL DEFAULT 1 CHECK (units > 0)` with `CHECK (admitted_count BETWEEN 0 AND units)` — because four GA tickets are one allocation of 4 and **four** admissions while a party of four is one allocation of 4 and **one**, `allocation.units` is 4 in both, and the denominator is therefore not derivable; deriving it renders **"0 of 4" on a single ticket** in a component that displays exactly that field. And `token_version int NOT NULL DEFAULT 1` in the HMAC input, because void revokes the *admission* while re-issue must revoke the *token* and keep the seat. A counter is not a credential, so the no-stored-token ruling stands.
+
+**A refusal worth more than the additions.** The manager could have proposed `session_id IS NOT NULL OR allocation_id IS NOT NULL` — it holds on all five enumerated cases and is strictly stronger — and declined, because **this table has already had a strong guard refuse a real case twice**. A table with two refuted strong guards has told you its shape is not yet known, and the answer is enumeration plus a test, not a third guess by the newest person in the room.
+
+**Condition attached to keeping `'refunded'` in `status`:** it is a second source of truth for a fact `order_lines` owns, kept only because the door needs a one-row read. **Refund-by-line must be the sole writer**, to be settled in Orders 0.8b's contract. If Orders cannot commit to sole-writer, the column comes back for a ruling — an undetected disagreement between those two is a refunded ticket admitted at the door.
+
+**Timestamps claimed, band `20261229000360`–`…379`:** `…360` admissions · `…361` events · `…362` tiers on variants · `…363` tenant promo codes · `…364` `inquiries.event_id`. Ledger head is `20261229000500`; nothing above any band is headroom.
+
+**Out of Phase 2 deliberately**, so nobody plans against them: seat maps and layouts (Spaces S4/S5, wave E — `events.layout_id` ships nullable and unread, though the **VIP-table tier survives** on a `space_group` pool S2 already shipped), wallet passes, PDF tickets, tier add-ons, transfers, waitlist, embed, walk-up card sales, and **offline door scanning** (E8 is online-first with the scanned list cached, degrading to a warning).
+
 ## THE BATCHED QA LIST — every manager APPENDS, nobody clicks per slice
 
 **Human QA is batched at the phase boundary, not requested per slice.** Development runs to completion, then one full pass. **This list is the deliverable.** Format: surface · exact steps · what correct looks like. Append your own; do not edit anyone else's.
