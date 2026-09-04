@@ -307,7 +307,10 @@ const BUDGETS: Record<string, number> = {
   // was dropping `orders` from the WorkspacePage union to dodge the line;
   // `resolveWorkspaceAdminPage` casts its result to that union, so a segment
   // outside it makes the return type a lie to save one line.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5151,
+  // +2 (Sessions "Schedule" rail tab): two compiler-/nav-required lines — the
+  // PAGE_META entry (Record<WorkspacePage>) and the WORKSPACE_PAGES nav entry.
+  // Same shape as the Orders line: a mandatory +1/-0 each, raise not extract.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5153,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
