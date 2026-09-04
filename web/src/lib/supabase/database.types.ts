@@ -528,6 +528,125 @@ export type Database = {
           },
         ]
       }
+      admissions: {
+        Row: {
+          admitted_count: number
+          allocation_id: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string | null
+          holder_email: string | null
+          holder_name: string | null
+          id: string
+          line_seq: number | null
+          no_show_at: string | null
+          order_line_id: string | null
+          party_size: number
+          seated_at: string | null
+          session_id: string | null
+          space_id: string | null
+          starts_at: string | null
+          status: string
+          tenant_id: string
+          token_version: number
+          updated_at: string
+        }
+        Insert: {
+          admitted_count?: number
+          allocation_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          holder_email?: string | null
+          holder_name?: string | null
+          id?: string
+          line_seq?: number | null
+          no_show_at?: string | null
+          order_line_id?: string | null
+          party_size?: number
+          seated_at?: string | null
+          session_id?: string | null
+          space_id?: string | null
+          starts_at?: string | null
+          status?: string
+          tenant_id: string
+          token_version?: number
+          updated_at?: string
+        }
+        Update: {
+          admitted_count?: number
+          allocation_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          holder_email?: string | null
+          holder_name?: string | null
+          id?: string
+          line_seq?: number | null
+          no_show_at?: string | null
+          order_line_id?: string | null
+          party_size?: number
+          seated_at?: string | null
+          session_id?: string | null
+          space_id?: string | null
+          starts_at?: string | null
+          status?: string
+          tenant_id?: string
+          token_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admissions_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_line_id"]
+          },
+          {
+            foreignKeyName: "admissions_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agencies: {
         Row: {
           accepts_open_applications: boolean
@@ -544,6 +663,7 @@ export type Database = {
           onboarding_completed_at: string | null
           plan_tier: string
           preferred_currency: string | null
+          runs_events: boolean
           settings: Json
           slug: string
           status: string
@@ -556,6 +676,7 @@ export type Database = {
           supported_locales: string[]
           suspended_at: string | null
           suspended_reason: string | null
+          takes_reservations: boolean
           talent_seat_limit: number | null
           template_key: string
           timezone: string
@@ -577,6 +698,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           plan_tier?: string
           preferred_currency?: string | null
+          runs_events?: boolean
           settings?: Json
           slug: string
           status?: string
@@ -589,6 +711,7 @@ export type Database = {
           supported_locales?: string[]
           suspended_at?: string | null
           suspended_reason?: string | null
+          takes_reservations?: boolean
           talent_seat_limit?: number | null
           template_key?: string
           timezone?: string
@@ -610,6 +733,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           plan_tier?: string
           preferred_currency?: string | null
+          runs_events?: boolean
           settings?: Json
           slug?: string
           status?: string
@@ -622,6 +746,7 @@ export type Database = {
           supported_locales?: string[]
           suspended_at?: string | null
           suspended_reason?: string | null
+          takes_reservations?: boolean
           talent_seat_limit?: number | null
           template_key?: string
           timezone?: string
@@ -905,6 +1030,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "taxonomy_terms"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agency_bookings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "agency_bookings_order_id_fkey"
@@ -2657,6 +2789,13 @@ export type Database = {
             foreignKeyName: "booking_commission_snapshot_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "booking_commission_snapshot_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -3012,6 +3151,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "booking_transactions_order_id_fkey"
@@ -3540,6 +3686,13 @@ export type Database = {
           units?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "capacity_allocations_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_line_id"]
+          },
           {
             foreignKeyName: "capacity_allocations_order_line_id_fkey"
             columns: ["order_line_id"]
@@ -5808,6 +5961,72 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_payment_methods: {
+        Row: {
+          brand: string | null
+          created_at: string
+          customer_id: string
+          exp_month: number | null
+          exp_year: number | null
+          id: string
+          is_default: boolean
+          last_charged_at: string | null
+          last4: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string
+          customer_id: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last_charged_at?: string | null
+          last4?: string | null
+          status?: string
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string
+          customer_id?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last_charged_at?: string | null
+          last4?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_payment_method_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_payment_methods_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payment_methods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           client_profile_id: string | null
@@ -6121,6 +6340,107 @@ export type Database = {
           },
         ]
       }
+      events: {
+        Row: {
+          admission_kind: string
+          age_gate: number | null
+          cancelled_at: string | null
+          cover_media_id: string | null
+          created_at: string
+          description: string | null
+          doors_offset_minutes: number
+          id: string
+          layout_id: string | null
+          offering_id: string | null
+          page_id: string | null
+          payout_release_rule: string
+          published_at: string | null
+          refund_cutoff_hours: number | null
+          series_id: string | null
+          slug: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          venue_id: string | null
+        }
+        Insert: {
+          admission_kind?: string
+          age_gate?: number | null
+          cancelled_at?: string | null
+          cover_media_id?: string | null
+          created_at?: string
+          description?: string | null
+          doors_offset_minutes?: number
+          id?: string
+          layout_id?: string | null
+          offering_id?: string | null
+          page_id?: string | null
+          payout_release_rule?: string
+          published_at?: string | null
+          refund_cutoff_hours?: number | null
+          series_id?: string | null
+          slug: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Update: {
+          admission_kind?: string
+          age_gate?: number | null
+          cancelled_at?: string | null
+          cover_media_id?: string | null
+          created_at?: string
+          description?: string | null
+          doors_offset_minutes?: number
+          id?: string
+          layout_id?: string | null
+          offering_id?: string | null
+          page_id?: string | null
+          payout_release_rule?: string
+          published_at?: string | null
+          refund_cutoff_hours?: number | null
+          series_id?: string | null
+          slug?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "session_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       failed_engine_effects: {
         Row: {
           attempt_count: number
@@ -6309,6 +6629,7 @@ export type Database = {
           email_mirror_muted_at: string | null
           equipment_notes: string | null
           event_date: string | null
+          event_id: string | null
           event_location: string | null
           event_timezone: string | null
           event_type_id: string | null
@@ -6378,6 +6699,7 @@ export type Database = {
           email_mirror_muted_at?: string | null
           equipment_notes?: string | null
           event_date?: string | null
+          event_id?: string | null
           event_location?: string | null
           event_timezone?: string | null
           event_type_id?: string | null
@@ -6447,6 +6769,7 @@ export type Database = {
           email_mirror_muted_at?: string | null
           equipment_notes?: string | null
           event_date?: string | null
+          event_id?: string | null
           event_location?: string | null
           event_timezone?: string | null
           event_type_id?: string | null
@@ -6545,6 +6868,13 @@ export type Database = {
             columns: ["duplicate_of_inquiry_id"]
             isOneToOne: false
             referencedRelation: "inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inquiries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -7999,6 +8329,116 @@ export type Database = {
           },
         ]
       }
+      link_scans: {
+        Row: {
+          country: string | null
+          device_class: string
+          id: number
+          is_nfc: boolean
+          link_id: string
+          referrer: string | null
+          resolved_to: string | null
+          scanned_at: string
+          session_key: string | null
+          tenant_id: string
+        }
+        Insert: {
+          country?: string | null
+          device_class?: string
+          id?: number
+          is_nfc?: boolean
+          link_id: string
+          referrer?: string | null
+          resolved_to?: string | null
+          scanned_at?: string
+          session_key?: string | null
+          tenant_id: string
+        }
+        Update: {
+          country?: string | null
+          device_class?: string
+          id?: number
+          is_nfc?: boolean
+          link_id?: string
+          referrer?: string | null
+          resolved_to?: string | null
+          scanned_at?: string
+          session_key?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_scans_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_scans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      links: {
+        Row: {
+          code: string
+          code_mode: string
+          context: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          name: string
+          printed_count: number
+          status: string
+          targets: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          code_mode?: string
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          name: string
+          printed_count?: number
+          status?: string
+          targets?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          code_mode?: string
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          printed_count?: number
+          status?: string
+          targets?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           active: boolean
@@ -8627,6 +9067,9 @@ export type Database = {
       notification_dispatch_log: {
         Row: {
           attempts: number
+          bounce_message: string | null
+          bounce_subtype: string | null
+          bounce_type: string | null
           bounced_at: string | null
           catalog_entry_id: string | null
           channel: string
@@ -8652,6 +9095,9 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          bounce_message?: string | null
+          bounce_subtype?: string | null
+          bounce_type?: string | null
           bounced_at?: string | null
           catalog_entry_id?: string | null
           channel: string
@@ -8677,6 +9123,9 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          bounce_message?: string | null
+          bounce_subtype?: string | null
+          bounce_type?: string | null
           bounced_at?: string | null
           catalog_entry_id?: string | null
           channel?: string
@@ -8828,6 +9277,7 @@ export type Database = {
           offering_id: string | null
           order_id: string
           owner_tenant_id: string | null
+          session_id: string | null
           sort_order: number
           talent_cost_cents: number
           talent_profile_id: string | null
@@ -8846,6 +9296,7 @@ export type Database = {
           offering_id?: string | null
           order_id: string
           owner_tenant_id?: string | null
+          session_id?: string | null
           sort_order?: number
           talent_cost_cents?: number
           talent_profile_id?: string | null
@@ -8864,6 +9315,7 @@ export type Database = {
           offering_id?: string | null
           order_id?: string
           owner_tenant_id?: string | null
+          session_id?: string | null
           sort_order?: number
           talent_cost_cents?: number
           talent_profile_id?: string | null
@@ -8886,6 +9338,13 @@ export type Database = {
             foreignKeyName: "order_lines_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -8894,6 +9353,13 @@ export type Database = {
             columns: ["owner_tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
           {
@@ -11742,6 +12208,163 @@ export type Database = {
           },
         ]
       }
+      session_series: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          ends_on: string | null
+          id: string
+          is_active: boolean
+          local_time: string
+          offering_id: string | null
+          seats: number
+          starts_on: string
+          tenant_id: string
+          timezone: string | null
+          title: string
+          updated_at: string
+          venue_id: string | null
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes: number
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          local_time: string
+          offering_id?: string | null
+          seats: number
+          starts_on: string
+          tenant_id: string
+          timezone?: string | null
+          title: string
+          updated_at?: string
+          venue_id?: string | null
+          weekdays: number[]
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          local_time?: string
+          offering_id?: string | null
+          seats?: number
+          starts_on?: string
+          tenant_id?: string
+          timezone?: string | null
+          title?: string
+          updated_at?: string
+          venue_id?: string | null
+          weekdays?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_series_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_series_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_series_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          created_at: string
+          ends_at: string
+          event_id: string | null
+          id: string
+          offering_id: string | null
+          series_id: string | null
+          starts_at: string
+          status: string
+          tenant_id: string
+          title: string | null
+          updated_at: string
+          venue_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          event_id?: string | null
+          id?: string
+          offering_id?: string | null
+          series_id?: string | null
+          starts_at: string
+          status?: string
+          tenant_id: string
+          title?: string | null
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          event_id?: string | null
+          id?: string
+          offering_id?: string | null
+          series_id?: string | null
+          starts_at?: string
+          status?: string
+          tenant_id?: string
+          title?: string | null
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "session_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           key: string
@@ -11767,6 +12390,292 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      space_assignments: {
+        Row: {
+          allocation_id: string
+          assigned_at: string
+          assigned_by: string | null
+          is_join: boolean
+          party_size: number | null
+          space_id: string
+          tenant_id: string
+        }
+        Insert: {
+          allocation_id: string
+          assigned_at?: string
+          assigned_by?: string | null
+          is_join?: boolean
+          party_size?: number | null
+          space_id: string
+          tenant_id: string
+        }
+        Update: {
+          allocation_id?: string
+          assigned_at?: string
+          assigned_by?: string | null
+          is_join?: boolean
+          party_size?: number | null
+          space_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_assignments_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "capacity_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_assignments_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      space_combinations: {
+        Row: {
+          created_at: string
+          party_max: number
+          party_min: number
+          space_id: string
+          tenant_id: string
+          with_space_id: string
+        }
+        Insert: {
+          created_at?: string
+          party_max: number
+          party_min: number
+          space_id: string
+          tenant_id: string
+          with_space_id: string
+        }
+        Update: {
+          created_at?: string
+          party_max?: number
+          party_min?: number
+          space_id?: string
+          tenant_id?: string
+          with_space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_combinations_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_combinations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_combinations_with_space_id_fkey"
+            columns: ["with_space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      space_group_members: {
+        Row: {
+          group_id: string
+          sort_order: number
+          space_id: string
+          tenant_id: string
+        }
+        Insert: {
+          group_id: string
+          sort_order?: number
+          space_id: string
+          tenant_id: string
+        }
+        Update: {
+          group_id?: string
+          sort_order?: number
+          space_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "space_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_group_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_group_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      space_groups: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          min_spend_cents: number
+          name: string
+          party_max: number
+          party_min: number
+          sell_mode: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          min_spend_cents?: number
+          name: string
+          party_max?: number
+          party_min?: number
+          sell_mode?: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          min_spend_cents?: number
+          name?: string
+          party_max?: number
+          party_min?: number
+          sell_mode?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_groups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_groups_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spaces: {
+        Row: {
+          attributes: Json
+          code: string | null
+          created_at: string
+          id: string
+          kind: string
+          min_spend_cents: number
+          name: string
+          parent_id: string | null
+          party_max: number
+          party_min: number
+          seat_count: number | null
+          sort_order: number
+          status: string
+          tenant_id: string
+          turn_minutes: number | null
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          attributes?: Json
+          code?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          min_spend_cents?: number
+          name: string
+          parent_id?: string | null
+          party_max?: number
+          party_min?: number
+          seat_count?: number | null
+          sort_order?: number
+          status?: string
+          tenant_id: string
+          turn_minutes?: number | null
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          attributes?: Json
+          code?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          min_spend_cents?: number
+          name?: string
+          parent_id?: string | null
+          party_max?: number
+          party_min?: number
+          seat_count?: number | null
+          sort_order?: number
+          status?: string
+          tenant_id?: string
+          turn_minutes?: number | null
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spaces_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spaces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spaces_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -14036,36 +14945,69 @@ export type Database = {
       }
       talent_offering_variants: {
         Row: {
+          admits_per_unit: number
+          age_gate: number | null
           amount_cents: number | null
           capacity_pool_id: string | null
           consumes_units: number
           created_at: string
+          description: string | null
           id: string
+          is_hidden: boolean
           label: string
+          max_per_order: number | null
+          min_per_order: number
           offering_id: string
+          pool_key: string | null
+          sales_from: string | null
+          sales_until: string | null
+          seating_mode: string | null
           sort_order: number
+          space_group_id: string | null
           updated_at: string
         }
         Insert: {
+          admits_per_unit?: number
+          age_gate?: number | null
           amount_cents?: number | null
           capacity_pool_id?: string | null
           consumes_units?: number
           created_at?: string
+          description?: string | null
           id?: string
+          is_hidden?: boolean
           label: string
+          max_per_order?: number | null
+          min_per_order?: number
           offering_id: string
+          pool_key?: string | null
+          sales_from?: string | null
+          sales_until?: string | null
+          seating_mode?: string | null
           sort_order?: number
+          space_group_id?: string | null
           updated_at?: string
         }
         Update: {
+          admits_per_unit?: number
+          age_gate?: number | null
           amount_cents?: number | null
           capacity_pool_id?: string | null
           consumes_units?: number
           created_at?: string
+          description?: string | null
           id?: string
+          is_hidden?: boolean
           label?: string
+          max_per_order?: number | null
+          min_per_order?: number
           offering_id?: string
+          pool_key?: string | null
+          sales_from?: string | null
+          sales_until?: string | null
+          seating_mode?: string | null
           sort_order?: number
+          space_group_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -14081,6 +15023,13 @@ export type Database = {
             columns: ["offering_id"]
             isOneToOne: false
             referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_offering_variants_space_group_id_fkey"
+            columns: ["space_group_id"]
+            isOneToOne: false
+            referencedRelation: "space_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -16822,6 +17771,141 @@ export type Database = {
           },
         ]
       }
+      tenant_promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          currency: string | null
+          ends_at: string | null
+          event_id: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          label: string | null
+          max_redemptions: number | null
+          per_customer_limit: number
+          starts_at: string | null
+          tenant_id: string
+          updated_at: string
+          value: number
+          variant_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          currency?: string | null
+          ends_at?: string | null
+          event_id?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          label?: string | null
+          max_redemptions?: number | null
+          per_customer_limit?: number
+          starts_at?: string | null
+          tenant_id: string
+          updated_at?: string
+          value: number
+          variant_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          currency?: string | null
+          ends_at?: string | null
+          event_id?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string | null
+          max_redemptions?: number | null
+          per_customer_limit?: number
+          starts_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+          value?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_promo_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_codes_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offering_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_promo_redemptions: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          customer_id: string | null
+          id: string
+          order_id: string
+          promo_code_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          order_id: string
+          promo_code_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          order_id?: string
+          promo_code_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_promo_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_registration_settings: {
         Row: {
           created_at: string
@@ -17549,6 +18633,245 @@ export type Database = {
           },
         ]
       }
+      venue_service_rules: {
+        Row: {
+          allow_public_upsize: boolean
+          card_on_file_from_party: number | null
+          created_at: string
+          default_turn_minutes: number
+          deposit_cents_per_person: number
+          deposit_from_party: number | null
+          free_cancel_hours: number
+          horizon_days: number
+          is_active: boolean
+          min_notice_minutes: number
+          no_show_fee_basis: string
+          no_show_fee_cents: number
+          no_show_grace_minutes: number
+          notes_enabled: boolean
+          party_size_max: number
+          party_size_min: number
+          reservation_offering_id: string | null
+          tenant_id: string
+          turn_time_bands: Json
+          updated_at: string
+          venue_id: string
+          waitlist_enabled: boolean
+          walkins_enabled: boolean
+        }
+        Insert: {
+          allow_public_upsize?: boolean
+          card_on_file_from_party?: number | null
+          created_at?: string
+          default_turn_minutes?: number
+          deposit_cents_per_person?: number
+          deposit_from_party?: number | null
+          free_cancel_hours?: number
+          horizon_days?: number
+          is_active?: boolean
+          min_notice_minutes?: number
+          no_show_fee_basis?: string
+          no_show_fee_cents?: number
+          no_show_grace_minutes?: number
+          notes_enabled?: boolean
+          party_size_max?: number
+          party_size_min?: number
+          reservation_offering_id?: string | null
+          tenant_id: string
+          turn_time_bands?: Json
+          updated_at?: string
+          venue_id: string
+          waitlist_enabled?: boolean
+          walkins_enabled?: boolean
+        }
+        Update: {
+          allow_public_upsize?: boolean
+          card_on_file_from_party?: number | null
+          created_at?: string
+          default_turn_minutes?: number
+          deposit_cents_per_person?: number
+          deposit_from_party?: number | null
+          free_cancel_hours?: number
+          horizon_days?: number
+          is_active?: boolean
+          min_notice_minutes?: number
+          no_show_fee_basis?: string
+          no_show_fee_cents?: number
+          no_show_grace_minutes?: number
+          notes_enabled?: boolean
+          party_size_max?: number
+          party_size_min?: number
+          reservation_offering_id?: string | null
+          tenant_id?: string
+          turn_time_bands?: Json
+          updated_at?: string
+          venue_id?: string
+          waitlist_enabled?: boolean
+          walkins_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_service_rules_reservation_offering_id_fkey"
+            columns: ["reservation_offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_service_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_service_rules_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_service_window_exceptions: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          is_closed: boolean
+          last_seating_offset_min: number | null
+          local_time: string | null
+          note: string | null
+          on_date: string
+          tenant_id: string
+          venue_id: string
+          window_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          is_closed?: boolean
+          last_seating_offset_min?: number | null
+          local_time?: string | null
+          note?: string | null
+          on_date: string
+          tenant_id: string
+          venue_id: string
+          window_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          is_closed?: boolean
+          last_seating_offset_min?: number | null
+          local_time?: string | null
+          note?: string | null
+          on_date?: string
+          tenant_id?: string
+          venue_id?: string
+          window_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_service_window_exceptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_service_window_exceptions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_service_window_exceptions_window_id_fkey"
+            columns: ["window_id"]
+            isOneToOne: false
+            referencedRelation: "venue_service_windows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_service_windows: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          ends_on: string | null
+          id: string
+          is_active: boolean
+          key: string
+          label: Json
+          last_seating_offset_min: number | null
+          local_time: string
+          seating_step_minutes: number
+          sort_order: number
+          starts_on: string
+          tenant_id: string
+          turn_minutes_override: number | null
+          updated_at: string
+          venue_id: string
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes: number
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          key: string
+          label?: Json
+          last_seating_offset_min?: number | null
+          local_time: string
+          seating_step_minutes?: number
+          sort_order?: number
+          starts_on?: string
+          tenant_id: string
+          turn_minutes_override?: number | null
+          updated_at?: string
+          venue_id: string
+          weekdays: number[]
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: Json
+          last_seating_offset_min?: number | null
+          local_time?: string
+          seating_step_minutes?: number
+          sort_order?: number
+          starts_on?: string
+          tenant_id?: string
+          turn_minutes_override?: number | null
+          updated_at?: string
+          venue_id?: string
+          weekdays?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_service_windows_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_service_windows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venues: {
         Row: {
           address_line1: string | null
@@ -18229,6 +19552,34 @@ export type Database = {
       }
     }
     Views: {
+      admissions_mint_shortfall: {
+        Row: {
+          expected_rows: number | null
+          minted_rows: number | null
+          missing_rows: number | null
+          order_id: string | null
+          order_line_id: string | null
+          order_updated_at: string | null
+          session_id: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inquiry_offer_line_items_talent_view: {
         Row: {
           created_at: string | null
@@ -18494,6 +19845,10 @@ export type Database = {
         Args: { p_ends_at?: string; p_pool_id: string; p_starts_at?: string }
         Returns: number
       }
+      check_in: {
+        Args: { p_actor?: string; p_admission_id: string; p_count?: number }
+        Returns: Json
+      }
       claim_talent_profile: {
         Args: { p_email?: string; p_invitation_id: string }
         Returns: Json
@@ -18679,6 +20034,15 @@ export type Database = {
       cms_section_revisions_trim: {
         Args: { p_keep?: number; p_section_id: string; p_tenant_id: string }
         Returns: number
+      }
+      commission_line_items_for: {
+        Args: {
+          p_booking_id: string
+          p_lane: string
+          p_owning_party: string
+          p_talent_profile: string
+        }
+        Returns: Json
       }
       commit_capacity: {
         Args: { p_allocation_ids: string[]; p_order_line_id?: string }
@@ -19406,6 +20770,15 @@ export type Database = {
         }
         Returns: string
       }
+      redeem_tenant_promo: {
+        Args: {
+          p_amount_cents: number
+          p_code_id: string
+          p_customer_id: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       refresh_talent_discover_index: { Args: never; Returns: undefined }
       refresh_talent_skill_metrics: {
         Args: { p_talent_profile_id: string; p_taxonomy_term_id: string }
@@ -19413,10 +20786,6 @@ export type Database = {
       }
       refresh_talent_skill_metrics_all: { Args: never; Returns: number }
       release_capacity: { Args: { p_allocation_ids: string[] }; Returns: Json }
-      release_offering_stock: {
-        Args: { p_offering_id: string; p_qty?: number }
-        Returns: undefined
-      }
       replace_talent_languages: {
         Args: { p_rows: Json; p_talent_profile_id: string; p_tenant_id: string }
         Returns: undefined
@@ -19445,10 +20814,6 @@ export type Database = {
           p_ttl_seconds?: number
         }
         Returns: Json
-      }
-      reserve_offering_stock: {
-        Args: { p_offering_id: string; p_qty?: number }
-        Returns: boolean
       }
       resolve_public_tenant_by_slug: {
         Args: { p_slug: string }
@@ -19495,6 +20860,15 @@ export type Database = {
       set_primary_agency_domain: {
         Args: { p_hostname: string; p_tenant_id: string }
         Returns: undefined
+      }
+      set_session_seats: {
+        Args: {
+          p_available: number
+          p_session_id: string
+          p_tenant_id?: string
+          p_tier_key?: string
+        }
+        Returns: Json
       }
       set_tenant_context: { Args: { p_tenant_id: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
