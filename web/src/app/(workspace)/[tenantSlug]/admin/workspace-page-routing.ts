@@ -13,6 +13,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "overview",
   "messages",
   "calendar",
+  "sessions",   // Sessions — SPA tab (Schedule): series, occurrences, series editor
   "menu",
   "roster",     // also covers /roster/applications (layout strips to first segment)
   "clients",
@@ -23,6 +24,8 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "pitches",
   "financials", // L46 — canonical server route; not a SPA tab
   "orders",     // 0.10 — canonical server route; not a SPA tab
+  "reservations", // R3 — canonical server route (host stand); not a SPA tab. Covers /reservations, /reservations/[date], /reservations/settings (layout strips to first segment).
+  "events",     // Events & Ticketing — SPA tab (menu shape); reachable by URL now, rail door deferred (events-on gate)
   "payouts",    // Stripe Connect payout onboarding + base reservation fee (in-shell SPA section)
   "settings",
 ]);

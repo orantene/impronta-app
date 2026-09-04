@@ -19,6 +19,8 @@ import { WorkspaceMessagesPage } from "./InboxPage";
 import { OverviewPage } from "./OverviewPage";
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
+import { SessionsPage } from "./SessionsPage";
+import { EventsPage } from "./EventsPage";
 import { ReviewsPage } from "./ReviewsPage";
 import { AnalyticsPage } from "./AnalyticsPage";
 import { TalentPage } from "./TalentPage-1";
@@ -104,7 +106,7 @@ export function WorkspaceShell() {
 // the agency plan at the rail (the in-page gate stays as the backstop).
 const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "clients"] },
+  { label: "Operate", pages: ["messages", "calendar", "sessions", "clients"] },
   { label: "Sell and grow", pages: ["menu", "roster", "pitches", "reviews", "analytics"] },
   { label: "Site", pages: ["website", "media"] },
 ];
@@ -130,6 +132,7 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   overview: "home",
   messages: "mail",
   calendar: "calendar",
+  sessions: "layers",
   menu: "layers",
   roster: "team",
   clients: "briefcase",
@@ -507,6 +510,19 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       break;
     case "menu":
       body = <MenuPage />;
+      break;
+    // Sessions — the Schedule tab (series + occurrences + series editor).
+    // SPA page-module in the menu shape; placeholder until the Sessions &
+    // Classes Manager fills it from lib/sessions/* (see the slot contract).
+    case "sessions":
+      body = <SessionsPage />;
+      break;
+    // Events & Ticketing — the Events tab (list + 7 per-event tabs). SPA
+    // page-module in the menu shape; placeholder until the Events & Ticketing
+    // Manager fills it from lib/events/* (see the slot contract). Reachable by
+    // URL now; the rail entry + events-on visibility gate are a follow-up.
+    case "events":
+      body = <EventsPage />;
       break;
     // WS-3.3 — "work" pipeline is a view-filter inside Messages; the legacy
     // /admin/work route syncs to messages. The old WorkPage stub was deleted
