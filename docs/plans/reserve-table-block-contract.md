@@ -72,56 +72,29 @@ Reservations Manager, 2026-09-04.
 
 ---
 
-## ADDENDUM v2 — the registration sites. **v1 OF THIS ADDENDUM WAS WRONG. Do not use it.**
+## ADDENDUM v3 — **PR #1689 IS AUTHORITATIVE OVER THIS ADDENDUM.** Read that one.
 
-**CORRECTION NOTICE.** The first version of this addendum named **four** sites and said *"only the registry is missing"* and *"this needs no investigation."* **Both statements were false.** There are **thirteen entries across eleven files**, and v1 omitted the single most important one — `render.tsx`. Caught by the CEO against the Workspace & Dashboards Director's audit; **every line below is re-measured on `origin/main` by the author of the mistake.**
+**Both earlier versions of this addendum were wrong, in opposite directions, and the pair is the lesson.**
 
-**A confidently incomplete map is more dangerous than an admitted gap**, and this one arrived *as a correction* — the form that gets verified least. See the closing note.
+| | Method | Result |
+|---|---|---|
+| **v1** | sampled ONE precedent site and generalised | **four** sites — omitted `render.tsx`, the entry without which the block **publishes and renders nothing** |
+| **v2** | grepped every file containing `menu_board` | **thirteen** — included sites where a reservation block has no business |
+| **v3** | ask, per site, *what does a block of this shape need* | **see #1689**, written by the area that owns the block |
 
-### The thirteen entries, measured: `menu_board` present in each, `reserve_table` at **zero** in all
+**Neither counting method was the method.** Sampling gave too few; grepping gave too many. **The list to work from is "where does a block of this shape need to appear", not "where does `menu_board` appear"** — `menu_board` is in fifteen-plus files on main, several of them menu-specific: page designs, homepage data sources, link targets. **A thirteen-site list applied mechanically puts a reservation block in the restaurant page-design template.**
 
-| # | File | Entry | Precedent |
-|---|---|---|---|
-| 1 | `builder-node/types.ts` | the node-kind union | 2 refs |
-| 2 | `builder-node/registry.ts` | registry entry | 2 refs |
-| 3 | **`builder-node/render.tsx`** | **the `case` that maps kind → component** | **`:5409`** |
-| 4 | `builder-node/create.ts` | the factory `case` | `:232` |
-| 5 | `builder-node/drop-policy.ts` | drop-policy entry | `:34` |
-| 6 | `builder-node/mvp-allow-list.ts` | **category** | `:108` |
-| 7 | `builder-node/mvp-allow-list.ts` | **search keywords** | `:189` |
-| 8 | `builder-node/mvp-allow-list.ts` | **the allow-list array** | `:267` |
-| 9 | `builder-node/native-data-block-needs.ts` | data-needs declaration | 1 ref |
-| 10 | `edit-chrome/inspectors/builder-node-content.tsx` | inspector panel | 3 refs |
-| 11 | `edit-chrome/canvas-node-child-secondary-label.ts` | layer label | 1 ref |
-| 12 | `add-gallery/registry-catalog-sections-connected.ts` | palette catalog | 1 ref |
-| 13 | `add-gallery/section-templates.ts` | palette template | 1 ref |
+**One entry from v2 is confirmed WRONG and removed:** `native-data-block-needs.ts` is *"a pure walk over a builder tree for native data-block fetch needs"* — an **opt-in visitor**. A kind absent from it simply gets no server data, and `reserve_table` resolves its own availability through a server action. **No entry needed.** Verified in the file's own header.
 
-The island itself is **already merged** at `builder-node/reserve-table-island.tsx`.
+**The entry v1 omitted stands and is the one that matters most:** `render.tsx:5409`, the kind → component `case`. Without it the block places, shows in the editor, saves, publishes — **and renders nothing on the published page.** No error, no failed test, no anomalous row. And one step past it: **the case must render the ISLAND, not a placeholder**, because the island's initial state renders a visible "Checking the book…" while a case that renders nothing until the client resolves gives a guest on a slow connection a blank space — the same failure arriving one step later.
 
-### Why #3 is the one that matters most, and why omitting it was the worst possible omission
+### Why this correction belongs on the owning manager's file, not this one
 
-**Without `render.tsx`, the block places in the builder and RENDERS NOTHING ON THE PUBLISHED PAGE.** A tenant drags it in, sees it in the editor, publishes, and a guest gets an empty space. **That reads as "the feature was never built" rather than "a registration is missing"** — so it gets triaged as engineering rather than as a one-line omission.
+The omission was **in the original contract too** (#1648): it enumerated props, defaults, the entry point, the editor state, and what the block does *not* need — **and never mentioned `render.tsx`.** So v1 of this addendum was partly reading that hand-off back. **A contract that enumerates what a thing does not need, and omits the one entry that makes it visible, is worse than no contract, because it reads as complete.**
 
-That is this repo's most-recorded failure family: *documented as wired, resolves to nothing.* **v1 of this addendum would have caused exactly the defect this contract exists to prevent.**
+### The transferable rule, which this document has now demonstrated three times
 
-### Two more v1 got wrong
+**A correction carries more authority than the original claim and gets verified less** — it arrives with the implicit assurance that somebody already checked. v1 said *"this needs no investigation"*: the strongest form of that assurance and the least earned. v2 then over-corrected by substituting a `grep` for a judgement.
 
-**`mvp-allow-list.ts` has THREE entries, not two.** The array at `:267` is the third, and **without it the block is filtered out of the insertable set** — registered, categorised, searchable, and impossible to insert.
+**A count is not an enumeration, and a grep is not a specification.** When correcting a list, state the method you used to build it, so the next reader can judge whether it over- or under-reaches.
 
-**The palette and chrome files are not optional.** Missing #10 and #11 gives a block with no inspector and an unlabelled layer: placeable, unconfigurable, and unidentifiable in the layer tree.
-
-### Search keywords are not cosmetic
-
-`menu_board`'s line reads *"menu orderable items quantities checkout restaurant catering workspace menu"* — that string is **how a tenant finds the block in the picker.** A registered block nobody can search for is present and invisible.
-
-Suggested: `reservations table booking party size restaurant book a table host`.
-
-### A fifth registration for workspace SEGMENTS, from the same audit
-
-The rail icon comes from **`SIDEBAR_ICON[page]`, not `PAGE_META`** — a registered segment without it **silently falls back to a circle**, failing the same way a missing route file does: looking half-built rather than mis-registered.
-
-### The lesson, which this document is itself an instance of
-
-A workspace segment needs **five** registrations; a builder block needs **thirteen**. **No single document held either set**, and each was discovered by shipping one and finding what was missing.
-
-**And v1 of this addendum was a correction that was itself wrong.** Three separate paths tonight were amplified by three people without anyone looking them up, and the durable form is: **a correction carries more authority than the original claim and gets verified less** — it arrives with the implicit assurance that somebody already checked. **This addendum said "needs no investigation," which is the strongest form of that assurance and the least earned.** Never write that phrase again without having enumerated the set rather than sampled it.
