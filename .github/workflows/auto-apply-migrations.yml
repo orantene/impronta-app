@@ -215,6 +215,27 @@ jobs:
           # from the step env above.
           node scripts/apply-migration.mjs --apply-pending
 
+      # ── Post-apply security check: nothing unexpected is anon-executable ──
+      # Grants change through migrations, so the moment after applying them is
+      # exactly when to look. On 2026-09-03 four SECURITY DEFINER functions were
+      # anon-executable; the worst let anyone rewrite any talent's languages,
+      # and another opened with TRUNCATE on a live table with no arguments.
+      #
+      # This step uses the SAME two secrets the apply above needs, so it cannot
+      # be silently unarmed while the apply works. The script REFUSES (exits
+      # non-zero) when it cannot measure rather than skipping, because
+      # "could not look" and "looked, found nothing" must not share an exit
+      # code — the guard shipped with exactly that defect and a peer caught it
+      # by printing the real exit code.
+      - name: Check no unexpected function is anon-executable
+        if: ${{ env.APPLY == '1' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          node scripts/check-anon-function-grants.mjs
+
       # ── Post-apply verification: confirm zero drift remains ───────────────
       # Uses the same RPC the prebuild gate uses. Needs the service-role key, so
       # it's best-effort: if that secret isn't configured we skip rather than

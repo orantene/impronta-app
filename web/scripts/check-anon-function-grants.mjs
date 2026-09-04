@@ -43,9 +43,11 @@
  * more than once. It belongs in the `deploy:smoke` family: run it after a
  * deploy, and after any migration that touches GRANT or REVOKE.
  *
- * Same credential contract as check-migrations-applied.mjs: hard-fail if CI=true
- * and credentials are missing, so it can never silently no-op inside a pipeline
- * that does have them.
+ * IT REFUSES RATHER THAN SKIPPING. If credentials are missing it exits NON-ZERO,
+ * because "could not measure" and "measured, found nothing" must not share an
+ * exit code — that is the same one-value-two-meanings defect this guard exists
+ * to catch, and the first version of this file had it. Opt out deliberately
+ * with SKIP_ANON_GRANT_CHECK=1 if you really want silence.
  */
 
 import { readFileSync } from "node:fs";
@@ -88,18 +90,35 @@ const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 if (!TOKEN || !URL_) {
-  if (process.env.CI === "true") {
-    console.error(
-      "[check-anon-grants] FATAL: running in CI but SUPABASE_ACCESS_TOKEN or " +
-        "NEXT_PUBLIC_SUPABASE_URL is missing.",
+  // REFUSE, do not skip. This is a SECURITY guard, and "I could not look" must
+  // never share an exit code with "I looked and found nothing" — a caller
+  // downstream (a human, a CI step, a future workflow) cannot tell them apart,
+  // so a missing secret silently becomes a pass.
+  //
+  // check-migrations-applied.mjs skips-with-0 in this situation and that is
+  // defensible for drift detection. It is not defensible here: the class this
+  // guard exists to catch already got into production once unnoticed, and the
+  // failure mode of a silent pass is that somebody says "but we have a guard
+  // for that". Caught by the Reservations Manager running it with no token and
+  // printing the real exit code.
+  //
+  // Set SKIP_ANON_GRANT_CHECK=1 to opt out deliberately. An explicit opt-out is
+  // a decision someone made; a bare exit 0 is an accident nobody sees.
+  if (process.env.SKIP_ANON_GRANT_CHECK === "1") {
+    console.warn(
+      "[check-anon-grants] SKIPPED by SKIP_ANON_GRANT_CHECK=1. Nothing was " +
+        "measured; this is not a pass.",
     );
-    process.exit(1);
+    process.exit(0);
   }
-  console.warn(
-    "[check-anon-grants] SUPABASE_ACCESS_TOKEN or NEXT_PUBLIC_SUPABASE_URL " +
-      "missing — skipping. To enforce, set both.",
+  console.error(
+    "[check-anon-grants] REFUSING TO RUN: SUPABASE_ACCESS_TOKEN or " +
+      "NEXT_PUBLIC_SUPABASE_URL is missing, so nothing can be measured.\n" +
+      "  A security guard that cannot look must not report clean.\n" +
+      "  Set both (see scripts/apply-migration.mjs for the same pair), or\n" +
+      "  set SKIP_ANON_GRANT_CHECK=1 to opt out on purpose.",
   );
-  process.exit(0);
+  process.exit(1);
 }
 
 const REF = new global.URL(URL_).hostname.split(".")[0];
