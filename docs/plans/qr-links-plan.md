@@ -313,7 +313,29 @@ A word-multiset guard over the comments, as used for the reflow, is worth reusin
 decomposition that silently drops a rationale is the failure mode here, not a broken
 import, because the imports fail loudly and the rationale does not.
 
-### Q2 — Share popover and renderings  ·  go on the board
+### Q2 — SHIPPED 2026-09-04, PR #1658
+
+QR encoder, SVG/PNG/vector-PDF, Share popover (en + es), staff-only
+`/api/links/<code>/qr.*`, scan analytics. 106 tests.
+
+**The encoder is hand-written.** Not `npm install`, because this worktree's `node_modules`
+is a symlink into a checkout forty sessions share and a lock diff would land across eight
+branches. Safe because it is *verifiable*: the published ISO Annex I vector reproduces byte
+for byte, Reed-Solomon **syndromes** over every block are zero (decoder-side arithmetic an
+encoder bug cannot satisfy), and a decoder reads each symbol back. Version tables are
+checked against **geometry**, not re-read.
+
+That caught two bugs which decoded their payload perfectly and would have printed codes
+scanning on some phones only: format info is **7+8 bits, not 8+7** (8+7 writes onto the
+dark module, leaving one module unreserved), and the data walk must move `right` **6 → 5**
+past the timing column rather than `col = right - 1` (which reads column 4 twice and never
+reads column 0). The cell *count* is right in both, so only the syndromes saw them.
+
+**Money is `null`, never `0`.** A zero claims the code earned nothing; an operator who sees
+$0 beside their busiest table stops printing codes. Same rule for distinct visitors, which
+is null when any scan lacks a session key rather than counting only those that have one.
+
+### Q2 (original plan) — Share popover and renderings  ·  go on the board
 
 - server-side QR generation, pinned library, **no client-only rendering for print**.
   PNG, SVG, and a print PDF with quiet zone and error correction H whenever a centre
