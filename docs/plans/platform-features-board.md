@@ -137,6 +137,45 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## REVERSED: the rail IS 3% buyer + 3% seller. The mockups were right and two directors were wrong.
+
+**Ruling 3 — "cut the buyer-pays control" — is WITHDRAWN.** Found by the Digital Marketing Director while checking whether a comparison line was defensible on a public page.
+
+**Verified two ways before relaying, which is the step that was skipped the first time.** `web/src/lib/billing/commission.ts:27-33`:
+
+```
+client_surcharge = round(subtotal × client_share_bps / 10000)
+seller_target    = round(subtotal × seller_share_bps / 10000)
+gross_charged    = subtotal + client_surcharge
+platform_fee     = client_surcharge + seller_deduction
+```
+
+`:40-42` — *"the client/seller split is governed by `client_surcharge_bps` (defaults to an even split)"*. **And the live config, queried in production rather than inferred from a default: `default_take_bps 600`, `client_surcharge_bps 300`.**
+
+**So the shipped rail is 3% from the buyer plus 3% from the seller, total 6%, live today.** `TicketsTab` and `EventSettingsTab` saying *"Buyer pays 3%, you 3%"* were **describing the product as built**, not proposing a new model.
+
+**The principle decided it against the person who supplied it.** *A control describing a fee structure the money does not have is a promise the interface makes and the payment refuses* — correct, and here the money **does** have that structure, so cutting the control would have been **the interface hiding something the payment does.** The published FAQ promise (*"the same platform fee as other booked work rather than a separate ticketing rate"*) was never at risk: 3+3 on a ticket **is** the same fee as on any booking, and **shipping single-sided would have made ticketing the one thing that differs** — precisely what the copy promises we do not do.
+
+**Stands:** 6% total · no separate ticketing rate · no per-ticket flat fee · free events free forever · no floor fee, minimum, rounding rule, or column enabling one. **Withdrawn:** cut the control. It ships, showing both sides accurately, in en and es.
+
+**Consequence nobody has re-derived yet:** the `$9.68` absorb-the-loss break-even was computed against a **single-sided** 6%. It must be recomputed against `gross_charged = subtotal + client_surcharge` before anyone treats it as a threshold.
+
+**Both directors reasoned from a description of the rail rather than from the engine.** One relayed a manager's summary without opening `commission.ts`; the other ruled on that summary while stating the decision had been made twice — **the rate had been decided twice; the split had never been checked.** *If a verification never opens the object, it is a review of a sentence*, now demonstrated by the person who wrote it down.
+
+## ROOT CAUSE OF THE WHOLE D2 CHAIN: the shared checkout is 138 commits behind and reads identically
+
+**Self-reported by the Reservations Manager, and it is the most useful correction of the night** because it explains a two-day error chain rather than one claim.
+
+They read `stripe-checkout.ts` out of `/Users/oranpersonal/Desktop/impronta-app` — the **shared checkout**, sitting on `fix/agency-contact-smoke`, **138 commits behind main** — whose working copy **still contains `stripeAccount: input.connectedAccountId`**. Main deleted it in `9506ceebd` on **2026-09-01, two days before they read it**.
+
+**A stale tree reads identically to a current one.** The claim then propagated through their plan, into a board finding, into a D2 narrowing, and into a ruling taken to the owner.
+
+**This is already a standing rule here** — *absolute paths, and `origin/main` for any claim about main* — and it was broken on a **first** verification, before a worktree existed, then never revisited because everything after it was done correctly. **The sha-on-every-claim rule in its most expensive form: shas were attached to gate results and not to a code reading.**
+
+**What survives:** C1's conclusion on reason 1 alone — `client_stripe_customers.user_id` is an `auth.users` FK and a guest with only an email has no such row. **What is dead:** C1's reason 2, and the D2 narrowing built on it.
+
+**And R5 gets sharper for it.** `stripe_account_id` existed to name the connected account a card was saved on; there is no such account, so it goes. What replaces it is an invariant rather than a column: **a platform-account PaymentMethod is charge-able by the platform for ANY tenant.** Nothing in Stripe prevents a cross-tenant charge — only `customer_payment_methods.tenant_id` and the code above it do. **`tenant_id` is a security boundary here, not a convenience, and every read must carry it.** That sentence belongs in the migration, not in a message. `…000382` was **not** applied, so this was caught before it shipped.
+
 ## A `BEFORE DELETE` GUARD ON A TENANT-CASCADING TABLE BLOCKS TENANT DELETION ENTIRELY
 
 **FOR PLATFORM FEATURES — six of their tables are candidates.** Found by the Events & Ticketing Manager from the inside, while designing a guard they then rejected.
