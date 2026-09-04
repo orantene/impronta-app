@@ -15,6 +15,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -70,7 +71,15 @@ test("the reserve gate keys on the pool, not the kind", () => {
   const dir = join(WEB_SRC, "lib", "orders");
   const src = readdirSync(dir)
     .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
-    .map((f) => readFileSync(join(dir, f), "utf8"))
+    // Comments BLANKED before asserting. Raw contents would redden main the
+    // moment someone documents the bug — and `lib/orders/` is exactly where a
+    // person explains why the gate keys on the pool, most naturally by naming
+    // the predicate they are avoiding. The comment in this very test does it.
+    // Worse than a false red: it could then be "fixed" by editing prose.
+    // Reusing `blankComments` rather than inlining a regex because it already
+    // handles a `//` inside a string literal, and two comment-strippers is the
+    // duplication this phase has been removing, not adding.
+    .map((f) => blankComments(readFileSync(join(dir, f), "utf8")))
     .join("\n");
   assert.ok(
     src.includes("capacity_pool_id"),
