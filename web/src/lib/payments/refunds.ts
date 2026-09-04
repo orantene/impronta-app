@@ -444,6 +444,13 @@ export async function handleBookingDispute(
     reason: string;
     status: string;
     closed: boolean;
+    /** Dispute currency. Was dropped entirely, so the alert formatted an
+     *  amount against a null currency. */
+    currency?: string | null;
+    /** Stripe's evidence deadline (unix seconds). Unanswered disputes are lost
+     *  by default, so this is the actionable field -- it previously existed
+     *  only in a log line. */
+    evidenceDueBy?: number | null;
   },
   deps: RefundDeps = {},
 ): Promise<boolean> {
@@ -475,11 +482,16 @@ export async function handleBookingDispute(
       eventId: `dispute-opened-${input.disputeId}`,
       payload: {
         amountCents: input.amount,
-        currency: null,
+        currency: input.currency ?? null,
         reason: input.reason,
         disputeId: input.disputeId,
         bookingId: ref.bookingId,
         platformFrom: true,
+        // ISO so the template can render it without re-deriving a timezone.
+        evidenceDueAt:
+          input.evidenceDueBy != null
+            ? new Date(input.evidenceDueBy * 1000).toISOString()
+            : null,
       },
     }).catch(() => undefined);
     return true;

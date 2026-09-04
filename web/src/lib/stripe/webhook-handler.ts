@@ -71,6 +71,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import {
   claimStripeEvent,
   releaseStripeEventClaim,
@@ -505,12 +506,44 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         reason: action.reason,
         status: action.status,
         closed: action.closed,
+        currency: action.currency,
+        evidenceDueBy: action.evidenceDueBy,
       });
       if (!wasBookingDispute) {
         logServerError(
           action.closed ? "stripe-webhook.dispute.closed" : "stripe-webhook.dispute.created",
           `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} closed=${action.closed} (event ${event.id})`,
         );
+
+        // A chargeback on a NON-booking charge -- a subscription invoice, a
+        // balance top-up -- used to end here, at a log line nobody reads. The
+        // booking lane at least rang a bell; this lane was completely silent,
+        // which meant the disputes most likely to happen first (subscription
+        // chargebacks) were the ones nobody would hear about.
+        //
+        // Same event type as the booking lane, so it reaches the same catalog
+        // entry and the same platform admins. `bookingId` is absent by
+        // definition. Never let a notification failure change the webhook's
+        // outcome: Stripe must still get its 200.
+        if (!action.closed) {
+          await dispatchEventNotifications({
+            type: "payment.dispute.opened",
+            tenantId: null,
+            eventId: `dispute-opened-${action.disputeId}`,
+            payload: {
+              amountCents: action.amount,
+              currency: action.currency,
+              reason: action.reason,
+              disputeId: action.disputeId,
+              bookingId: null,
+              platformFrom: true,
+              evidenceDueAt:
+                action.evidenceDueBy != null
+                  ? new Date(action.evidenceDueBy * 1000).toISOString()
+                  : null,
+            },
+          }).catch(() => undefined);
+        }
       }
       return;
     }
