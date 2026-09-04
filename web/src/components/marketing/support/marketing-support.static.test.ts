@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -60,12 +61,26 @@ test("new marketing support components have no inline style color/background", (
 test("guest AI fetch path is allow-listed on the marketing host", () => {
   const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
   assert.match(panel, /\/api\/ai\/guest-support-chat/);
-  const allow = readFileSync(
-    join(here, "../../../lib/saas/surface-allow-list.ts"),
-    "utf8",
+  // Assert the BEHAVIOUR, not the source text. This previously read
+  // surface-allow-list.ts as a file and grepped it for the path and the
+  // constant name — which reddened on a clean refactor the moment that file
+  // was decomposed and the constant moved to a sibling module. The invariant
+  // was never "this string appears in that file"; it is "the marketing host
+  // may reach this path". Ask the gate.
+  assert.equal(
+    isPathAllowedForHostKind("marketing", "/api/ai/guest-support-chat"),
+    true,
+    "the marketing host must be allowed to reach the guest AI endpoint",
   );
-  assert.match(allow, /\/api\/ai\/guest-support-chat/);
-  assert.match(allow, /MARKETING_API_PREFIXES/);
+  // Anti-vacuity: prove the gate actually discriminates, so a function that
+  // returned true for everything could not satisfy the assertion above.
+  // NOT asserted against another host kind — agency hosts reach this endpoint
+  // too, which I only learned by running it rather than reasoning about it.
+  assert.equal(
+    isPathAllowedForHostKind("marketing", "/api/ai/not-a-real-endpoint"),
+    false,
+    "the gate must refuse a path it does not know",
+  );
 });
 
 test("contact card is offered after AI or system fail-open replies", () => {
