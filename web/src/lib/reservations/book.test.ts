@@ -158,3 +158,28 @@ test("a no-show who arrived still counts as covers and as arrived", () => {
   assert.equal(s.covers, 4, "they are eating; they are covers");
   assert.equal(s.arrived, 4);
 });
+
+test("a no-show who arrived is FLAGGED, because a fee may already be on their bill", () => {
+  // Making arrival win the state is right — they are sitting down. But the
+  // stamp must survive the state it lost to: the host stand is the one place a
+  // human can explain that charge to the person in front of them.
+  const arrived = buildBook([row({ noShowAt: min(31), admittedCount: 4 })], min(50), 30)[0]!;
+  assert.equal(arrived.state, "seated");
+  assert.equal(arrived.wasMarkedNoShow, true, "the fee is invisible without this");
+
+  const partly = buildBook([row({ noShowAt: min(31), admittedCount: 2 })], min(50), 30)[0]!;
+  assert.equal(partly.state, "part_seated");
+  assert.equal(partly.wasMarkedNoShow, true);
+});
+
+test("a row still reading no_show is not ALSO badged as one", () => {
+  // The badge means "the stamp lost to an arrival", not "there is a stamp".
+  const stillGone = buildBook([row({ noShowAt: min(31) })], min(50), 30)[0]!;
+  assert.equal(stillGone.state, "no_show");
+  assert.equal(stillGone.wasMarkedNoShow, false);
+});
+
+test("an ordinary seated party carries no no-show badge", () => {
+  const clean = buildBook([row({ admittedCount: 4 })], min(50), 30)[0]!;
+  assert.equal(clean.wasMarkedNoShow, false);
+});

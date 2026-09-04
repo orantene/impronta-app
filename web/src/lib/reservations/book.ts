@@ -48,6 +48,18 @@ export type BookEntry = BookRow & {
   /** Commercial state, shown separately. Never folded into `state`. */
   isRefunded: boolean;
   isVoid: boolean;
+  /**
+   * They were marked a no-show and then arrived.
+   *
+   * A SEPARATE FIELD FOR THE SAME REASON `isRefunded` IS ONE. Making arrival
+   * win the STATE is right — they are sitting down — but it would make the
+   * stamp invisible, and a no-show FEE may already be on this guest's bill.
+   * The host stand is the one place a human can explain that charge to the
+   * person standing in front of them, so the fact has to survive the state it
+   * lost to. Folding it away would be the same collapse this file refuses for
+   * `status`.
+   */
+  wasMarkedNoShow: boolean;
 };
 
 /** How soon before the seating a row starts reading as "arriving". */
@@ -110,6 +122,9 @@ export function buildBook(
             : 0,
         isRefunded: row.status === "refunded",
         isVoid: row.status === "void",
+        // True only when the stamp LOST to an arrival. A row still reading
+        // `no_show` does not need a badge saying so.
+        wasMarkedNoShow: row.noShowAt !== null && row.admittedCount > 0,
       };
     })
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
