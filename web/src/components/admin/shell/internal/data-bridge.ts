@@ -334,6 +334,16 @@ export type BridgeData = {
      * "talent", so an absent/unknown value shows every surface.
      */
     workspaceType?: string;
+    /**
+     * `agencies.takes_reservations` — kept true by a trigger on
+     * `venue_service_rules`. OPTIONAL on purpose: this is the wire format, and
+     * a prototype or older bridge legitimately omits it. The reader compares
+     * `=== true`, so an omission hides the rail link rather than showing one
+     * that leads nowhere. It decides whether a LINK is drawn and nothing else
+     * — never gate a route on it, because a cached boolean can be stale and a
+     * stale one must not refuse a workspace a page it owns.
+     */
+    takesReservations?: boolean;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

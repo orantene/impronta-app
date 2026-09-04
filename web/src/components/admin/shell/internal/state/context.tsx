@@ -1094,9 +1094,27 @@ export function AdminShellProvider({
   const workspaceType: WorkspaceType = normalizeWorkspaceType(
     initialBridgeData?.tenantIdentity?.workspaceType,
   );
+  // Does this workspace take table bookings. From the SAME bridge object as
+  // workspaceType, so it adds no fetch: `takes_reservations` is a column on the
+  // `agencies` row `loadTenantIdentity` already selects, kept true by a trigger
+  // on `venue_service_rules`. A tenant with no venue — most of them — pays
+  // nothing for this on any page load, which is the whole reason it is a column
+  // and not a join.
+  const takesReservations = initialBridgeData?.tenantIdentity?.takesReservations === true;
   const visiblePages = useMemo(
-    () => visibleWorkspacePages(workspaceType, WORKSPACE_PAGES),
-    [workspaceType],
+    () => {
+      const pages = visibleWorkspacePages(workspaceType, WORKSPACE_PAGES);
+      // The RAIL LINK only. This is not an access gate and must never become
+      // one: `clampWorkspacePage` is deliberately NOT given this flag, so a
+      // direct URL to /reservations still resolves and the page explains
+      // whether the workspace has no venue, no service window, or simply has
+      // not switched reservations on. Hiding a link and refusing a route are
+      // different things, and a cached boolean is only ever safe for the first
+      // — it can be stale, and a stale one must not 403 a workspace on a page
+      // it owns.
+      return takesReservations ? pages : pages.filter((p) => p !== "reservations");
+    },
+    [workspaceType, takesReservations],
   );
 
   // Direct-URL clamp, layer 1 (SPA). The layout already clamps the page it
