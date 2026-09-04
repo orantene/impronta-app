@@ -68,6 +68,16 @@ export type BuilderNodeKind =
 export interface BuilderNodeBase {
   id: string;
   kind: BuilderNodeKind;
+  /**
+   * C11 — OPTIONAL DOM `id` so an in-page anchor (`href="#menu"`) resolves.
+   * Before this, the renderer emitted `data-builder-node-id` and never an `id`,
+   * so no hash href worked in any design — `restaurant-orderable`'s "Browse the
+   * menu" button was inert on every restaurant tenant's homepage. Slugified and
+   * normalized by `normalizeAnchorId`; SOURCE OF TRUTH = `props.anchorId`,
+   * mirrored here by validate's base-field allow-list so the renderer reads
+   * `node.anchorId` directly. Absent → no `id` attribute at all. See anchor-id.ts.
+   */
+  anchorId?: string;
   /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
   locked?: boolean;
   /** Builder Studio — per-PROP locks (dot-paths, e.g. "tone", "style.textColor"). Admin-set; read-only in the inspector + stripped from patches in patchBuilderNodeProps. Carried by validate's base-field allow-list (see prop-lock.ts). */

@@ -351,6 +351,10 @@ const restaurantOrderableTree: BuilderNode[] = [
         id: "restaurant-orderable-menu",
         kind: "container",
         props: {
+          // C11 — the target of this design's `#menu` primary button. Before
+          // anchorId existed the renderer emitted no DOM `id` at all, so that
+          // button was INERT on every tenant that picked this design.
+          anchorId: "menu",
           layout: "stack",
           align: "center",
           style: {
