@@ -154,7 +154,30 @@ Supabase's default privileges grant **ALL** on every new `public` table, so `ano
 
 **Not an active breach, and that was checked rather than assumed:** all five have RLS enabled with exactly **one** policy — SELECT, `{authenticated}` only — so anon writes and reads are both refused today. **It is defence in depth.** But it is one accidental permissive policy, or one `DISABLE ROW LEVEL SECURITY`, from being live, and **nobody adding a policy later will think to check the grant underneath it.**
 
-**The fix has a trap this board already records: `REVOKE ... FROM anon` IS A NO-OP.** `anon` inherits through `PUBLIC`, so only `REVOKE ... FROM PUBLIC` does anything — and the no-op version reads exactly like a fix. **Verify with `has_table_privilege`, never with the absence of an error.**
+### CORRECTION, and it reverses what this director told three people: FOR TABLES, `REVOKE ... FROM PUBLIC` IS THE NO-OP
+
+**Caught by the Platform Features Director by measuring, after this director asserted the opposite three times and the CEO repeated it.** Measured in production:
+
+```
+table grants in `public` by grantee:
+  postgres 2037 · service_role 2037 · authenticated 1799 · anon 785 · PUBLIC 0
+functions in `public` carrying EXECUTE for PUBLIC:  600 of 707
+```
+
+**`PUBLIC` holds ZERO table grants.** Supabase grants **directly** to `anon` and `authenticated`, so on a table **`REVOKE ... FROM anon` is what works** and `REVOKE ... FROM PUBLIC` changes nothing while reading exactly like a fix.
+
+**TABLES AND FUNCTIONS DEFAULT OPPOSITELY, and that is the whole lesson:**
+
+| | Default grant holder | The command that works | The no-op that looks like a fix |
+|---|---|---|---|
+| **Tables** | `anon` / `authenticated` directly | `REVOKE … FROM anon` | `REVOKE … FROM PUBLIC` |
+| **Functions** | `PUBLIC` (600 of 707) | `REVOKE … FROM PUBLIC` | `REVOKE … FROM anon` |
+
+**The recorded `REVOKE FROM anon is a no-op` incident is about FUNCTIONS.** This director pattern-matched it onto tables and inverted the advice, then repeated it to two managers, a peer department and this board. **A recorded lesson applied to the wrong object class is a new defect wearing an old lesson's authority** — and it is harder to catch than an original mistake, because it arrives with a citation.
+
+**The check that settles it either way, and the only instruction worth carrying: verify with `has_table_privilege` / `has_function_privilege`, never with the absence of an error.** That was right in both versions and it is what makes the direction recoverable.
+
+**Also a hard condition on the platform migration: do not touch `authenticated` writes.** 240 tables carry them and the app writes as `authenticated` for every signed-in user.
 
 **Two checks after every apply, neither of which `to_regclass` covers:** `has_table_privilege` for the grants, and the policy list for what RLS actually permits. **Existence is not correctness, and neither is RLS-is-on.**
 
