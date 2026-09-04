@@ -140,6 +140,19 @@ export function ComparisonPage({ comparison, locale }: { comparison: Comparison;
               </Link>
               .
             </p>
+
+            {/* Published, not buried. When we could not read a figure from the
+                competitor's own page, the reader is told so in the same place
+                they are told when it was checked. A page whose job is being
+                checkable cannot overstate its own sourcing. */}
+            {comparison.sourceCaveat ? (
+              <p
+                className="mt-2"
+                style={{ fontSize: "0.8125rem", color: "var(--plt-muted)", fontStyle: "italic" }}
+              >
+                {es ? comparison.sourceCaveat.es : comparison.sourceCaveat.en}
+              </p>
+            ) : null}
           </div>
         </MarketingContainer>
       </MarketingSection>
