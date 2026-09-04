@@ -9,9 +9,26 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { RESERVATION_HOLD_TTL_MS, holdTtlMs } from "@/lib/scheduling/reservation-hold";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
 const SRC = join(process.cwd(), "src");
-const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
+
+/**
+ * Read a source file with its COMMENTS BLANKED, so an assertion below cannot be
+ * satisfied by prose that merely names the thing it is checking for.
+ *
+ * `assert.ok(src.includes("shortestTtlSeconds"))` is green the moment any comment
+ * in purchase.ts says the words — including a comment explaining that the call was
+ * removed. The call could be deleted and this guard would keep reporting green,
+ * forever, because nobody reads a green test. That is the failure mode a guard has
+ * that ordinary code does not: it fails SILENTLY, in the safe-looking direction.
+ *
+ * I wrote the guard-of-guards that catches this shape and then shipped the shape,
+ * two files later. It caught me. `blankComments` preserves offsets, so line numbers
+ * in any failure stay true, and it tracks string literals so a `//` inside a URL is
+ * not mistaken for a comment.
+ */
+const read = (rel: string) => blankComments(readFileSync(join(SRC, rel), "utf8"));
 
 test("no TTL falls back to the 48h default", () => {
   assert.equal(holdTtlMs(undefined), RESERVATION_HOLD_TTL_MS);

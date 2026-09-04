@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { test } from "node:test";
 import { SUPPORT_EMAIL_CAN_RECEIVE } from "./support-contact";
 
@@ -23,7 +25,12 @@ test("no marketing page offers the support mailbox while it cannot receive mail"
   if (SUPPORT_EMAIL_CAN_RECEIVE) return; // Mail works; the channel is allowed.
 
   for (const page of PAGES) {
-    const src = readFileSync(page, "utf8");
+    // Comments blanked: `assert.ok(src.includes("SUPPORT_EMAIL_CAN_RECEIVE"))` would
+    // otherwise be satisfied by a comment NAMING the flag — including a comment saying
+    // the gate was removed — so the mailto could go back on the page with this test
+    // still green. Only THIS read is blanked; the documentation test below asserts that
+    // prose exists and must keep reading the raw file.
+    const src = blankComments(readFileSync(page, "utf8"));
     const mailtos = src.match(/`mailto:\$\{SUPPORT_EMAIL\}`/g) ?? [];
     if (mailtos.length === 0) continue;
 
