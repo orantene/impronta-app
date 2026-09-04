@@ -30,7 +30,6 @@ import {
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
-import { releaseReservedOfferingStock } from "@/lib/talent/offering-stock";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1108,25 +1107,18 @@ export async function markRefunded(
       return transition;
     }
 
-    // G1 — return reserved product stock when the money comes back, UNLESS the
-    // item already shipped (a shipped-then-returned product is a manual restock
-    // decision, never automatic). Idempotent across cancel-then-refund: the
-    // release helper flips the inquiry's stock_reserved flag on success, so a
-    // prior staff cancel that already restocked makes this a no-op. Best-effort.
-    if (existing.booking_id && existing.source_inquiry_id) {
-      try {
-        const { data: ful } = await sb
-          .from("booking_fulfillment")
-          .select("shipped_at")
-          .eq("booking_id", existing.booking_id)
-          .maybeSingle();
-        if (!ful?.shipped_at) {
-          await releaseReservedOfferingStock(existing.source_inquiry_id, sb);
-        }
-      } catch (stockErr) {
-        logServerError("transactions.markRefunded.stockRelease", stockErr);
-      }
-    }
+    // G1 (legacy stock release on refund) REMOVED — nothing it guarded can
+    // occur any more. It returned product stock reserved by the old engines'
+    // `source_context.offering.stock_reserved` stamp, skipping the release when
+    // the item had already shipped. Both engines are deleted, no code writes
+    // that stamp, and production carries zero of them, so the branch was
+    // UNREACHABLE rather than merely unused.
+    //
+    // The rule it encoded — a shipped-then-refunded item is a manual restock
+    // decision, never automatic — is not lost by accident. It was only ever
+    // about the legacy integer decrement. Whether a refund on a shipped item
+    // should return CAPACITY is a live question, and it belongs to
+    // refund-by-line (0.8b) where it is recorded, not to a deleted branch.
 
     return transition;
   } catch (err) {

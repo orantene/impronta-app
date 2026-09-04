@@ -36,7 +36,7 @@ import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
-import { releaseReservedOfferingStock, readInquiryOfferingContext } from "@/lib/talent/offering-stock";
+import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { emitNotification } from "@/lib/notifications/emit";
 import {
@@ -3343,9 +3343,11 @@ export async function cancelBookingAction(
         p_payload: { booking_id: bookingId, by_user_id: user.id, cancellation_policy: cancellationPolicy },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
 
-      // Return a reserved product unit to stock (no-op unless this booking
-      // actually reserved one — see offering-stock.ts). Best-effort.
-      await releaseReservedOfferingStock(cancelInquiryId);
+      // Legacy stock release REMOVED. It returned units reserved by the old
+      // engines' `source_context.offering.stock_reserved` stamp; both engines
+      // are deleted, nothing writes that stamp, and production carries zero of
+      // them. Capacity holds are released through the capacity engine by
+      // allocation id, which is a different path entirely.
 
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +

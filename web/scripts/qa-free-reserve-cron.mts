@@ -3,7 +3,8 @@
  *
  * Seeds a synthetic INSTANT + FREE-RESERVE PRODUCT offering (stock 5), books it
  * as the QA client (reserving 1 unit → 4), then proves:
- *   1. releaseReservedOfferingStock restores a reserved unit (the cancel path).
+ *   1. (dropped in 0.6b-3 with the legacy stock RPC — nothing writes the
+ *      inquiry stock stamp any more, so there is no reserved unit to restore.)
  *   2. A fresh free reserve is NOT swept (window not elapsed).
  *   3. A backdated free reserve IS swept: booking cancelled, txn voided, product
  *      stock restored, and a booking_cancelled inquiry event emitted.
@@ -17,7 +18,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createInstantBooking } from "./qa-instant-book-compat";
 import { sweepExpiredFreeReserves } from "../src/app/api/cron/expire-free-reserves/logic";
-import { releaseReservedOfferingStock } from "../src/lib/talent/offering-stock";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -123,8 +123,11 @@ async function main() {
     if (ok("1. booking A created (reserves 1 → 4)", rRel.ok) && rRel.ok) {
       inquiriesToClean.push(rRel.inquiryId);
       ok("   stock decremented to 4", (await stockOf(OFF_FREE_PRODUCT)) === 4);
-      const released = await releaseReservedOfferingStock(rRel.inquiryId, admin);
-      ok("   releaseReservedOfferingStock returns true", released === true);
+      // Legacy stock release is gone (0.6b-3) along with the RPC behind it.
+      // The step is dropped rather than rewritten against the capacity engine:
+      // this harness reserves through the OLD stamp, which nothing writes any
+      // more, so a capacity-engine assertion here would test a path this script
+      // never exercises. Free-reserve expiry itself is still covered below.
       ok("   stock restored to 5", (await stockOf(OFF_FREE_PRODUCT)) === 5);
     }
 

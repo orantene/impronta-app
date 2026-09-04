@@ -8,8 +8,9 @@
  *      total = variant×qty + extra) and the commission snapshot's gross
  *      EXCEEDS the raw order total (surcharge invariant).
  *   2. A variantId belonging to another offering is REFUSED.
- *   3. A product booked with qty=2 reserves 2 units; releaseReservedOfferingStock
- *      returns them; a SECOND release is a no-op (flag cleared — no double restock).
+ *   3. (dropped in 0.6b-3 with the legacy stock RPC. Reserve/release now runs
+ *      through the capacity engine by allocation id, which this harness does
+ *      not exercise.)
  *   4. source_context carries the full selection (variant, add_ons, quantity).
  * Cleans up every synthetic row.
  *
@@ -19,7 +20,6 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createInstantBooking } from "./qa-instant-book-compat";
-import { releaseReservedOfferingStock } from "../src/lib/talent/offering-stock";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -157,10 +157,7 @@ async function main() {
       const rr = r3 as { ok: true; inquiryId: string };
       inquiriesToClean.push(rr.inquiryId);
       ok("   stock decremented by 2 → 3", (await stockOf(OFF_PROD)) === 3);
-      const rel1 = await releaseReservedOfferingStock(rr.inquiryId, admin);
-      ok("   release restores → 5", rel1 === true && (await stockOf(OFF_PROD)) === 5);
-      const rel2 = await releaseReservedOfferingStock(rr.inquiryId, admin);
-      ok("   second release is a NO-OP (flag cleared)", rel2 === false && (await stockOf(OFF_PROD)) === 5, `stock=${await stockOf(OFF_PROD)}`);
+      // Legacy double-release idempotency check dropped with the RPC (0.6b-3).
     }
 
     // ── 4. oversell refused at qty level ─────────────────────────────────────
