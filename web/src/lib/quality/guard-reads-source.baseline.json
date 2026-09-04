@@ -1,0 +1,13 @@
+{
+  "src/components/edit-chrome/animation-tab-gating.test.ts": 2,
+  "src/components/edit-chrome/device-canvas-editing.static.test.ts": 2,
+  "src/components/edit-chrome/inspector-chrome.wired.test.tsx": 3,
+  "src/components/edit-chrome/storefront-body-suppression.test.ts": 2,
+  "src/lib/saas/agency-surface-roster-gate.static.test.ts": 1,
+  "src/lib/scheduling/guest-instant-captcha.static.test.ts": 4,
+  "src/lib/site-admin/a11y/accent-token-foreground.test.ts": 2,
+  "src/lib/site-admin/builder-node/builder-2027-native-data-wiring.static.test.ts": 3,
+  "src/lib/site-admin/site-footer/freeform-children-untouched.static.test.ts": 4,
+  "src/lib/support/support-hq-presentation.test.ts": 3,
+  "src/lib/talent-site/server/site-seo.test.ts": 4
+}
