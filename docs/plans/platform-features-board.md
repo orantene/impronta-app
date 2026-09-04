@@ -137,6 +137,48 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## ATTACH THE SHA TO EVERY MEASURED CLAIM — an undated measurement decays into a false claim
+
+**Named by the Sessions & Classes Manager about their own finding, caught by Events & Ticketing, and propagated one hop further by this director.**
+
+*"Nothing on main moves an order to `paid`"* was **true of `7c4642377`** and published without a sha. `complete-order.ts` — which calls `commitCapacity` then sets `status='paid'` with an amount check so a deposit does not mark an order paid in full, and which `markPaid` calls — landed in **#1580 at `6945ab706`, sixteen minutes later**. Verified here on `origin/main`: the file exists, imports `commitCapacity`, calls it, sets `'paid'`. **The seam exists.**
+
+By then the claim had propagated into three documents and two managers' plans as a standing fact, and this director repeated it to two more managers without a sha. Nobody lied at any point.
+
+**The rule: attach the sha to every measured claim, exactly as we already do for a gate result.** On a repo moving this fast an undated measurement decays into a false claim on its own. This department has spent two days on a green that described a neighbour's tree — **this is the identical error along the time axis instead of the space axis.**
+
+Sequence worth noting, because it is how a repair gets mistaken for a refuted diagnosis: Sessions diagnosed the gap, **Orders verified it independently and held their own PR** (re-homing Menu before the seam existed would have stranded a paid order in `pending_payment` with its hold lapsing under a customer who had paid), then shipped the repair as #1580 — and a third party reading the repair concluded the diagnosis had been wrong.
+
+## RULING: ONE denominator on `admissions`. `units` is DROPPED, `party_size` stands.
+
+**This director approved `units` and the approval was wrong.** `docs/plans/sessions-classes-plan.md` on main already carries:
+
+```sql
+party_size     int NOT NULL DEFAULT 1 CHECK (party_size > 0),
+CONSTRAINT admissions_admitted_within_party CHECK (admitted_count <= party_size),
+```
+
+Events' **diagnosis was right** — `allocation.units` is 4 for both four GA tickets and a party of four, so the denominator cannot be derived from it — but the **fix was a duplicate**. Run the cases through `party_size`: four GA is **four rows at 1** (the door reads "1 of 1" per QR, never "0 of 4"); a party of four is **one row at 4**. Reservations' host stand already reads it as covers.
+
+**Why it was ruled rather than left to the owning manager:** two integer counts on one row, **equal in all five enumerated cases and differing only in grain**, is precisely the commission P0 fixed two days ago — `unit_price` held a per-unit value and `talent_cost` held a line total under names that did not say so, it passed review because the names looked right, and a measured $200 became $400. Both columns surviving is that defect pre-built, **arriving in the shape of thoroughness.**
+
+**The director's error class:** ruling on a *delta* without the DDL in view — validating the argument instead of the object, the same shape as grepping for one's own wording. **Send the DDL, not a description of the delta**, which is what the Sessions manager did the second time after being burned by the first.
+
+**Two things ship with the ruling.** A `COMMENT ON COLUMN` stating the grain in the column's own words — *how many people this one row admits, the denominator of `admitted_count`, never a count of allocation units* — because the commission P0 survived review on a name that lied about grain with nothing beside it saying otherwise. And **a minting helper whose signature makes the wrong shape unconstructable** (`tier-pools.ts` treatment): nothing otherwise forces the minter to choose four-rows-of-one over one-row-of-four, and **both typecheck**. That is the risk no column fixes.
+
+## RECALIBRATION, 2026-09-03 night: WE HAVE NOT LAUNCHED
+
+Owner's instruction via the CEO, correcting the CEO rather than the managers. **Zero paying users, zero live transactions, one hand-built prototype tenant, six more waiting.** The process had been sized for a company with customers and the cost was speed.
+
+1. **Stop waiting on the CEO. Taken-under-silence is the DEFAULT** — write the recommendation on the board and take it. Never park work against an answer.
+2. **Ship to main freely.** There is nobody to break.
+3. **One-line corrections, not threads.**
+4. **Fix forward rather than gate forward** — ship the fix, build the guard after the feature works.
+
+**The four that do NOT relax, because each costs a day rather than an hour:** migrations applied before merge · do not leave main red · money paths stay careful, because **the first real charge must not be the first test** · never delete or overwrite tenant data.
+
+**V-2 RULED by the CEO rather than escalated:** ship the single-sided 6%, **cut** the control from Settings. Commission is already ratified flat at 6% with prices frozen until 20 paying accounts, so a 3%+3% split contradicted a decision already made and there was nothing for the owner to decide. **Nobody builds a buyer-paid fee**; revisit at 20 paying accounts. The EN and ES marketing copy therefore stays **true** rather than becoming a thing to fix.
+
 ## A NEW MEMBERSHIP ROLE GRANTS THE ENTIRE WORKSPACE — `is_staff_of_tenant` never reads `role`
 
 **Found by the Events & Ticketing Manager on their first day, verified line by line by the director rather than relayed.** This constrains Events, Reservations and Sessions & Classes simultaneously and it is the most consequential thing found tonight.
