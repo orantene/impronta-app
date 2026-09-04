@@ -747,6 +747,71 @@ Named so nobody reads the mockups and believes it is coming in this wave.
 
 ---
 
+## 6b. Where this area actually stands, 2026-09-04
+
+**Everything buildable without another department's file is built.** Eight of ten slices have shipped
+or are pushed; the remaining two and the surfaces of three others are blocked on named files owned by
+named people, not on judgment.
+
+| Slice | State | Migration |
+|---|---|---|
+| E0 `admissions` | **merged, live** | `…360` |
+| E1 `events` + delete guard | **merged, live** | `…361`, `…362` |
+| `party_size` rationale | **merged, live** | `…363` |
+| E2 tiers on variants | **merged, live** | `…364` |
+| `admits_per_unit` | **merged, live** | `…365` |
+| E5b mint idempotency + shortfall view + `order_lines.session_id` | **merged, live** | `…366` |
+| E6 tenant promo codes | pushed, applied, unmerged | `…367` |
+| E9 lineup | pushed, applied, unmerged | `…368` |
+| E8 `check_in` + the no-show fix | pushed, applied, unmerged | `…369`, `…370` |
+| **SECURITY** shortfall view leak | pushed, applied, unmerged | `…371` |
+
+**Blocked, each on one named thing:**
+
+- **E3's screens** — there is no `events` rail slot. My brief said the Dashboards Director had added
+  it; verified four ways against main, it does not exist. Routed as one three-area contract.
+- **E4's `/events` and `/r`** — the `surface-allow-list.ts` decomposition. That file is at its
+  800-line ceiling and cannot absorb one line today. Four registrations, not two.
+- **E5b's wiring** — Orders is adding an `onOrderPaid?` callback after their own red PR clears. The
+  shortfall view is already on main **ahead** of the hook, which is what makes their best-effort
+  ruling safe rather than merely convenient.
+- **E7 payout hold** — Finance's `release_after` column. **Parked, not faked.** `booking_payouts` has
+  no time column and `releaseHeldPayouts` has no time predicate at either site, so holding a ticket
+  payout as `'held'` releases it early on the next account flip or reconcile, silently.
+- **E8's camera scan** — the owner's click on a real iPhone. Cannot be produced here at all: the iOS
+  Simulator has no camera, so any green would be evidence about a thing that does not exist.
+
+## 6c. What this area learned, in the order it cost something
+
+1. **A brief is a claim like any other.** Four items in mine did not survive contact with `origin/main`
+   — the `admissions` shape, the rail slot, the payout hold, and `order_lines.session_id`, the last of
+   which I asserted myself and had confirmed back to me by the table's owner. Verify a dependency on
+   `origin/main`, never in the conversation about it.
+2. **Existence is not shape, and shape is not behaviour.** `to_regclass` passes on a table that
+   enforces nothing. Every migration here was proven by a rolled-back probe that made the guards
+   *refuse*.
+3. **A green lane is not a green branch.** `tsx --test` executes and does not typecheck; seven tests
+   passed over five type errors.
+4. **A privilege sweep catches what a careful reading cannot** — *and the sweep itself needs a
+   discriminator, or it becomes the next bug.* I wrote a true sentence about view ownership, drew the
+   wrong conclusion from it, and shipped a cross-tenant read; the comment recording the error read like
+   diligence. But the rule I then published would have **broken** a correct view:
+   `inquiry_offer_line_items_talent_view` is in the identical state mine was — `security_invoker` unset,
+   running as owner, bypassing RLS — and is **right**, because it carries its own `auth.uid()` scope and
+   the base table's policies do not admit a talent by `talent_profile_id` at all. It exists *because*
+   RLS refuses that access. Setting the invoker flag returns zero rows for every talent, silently,
+   since an empty result is what a correctly-filtered view looks like. **The two are indistinguishable
+   by shape and opposite in correctness.** The discriminator: *does the view carry its own scope, and
+   would RLS have granted this access anyway?* A sweep that flags both for a human is useful; one that
+   auto-fixes, or whose message says "set security_invoker", is worse than none.
+
+5. **One authority per fact.** The units-versus-people confusion surfaced five times in five different
+   costumes — a column, a detector, a constraint, a door count, a reconciler predicate. A bad column
+   does not just store a wrong number; it teaches every later reader to compute one.
+6. **A weak guard that is correct beats a strong one that refuses valid states.** The `admissions`
+   anchor check stayed weak over three separate objections, and then the owner's cash door sale and
+   Reservations' walk-in both turned out to need exactly the room it left.
+
 ## 7. Log
 
 | Date | Entry |
