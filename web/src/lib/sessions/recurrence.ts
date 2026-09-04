@@ -47,6 +47,7 @@ import {
   utcToZonedYmd,
   weekdayUtc,
   zonedLocalToUtc,
+  resolveWallClock,
 } from "@/lib/scheduling/tz";
 
 /** ISO weekday: 1 = Monday … 7 = Sunday, matching Postgres `isodow`. */
@@ -70,6 +71,23 @@ export type Occurrence = {
   endsAt: string;
   /** The local date this occurrence belongs to, "YYYY-MM-DD". */
   localDate: string;
+  /**
+   * HOW the wall clock resolved, carried up from `resolveWallClock`.
+   *
+   * `shifted` is the one that needs handling and the reason this field exists.
+   * Under `gap: "next"` two different wall clocks collapse onto ONE instant —
+   * a 02:30 series and a 03:30 series both land on 03:30 local on the day the
+   * clock jumps — so a venue with a 02:30 show and a 03:30 show gets two
+   * sessions at one instant, each with its own tier pool, each selling the same
+   * room. Nothing refuses that while the pools are parentless.
+   *
+   * A bare instant cannot say "this is not the clock you asked for", so the
+   * caller could only re-derive it by resolving twice under both policies and
+   * diffing — the caller doing the resolver's job. Carrying the kind makes the
+   * collision check one comparison, and narrows it: only a `shifted` occurrence
+   * can collide.
+   */
+  kind: "exact" | "ambiguous" | "shifted";
 };
 
 const MINUTE_MS = 60_000;
@@ -149,12 +167,17 @@ export function expandSeries(
   while (cursor <= last && out.length < MAX_OCCURRENCES) {
     const dow = isoWeekdayOf(cursor);
     if (dow != null && wanted.has(dow)) {
-      const startsAt = zonedWallClockToUtc(cursor, minutes, spec.timeZone);
-      if (startsAt) {
+      // resolveWallClock rather than the zonedWallClockToUtc wrapper, because
+      // the wrapper returns a bare Date and the KIND is what the materialiser
+      // needs. Same policy either way: gap "next".
+      const resolved = resolveWallClock(cursor, minutes, spec.timeZone, { gap: "next" });
+      if (resolved.kind !== "nonexistent") {
+        const startsAt = resolved.instant;
         out.push({
           startsAt: startsAt.toISOString(),
           endsAt: new Date(startsAt.getTime() + spec.durationMinutes * MINUTE_MS).toISOString(),
           localDate: cursor,
+          kind: resolved.kind,
         });
       }
     }
