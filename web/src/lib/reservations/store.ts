@@ -24,6 +24,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseServiceRules } from "./rules";
+import { commitCapacity, releaseCapacity, reserveCapacity } from "@/lib/capacity/reserve";
 import { intOrNull, minutesToTime, rowToException, rowToWindow } from "./rows";
 import type { PartyBand } from "./availability";
 import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./types";
@@ -321,4 +322,107 @@ export async function deactivateServiceWindow(
     return { ok: false, error: "Could not close the service window." };
   }
   return { ok: true };
+}
+
+// ─── walk-ins ────────────────────────────────────────────────────────────────
+
+/**
+ * Seat somebody who did not book.
+ *
+ * ONE ALLOCATION, NO ORDER. The band pool is charged exactly as it is for a
+ * booking, so the floor cannot oversell — and `order_line_id` stays NULL,
+ * because nobody bought anything. That null is not a gap: it is what a walk-in
+ * IS, and it is why the admissions guard was deliberately left loose enough to
+ * express it.
+ *
+ * NO CUSTOMER EITHER, unless the host typed a name. A walk-in has no email, no
+ * account and often no name, and inventing a customer row to satisfy a shape
+ * would put a phantom in the venue's client list for every party that ever
+ * wandered in.
+ *
+ * IF THE ADMISSION WRITE FAILS THE CAPACITY IS RELEASED. This is the opposite
+ * call from a booking, and deliberately: a booked guest holds a receipt and a
+ * repairable record beats a released table, but a walk-in holding nothing means
+ * a held unit nobody can see, which quietly shrinks the room for the rest of
+ * service.
+ */
+export async function seatWalkIn(
+  tenantId: string,
+  input: {
+    poolId: string;
+    startsAt: Date;
+    endsAt: Date;
+    partySize: number;
+    holderName: string | null;
+    /** The staff member seating them. Recorded, never invented. */
+    actorUserId: string | null;
+  },
+): Promise<
+  | { ok: true; admissionId: string; allocationId: string }
+  | { ok: false; reason: "sold_out" | "capacity_unavailable" | "engine_error" }
+> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, reason: "capacity_unavailable" };
+
+  const reserved = await reserveCapacity(
+    {
+      poolId: input.poolId,
+      startsAt: input.startsAt.toISOString(),
+      endsAt: input.endsAt.toISOString(),
+      units: 1,
+      createdBy: input.actorUserId,
+    },
+    sb,
+  );
+
+  if (!reserved.ok) {
+    // "Sold out" and "could not reach capacity" stay separate here too. A host
+    // told the floor is full when the engine was unreachable turns away a party
+    // for a table that is standing empty in front of them.
+    return {
+      ok: false,
+      reason: reserved.reason === "sold_out" ? "sold_out" : "capacity_unavailable",
+    };
+  }
+
+  // COMMIT IT IMMEDIATELY. `reserve_capacity` creates a HOLD with a TTL, which
+  // is right for a checkout: somebody is deciding, and the units come back if
+  // they wander off. A walk-in is already sitting down, and nothing downstream
+  // will ever commit this one — there is no payment step. Left as a hold, the
+  // reaper frees the table MID-MEAL, the floor reads one four-top lighter than
+  // it is, and the next party is seated on top of people eating.
+  const committed = await commitCapacity([reserved.allocationId], null, sb);
+  if (!committed.ok) {
+    await releaseCapacity([reserved.allocationId], sb);
+    return { ok: false, reason: "engine_error" };
+  }
+
+  try {
+    const { data, error } = await sb
+      .from("admissions")
+      .insert({
+        tenant_id: tenantId,
+        allocation_id: reserved.allocationId,
+        order_line_id: null, // a walk-in bought nothing
+        space_id: null, // unassigned until the host places them
+        customer_id: null,
+        holder_name: input.holderName,
+        starts_at: input.startsAt.toISOString(),
+        party_size: input.partySize,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data?.id) {
+      logServerError("reservations.store.seatWalkIn/admission", error);
+      await releaseCapacity([reserved.allocationId], sb);
+      return { ok: false, reason: "engine_error" };
+    }
+
+    return { ok: true, admissionId: data.id as string, allocationId: reserved.allocationId };
+  } catch (err) {
+    logServerError("reservations.store.seatWalkIn", err);
+    await releaseCapacity([reserved.allocationId], sb);
+    return { ok: false, reason: "engine_error" };
+  }
 }
