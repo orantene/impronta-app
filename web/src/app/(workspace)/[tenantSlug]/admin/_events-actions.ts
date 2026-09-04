@@ -21,6 +21,7 @@
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { saleState, type Tier } from "@/lib/events/tiers";
+import { pickTimezone } from "@/lib/spaces/venue-timezone";
 
 export type EventTierRow = {
   id: string;
@@ -50,6 +51,23 @@ export type EventListRow = {
   nextSessionAt: string | null;
   /** Scheduled sessions only — a cancelled night is not an upcoming one. */
   sessionCount: number;
+  /**
+   * TRUE when this event has sessions and every one of them is in the past.
+   * `nextSessionAt === null` alone cannot say this: it is also null for an event
+   * with no sessions at all, and "3 sessions, next: no date" is one label
+   * covering two states — the state it hides being "this run is over", which is
+   * the one a staff member actively wants to see.
+   */
+  runFinished: boolean;
+  /**
+   * The VENUE'S zone, resolved through the platform ladder (venue, workspace,
+   * platform). Every time on this screen is formatted in it and never in the
+   * reader's: a Cancún venue opened by an owner in Madrid would otherwise be
+   * told the wrong night, worst at a late doors time that crosses midnight in
+   * the reader's zone. An instant formatted without a named zone silently
+   * becomes the reader's wall clock.
+   */
+  timeZone: string;
   tiers: EventTierRow[];
 };
 
@@ -87,7 +105,7 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
     const { data: eventRows, error: eventErr } = await supabase
       .from("events")
       .select(
-        "id, slug, title, status, admission_kind, doors_offset_minutes, refund_cutoff_hours, payout_release_rule, offering_id, created_at",
+        "id, slug, title, status, admission_kind, doors_offset_minutes, refund_cutoff_hours, payout_release_rule, offering_id, venue_id, created_at",
       )
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -122,6 +140,34 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
       logServerError("events.loadWorkspaceEvents/sessions", sessionErr);
       return { ok: false, error: "Could not load event sessions." };
     }
+
+    // Zones for the ladder. One read each, not one per event.
+    const venueIdSet = [
+      ...new Set(
+        events.map((e) => e.venue_id as string | null).filter((v): v is string => Boolean(v)),
+      ),
+    ];
+    const { data: venueRows, error: venueErr } = venueIdSet.length
+      ? await supabase.from("venues").select("id, timezone").in("id", venueIdSet)
+      : { data: [] as Array<Record<string, unknown>>, error: null };
+    if (venueErr) {
+      logServerError("events.loadWorkspaceEvents/venues", venueErr);
+      return { ok: false, error: "Could not load venue timezones." };
+    }
+    const venueZone = new Map<string, string | null>(
+      (venueRows ?? []).map((v) => [v.id as string, (v.timezone as string | null) ?? null]),
+    );
+
+    const { data: agencyRow, error: agencyErr } = await supabase
+      .from("agencies")
+      .select("timezone")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (agencyErr) {
+      logServerError("events.loadWorkspaceEvents/agency", agencyErr);
+      return { ok: false, error: "Could not load the workspace timezone." };
+    }
+    const workspaceZone = (agencyRow?.timezone as string | null) ?? null;
 
     // Tiers are catalog variants. `pool_key` is what binds one to its pools, and
     // a variant without one is an ordinary product option rather than a tier.
@@ -166,6 +212,7 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
       // An absent offering has no tiers; it does not have the tiers of the
       // empty string.
       const offeringId = typeof e.offering_id === "string" ? e.offering_id : null;
+      const venueId = typeof e.venue_id === "string" ? e.venue_id : null;
       const variants = (offeringId ? (variantsByOffering.get(offeringId) ?? []) : []).filter(
         (v) => typeof v.pool_key === "string" && v.pool_key,
       );
@@ -213,6 +260,15 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
         payoutReleaseRule: (e.payout_release_rule as string) ?? "on_session_end",
         nextSessionAt: (upcoming?.starts_at as string | undefined) ?? null,
         sessionCount: mySessions.length,
+        runFinished: mySessions.length > 0 && !upcoming,
+        timeZone: pickTimezone({
+          // No sentinel key — same rule as the offering lookup above. An event
+          // with no venue has NO venue zone; it does not have the zone of the
+          // empty string. (I wrote `?? ""` here first, one hour after removing
+          // the identical thing twelve lines up. The habit is the hazard.)
+          venue: venueId ? (venueZone.get(venueId) ?? null) : null,
+          workspace: workspaceZone,
+        }).timezone,
         tiers,
       };
     });

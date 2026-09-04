@@ -58,17 +58,33 @@ function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function whenLabel(iso: string | null): string {
+/**
+ * A session time, in the VENUE'S zone and never the reader's.
+ *
+ * `toLocaleString(undefined, …)` takes the BROWSER's zone, so a Cancún venue
+ * opened by an owner in Madrid would be told the wrong night — worst at a late
+ * doors time that crosses midnight in the reader's zone, which is exactly when
+ * somebody is checking. An instant formatted without a named zone silently
+ * becomes the reader's wall clock.
+ */
+function whenLabel(iso: string | null, timeZone: string): string {
   if (!iso) return "No date yet";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "No date yet";
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  try {
+    return d.toLocaleString(undefined, {
+      timeZone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    // An unusable zone must not take the screen down, and must not silently
+    // answer in the reader's zone either — so it says which zone it could not use.
+    return `${d.toISOString()} (zone ${timeZone} unusable)`;
+  }
 }
 
 function StatusPill({ status }: { status: EventListRow["status"] }) {
@@ -219,7 +235,7 @@ export function EventsPage() {
                       <StatusPill status={e.status} />
                     </div>
                     <div className="mt-[3px] text-[12px] text-admin-ink-muted">
-                      {whenLabel(e.nextSessionAt)}
+                      {e.runFinished ? "Run finished" : whenLabel(e.nextSessionAt, e.timeZone)}
                       {e.sessionCount > 1 ? ` · ${e.sessionCount} sessions` : null}
                     </div>
                   </button>
@@ -257,7 +273,11 @@ export function EventsPage() {
                 <dt className="text-admin-ink-muted">Sold as</dt>
                 <dd className="text-admin-ink">{selected.admissionKind}</dd>
                 <dt className="text-admin-ink-muted">Next session</dt>
-                <dd className="text-admin-ink">{whenLabel(selected.nextSessionAt)}</dd>
+                <dd className="text-admin-ink">
+                  {selected.runFinished
+                    ? "Run finished — every session is past"
+                    : whenLabel(selected.nextSessionAt, selected.timeZone)}
+                </dd>
                 <dt className="text-admin-ink-muted">Doors</dt>
                 <dd className="text-admin-ink">
                   {selected.doorsOffsetMinutes > 0
@@ -287,9 +307,18 @@ export function EventsPage() {
                 />
               ) : (
                 <p className="text-[13.5px] text-admin-ink">
-                  {selected.sessionCount} scheduled{" "}
-                  {selected.sessionCount === 1 ? "session" : "sessions"}, next{" "}
-                  {whenLabel(selected.nextSessionAt)}.
+                  {/* THREE states, not two. `nextSessionAt === null` means BOTH
+                      "no sessions" and "every session is past", and collapsing
+                      them renders "3 scheduled sessions, next No date yet" —
+                      one label hiding the state a staff member most wants:
+                      this run is over. */}
+                  {selected.runFinished
+                    ? `${selected.sessionCount} ${
+                        selected.sessionCount === 1 ? "session" : "sessions"
+                      }, all past. This run has finished.`
+                    : `${selected.sessionCount} scheduled ${
+                        selected.sessionCount === 1 ? "session" : "sessions"
+                      }, next ${whenLabel(selected.nextSessionAt, selected.timeZone)}.`}
                 </p>
               )
             ) : null}
