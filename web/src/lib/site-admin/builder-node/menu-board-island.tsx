@@ -79,8 +79,27 @@ function clampQty(value: number): number {
   return Math.max(0, Math.min(MAX_QTY, Math.round(value)));
 }
 
+/**
+ * May this browser persist a cart for this tenant?
+ *
+ * ONE predicate, called by BOTH the read and the write, because the bug this
+ * replaces was an asymmetry: the read checked `!tenantId` and the write did not.
+ * That is not a no-op — `storageKey("")` is the bare prefix, so a tenant-less
+ * write is one cart bucket shared by every tenant a person visits in that
+ * browser session.
+ *
+ * It was harmless only because the read guard made such a write unreadable,
+ * which is precisely what made it dangerous: a guard whose partner is missing
+ * reads as redundant, and deleting it as "obviously unnecessary" would have
+ * turned dead data into a cross-tenant cart. Sharing the predicate means there
+ * is no half to delete.
+ */
+export function cartStorageEnabled(tenantId: string): boolean {
+  return typeof window !== "undefined" && Boolean(tenantId);
+}
+
 function loadStoredQuantities(tenantId: string): Record<string, number> {
-  if (typeof window === "undefined" || !tenantId) return {};
+  if (!cartStorageEnabled(tenantId)) return {};
   try {
     const raw = window.sessionStorage.getItem(storageKey(tenantId));
     if (!raw) return {};
@@ -127,7 +146,7 @@ export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandPr
   }, [tenantId]);
 
   useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
+    if (!hydrated || !cartStorageEnabled(tenantId)) return;
     try {
       if (Object.keys(quantities).length === 0) {
         window.sessionStorage.removeItem(storageKey(tenantId));
