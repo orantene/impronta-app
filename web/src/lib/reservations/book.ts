@@ -63,10 +63,23 @@ export const ARRIVING_WINDOW_MINUTES = 15;
  */
 export function bookState(row: BookRow, now: Date, graceMinutes: number): BookState {
   if (row.completedAt !== null) return "completed";
-  if (row.noShowAt !== null) return "no_show";
 
+  // ARRIVAL BEATS A NO-SHOW STAMP, and the stamp is NOT cleared.
+  //
+  // Someone can be marked a no-show and then walk in: the host was early, or
+  // the grace job fired while they were parking. The obvious repair is to null
+  // `no_show_at` on arrival, and it is wrong — a no-show fee may ALREADY HAVE
+  // BEEN CHARGED off that stamp, and clearing it leaves money that moved with
+  // nothing on the row explaining why. The guest disputes the charge and the
+  // record cannot answer.
+  //
+  // So the stamp stays as the record of what was decided and when, and the
+  // DISPLAY prefers the newer fact: they are here. Agreed with Events &
+  // Ticketing, who own `check_in`; no-show semantics are mine.
   if (row.admittedCount >= row.partySize) return "seated";
   if (row.admittedCount > 0) return "part_seated";
+
+  if (row.noShowAt !== null) return "no_show";
 
   const at = row.startsAt.getTime();
   const t = now.getTime();

@@ -134,3 +134,27 @@ test("unassigned counts parties with no table, and only ones still coming", () =
   // job. But a party that never came does not need a table.
   assert.equal(summariseBook(entries).unassigned, 1);
 });
+
+test("ARRIVAL beats a no-show stamp, and the stamp is not cleared", () => {
+  // A party marked no-show can walk in: the host was early, or the grace job
+  // fired while they were parking. The obvious repair is to null no_show_at on
+  // arrival, and it is wrong — a no-show FEE may already have been charged off
+  // that stamp, and clearing it leaves money that moved with nothing on the row
+  // explaining why. The guest disputes it and the record cannot answer.
+  const marked = row({ noShowAt: min(31), admittedCount: 4 });
+  assert.equal(bookState(marked, min(50), 30), "seated");
+
+  const partly = row({ noShowAt: min(31), admittedCount: 2 });
+  assert.equal(bookState(partly, min(50), 30), "part_seated");
+
+  // And with nobody arrived it still reads as the no-show it was marked.
+  assert.equal(bookState(row({ noShowAt: min(31) }), min(50), 30), "no_show");
+});
+
+test("a no-show who arrived still counts as covers and as arrived", () => {
+  const s = summariseBook(
+    buildBook([row({ noShowAt: min(31), admittedCount: 4, partySize: 4 })], min(50), 30),
+  );
+  assert.equal(s.covers, 4, "they are eating; they are covers");
+  assert.equal(s.arrived, 4);
+});
