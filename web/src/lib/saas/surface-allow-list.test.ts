@@ -650,3 +650,18 @@ test("/q is not confused with a tenant slug that merely starts with q", () => {
   // "quinta-real" must keep working.
   assert.equal(isPathAllowedForHostKind("app", "/quinta-real/admin"), true);
 });
+
+test("the QR asset endpoint is reachable on the surfaces the workspace runs on", () => {
+  // Staff reach it from the dashboard, which lives on the agency host AND on
+  // the app host. Gating it on the host's tenant would have 404'd it on
+  // app.tulala.digital, where the host carries no tenant at all — the route
+  // reads the SESSION's tenant instead.
+  for (const path of ["/api/links/t7/qr.png", "/api/links/door/qr.pdf"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("app", path), true, `app ${path}`);
+  }
+});
+
+test("the QR asset endpoint is not exposed on the marketing apex", () => {
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/links/t7/qr.png"), false);
+});

@@ -291,6 +291,10 @@ export const APP_API_PREFIXES = [
   "/api/talent",
   // HQ support investigation bundle (session or SUPPORT_INVESTIGATION_TOKEN).
   "/api/platform",
+  // QR & Links: renderings of a link's code (qr.svg/png/pdf). Staff-only and
+  // gated on the SESSION's tenant, not the host, so it works on the agency
+  // host and on the app host, where the host carries no tenant at all.
+  "/api/links",
 ] as const;
 
 export const APP_API_EXACT_PATHS = [
