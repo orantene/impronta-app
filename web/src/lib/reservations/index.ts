@@ -33,3 +33,14 @@ export {
   resolveWindowOnDate,
   seatingTimesFor,
 } from "./windows";
+
+export type { BookEntry, BookRow, BookState, BookSummary } from "./book";
+export { ARRIVING_WINDOW_MINUTES, bookState, buildBook, summariseBook } from "./book";
+
+export type { DueReminder, ReminderKind, RemindableReservation } from "./reminders";
+export {
+  DEFAULT_SOON_LEAD_MINUTES,
+  dayBeforeRemindersDue,
+  extendHold,
+  soonRemindersDue,
+} from "./reminders";
