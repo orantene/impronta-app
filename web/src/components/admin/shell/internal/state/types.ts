@@ -42,6 +42,7 @@ export type WorkspacePage =
   | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
   | "financials" // L46 — business financials. Canonical server-rendered route; NOT a SPA nav tab.
   | "orders"     // 0.10 — the Orders desk. Canonical server-rendered route; NOT a SPA nav tab.
+  | "events"     // Events & Ticketing — the Events tab (list + Details/Sessions/Tickets/Seating/Lineup/Sales/Door). SPA tab in the menu shape. Rail entry + events-on visibility gate are a follow-up (needs the events-enabled flag; not shipped as a blind layout fetch). See docs/plans/events-rail-slot-contract.md.
   | "payouts"    // Stripe Connect payout onboarding + base reservation fee. In-shell SPA section (not in nav).
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──

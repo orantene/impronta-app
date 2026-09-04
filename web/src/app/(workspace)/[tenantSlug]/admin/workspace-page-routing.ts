@@ -23,6 +23,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "pitches",
   "financials", // L46 — canonical server route; not a SPA tab
   "orders",     // 0.10 — canonical server route; not a SPA tab
+  "events",     // Events & Ticketing — SPA tab (menu shape); reachable by URL now, rail door deferred (events-on gate)
   "payouts",    // Stripe Connect payout onboarding + base reservation fee (in-shell SPA section)
   "settings",
 ]);
