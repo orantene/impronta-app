@@ -21,7 +21,7 @@ cron and the calendar read path. What is missing is the route and the rail entry
 | **Rail label (en)** | **Schedule** |
 | **Rail label (es)** | **Horario** |
 | **Rail group / position** | **Operate**, immediately after **Calendar** |
-| **Visibility** | Gated like `menu` — absent for a solo talent |
+| **Visibility** | **No gate.** Visible to every workspace type, including a solo talent — see the correction below |
 
 Both registrations: `WORKSPACE_PAGE_SEGMENTS` in
 `web/src/app/(workspace)/[tenantSlug]/admin/workspace-page-routing.ts`, and the rail entry.
@@ -46,9 +46,24 @@ of deliberate different choices.
 
 ## Visibility, and the case this gate gets wrong
 
-Gating like `menu` keeps it off a solo talent's rail, which is right for the common case.
+**CORRECTION — this section originally said "gating like `menu` keeps it off a solo talent's rail". That is false, and so was the gap it led me to log.**
 
-**It is wrong for a solo yoga teacher**, who is exactly a `sessions` customer and is a solo talent.
+Measured on `origin/main`, `lib/saas/workspace-type.ts:78-86`:
+
+```ts
+export const BUSINESS_HIDDEN_PAGES: readonly WorkspacePage[] = ["roster", "pitches"];
+
+export function workspacePageVisible(type: WorkspaceType, page: WorkspacePage): boolean {
+  if (type !== "business") return true;
+  return !BUSINESS_HIDDEN_PAGE_SET.has(page);
+}
+```
+
+**It is a deny-list of two, and `menu` is not in it.** `menu` is visible to every workspace type, so **"gated like `menu`" is not a gate at all.** `sessions` is likewise absent from the list and is therefore visible everywhere — **including to a solo talent.**
+
+**Which is the outcome we wanted, reached by accident rather than by design.** This contract flagged a solo yoga teacher — a real `sessions` customer who is a solo talent — as a known too-narrow gate, and the director logged that gap. **There is no gap. It has been unlogged.**
+
+**The error is the one this repo keeps recording, in a new place: a visibility rule written by analogy, without checking what the analogy did.** *"Gated like `menu`"* described a phrase rather than a behaviour, and it survived review because the phrase sounds like a specification. Reported by the manager who wrote it, against their own contract, after measuring.
 I am not proposing a bespoke rule for it — a visibility gate nobody can state in one sentence is
 worse than one that is occasionally too narrow, and the honest fix is the industry preset rather
 than a special case in the shell. Flagged so it is a known edge rather than a surprise, and it is
