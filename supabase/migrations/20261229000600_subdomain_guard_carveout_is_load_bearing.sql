@@ -1,0 +1,33 @@
+-- The EXISTS carve-out in agency_domains_block_subdomain_delete is LOAD-BEARING,
+-- and nothing said so.
+--
+-- The guard blocks deleting a tenant's `subdomain` row, which is correct: that row
+-- is how the tenant is reached. But `agency_domains.tenant_id` is
+-- REFERENCES agencies(id) ON DELETE CASCADE, so the same BEFORE DELETE trigger
+-- also fires on every child row when a whole tenant is deleted. Without the
+-- carve-out it would raise there too and TENANT DELETION WOULD BE IMPOSSIBLE —
+-- and the symptom would read as "deleting a workspace is broken", naming nothing
+-- about this guard.
+--
+-- The carve-out is one line: `IF EXISTS (SELECT 1 FROM agencies WHERE id = OLD.tenant_id)`.
+-- During a cascade the parent is already gone, so the EXISTS is false and the
+-- delete proceeds. Its original comment calls it the "simplest check", which
+-- reads like a defensive nicety and would survive a refactor that removed it.
+--
+-- MEASURED, not inferred, by the Events & Ticketing Manager on this database:
+-- a published event under a throwaway agency, the agency deleted, all inside a
+-- rolled-back transaction -> cascade_succeeded=t, events_left=0, agency_left=0,
+-- no error raised. The parent row genuinely is gone by the time the child's
+-- BEFORE DELETE fires. Recorded because that branch runs only when an entire
+-- tenant is deleted, which is to say almost never — the shape this repo already
+-- has a name for: a repair path that only runs after the failure it repairs has
+-- never been executed.
+--
+-- IF YOU COPY THIS PATTERN, COPY THIS COMMENT TOO. The line without the reason
+-- is the part that gets refactored away.
+--
+-- No schema change. A comment on the function, so the next reader finds it where
+-- the function is rather than in a migration they would have to know to open.
+
+COMMENT ON FUNCTION public.agency_domains_block_subdomain_delete() IS
+  'Blocks deleting a tenant''s subdomain row. The EXISTS(agencies) carve-out is LOAD-BEARING: agency_domains cascades from agencies, so without it this trigger would fire on the cascade and make tenant deletion impossible. Verified empirically against a real agencies cascade (rolled back). Do not remove the carve-out; if you copy this pattern, copy the reasoning.';
