@@ -9,9 +9,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { RESERVATION_HOLD_TTL_MS, holdTtlMs } from "@/lib/scheduling/reservation-hold";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
 const SRC = join(process.cwd(), "src");
-const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
+const read = (rel: string) => blankComments(readFileSync(join(SRC, rel), "utf8"));
 
 test("no TTL falls back to the 48h default", () => {
   assert.equal(holdTtlMs(undefined), RESERVATION_HOLD_TTL_MS);
