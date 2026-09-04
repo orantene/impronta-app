@@ -11,6 +11,7 @@
  */
 
 import { completeOrderForTransaction } from "@/lib/orders/complete-order";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { improntaLog } from "@/lib/server/structured-log";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
@@ -869,7 +870,20 @@ export async function markPaid(
     try {
       const sbOrders = createServiceRoleClient();
       if (sbOrders) {
-        const settled = await completeOrderForTransaction(sbOrders, result.data.id);
+        // Events subscribes to the settle seam here, at the call site that
+        // already knows about both — Orders imports nothing from Events.
+        //
+        // Best effort by design: `completeOrderForTransaction` catches whatever
+        // this throws and settles the order regardless, because a ticketing
+        // failure must not turn a completed payment into a webhook Stripe
+        // retries against work already done. What makes that safe rather than
+        // merely convenient is `admissions_mint_shortfall`, already on main: a
+        // paid session-backed line with fewer admissions than it sold becomes a
+        // row a cron finds, instead of a person at a door with a receipt and no
+        // ticket.
+        const settled = await completeOrderForTransaction(sbOrders, result.data.id, {
+          onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(sbOrders, ctx).then(() => undefined),
+        });
         if (!settled.ok && settled.reason !== "no_order") {
           logServerError(
             "transactions.markPaid.completeOrder",
