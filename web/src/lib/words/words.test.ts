@@ -71,9 +71,9 @@ test("every preset override names a row that exists, in both locales", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("all sixteen presets exist and resolve", () => {
-  assert.equal(INDUSTRY_PRESET_IDS.length, 16);
-  assert.equal(INDUSTRY_PRESETS.length, 16);
+test("all nineteen presets exist and resolve", () => {
+  assert.equal(INDUSTRY_PRESET_IDS.length, 19);
+  assert.equal(INDUSTRY_PRESETS.length, 19);
   for (const id of INDUSTRY_PRESET_IDS) {
     assert.equal(parseIndustryPresetId(id), id);
   }

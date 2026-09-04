@@ -55,6 +55,11 @@ export const INDUSTRY_PRESET_IDS = [
   "rentals",
   "workshop_print",
   "venue_for_hire",
+  // Ratified by the CEO 2026-09-04. Ids are permanent: a rename after this is a
+  // migration, because a tenant's stored `industry_preset` is keyed by it.
+  "dropoff_service",
+  "practice",
+  "act",
   "agency",
   "custom",
 ] as const;
@@ -339,8 +344,12 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
   },
   workshop_print: {
     id: "workshop_print",
-    label: { en: "Workshop, print", es: "Taller, imprenta" },
-    blurb: { en: "jobs, proofs", es: "trabajos, pruebas" },
+    // RELABELLED, id unchanged. "Workshop, print" with "jobs, proofs" meant a
+    // frozen-pizza maker read it, did not see themselves, picked Custom and got
+    // nothing. The shape underneath was always right; the words were too narrow.
+    // This also picks up bakers, roasters and small-batch anything.
+    label: { en: "Maker and workshop", es: "Taller y producción" },
+    blurb: { en: "made to order, batches", es: "por encargo, lotes" },
     words: {
       ...STAFF_WORDS,
       "menu.item": { en: "Job", es: "Trabajo" },
@@ -374,6 +383,72 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     designId: "noir",
     representsPeople: false,
   },
+  dropoff_service: {
+    id: "dropoff_service",
+    label: { en: "Drop-off service", es: "Servicio de entrega" },
+    blurb: { en: "drop off, turnaround, collect", es: "dejas, plazo, recoges" },
+    // Laundry, dry cleaner, jeweller repairs, tailor, shoe and device repair.
+    // Their defining fact is TURNAROUND, which no other preset asks for and
+    // which is the first question every one of their customers has — hence the
+    // `menu.turnaround` row, which exists for this preset.
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Job", es: "Trabajo" },
+      "menu.items": { en: "Jobs", es: "Trabajos" },
+      "menu.board": { en: "Workshop", es: "Taller" },
+      "menu.cta": { en: "Drop something off", es: "Dejar algo" },
+      "menu.turnaround": { en: "Ready in", es: "Listo en" },
+      "menu.order_sent": { en: "We have it", es: "Ya lo tenemos" },
+      "menu.ready": { en: "Ready to collect", es: "Listo para recoger" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: false },
+    headerVerb: "order",
+    chatVoice: { en: "What can we take in for you?", es: "¿Qué te recibimos?" },
+    designId: "services",
+    representsPeople: false,
+  },
+  practice: {
+    id: "practice",
+    label: { en: "Professional practice", es: "Despacho profesional" },
+    blurb: { en: "consultations, cases", es: "consultas, casos" },
+    // Deliberately distinct from `clinic`, which is medical. This is
+    // professional: legal, accounting, architecture, consulting.
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Service", es: "Servicio" },
+      "menu.items": { en: "Services", es: "Servicios" },
+      "appointments.item": { en: "Consultation", es: "Consulta" },
+      "appointments.items": { en: "Consultations", es: "Consultas" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Client", es: "Cliente" },
+      "customers.people": { en: "Clients", es: "Clientes" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: true },
+    headerVerb: "book",
+    chatVoice: { en: "Tell us what you need help with", es: "Cuéntanos en qué necesitas ayuda" },
+    designId: "services",
+    representsPeople: false,
+  },
+  act: {
+    id: "act",
+    label: { en: "Performer or act", es: "Artista o espectáculo" },
+    blurb: { en: "dates, sets, riders", es: "fechas, sets, riders" },
+    // The ONLY one of the three with representsPeople true, and that flag is
+    // the whole reason it is separate from `practice` rather than folded in.
+    words: {
+      "workspace.people": { en: "The act", es: "El espectáculo" },
+      "workspace.person": { en: "Performer", es: "Artista" },
+      "events.session": { en: "Show", es: "Show" },
+      "menu.item": { en: "Set", es: "Set" },
+      "menu.items": { en: "Sets", es: "Sets" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+    },
+    features: { menu: true, reservations: false, events: true, appointments: false },
+    headerVerb: "book",
+    chatVoice: { en: "Tell us about the date", es: "Cuéntanos de la fecha" },
+    designId: "coach",
+    representsPeople: true,
+  },
   agency: {
     id: "agency",
     label: { en: "Agency", es: "Agencia" },
@@ -385,18 +460,22 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
       en: "Tell us about the project and we will line up the right talent",
       es: "Cuéntanos del proyecto y te armamos el equipo",
     },
-    designId: null,
+    // Was null while a "Production agency" design sat in the registry unused.
+    designId: "agency",
     representsPeople: true,
   },
   custom: {
     id: "custom",
     label: { en: "Custom", es: "Personalizado" },
-    blurb: { en: "start empty", es: "empezar vacío" },
+    // Was "start empty", an honest description of the thing being eliminated.
+    // There should be no route through this product that ends in a page with
+    // no design.
+    blurb: { en: "a page you shape", es: "una página a tu medida" },
     words: {},
     features: { menu: false, reservations: false, events: false, appointments: false },
     headerVerb: "ask",
     chatVoice: { en: "How can we help?", es: "¿Cómo te podemos ayudar?" },
-    designId: null,
+    designId: "services",
     representsPeople: false,
   },
 };
