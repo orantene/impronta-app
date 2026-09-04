@@ -252,6 +252,8 @@ export async function executeBookingTransfers(
             status: "held",
             stripeTransferId: null,
             payoutRail: talentRail,
+            // Booking payouts are due when recorded. Ticketing sets a real gate here.
+            releaseAfter: null,
             lastError: reason,
           });
           // Notify the affected talent their payout is held (in-app bell),
@@ -275,6 +277,8 @@ export async function executeBookingTransfers(
             status: "held",
             stripeTransferId: null,
             payoutRail: "connect_transfer",
+            // Booking payouts are due when recorded. Ticketing sets a real gate here.
+            releaseAfter: null,
             lastError: reason,
           });
         }
@@ -302,6 +306,8 @@ export async function executeBookingTransfers(
             status: "held",
             stripeTransferId: null,
             payoutRail: "connect_transfer",
+            // Booking payouts are due when recorded. Ticketing sets a real gate here.
+            releaseAfter: null,
             lastError: reason,
           });
         }
@@ -356,6 +362,8 @@ export async function executeBookingTransfers(
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
           payoutRail: outcome.rail,
+          // Booking payouts are due when recorded. Ticketing sets a real gate here.
+          releaseAfter: null,
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
@@ -391,6 +399,8 @@ export async function executeBookingTransfers(
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
           payoutRail: "connect_transfer",
+          // Booking payouts are due when recorded. Ticketing sets a real gate here.
+          releaseAfter: null,
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
@@ -433,6 +443,8 @@ export async function executeBookingTransfers(
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
           payoutRail: "connect_transfer",
+          // Booking payouts are due when recorded. Ticketing sets a real gate here.
+          releaseAfter: null,
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
