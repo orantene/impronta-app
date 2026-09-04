@@ -25,12 +25,16 @@
  * gap policy: it returned the instant the clock reaches (02:30 on a spring-forward
  * day became 03:30), where `tz.ts` returns null and the caller skips. Both are
  * defensible in isolation. Two of them in one codebase is the shape this repo has
- * an incident file about — two guards asserting opposite things — and the one that
- * had already shipped, with its policy locked in the appointments plan, is the one
- * that wins.
+ * an incident file about — two guards asserting opposite things.
  *
- * Skipping is also the better answer for a class: a session at a wall-clock time
- * that does not exist should not run, rather than run at a time nobody scheduled.
+ * The resolution was NOT that one policy won. Both callers were right for their
+ * own case: for an appointment SLOT, a wall clock that does not exist is nothing
+ * to offer, so `null` is correct; for a recurring CLASS, the studio opens on the
+ * gap day and the class happens, so skipping would delete one class a year in
+ * every DST zone, silently. Collapsing them to a single default would have been a
+ * third bug. So the policy became a PARAMETER, named at the call site —
+ * `{ gap: "skip" | "next" }`, defaulting to "skip" so every pre-existing caller
+ * stayed byte-identical. This module passes "next" deliberately.
  *
  * DST policy, inherited from tz.ts and now single-sourced:
  *   - spring-forward gap → the occurrence RUNS when the clock reaches it (gap: "next").
