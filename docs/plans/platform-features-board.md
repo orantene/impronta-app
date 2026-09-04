@@ -137,6 +137,42 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## D2 IS UNBUILDABLE AS WRITTEN — it rules on a field this codebase deleted two days earlier
+
+**FOR FINANCE AND ORDERS, not only for this cluster.** D2 reads: *"the tenant keeps it, `application_fee_amount` ZERO on a no-show or forfeiture charge"*, and its stated reason is *"Direct Charges already put a forfeiture in the tenant's Stripe balance, so the only live question was the fee."*
+
+**That premise is false on `origin/main`.** `web/src/lib/payments/stripe-checkout.ts:4-30`:
+
+> *"THE CHARGE ALWAYS LANDS ON THE PLATFORM ACCOUNT... That branch was removed (finance audit, 2026-09-01)... Do not reintroduce a connected-account branch here."*
+
+Two independent reasons are given there, and the first is not a preference: **Stripe refuses it.** Connected accounts here are onboarded under the `recipient` service agreement with capability set `{transfers}` and **cannot process a card payment at all** (`charges_enabled: true` on such an account is a legacy aggregate field and has already been misread once). The second is that `markPaid` fans out from the **platform** balance, so a Direct Charge would pay out money the platform never received.
+
+**`application_fee_amount` appears exactly four times on main and all four are comments describing the deleted lane. Zero live uses.** Money reaches tenants through `stripe.transfers.create` — separate charges and transfers.
+
+**What survives:** the outcome, untouched. The tenant keeps the forfeiture; the platform takes **no commission** on a penalty. The invoice-line reasoning behind it never depended on the charge model.
+
+**What does not:** the mechanism. There is nothing to set to zero. A forfeiture lands on the **platform** account like every other charge and reaches the tenant as a transfer with no commission deducted.
+
+### The unmade decision inside it: who pays Stripe for a no-show
+
+Because the charge lands on us, **Stripe's processing fee on a forfeiture is sunk on the platform balance before any transfer exists.** Transfer 100% and the platform pays roughly **2.9% + $0.30 per no-show** — about **$0.88 on a $20 deposit** — forever, on the one flow whose volume rises when customers behave badly. Three options: platform absorbs it, **tenant nets it**, or no card is charged for a no-show in v1.
+
+**RULING, taken under silence: the TENANT NETS THE PROCESSING FEE.** "We take zero" stays literally true — zero *commission* — while the platform does not pay a card fee for someone else's no-show, and it is the only option that does not scale badly with volume. The tenant-facing receipt shows the processing line rather than deducting it silently. Overturn in writing; the change is one number and one string.
+
+### The same fact makes the ticket-pricing ruling correct
+
+Pricing ruling 5 — *absorb the margin loss on tickets under about $10 rather than adding a floor fee* — **is right, and is right only because of this charge model.** Break-even: `0.06X = 0.029X + 0.30` → **X = $9.68**. Under roughly $9.68 a ticket the platform genuinely loses money on every sale. Under Direct Charges the tenant would have eaten it and there would be nothing to absorb. **So one fact makes ruling 5 sound and D2 unbuildable**, which is the argument for checking the model rather than the sentence.
+
+**Deliberate, priced, and not to be "fixed"**: no floor fee, no minimum, no rounding rule, and no column that would let someone add one later.
+
+### Ticketing and Reservations pricing, ruled
+
+Ticketing is **6%**, the same rate as every other booked thing — no separate rate, no per-ticket flat fee, no buyer-side split. **Free events are free on every plan, forever.** The buyer-pays-3% control is **cut** from Settings rather than shipped disabled. **Reservations carry NO per-booking fee and no per-cover concept at all, ever** — nothing in the schema should imply a reservation is a transaction, because it is not one. We earn on deposits and forfeitures only.
+
+Comparators behind it: Eventbrite 3.7% + $1.79/ticket + 2.9% processing = **$3.11 on a $20 ticket, 15.5% of face**, against our $1.20. OpenTable **$149–$499/month plus $1–$1.50 per network cover**; SevenRooms **$400–$1,200/month**. We charge nothing until somebody pays.
+
+**Cross-department note:** this cluster could not reach the Platform Features Director directly — they are absent from its peer listing, in both directions — so **the `is_staff_of_tenant` finding and this D2 correction are on the board because the board is the only cross-department channel that exists.** Finance owns the charge model; Orders owns the transfer path. A manager was minutes from building against a deleted field.
+
 ## E0 APPLIED AND VERIFIED — `admissions` exists, and the `units` column would have broken the VIP tier
 
 **`20261229000360_admissions` applied to production and verified by the director independently of the manager's report**, past existence and past shape:
