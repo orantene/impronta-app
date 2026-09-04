@@ -39,6 +39,24 @@ export type TenantIdentityPayload = {
    * "talent" so an unknown value can never hide an existing agency's roster.
    */
   workspaceType: string;
+  /**
+   * Does any venue in this workspace have reservations switched on.
+   *
+   * A RAIL-NAV CACHE, AND IT MUST NEVER GATE ACCESS. It decides whether the
+   * Reservations link is drawn and nothing else. Every real check reads
+   * `venue_service_rules.is_active` directly, because a cached boolean used as
+   * a permission is a permission that can be stale, and that failure is silent
+   * in both directions — a stale true shows a door to somebody who should not
+   * have one, a stale false 403s a workspace on a page it owns.
+   *
+   * IT COSTS NOTHING. It is a column on the `agencies` row this loader already
+   * selects, kept true by a trigger on `venue_service_rules`, so a tenant with
+   * no venue — most of them — pays no extra query on any page load. That was
+   * the whole point: the admin layout runs on every workspace page for every
+   * tenant, and a join most of them can never match is a cost paid forever for
+   * a feature they do not have.
+   */
+  takesReservations: boolean;
   /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
@@ -101,7 +119,7 @@ export async function loadTenantIdentity(
     admin
       .from("agencies")
       .select(
-        "id, slug, display_name, plan_tier, kind, workspace_type, default_coordinator_user_id, settings",
+        "id, slug, display_name, plan_tier, kind, workspace_type, default_coordinator_user_id, settings, takes_reservations",
       )
       .eq("id", tenantId)
       .maybeSingle(),
@@ -165,6 +183,10 @@ export async function loadTenantIdentity(
       typeof (data as { workspace_type?: unknown }).workspace_type === "string"
         ? ((data as { workspace_type: string }).workspace_type)
         : "talent",
+    // Defaults to false, so a read that somehow lacks the column hides the
+    // link rather than showing one that goes nowhere.
+    takesReservations:
+      (data as { takes_reservations?: unknown }).takes_reservations === true,
     logoUrl,
     accentColor,
     verifiedDomain,
