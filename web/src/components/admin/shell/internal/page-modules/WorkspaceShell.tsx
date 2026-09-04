@@ -20,6 +20,7 @@ import { OverviewPage } from "./OverviewPage";
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
 import { SessionsPage } from "./SessionsPage";
+import { EventsPage } from "./EventsPage";
 import { ReviewsPage } from "./ReviewsPage";
 import { AnalyticsPage } from "./AnalyticsPage";
 import { TalentPage } from "./TalentPage-1";
@@ -515,6 +516,12 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     // Classes Manager fills it from lib/sessions/* (see the slot contract).
     case "sessions":
       body = <SessionsPage />;
+    // Events & Ticketing — the Events tab (list + 7 per-event tabs). SPA
+    // page-module in the menu shape; placeholder until the Events & Ticketing
+    // Manager fills it from lib/events/* (see the slot contract). Reachable by
+    // URL now; the rail entry + events-on visibility gate are a follow-up.
+    case "events":
+      body = <EventsPage />;
       break;
     // WS-3.3 — "work" pipeline is a view-filter inside Messages; the legacy
     // /admin/work route syncs to messages. The old WorkPage stub was deleted

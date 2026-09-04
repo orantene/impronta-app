@@ -246,6 +246,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   financials:{ label: "Financials",icon: "trending-up", description: "Revenue, payouts, commissions, and payment status" },
   orders:    { label: "Orders",    icon: "credit",      description: "Every order taken, and what is still owed on each" },
   reservations: { label: "Reservations", icon: "calendar", description: "The host stand: today's book, arrivals, and who is still unseated" },
+  events:    { label: "Events",    icon: "calendar",    description: "Ticketed events: tiers, lineup, sales, and the door" },
   payouts:   { label: "Payouts",   icon: "credit-card", description: "Stripe Connect payout onboarding and base reservation fee" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
