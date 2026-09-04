@@ -13,6 +13,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "overview",
   "messages",
   "calendar",
+  "sessions",   // Sessions — SPA tab (Schedule): series, occurrences, series editor
   "menu",
   "roster",     // also covers /roster/applications (layout strips to first segment)
   "clients",

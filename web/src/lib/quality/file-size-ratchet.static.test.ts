@@ -307,11 +307,13 @@ const BUDGETS: Record<string, number> = {
   // was dropping `orders` from the WorkspacePage union to dodge the line;
   // `resolveWorkspaceAdminPage` casts its result to that union, so a segment
   // outside it makes the return type a lie to save one line.
-  // +1 (R3 Reservations): identical case to Orders above — adding `reservations`
-  // to the WorkspacePage union makes its `PAGE_META` entry compiler-required, so
-  // the diff is exactly +1/-0 of a mandatory line and this raises the budget by
-  // one rather than extracting.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5152,
+  // Three new rail segments land compiler-/nav-required lines in fixtures.ts,
+  // each a mandatory +1/-0 (raise not extract, same as the Orders line above):
+  //   +1 Reservations — PAGE_META entry (Record<WorkspacePage>)
+  //   +2 Sessions "Schedule" — PAGE_META entry + WORKSPACE_PAGES nav entry
+  //   +1 Events — PAGE_META entry (no WORKSPACE_PAGES line; its rail door is deferred)
+  // Number finalized against the consolidated tree's wc -l.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5155,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
