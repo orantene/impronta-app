@@ -561,6 +561,34 @@ rest of Front Door's queue, or I render the admission QRs on a minimal view I ow
 replaces it when F4 lands. **I recommend the second**: it is smaller, it makes nobody wait, and a
 receipt that shows a QR and is later upgraded is strictly better than a ticket with no page.
 
+**E7 CANNOT BE BUILT AS MY BRIEF DESCRIBES IT, and the reason is a live hazard rather than a wording
+quibble.** The brief says "reuse `booking_payouts` status `'held'` and `releaseHeldPayouts`; add the
+`on_session_end` rule". Verified against `origin/main` and the production schema:
+
+- **`booking_payouts` has NO time column at all.** Its columns are id, booking_id, transaction_id,
+  participant_id, party, owning_party_type, owning_party_id, talent_profile_id, tenant_id,
+  destination_account_id, amount_cents, currency, status, stripe_transfer_id, attempts, last_error,
+  created_at, updated_at, transferred_at, payout_rail. No `release_after`, no `hold_reason`, no
+  `order_id`.
+- **`releaseHeldPayouts` is payee-scoped with no time gate.** `booking-payouts-ledger.ts:225` selects
+  `.in("status", ["held","failed"])` plus payee filters, and it is called when an account flips
+  payouts-enabled and by the reconcile cron.
+
+**So marking a ticket payout `held` and waiting does the opposite of what it looks like.** The moment
+the venue's Connect account flips enabled — or the next reconcile runs — **every ticket payout releases
+early, before the show**, which defeats the entire chargeback-safe purpose of holding it. Nothing would
+error. The money would simply leave sooner than intended and nobody would look.
+
+**And it is `one label, three states` again.** `'held'` already means *the payee's account cannot
+receive money yet*. "The show has not happened yet" is a different fact with a different resolution
+(time, not an account flip). One status carrying both is the recorded incident, and here the collision
+is not cosmetic: the two states have opposite correct behaviours on the same trigger.
+
+**What E7 actually needs:** `booking_payouts.release_after timestamptz` (nullable; NULL means due now,
+so every existing leg is unaffected) and one clause in the release query — `release_after IS NULL OR
+release_after <= now()`. Small, but **both the column and the query are Finance's**, so it is a
+cross-department ask routed through the Director rather than something I write.
+
 **E8 CONTRACT, agreed with Reservations before a line is written.**
 
 ```
