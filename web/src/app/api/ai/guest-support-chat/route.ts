@@ -7,6 +7,7 @@ import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { isResolvedAiChatConfigured, resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
@@ -52,7 +53,22 @@ const SYSTEM_PROMPT = [
   "Keep the answer under 1200 characters.",
 ].join(" ");
 
-async function failOpen(ticketId: string): Promise<void> {
+/**
+ * Record WHY the guest AI gave up, then fail open.
+ *
+ * Every one of the three fail-open branches below returned HTTP 200 and wrote
+ * nothing anywhere. So a broken assistant looked identical to a working one
+ * from outside, and the only trace was `escalation_reason = ai_unavailable` on
+ * the ticket — which says the AI did not answer, not why.
+ *
+ * That is how this went unnoticed: EVERY organic guest question this product
+ * has ever received (tickets #11, #19, #28) escalated with ai_unavailable, and
+ * nobody could tell whether the key was wrong, the model was refused, the JSON
+ * failed to parse, or the write failed. A silent failure in the one component
+ * whose whole job is to answer strangers is worse than a loud one.
+ */
+async function failOpen(ticketId: string, stage: string, detail?: string): Promise<void> {
+  void improntaLog("support.guest_ai.fail_open", { ticketId, stage, detail: detail ?? null });
   await supportEngine.appendMessage({
     ticketId,
     authorKind: "system",
@@ -147,7 +163,9 @@ export async function POST(request: Request) {
 
     const gate = await assertAiInvocationAllowed(ticket.tenantId ?? DEFAULT_AI_TENANT_ID);
     if (!gate.ok) {
-      await failOpen(ticketId);
+      // A spend cap or a tenant control refusing the call looks exactly like a
+      // broken model from the visitor's side. Name it.
+      await failOpen(ticketId, "gated", "reason" in gate ? String(gate.reason) : undefined);
       return NextResponse.json({ skipped: "gated" }, { status: 200 });
     }
 
@@ -202,13 +220,15 @@ export async function POST(request: Request) {
     ]);
 
     if (!completion.ok) {
-      await failOpen(ticketId);
+      // The provider's own words — an expired key, a refused model and a
+      // timeout are three different problems with three different fixes.
+      await failOpen(ticketId, "model", `${completion.code}: ${completion.message}`.slice(0, 300));
       return NextResponse.json({ skipped: "model" }, { status: 200 });
     }
 
     const model = parseSupportChatModel(completion.text);
     if (!model || !model.answer.trim()) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "parse", completion.text?.slice(0, 200));
       return NextResponse.json({ skipped: "parse" }, { status: 200 });
     }
 
@@ -229,7 +249,7 @@ export async function POST(request: Request) {
       skipNotify: true,
     });
     if (!persisted.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "persist");
       return NextResponse.json({ skipped: "persist" }, { status: 200 });
     }
 

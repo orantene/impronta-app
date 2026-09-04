@@ -10,6 +10,27 @@ const en = {
   send: "Send",
   newChat: "New question",
   emptyHome: "Ask anything about Tulala. We answer first.",
+  // The first screen used to be one sentence, a text box, and the visitor's own
+  // past tickets rendered as unlabelled chips — so "I need help" (their own old
+  // message) looked like a suggested question. On a phone that is most of the
+  // screen doing nothing. These give the panel something to say.
+  agentLine: `${SUPPORT_AGENT.name} answers here. Ask for a person any time.`,
+  thinking: `${SUPPORT_AGENT.name} is looking this up`,
+  startersHeading: "Common questions",
+  threadsHeading: "Your conversations",
+  starterPricing: "What does it cost?",
+  starterDomain: "Can I use my own domain?",
+  starterPayments: "How do bookings and payments work?",
+  starterHuman: `Talk to ${SUPPORT_AGENT.name}`,
+  // A signed-in customer with a broken booking does not need "what does it
+  // cost". Same panel, different first screen.
+  starterBroken: "Something is not working",
+  starterBilling: "A question about my bill",
+  starterAccount: "Change something on my account",
+  composerPlaceholderSignedIn: "Describe what is happening",
+  statusWaitingUs: "Waiting on us",
+  statusWaitingYou: "Waiting on you",
+  statusClosed: "Closed",
   emailPrompt:
     `Want this answer by email, to keep the thread, or to talk to ${SUPPORT_AGENT.name}? Leave an email.`,
   emailLabel: "Email",
@@ -46,6 +67,21 @@ const es: MarketingSupportCopy = {
   send: "Enviar",
   newChat: "Nueva pregunta",
   emptyHome: "Pregunta lo que quieras sobre Tulala. Primero respondemos.",
+  agentLine: `${SUPPORT_AGENT.name} responde aquí. Pide una persona cuando quieras.`,
+  thinking: `${SUPPORT_AGENT.name} está buscando esto`,
+  startersHeading: "Preguntas frecuentes",
+  threadsHeading: "Tus conversaciones",
+  starterPricing: "¿Cuánto cuesta?",
+  starterDomain: "¿Puedo usar mi propio dominio?",
+  starterPayments: "¿Cómo funcionan las reservas y los pagos?",
+  starterHuman: `Hablar con ${SUPPORT_AGENT.name}`,
+  starterBroken: "Algo no está funcionando",
+  starterBilling: "Una pregunta sobre mi factura",
+  starterAccount: "Cambiar algo de mi cuenta",
+  composerPlaceholderSignedIn: "Cuéntanos qué está pasando",
+  statusWaitingUs: "Pendiente de nosotros",
+  statusWaitingYou: "Pendiente de ti",
+  statusClosed: "Cerrada",
   emailPrompt:
     `Quieres esta respuesta por email, guardar el hilo, o hablar con ${SUPPORT_AGENT.name}? Deja un email.`,
   emailLabel: "Email",

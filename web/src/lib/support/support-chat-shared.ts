@@ -64,8 +64,16 @@ export const SUPPORT_CHAT_FAIL_OPEN_BODY =
  * (Oran answers these himself) and moves straight to the thing we want anyway:
  * the email. Same escalation path underneath, same ai_unavailable reason.
  */
+/**
+ * NOTE ON THE PROMISE THAT USED TO BE HERE. This string ended "usually the same
+ * day". We cannot keep that — support is one part-time responder, and the
+ * /support page states in its own words that we will not publish a response
+ * time we cannot commit to, because a missed promise is worse than no promise.
+ * The fail-open copy was quietly making exactly that promise, to the visitor
+ * least equipped to check it. It now says what is true and nothing more.
+ */
 export const SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY =
-  `${SUPPORT_AGENT.name} answers these himself. Leave your email and he'll come back to you, usually the same day.`;
+  `${SUPPORT_AGENT.name} answers these himself. Leave your email and he will reply there.`;
 
 export type SupportChatModelOut = {
   answer: string;

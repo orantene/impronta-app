@@ -52,3 +52,4 @@ next-env.d.ts
 /eval/generate-runs/
 /scripts/ai-builder-eval/screenshots/
 .worktree-owner
+.email-previews/

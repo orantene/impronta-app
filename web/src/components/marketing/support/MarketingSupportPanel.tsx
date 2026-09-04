@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMarketingSupportCopy } from "@/lib/marketing/support-copy";
+import { getMarketingSupportCopy, type MarketingSupportCopy } from "@/lib/marketing/support-copy";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/lib/support/guest-actions";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { SupportCardRenderer } from "@/components/support/SupportCardRenderer";
+import { SupportAgentAvatar } from "@/components/support/SupportAgentAvatar";
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 
 const GUEST_SUPPORT_CHAT_PATH = "/api/ai/guest-support-chat";
 
@@ -26,6 +28,51 @@ async function requestGuestSupportAnswer(ticketId: string): Promise<boolean> {
   });
   const ct = res.headers.get("content-type") ?? "";
   return res.ok && ct.includes("application/json");
+}
+
+/**
+ * What a visitor should be offered first, which is not the same question for
+ * a stranger and for a customer.
+ *
+ * The panel used to show one screen to both: a signed-in customer whose
+ * booking had broken was asked "Ask about plans, features, or how to start".
+ * `signedIn` reached this component already and changed exactly one thing —
+ * whether we asked for an email address.
+ */
+function startersFor(signedIn: boolean, copy: MarketingSupportCopy): string[] {
+  return signedIn
+    ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
+    : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
+}
+
+/**
+ * "Waiting on us" / "Waiting on you" / "Closed", plus how long ago.
+ *
+ * A past conversation with no state attached is indistinguishable from a
+ * suggestion, which is exactly how somebody's old "I need help" ended up
+ * looking like a prompt the product was offering them.
+ */
+function threadStatusLabel(row: SupportTicketRow, copy: MarketingSupportCopy): string {
+  const state =
+    row.status === "closed" || row.status === "resolved"
+      ? copy.statusClosed
+      : row.waitingOn === "requester"
+        ? copy.statusWaitingYou
+        : copy.statusWaitingUs;
+  const stamp = row.lastMessageAt ?? row.createdAt ?? null;
+  const ago = stamp ? relativeAge(stamp) : null;
+  return ago ? `${state} · ${ago}` : state;
+}
+
+/** Coarse "how long ago" — precision here would be false precision. */
+function relativeAge(iso: string): string | null {
+  const ms = Date.now() - Date.parse(iso);
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
 }
 
 export function MarketingSupportPanel({
@@ -44,6 +91,7 @@ export function MarketingSupportPanel({
   onUnread: () => void;
 }) {
   const copy = getMarketingSupportCopy(locale);
+  const starters = startersFor(signedIn, copy);
   const [view, setView] = useState<"home" | "thread">(resumeTicketId ? "thread" : "home");
   const [ticketId, setTicketId] = useState<string | null>(resumeTicketId);
   const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
@@ -53,6 +101,9 @@ export function MarketingSupportPanel({
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  /** The model is running. Separate from `busy`, which also covers saving an
+      email or asking for a human — those are instant and need no indicator. */
+  const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
   const askedRef = useRef(false);
@@ -112,8 +163,8 @@ export function MarketingSupportPanel({
     }
   }, [messages, ticketId, signedIn, ticket?.contactEmail, loadThread]);
 
-  async function sendQuestion() {
-    const body = draft.trim();
+  async function sendQuestion(preset?: string) {
+    const body = (preset ?? draft).trim();
     if (!body || busy) return;
     setBusy(true);
     setError(null);
@@ -133,7 +184,16 @@ export function MarketingSupportPanel({
         setView("thread");
         setDraft("");
         trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_question_sent, { locale });
-        const answered = await requestGuestSupportAnswer(created.ticketId);
+        // Show the question and the fact that something is happening BEFORE
+        // waiting on the model. The old order switched to an empty thread view
+        // and sat there for the length of a model call — up to twenty seconds,
+        // with the question gone and no spinner. It reads as a dead page, and
+        // the visitor's next move is to close the tab.
+        await loadThread(created.ticketId);
+        setThinking(true);
+        const answered = await requestGuestSupportAnswer(created.ticketId).finally(() =>
+          setThinking(false),
+        );
         if (!answered) {
           setError(copy.answerUnavailable);
         } else {
@@ -153,8 +213,12 @@ export function MarketingSupportPanel({
       }
       setDraft("");
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_question_sent, { locale });
+      await loadThread(ticketId);
       if (ticket?.handledBy === "ai") {
-        const answered = await requestGuestSupportAnswer(ticketId);
+        setThinking(true);
+        const answered = await requestGuestSupportAnswer(ticketId).finally(() =>
+          setThinking(false),
+        );
         if (!answered) {
           setError(copy.answerUnavailable);
         } else {
@@ -244,26 +308,71 @@ export function MarketingSupportPanel({
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {error ? <p className="mb-3 text-[0.8rem] text-[var(--plt-ink)]">{error}</p> : null}
         {view === "home" && !ticketId ? (
-          <div>
-            <p className="mb-4 text-[0.875rem] text-[var(--plt-ink-soft)]">{copy.emptyHome}</p>
-            {threads.length > 0 ? (
+          <div className="flex flex-col gap-5">
+            {/* Who is on the other end. The panel promised "a person if you
+                need one" in its subtitle and then showed nobody. */}
+            <div className="flex items-start gap-3">
+              <SupportAgentAvatar size={36} />
+              <div className="min-w-0">
+                <div className="text-[0.875rem] font-semibold">{SUPPORT_AGENT.name}</div>
+                <p className="text-[0.8rem] text-[var(--plt-ink-soft)]">{copy.agentLine}</p>
+              </div>
+            </div>
+
+            {/* Real starting points. These replace an empty screen: the panel
+                used to open with one sentence and a text box, which is the
+                blank-page problem the /support page says we do not do. */}
+            <div>
+              <h3 className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--plt-muted)]">
+                {copy.startersHeading}
+              </h3>
               <ul className="flex flex-col gap-2">
-                {threads.map((row) => (
-                  <li key={row.id}>
+                {starters.map((starter) => (
+                  <li key={starter}>
                     <button
                       type="button"
-                      className="w-full rounded-xl bg-[var(--plt-bg-raised)] px-3 py-2 text-left text-[0.8rem] hover:bg-[var(--plt-bg-deep)]"
-                      onClick={() => {
-                        setTicketId(row.id);
-                        setView("thread");
-                        void loadThread(row.id);
-                      }}
+                      disabled={busy}
+                      className="w-full rounded-xl border border-[var(--plt-hairline)] bg-[var(--plt-bg-raised)] px-3 py-2.5 text-left text-[0.8rem] hover:bg-[var(--plt-bg-deep)] disabled:opacity-60"
+                      onClick={() => void sendQuestion(starter)}
                     >
-                      {row.subject || row.lastMessagePreview || copy.newChat}
+                      {starter}
                     </button>
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* The visitor's own past threads, said out loud. These used to sit
+                here unlabelled and styled like suggestions, so somebody's old
+                "I need help" read as a prompt the product was offering. */}
+            {threads.length > 0 ? (
+              <div>
+                <h3 className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[var(--plt-muted)]">
+                  {copy.threadsHeading}
+                </h3>
+                <ul className="flex flex-col gap-2">
+                  {threads.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="w-full rounded-xl bg-[var(--plt-bg-raised)] px-3 py-2 text-left hover:bg-[var(--plt-bg-deep)]"
+                        onClick={() => {
+                          setTicketId(row.id);
+                          setView("thread");
+                          void loadThread(row.id);
+                        }}
+                      >
+                        <span className="block truncate text-[0.8rem]">
+                          {row.subject || row.lastMessagePreview || copy.newChat}
+                        </span>
+                        <span className="mt-0.5 block text-[0.7rem] text-[var(--plt-muted)]">
+                          {threadStatusLabel(row, copy)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
         ) : (
@@ -337,6 +446,23 @@ export function MarketingSupportPanel({
                 {copy.askHuman}
               </button>
             ) : null}
+            {thinking ? (
+              <div className="flex items-center gap-2 pt-1" aria-live="polite">
+                <SupportAgentAvatar size={24} />
+                <span className="text-[0.8rem] text-[var(--plt-ink-soft)]">{copy.thinking}</span>
+                <span className="flex gap-1" aria-hidden="true">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--plt-muted)]" />
+                  <span
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--plt-muted)]"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--plt-muted)]"
+                    style={{ animationDelay: "300ms" }}
+                  />
+                </span>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -351,7 +477,7 @@ export function MarketingSupportPanel({
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={copy.composerPlaceholder}
+          placeholder={signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder}
           rows={3}
           className="mb-2 w-full resize-none rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2 text-[0.875rem]"
         />

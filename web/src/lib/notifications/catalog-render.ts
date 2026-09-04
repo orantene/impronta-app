@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAppUrl } from "@/lib/auth-flow";
+import { APP_WORKSPACE_PREFIXES } from "@/lib/saas/path-groups";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { PLAN_TIER_LABEL, isWorkspacePlanTier } from "@/lib/platform/plan-override";
 import type { RecipientRole } from "./types";
@@ -13,12 +14,59 @@ import type { RecipientRole } from "./types";
  */
 
 /**
- * Build an absolute URL on the recipient's branded host. `brand.homeHref` is
- * the agency's primary custom domain when set (tenant resolved from host →
- * bare paths work), else the platform site URL.
+ * Is this href the platform MARKETING apex (tulala.digital), as opposed to an
+ * agency's own domain or the app host?
+ *
+ * Compared host-only and www-insensitively: the value comes from
+ * NEXT_PUBLIC_SITE_URL and from stored domains, and one of them carrying a
+ * trailing slash or a www must not change the answer.
+ */
+function isMarketingHome(href: string): boolean {
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
+  if (!site) return false;
+  const host = (u: string) => {
+    try {
+      return new URL(u).host.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+  const a = host(href);
+  return a !== "" && a === host(site);
+}
+
+/**
+ * Build an absolute URL on the recipient's branded host — landing on a host
+ * that actually serves the path.
+ *
+ * `brand.homeHref` is the agency's primary custom domain when it has one, and
+ * otherwise the platform MARKETING apex. That fallback is where this used to
+ * break: the surface allow-list does not serve `workspaces` paths on a
+ * marketing host, so `tulala.digital/client/inquiries/<id>` is 404ed by the
+ * middleware before the route is ever reached. Verified against production —
+ * /client/inquiries, /talent/inbox and /admin/account all return 404 there,
+ * while app.tulala.digital redirects them to login with a ?next= back to the
+ * page. Exactly one tenant currently has a primary custom domain, so this was
+ * the CTA that most recipients got.
+ *
+ * The same class of bug is already recorded one file over: APP_WORKSPACE_PREFIXES
+ * carries a comment explaining that the emailed team-invite link 404ed at the
+ * surface gate for this reason. Rather than patch a second call site, the rule
+ * lives here, where every catalog entry already goes through.
+ *
+ * A branded agency host keeps its own domain — those hosts do serve workspace
+ * paths, and brand continuity in the link is worth keeping. Only the marketing
+ * fallback is redirected to the app host. Public paths (`/`, `/help`, `/login`,
+ * storefront pages) are untouched and stay on the brand.
  */
 export function pageUrl(brand: EmailBrand, path: string): string {
-  return `${brand.homeHref.replace(/\/$/, "")}${path}`;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const needsAppHost =
+    APP_WORKSPACE_PREFIXES.some(
+      (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
+    ) && isMarketingHome(brand.homeHref);
+  const base = needsAppHost ? getAppUrl() : brand.homeHref;
+  return `${base.replace(/\/$/, "")}${normalized}`;
 }
 
 /**
