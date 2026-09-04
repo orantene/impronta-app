@@ -137,6 +137,39 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## FOR WORKSPACE & DASHBOARDS AND FOR APPOINTMENTS: the workspace calendar puts bookings and holds on their UTC day
+
+**Found by the Sessions & Classes Manager, who correctly did NOT fix it, and verified here line by line rather than routed on report.**
+
+`web/src/app/(workspace)/[tenantSlug]/_data-bridge/calendar.ts:27-28`:
+
+```ts
+function ymdFromInstant(iso: string): string {
+  return iso.slice(0, 10);          // raw UTC date slice
+}
+```
+
+Applied at **`:94` to `kind: "order" | "booking"`** and **`:116` to `kind: "hold"`**. **`:137` uses `row.event_date.slice(0, 10)` for `kind: "inquiry"` and is CORRECT**, because `event_date` is a bare civil date rather than an instant.
+
+**So this board's own rule — *`starts_at` and `event_date` are different kinds of fact* — is already honoured in the same function, twenty lines from where it is broken.**
+
+**Blast radius: orders, bookings and holds land on their UTC day. Inquiries are fine.** A **20:00 class in Cancún** is `01:00Z` and lands on **tomorrow's** column; a **01:00 show in Madrid** is `23:00Z` and lands on **yesterday's**. Invisible except at the edges of a day — which is precisely where a late class and an early show live. Related, and why it has stayed hidden: **every production workspace has been on UTC since creation**, the same fact behind the five surfaces that hardcoded it.
+
+**Two owners, deliberately:**
+
+- **Workspace & Dashboards** owns the fix. It is one bridge serving three kinds, so a per-kind patch would be three fixes for one bug.
+- **Appointments** owns the question inside it: **for a booking, is the correct zone the VENUE's or the TALENT's?** A mobile talent working across zones has no single answer, and picking wrong **moves someone's booking a day in half the world**.
+
+Sessions & Classes' own rows are unaffected — they carry a venue zone and resolve through `utcToZonedYmd` — and they are **not** waiting on this.
+
+**Routed through the board and the CEO because this cluster cannot reach either director directly**; the peer listing fails in both directions. **A manager both directors can reach is the faster channel when one exists** — that is how the `is_staff_of_tenant` finding actually travelled.
+
+### Two decisions worth copying from the same slice
+
+**Not creating the page is cheaper than registering it.** Sessions render on the **existing** Calendar, so there is no `WORKSPACE_PAGE_SEGMENTS` entry, no rail change, no shell routing and nothing taken from another department's files — sidestepping the recorded incident where a new SPA page needs **both** a segment registration and a route file or it silently 404s. **The cheapest cross-department dependency is the one you do not take.**
+
+**A refusal a human cannot distinguish from a different refusal is the same failure as a value a caller cannot distinguish from a different value** — one layer up, for a person instead of a caller. The DST collision refusal now names the session it collided with, the occupancy map is **keyed by instant and valued by what holds it** (so the name comes from the data rather than a second lookup free to disagree), a clash against the series' own earlier occurrence names that series rather than implying it came from elsewhere, and **the test asserts the naming, not just the refusal.**
+
 ## REVERSED: the rail IS 3% buyer + 3% seller. The mockups were right and two directors were wrong.
 
 **Ruling 3 — "cut the buyer-pays control" — is WITHDRAWN.** Found by the Digital Marketing Director while checking whether a comparison line was defensible on a public page.
