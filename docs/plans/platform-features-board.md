@@ -137,6 +137,38 @@ Zero file overlap between #1612 and #1613, checked before merging rather than af
 
 Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
 
+## FOR FINANCE: holding a ticket payout as `'held'` RELEASES IT BEFORE THE SHOW, silently
+
+**Found by the Events & Ticketing Manager at design time, verified independently by this director and again by the CEO. Nothing was built; nothing shipped.**
+
+The Events brief said *"reuse `booking_payouts` status `'held'` and `releaseHeldPayouts`; add the `on_session_end` rule."* That does the opposite of what it reads like.
+
+**Measured, production schema:** `booking_payouts` has **20 columns and ZERO time-gate columns** — no `release_after`, `hold_reason`, `order_id`, `hold_until` or `available_at`.
+
+**Measured, `origin/main`:** the release query has **no time predicate at either site** — `booking-payouts-ledger.ts:247` and `:399` are both `.in("status", ["held", "failed"])` and nothing more. The function's own header names its triggers: *"Called when an account flips to payouts-enabled (account.updated webhook) and by the reconcile cron."*
+
+**So a ticket payout marked `'held'` releases on the next account flip or the next reconcile — before the show. Nothing errors**, because "held then released" is exactly what that path exists to do. The money leaves early and the only signal is that it worked.
+
+**Why it is unarguable rather than a judgement call.** `'held'` **already means** *the payee's account cannot receive yet*, which an account flip legitimately resolves. *"The show has not happened yet"* is resolved by **time**. **Two states under one label with OPPOSITE correct behaviour on the SAME trigger.** This is `one label, three states` again and **worse than the recorded case** — that one was a label hiding a defect; this one has a live trigger doing the wrong thing to half the rows it matches.
+
+**Fix, Finance's file and Finance's call:** `booking_payouts.release_after timestamptz`, **nullable so NULL means due now** and every existing leg is untouched, plus `release_after IS NULL OR release_after <= now()` in the release query.
+
+**CEO's condition, and it is the part most likely to be dropped: the clause goes at BOTH sites (`:247` and `:399`).** A half-applied fix **holds on one path and releases on the other**, which is worse than none — it produces a hold that works whenever anyone tests it and fails on the path nobody exercised. *When a predicate is missing from N call sites, the fix is N edits or it is not a fix.*
+
+**E7 is parked and its exit proof is honestly unreachable until the column exists.** The manager refused to produce a proof by holding money in a way that does not hold — **a green test over a hold that silently releases is worse than an unfinished feature**, and the completion push does not authorise faking a proof.
+
+### A BRIEF IS A CLAIM — including your own brief from your own director
+
+**Three items in one manager's brief did not survive contact with `origin/main` in a single session:** the `admissions` shape (superseded, because the correction sat in an unmerged PR), the Events rail slot (never built), and this payout hold (a status that means something else).
+
+**All three were written by this director**, describing an *intended end state*, and read — reasonably — as a description of the code. The CEO reports the same failure at their level, having briefed the same manager off the superseded `admissions` shape.
+
+**Three for three is the brief, not the manager.** Verify a dependency exists on `origin/main`, never in the conversation about it, and treat a brief with the same suspicion as any other claim about the code.
+
+### Routing correction: cross-department findings go to the CEO, not through a manager
+
+Using a manager both sides could reach was **good improvisation while nothing better existed**, and it is how the `is_staff_of_tenant` finding actually travelled. But it **puts a finding through a third party who did not measure it.** The CEO's channel reaches every session; a director's does not. **Send cross-department findings to the CEO, who verifies and routes** — that is a CEO function, not a workaround.
+
 ## FOR WORKSPACE & DASHBOARDS: the Events rail slot was reported as built and does not exist
 
 **A manager's brief named a dependency as already satisfied. It was never built, and they found it by trying to build on it.** Prompt 7 says *"The Events page in the workspace rail (the Dashboards Director added the slot)."* Verified on `origin/main @ 4884afd65` by the director rather than routed on report — three checks, all zero:
