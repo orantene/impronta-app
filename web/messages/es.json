@@ -11927,6 +11927,56 @@
       "totalsSettled": "Pagado",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
       "unavailableTitle": "No pudimos cargar tus pedidos"
+    },
+    "adminSessions": {
+      "title": "Horario",
+      "subtitle": "Series y sus ocurrencias, con lo que el barrido nocturno rechazo.",
+      "noTenant": "Ningun espacio de trabajo seleccionado.",
+      "loading": "Cargando el horario...",
+      "minutes": "{n} min",
+      "noTimezone": "sin zona horaria confirmada",
+      "noOccurrences": "Sin ocurrencias en los proximos 90 dias.",
+      "noPool": "sin plazas definidas",
+      "seatsLeft": "{left} de {total} disponibles",
+      "empty": {
+        "title": "Aun no hay series",
+        "body": "Una serie es una clase, funcion o salida recurrente. Sus ocurrencias se crean cada noche para los proximos 90 dias, cada una con sus plazas."
+      },
+      "col": {
+        "when": "Cuando",
+        "seats": "Plazas",
+        "status": "Estado"
+      },
+      "status": {
+        "scheduled": "A la venta",
+        "cancelled": "Cancelada",
+        "completed": "Completada"
+      },
+      "weekday": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mie",
+        "thu": "Jue",
+        "fri": "Vie",
+        "sat": "Sab",
+        "sun": "Dom"
+      },
+      "refusals": {
+        "title": "No creadas, y por que",
+        "help": "El barrido nocturno rechazo estas. Nada esta roto, pero nada aparecera hasta resolver cada una.",
+        "anotherSession": "otra sesion",
+        "collision": "la ocurrencia del {when} no se creo: un cambio de horario de verano la coloco en el mismo instante que {other} en este lugar. Mueve una de las dos.",
+        "reason": {
+          "timezone_unconfirmed": "no se ha confirmado una zona horaria para esta serie, asi que no se crean ocurrencias. Confirma la zona horaria del lugar.",
+          "timezone_unknown": "la zona horaria de esta serie no es una zona IANA valida.",
+          "series_inactive": "esta serie esta desactivada.",
+          "invalid_local_time": "no se puede leer la hora de esta serie.",
+          "no_weekdays": "no hay dias seleccionados, asi que esta serie nunca puede producir una ocurrencia.",
+          "invalid_duration": "la duracion de esta serie no es utilizable.",
+          "invalid_seats": "el numero de plazas de esta serie no es utilizable.",
+          "invalid_window": "la ventana de programacion no es utilizable."
+        }
+      }
     }
   },
   "admin": {

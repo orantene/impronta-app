@@ -11927,6 +11927,56 @@
       "totalsSettled": "Paid",
       "unavailableBody": "This is on our side, not yours. Please refresh in a moment.",
       "unavailableTitle": "We could not load your orders"
+    },
+    "adminSessions": {
+      "title": "Schedule",
+      "subtitle": "Series and their occurrences, with what the nightly sweep refused.",
+      "noTenant": "No workspace selected.",
+      "loading": "Loading the schedule...",
+      "minutes": "{n} min",
+      "noTimezone": "no timezone confirmed",
+      "noOccurrences": "No occurrences in the next 90 days.",
+      "noPool": "no seats set",
+      "seatsLeft": "{left} of {total} left",
+      "empty": {
+        "title": "No series yet",
+        "body": "A series is a recurring class, show or departure. Its occurrences are created nightly for the next 90 days, each with its own seats."
+      },
+      "col": {
+        "when": "When",
+        "seats": "Seats",
+        "status": "Status"
+      },
+      "status": {
+        "scheduled": "On sale",
+        "cancelled": "Cancelled",
+        "completed": "Completed"
+      },
+      "weekday": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "refusals": {
+        "title": "Not created, and why",
+        "help": "The nightly sweep refused these. Nothing is broken, but nothing will appear until each is resolved.",
+        "anotherSession": "another session",
+        "collision": "the occurrence on {when} was not created: a daylight-saving shift put it on the same instant as {other} at this venue. Move one of them.",
+        "reason": {
+          "timezone_unconfirmed": "no timezone has been confirmed for this series, so no occurrences are created. Confirm the venue's timezone.",
+          "timezone_unknown": "the timezone on this series is not a valid IANA zone.",
+          "series_inactive": "this series is switched off.",
+          "invalid_local_time": "the time on this series cannot be read.",
+          "no_weekdays": "no weekdays are selected, so this series can never produce an occurrence.",
+          "invalid_duration": "the duration on this series is not usable.",
+          "invalid_seats": "the seat count on this series is not usable.",
+          "invalid_window": "the scheduling window is not usable."
+        }
+      }
     }
   },
   "admin": {
