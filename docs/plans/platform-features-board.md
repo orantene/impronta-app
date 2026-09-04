@@ -258,6 +258,30 @@ The Events brief said *"reuse `booking_payouts` status `'held'` and `releaseHeld
 
 Using a manager both sides could reach was **good improvisation while nothing better existed**, and it is how the `is_staff_of_tenant` finding actually travelled. But it **puts a finding through a third party who did not measure it.** The CEO's channel reaches every session; a director's does not. **Send cross-department findings to the CEO, who verifies and routes** — that is a CEO function, not a workaround.
 
+## WHEN A SLICE CHANGES HANDS, THE CONTRACTS REGISTRY IS THE THING THAT HAS TO CHANGE
+
+**Two ownership moves happened tonight and neither was recorded here. The registry said Sessions & Classes owned `admissions` and the `check_in` RPC; Events & Ticketing built and shipped both.** Corrected in the table above.
+
+**The cost was nearly a second `check_in` function in production.** The Sessions manager was instructed — by this director, from this board — to build the RPC. They announced migration `20261229000341` before applying, as the rules require, and a single `pg_proc` query found the function already live.
+
+**And `CREATE OR REPLACE` would not have replaced it.** Postgres identifies a function by name **and argument types**. Theirs took five parameters; the shipped one takes three. It would have created an **OVERLOAD** — two `check_in` functions, both live, both looking correct, with callers binding to whichever matched their argument names. **A door and a host stand could have resolved to different functions.**
+
+**CLOBBERING IS VISIBLE. AN OVERLOAD IS NOT.**
+
+### Every check in the migration protocol would have passed
+
+Apply in your own band · verify the object exists afterwards · check `has_function_privilege` in both directions. **The object exists. The grants are correct. The privilege query returns exactly what you expect. And there are two doors.**
+
+**"Verify the object exists afterwards" cannot see this, because the object exists either way.**
+
+**The rule, in the manager's own sharpened form: a pre-analysis that names what a migration cannot LEAVE BEHIND is silent on what it might quietly STAND BESIDE — and for a `CREATE OR REPLACE`, standing beside is the entire risk.** Before one, **query `pg_proc` for the name first**.
+
+### This was a documentation gap, not a judgement error
+
+Nobody made a bad call. The ruling assigned the RPC to Sessions; Events built it, well, with the same two-entry-mode reasoning Sessions had designed independently. **The ownership moved and no artefact recorded the move**, so the director's instruction was correct against the board and wrong against reality.
+
+**A slice that changes hands in conversation has not changed hands.** The registry is the artefact, and updating it is part of the handover rather than bookkeeping after it.
+
 ## FOR WORKSPACE & DASHBOARDS: the Events rail slot was reported as built and does not exist
 
 **A manager's brief named a dependency as already satisfied. It was never built, and they found it by trying to build on it.** Prompt 7 says *"The Events page in the workspace rail (the Dashboards Director added the slot)."* Verified on `origin/main @ 4884afd65` by the director rather than routed on report — three checks, all zero:
@@ -1415,7 +1439,8 @@ Found by the Spaces & Seating Manager, applying the invariant Capacity handed th
 | spaces, space_groups, space_group_members, layouts, layout_spaces, assign/move API | Spaces & Seating | Reservations, Events, Menu, Appointments | proposed | S2 to S5 |
 | a space's QR: `createLinkForSpace()` returns a link whose `context.space_id` is that space. Spaces never writes `links` and never generates an image. **Ruled 2026-09-03** — QR per space moved off the Spaces row | QR & Links | Spaces & Seating | **agreed 2026-09-03** | Q1 |
 | session_series, sessions, session tier pools | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
-| admissions, check_in RPC | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
+| `admissions` table | **Events & Ticketing** *(moved from Sessions & Classes)* | Sessions, Reservations | **SHIPPED** — live, 0 rows | Phase 1 |
+| `check_in` RPC | **Events & Ticketing** *(moved from Sessions & Classes)* | Sessions, Reservations | **SHIPPED** — `check_in(p_admission_id uuid, p_count integer, p_actor uuid)`, `SECURITY DEFINER`, service_role EXECUTE only | Phase 1 |
 | events, inquiries.event_id, tenant promo codes | Events & Ticketing | Front Door | proposed | Phase 2 |
 | the Sheet component contract, draft order per guest session, /r/<code>, /me | Front Door | every feature | proposed | F3 to F5 |
 | links, link_scans, /q/<code> resolver, Share popover, qr_code block, print canvas kind; orders.link_id, inquiries.link_id | QR & Links | every feature, Front Door, Page Builder | proposed | Q1 to Q4 |
