@@ -5531,6 +5531,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(p.style)}
