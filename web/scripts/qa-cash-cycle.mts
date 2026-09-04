@@ -13,7 +13,7 @@
  *   NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' npx tsx scripts/qa-cash-cycle.mts
  */
 import { createClient } from "@supabase/supabase-js";
-import { createInstantBooking } from "./qa-instant-book-compat.mts";
+import { createInstantBooking } from "./qa-instant-book-compat";
 import { requestPayment, markPaid } from "../src/lib/bookings/transactions";
 import { isOffPlatformPaymentMethod } from "../src/lib/billing/commission";
 

@@ -9,6 +9,12 @@
  * refund stock, product fulfilment). So the old shape is mapped onto
  * `createPurchase` in ONE place.
  *
+ * A `.ts` and not a `.mts`: tsconfig uses `moduleResolution: "bundler"`, which
+ * resolves an extensionless `.ts` but not an extensionless `.mts`. That is why
+ * every harness already imports `../src/lib/...` extensionless and it works.
+ * The `.mts` version cost two gate cycles — first TS5097 for naming the
+ * extension, then TS2307 for omitting it.
+ *
  * This lives in `scripts/` on purpose: it exists to keep harnesses running,
  * and no product code may reach for it. The static guard in
  * `src/lib/orders/menu-action-loads.test.ts` covers `src/` only, which is why
@@ -36,7 +42,22 @@ export type QaInstantBookInput = {
 };
 
 export type QaInstantBookResult =
-  | { ok: true; orderId: string; inquiryId: string | null; bookingId: string | null; transactionId: string | null }
+  /**
+   * Success MEETS the old engine's contract: all four ids present, none null.
+   *
+   * The pipeline's own result widens `inquiryId` / `bookingId` / `transactionId`
+   * to nullable, and that widening is correct there — a free reserve has no
+   * booking and a thread is opened best-effort. But these harnesses were
+   * written against the narrow contract and thread the ids straight into
+   * functions that require a string, so the shim must either satisfy it or say
+   * it could not.
+   *
+   * It says it could not. Coercing a missing id to `""` would have silenced
+   * twenty type errors and is exactly the fail-open shape this phase was
+   * overruled on: absence resolved to a benign-looking value, which then
+   * travels as if it were an answer.
+   */
+  | { ok: true; orderId: string; inquiryId: string; bookingId: string; transactionId: string }
   | { ok: false; reason: string; error?: string };
 
 export async function createInstantBooking(
@@ -80,11 +101,34 @@ export async function createInstantBooking(
     openThread: true,
   });
   if (!r.ok) return { ok: false, reason: r.reason, error: r.error };
+  // A purchase that succeeded but produced no inquiry / booking / transaction
+  // is a real outcome of the pipeline, not an error — but it is NOT the old
+  // contract, and a harness that threads a null id onward reports a confusing
+  // downstream failure instead of the true one. So it is refused HERE, named.
+  //
+  // CAVEAT, stated because it is an untested claim: a free reserve may
+  // legitimately have no booking, which would make `qa-free-reserve-cron`
+  // refuse where the old engine did not. These harnesses need live env and are
+  // UNRUN, so I cannot tell which. If that is what happens, the refusal names
+  // the missing id and the fix is obvious — which is the point of refusing.
+  for (const [field, value] of [
+    ["inquiry", r.inquiryId],
+    ["booking", r.bookingId],
+    ["transaction", r.transactionId],
+  ] as const) {
+    if (!value) {
+      return {
+        ok: false,
+        reason: `pipeline_produced_no_${field}`,
+        error: `createPurchase succeeded but returned no ${field} id; the harness contract needs one.`,
+      };
+    }
+  }
   return {
     ok: true,
     orderId: r.orderId,
-    inquiryId: r.inquiryId,
-    bookingId: r.bookingId,
-    transactionId: r.transactionId,
+    inquiryId: r.inquiryId as string,
+    bookingId: r.bookingId as string,
+    transactionId: r.transactionId as string,
   };
 }

@@ -15,7 +15,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createInstantBooking } from "./qa-instant-book-compat.mts";
+import { createInstantBooking } from "./qa-instant-book-compat";
 import { markRefunded } from "../src/lib/bookings/transactions";
 import { upsertBookingFulfillment } from "../src/lib/bookings/fulfillment";
 

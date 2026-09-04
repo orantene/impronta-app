@@ -12,7 +12,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { createInstantBooking } from "./qa-instant-book-compat.mts";
+import { createInstantBooking } from "./qa-instant-book-compat";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;

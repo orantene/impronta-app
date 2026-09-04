@@ -18,7 +18,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createInstantBooking } from "./qa-instant-book-compat.mts";
+import { createInstantBooking } from "./qa-instant-book-compat";
 import { releaseReservedOfferingStock } from "../src/lib/talent/offering-stock";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
