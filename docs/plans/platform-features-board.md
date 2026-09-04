@@ -111,6 +111,332 @@ Then confirm `lsof +D <your worktree>` returns zero. **A stopped shell leaves it
 
 **Work that costs nothing and continues:** writing code and migrations, reading source, review, updating this board, committing locally. Push nothing whose honesty depends on a gate.
 
+## SESSIONS, EVENTS & RESERVATIONS — completion phase, and A BOARD ENTRY IS NOT IN FORCE UNTIL IT MERGES
+
+**MERGED to main 2026-09-03 night, both with CI as the gate of record:**
+
+| PR | What | Merge sha | Gates |
+|---|---|---|---|
+| **#1612** | Reservations **R1** — service windows, exceptions, the venue's rules, plus R2/R3 pure layers | `c5a8ce5a0` | `test:reservations` 60/60 and `test:size-ratchet` 99/99 at real exit 0 locally; **lint and typecheck NOT A RESULT locally (SIGTERM 143)** and both **passed on CI** |
+| **#1613** | Sessions & Classes **P1.2** — the materialiser that refuses rather than guessing a timezone | `acf132767` | `test:sessions` 43/43 and `test:capacity` 43/43 at real exit 0; same two gates 143 locally, **green on CI** |
+| **#1608** | this board's serialiser/governor entries | `474121b7c` | docs only |
+
+Zero file overlap between #1612 and #1613, checked before merging rather than after. Both migrations — `20261229000380` and `20261229000340` — were applied to production and verified **past existence** before merge, so there is no code-ahead-of-schema window. **MERGED IS NOT DEPLOYED:** at time of writing `origin/production` is `6f7351fc9` and main's structural gate is still pending.
+
+**This is the "local gates off by default" ruling proven rather than asserted.** Two branches whose local lint and typecheck could not survive the machine shipped with those gates honestly marked NOT A RESULT, and CI — which costs this box nothing — answered both green.
+
+### A BOARD ENTRY IS NOT IN FORCE UNTIL IT IS ON MAIN
+
+**The most expensive lesson of the night, and it was this director's.** The department's rule is that the board is the durable channel because messaging rate-pauses. True, and it held: messaging paused twice mid-relay and the board carried a gate freeze and a cancelled re-run trigger that could not be sent.
+
+**But an unmerged board entry is a draft that looks like a record.** The `admissions` overturn — `allocation_id` nullable, not `NOT NULL` — was written here, verified, and approved, and sat in an **open PR** for hours. `origin/main`'s board therefore still carried the **superseded** ruling, which is exactly what got handed to the incoming Events & Ticketing Manager as their build spec. Nobody made a mistake: the CEO quoted the board, and the board they could read said the old thing.
+
+**The rule: post to the board AND merge it, or the decision is not yet a decision.** Three decisions were routed through this file during a freeze on the assumption it was the safe channel; only merging made any of them true. A docs-only PR needs no local gate and merges in one CI cycle — there is no reason to leave one open.
+
+### CORRECTION: `web/package.json` does NOT resolve as a union
+
+Stated in the completion-phase brief as *"`web/package.json` resolves as the UNION"*. **`web/AGENTS.md:57` says the opposite** — *take MAIN's line and re-append only your own test file* — and **`:55` gives the reason: `JSON.parse` keeps the LAST duplicate key silently.** A naive union carries a stale sibling entry forward if main dropped one, which is the same shape as a branch reverting three tests off the money lane. The rest of the instruction is right and is the load-bearing half: **prove the lane count by running the lane.** All three managers are on AGENTS.md until ruled otherwise.
+
+## FOR WORKSPACE & DASHBOARDS AND FOR APPOINTMENTS: the workspace calendar puts bookings and holds on their UTC day
+
+**Found by the Sessions & Classes Manager, who correctly did NOT fix it, and verified here line by line rather than routed on report.**
+
+`web/src/app/(workspace)/[tenantSlug]/_data-bridge/calendar.ts:27-28`:
+
+```ts
+function ymdFromInstant(iso: string): string {
+  return iso.slice(0, 10);          // raw UTC date slice
+}
+```
+
+Applied at **`:94` to `kind: "order" | "booking"`** and **`:116` to `kind: "hold"`**. **`:137` uses `row.event_date.slice(0, 10)` for `kind: "inquiry"` and is CORRECT**, because `event_date` is a bare civil date rather than an instant.
+
+**So this board's own rule — *`starts_at` and `event_date` are different kinds of fact* — is already honoured in the same function, twenty lines from where it is broken.**
+
+**Blast radius: orders, bookings and holds land on their UTC day. Inquiries are fine.** A **20:00 class in Cancún** is `01:00Z` and lands on **tomorrow's** column; a **01:00 show in Madrid** is `23:00Z` and lands on **yesterday's**. Invisible except at the edges of a day — which is precisely where a late class and an early show live. Related, and why it has stayed hidden: **every production workspace has been on UTC since creation**, the same fact behind the five surfaces that hardcoded it.
+
+**Two owners, deliberately:**
+
+- **Workspace & Dashboards** owns the fix. It is one bridge serving three kinds, so a per-kind patch would be three fixes for one bug.
+- **Appointments** owns the question inside it: **for a booking, is the correct zone the VENUE's or the TALENT's?** A mobile talent working across zones has no single answer, and picking wrong **moves someone's booking a day in half the world**.
+
+Sessions & Classes' own rows are unaffected — they carry a venue zone and resolve through `utcToZonedYmd` — and they are **not** waiting on this.
+
+**Routed through the board and the CEO because this cluster cannot reach either director directly**; the peer listing fails in both directions. **A manager both directors can reach is the faster channel when one exists** — that is how the `is_staff_of_tenant` finding actually travelled.
+
+### Two decisions worth copying from the same slice
+
+**Not creating the page is cheaper than registering it.** Sessions render on the **existing** Calendar, so there is no `WORKSPACE_PAGE_SEGMENTS` entry, no rail change, no shell routing and nothing taken from another department's files — sidestepping the recorded incident where a new SPA page needs **both** a segment registration and a route file or it silently 404s. **The cheapest cross-department dependency is the one you do not take.**
+
+**A refusal a human cannot distinguish from a different refusal is the same failure as a value a caller cannot distinguish from a different value** — one layer up, for a person instead of a caller. The DST collision refusal now names the session it collided with, the occupancy map is **keyed by instant and valued by what holds it** (so the name comes from the data rather than a second lookup free to disagree), a clash against the series' own earlier occurrence names that series rather than implying it came from elsewhere, and **the test asserts the naming, not just the refusal.**
+
+## REVERSED: the rail IS 3% buyer + 3% seller. The mockups were right and two directors were wrong.
+
+**Ruling 3 — "cut the buyer-pays control" — is WITHDRAWN.** Found by the Digital Marketing Director while checking whether a comparison line was defensible on a public page.
+
+**Verified two ways before relaying, which is the step that was skipped the first time.** `web/src/lib/billing/commission.ts:27-33`:
+
+```
+client_surcharge = round(subtotal × client_share_bps / 10000)
+seller_target    = round(subtotal × seller_share_bps / 10000)
+gross_charged    = subtotal + client_surcharge
+platform_fee     = client_surcharge + seller_deduction
+```
+
+`:40-42` — *"the client/seller split is governed by `client_surcharge_bps` (defaults to an even split)"*. **And the live config, queried in production rather than inferred from a default: `default_take_bps 600`, `client_surcharge_bps 300`.**
+
+**So the shipped rail is 3% from the buyer plus 3% from the seller, total 6%, live today.** `TicketsTab` and `EventSettingsTab` saying *"Buyer pays 3%, you 3%"* were **describing the product as built**, not proposing a new model.
+
+**The principle decided it against the person who supplied it.** *A control describing a fee structure the money does not have is a promise the interface makes and the payment refuses* — correct, and here the money **does** have that structure, so cutting the control would have been **the interface hiding something the payment does.** The published FAQ promise (*"the same platform fee as other booked work rather than a separate ticketing rate"*) was never at risk: 3+3 on a ticket **is** the same fee as on any booking, and **shipping single-sided would have made ticketing the one thing that differs** — precisely what the copy promises we do not do.
+
+**Stands:** 6% total · no separate ticketing rate · no per-ticket flat fee · free events free forever · no floor fee, minimum, rounding rule, or column enabling one. **Withdrawn:** cut the control. It ships, showing both sides accurately, in en and es.
+
+**Consequence nobody has re-derived yet:** the `$9.68` absorb-the-loss break-even was computed against a **single-sided** 6%. It must be recomputed against `gross_charged = subtotal + client_surcharge` before anyone treats it as a threshold.
+
+**Both directors reasoned from a description of the rail rather than from the engine.** One relayed a manager's summary without opening `commission.ts`; the other ruled on that summary while stating the decision had been made twice — **the rate had been decided twice; the split had never been checked.** *If a verification never opens the object, it is a review of a sentence*, now demonstrated by the person who wrote it down.
+
+## ROOT CAUSE OF THE WHOLE D2 CHAIN: the shared checkout is 138 commits behind and reads identically
+
+**Self-reported by the Reservations Manager, and it is the most useful correction of the night** because it explains a two-day error chain rather than one claim.
+
+They read `stripe-checkout.ts` out of `/Users/oranpersonal/Desktop/impronta-app` — the **shared checkout**, sitting on `fix/agency-contact-smoke`, **138 commits behind main** — whose working copy **still contains `stripeAccount: input.connectedAccountId`**. Main deleted it in `9506ceebd` on **2026-09-01, two days before they read it**.
+
+**A stale tree reads identically to a current one.** The claim then propagated through their plan, into a board finding, into a D2 narrowing, and into a ruling taken to the owner.
+
+**This is already a standing rule here** — *absolute paths, and `origin/main` for any claim about main* — and it was broken on a **first** verification, before a worktree existed, then never revisited because everything after it was done correctly. **The sha-on-every-claim rule in its most expensive form: shas were attached to gate results and not to a code reading.**
+
+**What survives:** C1's conclusion on reason 1 alone — `client_stripe_customers.user_id` is an `auth.users` FK and a guest with only an email has no such row. **What is dead:** C1's reason 2, and the D2 narrowing built on it.
+
+**And R5 gets sharper for it.** `stripe_account_id` existed to name the connected account a card was saved on; there is no such account, so it goes. What replaces it is an invariant rather than a column: **a platform-account PaymentMethod is charge-able by the platform for ANY tenant.** Nothing in Stripe prevents a cross-tenant charge — only `customer_payment_methods.tenant_id` and the code above it do. **`tenant_id` is a security boundary here, not a convenience, and every read must carry it.** That sentence belongs in the migration, not in a message. `…000382` was **not** applied, so this was caught before it shipped.
+
+## A `BEFORE DELETE` GUARD ON A TENANT-CASCADING TABLE BLOCKS TENANT DELETION ENTIRELY
+
+**FOR PLATFORM FEATURES — six of their tables are candidates.** Found by the Events & Ticketing Manager from the inside, while designing a guard they then rejected.
+
+The draft-only delete rule for `events` wanted a `BEFORE DELETE` trigger. But **`events.tenant_id` cascades from `agencies`**, so deleting a tenant fires the trigger on every one of that tenant's rows and **the guard blocks the tenant deletion itself** — surfacing as *"tenant deletion is broken"*, nowhere near the guard that caused it. The rule therefore lives in `canHardDelete` where a person reads it, with that reason written into the migration.
+
+**The general form: any `BEFORE DELETE` guard on a table whose tenant FK cascades will block tenant deletion, and will report it somewhere else.** Same family as the three "guards that fire when they should not" already on this board, and the first found by someone who declined to build one.
+
+## EXIT 127 JOINS THE NOT-A-RESULT FAMILY, AND EVERY FRESH WORKTREE WILL HIT IT
+
+`npm run test:events` exited **127** — `tsx: command not found`, because a fresh worktree has no `node_modules`. **127 is neither a pass nor a failure; it is the same family as 143.** It is easy to misread as *"the lane does not exist yet"*, and easy to paper over with a full `npm install` that costs the machine far more than borrowing one binary from the shared checkout, which is what the manager did before getting a real exit 0 with 5 passing.
+
+**The running tally of exits that are not results: 143 (SIGTERM), 134 (SIGABRT), 127 (command not found), and any wrapper's 0 standing in for a tool's.** Six instances of the last one across four sessions in a night.
+
+## E1 APPLIED AND VERIFIED, and doors needed no timezone at all
+
+`20261229000361` verified by the director in production, independently of the manager's report: **21 columns, 10 CHECK constraints, RLS on, `sessions.event_id` `confdeltype='n'`, `doors_offset_minutes` present, both `…360` and `…361` in the ledger, 0 rows in `events` and `admissions`** — the behaviour probe (refused=5, unexpected accepts=0) left nothing behind. `confdeltype='n'` is correct *because* deletion is blocked above it: the FK clause is the backstop that never fires.
+
+**Doors resolution needed no timezone, which is better than the plan said.** It is subtraction against `sessions.starts_at`, **already a resolved instant** — so E1 imports no zone resolver and **cannot become the third one**, after the two that shipped with opposite spring-forward policies. The test pins doors at exactly 30 minutes before the instant on **both sides of a DST boundary**. And the reason a `doors_at` column on `sessions` would have been wrong is now sharper than when it was rejected: not merely a column with no reader, but **a second wall clock that has to be kept in step with the first.**
+
+## CROSS-DEPARTMENT ROUTING: the managers are the bridge, not the board
+
+**The `is_staff_of_tenant` finding reached Platform Features** — marked superseded and recorded against themselves — **not through the board and not through the director, but through the Events & Ticketing Manager, whom both directors can reach.**
+
+The two directors are absent from each other's peer listing **in both directions**, and messaging rate-pauses after roughly ten sends. **But a manager both can reach is a working channel.** Before routing a cross-department finding through the board and waiting on it, check whether someone in the middle can simply carry it. The board remains the durable record; **it is a pull channel and nobody is obliged to read it in the next minute.**
+
+## THE `surface-allow-list.ts` QUEUE WAS LARGELY IMAGINARY — a server action needs no entry
+
+**Found by the Reservations Manager by checking a constraint their director had handed them three times.** Verified here by reading the file header rather than relaying it:
+
+> *"SaaS P2 — per-host-kind **PATH** allow-list. Middleware resolves the host kind via `resolveTenantContext` and then calls `isPathAllowedForHostKind` to decide whether this path may render on this surface at all."*
+
+**A server action POSTs to the page's own, already-allowed URL. It adds no path, so it needs no entry.** The public menu board already reaches `submitMenuOrder` exactly this way.
+
+So R3 shipped with **zero lines** in a file that is frozen at its 800-line cap, and the sequencing problem three managers were queued behind does not exist for them. **The test is what the work needs, not which area it belongs to:** *data in and out of a surface that already exists* needs nothing; a **genuinely new path** still needs an entry. Events' `/events` page and door route are new paths and still need them. Sessions' P1.7 may not.
+
+**The director had named this a hard dependency three times.** It was never checked, and the manager removed themselves from the queue by opening the file. **A constraint inherited from your director is still a claim.**
+
+## D2 FINAL MECHANISM — nobody writes `application_fee_amount`
+
+**Outcome unchanged, mechanism replaced, and the CEO corrected the board's premise at source rather than leaving a true conclusion resting on a false reason.** Build to this:
+
+- The forfeiture **lands on the platform account**, like every other charge.
+- It reaches the tenant via **`stripe.transfers.create`** — see `booking-payouts-ledger.ts:297` for the existing shape, and note its `transfer_group` convention because reversals key off it.
+- **The tenant NETS the card processing fee.** They keep the forfeiture minus processing; the platform takes **zero commission**.
+- **The receipt shows the processing line explicitly.** A fee they can see is a fee they accept; never deduct it silently.
+
+**Why netted rather than absorbed**, in the order that decided it: *"we take zero"* stays literally true, because we take zero **commission** and a processing fee is the card network's take rather than ours; the platform does not pay a card fee for someone else's no-show, on the one flow whose volume **rises when customers behave badly**; and it is the only option that **does not change with scale**, which is what makes it safe to promise now and still true at a thousand tenants.
+
+**Do not stage a real card charge to test a forfeiture.** The first real charge must not be the first test, and a forfeiture is the most chargeback-prone money on the platform.
+
+### Two R3 decisions worth copying, both the same rule
+
+**A failed config read refuses with `unavailable`, never an empty list** — an empty list is indistinguishable from a full house, so a guest would be told the restaurant is booked when we simply could not look. And **candidate times come from `seatingTimesFor`, the function the decision layer already uses**, rather than a second grid free to drift from it. The first is *make absence structurally distinct from a value*; the second is *one source of truth, not two that agree today*.
+
+### Extension adopted: stamp shas on CODE claims, not only gate results
+
+*"The seam exists at `6945ab706`"* is the form that survives. From the Reservations Manager, with the sharper half being their own example: a true measurement, stale on arrival, **with a culprit attached**. A stale claim about a machine is recoverable; **a stale claim about a person is not.**
+
+## D2 IS UNBUILDABLE AS WRITTEN — it rules on a field this codebase deleted two days earlier
+
+**FOR FINANCE AND ORDERS, not only for this cluster.** D2 reads: *"the tenant keeps it, `application_fee_amount` ZERO on a no-show or forfeiture charge"*, and its stated reason is *"Direct Charges already put a forfeiture in the tenant's Stripe balance, so the only live question was the fee."*
+
+**That premise is false on `origin/main`.** `web/src/lib/payments/stripe-checkout.ts:4-30`:
+
+> *"THE CHARGE ALWAYS LANDS ON THE PLATFORM ACCOUNT... That branch was removed (finance audit, 2026-09-01)... Do not reintroduce a connected-account branch here."*
+
+Two independent reasons are given there, and the first is not a preference: **Stripe refuses it.** Connected accounts here are onboarded under the `recipient` service agreement with capability set `{transfers}` and **cannot process a card payment at all** (`charges_enabled: true` on such an account is a legacy aggregate field and has already been misread once). The second is that `markPaid` fans out from the **platform** balance, so a Direct Charge would pay out money the platform never received.
+
+**`application_fee_amount` appears exactly four times on main and all four are comments describing the deleted lane. Zero live uses.** Money reaches tenants through `stripe.transfers.create` — separate charges and transfers.
+
+**What survives:** the outcome, untouched. The tenant keeps the forfeiture; the platform takes **no commission** on a penalty. The invoice-line reasoning behind it never depended on the charge model.
+
+**What does not:** the mechanism. There is nothing to set to zero. A forfeiture lands on the **platform** account like every other charge and reaches the tenant as a transfer with no commission deducted.
+
+### The unmade decision inside it: who pays Stripe for a no-show
+
+Because the charge lands on us, **Stripe's processing fee on a forfeiture is sunk on the platform balance before any transfer exists.** Transfer 100% and the platform pays roughly **2.9% + $0.30 per no-show** — about **$0.88 on a $20 deposit** — forever, on the one flow whose volume rises when customers behave badly. Three options: platform absorbs it, **tenant nets it**, or no card is charged for a no-show in v1.
+
+**RULING, taken under silence: the TENANT NETS THE PROCESSING FEE.** "We take zero" stays literally true — zero *commission* — while the platform does not pay a card fee for someone else's no-show, and it is the only option that does not scale badly with volume. The tenant-facing receipt shows the processing line rather than deducting it silently. Overturn in writing; the change is one number and one string.
+
+### The same fact makes the ticket-pricing ruling correct
+
+Pricing ruling 5 — *absorb the margin loss on tickets under about $10 rather than adding a floor fee* — **is right, and is right only because of this charge model.** Break-even: `0.06X = 0.029X + 0.30` → **X = $9.68**. Under roughly $9.68 a ticket the platform genuinely loses money on every sale. Under Direct Charges the tenant would have eaten it and there would be nothing to absorb. **So one fact makes ruling 5 sound and D2 unbuildable**, which is the argument for checking the model rather than the sentence.
+
+**Deliberate, priced, and not to be "fixed"**: no floor fee, no minimum, no rounding rule, and no column that would let someone add one later.
+
+### Ticketing and Reservations pricing, ruled
+
+Ticketing is **6%**, the same rate as every other booked thing — no separate rate, no per-ticket flat fee, no buyer-side split. **Free events are free on every plan, forever.** The buyer-pays-3% control is **cut** from Settings rather than shipped disabled. **Reservations carry NO per-booking fee and no per-cover concept at all, ever** — nothing in the schema should imply a reservation is a transaction, because it is not one. We earn on deposits and forfeitures only.
+
+Comparators behind it: Eventbrite 3.7% + $1.79/ticket + 2.9% processing = **$3.11 on a $20 ticket, 15.5% of face**, against our $1.20. OpenTable **$149–$499/month plus $1–$1.50 per network cover**; SevenRooms **$400–$1,200/month**. We charge nothing until somebody pays.
+
+**Cross-department note:** this cluster could not reach the Platform Features Director directly — they are absent from its peer listing, in both directions — so **the `is_staff_of_tenant` finding and this D2 correction are on the board because the board is the only cross-department channel that exists.** Finance owns the charge model; Orders owns the transfer path. A manager was minutes from building against a deleted field.
+
+## E0 APPLIED AND VERIFIED — `admissions` exists, and the `units` column would have broken the VIP tier
+
+**`20261229000360_admissions` applied to production and verified by the director independently of the manager's report**, past existence and past shape:
+
+```
+cols 19 · units column ABSENT · party_size PRESENT · 5 CHECK constraints
+RLS enabled · anon SELECT = false · in ledger · 0 rows left behind by the probe
+```
+
+**Three independent paths reached the same answer on `units`, which is about as much confidence as a schema decision gets here.** The director reversed their own approval; Sessions & Classes refuted the column on grain; and **the owning manager found the killing case while trying to defend it.**
+
+**The killing case is the feature's own headline tier.** A **VIP table for 6 is ONE allocation of ONE unit admitting SIX people.** With `units` present, `CHECK (admitted_count <= units)` caps a six-person table at **one guest through the door.** So `units` was not merely a duplicate of `party_size` — it was **actively wrong for the case Events owns**. Asked for a row where the two counts must differ, the manager went looking for one to defend their column and found the one that killed it.
+
+**The grain now lives in the schema, in the column's own words**, which is what stops the commission P0 recurring:
+
+> *"How many PEOPLE this one admission admits, and the only count the door asks for. Not capacity consumed: a VIP table for 6 is one allocation of 1 unit admitting 6. The capacity side is the allocation's job; a second count column here would differ in grain under a name that hides it."*
+
+**A landed constraint is not an enforcing one, so the manager proved the guards REFUSE** — a `DO` block raising at the end so nothing persists: `refused=3 accepted=0` against anchored-to-nothing, 3-of-2, and party-0, with `count(*) = 0` afterwards. That is the Reservations `COALESCE` lesson generalised: **existence is not shape, and shape is not behaviour.**
+
+**And the wrapper trap fired again, in the hands of someone who had been warned about it ten minutes earlier:** their first apply reported `REAL_EXIT=0` from `tail` while the script had failed on a missing env var. Read node's exit directly, never through a pipe.
+
+### RATIFIED: deleting or cancelling an event must not orphan its nights
+
+`20261229000214:159-160` grants `anon` a `SELECT` on `sessions USING (status = 'scheduled')`. So `sessions.event_id ON DELETE SET NULL` would leave a deleted show's nights **publicly selectable as standalone schedule entries**, with the event that explained them gone. Found by Sessions & Classes, **extended by Events and the extension is the half that matters**: cancelling an event must cancel its sessions too, or the show is cancelled and its nights stay on sale — and cancellation is the path that actually gets used. `DELETE` is permitted only for a `draft` event with zero admissions, so the FK clause becomes **a backstop that never fires**, which is the correct job for one.
+
+### STAMP A CLAIM ABOUT *ABSENCE* HARDER THAN A CLAIM ABOUT PRESENCE
+
+Extension to the sha rule, from Events & Ticketing, and it is sharper than the rule it extends. **Absence is the claim that decays silently**, because the thing that falsifies it arrives later and nobody re-runs the search. Presence claims mostly stay true. *"Nothing on main moves an order to `paid`"* was true at `7c4642377` and false sixteen minutes later, and had reached three documents before anyone re-checked.
+
+**Companion to it, covering both of the director's errors tonight:** the grep was *right target, wrong query*; the `units` approval was *right reasoning, no object*. Both felt like verification because something was genuinely examined — just not the thing the claim was about. **The tell is identical: you can perform the check without the artefact in front of you. If a verification never opens the object, it is a review of a sentence.**
+
+## ATTACH THE SHA TO EVERY MEASURED CLAIM — an undated measurement decays into a false claim
+
+**Named by the Sessions & Classes Manager about their own finding, caught by Events & Ticketing, and propagated one hop further by this director.**
+
+*"Nothing on main moves an order to `paid`"* was **true of `7c4642377`** and published without a sha. `complete-order.ts` — which calls `commitCapacity` then sets `status='paid'` with an amount check so a deposit does not mark an order paid in full, and which `markPaid` calls — landed in **#1580 at `6945ab706`, sixteen minutes later**. Verified here on `origin/main`: the file exists, imports `commitCapacity`, calls it, sets `'paid'`. **The seam exists.**
+
+By then the claim had propagated into three documents and two managers' plans as a standing fact, and this director repeated it to two more managers without a sha. Nobody lied at any point.
+
+**The rule: attach the sha to every measured claim, exactly as we already do for a gate result.** On a repo moving this fast an undated measurement decays into a false claim on its own. This department has spent two days on a green that described a neighbour's tree — **this is the identical error along the time axis instead of the space axis.**
+
+Sequence worth noting, because it is how a repair gets mistaken for a refuted diagnosis: Sessions diagnosed the gap, **Orders verified it independently and held their own PR** (re-homing Menu before the seam existed would have stranded a paid order in `pending_payment` with its hold lapsing under a customer who had paid), then shipped the repair as #1580 — and a third party reading the repair concluded the diagnosis had been wrong.
+
+## RULING: ONE denominator on `admissions`. `units` is DROPPED, `party_size` stands.
+
+**This director approved `units` and the approval was wrong.** `docs/plans/sessions-classes-plan.md` on main already carries:
+
+```sql
+party_size     int NOT NULL DEFAULT 1 CHECK (party_size > 0),
+CONSTRAINT admissions_admitted_within_party CHECK (admitted_count <= party_size),
+```
+
+Events' **diagnosis was right** — `allocation.units` is 4 for both four GA tickets and a party of four, so the denominator cannot be derived from it — but the **fix was a duplicate**. Run the cases through `party_size`: four GA is **four rows at 1** (the door reads "1 of 1" per QR, never "0 of 4"); a party of four is **one row at 4**. Reservations' host stand already reads it as covers.
+
+**Why it was ruled rather than left to the owning manager:** two integer counts on one row, **equal in all five enumerated cases and differing only in grain**, is precisely the commission P0 fixed two days ago — `unit_price` held a per-unit value and `talent_cost` held a line total under names that did not say so, it passed review because the names looked right, and a measured $200 became $400. Both columns surviving is that defect pre-built, **arriving in the shape of thoroughness.**
+
+**The director's error class:** ruling on a *delta* without the DDL in view — validating the argument instead of the object, the same shape as grepping for one's own wording. **Send the DDL, not a description of the delta**, which is what the Sessions manager did the second time after being burned by the first.
+
+**Two things ship with the ruling.** A `COMMENT ON COLUMN` stating the grain in the column's own words — *how many people this one row admits, the denominator of `admitted_count`, never a count of allocation units* — because the commission P0 survived review on a name that lied about grain with nothing beside it saying otherwise. And **a minting helper whose signature makes the wrong shape unconstructable** (`tier-pools.ts` treatment): nothing otherwise forces the minter to choose four-rows-of-one over one-row-of-four, and **both typecheck**. That is the risk no column fixes.
+
+## RECALIBRATION, 2026-09-03 night: WE HAVE NOT LAUNCHED
+
+Owner's instruction via the CEO, correcting the CEO rather than the managers. **Zero paying users, zero live transactions, one hand-built prototype tenant, six more waiting.** The process had been sized for a company with customers and the cost was speed.
+
+1. **Stop waiting on the CEO. Taken-under-silence is the DEFAULT** — write the recommendation on the board and take it. Never park work against an answer.
+2. **Ship to main freely.** There is nobody to break.
+3. **One-line corrections, not threads.**
+4. **Fix forward rather than gate forward** — ship the fix, build the guard after the feature works.
+
+**The four that do NOT relax, because each costs a day rather than an hour:** migrations applied before merge · do not leave main red · money paths stay careful, because **the first real charge must not be the first test** · never delete or overwrite tenant data.
+
+**V-2 RULED by the CEO rather than escalated:** ship the single-sided 6%, **cut** the control from Settings. Commission is already ratified flat at 6% with prices frozen until 20 paying accounts, so a 3%+3% split contradicted a decision already made and there was nothing for the owner to decide. **Nobody builds a buyer-paid fee**; revisit at 20 paying accounts. The EN and ES marketing copy therefore stays **true** rather than becoming a thing to fix.
+
+## A NEW MEMBERSHIP ROLE GRANTS THE ENTIRE WORKSPACE — `is_staff_of_tenant` never reads `role`
+
+**Found by the Events & Ticketing Manager on their first day, verified line by line by the director rather than relayed.** This constrains Events, Reservations and Sessions & Classes simultaneously and it is the most consequential thing found tonight.
+
+`20260602100000_saas_p2_tenant_helpers.sql:43-58`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_staff_of_tenant(target_tenant_id UUID)
+... SELECT public.is_platform_admin()
+    OR EXISTS (SELECT 1 FROM public.agency_memberships m
+               WHERE m.profile_id = auth.uid() AND m.tenant_id = target_tenant_id
+                 AND m.status IN ('active', 'pending_acceptance'));
+```
+
+**It asks only whether an active membership row exists. It never references `role`** — and every RLS policy on every tenantised table is built on it. So adding `'door'` (or `'host'`, or any operational role) to the `agency_memberships` role CHECK is one line that grants that person **clients, orders, revenue and messages** — the exact inverse of "sees only that mode".
+
+**The shape instead, approved and now the department's pattern:** a `SECURITY DEFINER` function for the operation (`check_in(token)`) plus a scoped read, gated in the app layer, and **no new membership role**. Nobody gains RLS they did not have. Events builds it with `door`; **Reservations adds `host` on that shape rather than forking it**, and Sessions & Classes' P1.7 staff check-in route takes the same shape rather than inventing a parallel one.
+
+**Checked and NOT a finding, recorded so nobody re-investigates:** `pending_acceptance` granting full staff access looks wrong beside the function's comment *"Invited / expired / removed memberships do NOT grant access"*, but `'invited'` and `'pending_acceptance'` are distinct states in the CHECK and `'invited'` genuinely does not grant. The comment is imprecise, not false.
+
+**Two more from the same review, both verified:** `product_discounts.code` is **globally UNIQUE** (`20260527213552:133`) with no tenant scoping — the first venue to create `SALSA10` takes it from every other venue, surfacing as an unexplained "code already exists" in a stranger's workspace; and its `redemption_count int` is unlocked, so two simultaneous checkouts on the last comp both read 19 and both write 20. Tenant promo codes are unique on `(tenant_id, upper(code))` and count redemptions **by rows**. And `talent_offering_variants.capacity_pool_id` (`20261229000210:47`) invites the wrong conclusion for events — a twelve-Sunday series is **twelve pools per tier** and a variant is one row — so it stays NULL for event tiers and the pool resolves per session as `(session_tier, session.id, pool_key)`.
+
+### A GREP FOR A PHRASE IS NOT A SEARCH FOR A FACT
+
+**The director's error, caught by the Events & Ticketing Manager within an hour of being hired.** Told that the `admissions` overturn was not yet on `origin/main`, they fetched and read rather than relaying — and it *was* there. #1609 had landed it at `ffdc19e4c`.
+
+**The director had checked.** The check was `grep -c "OVERTURNED"`, which returned 0 — because #1609 recorded the same ruling in different words (*"The Director ruled NOT NULL; Sessions & Classes produced the fifth case"*) and never uses that word. **Grepping for your own wording and reporting the absence of your phrasing as the absence of the fact.** The miss is silent: zero hits reads exactly like nothing is there.
+
+Same family as *measured the wrong store* and *a guard pinning source text*. **Search for the object, not for the sentence you would have written about it** — and when the answer is "not present", that is the one answer worth confirming a second way.
+
+### ROUTED OUT, NOT RULED HERE: the split platform fee (V-2)
+
+The `TicketsTab`, `EventSettingsTab` and `SettingsEvents` mockups all carry **"Buyer pays 3%, you 3%"**. The shipped rail is **one 6% seller-side commission**, and `feature-ticketing.ts` FAQ 2 commits in **EN and ES** to "the same platform fee as other booked work rather than a separate ticketing rate" — so shipping the split makes live marketing copy false in two languages.
+
+A buyer-paid fee is a new order line with the platform as payee, a new commission input, a change to what "gross" means, and a dispute surface — landing on a snapshot path Finance still has a live P0 against. **Commerce + Finance + owner.** The manager's recommendation, endorsed by this director: **ship the existing single-sided fee and CUT the control from Settings rather than render it inert** — a disabled control describing a fee structure the rail does not have is a promise the UI makes and the money refuses.
+
+### Events & Ticketing — ownership move and claimed timestamps
+
+**`admissions` is Events' table, not Sessions'.** The manager reversed their own position and said so: they had declined it because Sessions owns the check-in RPC, then saw that inverted the dependency — Sessions *and* Reservations both wait on `admissions`, so parking it behind either **blocks two areas to spare one**. Events owns the table; **Sessions keeps the check-in RPC and the token precedent.**
+
+**Accepted additions to the settled shape:** `units int NOT NULL DEFAULT 1 CHECK (units > 0)` with `CHECK (admitted_count BETWEEN 0 AND units)` — because four GA tickets are one allocation of 4 and **four** admissions while a party of four is one allocation of 4 and **one**, `allocation.units` is 4 in both, and the denominator is therefore not derivable; deriving it renders **"0 of 4" on a single ticket** in a component that displays exactly that field. And `token_version int NOT NULL DEFAULT 1` in the HMAC input, because void revokes the *admission* while re-issue must revoke the *token* and keep the seat. A counter is not a credential, so the no-stored-token ruling stands.
+
+**A refusal worth more than the additions.** The manager could have proposed `session_id IS NOT NULL OR allocation_id IS NOT NULL` — it holds on all five enumerated cases and is strictly stronger — and declined, because **this table has already had a strong guard refuse a real case twice**. A table with two refuted strong guards has told you its shape is not yet known, and the answer is enumeration plus a test, not a third guess by the newest person in the room.
+
+**Condition attached to keeping `'refunded'` in `status`:** it is a second source of truth for a fact `order_lines` owns, kept only because the door needs a one-row read. **Refund-by-line must be the sole writer**, to be settled in Orders 0.8b's contract. If Orders cannot commit to sole-writer, the column comes back for a ruling — an undetected disagreement between those two is a refunded ticket admitted at the door.
+
+**Timestamps claimed, band `20261229000360`–`…379`:** `…360` admissions · `…361` events · `…362` tiers on variants · `…363` tenant promo codes · `…364` `inquiries.event_id`. Ledger head is `20261229000500`; nothing above any band is headroom.
+
+**Out of Phase 2 deliberately**, so nobody plans against them: seat maps and layouts (Spaces S4/S5, wave E — `events.layout_id` ships nullable and unread, though the **VIP-table tier survives** on a `space_group` pool S2 already shipped), wallet passes, PDF tickets, tier add-ons, transfers, waitlist, embed, walk-up card sales, and **offline door scanning** (E8 is online-first with the scanned list cached, degrading to a warning).
+
+## THE BATCHED QA LIST LIVES IN ONE FILE: `docs/plans/phase-boundary-qa.md`
+
+**Consolidated 2026-09-04, because three of them had started forming** — a section in this board, a manager's branch, and a file the CEO seeded — **and none was on `main`.** Managers were told to batch their click-verification with nowhere to batch it to, so in practice it evaporated. Three lists for one purpose is the duplicate-write shape this board keeps recording; it is now **one file**, carried into git here.
+
+**The rule, unchanged:** a manager does **not** ask the owner to click a slice. Items go on that list with **exact steps and the exact thing that would falsify them**, written for someone who has never seen the code. The owner runs the list **once** at the phase boundary. A slice ships on tests and CI; it is **not called finished** until its line is ticked.
+
+**Falsification is the column that does the work.** "Check the settings page works" is not an item. *"Unchecked card-on-file reads **never**, not 0"* is — it names the thing that would be wrong, so a reader who has never seen the code can tell a pass from a plausible-looking failure. Every row this cluster has added carries one.
+
+**Do not add a row for something a human cannot yet exercise.** A cron with no screen and a calendar with nothing on it are not QA rows; a row that proves nothing is exactly what batching exists to avoid.
+
 ## SESSIONS, EVENTS & RESERVATIONS — first entry, 2026-09-03 night
 
 Written by the second director. Facts first, measured against `origin/main` and the live Supabase ledger tonight, not taken from the brief that appointed me. Two items below correct that brief, one corrects this board, and the first is a live hazard throttling every department on this machine.
