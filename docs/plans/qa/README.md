@@ -51,3 +51,38 @@ Two things worth repeating, because both have been got wrong on the shared list:
 
 Other departments: add your own file here. Nothing about this directory is specific to the three
 areas that seeded it.
+
+## Before any of this can be run: production has no data to run it against
+
+Measured on production 2026-09-05, read-only:
+
+| Table | Rows |
+|---|---|
+| `events` | **0** |
+| `sessions` | **0** |
+| `session_series` | **0** |
+| `admissions` | **0** |
+| `orders` | **0** |
+| `venues` | 14 |
+| `capacity_pools` | 7 |
+
+**Almost every row on the QA list needs an object that does not exist.** An Events row needs a
+published event with tiers; there are no events. A Sessions row needs a series; there are none. Any
+row that reads an order, a ticket or an admission has nothing to read.
+
+This is not a defect — nothing has launched, so an empty production is the correct state. It is a
+**scheduling fact that nobody has owned**: the QA pass is written as "the owner clicks this once",
+and today the owner would click into empty screens and learn nothing about whether the code works.
+
+So a QA pass needs a **staging step in front of it**, and that step is real work: a tenant with a
+published event carrying at least two tiers, a session series with a confirmed timezone, and enough
+capacity to sell against. It is not a seed script anyone has written.
+
+Two constraints on doing it, both already ruled:
+
+- Build it on a **real prospect tenant**, not on Impronta's live site.
+- The reserve block goes onto a page **through the builder**, by a person. Writing the row directly
+  proves the block renders when the row exists, which is not the thing in doubt.
+
+Reservations is the exception and the place to start: **14 venues and 7 capacity pools already
+exist**, so its rows are closer to runnable than any other area's.
