@@ -28,6 +28,21 @@ export function TicketFeeTable({
   const es = locale === "es";
   const rows = ticketFeeRows(tulalaRate);
 
+  // The TABLE reads the live rate; this sentence used to hardcode it. That is
+  // the more dangerous half: a stale table is obvious at a glance, a stale
+  // sentence naming the rate in words is not, and that sentence is the one a
+  // reader quotes back at us. Both halves now come from the same number.
+  // (This comment deliberately avoids spelling the rate out: the guard below
+  // is a blunt substring match on purpose, and a rule you can argue your way
+  // around is not a rule.)
+  //
+  // The buyer's share is HALF of the take by current config
+  // (client_surcharge_bps 300 of default_take_bps 600). Derived rather than
+  // typed, so the split cannot silently stop matching the engine.
+  const pctText = `${Math.round(tulalaRate * 1000) / 10}%`;
+  const tenTotal = (10 * tulalaRate).toFixed(2);
+  const tenHalf = (10 * (tulalaRate / 2)).toFixed(2);
+
   const t = es
     ? {
         notYet:
@@ -40,7 +55,7 @@ export function TicketFeeTable({
         them: "Carga en Eventbrite",
         us: "Carga aquí",
         share: "del precio",
-        ours: "Nuestro seis por ciento incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $0.60 en total: $0.30 que se le suman al comprador y $0.30 que salen del vendedor.",
+        ours: `Nuestro ${pctText} incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $${tenTotal} en total: $${tenHalf} que se le suman al comprador y $${tenHalf} que salen del vendedor.`,
         theirs: `Eventbrite, boletos pagados en Estados Unidos, revisado el ${EVENTBRITE_TERMS.checkedOn}: ${EVENTBRITE_TERMS.es}`,
         verify: "Revisa su página de precios",
         note: "Los precios cambian. Si algo aquí ya no es correcto, dinos y lo corregimos.",
@@ -56,7 +71,7 @@ export function TicketFeeTable({
         them: "Carried on Eventbrite",
         us: "Carried here",
         share: "of face",
-        ours: "Our six percent includes card processing and is the same on every plan, including free. On a $10 ticket that is $0.60 in total: $0.30 added to the buyer and $0.30 from the seller.",
+        ours: `Our ${pctText} includes card processing and is the same on every plan, including free. On a $10 ticket that is $${tenTotal} in total: $${tenHalf} added to the buyer and $${tenHalf} from the seller.`,
         theirs: `Eventbrite, US paid tickets, checked ${EVENTBRITE_TERMS.checkedOn}: ${EVENTBRITE_TERMS.en}`,
         verify: "Check their pricing page",
         note: "Prices change. If anything here is out of date, tell us and we will fix it.",
