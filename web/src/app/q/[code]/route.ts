@@ -23,8 +23,9 @@ import { NextResponse, after, type NextRequest } from "next/server";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import {
+  type ScanRecord,
   classifyDevice,
-  findActiveLinkByCode,
+  findLinkByCodeAnyStatus,
   readCountry,
   recordScan,
   scanSessionKey,
@@ -74,6 +75,13 @@ function codeNotFound(request: NextRequest): NextResponse {
   const body = wantsSpanish
     ? "Puede que se haya pausado o reemplazado. Pregunta al personal."
     : "It may have been paused or replaced. Ask a member of staff.";
+  // A WAY ONWARD, which production QA showed was the real defect here.
+  // A guest standing at a table who scanned a retired code previously got a
+  // dead end: an honest sentence and nowhere to go. The honest sentence is
+  // still the point — sending them to the homepage as if the code had worked
+  // would be worse — but it costs nothing to let them reach the site
+  // deliberately, and it is the difference between "retired" and "broken".
+  const onward = wantsSpanish ? "Ir al sitio" : "Go to the site";
 
   return new NextResponse(
     `<!doctype html><html lang="${wantsSpanish ? "es" : "en"}"><head>` +
@@ -83,13 +91,44 @@ function codeNotFound(request: NextRequest): NextResponse {
       `font:16px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;color:#1a1e22;background:#f5f7f4">` +
       `<main style="max-width:24rem;padding:1.5rem;text-align:center">` +
       `<h1 style="font-size:1.25rem;margin:0 0 .5rem">${title}</h1>` +
-      `<p style="margin:0;color:#4e5a63">${body}</p>` +
+      `<p style="margin:0 0 1.5rem;color:#4e5a63">${body}</p>` +
+      `<a href="/" style="display:inline-block;padding:.6rem 1.2rem;border-radius:999px;` +
+      `background:#1a1e22;color:#fff;text-decoration:none;font-size:.875rem">${onward}</a>` +
       `</main></body></html>`,
     {
       status: 404,
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
     },
   );
+}
+
+/**
+ * Record a scan after the response is flushed.
+ *
+ * Deferred with `after()`, NOT fire-and-forget. A bare `void recordScan(...)`
+ * is the obvious way to write this and it silently loses rows: a serverless
+ * instance may freeze once the response is sent, and a floating promise dies
+ * with it. Measured on production before this was fixed — three scans of one
+ * code recorded TWO rows. Not zero, which is the dangerous part: a feature
+ * that drops an unpredictable fraction looks like it works.
+ *
+ * `after()` keeps the instance alive for the work while the guest gets their
+ * redirect immediately — a person standing at a table does not wait for
+ * analytics. The inline fallback covers non-request contexts where `after()`
+ * throws, matching `support-engine-emit.ts` and `scheduleWorkspaceAudit`.
+ *
+ * Shared by BOTH branches on purpose: a refusal is a scan, so the paused path
+ * records through exactly the same guarantees as the resolved one. Two call
+ * sites with their own copies of this would drift, and the paused one — being
+ * rarer — is the copy that would silently lose the `after()`.
+ */
+function recordScanInBackground(scan: ScanRecord): void {
+  const run = () => recordScan(scan).catch(() => {});
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
 }
 
 export async function GET(
@@ -107,8 +146,27 @@ export async function GET(
     return codeNotFound(request);
   }
 
-  const link = await findActiveLinkByCode(host.tenantId, code);
+  // Look the code up REGARDLESS of status. A paused link must still refuse the
+  // guest AND record the scan: a refusal is a scan (CEO ruling 2026-09-05),
+  // because an operator otherwise never learns a retired tent is still on a
+  // table — which is exactly the moment they need to know.
+  const link = await findLinkByCodeAnyStatus(host.tenantId, code);
   if (!link) return codeNotFound(request);
+
+  if (link.status !== "active") {
+    recordScanInBackground({
+      linkId: link.id,
+      tenantId: host.tenantId,
+      outcome: "paused",
+      resolvedTo: null,
+      deviceClass: classifyDevice(request.headers.get("user-agent")),
+      isNfc: request.nextUrl.searchParams.get("t") === NFC_MARKER,
+      referrer: request.headers.get("referer"),
+      country: readCountry(request.headers.get("x-vercel-ip-country")),
+      sessionKey: scanSessionKey(clientIp(request), request.headers.get("user-agent")),
+    });
+    return codeNotFound(request);
+  }
 
   // The wall clock in the VENUE's timezone. `resolveTenantTimezone` is the one
   // timezone read path in this codebase; a second one is a bug, and the reason
@@ -147,37 +205,17 @@ export async function GET(
   const response = NextResponse.redirect(destination, 302);
   response.headers.set("cache-control", "no-store");
 
-  // Deferred past the response flush with `after()`, NOT fire-and-forget.
-  //
-  // A bare `void recordScan(...)` is the obvious way to write this and it
-  // silently loses rows: the serverless instance is free to freeze once the
-  // response is sent, and a floating promise dies with it. Measured on
-  // production before this fix — three scans of the same code recorded TWO
-  // rows. Not zero, which is the dangerous part: a feature that drops an
-  // unpredictable fraction looks like it works, and the QR page would have
-  // under-reported every code forever with nothing to show for it.
-  //
-  // `after()` keeps the instance alive for the work while still letting the
-  // guest have their redirect immediately, which is the whole point: a person
-  // standing at a table does not wait for analytics. The inline fallback is
-  // for non-request contexts where `after()` throws, matching
-  // `support-engine-emit.ts` and `scheduleWorkspaceAudit`.
-  const record = () => recordScan({
+  recordScanInBackground({
     linkId: link.id,
     tenantId: host.tenantId,
+    outcome: "resolved",
+    resolvedTo: resolved.destination.label,
     deviceClass: classifyDevice(request.headers.get("user-agent")),
     isNfc: request.nextUrl.searchParams.get("t") === NFC_MARKER,
     referrer: request.headers.get("referer"),
     country: readCountry(request.headers.get("x-vercel-ip-country")),
     sessionKey: scanSessionKey(clientIp(request), request.headers.get("user-agent")),
-    resolvedTo: resolved.destination.label,
-  }).catch(() => {});
-
-  try {
-    after(record);
-  } catch {
-    void record();
-  }
+  });
 
   return response;
 }

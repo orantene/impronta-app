@@ -58,6 +58,44 @@ test("a failed picker read THROWS rather than returning an empty list", () => {
   assert.doesNotMatch(picker, /if \(error\)[\s\S]{0,80}return \[\]/, "must not swallow the error into an empty list");
 });
 
+test("the subject read is exported under the name other areas were given", () => {
+  // Appointments' #1790 named this shape; Events and Menu will bind to it too.
+  assert.match(src, /export async function findLinkForSubject\(/);
+  assert.match(src, /export type LinkForSubject = \{/);
+});
+
+test("the subject read NEVER mints", () => {
+  // A thing gets a link on FIRST SHARE, by an operator's deliberate action.
+  // A mount that minted would put a row in `links` for every profile anyone
+  // ever opened — and every one of those rows is a code somebody might print.
+  const fn = src.slice(src.indexOf("findLinkForSubject(q: SubjectQuery)"), src.indexOf("export type ScanRecord"));
+  assert.doesNotMatch(fn, /\.insert\(/, "the subject read must not write");
+  assert.doesNotMatch(fn, /createLink/, "the subject read must not mint");
+});
+
+test("the composed URL uses a PASSED-IN origin, never a guessed one", () => {
+  // A URL composed against the wrong origin is a QR pointing at another
+  // domain — discovered on a printed card by a guest, not by a test.
+  const fn = src.slice(src.indexOf("findLinkForSubject(q: SubjectQuery)"), src.indexOf("export type ScanRecord"));
+  assert.match(fn, /\$\{q\.origin/, "the origin must come from the caller");
+  assert.doesNotMatch(fn, /headers\(\)|process\.env\.\w*URL/, "must not infer a host");
+});
+
+test("the subject read returns PAUSED links rather than appearing to have none", () => {
+  // If a subject's only link is paused and this returned null, the mount would
+  // invite a duplicate — leaving two codes for one thing, one printed and dead.
+  const fn = src.slice(src.indexOf("findLinkForSubject(q: SubjectQuery)"), src.indexOf("export type ScanRecord"));
+  assert.doesNotMatch(fn, /\.eq\("status", "active"\)/, "must not filter to active");
+  assert.match(src, /status: "active" \| "paused";/);
+});
+
+test("a failed subject read THROWS rather than reporting no link", () => {
+  // Returning null on an error makes the mount offer to create a SECOND code
+  // for a thing that already has one — and the first is the printed one.
+  const fn = src.slice(src.indexOf("findLinkForSubject(q: SubjectQuery)"), src.indexOf("export type ScanRecord"));
+  assert.match(fn, /throw new Error/);
+});
+
 test("the picker is capped, so an inspector dropdown cannot stream a workspace", () => {
   const picker = src.slice(src.indexOf("listLinksForTenant"), src.indexOf("ScanRecord"));
   assert.match(picker, /\.limit\(/);

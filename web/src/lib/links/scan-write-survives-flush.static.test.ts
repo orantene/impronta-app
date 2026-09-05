@@ -41,13 +41,25 @@ const src = raw
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^[^\n]*?\/\/.*$/gm, "");
 
+test("BOTH branches record through the same after()-guarded helper", () => {
+  // A refusal is a scan, so the paused path must record with the same
+  // guarantees as the resolved one. Two call sites with their own copies would
+  // drift, and the paused branch — being rarer — is the copy that would
+  // silently lose the after() and start dropping rows nobody looks at.
+  // Count CALL sites only — `recordScanInBackground({` — not the definition,
+  // which also matches a bare `recordScanInBackground(`.
+  const calls = [...src.matchAll(/recordScanInBackground\(\{/g)].length;
+  assert.equal(calls, 2, `expected both branches to call the helper, found ${calls}`);
+  assert.match(src, /function recordScanInBackground/);
+});
+
 test("the scan write is deferred with after(), not left floating", () => {
   assert.match(
     src,
     /import\s*\{[^}]*\bafter\b[^}]*\}\s*from\s*"next\/server"/,
     "route.ts must import after() from next/server",
   );
-  assert.match(src, /after\(record\)/, "the scan write must be handed to after()");
+  assert.match(src, /after\(run\)/, "the scan write must be handed to after()");
 });
 
 test("recordScan is never called as a bare floating promise", () => {
