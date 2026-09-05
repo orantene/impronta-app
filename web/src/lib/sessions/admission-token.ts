@@ -86,6 +86,23 @@ export function signAdmissionToken(
   if (typeof admissionId !== "string" || !ADMISSION_ID_RE.test(admissionId.trim())) return null;
   if (!Number.isInteger(tokenVersion) || tokenVersion < 1) return null;
 
+  // THE SYMBOL MARGIN IS THREE BYTES. Measured with QR & Links against the real
+  // encoder: this token is 100 bytes at version 1 and 105 at the smallint
+  // ceiling, and a version-8 QR at ecc "Q" holds 108. **Any field added to this
+  // payload steps the symbol to version 9 — silently.** It still fits and
+  // nothing errors; the printed code just gets denser, which is paid for by
+  // whoever is scanning a ticket on a dim phone at a door.
+  //
+  // If a field is genuinely needed, the free saving is here: base64url of the
+  // uuid's 36-char TEXT spends 48 characters carrying 128 bits that 16 raw
+  // bytes carry in 22. Taking that first buys 26 bytes and changes no security
+  // property. Truncating the HMAC also saves bytes and is NOT free — it is
+  // forgery margin on a credential that opens a door, and it was proposed and
+  // withdrawn for that reason.
+  //
+  // A format change is cheap whenever it happens: the `adm1` prefix is inside
+  // the signed message, so an `adm2` can be verified alongside it and printed
+  // codes keep working. That is the argument for waiting, not for hurrying.
   const payload = `${admissionId.trim().toLowerCase()}:${tokenVersion}`;
   const encoded = Buffer.from(payload, "utf8").toString("base64url");
   return `${VERSION}${SEPARATOR}${encoded}${SEPARATOR}${computeSignature(encoded, secret)}`;
