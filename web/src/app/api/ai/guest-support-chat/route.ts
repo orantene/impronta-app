@@ -207,7 +207,19 @@ export async function POST(request: Request) {
         systemPrompt: SYSTEM_PROMPT,
         userMessage,
         temperature: 0.2,
-        maxTokens: 700,
+        // 700 was too tight and it cost real answers. Production QA asked
+        // "can I sell tickets to an event today?" and the model produced the
+        // RIGHT answer, then ran out of budget mid-sentence: the JSON was
+        // truncated, parsing failed, and the guest received the fail-open
+        // deflection instead. The logged detail ends
+        // "...choose instant booking, approval first, " with no closing brace.
+        //
+        // The prompt allows 1200 characters of answer, which is roughly 300
+        // tokens on its own, and the schema also carries a subject, category,
+        // tags, sentiment and two escalation fields. 700 for all of that leaves
+        // nothing for a thorough answer, and a thorough answer is exactly the
+        // case that got thrown away.
+        maxTokens: 1600,
         jsonSchema: {
           name: SUPPORT_CHAT_SCHEMA.name,
           strict: SUPPORT_CHAT_SCHEMA.strict,

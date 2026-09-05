@@ -14,7 +14,15 @@ import { useDashboardLocale } from "./use-dashboard-locale";
  */
 const TRANSLATORS = new Map<string, ReturnType<typeof createTranslator>>();
 
-function translatorFor(locale: string) {
+/**
+ * Translator for an EXPLICIT locale.
+ *
+ * `useT` reads the dashboard locale from a cookie, which is correct inside the
+ * workspace and wrong on any surface whose language comes from the URL. Exported
+ * so those surfaces can hand their own locale down instead of inheriting a
+ * cookie set on a different page.
+ */
+export function translatorFor(locale: string) {
   let t = TRANSLATORS.get(locale);
   if (!t) {
     t = createTranslator(locale);

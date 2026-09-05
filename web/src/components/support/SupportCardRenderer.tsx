@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SupportAgentAvatar } from "./SupportAgentAvatar";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
@@ -21,6 +22,7 @@ export function SupportCardRenderer({
   onAction,
   tone,
   liveShareAvailable = true,
+  locale,
   allowAddPhone = true,
 }: {
   payload: Record<string, unknown>;
@@ -29,8 +31,26 @@ export function SupportCardRenderer({
   liveShareAvailable?: boolean;
   /** False where no phone form exists (the bell drawer) — the chip would be dead there. */
   allowAddPhone?: boolean;
+  /**
+   * Language of the surface this card is rendered on.
+   *
+   * Without it the card falls back to `useT()`, which reads the DASHBOARD
+   * locale from a cookie. That is right inside the workspace, where the cookie
+   * IS the user's choice, and wrong on a marketing page, where the URL decides.
+   * Production QA caught the consequence: after visiting /es/support once, the
+   * English /support page rendered "Tu ticket esta con Orlando" in the middle of
+   * an English conversation, because the panel's own copy came from the page and
+   * the card's came from the cookie. Two locale sources in one panel.
+   */
+  locale?: string;
 }) {
-  const t = useT();
+  const dashboardT = useT();
+  // An explicit surface locale wins; the cookie remains the default for the
+  // workspace surfaces that have no page locale to hand down.
+  const t = useMemo(
+    () => (locale ? translatorFor(locale) : dashboardT),
+    [locale, dashboardT],
+  );
   const [liveDone, setLiveDone] = useState(false);
   const [keptOpen, setKeptOpen] = useState(false);
   const kind = typeof payload.kind === "string" ? payload.kind : "generic";

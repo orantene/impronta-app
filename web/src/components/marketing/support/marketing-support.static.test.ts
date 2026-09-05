@@ -107,3 +107,23 @@ test("guest support path never reads GUEST_CHAT_CAPTCHA_WIDGET_READY", () => {
   assert.equal(actions.includes("GUEST_CHAT_CAPTCHA_WIDGET_READY"), false);
   assert.equal(route.includes("GUEST_CHAT_CAPTCHA_WIDGET_READY"), false);
 });
+
+// The panel must speak ONE language, the page's.
+//
+// Production QA on the English /support page, after visiting /es/support once
+// in the same session, got an English conversation containing a Spanish card:
+// "Tu ticket esta con Orlando". The panel's own copy comes from the page locale
+// handed down by the server; SupportCardRenderer called useT(), which reads the
+// DASHBOARD locale from a cookie. Two locale sources in one panel, and the
+// cookie won for the half a guest notices least and trusts most.
+test("the panel hands its own locale to the cards it renders", () => {
+  const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
+  const idx = panel.indexOf("<SupportCardRenderer");
+  assert.ok(idx > -1, "panel no longer renders support cards");
+  const tag = panel.slice(idx, panel.indexOf("/>", idx));
+  assert.match(
+    tag,
+    /locale=\{locale\}/,
+    "SupportCardRenderer is rendered without a locale, so it falls back to the dashboard cookie",
+  );
+});
