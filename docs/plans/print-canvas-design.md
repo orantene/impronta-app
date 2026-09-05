@@ -112,6 +112,24 @@ That still holds and I am not asking to be relieved of it.
 The seam is a function call: the canvas hands the exporter a list of artboards and a
 size; it does not know how a QR is drawn, and I do not know how a node tree is laid out.
 
+**Per work-item, as a scheduling aid** (from W&D's draft, folded in here so their document
+can be retired without losing it):
+
+| Piece | Owner |
+|---|---|
+| `qr_code` block registration (Piece A) | Page Builder |
+| `encodeQr` / `toSvg` / `toPrintPdf` / `qr/files.ts` | QR & Links (#1658) |
+| Locked-aspect artboard + safe-area/bleed guide overlay | Page Builder |
+| **Bleed generation in the export** | QR & Links |
+| Link multi-select affordance ("print these links") | Page Builder |
+| The multi-page stamping inside `toPrintPdf` | QR & Links |
+
+**Note on the bleed row, since it is new work rather than existing work:** `toPrintPdf`
+today emits pages at **trim** size with no bleed and no trim marks. Under the model
+resolved in §2.2 the canvas works at bleed size, so the exporter must emit at bleed size
+and mark the trim. That is a change to a shipped function, not a wiring-up of one, and it
+is mine.
+
 ### 2.4 Is "Apply to all 11 tables" a builder feature or a `toPrintPdf` call?
 
 **Both, and the split matters.**
@@ -172,7 +190,19 @@ right: it is the same shape, server-resolved with the renderer never querying.
 
 **Nobody has printed anything from this system yet.** Every print rule in §1 is verified
 in software — page sizes asserted against produced PDFs, quiet zone walked module by
-module, contrast computed. None of it is verified on paper. The phase-boundary QA list
-carries the row (*print at actual size, put it on a table, scan it with a phone*), and
-until that row is ticked this document is designing against a pipeline that has never met
-a printer.
+module, contrast computed. None of it is verified on paper.
+
+**And the print QA row does not cover bleed, which is the trap.** A green result from
+*print at actual size, put it on a table, scan it with a phone* is evidence about the QR
+symbol and the page size. **It is evidence about bleed only if someone actually CUT the
+piece and looked at the edge** — a correctly drawn trim guide and a guillotine cutting
+1mm off-centre are indistinguishable on screen and indistinguishable on an uncut sheet.
+
+So the two need different falsifiers:
+
+- the scan check fails on *anything green that did not come from a phone camera*
+- the bleed check fails on **anything green that did not come from a cut edge**
+
+Until both are ticked, this document is designing against a pipeline that has never met a
+printer, and §2.2 is the section most likely to be wrong in a way nothing on screen can
+show.
