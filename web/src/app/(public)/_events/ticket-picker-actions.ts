@@ -292,6 +292,16 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       .eq("id", d.transactionId).eq("order_id", d.orderId).maybeSingle();
     if (tErr) { logServerError("events.pay.txn", tErr); return { ok: false, reason: "engine_error" }; }
     if (!txn) return { ok: false, reason: "not_found" };
+    // NO SENTINELS INTO STRIPE METADATA. `""` is a value that claims to be an
+    // id and is not; downstream `?? null` does not catch it and a uuid `.eq`
+    // against it is a cast error. A ticket transaction always has a booking
+    // row (createPurchase makes one), so a missing id is refused, never faked.
+    // The inquiry id is genuinely absent for tickets; until Orders widens
+    // `inquiryId` to `string | null` and omits the metadata key, the field is
+    // typed `string` — see the TODO below, never an empty string.
+    const bookingId = (txn.booking_id as string | null) ?? null;
+    if (!bookingId) { logServerError("events.pay.txn", `transaction ${txn.id as string} has no booking id`); return { ok: false, reason: "engine_error", detail: "no_booking" }; }
+    const inquiryId = (txn.source_inquiry_id as string | null) ?? null;
     const { data: customer, error: cErr } = order.customer_id
       ? await admin.from("customers").select("email").eq("id", order.customer_id as string).maybeSingle()
       : { data: null, error: null };
@@ -308,8 +318,12 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       amountCents: Number(txn.gross_amount_cents),
       currency: String(order.currency ?? "USD"),
       payerEmail: (customer?.email as string | null) ?? null,
-      inquiryId: (txn.source_inquiry_id as string | null) ?? "",
-      bookingId: (txn.booking_id as string | null) ?? "",
+      // TODO(Orders): `CheckoutSessionInput.inquiryId` is `string`; widen to
+      // `string | null` and omit the metadata key when null. Until then a
+      // ticket with no inquiry cannot be expressed honestly here, so the card
+      // hop refuses rather than sends "" (draft; the widening lands first).
+      inquiryId: inquiryId ?? (() => { throw new Error("ticket transaction has no inquiry; CheckoutSessionInput.inquiryId must accept null"); })(),
+      bookingId,
       successUrl: `${origin}/r/${order.receipt_code}?paid=1`,
       cancelUrl: `${origin}/events`,
       description: "Tickets",
