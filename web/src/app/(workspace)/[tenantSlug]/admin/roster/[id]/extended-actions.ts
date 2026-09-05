@@ -102,7 +102,26 @@ export async function addTalentTaxonomyTerm(
           is_primary: relationshipType === "primary_role",
           display_order: 0,
         },
-        { onConflict: "talent_profile_id,taxonomy_term_id,relationship_type" },
+        // ONE ROW PER TERM PER PROFILE — the two-column primary key.
+        //
+        // This named three columns, and no index covers that triple, so
+        // PostgREST's ON CONFLICT inference failed with 42P10 for every call:
+        // assigning a taxonomy term from the roster drawer has never worked.
+        // Probed through the real client before and after; the two-column target
+        // gets past inference and reaches the term's own validation trigger.
+        //
+        // THE PRODUCT CALL, and why the rows do not settle it: the primary key
+        // is (talent_profile_id, taxonomy_term_id), so "no term appears twice"
+        // is true by construction and proves nothing about demand. The evidence
+        // is in the behaviour instead. A few lines above, assigning a
+        // primary_role DELETES the profile's existing primary_role rows first,
+        // and `ux_talent_profile_taxonomy_one_primary` enforces one primary per
+        // profile — both treat relationship_type as a MUTABLE ATTRIBUTE of a
+        // term the profile holds, not as part of that term's identity. Re-adding
+        // "Fashion Model" as a secondary_role should move it, not add a second
+        // copy, because a term cannot coherently be someone's primary and
+        // secondary role at once.
+        { onConflict: "talent_profile_id,taxonomy_term_id" },
       );
 
     if (error) {
