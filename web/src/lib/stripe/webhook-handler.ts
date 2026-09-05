@@ -519,7 +519,6 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         // be a log line only. See dispute-notify.ts for why that mattered.
         await notifyNonBookingDispute(action);
       }
-      }
       return;
     }
 
