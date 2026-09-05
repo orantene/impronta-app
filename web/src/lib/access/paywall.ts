@@ -83,19 +83,45 @@ export function resolveUpgradeForCapability(
 }
 
 /**
- * One sentence for the operator. Deliberately does NOT include a price: prices
- * live in `product_prices` and every copy of one in code has eventually drifted
- * from what the card is actually charged.
+ * One sentence for the operator, in their dashboard locale.
+ *
+ * Shipped English-only in #1722, which was wrong on a product whose dashboard
+ * follows the user's language: a Spanish-speaking operator hit a wall and got
+ * an English explanation of why. Inline EN/ES rather than message-catalog keys
+ * because this module is PURE — imported by client bundles and by `tsx --test`
+ * lanes with no i18n runtime — and the same inline pattern is already used by
+ * the marketing components.
+ *
+ * Deliberately does NOT include a price: prices live in `product_prices` and
+ * every copy of one in code has eventually drifted from what the card is
+ * actually charged.
+ *
+ * KNOWN LIMIT, stated rather than hidden: `capabilityDisplayName` comes from
+ * the capability registry, which has ENGLISH NAMES ONLY. So a Spanish message
+ * reads "Pitches es parte de Agency" — Spanish sentence, English feature name.
+ * That is better than a wholly English sentence and worse than a translated
+ * one. Fixing it properly means adding Spanish display names to all 101
+ * registry entries, which is a separate piece of work and not one to smuggle
+ * into a paywall fix.
  */
 export function paywallMessage(
   capabilityDisplayName: string,
   upgrade: PaywallUpgrade | null,
+  locale: string = "en",
 ): string {
+  const es = locale === "es";
+
   if (!upgrade) {
-    return `${capabilityDisplayName} is not included in your plan. Talk to us about the options.`;
+    return es
+      ? `${capabilityDisplayName} no está incluido en tu plan. Hablemos de las opciones.`
+      : `${capabilityDisplayName} is not included in your plan. Talk to us about the options.`;
   }
   if (!upgrade.isSelfServe) {
-    return `${capabilityDisplayName} is part of ${upgrade.displayName}. Talk to us to enable it.`;
+    return es
+      ? `${capabilityDisplayName} es parte de ${upgrade.displayName}. Hablemos para activarlo.`
+      : `${capabilityDisplayName} is part of ${upgrade.displayName}. Talk to us to enable it.`;
   }
-  return `${capabilityDisplayName} is part of ${upgrade.displayName}. Upgrade to turn it on.`;
+  return es
+    ? `${capabilityDisplayName} es parte de ${upgrade.displayName}. Mejora tu plan para activarlo.`
+    : `${capabilityDisplayName} is part of ${upgrade.displayName}. Upgrade to turn it on.`;
 }
