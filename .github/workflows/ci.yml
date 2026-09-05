@@ -220,6 +220,16 @@ jobs:
       # `check:migrations-applied` (network) and `build` (out of T2a scope
       # — Vercel handles deploy-side build). Each script runs separately
       # so a failure surfaces the exact suite.
+      # Access control. Defined in package.json since it was written, and in
+      # NEITHER the `ci` aggregate nor this workflow — so it has gated nothing
+      # on any PR, ever. check:ci-lane-parity cannot see it: that guard walks
+      # the AGGREGATE and asks whether each lane it finds is in this workflow,
+      # so a lane present in neither list is never walked and never missed.
+      # A guard that enumerates one list can only find gaps in that list.
+      - name: tests — access control
+        if: ${{ !cancelled() }}
+        run: npm run test:access
+
       - name: tests — phase1-i18n
         if: ${{ !cancelled() }}
         run: npm run test:phase1-i18n
