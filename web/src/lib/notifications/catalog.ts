@@ -5,7 +5,6 @@ import NewWorkspaceAlert from "../../../emails/platform/NewWorkspaceAlert";
 import UsageQuotaAlert from "../../../emails/platform/UsageQuotaAlert";
 import SignupFailedAlert from "../../../emails/platform/SignupFailedAlert";
 import TalentClaimInvite from "../../../emails/talent/ClaimInvite";
-import TalentWelcome from "../../../emails/talent/Welcome";
 import TalentProfileApproved from "../../../emails/talent/ProfileApproved";
 import TalentJoinApproved from "../../../emails/talent/JoinApproved";
 import TalentJoinDeclined from "../../../emails/talent/JoinDeclined";
@@ -36,6 +35,7 @@ import { REVIEWS_CATALOG_ENTRIES } from "./catalog-entries-reviews";
 import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
 import { RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-reservation";
 import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reservation";
+import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -254,34 +254,8 @@ const WORKSPACE_SIGNUP_WELCOME: CatalogEntry = {
   },
 };
 
-/**
- * account.talent_welcome (§12: onboarding/actions.ts) — the freshly-onboarded
- * talent. Platform-scoped (`tenantId: null` → Tulala brand): a talent isn't
- * tenant-bound at onboarding, and the dashboard link points at the platform
- * host. `userId` is the talent, resolved by `eventUser`.
- */
-const TALENT_WELCOME_ENTRY: CatalogEntry = {
-  id: "account.talent_welcome",
-  category: "workspace_activity",
-  defaultChannels: ["email"],
-  required: false,
-  triggers: ["account.talent_onboarded"],
-  resolveAudience: eventUser("talent"),
-  email: {
-    templateId: "account.talent_welcome",
-    subject: (event, recipient) => {
-      const full = str(event.payload.talentName) ?? recipient.displayName;
-      const first = full?.trim() ? full.split(" ")[0] : null;
-      return first ? `Welcome to Tulala, ${first}` : "Welcome to Tulala — your profile is ready";
-    },
-    render: ({ event, recipient, brand }) =>
-      React.createElement(TalentWelcome, {
-        talentName: str(event.payload.talentName) ?? recipient.displayName,
-        dashboardUrl: pageUrl(brand, "/talent"),
-        brand,
-      }),
-  },
-};
+
+
 
 // ─── Booking + roster-moderation entries (Slice 15.5, direct dispatch) ────────
 //
@@ -760,13 +734,13 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...SUPPORT_CATALOG_ENTRIES,
   ...RESERVATION_CATALOG_ENTRIES,
   ...TABLE_RESERVATION_CATALOG_ENTRIES,
+  ...ACCOUNT_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,
   ROSTER_CLAIM_INVITE,
   WORKSPACE_TEAM_INVITE,
   WORKSPACE_SIGNUP_WELCOME,
-  TALENT_WELCOME_ENTRY,
   TALENT_PROFILE_APPROVED,
   ROSTER_JOIN_REQUESTED,
   ROSTER_JOIN_APPROVED,

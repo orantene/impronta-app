@@ -202,3 +202,55 @@ export async function ensureGuestClientByEmail(args: {
 
   return { status: "created", clientUserId: userId };
 }
+
+/**
+ * Resolve the client party for a STAFF-CREATED inquiry (2026-09-03).
+ *
+ * THE GAP THIS CLOSES: an inquiry a coordinator logs by hand — a booking that
+ * arrived by phone, WhatsApp or in person — was created with
+ * `client_user_id: null`, on the reasoning that a later merge layer would link
+ * the person by email on signup. That is fine for identity, but it silently
+ * disables the reply mirror: `decideGuestReplyNudge` gates on a reachable
+ * inquirer (a guest session OR an attached client account), and a staff-created
+ * inquiry has neither. The coordinator replies in the thread, the client is
+ * never emailed, and nothing reports a failure. It is the same silent-reply bug
+ * the email loop fixed for web-form leads, surviving in the path staff use most.
+ *
+ * POLICY, in one place so both admin creation paths agree:
+ *   - staff explicitly picked an existing client → use it, never re-provision;
+ *   - otherwise provision (or match) by contact email, exactly as the public
+ *     contact form does, via the same helper;
+ *   - no usable email → null, and the inquiry is still created (unchanged).
+ *
+ * Provisioning is deliberately the SAME helper as the public path, so a
+ * privileged address (staff / talent / super_admin) still resolves "unlinked"
+ * rather than being converted into a client. Never throws — a provisioning
+ * failure must not stop a coordinator from logging an inquiry.
+ */
+export async function resolveStaffCreatedInquiryClient(args: {
+  /** Client the staff member explicitly selected, when the form offers that. */
+  existingClientUserId?: string | null;
+  contactEmail: string;
+  contactName: string;
+  contactPhone?: string | null;
+  company?: string | null;
+}): Promise<string | null> {
+  const existing = args.existingClientUserId?.trim();
+  if (existing) return existing;
+
+  const email = args.contactEmail.trim();
+  if (!email) return null;
+
+  try {
+    const provisioned = await ensureGuestClientByEmail({
+      email,
+      name: args.contactName.trim(),
+      company: args.company?.trim() ?? "",
+      phone: args.contactPhone?.trim() ?? "",
+    });
+    return provisioned.clientUserId;
+  } catch (err) {
+    logServerError("inquiry/resolveStaffCreatedInquiryClient", err);
+    return null;
+  }
+}
