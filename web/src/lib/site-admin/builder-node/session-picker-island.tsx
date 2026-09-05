@@ -31,6 +31,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
+import { pickerConfig } from "@/lib/sessions/picker-config";
 
 type Locale = "en" | "es";
 
@@ -74,6 +75,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     no_seats_configured: "Seats for that date are not on sale yet.",
     not_sellable: "This class is not on sale just now.",
     unavailable: "We could not reach the seat count. Nothing was booked. Try again.",
+    not_configured: "This session picker has not been set up yet. Open it in the editor and choose a class.",
     invalid_request: "Something in that did not look right. Check the details and try again.",
     engine_error: "Something went wrong at our end. Nothing was booked.",
   },
@@ -96,6 +98,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     no_seats_configured: "Las plazas de esa fecha aun no estan a la venta.",
     not_sellable: "Esta clase no esta a la venta por ahora.",
     unavailable: "No pudimos consultar las plazas. No se reservo nada. Intenta de nuevo.",
+    not_configured: "Este selector de sesiones aun no esta configurado. Abrelo en el editor y elige una clase.",
     invalid_request: "Algo no se ve bien. Revisa los datos e intenta de nuevo.",
     engine_error: "Algo fallo de nuestro lado. No se reservo nada.",
   },
@@ -144,7 +147,31 @@ export function SessionPickerIsland({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // NOT CONFIGURED IS NOT AN OUTAGE.
+  //
+  // The renderer passes `tenantId={options.dataSources.tenantId ?? ""}`, so a
+  // block placed on a page with no tenant in its data sources arrives here with
+  // an empty string. That string is already refused — both actions parse
+  // `z.string().uuid()`, so it dies at the schema and never reaches a query, and
+  // the tenant-scoped read behind it is the second line rather than the first.
+  //
+  // The defect is what the refusal SAYS. Without this guard it renders as
+  // "we could not reach the seat count", which is exactly what a real outage
+  // renders, and the author who mis-placed the block goes looking for a fault
+  // in the engine. A configuration mistake wearing a runtime symptom's clothes
+  // is the `?? ""` sentinel's actual cost here.
+  //
+  // Checked in the island rather than in the action because only the island
+  // knows the difference between "nobody configured me" and "my caller sent
+  // something wrong": the action sees one empty string either way.
+  const configured = pickerConfig(tenantId, offeringId).ok;
+
   const load = useCallback(async () => {
+    if (!configured) {
+      setSessions([]);
+      setRefusal(t("not_configured"));
+      return;
+    }
     try {
       const { loadSessionPicker } = await import(
         "@/app/(public)/_sessions/session-picker-actions"
@@ -161,7 +188,7 @@ export function SessionPickerIsland({
       setSessions([]);
       setRefusal(t("unavailable"));
     }
-  }, [tenantId, offeringId, loc]);
+  }, [tenantId, offeringId, loc, configured]);
 
   useEffect(() => {
     void load();
