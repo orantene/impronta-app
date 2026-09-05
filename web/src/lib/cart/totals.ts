@@ -112,3 +112,31 @@ export function totalsAreWritable(totals: CartTotals): boolean {
     totals.subtotalCents - totals.discountCents + totals.taxCents
   );
 }
+
+/**
+ * What is actually due now, given a deposit percentage.
+ *
+ * Lives here rather than in the Sheet because it is money maths, and the one
+ * place money maths must not live is a component. The Sheet asked for this and
+ * the honest answer was to put it where the rest of the cents already are.
+ *
+ * `depositPct` is null when the whole amount is due, which is the common case
+ * and must not be a special case at every call site.
+ *
+ * Three properties a purchase depends on:
+ *   - integer cents out, always; a half-cent deposit cannot be charged
+ *   - never more than the total, so a bad percentage cannot overcharge
+ *   - never negative, so it cannot become a refund by arithmetic
+ */
+export function depositDueCents(
+  totals: CartTotals,
+  depositPct: number | null,
+): number {
+  const total = Math.max(0, Math.trunc(totals.totalCents));
+  if (depositPct === null || !Number.isFinite(depositPct) || depositPct <= 0) {
+    return total;
+  }
+  // A percentage at or above 100 means the whole amount, not more than it.
+  if (depositPct >= 100) return total;
+  return Math.min(total, Math.max(0, Math.round((total * depositPct) / 100)));
+}

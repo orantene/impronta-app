@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   EMPTY_TOTALS,
   cartTotals,
+  depositDueCents,
   lineTotalCents,
   totalsAreWritable,
 } from "./totals";
@@ -123,4 +124,22 @@ test("a large cart stays exact in integer cents", () => {
   const totals = cartTotals(lines);
   assert.equal(totals.subtotalCents, 1999 * 3 * 500);
   assert.equal(totalsAreWritable(totals), true);
+});
+
+test("a deposit is integer cents, never over the total, never negative", () => {
+  const totals = { subtotalCents: 10_000, discountCents: 0, taxCents: 0, totalCents: 10_000 };
+  assert.equal(depositDueCents(totals, 25), 2_500);
+  // Null is the common case and must not be a special case at the call site.
+  assert.equal(depositDueCents(totals, null), 10_000);
+  assert.equal(depositDueCents(totals, 0), 10_000);
+  // A bad percentage cannot overcharge, and cannot become a refund.
+  assert.equal(depositDueCents(totals, 150), 10_000);
+  assert.equal(depositDueCents(totals, -20), 10_000);
+  assert.equal(depositDueCents(totals, Number.NaN), 10_000);
+  // Rounding lands on a chargeable amount, not a half cent.
+  const odd = { ...totals, subtotalCents: 999, totalCents: 999 };
+  const due = depositDueCents(odd, 33);
+  assert.equal(due, Math.round(due), "a deposit must be whole cents");
+  assert.equal(due, 330);
+  assert.ok(due <= odd.totalCents);
 });
