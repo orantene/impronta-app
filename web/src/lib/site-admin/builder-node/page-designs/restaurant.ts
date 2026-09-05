@@ -27,6 +27,10 @@ const PANEL = "#231409";
 const CREAM = "#f5ede0";
 const MUTED = "rgba(245,237,224,0.68)";
 const EMBER = "#c95e2a";
+// The primary button fill: EMBER darkened in hue until cream text clears the
+// 4.5:1 text floor (cream on EMBER is 3.53:1, large-text only). Kickers and
+// rules keep EMBER; a button carries text, so it carries this.
+const EMBER_BUTTON = "#ab5024";
 const AMBER = "#e0923a";
 const LINE = "rgba(245,237,224,0.14)";
 
@@ -80,6 +84,11 @@ const restaurantTree: BuilderNode[] = [
             kind: "image",
             props: {
               src: PHOTO.hero,
+              // PLACEHOLDER, by ruling (CEO, 2026-09-05): a stock kitchen scene stays
+              // until the owner clears their own photos, because a bare hero is
+              // worse than a placeholder kitchen and the swap is one image. The
+              // layer name says so to whoever opens the page in the builder.
+              layerLabel: "Placeholder photo: replace with the owner's own",
               alt: "Restaurant kitchen scene",
               style: {
                 position: "absolute",
@@ -195,7 +204,7 @@ const restaurantTree: BuilderNode[] = [
                     fontSize: "15px",
                     fontWeight: 600,
                     letterSpacing: "0.04em",
-                    backgroundColor: EMBER,
+                    backgroundColor: EMBER_BUTTON,
                     textColor: CREAM,
                     borderRadius: "2px",
                     paddingTop: "14px",
