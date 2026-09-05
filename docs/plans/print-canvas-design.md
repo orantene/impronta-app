@@ -48,9 +48,19 @@ been handed a control that cannot mean anything.
 chrome (breakpoints, scroll, viewport) suppressed and four print-only properties added.
 I do not want a second editor and my slice explicitly says so.
 
-**What would change my mind:** if suppressing page chrome per-kind turns out to be more
-invasive in `render.tsx` than adding a kind, the template route wins on cost. **W&D owns
-that estimate; I do not.**
+**RESOLVED — thin canvas kind. W&D concurred after checking the code, reversing their
+own draft**, and the reasoning is better than mine was:
+
+Page-kind is already branched on in **~21 edit-chrome files**, so suppressing
+breakpoints, viewport, hover and scroll costs real edits. **But the template route pays
+that same suppression cost** — a designer must not get a mobile breakpoint on a table
+tent either way — **while scattering "is this print?" checks instead of giving one clean
+predicate.** So the kind is not more expensive than an honest template; it is cheaper,
+because the suppression is unavoidable and a kind localises it.
+
+**The cost that IS real, and must be budgeted rather than waved through:** the node
+model, inspector and undo are genuinely unchanged (thin, as scoped), but **chrome
+suppression is N gate edits, not zero.**
 
 ### 2.2 Where does bleed live? — *the question I most need answered*
 
@@ -80,9 +90,17 @@ under (1) a designer places a full-bleed background, the exporter extends it by
 stretching or by adding white, and the first anyone knows is a box of cards with a white
 line down one edge. Under (2) the mistake is visible while designing.
 
-**Open, and W&D/Page Builder should rule: is a trim-guide overlay something the builder
-can express today?** If not, (1) with a hard rule that backgrounds must be flat colour is
-a defensible interim — but it must be a *rule the editor enforces*, not a note in a doc.
+**RESOLVED — model (2). W&D concurred after checking the builder code**, and reversed
+their own earlier preference for "export adds bleed" on the failure-mode argument above.
+
+**A trim-guide overlay IS expressible today.** `canvas-align-guides.ts` already draws
+guides on the canvas, so this is an extension of an existing layer rather than net-new
+infrastructure.
+
+**One cost W&D named that must not be assumed free:** today's align guides are
+**transient** — they appear during a drag. A trim/safe-area guide must be **persistent
+whenever the print artboard is active.** That is a modest change to that layer, and it is
+a change, not a no-op.
 
 ### 2.3 Who owns the print editor?
 
@@ -108,7 +126,10 @@ size; it does not know how a QR is drawn, and I do not know how a node tree is l
 sync, and the twelfth table means editing eleven designs or getting eleven that disagree.
 The mockup's "Apply to all 11 tables" is a *print-time* fan-out, not a design-time one.
 
-**This is the decision I feel most strongly about and it is the cheapest to get wrong.**
+**AGREED with W&D, independently.** Their Piece A map already says the builder edits ONE
+design and the export multiplies; the builder holds a link **multi-select**, never eleven
+trees. Two areas reached the same answer separately, which is the most confidence
+available on a decision nobody has printed yet.
 
 ### 2.5 DPI, and what it is actually for
 
@@ -123,13 +144,23 @@ printer, who will ask for a PDF.
 
 ---
 
-## 3. What I need from this review
+## 3. Review status — all four answered
 
-1. **Bleed: which of the three models** (§2.2), and whether a trim-guide overlay is
-   expressible in the builder today.
-2. **Canvas kind vs template** (§2.1) — W&D's estimate of suppressing page chrome.
-3. **Confirmation that fan-out is print-time, not design-time** (§2.4).
-4. **Whether PNG export exists on the canvas at all** (§2.5).
+| | | |
+|---|---|---|
+| §2.2 | **Bleed** | **RESOLVED: model (2)**, canvas at bleed size + persistent trim guide. W&D reversed their own draft. Cost named: guides must become persistent. |
+| §2.1 | **Canvas kind vs template** | **RESOLVED: thin canvas kind.** W&D reversed their own draft after finding page-kind branched in ~21 edit-chrome files — the template route pays the same suppression cost while scattering the checks. |
+| §2.4 | **Fan-out** | **RESOLVED: print-time.** Reached independently by both areas. |
+| §2.5 | **PNG export** | **RESOLVED: PDF only.** |
+
+**Both reversals went from W&D's draft position to this one, and both moved after reading
+the builder code rather than after an argument.** Worth recording because the cheaper
+outcome was the one nobody assumed at the start: a canvas kind sounded like more
+infrastructure than a template and is in fact less.
+
+Remaining for Page Builder's review and the CEO's approval: nothing open in this document.
+The named cost — N chrome-gate edits, plus persistent guides — is the estimate to accept
+or challenge.
 
 ## 4. What I am NOT asking for
 
