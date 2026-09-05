@@ -321,22 +321,69 @@ export async function processRosterImportRow(
     talentProfileId,
   );
 
-  // Upsert the agency_talent_roster row (idempotent on tenant + talent).
-  // is_primary is set on first insert; ignored on conflict.
+  // ─── FIND-THEN-WRITE, because the unique index is PARTIAL ─────────────────
+  //
+  // This was `.upsert(..., { onConflict: "tenant_id,talent_profile_id" })` and
+  // it had NEVER SUCCEEDED. PostgREST turns that option into a bare
+  // `ON CONFLICT (tenant_id, talent_profile_id)`, and the only unique index on
+  // that pair is partial:
+  //
+  //   agency_talent_roster_tenant_talent_live_uniq
+  //     UNIQUE (tenant_id, talent_profile_id)
+  //     WHERE status = ANY (ARRAY['pending','active','inactive'])
+  //
+  // Postgres cannot infer a partial index from a predicate-less ON CONFLICT, so
+  // every row returned 42P10 "there is no unique or exclusion constraint
+  // matching the ON CONFLICT specification". Probed through the real PostgREST
+  // client before changing anything, and again after.
+  //
+  // WHY THE INDEX IS NOT THE THING THAT CHANGED. Dropping the predicate would
+  // make the bare ON CONFLICT legal and would BREAK RE-ADD. Removal is soft
+  // (`status = "removed"`), and every re-add path does a plain `.insert()` with
+  // no check for an existing removed row — the partial index is precisely what
+  // lets that second row exist. Simulated it on a scratch copy of the table
+  // before ruling it out: with a non-partial unique index the second insert
+  // fails 23505. That trade would fix an import nobody has used by breaking a
+  // path that works.
+  //
+  // So the code changes instead. Find the LIVE row for this pair (the same
+  // three statuses the index covers), update it if present, insert if not.
+  const { data: existing, error: findErr } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .in("status", ["pending", "active", "inactive"])
+    .maybeSingle();
+  if (findErr) return { ok: false, error: findErr.message };
+
+  if (existing?.id) {
+    // Re-import of a talent already on the roster. is_primary is deliberately
+    // NOT touched: it may have been adjusted by hand since the first import,
+    // and the old upsert's comment promised the same thing.
+    const { error: updErr } = await admin
+      .from("agency_talent_roster")
+      .update({ status: "active" })
+      .eq("id", existing.id);
+    if (updErr) return { ok: false, error: updErr.message };
+    return { ok: true, talentProfileId };
+  }
+
   const { error: rosterErr } = await admin
     .from("agency_talent_roster")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        talent_profile_id: talentProfileId,
-        status: "active",
-        is_primary: exclusivity.shouldBeExclusive,
-        exclusivity_status: exclusivity.exclusivityStatus,
-        exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
-      },
-      { onConflict: "tenant_id,talent_profile_id", ignoreDuplicates: false },
-    );
-  if (rosterErr) return { ok: false, error: rosterErr.message };
+    .insert({
+      tenant_id: tenantId,
+      talent_profile_id: talentProfileId,
+      status: "active",
+      is_primary: exclusivity.shouldBeExclusive,
+      exclusivity_status: exclusivity.exclusivityStatus,
+      exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
+    });
+  // 23505 = another import inserted the same pair between our SELECT and this
+  // INSERT. The row we wanted now exists, which is the outcome we asked for.
+  if (rosterErr && rosterErr.code !== "23505") {
+    return { ok: false, error: rosterErr.message };
+  }
 
   return { ok: true, talentProfileId };
 }
