@@ -322,7 +322,8 @@ const restaurantTree: BuilderNode[] = [
                 kind: "container",
                 props: {
                   layout: "stack",
-                  layerLabel: "Your photo",
+                  align: "center",
+                  layerLabel: "Designed absence: the name in the display face until the owner's photo arrives",
                   style: {
                     width: "100%",
                     aspectRatioFree: "0.82",
@@ -334,7 +335,34 @@ const restaurantTree: BuilderNode[] = [
                     minHeight: "320px",
                   },
                 },
-                children: [],
+                children: [
+                  {
+                    // The designed absence (CEO + Creative Director, 2026-09-05):
+                    // charcoal ground with the tenant's own name set in the display
+                    // face, never a label that says "photo" and never a stranger's
+                    // face. The personaliser writes the name; the owner's photo
+                    // replaces this node when it arrives.
+                    id: "restaurant-story-photo-slot-name",
+                    kind: "heading",
+                    props: {
+                      text: "{{business.name}}",
+                      level: 2,
+                      style: {
+                        align: "center",
+                        size: "lg",
+                        fontFamily: PLAYFAIR,
+                        lineHeight: "1.1",
+                        letterSpacing: "0.02em",
+                        textColor: CREAM,
+                        textWrap: "balance",
+                        paddingTop: "40px",
+                        paddingRight: "24px",
+                        paddingBottom: "40px",
+                        paddingLeft: "24px",
+                      },
+                    },
+                  },
+                ],
               },
             ],
           },
