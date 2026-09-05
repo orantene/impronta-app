@@ -199,3 +199,27 @@ export function newTierRow(
   if (max !== null && (!Number.isInteger(max) || max < 1)) return { ok: false, reason: "bad_max" };
   return { ok: true, label, amountCents: input.amountCents, admitsPerUnit: admits, poolKey, maxPerOrder: max, isHidden: Boolean(input.isHidden) };
 }
+
+/**
+ * Turn Capacity's refusal into the sentence an operator can act on.
+ *
+ * `upsert_capacity_pool` refuses a shrink below what is already sold with
+ * SQLSTATE `CP015`, message `capacity_floor_violated`, and DETAIL = the floor
+ * as an integer (#1769). The number is the only thing that tells someone what
+ * to type instead, so it is the sentence. The floor is a PEAK across windows,
+ * not a sum — the same function Capacity checks against, never re-derived.
+ */
+export function explainPoolRefusal(
+  err: { code?: string | null; details?: string | null; message?: string | null } | null | undefined,
+  attempted: number,
+): string {
+  const code = err?.code ?? "";
+  if (code === "CP015") {
+    const floor = Number.parseInt(String(err?.details ?? ""), 10);
+    return Number.isFinite(floor)
+      ? `${attempted} is below the ${floor} already sold for this night. Enter ${floor} or more.`
+      : "That is below what is already sold for this night.";
+  }
+  if (code === "CP004") return "This pool is suspended; it takes no new seats until it is reactivated.";
+  return "Could not save the seats for this night.";
+}

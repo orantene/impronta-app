@@ -9,6 +9,7 @@ import {
   tierPoolRequests,
   type Tier,
   newTierRow,
+  explainPoolRefusal,
 } from "./tiers";
 
 const SESSION = {
@@ -163,4 +164,14 @@ test("a new tier refuses a blank label, a negative price, or a nonsense party si
   assert.deepEqual(newTierRow({ label: "GA", amountCents: -1 }), { ok: false, reason: "bad_amount" });
   assert.deepEqual(newTierRow({ label: "VIP", amountCents: 1, admitsPerUnit: 0 }), { ok: false, reason: "bad_admits" });
   assert.deepEqual(newTierRow({ label: "VIP", amountCents: 1, maxPerOrder: 0 }), { ok: false, reason: "bad_max" });
+});
+
+test("a refused shrink names the floor Capacity returned, never a number computed here", () => {
+  assert.equal(
+    explainPoolRefusal({ code: "CP015", details: "60", message: "capacity_floor_violated" }, 40),
+    "40 is below the 60 already sold for this night. Enter 60 or more.",
+  );
+  assert.equal(explainPoolRefusal({ code: "CP015", details: null }, 40), "That is below what is already sold for this night.");
+  assert.equal(explainPoolRefusal({ code: "CP004" }, 40), "This pool is suspended; it takes no new seats until it is reactivated.");
+  assert.equal(explainPoolRefusal({ code: "XX000", message: "boom" }, 40), "Could not save the seats for this night.");
 });
