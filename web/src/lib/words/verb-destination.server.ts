@@ -40,23 +40,6 @@ import { VERB_BLOCK_KINDS, pageCarriesBlock } from "./verb-destination";
 
 type PageRow = { slug: string; locale: string | null; blocks: unknown };
 
-/** Does this page carry one of these blocks anywhere in its tree? */
-function pageCarriesBlock(blocks: unknown, kinds: readonly string[]): boolean {
-  if (!blocks) return false;
-  let json: string;
-  try {
-    json = JSON.stringify(blocks);
-  } catch {
-    // A blob that will not serialise cannot be searched. Treat it as "no", so a
-    // malformed page can never make the header point somewhere unproven.
-    return false;
-  }
-  // Matched on the serialised `kind` field rather than the bare name, so a page
-  // whose prose happens to contain the word does not masquerade as a booking
-  // page. JSON.stringify emits no whitespace, so the compact form is exact.
-  return kinds.some((kind) => json.includes(`"kind":"${kind}"`));
-}
-
 function loadVerbSlug(tenantId: string, verb: string): Promise<string | null> {
   const kinds = VERB_BLOCK_KINDS[verb];
   if (!tenantId || !kinds || kinds.length === 0) return Promise.resolve(null);
