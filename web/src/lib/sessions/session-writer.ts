@@ -64,9 +64,16 @@ export type SessionRowInput = {
  * type was wrong: a discriminant that is itself a union does not discriminate.
  */
 export type CreateSessionResult =
-  | { ok: true; sessionId: string; poolsCreated: number }
+  /**
+   * `created` distinguishes "I made this" from "this already existed".
+   *
+   * A repeat is NOT a failure — a double-clicked button and a nightly re-run are
+   * both ordinary — so it returns ok with the EXISTING session's id and
+   * `created: false`. Callers that count creations read `created`; callers that
+   * just need the session read `sessionId` and do not care which call made it.
+   */
+  | { ok: true; sessionId: string; poolsCreated: number; created: boolean }
   | { ok: false; reason: "insert_failed" }
-  | { ok: false; reason: "duplicate_occurrence" }
   | { ok: false; reason: "pools_failed"; sessionId: string; poolsCreated: number };
 
 /**
@@ -96,38 +103,93 @@ export async function createSessionWithPools(
 ): Promise<CreateSessionResult> {
   const { data: inserted, error: insertError } = await admin
     .from("sessions")
-    .upsert(
-      {
-        tenant_id: session.tenantId,
-        series_id: session.seriesId ?? null,
-        venue_id: session.venueId ?? null,
-        offering_id: session.offeringId ?? null,
-        event_id: session.eventId ?? null,
-        title: session.title ?? null,
-        starts_at: session.startsAt,
-        ends_at: session.endsAt,
-        status: "scheduled",
-      },
-      { onConflict: "series_id,starts_at", ignoreDuplicates: true },
-    )
+    .insert({
+      tenant_id: session.tenantId,
+      series_id: session.seriesId ?? null,
+      venue_id: session.venueId ?? null,
+      offering_id: session.offeringId ?? null,
+      event_id: session.eventId ?? null,
+      title: session.title ?? null,
+      starts_at: session.startsAt,
+      ends_at: session.endsAt,
+      status: "scheduled",
+    })
     .select("id")
     .maybeSingle();
 
   if (insertError) {
+    // 23505 is a unique violation: this night already exists, on one of the two
+    // indexes. Plain INSERT rather than an upsert precisely so BOTH are caught
+    // — `ON CONFLICT` names ONE index, and the event key and the series key are
+    // different indexes. An upsert naming the series key let every duplicate
+    // event night through, which is the defect this replaces.
+    if (insertError.code === "23505") {
+      const existingId = await findExistingSession(admin, session);
+      if (existingId) {
+        // Fill in any pool the first attempt failed to create. Additive only:
+        // `ensureSessionPools` never re-asserts an existing pool, so a repeat
+        // cannot reset a seat count somebody raised or that has seats sold.
+        const repaired = await ensureSessionPools(
+          admin,
+          session.tenantId,
+          existingId,
+          pools,
+        );
+        return {
+          ok: true,
+          sessionId: existingId,
+          poolsCreated: repaired.created.length,
+          created: false,
+        };
+      }
+      // The row conflicts but cannot be found: another tenant's, or a race that
+      // deleted it. Not an admittance to invent an id for.
+      return { ok: false, reason: "insert_failed" };
+    }
     logServerError("sessions.createSessionWithPools.insert", insertError);
     return { ok: false, reason: "insert_failed" };
   }
-  // `ignoreDuplicates` returns no row when the occurrence already existed. For
-  // the cron that is the normal second-run path; for a human it means somebody
-  // already scheduled this series at this instant. Distinct from an error.
-  if (!inserted?.id) return { ok: false, reason: "duplicate_occurrence" };
+  if (!inserted?.id) return { ok: false, reason: "insert_failed" };
 
   const sessionId = String(inserted.id);
   const poolsCreated = await createPools(admin, session.tenantId, sessionId, pools);
   if (poolsCreated < pools.length) {
     return { ok: false, reason: "pools_failed", sessionId, poolsCreated };
   }
-  return { ok: true, sessionId, poolsCreated };
+  return { ok: true, sessionId, poolsCreated, created: true };
+}
+
+/**
+ * The session a unique violation collided with, looked up on the SAME keys the
+ * indexes use — the event night key when there is an event, the series
+ * occurrence key otherwise. Tenant-scoped, so a collision with another
+ * workspace's row (impossible today, cheap to guarantee) can never be returned.
+ */
+async function findExistingSession(
+  admin: Admin,
+  session: SessionRowInput,
+): Promise<string | null> {
+  let query = admin
+    .from("sessions")
+    .select("id")
+    .eq("tenant_id", session.tenantId)
+    .eq("starts_at", session.startsAt);
+
+  if (session.eventId) {
+    query = query.eq("event_id", session.eventId);
+    query = session.venueId ? query.eq("venue_id", session.venueId) : query.is("venue_id", null);
+  } else if (session.seriesId) {
+    query = query.eq("series_id", session.seriesId);
+  } else {
+    return null;
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    logServerError("sessions.findExistingSession", error);
+    return null;
+  }
+  return data?.id ? String(data.id) : null;
 }
 
 /**

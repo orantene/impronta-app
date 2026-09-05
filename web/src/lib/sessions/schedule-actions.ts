@@ -339,7 +339,7 @@ export type ScheduleSessionInput = {
 };
 
 export type ScheduleSessionResult =
-  | { ok: true; sessionId: string; poolsCreated: number }
+  | { ok: true; sessionId: string; poolsCreated: number; created: boolean }
   | { ok: false; message: string };
 
 /**
@@ -495,9 +495,6 @@ export async function scheduleSession(
     );
 
     if (!result.ok) {
-      if (result.reason === "duplicate_occurrence") {
-        return { ok: false, message: "A session already exists at that time." };
-      }
       if (result.reason === "insert_failed") {
         return { ok: false, message: "Could not create the session." };
       }
@@ -517,7 +514,15 @@ export async function scheduleSession(
       pools: result.poolsCreated,
     });
 
-    return { ok: true, sessionId: result.sessionId, poolsCreated: result.poolsCreated };
+    // A repeat returns the SAME session rather than a second one. Reported as
+    // success on purpose: an operator who double-clicked has the night they
+    // wanted, and telling them it failed invites them to click again.
+    return {
+      ok: true,
+      sessionId: result.sessionId,
+      poolsCreated: result.poolsCreated,
+      created: result.created,
+    };
   } catch (err) {
     logServerError("sessions.scheduleSession", err);
     return { ok: false, message: "Could not create the session." };
