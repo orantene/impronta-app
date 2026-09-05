@@ -191,3 +191,56 @@ export function doorCounts(
     noShows,
   };
 }
+
+export type DoorPaidVia = "cash" | "card_terminal" | "other";
+
+export type DoorTakings = {
+  /** Cents actually taken at the door, by method. Comps are 0 and count in `pricedWalkUps`. */
+  byMethod: Record<DoorPaidVia, number>;
+  totalCents: number;
+  pricedWalkUps: number;
+  /**
+   * Door-sold admissions with NO recorded amount. Counted, never summed:
+   * absence must be visible as its own line, not hidden inside the total.
+   * The door-sale action always records both fields, so this is normally 0;
+   * a non-zero here is a row that arrived some other way.
+   */
+  unpricedWalkUps: number;
+};
+
+/**
+ * What the door took tonight. Sums ONLY rows that recorded a method — the
+ * `admissions_door_money_paired` CHECK guarantees amount and method arrive
+ * together, so "has a method" is the same fact as "has an amount".
+ * Order-backed admissions never carry door money (their money is on the
+ * order) and are not walk-ups, so they never appear here.
+ */
+export function doorTakings(
+  admissions: ReadonlyArray<{
+    walkUp: boolean;
+    status: "valid" | "void" | "refunded";
+    doorAmountCents: number | null;
+    doorPaidVia: DoorPaidVia | null;
+  }>,
+): DoorTakings {
+  const byMethod: Record<DoorPaidVia, number> = { cash: 0, card_terminal: 0, other: 0 };
+  let pricedWalkUps = 0;
+  let unpricedWalkUps = 0;
+  for (const a of admissions) {
+    if (!a.walkUp) continue;
+    // A voided door sale is money handed back at the door; it is not takings.
+    if (a.status !== "valid") continue;
+    if (a.doorPaidVia === null || a.doorAmountCents === null) {
+      unpricedWalkUps += 1;
+      continue;
+    }
+    byMethod[a.doorPaidVia] += Math.max(0, a.doorAmountCents);
+    pricedWalkUps += 1;
+  }
+  return {
+    byMethod,
+    totalCents: byMethod.cash + byMethod.card_terminal + byMethod.other,
+    pricedWalkUps,
+    unpricedWalkUps,
+  };
+}
