@@ -778,6 +778,44 @@ editor path. And `dataTenantId = previewSubject?.id ?? tenantId`, so a self-fetc
 **previewed** tenant in preview — correct for a picker, and wrong for a door, which would ask about a
 venue it is not standing in.
 
+## 6a-ii. PARTIAL REFUNDS: RULED — one allocation per admission, no new primitive
+
+`release_capacity(uuid[])` is **whole-allocation only**. Today `createPurchase` reserves one allocation
+of N units per line and mint-on-paid points all N admissions at it, so refunding two of four has two
+wrong answers: release the allocation and **oversell by exactly the tickets kept** (found at a door), or
+keep it and **lose the resale** (visible). **0.8b keeps and says so** — `partial_refund_cannot_release_units`
+is a named return in Orders' plan, not a silent omission. Full-line refunds are correct today.
+
+**Capacity RULED against the primitive I leaned toward, and they were right.** A `release_capacity_units(alloc, n)`
+decrement releases a *quantity*, not an *identity*: a retried webhook or a double-clicked refund calls it
+twice and frees seats still in someone's pocket — the exact `release_offering_stock` shape Capacity dropped
+in #1661. It also turns `units` into a mutable counter and gives back the engine's load-bearing invariant:
+remaining is *derived from rows*, so a double release is **structurally unable** to inflate availability.
+And I had just built mint-on-settle to be idempotent on retry, then proposed a release that a retry would
+double-apply.
+
+**Ruling: mint one allocation per admission.** Refund of one admission is `release_capacity(ARRAY[id])`,
+already idempotent by identity (`released_at` makes the second call a no-op). **Verified on production,
+rolled back, at Capacity's request rather than on their word:**
+
+```
+A: 4 single-unit requests vs 3 seats -> refused sold_out, rows_written=0   (atomic)
+B: 3 single-unit requests vs 3 seats -> 3 rows, 3 distinct ids returned    (no coalescing)
+C: release one id TWICE              -> live=2                             (identity release idempotent)
+```
+
+The batch loops per request under the ordered lock, one exception handler over the whole block. No bug.
+
+**Who changes what:** reserve shape in `createPurchase` (one allocation per unit) is **Orders'**; my
+mint-on-paid then takes each admission's own allocation instead of the line's first — the plan already
+carries `allocationId` per row, so it is the lookup that changes. Nothing before the reserve change lands.
+
+**Refund-by-line contract, given to Orders and built:** join is `admissions.order_line_id` only —
+`line_seq` is a retry key, not a foreign key. Never stamp an admission with `admitted_count > 0` (a
+dispute). Highest `line_seq` first among the unadmitted, so a named holder's first ticket survives.
+Refund-by-admission-id is the primitive. **The stamp goes on and comes off in ONE place**, or the door
+lies in the reverse direction — Orders is building the un-stamp beside the stamp with one guard.
+
 ## 6b. Where this area actually stands, 2026-09-04
 
 **Everything buildable without another department's file is built.** Eight of ten slices have shipped
