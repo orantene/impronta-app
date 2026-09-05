@@ -494,13 +494,13 @@ export async function scheduleSession(
       plan.pools,
     );
 
-    if (!result.ok && result.reason === "duplicate_occurrence") {
-      return { ok: false, message: "A session already exists at that time." };
-    }
-    if (!result.ok && result.reason === "insert_failed") {
-      return { ok: false, message: "Could not create the session." };
-    }
     if (!result.ok) {
+      if (result.reason === "duplicate_occurrence") {
+        return { ok: false, message: "A session already exists at that time." };
+      }
+      if (result.reason === "insert_failed") {
+        return { ok: false, message: "Could not create the session." };
+      }
       // The session exists but not all of its pools do. Said plainly, with the
       // count, because a tier with no pool is unsellable for this night and
       // silence here is exactly the failure the plan refuses to create.

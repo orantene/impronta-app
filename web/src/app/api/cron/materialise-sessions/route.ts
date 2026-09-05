@@ -273,14 +273,13 @@ export async function GET(request: Request) {
         );
 
         // A duplicate is the normal second-run path, not a failure.
-        if (!result.ok && result.reason === "duplicate_occurrence") continue;
-        if (!result.ok && result.reason === "insert_failed") continue;
+        if (!result.ok && result.reason !== "pools_failed") continue;
 
         created += 1;
         // `pools_failed` still created the session, and its unmade pool is left
         // for the next sweep's backfill rather than retried here: hammering a
         // failing RPC inside a loop is how one bad row stalls a whole run.
-        poolsCreated += result.ok ? result.poolsCreated : result.poolsCreated;
+        poolsCreated += result.poolsCreated;
       }
 
       // The repair path, exercised every run. `ensureSessionPools` creates

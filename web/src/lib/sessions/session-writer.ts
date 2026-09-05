@@ -34,9 +34,8 @@
  * session and never re-asserts it. Same rule, now enforced in one place.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { logServerError } from "@/lib/server/safe-error";
+import type { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TierUnits } from "@/lib/sessions/session-plan";
 
 /** Capacity's defaults for a session tier pool. One definition, not four. */
@@ -59,7 +58,15 @@ export type CreateSessionResult =
   | { ok: false; reason: "insert_failed" | "duplicate_occurrence" }
   | { ok: false; reason: "pools_failed"; sessionId: string; poolsCreated: number };
 
-type Admin = SupabaseClient<never, never, never>;
+/**
+ * Exactly the client the callers hold, derived rather than restated.
+ *
+ * This was `SupabaseClient<never, never, never>` and it typechecked in
+ * isolation while making every row `never` at the call sites: ten errors, none
+ * of them in this file's own logic. Deriving it from `createServiceRoleClient`
+ * means the alias cannot drift from what is actually passed in.
+ */
+type Admin = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 
 /**
  * Create one session and the capacity pool for each tier of it.
