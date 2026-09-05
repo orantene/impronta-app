@@ -24,10 +24,13 @@
  * oversells a room and finds out at a door.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
 import {
+  addTier,
+  createEvent,
   loadWorkspaceEvents,
+  setEventStatus,
   type EventListRow,
   type EventTierRow,
 } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
@@ -137,6 +140,101 @@ function TierRow({ tier }: { tier: EventTierRow }) {
   );
 }
 
+/** Create a DRAFT event. The only caller of `createEvent`. */
+function NewEventForm({ onCreated }: { onCreated: (eventId: string) => void }) {
+  const [title, setTitle] = useState("");
+  const [doors, setDoors] = useState("0");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  return (
+    <form
+      className="flex max-w-[560px] flex-col gap-[8px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        start(async () => {
+          const res = await createEvent({
+            title,
+            doorsOffsetMinutes: Math.max(0, Math.round(Number(doors) || 0)),
+          });
+          if (!res.ok) { setError(res.error); return; }
+          setTitle("");
+          setDoors("0");
+          onCreated(res.eventId);
+        });
+      }}
+    >
+      <div className="text-[13.5px] font-semibold text-admin-ink">New event</div>
+      <label className="text-[12px] text-admin-ink-muted" htmlFor="ev-title">Title</label>
+      <input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} maxLength={200}
+        className="rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] text-[13.5px] text-admin-ink" placeholder="Noche de salsa" />
+      <label className="text-[12px] text-admin-ink-muted" htmlFor="ev-doors">Doors open (minutes before the session)</label>
+      <input id="ev-doors" inputMode="numeric" value={doors} onChange={(e) => setDoors(e.target.value)} disabled={busy}
+        className="w-[120px] rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] font-mono text-[13px] text-admin-ink" />
+      <p className="text-[12px] text-admin-ink-muted">Created as a draft. It is not public until you publish it, and nothing sells until a night is scheduled with capacity.</p>
+      <div>
+        <button type="submit" disabled={busy || title.trim().length === 0}
+          className="rounded-admin-sm bg-admin-accent px-[12px] py-[7px] text-[12.5px] font-semibold text-white disabled:opacity-60">
+          {busy ? "Creating…" : "Create draft"}
+        </button>
+      </div>
+      {error ? <p className="text-[12px] text-admin-critical">{error}</p> : null}
+    </form>
+  );
+}
+
+/** Add a paid tier. The only caller of `addTier`. */
+function TierForm({ eventId, onAdded }: { eventId: string; onAdded: () => void }) {
+  const [label, setLabel] = useState("");
+  const [price, setPrice] = useState("");
+  const [admits, setAdmits] = useState("1");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  return (
+    <form
+      className="mt-[12px] flex max-w-[560px] flex-col gap-[8px] rounded-[10px] border border-admin-border-soft p-[12px]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        const amountCents = Math.round(Number(price.replace(",", ".")) * 100);
+        start(async () => {
+          const res = await addTier({
+            eventId,
+            label,
+            amountCents,
+            admitsPerUnit: Math.max(1, Math.round(Number(admits) || 1)),
+          });
+          if (!res.ok) { setError(res.error); return; }
+          setLabel(""); setPrice(""); setAdmits("1");
+          onAdded();
+        });
+      }}
+    >
+      <div className="text-[13px] font-semibold text-admin-ink">Add a tier</div>
+      <div className="flex flex-wrap gap-[8px]">
+        <input aria-label="Tier name" value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} maxLength={80} placeholder="General admission"
+          className="min-w-[180px] flex-1 rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] text-[13.5px] text-admin-ink" />
+        <input aria-label="Price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} disabled={busy} placeholder="Price"
+          className="w-[110px] rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] font-mono text-[13px] text-admin-ink" />
+        <input aria-label="Admits per ticket" inputMode="numeric" value={admits} onChange={(e) => setAdmits(e.target.value)} disabled={busy}
+          className="w-[80px] rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] font-mono text-[13px] text-admin-ink" />
+        <button type="submit" disabled={busy || label.trim().length === 0 || price.trim().length === 0}
+          className="rounded-admin-sm bg-admin-accent px-[12px] py-[7px] text-[12.5px] font-semibold text-white disabled:opacity-60">
+          {busy ? "Adding…" : "Add"}
+        </button>
+      </div>
+      <p className="text-[12px] text-admin-ink-muted">A tier has no seat count: seats per night are set when a session is scheduled. Admits per ticket is for a table or a pass, for example a VIP table for 6.</p>
+      {error ? <p className="text-[12px] text-admin-critical">{error}</p> : null}
+    </form>
+  );
+}
+
+/** The SPA lives at /<tenantSlug>/admin/…; the door is a real route beside it. */
+function tenantSlugFromPath(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.split("/").filter(Boolean)[0] ?? "";
+}
+
 export function EventsPage() {
   const [state, setState] = useState<
     | { kind: "loading" }
@@ -145,6 +243,8 @@ export function EventsPage() {
   >({ kind: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("details");
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusBusy, startStatus] = useTransition();
 
   const load = useCallback(() => {
     setState({ kind: "loading" });
@@ -195,14 +295,10 @@ export function EventsPage() {
     return (
       <>
         {header}
-        <div className="max-w-[560px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[24px]">
-          <div className="text-[15px] font-semibold text-admin-ink">No events yet</div>
-          <p className="mt-[8px] text-[13.5px] leading-[1.5] text-admin-ink-muted">
-            An event is a night you sell: one or more sessions, ticket tiers, and a
-            lineup. Nothing here creates one yet — the engine is live and the
-            create flow is the next slice.
-          </p>
+        <div className="mb-[12px] max-w-[560px] text-[13.5px] leading-[1.5] text-admin-ink-muted">
+          An event is a night you sell: one or more sessions, ticket tiers, and a lineup. Start with a title.
         </div>
+        <NewEventForm onCreated={(id) => { setSelectedId(id); load(); }} />
       </>
     );
   }
@@ -214,6 +310,8 @@ export function EventsPage() {
       {header}
       <div className="flex flex-col gap-[16px] lg:flex-row">
         {/* The list */}
+        <div className="lg:w-[280px] lg:shrink-0">
+          <NewEventForm onCreated={(id) => { setSelectedId(id); setTab("tickets"); load(); }} />
         <nav className="w-full shrink-0 lg:w-[280px]" aria-label="Events">
           <ul className="flex flex-col gap-[4px]">
             {events.map((e) => {
@@ -244,6 +342,7 @@ export function EventsPage() {
             })}
           </ul>
         </nav>
+        </div>
 
         {/* The selected event */}
         <section className="min-w-0 flex-1">
@@ -295,15 +394,43 @@ export function EventsPage() {
                 <dt className="text-admin-ink-muted">Payout</dt>
                 <dd className="text-admin-ink">{selected.payoutReleaseRule.replace(/_/g, " ")}</dd>
                 <dt className="text-admin-ink-muted">Public address</dt>
-                <dd className="text-admin-ink-muted">/events/{selected.slug} — not live yet</dd>
+                <dd className="text-admin-ink-muted">
+                  /events/{selected.slug}
+                  {selected.status === "published" ? " (live)" : selected.status === "cancelled" ? " (cancelled)" : " (draft, not public)"}
+                </dd>
               </dl>
+            ) : null}
+            {tab === "details" && selected ? (
+              <div className="mt-[16px] flex max-w-[560px] flex-wrap items-center gap-[8px]">
+                {selected.status === "draft" ? (
+                  <button type="button" disabled={statusBusy}
+                    onClick={() => { setStatusError(null); startStatus(async () => { const r = await setEventStatus({ eventId: selected.id, to: "published" }); if (!r.ok) setStatusError(r.error); else load(); }); }}
+                    className="rounded-admin-sm bg-admin-accent px-[12px] py-[7px] text-[12.5px] font-semibold text-white disabled:opacity-60">
+                    {statusBusy ? "Publishing…" : "Publish"}
+                  </button>
+                ) : null}
+                {selected.status === "published" ? (
+                  <button type="button" disabled={statusBusy}
+                    onClick={() => { if (!window.confirm("Cancel this event? Its page stays up and says it is cancelled. Tickets already sold are refunded by their own rules.")) return; setStatusError(null); startStatus(async () => { const r = await setEventStatus({ eventId: selected.id, to: "cancelled" }); if (!r.ok) setStatusError(r.error); else load(); }); }}
+                    className="rounded-admin-sm border border-admin-border px-[12px] py-[7px] text-[12.5px] font-semibold text-admin-ink disabled:opacity-60">
+                    Cancel event
+                  </button>
+                ) : null}
+                {selected.status === "published" && selected.sessionCount === 0 ? (
+                  <span className="text-[12.5px] text-admin-critical">Published, but no night of it is on sale yet: schedule a session with seats per tier.</span>
+                ) : null}
+                {selected.status === "published" && selected.tiers.length === 0 ? (
+                  <span className="text-[12.5px] text-admin-critical">Published with no ticket tier: nobody can buy anything. Add a tier under Tickets.</span>
+                ) : null}
+                {statusError ? <span className="text-[12px] text-admin-critical">{statusError}</span> : null}
+              </div>
             ) : null}
 
             {tab === "sessions" && selected ? (
               selected.sessionCount === 0 ? (
                 <NotBuiltYet
-                  what="No sessions on this event"
-                  waitingOn="A session is one occurrence — the night people buy a ticket to. Sessions exist in the engine and the editor for them is a later slice."
+                  what={selected.status === "published" ? "This event is public and no night of it is on sale" : "No night scheduled yet"}
+                  waitingOn="A session is one night people buy a ticket to, with seats per tier for that night. Schedule one from the Sessions surface and pick this event; until then the public page shows the event with nothing to buy."
                 />
               ) : (
                 <p className="text-[13.5px] text-admin-ink">
@@ -324,18 +451,21 @@ export function EventsPage() {
             ) : null}
 
             {tab === "tickets" && selected ? (
-              selected.tiers.length === 0 ? (
-                <NotBuiltYet
-                  what="No ticket tiers yet"
-                  waitingOn="A tier is a catalog variant carrying a price and a stable key. The key is what binds it to its capacity, which is why renaming a tier never detaches the seats already sold."
-                />
-              ) : (
-                <div className="max-w-[560px]">
-                  {selected.tiers.map((tier) => (
-                    <TierRow key={tier.id} tier={tier} />
-                  ))}
-                </div>
-              )
+              <div>
+                {selected.tiers.length === 0 ? (
+                  <NotBuiltYet
+                    what="No ticket tiers yet"
+                    waitingOn="A tier is a catalog variant carrying a price and a stable key. The key is what binds it to its capacity, which is why renaming a tier never detaches the seats already sold."
+                  />
+                ) : (
+                  <div className="max-w-[560px]">
+                    {selected.tiers.map((tier) => (
+                      <TierRow key={tier.id} tier={tier} />
+                    ))}
+                  </div>
+                )}
+                {selected.status !== "cancelled" ? <TierForm eventId={selected.id} onAdded={load} /> : null}
+              </div>
             ) : null}
 
             {tab === "seating" ? (
@@ -360,10 +490,23 @@ export function EventsPage() {
             ) : null}
 
             {tab === "door" ? (
-              <NotBuiltYet
-                what="The door app is not reachable yet"
-                waitingOn="Check-in works in the engine — one scan admits a whole table, a second scan is refused, and a refunded ticket is refused with the reason. What is missing is the public route the scanner lives on."
-              />
+              selected.sessions.length === 0 ? (
+                <NotBuiltYet
+                  what="No night to open a door for"
+                  waitingOn="The door is per session. Schedule a night for this event and its door link appears here."
+                />
+              ) : (
+                <ul className="max-w-[560px] divide-y divide-admin-border-soft text-[13.5px]">
+                  {selected.sessions.map((sn) => (
+                    <li key={sn.id} className="flex items-center justify-between gap-[12px] py-[10px]">
+                      <span className="text-admin-ink">{whenLabel(sn.startsAt, selected.timeZone)}</span>
+                      <a href={`/${tenantSlugFromPath()}/admin/events/door?session=${sn.id}`} className="rounded-admin-sm border border-admin-border px-[10px] py-[6px] text-[12.5px] font-semibold text-admin-ink">
+                        Open the door
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )
             ) : null}
           </div>
         </section>
