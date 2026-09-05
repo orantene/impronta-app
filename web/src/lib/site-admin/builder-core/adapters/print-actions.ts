@@ -1,15 +1,16 @@
-import "server-only";
+"use server";
 
 /**
- * The DB seam for the print surface adapter — load/save a `print_designs` row.
- * Injected into `createPrintAdapter` so the adapter itself stays testable with a
- * spy. Server-only: uses the service-role client, gated by
- * `requireWorkspaceStaffAction` (tenant resolved from the workspace SURFACE, no
- * id in the signature) so a caller can only touch their own tenant's designs.
+ * Server actions for the print surface — load/save a `print_designs` row.
+ * "use server" (not import "server-only") because the CLIENT mount's bound
+ * adapter (`createBoundPrintAdapter`) calls these across the RSC boundary,
+ * exactly as site-shell-actions.ts is called by createBoundSiteShellAdapter.
  *
- * Version is optimistic-concurrency: `savePrintDesign` writes only when the
- * row's `version` still equals the caller's `expectedVersion`, then advances it,
- * so a second tab gets an honest "changed elsewhere" instead of a silent clobber.
+ * Gated by `requireWorkspaceStaffAction` — tenant resolved from the workspace
+ * SURFACE, no id in the signature — so a caller can only touch their own
+ * tenant's designs. Version is optimistic-concurrency: the save writes only when
+ * the row's `version` still equals the caller's expected value, then advances
+ * it, so a second tab gets an honest "changed elsewhere" instead of a clobber.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -18,14 +19,13 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import type {
-  PrintAdapterActions,
   PrintDesignRow,
   PrintDesignSaveOutcome,
 } from "./print-adapter-core";
 
 const EDIT_PRINT_CAPABILITY = "agency.site_admin.pages.edit" as const;
 
-async function loadPrintDesign(input: {
+export async function loadPrintDesignAction(input: {
   pageId: string;
 }): Promise<PrintDesignRow | null> {
   const guard = await requireWorkspaceStaffAction({
@@ -43,7 +43,7 @@ async function loadPrintDesign(input: {
     .maybeSingle();
 
   if (error) {
-    logServerError("print-actions:loadPrintDesign", error);
+    logServerError("print-actions:loadPrintDesignAction", error);
     return null;
   }
   if (!data) return null;
@@ -56,7 +56,7 @@ async function loadPrintDesign(input: {
   };
 }
 
-async function savePrintDesign(input: {
+export async function savePrintDesignAction(input: {
   pageId: string;
   builderTree: BuilderNodeTree;
   expectedVersion: number;
@@ -83,7 +83,7 @@ async function savePrintDesign(input: {
     .maybeSingle();
 
   if (error) {
-    logServerError("print-actions:savePrintDesign", error);
+    logServerError("print-actions:savePrintDesignAction", error);
     return { ok: false, error: "Could not save this print design." };
   }
   // No row updated ⇒ the version moved (another tab) or the design is gone.
@@ -95,9 +95,3 @@ async function savePrintDesign(input: {
   }
   return { ok: true, version: nextVersion };
 }
-
-/** The production action surface bound into the print adapter. */
-export const printAdapterActions: PrintAdapterActions = {
-  loadPrintDesign,
-  savePrintDesign,
-};

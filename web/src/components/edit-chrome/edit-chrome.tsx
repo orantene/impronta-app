@@ -62,10 +62,12 @@ import {
   buildHomepageBuilderConfig,
   buildCmsPageBuilderConfig,
   buildSiteShellBuilderConfig,
+  buildPrintBuilderConfig,
 } from "@/lib/site-admin/builder-core/config";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
 import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/site-shell-adapter";
+import { createBoundPrintAdapter } from "@/lib/site-admin/builder-core/adapters/print-adapter";
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
@@ -132,6 +134,15 @@ interface EditChromeProps {
    * is byte-identical.
    */
   siteShellMode?: boolean;
+  /**
+   * Piece B slice 1 — when true, the editor is mounted on the `print` SURFACE:
+   * a fixed-size print artboard persisted to `print_designs`, with page chrome
+   * suppressed via the print config's capabilities (responsiveBreakpoints:false,
+   * etc.). Set by slice 1b's "Design a print card" door; false everywhere else,
+   * so the machinery is inert until that door lands. Takes precedence over the
+   * other modes — a print artboard is neither a page nor the shell.
+   */
+  printMode?: boolean;
 }
 
 export function EditChrome({
@@ -148,6 +159,7 @@ export function EditChrome({
   canInsertRawHtmlElements = false,
   freeformPageMode = false,
   siteShellMode = false,
+  printMode = false,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -182,7 +194,13 @@ export function EditChrome({
   // storefront surface contract visible and threads the resolved raw-HTML gate.
   const surfaceConfig = useMemo(
     () =>
-      siteShellMode
+      printMode
+        ? // Piece B slice 1 — the print SURFACE: a fixed-size artboard persisted
+          // to print_designs via the print adapter (never cms_pages). Chrome is
+          // suppressed through the print config's capabilities. Reachable only
+          // once slice 1b's door sets printMode; false by default here.
+          buildPrintBuilderConfig(createBoundPrintAdapter())
+        : siteShellMode
         ? // WS-A A2 — the site_shell SURFACE: edit the shared header/footer as a
           // freeform tree persisted to the shell row's cms_pages.blocks (never
           // cms_page_sections), published via site-shell-publish. The adapter is
@@ -200,7 +218,7 @@ export function EditChrome({
             })
           : // Homepage + system + slot pages: byte-identical homepage path.
             buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
-    [canInsertRawHtmlElements, freeformPageMode, siteShellMode, locale],
+    [canInsertRawHtmlElements, freeformPageMode, siteShellMode, printMode, locale],
   );
 
   // Sprint 3 — iframe-child mode. The parent editor mounts an <iframe>
