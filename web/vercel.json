@@ -235,7 +235,7 @@
     },
     {
       "path": "/api/cron/warm-front-door",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/2 * * * *"
     }
   ]
 }

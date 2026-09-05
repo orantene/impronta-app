@@ -26,9 +26,14 @@ test("the warmer is actually scheduled", () => {
   assert.ok(entry, "route exists but no cron calls it, so nothing is ever warmed");
   assert.match(entry.schedule, /^\*\/\d+ /, `expected a minute interval, got "${entry.schedule}"`);
   const minutes = Number(entry.schedule.split(" ")[0].replace("*/", ""));
+  // Measured, not assumed. At a 5 minute interval the warmer's own logs showed
+  // /support answering in 3450, 3160, 2421 and 2344 ms across nine consecutive
+  // pings: the function goes cold INSIDE five minutes, so a visitor arriving
+  // between pings still found it cold. Four of nine pings were absorbing a cold
+  // start rather than preventing one.
   assert.ok(
-    minutes <= 10,
-    `warming every ${minutes} min is slower than a function stays warm; the visitor still pays the cold start`,
+    minutes <= 3,
+    `warming every ${minutes} min leaves a gap the function goes cold in; production showed cold starts at a 5 min interval`,
   );
 });
 
