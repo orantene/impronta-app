@@ -80,3 +80,46 @@ Every claim above was believed on the same evidence: green unit tests over an em
 scheduler is the proof that this evidence class can be **uniformly wrong** — not flaky, not
 edge-case, simply never executed against a database. An empty table is the least informative
 observation available: it is equally consistent with "works and unused" and "has never once run".
+
+## Item 1 partly discharged, 2026-09-05 — measured, not argued
+
+I ran the proof on the first ordered item rather than scheduling it.
+
+### `reserve_capacity` plans and executes — PROVEN
+
+Called through the real database with a pool id that cannot exist:
+
+```
+reserve_capacity('00000000-…-0001', null, null, 1, null, null, null)
+  → {"ok": false, "reason": "pool_not_found", "blocking_pool_id": null}
+capacity_allocations after: 0
+```
+
+**A structured refusal arising after planning, zero rows written** — the shape #1813 requires. The
+statement planned, the function body executed, reached the pool lookup and refused for a reason of
+its own. This closes the largest part of the doubt: the capacity reserve path is not
+`createSessionWithPools`.
+
+Note what it does *not* prove: that a successful reserve writes a correct allocation. A refusal
+proves the path executes; only a real row proves it works.
+
+### `seatWalkIn`'s admissions insert would plan — checked, weaker than proof
+
+`reservations/store.ts:403` inserts into `admissions` through the **untyped** admin client
+(`createServiceRoleClient(): SupabaseClient | null`, no `<Database>` generic), so a wrong column
+name is invisible to both `tsc` and every unit test — precisely the scheduler's class of defect.
+
+All eight columns it writes exist with compatible types:
+
+```
+tenant_id NOT NULL uuid · allocation_id uuid · order_line_id uuid · space_id uuid
+customer_id uuid · holder_name text · starts_at timestamptz · party_size NOT NULL integer
+```
+
+So the insert would plan. **That is a schema check, not a write proof** — it rules out the specific
+failure that killed the scheduler and nothing more.
+
+### Still open on item 1
+
+The guest table-booking path end to end, and one real allocation created and deleted on a test
+tenant. The refusal proves execution; a row proves correctness, and no row has ever existed.
