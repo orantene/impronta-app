@@ -395,6 +395,22 @@ colour picked. Every customer-facing string in en and es.
   `QRManager` artboard shows it between Analytics and Site) plus
   `WORKSPACE_PAGE_SEGMENTS` and a route file — new SPA pages need both.
 - **Page Builder Director,** via the Director, for Q3.
+- **Appointments** needs ONE read before the Share popover can be mounted on a service or a
+  talent, and it does not exist yet. `findActiveLinkByCode` needs the code you are looking for;
+  `listLinksForTenant` returns only `id, code, name, kind, status` — no `context`, no `targets`,
+  no url — so a mount cannot filter by `context.talent_profile_id` nor build the `/q/<code>` url
+  that `ShareLinkPopover` takes as a required prop; `createLink` is minting, which mounts were
+  told not to do. Suggested shape, yours to name and own:
+  `findLinkForSubject({ tenantId, kind, talentProfileId?, offeringId? })` → `{ code, url, name,
+  scans30d } | null`. The model already anticipates it: `LinkKind` has `"appointment"` and
+  `"person"`, and `LinkContext` has `talent_profile_id`. Only the read is missing.
+- **A ruling, from the Director, that is upstream of every mount:** *when does a thing get a
+  link?* On publish, on first share, or never automatically? As of 2026-09-05 `public.links` has
+  **zero rows** and `public.link_scans` has **zero rows**, so until this is answered
+  "look up the link" has no defined answer for any workspace, and a mounted Share control would
+  render for a link that does not exist. Appointments has deliberately NOT mounted for this
+  reason — shipping the helper or the mount now would be code that cannot execute, which is the
+  inert-guard shape this repo already has an incident file about.
 
 ## 5. Migration timestamps claimed (band `20261229000280`–`299`)
 
