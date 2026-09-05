@@ -31,6 +31,8 @@ import {
 } from "@/lib/reservations";
 import type { AvailabilityRefusal } from "@/lib/reservations";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
+import { buildConfirmation } from "@/lib/reservations/confirmation";
+import type { ConfirmationContent } from "@/lib/reservations/confirmation";
 import { capacityRemaining } from "@/lib/capacity/reserve";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -233,6 +235,29 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
   }
 }
 
+/** The confirmation content the page renders; identical to the email's. */
+export type ReserveConfirmation = ConfirmationContent;
+
+/**
+ * One address line, or null.
+ *
+ * Null rather than "" on purpose: `buildConfirmation` OMITS the line when it is
+ * null, and an empty string would render a blank line that looks like a missing
+ * address rather than a venue that has not given one. El Paisa has no street
+ * address yet, so this is the live case, not a hypothetical.
+ */
+function venueAddressLine(v: {
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  region?: string | null;
+}): string | null {
+  const parts = [v.address_line1, v.address_line2, v.city, v.region]
+    .map((x) => (typeof x === "string" ? x.trim() : ""))
+    .filter((x) => x.length > 0);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 // ─── submitting ──────────────────────────────────────────────────────────────
 
 const submitSchema = z.object({
@@ -248,6 +273,13 @@ const submitSchema = z.object({
   /** Per CART, not per click — the idempotency anchor. */
   clientOrderKey: z.string().uuid(),
   sourcePage: z.string().max(300).nullable().optional(),
+  /**
+   * The page's content locale, so the confirmation comes back in the language
+   * the guest just booked in. Optional and defaulted to "en" at the point of
+   * use rather than here: an absent locale is a caller that never set one, and
+   * that is a different thing from a caller that asked for English.
+   */
+  locale: z.string().max(10).optional(),
 });
 
 export type SubmitReservationResult =
@@ -259,6 +291,21 @@ export type SubmitReservationResult =
       collectCents: number;
       /** Present when there is money to collect; the caller takes it to checkout. */
       transactionId: string | null;
+      /**
+       * The SAME confirmation the email sends, built by `buildConfirmation`.
+       *
+       * Not a second wording. A guest reads the page and then the email, and
+       * two surfaces that both look official must not state different
+       * cancellation deadlines or a different hold. The catalog entry already
+       * says the email and the `/r/<code>` receipt must share this function;
+       * the page is the third surface and was the one still writing its own
+       * sentences.
+       *
+       * Null only when the venue's zone will not resolve, which is the same
+       * refusal `buildConfirmation` makes for the email: a confirmation naming
+       * the wrong hour is worse than one that is held.
+       */
+      confirmation: ReserveConfirmation | null;
     }
   | { ok: false; reason: string };
 
@@ -327,12 +374,36 @@ export async function submitReservation(input: unknown): Promise<SubmitReservati
     });
 
     if (!outcome.ok) return { ok: false, reason: outcome.reason };
+
+    // Built HERE, where the venue, its zone and the rules already are, rather
+    // than on the client. The page cannot compute a cancellation deadline: it
+    // does not know the venue's zone, and this whole area exists because a wall
+    // clock is not an instant.
+    const content = buildConfirmation({
+      locale: d.locale === "es" ? "es" : "en",
+      venueName: venue.name,
+      timeZone,
+      guestName: d.name,
+      partySize: d.partySize,
+      startsAt: offered.startsAt,
+      collectedCents: outcome.collectCents,
+      // A card is held only when the venue asks for one from this party size.
+      // `null` means never, and a null threshold must not read as "always".
+      cardOnFile:
+        config.rules.cardOnFileFromParty !== null &&
+        d.partySize >= config.rules.cardOnFileFromParty,
+      freeCancelHours: config.rules.freeCancelHours,
+      graceMinutes: config.rules.noShowGraceMinutes,
+      addressLine: venueAddressLine(venue),
+    });
+
     return {
       ok: true,
       orderId: outcome.orderId,
       admissionId: outcome.admissionId,
       collectCents: outcome.collectCents,
       transactionId: outcome.transactionId,
+      confirmation: content,
     };
   } catch (err) {
     logServerError("reserve-actions.submitReservation", err);
