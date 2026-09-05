@@ -65,8 +65,11 @@ function ClientTrustPill({ tier }: { tier: "basic" | "verified" | "silver" | "go
   const styleMap: Record<typeof tier, { label: string; bg: string; color: string; emoji: string }> = {
     basic:    { label: "Basic",    bg: "rgba(11,11,13,0.06)",     color: C.inkMuted, emoji: "○" },
     verified: { label: "Verified", bg: "rgba(46,125,91,0.10)",    color: "#1B5C45",  emoji: "✓" },
-    silver:   { label: "Silver",   bg: "rgba(125,92,255,0.10)",   color: "#5C3FCC",  emoji: "✦" },
-    gold:     { label: "Gold",     bg: "rgba(217,160,58,0.14)",   color: "var(--color-admin-amber)",  emoji: "★" },
+    // Silver + Gold are the trust LADDER's scoped semantics (RULING 2026-09-05):
+    // a tier named Gold keeps a gold treatment as a scoped token, never the
+    // de-golded admin chrome amber. #1773 slated Gold by mistake; restored here.
+    silver:   { label: "Silver",   bg: "var(--color-admin-tier-silver-wash)",   color: "var(--color-admin-tier-silver)",  emoji: "✦" },
+    gold:     { label: "Gold",     bg: "var(--color-admin-tier-gold-wash)",   color: "var(--color-admin-tier-gold)",  emoji: "★" },
   };
   const s = styleMap[tier];
   return (
