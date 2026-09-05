@@ -26,16 +26,33 @@ import {
 } from "@/lib/links/share-targets";
 
 export type ShareLinkPopoverProps = {
-  /** The link's short code, e.g. "t7". */
-  code: string;
-  /** Absolute URL the code resolves to, e.g. https://casarizo.com/q/t7 */
-  url: string;
-  /** Human name, e.g. "Table 7". */
+  /**
+   * The link, or **null when this thing has no link yet.**
+   *
+   * Null is the NORMAL first state of every subject in the product, not an
+   * error: a thing gets its link on FIRST SHARE (CEO ruling 2026-09-05), so
+   * until an operator shares it there is nothing to show.
+   *
+   * An earlier version of this component required `code` and `url`, which
+   * deadlocked the ruling: the popover could only open for a subject that
+   * already had a link, and a link only existed after a first share, so
+   * nothing could ever be shared for the first time. Reported in #1798.
+   */
+  link: { code: string; url: string; scans30d?: number | null } | null;
+  /** Human name, e.g. "Table 7". Used for the label and to suggest a code. */
   name: string;
   /** One line of context used in the shared message. */
   message?: string;
-  /** Scans in the last 30 days, when known. */
-  scans30d?: number | null;
+  /**
+   * Create the link for this thing. Supplied by the area mounting the popover
+   * as a bound server action, so **the mount still writes no `links` row
+   * itself** — it hands over a subject and this component asks for the mint.
+   * Six areas each inventing a code policy is what that instruction prevents.
+   *
+   * Omit it and the unminted state renders read-only, which is the honest
+   * thing to show a viewer without permission to create one.
+   */
+  onMint?: () => Promise<{ code: string; url: string }>;
   onClose: () => void;
 };
 
@@ -47,13 +64,19 @@ const PRINT_TEMPLATES = [
 ] as const;
 
 export function ShareLinkPopover({
-  code, url, name, message, scans30d, onClose,
+  link, name, message, onMint, onClose,
 }: ShareLinkPopoverProps) {
   const copy = useDashboardText();
   const [copied, setCopied] = useState(false);
+  const [minted, setMinted] = useState<{ code: string; url: string } | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [mintError, setMintError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
-  const shortLink = displayShortLink(url);
+  // `minted` is this session's result; `link` is what the server knew when the
+  // popover opened. After a first share the second is stale and the first wins.
+  const active = minted ?? link;
+  const shortLink = active ? displayShortLink(active.url) : "";
   const shareMessage = message ?? name;
 
   useEffect(() => {
@@ -65,9 +88,25 @@ export function ShareLinkPopover({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const handleCopy = useCallback(async () => {
+  const handleMint = useCallback(async () => {
+    if (!onMint || minting) return;
+    setMinting(true);
+    setMintError(null);
     try {
-      await navigator.clipboard.writeText(url);
+      setMinted(await onMint());
+    } catch (err) {
+      // Say what happened. A silent failure here leaves the operator clicking
+      // a button that appears to do nothing, and the thing still unshared.
+      setMintError(err instanceof Error ? err.message : "The link could not be created.");
+    } finally {
+      setMinting(false);
+    }
+  }, [onMint, minting]);
+
+  const handleCopy = useCallback(async () => {
+    if (!active) return;
+    try {
+      await navigator.clipboard.writeText(active.url);
       setCopied(true);
       // The confirmation clears itself; a permanent "Copied" is a lie the
       // moment the user copies something else.
@@ -75,7 +114,7 @@ export function ShareLinkPopover({
     } catch {
       setCopied(false);
     }
-  }, [url]);
+  }, [active]);
 
   return (
     <div
@@ -88,7 +127,9 @@ export function ShareLinkPopover({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-admin-ink text-base font-semibold">{name}</h2>
-          <p className="text-admin-ink-muted font-mono text-xs">{shortLink}</p>
+          <p className="text-admin-ink-muted font-mono text-xs">
+            {active ? shortLink : copy.t("Not shared yet")}
+          </p>
         </div>
         <button
           ref={closeRef}
@@ -101,10 +142,42 @@ export function ShareLinkPopover({
         </button>
       </div>
 
+      {!active ? (
+        <div className="py-6 text-center">
+          {/* The first-share state. Every subject in the product starts here:
+              a thing gets its link when an operator shares it, not on publish,
+              so there are no rows for things nobody ever shared. */}
+          <p className="text-admin-ink-muted mb-4 text-sm">
+            {copy.t("This does not have a link yet. Create one to share it, print it, or put it on a code.")}
+          </p>
+          {onMint ? (
+            <>
+              <button
+                type="button"
+                onClick={handleMint}
+                disabled={minting}
+                className="rounded-lg border border-admin-line px-4 py-2 text-sm disabled:opacity-60"
+              >
+                {minting ? copy.t("Creating…") : copy.t("Create a link")}
+              </button>
+              {mintError ? (
+                <p role="alert" className="mt-3 text-xs text-admin-danger">{mintError}</p>
+              ) : null}
+            </>
+          ) : (
+            /* No mint action supplied: the viewer cannot create one. Say so
+               rather than showing a button that would fail. */
+            <p className="text-admin-ink-muted text-xs">
+              {copy.t("Ask someone who can edit this workspace to create it.")}
+            </p>
+          )}
+        </div>
+      ) : (
+        <>
       {/* The code itself. SVG so it stays sharp at any size, and it is the
           same symbol the print files carry. */}
       <img
-        src={qrAssetHref(code, "svg")}
+        src={qrAssetHref(active.code, "svg")}
         alt={copy.t("QR code for {name}").replace("{name}", name)}
         width={180}
         height={180}
@@ -113,7 +186,7 @@ export function ShareLinkPopover({
 
       <p className="text-admin-ink-muted mb-4 text-center text-xs">
         {copy.t("Tracked link")}
-        {typeof scans30d === "number" ? ` · ${scans30d} ${copy.t("scans · 30d")}` : ""}
+        {typeof active.scans30d === "number" ? ` · ${active.scans30d} ${copy.t("scans · 30d")}` : ""}
       </p>
 
       <div className="grid grid-cols-3 gap-2">
@@ -121,7 +194,7 @@ export function ShareLinkPopover({
           {copied ? copy.t("Copied") : copy.t("Copy")}
         </button>
         <a
-          href={whatsAppHref({ url, message: shareMessage })}
+          href={whatsAppHref({ url: active.url, message: shareMessage })}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-lg border border-admin-line px-2 py-2 text-center text-xs"
@@ -129,20 +202,20 @@ export function ShareLinkPopover({
           {copy.t("WhatsApp")}
         </a>
         <a
-          href={mailToHref({ url, message: shareMessage, subject: name })}
+          href={mailToHref({ url: active.url, message: shareMessage, subject: name })}
           className="rounded-lg border border-admin-line px-2 py-2 text-center text-xs"
         >
           {copy.t("Email")}
         </a>
         <a
-          href={qrAssetHref(code, "png", { widthMm: 50 })}
-          download={`${code}.png`}
+          href={qrAssetHref(active.code, "png", { widthMm: 50 })}
+          download={`${active.code}.png`}
           className="rounded-lg border border-admin-line px-2 py-2 text-center text-xs"
         >
           {copy.t("PNG")}
         </a>
         <a
-          href={qrAssetHref(code, "pdf")}
+          href={qrAssetHref(active.code, "pdf")}
           className="rounded-lg border border-admin-line px-2 py-2 text-center text-xs"
         >
           {copy.t("Print PDF")}
@@ -182,6 +255,8 @@ export function ShareLinkPopover({
           {copy.t("Coming soon. For now, use Print PDF.")}
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -23,4 +23,9 @@ export const LINKS_ES_TEXT: Record<string, string> = {
   "Flyer": "Volante",
   "Sticker": "Calcomanía",
   "Story": "Historia",
+  "Not shared yet": "Todavía no se comparte",
+  "This does not have a link yet. Create one to share it, print it, or put it on a code.": "Esto todavía no tiene enlace. Crea uno para compartirlo, imprimirlo o ponerlo en un código.",
+  "Create a link": "Crear un enlace",
+  "Creating…": "Creando...",
+  "Ask someone who can edit this workspace to create it.": "Pide a alguien que pueda editar este espacio que lo cree.",
 };
