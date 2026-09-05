@@ -153,6 +153,9 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
    * this so Max-tier talents get Theme without inheriting shell-edit rights.
    */
   canEditTheme: boolean;
+  /** Piece B slice 1 — per-breakpoint responsive editing (capability flag).
+   *  False on the print artboard; the viewport switcher gates on it. */
+  canUseResponsiveBreakpoints: boolean;
   /**
    * Phase 7A — governed nested builder nodes / element library affordances.
    * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.

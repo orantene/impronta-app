@@ -206,3 +206,45 @@ So the two need different falsifiers:
 Until both are ticked, this document is designing against a pipeline that has never met a
 printer, and §2.2 is the section most likely to be wrong in a way nothing on screen can
 show.
+
+---
+
+## v1 — the constrained vocabulary (implementation, ruled 2026-09-05)
+
+The four design questions above are resolved. This section is what v1 actually builds, so
+the doc and the code agree. It is authored by Page Builder and signed by QR & Links (the
+seam is `PrintDesign` in `web/src/lib/links/print-design.ts`).
+
+**Vocabulary (RULED, CEO).** A print piece is background + one QR + title + caption +
+optional logo — not an arbitrary node tree. Reason beyond "no new dep": pdf-lib draws
+primitives, and the print rules (quiet zone, contrast, module floor) are only *enforceable*
+against a known vocabulary, because the exporter can only guarantee them when it knows where
+the QR is and what is behind it. **Free layout via satori is "v2 if designers ask"** — and
+satori is a CSS subset, so it would trade a real guarantee for a fake generality.
+
+**The seam.** Page Builder lays the piece out at bleed size and extracts a `PrintDesign`
+(millimetres, top-left of the trim box). `toPrintPdfDesign(items: SheetItem[], design)`
+(QR & Links, slice 2) draws it — kept ALONGSIDE the trim-size `toPrintPdf`, which serves the
+live `/q/<code>/qr.pdf` endpoint and must not silently move to bleed-size pages.
+
+**Four facts nailed in the type, not discovered at export:**
+- `qr.sizeMm` INCLUDES the quiet zone (one box = the whole symbol; nothing else inside it),
+  so the designer's box and the exporter's viewBox (`modules + 8`) are the same box.
+- Fan-out validation is PER PAGE: the QR version varies with URL length, so at a fixed mm
+  slot the longest code drops below the floor first; the refusal names that code.
+- `fontFamily` is a HINT; the exporter embeds a Noto subset via `media-kit-font.ts`
+  (never `StandardFonts.Helvetica`, which THROWS on non-WinAnsi) and falls back with a
+  surfaced warning. A font that failed to ship must degrade the PDF, never fail the download.
+  Tenant brand faces are v2 (a PDF-embedding licence question nobody has asked).
+- The exporter's three refusals (contrast, per-page slot-too-small, logo∩QR below `ecc:"H"`)
+  — each an actionable sentence, none a warning.
+
+**Persistence.** A `print` `BuilderSurfaceKind` with a MINIMAL adapter (load/save,
+`canRestoreRevision: false`, publish deferred to slice 2), persisting to a small
+`print_designs` table (`20261229000800`) rather than overloading `cms_pages` — a print
+design is not a web page (no slug, no live publish, no revisions in v1).
+
+**Slices.** (1) the `print` canvas kind + persistent trim/safe-area guide + chrome
+suppression + this seam type + adapter/store; (2) `toPrintPdfDesign` + bleed/trim marks +
+font wiring — acceptance is a real PDF opened and MEASURED (mm + bleed), never a row;
+(3) print-time fan-out, with the per-page validation built in from the start.

@@ -341,6 +341,56 @@ export function buildCmsPageBuilderConfig(
 }
 
 /**
+ * The print config (Piece B slice 1) — the ONE Page Builder Core specialised for
+ * a print artboard: a fixed physical size, no responsive breakpoints, no motion,
+ * no SEO, and no live publish (publish = PDF export, Piece B slice 2). Chrome
+ * that reads `capabilities.responsiveBreakpoints` is suppressed for print the
+ * same way the SEO tab reads `capabilities.seo` — a capability flag, so the
+ * editor never branches on `surfaceKind` to decide it. Persists to `print_designs`
+ * via the print adapter; never a `cms_pages` row. See docs/plans/print-canvas-design.md.
+ */
+export function buildPrintBuilderConfig(
+  printSurfaceAdapter: BuilderSurfaceAdapter,
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = printSurfaceAdapter.kind;
+  if (kind !== "print") {
+    throw new Error(
+      `buildPrintBuilderConfig requires a print adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: printSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      // Publish for a print design is export to a PDF (slice 2), not a live page.
+      canPublish: false,
+      canRestoreRevision: false,
+      canEditShell: false,
+      canInsertRawHtmlElements: false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["blocks", "designs"],
+      allowDbTemplates: false,
+      surfaceTarget: "workspace",
+      surfaceKey: "workspace_page",
+    },
+    dataSources: { allowed: [] },
+    previewSubjectKind: null,
+    capabilities: {
+      motion: false,
+      themeTokens: true,
+      customCss: false,
+      // A fixed-size print piece has no breakpoints; chrome reading this flag
+      // hides the viewport/device switcher and per-breakpoint controls.
+      responsiveBreakpoints: false,
+      // Not a public page.
+      seo: false,
+      serverRenderedEditTarget: false,
+    },
+  };
+}
+
+/**
  * The talent_page config (WS6) — specialises the ONE Page Builder Core for the
  * Talent Max page builder surface. Built as a factory.
  *

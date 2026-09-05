@@ -1318,6 +1318,8 @@ function ViewportSwitcher({
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
   const { advanced } = useAdvancedMode();
+  // Piece B slice 1 — gate the switcher on the capability (not surfaceKind).
+  const { canUseResponsiveBreakpoints } = useEditContext();
   // Picking a tier: Mobile enters the editing mode; the others exit it. When no
   // mode plumbing is present, this is exactly the old `setDevice`.
   const selectTier = (key: EditDevice) => {
@@ -1344,6 +1346,9 @@ function ViewportSwitcher({
   // adds Wide + Compact. Order follows the canonical VIEWPORT_OPTS list.
   const visibleTierKeys = new Set(visibleViewportTiers(advanced));
   const visibleOpts = VIEWPORT_OPTS.filter((opt) => visibleTierKeys.has(opt.key));
+
+  // Print artboards are a fixed physical size — no viewport switcher.
+  if (!canUseResponsiveBreakpoints) return null;
 
   return (
     <div className="inline-flex shrink-0 items-center gap-2">
