@@ -272,9 +272,15 @@ export async function GET(request: Request) {
           [{ poolKey: DEFAULT_POOL_KEY, units: series.seats }],
         );
 
-        // A duplicate is the normal second-run path, not a failure.
         if (!result.ok && result.reason !== "pools_failed") continue;
 
+        // A repeat is the normal second-run path and no longer a refusal: the
+        // writer returns the existing session with `created: false`, so this
+        // counts creations rather than calls.
+        if (result.ok && !result.created) {
+          poolsCreated += result.poolsCreated;
+          continue;
+        }
         created += 1;
         // `pools_failed` still created the session, and its unmade pool is left
         // for the next sweep's backfill rather than retried here: hammering a
