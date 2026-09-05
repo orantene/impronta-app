@@ -56,3 +56,34 @@ test("reservations reach a guest asking about them", () => {
   assert.ok(entry, "reservations are not in the guest corpus at all");
   assert.doesNotMatch(entry.purpose, /not yet available/i);
 });
+
+// THE ROADMAP PREFIX IS NOT THE ONLY PLACE A FEATURE CAN BE DENIED.
+//
+// Flipping the status flag removed the prefix and the assistant went on telling
+// restaurant owners that reservations were "on the roadmap, not live yet, join
+// the waitlist" — because the feature's own FAQ still said so in prose, and the
+// corpus feeds FAQ bodies into grounding whatever the flag says. The first
+// version of this test read only `purpose`, so it passed while the answer a real
+// guest received was still wrong.
+//
+// A model quotes the sentence, not the flag. So check the sentences.
+const DENIALS_EN = /not (yet )?(shipped|live|available)|on (our|the) roadmap|join the waitlist|coming soon/i;
+const DENIALS_ES = /todav[ií]a no|a[úu]n no|en la hoja de ruta|lista de espera|pr[óo]ximamente/i;
+
+for (const [locale, pattern] of [["en", DENIALS_EN], ["es", DENIALS_ES]] as const) {
+  test(`no ${locale} grounding text denies a shipped feature`, () => {
+    for (const entry of buildGuestCorpus(locale)) {
+      const key = entry.slug.replace(/^feature:/, "");
+      if (!SHIPPED_EVIDENCE[key]) continue;
+      const shipped = SHIPPED_EVIDENCE[key].every((rel) => existsSync(join(process.cwd(), rel)));
+      if (!shipped) continue;
+      const prose = [entry.purpose, ...entry.youCanHere, ...entry.faqs.flatMap((f) => [f.q, f.a])];
+      const offender = prose.find((line) => pattern.test(line));
+      assert.equal(
+        offender,
+        undefined,
+        `${key} is shipped, but its ${locale} grounding still tells a guest: "${offender}"`,
+      );
+    }
+  });
+}

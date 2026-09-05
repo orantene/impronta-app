@@ -123,7 +123,7 @@ export const TABLES_FEATURE: Feature = {
     faq: [
       {
         q: "When is this available?",
-        a: "It is on the roadmap and not shipped yet. Join the waitlist to hear the day it opens.",
+        a: "It is live now. Add your venue, set your service windows, and your page starts taking reservations.",
       },
       {
         q: "Do I have to leave my current reservation system?",
@@ -232,7 +232,7 @@ export const TABLES_FEATURE: Feature = {
     faq: [
       {
         q: "¿Cuándo estará disponible?",
-        a: "Está en la hoja de ruta y todavía no se lanza. Únete a la lista para enterarte el día que abra.",
+        a: "Ya está disponible. Añade tu local, define tus horarios de servicio y tu página empieza a aceptar reservas.",
       },
       {
         q: "¿Tengo que dejar mi sistema de reservaciones actual?",

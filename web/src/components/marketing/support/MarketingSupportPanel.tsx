@@ -417,6 +417,7 @@ export function MarketingSupportPanel({
                     key={m.id}
                     payload={m.cardPayload ?? {}}
                     tone="light"
+                    locale={locale}
                     onAction={(action) => {
                       if (action === "talk-human") void askHuman();
                     }}
