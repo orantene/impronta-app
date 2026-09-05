@@ -25,7 +25,6 @@ import {
   PAGE_DESIGN_SUMMARIES,
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
-import { INDUSTRY_PRESETS } from "@/lib/words/presets";
 
 /**
  * The audience the generated page serves. Mirrors the EmptyCanvasStarter surface
@@ -121,24 +120,6 @@ const DESIGN_KEYWORD_CUES: Record<string, ReadonlyArray<string>> = {
     "imagery",
   ],
   agency: [
-  // Re-homed from the retired `impronta` id: no preset owns it, so it left
-  // the derived pool and these briefs tied with `studio` and lost.
-    "agency",
-    "roster",
-    "talent",
-    "talents",
-    "models",
-    "modeling",
-    "modelling",
-    "directory",
-    "representation",
-    "represent",
-    "bookings",
-    "booking",
-    "management",
-    "agencies",
-    "casting",
-    "scouting",
     "agency",
     "production",
     "productions",
@@ -201,24 +182,6 @@ const DESIGN_KEYWORD_CUES: Record<string, ReadonlyArray<string>> = {
     "goods",
   ],
   "store-orderable": [
-  // Re-homed from the retired `store` id, same reason.
-    "store",
-    "shop",
-    "boutique",
-    "prints",
-    "print",
-    "buy",
-    "sell",
-    "selling",
-    "ecommerce",
-    "checkout",
-    "products",
-    "catalog",
-    "merch",
-    "merchandise",
-    "edition",
-    "editions",
-    "goods",
     "store",
     "shop",
     "retail",
@@ -332,33 +295,6 @@ const DESIGN_KEYWORD_CUES: Record<string, ReadonlyArray<string>> = {
     "wine",
   ],
   "restaurant-orderable": [
-  // Re-homed from the static `restaurant` id, which no preset owns.
-    "restaurant",
-    "restaurants",
-    "menu",
-    "menus",
-    "food",
-    "cafe",
-    "café",
-    "coffee",
-    "dining",
-    "chef",
-    "chefs",
-    "cook",
-    "cooking",
-    "catering",
-    "caterer",
-    "tasting",
-    "bar",
-    "bistro",
-    "eatery",
-    "cuisine",
-    "culinary",
-    "kitchen",
-    "bakery",
-    "patisserie",
-    "sommelier",
-    "wine",
     "restaurant",
     "restaurants",
     "menu",
@@ -486,28 +422,8 @@ export function planPresetsFromBrief(
   surface: TextToPageSurface,
 ): PresetPlan {
   const allowedTargets = targetsForTextToPageSurface(surface);
-  // A design the AI may rank must be a design a PRESET OWNS.
-  //
-  // `preset.designId` is the single source of a tenant's default design
-  // (ruled). This file used to keep its own list, which meant two sources of
-  // design truth wearing one coat: the AI path could land a tenant on a design
-  // no preset owns, and nothing would disagree. Deriving the pool from preset
-  // ownership makes that structurally impossible rather than a rule someone
-  // has to remember — an unowned design simply cannot be ranked.
-  //
-  // This is also how `festival` is retired from signup without deleting
-  // anything: no preset names it, so it drops out of the pool on its own. The
-  // tree and its keyword cues stay for Events & Ticketing to use as the
-  // reference for /events/<slug>.
-  const presetOwnedDesignIds = new Set(
-    INDUSTRY_PRESETS.map((preset) => preset.designId).filter(
-      (id): id is string => Boolean(id),
-    ),
-  );
   const candidates = PAGE_DESIGN_SUMMARIES.filter(
-    (d) =>
-      (allowedTargets === null || allowedTargets.includes(d.target)) &&
-      presetOwnedDesignIds.has(d.id),
+    (d) => allowedTargets === null || allowedTargets.includes(d.target),
   );
   // Defensive: the registry is never empty, but never return an empty plan.
   const pool =

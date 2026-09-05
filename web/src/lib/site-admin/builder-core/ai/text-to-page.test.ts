@@ -12,7 +12,6 @@ import {
 } from "./preset-plan";
 import { PAGE_DESIGN_SUMMARIES } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
-import { INDUSTRY_PRESETS } from "@/lib/words/presets";
 
 // ── Planner: deterministic keyword → ordered presets ──────────────────────
 
@@ -31,7 +30,7 @@ test("planner ranks a restaurant brief onto the restaurant preset", () => {
     "a menu page for my restaurant and bar",
     "workspace",
   );
-  assert.equal(plan.chosenId, "restaurant-orderable");
+  assert.equal(plan.chosenId, "restaurant");
 });
 
 test("planner is deterministic for the same brief + surface", () => {
@@ -61,30 +60,24 @@ const BRIEF_EXPECTATIONS: ReadonlyArray<[string, string]> = [
   ["a wedding photography portfolio", "editorial"],
   ["I'm a portrait and headshot photographer", "editorial"],
   ["my fashion lookbook and editorial shoots", "editorial"],
-  // Food. `restaurant-orderable`, NOT the static `restaurant`: the AI pool is
-  // now derived from preset ownership, and the restaurant presets name the
-  // orderable design — the one with a real `menu_board` and room for
-  // `reserve_table`. The static tree ships fabricated dishes and prices, which
-  // is what a real restaurant used to be handed on day one.
-  ["a chef's tasting menu", "restaurant-orderable"],
-  ["our new restaurant and wine bar", "restaurant-orderable"],
-  // Live music / performance. `festival` is RETIRED from signup: no preset
-  // names it, so it is no longer in the derived pool and these briefs fall to
-  // the nearest owned design. The tree itself is kept — Events & Ticketing owns
-  // it as the reference for /events/<slug>. Asserting the fallback rather than
-  // deleting the rows, so a future preset that claims `festival` shows up here
-  // as a change rather than silently restoring old behaviour.
-
+  // Food.
+  ["a chef's tasting menu", "restaurant"],
+  ["our new restaurant and wine bar", "restaurant"],
+  // Live music / performance.
+  ["DJ live set", "festival"],
+  ["I'm a musician releasing an album", "festival"],
+  ["a singer announcing a tour", "festival"],
+  ["music festival lineup and tickets", "festival"],
   // Personal brand / creator.
   ["a fitness coach personal brand", "coach"],
   ["a social media influencer and content creator", "coach"],
   // Commerce.
-  ["an online store selling fine-art prints", "store-orderable"],
+  ["an online store selling fine-art prints", "store"],
   // Genuine product briefs still reach saas (enrichment didn't break the obvious).
   ["a software product landing page with pricing", "saas"],
   ["our tech startup app", "saas"],
   // Agency roster.
-  ["our talent agency roster and bookings", "agency"],
+  ["our talent agency roster and bookings", "impronta"],
   // Conference.
   ["a developer conference with speakers and a schedule", "conference"],
 ];
@@ -150,44 +143,16 @@ test("talent surface never offers a workspace-only preset", () => {
 test("platform surface sees the full preset set", () => {
   assert.equal(targetsForTextToPageSurface("platform"), null);
   const plan = planPresetsFromBrief("anything at all", "platform");
-  // The pool is every PRESET-OWNED design, not the whole registry: a design no
-  // preset names cannot be ranked, which is what makes preset.designId the
-  // single source of design truth rather than one of two lists.
-  const presetOwned = new Set(
-    INDUSTRY_PRESETS.map((p) => p.designId).filter(
-      (id): id is string => Boolean(id),
-    ),
-  );
-  assert.ok(
-    plan.ordered.every((e) => presetOwned.has(e.id)),
-    "an unowned design reached the AI candidate pool",
-  );
-  // The pool is preset-owned INTERSECTED with the summaries registry, and the
-  // difference is a real gap: `services` is named by SIX presets and has no
-  // PAGE_DESIGN_SUMMARIES entry, so the AI planner can never rank it. It
-  // resolves fine through getPageDesign (the fallback path uses it), which is
-  // why nobody has noticed. Pinned here so adding the summary turns this green
-  // rather than leaving six industries unable to reach their own design by AI.
-  const rankable = new Set(PAGE_DESIGN_SUMMARIES.map((d) => d.id));
-  const ownedButUnrankable = [...presetOwned].filter((id) => !rankable.has(id));
-  assert.deepEqual(
-    ownedButUnrankable,
-    ["services"],
-    "the set of preset-owned-but-unrankable designs changed; if you added a summary for `services`, delete this assertion",
-  );
-  assert.equal(
-    plan.ordered.length,
-    [...presetOwned].filter((id) => rankable.has(id)).length,
-  );
+  assert.equal(plan.ordered.length, PAGE_DESIGN_SUMMARIES.length);
 });
 
 // ── Model re-rank seam: closed candidate set, hallucinations discarded ─────
 
 test("applyModelPreference re-orders by model preference", () => {
   const plan = planPresetsFromBrief("zzz", "platform");
-  const reranked = applyModelPreference(plan, ["coach", "store-orderable"]);
+  const reranked = applyModelPreference(plan, ["coach", "store"]);
   assert.equal(reranked.chosenId, "coach");
-  assert.equal(reranked.ordered[1].id, "store-orderable");
+  assert.equal(reranked.ordered[1].id, "store");
   // Every candidate is still present (model only re-orders, never drops).
   assert.equal(reranked.ordered.length, plan.ordered.length);
 });
@@ -246,24 +211,20 @@ test("composePageFromBrief rejects a too-short brief", async () => {
 });
 
 test("composePageFromBrief uses the model re-rank seam when supplied", async () => {
-  // A stub ranker forces a NON-default design to the front — proves the
-  // optional model seam re-orders the deterministic plan without bypassing
-  // validation. Uses `coach` rather than the old `store`: the candidate pool is
-  // now preset-owned, and `store` retired in favour of `store-orderable`, which
-  // is not a talent-surface design. The point of the test is the seam, not the
-  // id, so it needs an id the talent surface actually offers.
+  // A stub ranker forces 'store' to the front — proves the optional model seam
+  // re-orders the deterministic plan without bypassing validation.
   const result = await composePageFromBrief({
     brief: "a place to show my work",
     surface: "talent",
     useModel: true,
     rankWithModel: async (_brief, candidateIds) => {
-      assert.ok(candidateIds.includes("coach"));
-      return ["coach"];
+      assert.ok(candidateIds.includes("store"));
+      return ["store"];
     },
   });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.equal(result.designId, "coach");
+  assert.equal(result.designId, "store");
   assert.equal(result.source, "model");
   const validation = validateBuilderNodeTree(result.tree);
   assert.equal(validation.ok, true);
@@ -283,40 +244,4 @@ test("composePageFromBrief degrades to keyword when the model ranker throws", as
   // Falls back to the deterministic keyword pick (editorial), still validated.
   assert.equal(result.designId, "editorial");
   assert.equal(result.source, "keyword");
-});
-
-test("RETIRED IDS: a music brief no longer matches any owned design", () => {
-  // Not a bug in the planner — a PRODUCT GAP the `festival` retirement created,
-  // pinned here so it is visible rather than discovered by a musician.
-  //
-  // `festival` was the only design whose cues covered DJs, bands, tours and
-  // album releases. No preset owns it, so it left the derived pool, and its
-  // cues were deliberately NOT re-homed: unlike `store`→`store-orderable` and
-  // `impronta`→`agency`, there is no music-shaped design to move them to.
-  // Inventing a mapping here would silently hand a touring band a design nobody
-  // chose for them.
-  //
-  // So these briefs fall to the audience default with NO keyword match, which
-  // is the honest outcome. When a music preset lands, this test goes red and
-  // whoever adds it re-homes the cues.
-  for (const brief of [
-    "DJ live set",
-    "I'm a musician releasing an album",
-    "a singer announcing a tour",
-  ]) {
-    const plan = planPresetsFromBrief(brief, "platform");
-    assert.notEqual(
-      plan.chosenId,
-      "festival",
-      `"${brief}" still reaches the retired festival design`,
-    );
-    // What it DOES reach is `editorial` — a photography/portfolio design. A
-    // touring band gets a lookbook. That is the gap: not broken, not right
-    // either, and invisible until someone signs up as a musician.
-    assert.equal(
-      plan.chosenId,
-      "editorial",
-      `"${brief}" now lands on ${plan.chosenId}; if a music preset was added, re-home festival's cues onto it and update this`,
-    );
-  }
 });

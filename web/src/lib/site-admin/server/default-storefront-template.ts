@@ -28,8 +28,6 @@ import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-temp
 import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
 import { PLATFORM_DEFAULT_STOREFRONT_SLUG } from "./default-storefront-tree";
 import { pruneStarterRosterForAudience } from "./starter-roster-prune";
-import { loadTenantWords } from "@/lib/words/server";
-import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
@@ -125,71 +123,11 @@ async function loadReservedStorefrontSlugTree(
  * mode we are guarding against is a personaliser that is alive in its unit test
  * and dead at its real call site. Pass `{}` only when nothing is known.
  */
-/**
- * The tenant's own default design, from `preset.designId`, or null.
- *
- * Deliberately swallows every failure: this sits on the page-less fallback
- * path for a live storefront, so a words-table hiccup must degrade to the
- * platform default rather than 500 a visitor.
- */
-async function resolvePresetDesignTree(
-  tenantId: string,
-): Promise<BuilderNodeTree | null> {
-  try {
-    const words = await loadTenantWords(tenantId, "en");
-    const designId = words.preset?.designId;
-    if (!designId) return null;
-    const design = getPageDesign(designId);
-    if (!design || design.tree.length === 0) return null;
-    return design.tree as BuilderNodeTree;
-  } catch {
-    return null;
-  }
-}
-
 export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
   personalisation: StarterPersonalisation,
-  tenantId?: string,
 ): Promise<ResolvedDefaultStorefront | null> {
   try {
-    // ── The tenant's OWN design comes first ─────────────────────────────────
-    //
-    // Everything below this block resolves ONE platform-wide tree for every
-    // page-less tenant, personalised only by name. The comment on the caller
-    // admits it: `workspace_type` "cannot reconstruct the four cases". The
-    // visible cost was a restaurant whose live homepage was titled
-    // "Represented talent", with fourteen mentions of it and four
-    // APPLY AS TALENT buttons — measured on a real tenant, not hypothetical.
-    //
-    // `preset.designId` is the SINGLE SOURCE of a tenant's default design
-    // (ruled). It is already loaded and cached by `loadTenantWords` on the
-    // `storefront` tag and invalidated on publish, so this adds no new read
-    // path and no second matcher.
-    //
-    // Guarded three ways, because this fires on a LIVE site:
-    //   - only when the caller passes a tenantId (the fallback path does);
-    //   - only when the preset names a design — `custom` carries a null
-    //     designId and falls through to the audience default, as ruled;
-    //   - only when that design resolves to a non-empty tree.
-    // Any failure falls through to the existing chain rather than throwing,
-    // so the worst case is exactly today's behaviour.
-    if (tenantId) {
-      const presetTree = await resolvePresetDesignTree(tenantId);
-      if (presetTree && presetTree.length > 0) {
-        const stampedPreset = personaliseStarterBuilderTree(
-          presetTree,
-          personalisation,
-        );
-        return {
-          builderTree: pruneStarterRosterForAudience(
-            stampedPreset,
-            personalisation.audience,
-          ),
-        };
-      }
-    }
-
     // Fallback chain: Lab pointer → reserved slug → null (caller keeps
     // DefaultStorefrontBody). With no pointer + no reserved row this returns
     // null — byte-identical to the pre-pointer behaviour.
