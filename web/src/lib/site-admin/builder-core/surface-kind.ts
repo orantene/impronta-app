@@ -37,7 +37,13 @@ export type BuilderSurfaceKind =
   | "talent_page"
   | "platform_lab"
   | "cms_page"
-  | "site_shell";
+  | "site_shell"
+  // `print` — a print piece (table tent, A5, ...): a freeform tree at a FIXED
+  // physical size, with page chrome (scroll, viewport, breakpoints, hover)
+  // suppressed and a persistent trim/safe-area guide. Persists to `print_designs`
+  // via a minimal adapter (load/save, no revisions); "publish" is export to a
+  // print PDF (Piece B slice 2), not a live page. See docs/plans/print-canvas-design.md.
+  | "print";
 
 /** Every valid surface kind, for exhaustiveness checks + guard iteration. */
 export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
@@ -46,6 +52,7 @@ export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
   "platform_lab",
   "cms_page",
   "site_shell",
+  "print",
 ] as const;
 
 /** The single surface allowed to write the legacy `cms_page_sections` table /
