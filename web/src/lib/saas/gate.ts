@@ -6,7 +6,7 @@
  */
 
 import type { HostKind } from "./host-kinds";
-import { AGENCY_API_PREFIXES, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_TALENT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
+import { AGENCY_API_PREFIXES, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
 import { anyExact, anyPrefix, hasPrefix } from "./path-utils";
 import { isWorkspaceSlugPath } from "./reserved-slugs";
 
@@ -33,6 +33,11 @@ export function isPathAllowedForHostKind(
 
   // A tracked link resolves only where a tenant owns the code.
   if (hasPrefix(pathname, CANONICAL_LINK_PREFIX)) return kind === "agency" || kind === "hub";
+
+  // An event page and a receipt are tenant-scoped for the same reason: the slug
+  // and the code mean nothing without an owner to look them up under.
+  if (hasPrefix(pathname, CANONICAL_EVENTS_PREFIX)) return kind === "agency" || kind === "hub";
+  if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the

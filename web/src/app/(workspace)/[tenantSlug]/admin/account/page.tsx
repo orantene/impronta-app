@@ -604,12 +604,40 @@ export default async function WorkspaceAccountPage({
             >
               <DetailRow label={t("admin.account.displayNameLabel")} value={summary.displayName} />
 
-              {summary.contactEmail && (
-                <>
-                  <Divider />
-                  <DetailRow label={t("admin.account.contactEmail")} value={summary.contactEmail} />
-                </>
-              )}
+              {/* Contact email is the Reply-To on every customer-facing email,
+                  so it is shown ALWAYS (even blank) with a nudge — a hidden
+                  empty field is why most workspaces never set it. */}
+              <Divider />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: "11px 16px",
+                  fontFamily: FONT,
+                }}
+              >
+                <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
+                  {t("admin.account.contactEmail")}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: summary.contactEmail ? C.ink : C.accent,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {summary.contactEmail || t("admin.account.contactEmailEmpty")}
+                  </span>
+                  <span style={{ fontSize: 12, color: C.inkMuted }}>
+                    {t("admin.account.contactEmailReplyHint")}
+                  </span>
+                </span>
+              </div>
 
               {summary.contactPhone && (
                 <>

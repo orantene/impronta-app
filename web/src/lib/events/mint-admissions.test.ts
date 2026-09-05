@@ -79,6 +79,28 @@ test("named attendees attach per row, and a partial list is refused", () => {
   assert.deepEqual(short, { ok: false, reason: "holder_count_mismatch", expected: 3, got: 1 });
 });
 
+test("PostgREST's NUMERIC string is a real count, and a fractional one is not", () => {
+  // `order_lines.units` is NUMERIC(12,3), so PostgREST sends "4.000" — a STRING.
+  // Requiring a number made this module depend on the caller remembering to
+  // coerce; it then failed closed on EVERY mint with a vague `not_a_count`,
+  // which names the symptom and not the cause.
+  const fromDb = planAdmissions({ ...BASE, units: "4.000", admitsPerUnit: "1" });
+  assert.ok(fromDb.ok);
+  assert.equal(fromDb.rows.length, 4);
+  assert.equal(fromDb.totalPeople, 4);
+
+  // A VIP table arriving the same way.
+  const vip = planAdmissions({ ...BASE, units: "2.000", admitsPerUnit: "6" });
+  assert.ok(vip.ok);
+  assert.deepEqual(vip.rows.map((r) => r.partySize), [6, 6]);
+
+  // Strict about MEANING: half a ticket is not a count of things.
+  assert.deepEqual(planAdmissions({ ...BASE, units: "4.500", admitsPerUnit: 1 }),
+    { ok: false, reason: "not_a_count" });
+  assert.deepEqual(planAdmissions({ ...BASE, units: "not a number", admitsPerUnit: 1 }),
+    { ok: false, reason: "not_a_count" });
+});
+
 test("a nonsense count refuses instead of emitting an empty or fractional plan", () => {
   assert.deepEqual(planAdmissions({ ...BASE, units: 0, admitsPerUnit: 1 }),
     { ok: false, reason: "not_a_count" });
@@ -120,4 +142,50 @@ test("the anchor rule is checked here, so the refusal names the problem", () => 
   });
   assert.ok(rsvp.ok);
   assert.equal(rsvp.rows[0]?.allocationId, null);
+});
+
+test("one allocation per unit: each admission takes its own, in unit order", () => {
+  const plan = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1", "a-2", "a-3"],
+  });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.deepEqual(
+    plan.rows.map((r) => r.allocationId),
+    ["a-1", "a-2", "a-3"],
+  );
+});
+
+test("one allocation of N: every admission shares it, and a count mismatch never guesses", () => {
+  const shared = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1"],
+  });
+  assert.equal(shared.ok, true);
+  if (!shared.ok) return;
+  assert.deepEqual(shared.rows.map((r) => r.allocationId), ["a-1", "a-1", "a-1"]);
+
+  // Two rows for three units is a shape nobody declared. Falling back to the
+  // line's allocation keeps refund-by-line honest (it reads order_line_id)
+  // instead of assigning two seats an identity and the third none.
+  const odd = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1", "a-2"],
+  });
+  assert.equal(odd.ok, true);
+  if (!odd.ok) return;
+  assert.deepEqual(odd.rows.map((r) => r.allocationId), ["a-1", "a-1", "a-1"]);
 });

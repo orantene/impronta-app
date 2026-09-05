@@ -9,7 +9,17 @@ import type { Feature } from "./types";
  * directory. We have the card rail and the directory, and the restaurant's
  * own website on top.
  *
- * Not shipped.
+ * SHIPPED 2026-09-04. Was still flagged "coming" the next morning, and the
+ * guest AI derives its grounding from this flag, so the first answer the
+ * assistant ever gave a real visitor told a restaurant owner that our own
+ * table reservations "are on our roadmap, but not live yet" and offered him a
+ * waitlist. He could have booked a table that minute.
+ *
+ * Verified before flipping, because "live" here is a claim we make to
+ * strangers: `venues` and `venue_service_windows` carry real rows (El Paisa is
+ * seeded with two windows), the public path has `loadReserveAvailability` and
+ * `submitReservation`, deposits are real (`splitForfeiture` with its own
+ * tests), and nothing gates it per tenant or behind a wave.
  */
 export const TABLES_FEATURE: Feature = {
   key: "tables-and-seating",
@@ -18,7 +28,7 @@ export const TABLES_FEATURE: Feature = {
   slugEn: "tables-and-seating",
   slugEs: "mesas-y-reservaciones",
   tier: "S",
-  status: "coming",
+  status: "live",
   related: ["appointments", "qr-engine", "payments", "website-builder"],
 
   en: {

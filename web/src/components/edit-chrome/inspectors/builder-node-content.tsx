@@ -1615,6 +1615,157 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  // ── session_picker (guest-facing session booking block) ───────────────────
+  // Phase 1 panel: a title and the offering this block books. The offering
+  // PICKER (a select over the tenant's sessions) is phase 2; for now the
+  // offering id is entered directly. The island (owned by Sessions & Classes)
+  // fetches availability and sells the seat.
+  if (node.kind === "session_picker") {
+    const sp = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="title"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={sp.title ?? ""}
+              ariaLabel="Title"
+              className={KIT.input}
+              placeholder="Sessions"
+              onCommitBase={(next) =>
+                commitTextInput("title", sp.title ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Session">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Offering ID</label>
+            <input
+              type="text"
+              className={KIT.input}
+              value={sp.offeringId ?? ""}
+              placeholder="The session offering this block books"
+              onChange={(event) => {
+                void commitPatch({ offeringId: event.currentTarget.value });
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
+  // ── reserve_table (guest-facing booking block) ────────────────────────────
+  // Phase 1 panel: the fields that change what a guest SEES. The full
+  // block-design experience (style tab, CTA design, shortcuts into Settings →
+  // Reservations) is phase 2 and deliberately not batched in here.
+  if (node.kind === "reserve_table") {
+    const reserve = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Venue name</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="venueName"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={reserve.venueName ?? ""}
+              ariaLabel="Venue name"
+              className={KIT.input}
+              placeholder="Your venue"
+              onCommitBase={(next) =>
+                commitTextInput("venueName", reserve.venueName ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Button word</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="ctaVerb"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={reserve.ctaVerb ?? ""}
+              ariaLabel="Button word"
+              className={KIT.input}
+              placeholder="Reserve"
+              onCommitBase={(next) =>
+                commitTextInput("ctaVerb", reserve.ctaVerb ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Card notice</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="cardNotice"
+              tenantId={tenantId}
+              fieldKind="textarea"
+              baseValue={reserve.cardNotice ?? ""}
+              ariaLabel="Card notice"
+              className={KIT.textarea}
+              placeholder="Shown only when your venue asks for a card"
+              onCommitBase={(next) =>
+                commitTextInput("cardNotice", reserve.cardNotice ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Party size">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Smallest party</label>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              className={KIT.input}
+              value={reserve.partyMin ?? 1}
+              onChange={(event) => {
+                const next = Number(event.currentTarget.value);
+                if (!Number.isFinite(next)) return;
+                void commitPatch({
+                  partyMin: Math.min(99, Math.max(1, Math.round(next))),
+                });
+              }}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Largest party</label>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              className={KIT.input}
+              value={reserve.partyMax ?? 8}
+              onChange={(event) => {
+                const next = Number(event.currentTarget.value);
+                if (!Number.isFinite(next)) return;
+                void commitPatch({
+                  partyMax: Math.min(99, Math.max(1, Math.round(next))),
+                });
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+        <p className="text-xs text-black/55 px-1">
+          These two only shape the stepper. Your venue rules decide what is
+          actually bookable, and a booking outside them is refused with a reason.
+        </p>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── talent_type_grid (WS7 Phase 0 native data block) ──────────────────────
   // Dynamic mode is the default and the point: the cards come from the tenant's
   // own roster taxonomy. Manual mode keeps the authored-card path available.
@@ -4763,6 +4914,10 @@ function childSecondaryLabel(node: BuilderNode): string {
         : "Search hero";
     case "menu_board":
       return "Menu · orderable items";
+    case "reserve_table":
+      return "Reserve · books a real table";
+    case "session_picker":
+      return "Sessions · book a seat";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

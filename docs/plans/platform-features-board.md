@@ -258,6 +258,30 @@ The Events brief said *"reuse `booking_payouts` status `'held'` and `releaseHeld
 
 Using a manager both sides could reach was **good improvisation while nothing better existed**, and it is how the `is_staff_of_tenant` finding actually travelled. But it **puts a finding through a third party who did not measure it.** The CEO's channel reaches every session; a director's does not. **Send cross-department findings to the CEO, who verifies and routes** — that is a CEO function, not a workaround.
 
+## WHEN A SLICE CHANGES HANDS, THE CONTRACTS REGISTRY IS THE THING THAT HAS TO CHANGE
+
+**Two ownership moves happened tonight and neither was recorded here. The registry said Sessions & Classes owned `admissions` and the `check_in` RPC; Events & Ticketing built and shipped both.** Corrected in the table above.
+
+**The cost was nearly a second `check_in` function in production.** The Sessions manager was instructed — by this director, from this board — to build the RPC. They announced migration `20261229000341` before applying, as the rules require, and a single `pg_proc` query found the function already live.
+
+**And `CREATE OR REPLACE` would not have replaced it.** Postgres identifies a function by name **and argument types**. Theirs took five parameters; the shipped one takes three. It would have created an **OVERLOAD** — two `check_in` functions, both live, both looking correct, with callers binding to whichever matched their argument names. **A door and a host stand could have resolved to different functions.**
+
+**CLOBBERING IS VISIBLE. AN OVERLOAD IS NOT.**
+
+### Every check in the migration protocol would have passed
+
+Apply in your own band · verify the object exists afterwards · check `has_function_privilege` in both directions. **The object exists. The grants are correct. The privilege query returns exactly what you expect. And there are two doors.**
+
+**"Verify the object exists afterwards" cannot see this, because the object exists either way.**
+
+**The rule, in the manager's own sharpened form: a pre-analysis that names what a migration cannot LEAVE BEHIND is silent on what it might quietly STAND BESIDE — and for a `CREATE OR REPLACE`, standing beside is the entire risk.** Before one, **query `pg_proc` for the name first**.
+
+### This was a documentation gap, not a judgement error
+
+Nobody made a bad call. The ruling assigned the RPC to Sessions; Events built it, well, with the same two-entry-mode reasoning Sessions had designed independently. **The ownership moved and no artefact recorded the move**, so the director's instruction was correct against the board and wrong against reality.
+
+**A slice that changes hands in conversation has not changed hands.** The registry is the artefact, and updating it is part of the handover rather than bookkeeping after it.
+
 ## FOR WORKSPACE & DASHBOARDS: the Events rail slot was reported as built and does not exist
 
 **A manager's brief named a dependency as already satisfied. It was never built, and they found it by trying to build on it.** Prompt 7 says *"The Events page in the workspace rail (the Dashboards Director added the slot)."* Verified on `origin/main @ 4884afd65` by the director rather than routed on report — three checks, all zero:
@@ -1355,6 +1379,51 @@ They shipped the same defect twice in escalating form, and found it only because
 Two managers declined to update the board on the grounds that a PR triggers CI, and CI is load. **The reasoning is right and the machine is wrong.** `ci.yml` is `runs-on: ubuntu-latest` — every gate runs on GitHub's runners and costs the owner's laptop nothing. What costs the laptop is a **local** typecheck, lint, test lane or dev server. **During a memory stop: pushing and documenting are free; running anything locally is not.**
 
 
+## Process notes — merging, sweeps, and the migration protocol (2026-09-05)
+
+**THE MIGRATION PROTOCOL'S LAST STRUCTURAL BLOCKER IS CLEARED.** Six ledger rows carried versions with no file on main, so `db:push` failed for everyone with `LegacyDbPushMissingLocalError` and production's schema was not reproducible from the repo. Repaired: four were `apply_migration` auto-stamps with a documented twin, one was a duplicate recorded under a filename-shaped name, one had **zero statements** — nothing was ever applied. The seventh, `card_capability_trait_lines`, turned out recoverable from an unmerged branch and is on main. **Verified against a tree at `origin/main`, not the shared checkout** — `db:check` compares only the migrations your branch happens to contain, so a green from a stale tree is worth nothing.
+
+**`apply_migration` assigns its OWN version stamp and ignores your filename.** Four of those six rows were created that way, by someone following the protocol correctly. **A successful apply is not proof the guard will pass.** After applying by any route, assert the ledger row exists at your file's exact version.
+
+**MERGE PACING: one commit per gate duration. Never batch a stack.** GitHub holds **one pending run per concurrency group**, and the group key is `workflow-ref` — so every main-ref commit shares one slot. A burst supersedes the tip's queued gate before it can start, and `promote-production.yml` only advances on a gate that *passes on that exact commit*. **Five merges in 56 seconds shipped nothing.** Merging faster ships less. The delay self-heals — the pointer fast-forwards to the tip and carries everything beneath it — but only once merges stop.
+
+**Do not "fix" this with a per-sha concurrency group.** It makes every superseded run execute to completion, burning a full gate each to produce verdicts on commits nothing will promote. **The supersession is the queue correctly discarding work whose answer will be obsolete before it lands.**
+
+**A CANCELLED MAIN RUN IS NOT A KILLED RUN.** `cancel-in-progress` is already `false` for main and works. Cancelled main-ref runs have **zero jobs — they never started.** The decisive test is `jobs[].started_at`, not the word "cancelled".
+
+**WHOEVER RUNS `gh pr update-branch` ON A BRANCH THEY DO NOT OWN MESSAGES THE OWNER IN THE SAME MINUTE** — PR numbers, what was done, and "merge or rebase, do not force". **A sweep is not an exception; it is the case that most needs announcing**, because a sweep touches branches whose owners are by definition not watching. Branch protection requires up-to-date-with-main, so **every merge stales every other open PR** and the sweep will be needed repeatedly — the announcement is a template, not a one-off apology.
+
+**And the reason forcing is unsafe here is worse than it looks:** `--force-with-lease` guards refs you have **not fetched**. The moment you fetch to see what landed — the natural next step — the lease is satisfied and the force succeeds silently. **The safety net does not cover the case that most looks like it needs one.**
+
+**The defect was silence, not the update.** Updating a stale branch is useful; nobody should be afraid to unblock a PR.
+
+**A DEV SERVER FOR CODE THAT PRODUCTION ALREADY CARRIES IS PURE COST. Check `origin/production` before taking a lease.** A demo dev server ran 25 minutes with zero responses while holding **six gigabytes** — swap free went 818 MB to 6.8 GB the moment it was killed. The commit it was serving was already live on production, on the same database. The work moved to production's own builder and needed no local server at all.
+
+**The general form: before starting anything expensive locally, ask whether the thing you need is already deployed.** `git merge-base --is-ancestor <sha> origin/production` answers it in a second, and this box has spent hours tonight starved by work that was never necessary.
+
+## One signal, several states — the night's through-line
+
+Almost every real problem in this stretch was one signal covering states that needed opposite actions. None of the instruments lied; each answered a question nobody asked.
+
+```
+BLOCKED           gate running · behind main · queued for a runner
+cancelled         killed mid-run · never started
+green check list  waiting to merge · merged twenty minutes ago
+404               code not found · route not registered
+exit 143          failed · killed by a signal
+red ✗ on smoke    production broken · local env missing
+0% CPU            starved · SIGSTOPped
+```
+
+**The durable form, from the Orders & Checkout Manager: name the thing you are measuring, and read the field that can express failure.** `--limit 1` names nothing. `status` cannot say `cancelled`. A check list cannot say `merged`.
+
+**And two claims-become-facts, same family:**
+- **"The claim survived two people because neither of us was its author."** A dependency inherited from a brief is a claim until someone opens the file. "0.8b blocked on Finance" rode four status reports and every summary upward; the engine had shipped days earlier and neither side had read it.
+- **An incident file makes a familiar shape feel diagnosed.** Reaching for a recorded incident is the same shortcut as reaching for a plan — checkable, and usually not checked.
+
+**A grep for a name is not a count of uses.** One task was reported at 9, ~15, then 20 files; the measured answer was **8**, because every earlier figure counted comment mentions. The only number checked properly was the smallest.
+
+
 ## Contracts registry
 ### `space_group` pools are BAND MODE ONLY. Ruled 2026-09-03.
 
@@ -1415,7 +1484,8 @@ Found by the Spaces & Seating Manager, applying the invariant Capacity handed th
 | spaces, space_groups, space_group_members, layouts, layout_spaces, assign/move API | Spaces & Seating | Reservations, Events, Menu, Appointments | proposed | S2 to S5 |
 | a space's QR: `createLinkForSpace()` returns a link whose `context.space_id` is that space. Spaces never writes `links` and never generates an image. **Ruled 2026-09-03** — QR per space moved off the Spaces row | QR & Links | Spaces & Seating | **agreed 2026-09-03** | Q1 |
 | session_series, sessions, session tier pools | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
-| admissions, check_in RPC | Sessions & Classes | Events, Reservations | proposed | Phase 1 |
+| `admissions` table | **Events & Ticketing** *(moved from Sessions & Classes)* | Sessions, Reservations | **SHIPPED** — live, 0 rows | Phase 1 |
+| `check_in` RPC | **Events & Ticketing** *(moved from Sessions & Classes)* | Sessions, Reservations | **SHIPPED** — `check_in(p_admission_id uuid, p_count integer, p_actor uuid)`, `SECURITY DEFINER`, service_role EXECUTE only | Phase 1 |
 | events, inquiries.event_id, tenant promo codes | Events & Ticketing | Front Door | proposed | Phase 2 |
 | the Sheet component contract, draft order per guest session, /r/<code>, /me | Front Door | every feature | proposed | F3 to F5 |
 | links, link_scans, /q/<code> resolver, Share popover, qr_code block, print canvas kind; orders.link_id, inquiries.link_id | QR & Links | every feature, Front Door, Page Builder | proposed | Q1 to Q4 |

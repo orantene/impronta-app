@@ -61,6 +61,26 @@ export type MintRow = {
   startsAt: string | null;
 };
 
+/**
+ * Coerce a count that may arrive as PostgREST's NUMERIC string.
+ *
+ * `order_lines.units` is `NUMERIC(12,3)`, so PostgREST sends `"4.000"` — a
+ * STRING. Requiring a number here made this module depend on the caller
+ * remembering to coerce, which is a dependency on a stranger's strictness: it
+ * fails closed (every mint refused with a vague `not_a_count`) rather than
+ * loudly, and the reason names the symptom rather than the cause.
+ *
+ * So the boundary coerces and stays strict about MEANING: `"4.000"` is four,
+ * `"4.500"` is not a count of things and is refused. Accepting the shape the
+ * database actually sends is not laxity; pretending it sends something else is.
+ */
+function toWholeCount(value: unknown): number | null {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (typeof n !== "number" || !Number.isFinite(n)) return null;
+  if (!Number.isInteger(n)) return null;
+  return n;
+}
+
 export type MintRefusal =
   | { ok: false; reason: "not_a_count" }
   | { ok: false; reason: "not_anchored" }
@@ -68,11 +88,22 @@ export type MintRefusal =
 
 export type MintInput = {
   orderLineId: string;
-  units: number;
-  admitsPerUnit: number;
+  /** May arrive as PostgREST's NUMERIC string (`"4.000"`); coerced here. */
+  units: number | string;
+  /** Same: an int column, but coerced so the boundary owns the shape. */
+  admitsPerUnit: number | string;
   sessionId?: string | null;
   spaceId?: string | null;
   allocationId?: string | null;
+  /**
+   * One allocation per unit, in unit order — set when the purchase declared
+   * `perUnitDomainRow` and the engine held N rows for N units. Row k takes
+   * `allocationIds[k]`. When the length does not equal `units` (one row of N,
+   * or a shape this planner cannot interpret) every row falls back to
+   * `allocationId`, which keeps today's behaviour rather than guessing which
+   * unit owns which row.
+   */
+  allocationIds?: readonly string[];
   startsAt?: string | null;
   customerId?: string | null;
   /**
@@ -90,10 +121,11 @@ export type MintInput = {
  * writes real rows that a human meets at a door.
  */
 export function planAdmissions(input: MintInput): ({ ok: true } & MintPlan) | MintRefusal {
-  const { units, admitsPerUnit } = input;
+  const units = toWholeCount(input.units);
+  const admitsPerUnit = toWholeCount(input.admitsPerUnit);
 
-  if (!Number.isInteger(units) || units <= 0) return { ok: false, reason: "not_a_count" };
-  if (!Number.isInteger(admitsPerUnit) || admitsPerUnit <= 0) {
+  if (units === null || units <= 0) return { ok: false, reason: "not_a_count" };
+  if (admitsPerUnit === null || admitsPerUnit <= 0) {
     return { ok: false, reason: "not_a_count" };
   }
 
@@ -116,15 +148,16 @@ export function planAdmissions(input: MintInput): ({ ok: true } & MintPlan) | Mi
     };
   }
 
+  const perUnit = input.allocationIds !== undefined && input.allocationIds.length === units;
   const rows: MintRow[] = [];
   for (let i = 0; i < units; i += 1) {
     const holder = input.holders?.[i];
     rows.push({
       orderLineId: input.orderLineId,
-      // Every row of a line shares the line's allocation: one allocation of 4
-      // units backs four ticket rows. Attribution stays honest because
-      // refund-by-line reads `order_line_id`, which is per row.
-      allocationId: input.allocationId ?? null,
+      // Per-unit when the engine held one allocation per unit (refund-by-line
+      // then frees exactly this seat, and a retry is a no-op on `released_at`);
+      // otherwise every row shares the line's single allocation of N.
+      allocationId: perUnit ? (input.allocationIds![i] ?? null) : (input.allocationId ?? null),
       sessionId: input.sessionId ?? null,
       spaceId: input.spaceId ?? null,
       customerId: input.customerId ?? null,

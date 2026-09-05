@@ -63,6 +63,7 @@ import {
   collectPresentNodeKinds,
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
+import { anchorIdAttrs } from "./anchor-id";
 import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
@@ -125,6 +126,8 @@ import { isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
+import { ReserveTableIsland } from "./reserve-table-island";
+import { SessionPickerIsland } from "./session-picker-island";
 import { menuBoardCopy } from "./menu-board-copy";
 
 export interface BuilderNodeRenderDataSources {
@@ -4343,6 +4346,7 @@ function renderBuilderNodeElement(
       return (
         <ContainerTag
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4371,6 +4375,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4385,6 +4390,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4411,6 +4417,7 @@ function renderBuilderNodeElement(
       return (
         <details
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4439,6 +4446,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4463,6 +4471,7 @@ function renderBuilderNodeElement(
               return (
                 <span
                   key={`${panel.id}:tab`}
+                  {...anchorIdAttrs(panel)}
                   data-builder-node-id={panel.id}
                   data-builder-node-kind={panel.kind}
                   {...panelCue.attrs}
@@ -4494,6 +4503,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4721,6 +4731,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-builder-carousel-variant="hero"
@@ -4824,6 +4835,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4855,6 +4867,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4871,6 +4884,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-card-variant={node.props.variant ?? "elevated"}
@@ -4885,6 +4899,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-cta-layout={node.props.layout ?? "row"}
@@ -4908,6 +4923,7 @@ function renderBuilderNodeElement(
       return (
         <Tag
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4936,6 +4952,7 @@ function renderBuilderNodeElement(
       return (
         <p
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -4976,6 +4993,7 @@ function renderBuilderNodeElement(
       return (
         <a
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...buttonStateAttrs(node)}
@@ -5111,6 +5129,7 @@ function renderBuilderNodeElement(
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-media-id={node.props.mediaId}
@@ -5184,6 +5203,7 @@ function renderBuilderNodeElement(
       return (
         <video
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5217,6 +5237,7 @@ function renderBuilderNodeElement(
       return (
         <iframe
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-embed-provider={node.props.provider ?? "url"}
@@ -5284,6 +5305,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-hero-layout={layout}
@@ -5447,6 +5469,7 @@ function renderBuilderNodeElement(
         return (
           <section
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             {...builderNodeStyleAttrs(undefined)}
@@ -5461,6 +5484,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(undefined)}
@@ -5486,6 +5510,71 @@ function renderBuilderNodeElement(
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
           />
         </section>
+      );
+    }
+    /**
+     * RESERVATIONS — the guest-facing booking block.
+     *
+     * `tenantId` comes from the render data sources, NEVER from props: an
+     * operator cannot type a tenant id. Everything else is authored.
+     *
+     * No data loader and no `native-data-block-needs` entry on purpose — the
+     * island imports its server action dynamically and loads availability
+     * client-side. A static import of a "use server" module would pull it into
+     * the client bundle; `menu_board` solves it the same way.
+     */
+    case "session_picker": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--session-picker"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <SessionPickerIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            offeringId={p.offeringId}
+            title={text("title", p.title) || undefined}
+            locale={options.contentLocale?.locale}
+          />
+        </div>
+      );
+    }
+    case "reserve_table": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--reserve-table"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <ReserveTableIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            venueName={text("venueName", p.venueName)}
+            ctaVerb={text("ctaVerb", p.ctaVerb) || "Reserve"}
+            partyMin={p.partyMin ?? 1}
+            partyMax={p.partyMax ?? 8}
+            cardNotice={p.cardNotice ?? null}
+            notesEnabled={p.notesEnabled ?? true}
+            locale={options.contentLocale?.locale}
+          />
+        </div>
       );
     }
     // WS7 Phase 0 — NATIVE `talent_type_grid`. Dynamic mode reads the
@@ -5546,6 +5635,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-discipline-mode={dynamic ? "dynamic" : "manual"}
@@ -5663,6 +5753,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             {...builderNodeStyleAttrs(node.props.style)}
@@ -5691,6 +5782,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5734,6 +5826,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-social-post-empty=""
@@ -5831,6 +5924,7 @@ function renderBuilderNodeElement(
       return (
         <span
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-icon={icon.name}
@@ -5879,6 +5973,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5955,6 +6050,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -5999,6 +6095,7 @@ function renderBuilderNodeElement(
       return (
         <hr
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-builder-divider-tone={node.props.tone ?? "default"}
@@ -6011,6 +6108,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
@@ -6053,6 +6151,7 @@ function renderBuilderNodeElement(
       return (
         <form
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(formProps.style)}
@@ -6555,6 +6654,7 @@ function renderBuilderNodeElement(
       return (
         <nav
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(navProps.style)}
@@ -6689,6 +6789,7 @@ function renderBuilderNodeElement(
       return (
         <ul
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(socialProps.style)}
@@ -6747,6 +6848,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-marquee-speed={p.speed ?? "medium"}
@@ -6821,6 +6923,7 @@ function renderBuilderNodeElement(
         return (
           <div
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-bn-directory-mode="live"
@@ -6861,6 +6964,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-directory-scope={p.scope ?? "all"}
@@ -7024,6 +7128,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-featured-variant={p.variant ?? "grid"}
@@ -7143,6 +7248,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-map-side={p.overlaySide ?? "card-left"}
@@ -7306,6 +7412,7 @@ function renderBuilderNodeElement(
         return (
           <form
             key={node.id}
+            {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-header-widget="header_search"
@@ -7339,6 +7446,7 @@ function renderBuilderNodeElement(
       return (
         <a
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_search"
@@ -7377,6 +7485,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_account"
@@ -7418,6 +7527,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_inquiry"
@@ -7480,6 +7590,7 @@ function renderBuilderNodeElement(
       return (
         <nav
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-header-widget="header_language"
@@ -7530,6 +7641,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-sticky-side={p.side ?? "media-left"}
@@ -7613,6 +7725,7 @@ function renderBuilderNodeElement(
       return (
         <div
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-reveal-effect={p.effect ?? "rise"}
@@ -7658,6 +7771,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-stats-variant={p.variant ?? "row"}
@@ -7751,6 +7865,7 @@ function renderBuilderNodeElement(
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           data-bn-ba-ratio={p.ratio ?? "16/9"}

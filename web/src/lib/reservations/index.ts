@@ -52,3 +52,9 @@ export {
   extendHold,
   soonRemindersDue,
 } from "./reminders";
+
+export type { ConfirmationContent, ConfirmationInput, ConfirmationLocale } from "./confirmation";
+export { buildConfirmation } from "./confirmation";
+
+export type { WalkInDecision, WalkInPlan, WalkInRefusal } from "./walkin";
+export { planWalkIn, walkInOptions } from "./walkin";

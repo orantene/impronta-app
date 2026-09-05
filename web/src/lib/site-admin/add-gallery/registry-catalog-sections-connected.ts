@@ -486,6 +486,48 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     connectedSource: "Workspace Menu",
     searchTerms: ["menu board", "menu_order", "order food", "catering", "workspace menu"],
   }),
+  connected({
+    id: "conn-reserve-table-native",
+    label: "Reserve a table",
+    description:
+      "A guest picks party size, date and time and books a real table, held as an order the host stand can see.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "reserve_table",
+    sourceType: "native-freeform",
+    connectedSource: "Reservations",
+    searchTerms: [
+      "reserve",
+      "reservation",
+      "book a table",
+      "booking",
+      "restaurant",
+      "party size",
+      "availability",
+    ],
+  }),
+  connected({
+    id: "conn-session-picker-native",
+    label: "Book a session",
+    description:
+      "A guest picks an upcoming session or class and books a seat, held as an order; the seat past capacity is refused.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "session_picker",
+    sourceType: "native-freeform",
+    connectedSource: "Sessions",
+    searchTerms: [
+      "session",
+      "class",
+      "book a seat",
+      "booking",
+      "schedule",
+      "sign up",
+      "capacity",
+    ],
+  }),
 
   // ── Connected / Dynamic Data ────────────────────────────────────────────
   connected({

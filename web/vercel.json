@@ -95,6 +95,9 @@
     },
     "src/app/api/cron/materialise-sessions/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/session-reminders/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -175,6 +178,10 @@
       "schedule": "20 4 * * *"
     },
     {
+      "path": "/api/cron/session-reminders",
+      "schedule": "10 * * * *"
+    },
+    {
       "path": "/api/cron/refresh-demand-scores",
       "schedule": "20 4 * * *"
     },
@@ -225,6 +232,10 @@
     {
       "path": "/api/cron/discount-ending-warnings",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/warm-front-door",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -68,6 +68,15 @@ export const PLATFORM_RESERVED_SLUGS = [
   // QR & Links: /q/<code> is the tracked-link resolver and resolves on every
   // tenant host, so a CMS page at this slug could never open.
   "q",
+  // Events & Ticketing: /events and /events/<slug> resolve on every tenant
+  // host, so a CMS page slugged "events" would be permanently unreachable —
+  // the route wins and the author gets no error, just a page nobody can open.
+  // Reserved so the builder refuses the slug up front instead.
+  "events",
+  // Events & Ticketing: /r/<code> is the ticket receipt, resolving on every
+  // tenant host. Same shadowing as "events": a CMS page slugged "r" could
+  // never open. Mirrored in `…377_reserve_receipt_slug.sql`.
+  "r",
   "sitemap.xml",
   "robots.txt",
   "_next",

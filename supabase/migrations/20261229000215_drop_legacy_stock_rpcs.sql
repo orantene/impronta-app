@@ -1,0 +1,82 @@
+-- 20261229000215_drop_legacy_stock_rpcs.sql — the lossy stock shim, retired.
+--
+-- Drops `reserve_offering_stock(uuid, int)` and `release_offering_stock(uuid, int)`.
+-- They were the pre-capacity-engine mechanism: decrement an integer on
+-- `talent_offerings.inventory_qty`, and free a QUANTITY newest-first on cancel.
+--
+-- WHY THEY WERE LOSSY, which is why they had to go rather than merely stop being
+-- called: release took a quantity, not an identity. The old design had no
+-- allocation ids, so freeing 2 units meant walking live allocations newest-first
+-- until 2 were freed — which can release a DIFFERENT allocation than the caller
+-- reserved. That cannot over-release and cannot leak units, but it makes
+-- refund-by-line impossible: refunding the GA line could free the VIP seats.
+-- `release_capacity(allocation_ids)` frees exactly what a line held.
+--
+-- I shipped them as a deliberate compatibility shim in 20261229000210 and
+-- labelled them lossy in the header, so this file is the other half of that
+-- commit rather than a cleanup someone thought of later.
+--
+--
+-- WHY IT IS SAFE, and every clause was measured rather than assumed
+-- ════════════════════════════════════════════════════════════════
+-- 1. NO CALLER. Zero `.rpc("reserve_offering_stock")` / `.rpc("release_offering_stock")`
+--    anywhere in `web/src` or `web/scripts` on origin/main @ df7517b1e. Both
+--    engines (`instant-book-engine.ts`, `menu-order-engine.ts`) are deleted and
+--    `offering-stock.ts`'s RPC-calling export went in #1659. Every remaining
+--    textual reference is a migration, a guard FORBIDDING the names, or a comment.
+--
+-- 2. UNREACHABLE, NOT MERELY UNUSED — the stronger claim, and the one that
+--    justifies dropping rather than leaving them. The old release path was gated
+--    on `inquiries.source_context.offering.stock_reserved === true`. NOTHING
+--    WRITES THAT STAMP TRUE any more: the only surviving write in the tree sets
+--    it FALSE (the flip after a release). So the guard can never be satisfied.
+--    "Zero rows" is a fact that changes without anyone deciding; "unreachable"
+--    cannot change without a code change, which a reviewer sees.
+--
+-- 3. NOTHING STRANDED, counted in the same turn as this drop and not before,
+--    because a count is true when taken:
+--       inquiries with stock_reserved = true ............ 0
+--       inquiries with any offering stamp ............... 0
+--       offerings with inventory_qty and NO pool ........ 0   <- the gate
+--       capacity_allocations ............................ 0
+--    The third is the one that decides it. An offering carrying `inventory_qty`
+--    with no `capacity_pool_id` would be stock-limited and INVISIBLE to the
+--    capacity engine — old mechanism dropped, new one never attached — and it
+--    would oversell exactly as the 12-spot course did before 0.3b. A stranded
+--    row is recoverable by a human at leisure; an oversold seat is a person
+--    turned away at a door.
+--
+--
+-- WHAT REPLACES THEM: `reserve_capacity`, `commit_capacity`, `release_capacity`
+-- (20261229000200) and `set_offering_stock` (20261229000211). Stock is a pool,
+-- release is by allocation id, and an edit is `units_total = available + held`
+-- under the pool's row lock.
+--
+-- `talent_offerings.inventory_qty` is NOT dropped here. It is still read by the
+-- storefront as the pool's mirror, and dropping a column in the same release that
+-- stops writing it is the contract step, not the expand step. Its removal is a
+-- later migration once the readers move to `capacity_remaining_public`.
+--
+-- The two guards that forbid these names by string stay and are correct after
+-- this: `lib/capacity/no-legacy-stock-rpc.static.test.ts` and the two negative
+-- assertions in `lib/orders/menu-rehome.static.test.ts`. They go nearly
+-- tautological — the names will exist nowhere — but quantity-based release is a
+-- SHAPE someone could rebuild under a new name, and those files record why
+-- nobody should.
+--
+-- TIMESTAMP: band 202612290002xx (Capacity). Verified against the REMOTE ledger:
+-- mine run 200/210/211/212/213/214, Spaces 220-223, Orders 240-242, 280/281 in
+-- use. 215 is free. Everything this depends on sorts BELOW it — the functions
+-- were created at 20260708190802 and last replaced at 20261229000210.
+--
+-- REVERSIBLE: re-running 20261229000210 recreates both with their shim bodies.
+--
+-- APPLY WITH `node web/scripts/apply-migration.mjs`, never `db push`.
+-- DRY-RUN FIRST with `npm run sql:dry-run -- <this file>`.
+
+BEGIN;
+
+DROP FUNCTION IF EXISTS public.reserve_offering_stock(uuid, int);
+DROP FUNCTION IF EXISTS public.release_offering_stock(uuid, int);
+
+COMMIT;

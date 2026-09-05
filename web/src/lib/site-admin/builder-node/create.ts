@@ -239,6 +239,31 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
+    case "session_picker":
+      return {
+        id: makeId("session_picker"),
+        kind: "session_picker",
+        props: {
+          offeringId: "",
+          title: "",
+        },
+      };
+    case "reserve_table":
+      return {
+        id: makeId("reserve_table"),
+        kind: "reserve_table",
+        props: {
+          venueName: "",
+          // Defaults match the contract. `ctaVerb` is a terminology choice, not
+          // free text: a barbershop that picked "Agenda" must not end up with a
+          // button saying Reserve.
+          ctaVerb: "Reserve",
+          partyMin: 1,
+          partyMax: 8,
+          cardNotice: null,
+          notesEnabled: true,
+        },
+      };
     case "talent_type_grid":
       return {
         id: makeId("talent_type_grid"),

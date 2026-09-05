@@ -196,7 +196,21 @@ export function GuestDockHomeView({
     : t("public.guestChat.homeStartTitle");
   const startSubtitle = draftExists
     ? t("public.guestChat.homeContinueSub")
-    : interpolate(t("public.guestChat.homeStartSub"), { name: talentFirst });
+    // FULL display name, not the first-name split. `talentFirst` is
+    // `firstNameOf(brand.talentDisplayName)` (MiniChatPanel.tsx:165), which
+    // takes everything before the first space. That is right for a person and
+    // wrong for a business: on El Paisa this line read "Tell El's team what you
+    // need."
+    //
+    // The ideal fix distinguishes a person from a business and splits only for
+    // people, but the signal for that is the industry preset's
+    // `representsPeople`, and `agencies.settings.industry_preset` is unset on
+    // 13 of 13 live tenants — so today it would resolve to "custom" for
+    // everyone and change nothing. The full name is never WRONG, only slightly
+    // more formal for a person, so it is the correct fix to ship now.
+    : interpolate(t("public.guestChat.homeStartSub"), {
+        name: brand.talentDisplayName || talentFirst,
+      });
 
   return (
     <div

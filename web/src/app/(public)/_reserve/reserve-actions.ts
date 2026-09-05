@@ -30,6 +30,7 @@ import {
   turnMinutesForParty,
 } from "@/lib/reservations";
 import type { AvailabilityRefusal } from "@/lib/reservations";
+import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import { capacityRemaining } from "@/lib/capacity/reserve";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -38,9 +39,20 @@ import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
 const inputSchema = z.object({
   tenantId: z.string().uuid(),
   partySize: z.number().int().min(1).max(1000),
-  /** A local calendar date in the venue's own zone, never an instant. */
-  onDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /**
+   * A local calendar date in the venue's own zone, never an instant.
+   *
+   * OPTIONAL, and that is the point. The browser cannot honour this contract:
+   * it knows its OWN calendar, and a guest in Madrid looking at a Cancun
+   * restaurant at 01:00 is on tomorrow's date while the venue is still serving
+   * tonight. Omitting it asks the venue what today is, which is the only
+   * authority for the question.
+   */
+  onDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
+
+/** How many days forward the date strip offers, including the venue's today. */
+const DATE_STRIP_DAYS = 5;
 
 export type ReserveSlot = {
   windowKey: string;
@@ -51,9 +63,37 @@ export type ReserveSlot = {
   isUpsize: boolean;
 };
 
+/**
+ * What the page needs to draw itself, refusal or not.
+ *
+ * `timezone`, `onDate` and `dates` ride on BOTH branches on purpose. A guest
+ * told "we are closed that day" still needs the date strip in order to pick a
+ * different day, so a refusal that dropped the dates would strand them on the
+ * one answer they cannot act on. They are null/empty only when we never reached
+ * the venue at all — which is a different sentence, and the page says so.
+ */
+export type ReserveDateContext = {
+  /** The venue's IANA zone. Null only when the venue could not be read. */
+  timezone: string | null;
+  /** The date these windows describe, in the venue's zone. */
+  onDate: string | null;
+  /** The selectable dates, in the venue's zone, earliest first. */
+  dates: string[];
+};
+
 export type ReserveAvailability =
-  | { ok: true; timezone: string; windows: Array<{ key: string; slots: ReserveSlot[] }> }
-  | { ok: false; reason: AvailabilityRefusal | "closed" | "unavailable" };
+  | (ReserveDateContext & {
+      ok: true;
+      timezone: string;
+      onDate: string;
+      windows: Array<{ key: string; slots: ReserveSlot[] }>;
+    })
+  | (ReserveDateContext & {
+      ok: false;
+      reason: AvailabilityRefusal | "closed" | "unavailable";
+    });
+
+const NO_DATES: ReserveDateContext = { timezone: null, onDate: null, dates: [] };
 
 /**
  * The times this party can be offered on this date.
@@ -64,12 +104,36 @@ export type ReserveAvailability =
  */
 export async function loadReserveAvailability(input: unknown): Promise<ReserveAvailability> {
   const parsed = inputSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, reason: "unavailable" };
-  const { tenantId, partySize, onDate } = parsed.data;
+  if (!parsed.success) return { ok: false, ...NO_DATES, reason: "unavailable" };
+  const { tenantId, partySize } = parsed.data;
 
   try {
     const venue = await loadDefaultVenue(tenantId);
-    if (!venue) return { ok: false, reason: "reservations_off" };
+    if (!venue) return { ok: false, ...NO_DATES, reason: "reservations_off" };
+
+    const tz = await resolveTenantTimezone(tenantId, venue.id);
+    const timezone = tz?.timezone ?? venue.timezone;
+    const now = new Date();
+
+    // THE VENUE'S TODAY, not the reader's. `utcToZonedYmd` returns null rather
+    // than guessing, and a zone we cannot resolve is a venue we cannot offer
+    // times for — never a silent fall back to the server's calendar, which
+    // would be the same mistake as the browser's.
+    const todayInZone = utcToZonedYmd(now, timezone);
+    if (!todayInZone) return { ok: false, ...NO_DATES, reason: "unavailable" };
+
+    const dates: string[] = [];
+    for (let i = 0; i < DATE_STRIP_DAYS; i += 1) {
+      const ymd = i === 0 ? todayInZone : addUtcDays(todayInZone, i);
+      if (ymd) dates.push(ymd);
+    }
+
+    // An absent `onDate` means "the venue decides". A supplied one is honoured
+    // only if it is a date we actually offer, so a stale strip left open in a
+    // tab cannot ask for a day that has since passed.
+    const requested = parsed.data.onDate;
+    const onDate = requested && dates.includes(requested) ? requested : todayInZone;
+    const ctx: ReserveDateContext = { timezone, onDate, dates };
 
     const config = await loadVenueServiceConfig(tenantId, venue.id, {
       fromDate: onDate,
@@ -78,12 +142,8 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
     // A failed read is NOT an open venue. Falling through to "no times" would be
     // indistinguishable from a full house, and a guest would be told the
     // restaurant is booked when we simply could not look.
-    if (!config) return { ok: false, reason: "unavailable" };
-    if (!config.rules.isActive) return { ok: false, reason: "reservations_off" };
-
-    const tz = await resolveTenantTimezone(tenantId, venue.id);
-    const timezone = tz?.timezone ?? venue.timezone;
-    const now = new Date();
+    if (!config) return { ok: false, ...ctx, reason: "unavailable" };
+    if (!config.rules.isActive) return { ok: false, ...ctx, reason: "reservations_off" };
 
     const windows: Array<{ key: string; slots: ReserveSlot[] }> = [];
     let lastRefusal: AvailabilityRefusal | null = null;
@@ -162,14 +222,14 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
       });
     }
 
-    if (!anyWindowOpen) return { ok: false, reason: "closed" };
+    if (!anyWindowOpen) return { ok: false, ...ctx, reason: "closed" };
     if (windows.length === 0) {
-      return { ok: false, reason: lastRefusal ?? "fully_booked" };
+      return { ok: false, ...ctx, reason: lastRefusal ?? "fully_booked" };
     }
-    return { ok: true, timezone, windows };
+    return { ok: true, ...ctx, timezone, onDate, windows };
   } catch (err) {
     logServerError("reserve-actions.loadReserveAvailability", err);
-    return { ok: false, reason: "unavailable" };
+    return { ok: false, ...NO_DATES, reason: "unavailable" };
   }
 }
 

@@ -80,7 +80,15 @@ while true; do
     # human can rm -rf it. Testing an age backstop showed it robs a live owner
     # whose heartbeat stalls, which is the same bug in a milder form.
     if [ "$WAITED" = 0 ]; then
-      echo "tsc-queue: waiting for $OWNER_DIR (pid $OWNER_PID), last seen ${HB_AGE}s ago." >&2
+      # Name BOTH ends. The old line printed only the blocker's path, and its
+      # most natural reading is "this is my cwd" — a reader takes the blocker
+      # for the waiter and blames the wrong session. That cost a wrong
+      # attribution the night this was changed. Same class as an exit code of
+      # 143 read as a failure: a line whose obvious reading is the wrong one.
+      # NOTE: basename alone is useless here — every checkout ends in "/web",
+      # so it prints "web is WAITING FOR web". Name the CHECKOUT, which is the
+      # parent directory. Found by running it rather than reading it.
+      echo "tsc-queue: $(basename "$(dirname "$(pwd)")") is WAITING FOR $(basename "$(dirname "$OWNER_DIR")") (pid $OWNER_PID), last seen ${HB_AGE}s ago." >&2
       echo "tsc-queue: a live typecheck is never stale. If it is truly wedged: rm -rf $LOCK" >&2
     fi
   fi

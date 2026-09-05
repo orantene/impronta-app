@@ -71,3 +71,35 @@ test("fill interpolates every occurrence of a token", () => {
   assert.equal(fill("{item} and {item}", { item: "pizza" }), "pizza and pizza");
   assert.equal(fill("no tokens", { count: 1 }), "no tokens");
 });
+
+// ── Cart storage key ────────────────────────────────────────────────────────
+
+test("a tenant-less cart is never persisted", async () => {
+  // storageKey("") is the bare prefix, so a tenant-less write is not a no-op:
+  // it is one cart bucket shared by every tenant a person visits in that
+  // browser session. The read and the write call the SAME predicate, so there
+  // is no half to delete — which is how this got in (the read checked, the
+  // write did not, and the lone guard read as redundant).
+  const { cartStorageEnabled } = await import("./menu-board-island");
+  const realWindow = (globalThis as Record<string, unknown>).window;
+  (globalThis as Record<string, unknown>).window = {};
+  try {
+    assert.equal(cartStorageEnabled(""), false, "empty tenant id must not persist");
+    assert.equal(cartStorageEnabled("   ".trim()), false, "whitespace is not a tenant");
+    assert.equal(cartStorageEnabled("tenant-a"), true);
+  } finally {
+    if (realWindow === undefined) delete (globalThis as Record<string, unknown>).window;
+    else (globalThis as Record<string, unknown>).window = realWindow;
+  }
+});
+
+test("no cart is persisted server-side, whatever the tenant", async () => {
+  const { cartStorageEnabled } = await import("./menu-board-island");
+  const realWindow = (globalThis as Record<string, unknown>).window;
+  delete (globalThis as Record<string, unknown>).window;
+  try {
+    assert.equal(cartStorageEnabled("tenant-a"), false);
+  } finally {
+    if (realWindow !== undefined) (globalThis as Record<string, unknown>).window = realWindow;
+  }
+});

@@ -115,16 +115,27 @@ function isEditorScaffolding(relFile: string): boolean {
  * for `/contact` and instructed authors to use `/directory` instead. It was
  * enforcing a route that 404s on a business workspace.
  *
- * Fixing them is a real change to every seeded section's call to action and it
- * belongs in its own PR with the Director's sequencing, not smuggled into the
- * page-design fix. So they are frozen here, per file, with an exact budget.
+ * 24 of the 37 are now FIXED: every `/directory`, `/talent` and `/work` default
+ * in those two files points at `?inquiry=open`. Their labels read "Start a
+ * request" and "Start an Inquiry" and pointed at a directory listing, so this
+ * is a correction rather than a downgrade.
+ *
+ * THE 13 THAT REMAIN ARE ALL HASH HREFS AND TWO `/register`s, and they are left
+ * deliberately. `anchorId` shipped in #1629, so the premise under `classify`'s
+ * hash branch — "a builder node id is emitted as data-builder-node-id, never a
+ * DOM id" — IS NO LONGER TRUE ON MAIN. Repointing those anchors at the chat now
+ * could destroy in-page jumps that have started working. Whether each one
+ * resolves depends on the target node carrying a matching `anchorId`, which is
+ * the Page Builder Director's area and is already guarded separately by
+ * `anchor-hrefs-resolve.static.test.ts`. That reconciliation is theirs, not a
+ * thing to guess at from here.
  *
  * THESE NUMBERS ONLY GO DOWN. Lowering one as you fix a file is the point;
  * raising one, or adding a file, is a regression and this test says so.
  */
 const SECTION_DEBT: ReadonlyMap<string, number> = new Map([
-  ["lib/site-admin/sections/shared/default-content.ts", 25],
-  ["lib/site-admin/sections/shared/section-template-starters.ts", 12],
+  ["lib/site-admin/sections/shared/default-content.ts", 12],
+  ["lib/site-admin/sections/shared/section-template-starters.ts", 1],
 ]);
 
 const HREF_RE = /href:\s*"([^"]*)"/g;

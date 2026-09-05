@@ -6,6 +6,28 @@
  * Values must parse clean against each section's v1 Zod schema. If a
  * section's schema changes shape, update the default here alongside.
  */
+
+/**
+ * DEAD DEFAULT CTAs, and why these point at the inquiry.
+ *
+ * Every `/directory`, `/talent` and `/work` default in this file used to 404 on
+ * a business workspace. They are not a regression anyone introduced: they are
+ * the direct product of the OLD dead-CTA guard, which failed builds for
+ * `/contact` and told authors to write `/directory` instead — enforcing a route
+ * that only resolves where `rosterEnabled(workspace_type)` is true.
+ *
+ * They now point at `?inquiry=open`, which is what the current guard
+ * prescribes. It is query-only, so it stays on whatever page the section is on
+ * and resolves on every workspace type and both host shapes.
+ *
+ * The labels are the tell that this is a correction and not a downgrade: these
+ * read "Start a request" and "Start an Inquiry" and pointed at a directory
+ * listing. Opening the inquiry is what they always said they did.
+ *
+ * A tenant that genuinely wants its roster can still link there — this is a
+ * DEFAULT, editable in the builder. What a default may not do is 404 on the
+ * majority of workspaces before anyone has touched it.
+ */
 import type { SectionTypeKey } from "../registry";
 import { v11FeaturedTalentPreset } from "../featured_talent/presets";
 import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
@@ -47,7 +69,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       headline: "Tell us about your celebration.",
       copy: "Share a few details and your concierge will return a curated team.",
       reassurance: "Quiet, unhurried, always in the same key.",
-      primaryCta: { label: "Start a request", href: "/directory" },
+      primaryCta: { label: "Start a request", href: "?inquiry=open" },
       variant: "centered-overlay",
       imageSide: "right",
       bandTone: "ivory",
@@ -91,13 +113,13 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         placeholder: "Search talent by role, location or fit…",
         submitLabel: "Search",
       },
-      primaryCta: { label: "Start an Inquiry", href: "/directory" },
+      primaryCta: { label: "Start an Inquiry", href: "?inquiry=open" },
       secondaryCta: { label: "Apply as talent", href: "/register" },
       chipsSource: "manual",
       chips: [
-        { label: "Riviera Maya", href: "/directory" },
-        { label: "Mexico City", href: "/directory" },
-        { label: "Buenos Aires", href: "/directory" },
+        { label: "Riviera Maya", href: "?inquiry=open" },
+        { label: "Mexico City", href: "?inquiry=open" },
+        { label: "Buenos Aires", href: "?inquiry=open" },
         { label: "More cities coming" },
       ],
       statSource: "manual",
@@ -122,20 +144,20 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         {
           label: "Riviera Maya",
           region: "Mexico",
-          href: "/directory",
+          href: "?inquiry=open",
           featured: true,
           status: "active",
         },
         {
           label: "Mexico City",
           region: "Mexico",
-          href: "/directory",
+          href: "?inquiry=open",
           status: "active",
         },
         {
           label: "Buenos Aires",
           region: "Argentina",
-          href: "/directory",
+          href: "?inquiry=open",
           status: "active",
         },
         { label: "Los Angeles", region: "United States", status: "coming_soon" },
@@ -153,8 +175,8 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       headline: "Discover premium talent across",
       highlight: "destination cities.",
       body: "Premium models, hosts, performers and creators for events, productions and brand experiences in Riviera Maya, Mexico City, Buenos Aires & beyond.",
-      primaryCta: { label: "Explore talent", href: "/directory" },
-      secondaryCta: { label: "Start an inquiry", href: "/directory" },
+      primaryCta: { label: "Explore talent", href: "?inquiry=open" },
+      secondaryCta: { label: "Start an inquiry", href: "?inquiry=open" },
       discoveryForm: {
         enabled: true,
         actionHref: "/directory",
@@ -401,7 +423,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       headline: "Quiet, unhurried, in the same key.",
       body:
         "We build short, deliberate teams around your story: never overstaffed, never anonymous. Each booking is led by a single concierge from inquiry to wrap.",
-      primaryCta: { label: "See our work", href: "/work" },
+      primaryCta: { label: "See our work", href: "?inquiry=open" },
       imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
       imageAlt: "Editorial portrait",
       side: "image-left",
@@ -786,7 +808,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     props: {
       brand: { label: "Brand", href: "/" },
       navItems: [
-        { label: "Roster", href: "/talent" },
+        { label: "Roster", href: "?inquiry=open" },
         { label: "About", href: "/p/about" },
         // Contact deliberately omitted — see `createNav` in builder-node/create.ts:
         // no default may ship a link to a page the workspace does not have.
@@ -808,7 +830,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         {
           heading: "Site",
           links: [
-            { label: "Roster", href: "/talent" },
+            { label: "Roster", href: "?inquiry=open" },
             { label: "About", href: "/p/about" },
             // Contact deliberately omitted — see the site_header default above.
           ],

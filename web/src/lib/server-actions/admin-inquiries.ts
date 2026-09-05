@@ -20,6 +20,7 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
+import { resolveStaffCreatedInquiryClient } from "@/lib/inquiry/guest-client";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
 
@@ -92,6 +93,18 @@ export async function createAgencyInquiry(
   // client whose identity is name+email — that client may or may not
   // have an existing auth row; client_user_id stays null and the
   // merge layer links them later by email/phone on signup.
+  // Attach a client party so a coordinator's reply can actually reach this
+  // person by email (see resolveStaffCreatedInquiryClient). Without it the
+  // reply mirror skips with reason `no_client_party` and the client hears
+  // nothing — the merge-on-signup layer links identity later, but that is too
+  // late for the reply they are waiting on.
+  const staffClientUserId = await resolveStaffCreatedInquiryClient({
+    contactEmail: v.contact_email,
+    contactName: v.contact_name,
+    contactPhone: v.contact_phone,
+    company: v.company,
+  });
+
   const inquirySubmission = await submitInquiry(supabase, {
     tenant_id: tenantId,
     contact_name: v.contact_name.trim(),
@@ -107,7 +120,7 @@ export async function createAgencyInquiry(
     // valid 'admin_created' (same value createManualInquiry uses).
     source_channel: "admin_created",
     source_page: "admin-workspace-new-inquiry",
-    client_user_id: null,
+    client_user_id: staffClientUserId,
     talent_profile_ids: [],
     actorUserId: user.id,
     initiator_role: "admin",
@@ -1539,6 +1552,17 @@ export async function createManualInquiry(
     }
   }
 
+  // Same policy as createAgencyInquiry: when staff did not pick an existing
+  // client, provision/match one by contact email so the reply mirror has a
+  // reachable party. An explicitly selected client is used as-is.
+  const resolvedClientUserId = await resolveStaffCreatedInquiryClient({
+    existingClientUserId: client_user_id,
+    contactEmail: d.contact_email,
+    contactName: d.contact_name,
+    contactPhone: d.contact_phone,
+    company: d.company,
+  });
+
   let client_account_id = d.client_account_id.length > 0 ? d.client_account_id : null;
   let client_contact_id = d.client_contact_id.length > 0 ? d.client_contact_id : null;
 
@@ -1594,7 +1618,7 @@ export async function createManualInquiry(
         name: d.contact_name,
         email: d.contact_email,
         phone: d.contact_phone.length > 0 ? d.contact_phone : undefined,
-        user_id: client_user_id,
+        user_id: resolvedClientUserId,
       },
       client: {
         company: d.company.length > 0 ? d.company : undefined,
@@ -1619,7 +1643,11 @@ export async function createManualInquiry(
     {
       tenant_id: tenantId,
       actor_user_id: user.id,
-      client_user_id,
+      // The ctx value is what lands in `inquiries.client_user_id` — the column
+      // the reply mirror reads. The intent's requester.user_id above is a
+      // different field; setting only that one would leave the column null and
+      // the mirror still skipping with `no_client_party`.
+      client_user_id: resolvedClientUserId,
     },
   );
 

@@ -44,6 +44,8 @@ export type BuilderNodeKind =
   // data-driven blocks. Structural leaves (`children: { type: "none" }`).
   | "hero_search"
   | "menu_board"
+  | "reserve_table"
+  | "session_picker"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
   // registry Impronta's live pages reach through `section_embed` bridges.
@@ -67,6 +69,16 @@ export type BuilderNodeKind =
 export interface BuilderNodeBase {
   id: string;
   kind: BuilderNodeKind;
+  /**
+   * C11 — OPTIONAL DOM `id` so an in-page anchor (`href="#menu"`) resolves.
+   * Before this, the renderer emitted `data-builder-node-id` and never an `id`,
+   * so no hash href worked in any design — `restaurant-orderable`'s "Browse the
+   * menu" button was inert on every restaurant tenant's homepage. Slugified and
+   * normalized by `normalizeAnchorId`; SOURCE OF TRUTH = `props.anchorId`,
+   * mirrored here by validate's base-field allow-list so the renderer reads
+   * `node.anchorId` directly. Absent → no `id` attribute at all. See anchor-id.ts.
+   */
+  anchorId?: string;
   /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
   locked?: boolean;
   /** Builder Studio — per-PROP locks (dot-paths, e.g. "tone", "style.textColor"). Admin-set; read-only in the inspector + stripped from patches in patchBuilderNodeProps. Carried by validate's base-field allow-list (see prop-lock.ts). */
@@ -1099,6 +1111,47 @@ export interface BuilderHeroSearchNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * RESERVATIONS — the public block a guest books a table from. Party, date,
+ * service window, time, name, email. NO floor plan and no table picking: a
+ * guest books "a table for four at eight", and which table that becomes is the
+ * host's job at the door.
+ *
+ * `tenantId` is NOT here: the renderer injects it from
+ * `options.dataSources.tenantId`, exactly as `menu_board` does. An operator
+ * cannot type a tenant id and must never be asked to.
+ *
+ * `partyMin` / `partyMax` are DISPLAY BOUNDS ONLY. The server re-derives them
+ * from `venue_service_rules` and refuses anything outside, so a block edited to
+ * `partyMax: 500` would offer times and then refuse the booking with a reason.
+ * They exist so the stepper does not offer obvious nonsense, not as a gate.
+ */
+export interface BuilderReserveTableNode extends BuilderNodeBase {
+  kind: "reserve_table";
+  props: {
+    venueName?: string;
+    ctaVerb?: string;
+    partyMin?: number;
+    partyMax?: number;
+    cardNotice?: string | null;
+    notesEnabled?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+// Sessions & Classes' guest-facing "book a seat" block. The island
+// (session-picker-island.tsx) and its server action are owned by that manager;
+// this node just carries what a builder configures. `offeringId` binds the block
+// to one session offering; `title` is display copy.
+export interface BuilderSessionPickerNode extends BuilderNodeBase {
+  kind: "session_picker";
+  props: {
+    offeringId: string;
+    title?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderMenuBoardNode extends BuilderNodeBase {
   kind: "menu_board";
   props: {
@@ -2035,6 +2088,8 @@ export type BuilderNode =
   | BuilderSocialFeedNode
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
+  | BuilderReserveTableNode
+  | BuilderSessionPickerNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode

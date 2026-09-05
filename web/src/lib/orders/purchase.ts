@@ -23,6 +23,9 @@ import {
   loadCatalog,
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
+import { resolvePromo } from "@/lib/orders/promo-resolve";
+import { generateOpaqueCode } from "@/lib/links/code";
+import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import {
   pricePurchase,
   amountToCollectCents,
@@ -92,7 +95,15 @@ export type PurchaseInput = {
     startsAt?: string | null;
     endsAt?: string | null;
     units?: number;
+    /** Per-unit domain row exists (an admission per seat)? See capacity-requests.ts. */
+    perUnitDomainRow?: boolean;
   }>;
+  /**
+   * A code the buyer typed. Optional, and when present it is HONOURED OR THE
+   * PURCHASE REFUSES — never quietly dropped. Someone who entered a code and
+   * was charged full price has been overcharged by silence.
+   */
+  promoCode?: string | null;
   locale?: string | null;
   /**
    * Open a conversation for this purchase and post the order card into it.
@@ -151,6 +162,15 @@ export type PurchaseRefusalReason =
   | "slot_taken"
   /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
   | "slot_required"
+  /** Promo refusals. A code the buyer TYPED must never be silently ignored. */
+  | "promo_unknown"
+  | "promo_not_started"
+  | "promo_expired"
+  | "promo_exhausted"
+  | "promo_customer_limit"
+  | "promo_not_applicable"
+  /** The promo READ failed. A retry, not a verdict on the code. */
+  | "promo_unavailable"
   | "engine_error";
 
 export type PurchaseResult =
@@ -304,6 +324,44 @@ export async function createPurchase(
 
     // ── 5. Create the order. `draft` until capacity is held and the payment
     //       decision is made, so an abandoned cart never looks pending.
+    // ── 5b. Promo, resolved BEFORE the order exists.
+    //
+    // Resolving first means a buyer who mistyped a code, or reached one that is
+    // used up, is told so without an order being created and unwound. The
+    // counts read here are advisory — `redeem_tenant_promo` re-counts under a
+    // row lock and is the authority — but catching the common cases early is
+    // cheaper than compensating for them.
+    let promoDiscountCents = 0;
+    let promoCodeId: string | null = null;
+    if (input.promoCode) {
+      const resolved = await resolvePromo(admin, {
+        tenantId: input.tenantId,
+        code: input.promoCode,
+        customerId: customer.customerId,
+        lines: priced.lines.map((l) => ({
+          id: l.offeringId,
+          totalCents: l.totalCents,
+          variantId: l.variantId,
+          // Lines do not carry an event id; a tier-scoped code narrows by
+          // variant, and the event half of its scope is enforced by the
+          // catalog resolving that variant to this event in the first place.
+          eventId: null,
+        })),
+      });
+      // REFUSES rather than proceeding at full price. A code that was typed and
+      // then ignored is an overcharge the customer only discovers on the
+      // receipt.
+      if (!resolved.ok) {
+        return {
+          ok: false,
+          reason: resolved.reason,
+          error: "That code could not be applied.",
+        };
+      }
+      promoDiscountCents = resolved.discountCents;
+      promoCodeId = resolved.codeId;
+    }
+
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
       .insert({
@@ -312,9 +370,19 @@ export async function createPurchase(
         status: "draft",
         currency: "USD",
         subtotal_cents: priced.subtotalCents,
-        discount_cents: 0,
+        discount_cents: promoDiscountCents,
         tax_cents: 0,
-        total_cents: priced.subtotalCents,
+        total_cents: priced.subtotalCents - promoDiscountCents,
+        // Public receipt identifier for `/r/<code>`. Assigned HERE because the
+        // column is meaningless until an order exists to be shown, and this is
+        // the one place an order is created.
+        //
+        // Reuses the links engine's generator rather than writing a second one:
+        // 20 characters from a 33-symbol alphabet with every confusable pair
+        // already removed (~100 bits). A receipt gets read off paper and typed
+        // by a person, so "no l vs 1" is not cosmetic — and that rule is
+        // already solved, tested, and guarded in one place.
+        receipt_code: generateOpaqueCode(),
         source_channel: input.sourceChannel,
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
@@ -328,6 +396,50 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not start the order." };
     }
     createdOrderId = (orderRow as { id: string }).id;
+
+    // ── 5c. Redeem, under the row lock, now that the order id exists.
+    //
+    // THIS is the authority, not the counts read in 5b. Between resolving and
+    // here, another buyer can take the last redemption; both callers passed
+    // their advisory check and only one may have it. `redeem_tenant_promo`
+    // locks the code row, re-counts, and inserts.
+    //
+    // Losing that race UNWINDS rather than proceeding. The alternative — keep
+    // the order, drop the discount — charges someone full price for a purchase
+    // they agreed to at a discount, which is the overcharge-by-silence that 5b
+    // refuses to commit.
+    if (promoCodeId) {
+      const { data: redeemed, error: redeemErr } = await admin.rpc("redeem_tenant_promo", {
+        p_code_id: promoCodeId,
+        p_order_id: createdOrderId,
+        p_customer_id: customer.customerId,
+        p_amount_cents: promoDiscountCents,
+      });
+
+      if (redeemErr) {
+        logServerError("orders.createPurchase/redeem", redeemErr);
+        await unwind("promo redemption failed");
+        return {
+          ok: false,
+          reason: "promo_unavailable",
+          error: "That code could not be applied.",
+        };
+      }
+
+      const verdict = (redeemed ?? {}) as { ok?: boolean; reason?: string };
+      if (verdict.ok !== true) {
+        await unwind(`promo refused under lock: ${verdict.reason ?? "unknown"}`);
+        return {
+          ok: false,
+          // The lock saw a truth the advisory counts missed. `exhausted` is by
+          // far the likeliest and is what a buyer needs told.
+          reason: verdict.reason === "customer_limit_reached"
+            ? "promo_customer_limit"
+            : "promo_exhausted",
+          error: "That code could not be applied.",
+        };
+      }
+    }
 
     // ── 6. Lines.
     const lineRows = priced.lines.map((l, i) => ({
@@ -398,18 +510,21 @@ export async function createPurchase(
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
 
+      const built = buildCapacityRequests(needs, lineIdByOffering);
+      if (!built.ok) {
+        await unwind(`capacity requests refused: ${built.reason}`);
+        // Distinguished: one is a cart nobody can fulfil, the other a unit this
+        // engine cannot hold.
+        return built.reason === "fractional_units_unsupported"
+          ? { ok: false, reason: "invalid_units", offeringId: built.offeringId,
+              error: "This item cannot be sold in part quantities." }
+          : { ok: false, reason: "capacity_unavailable",
+              error: "That is more seats than one order can hold." };
+      }
+
       const reserved = await reserveCapacityBatch(
-        needs.map((need) => ({
-          poolId: need.poolId,
-          startsAt: need.startsAt ?? null,
-          endsAt: need.endsAt ?? null,
-          units: need.units ?? 1,
-          orderLineId: lineIdByOffering.get(need.offeringId) ?? null,
-        })),
-        {
-          ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
-          createdBy: input.actorUserId,
-        },
+        built.requests,
+        { ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS, createdBy: input.actorUserId },
         admin,
       );
 

@@ -274,18 +274,36 @@ test("the SEED passes the tenant's display name and signup audience", () => {
 });
 
 test("the RENDER-TIME fallback passes the tenant's public name", () => {
-  const call = storefrontSrc.match(
-    /resolvePlatformDefaultStorefrontTree\(serviceSupabase,\s*\{([\s\S]*?)\}\)/,
+  // Asserts the SHAPE, not the call's formatting. The previous regex required
+  // the argument object to be closed by `})` immediately after
+  // `resolvePlatformDefaultStorefrontTree(serviceSupabase, {` — so adding a
+  // THIRD argument (the tenantId, which is what lets the resolver read this
+  // tenant's own preset.designId) turned it red on a change that still does
+  // exactly what the guard exists to protect. This repo already has that scar:
+  // a static guard pinned to source text reddening main on a clean refactor.
+  // Match the call site, then assert the intent inside it.
+  const callStart = storefrontSrc.indexOf(
+    "resolvePlatformDefaultStorefrontTree(",
   );
-  assert.ok(call, "storefront fallback no longer personalises the platform default");
+  assert.notEqual(
+    callStart,
+    -1,
+    "storefront fallback no longer personalises the platform default",
+  );
+  const callSrc = storefrontSrc.slice(callStart, callStart + 600);
   assert.match(
-    call[1]!,
+    callSrc,
+    /serviceSupabase/,
+    "the render fallback must resolve with the service client",
+  );
+  assert.match(
+    callSrc,
     /businessName:\s*identity\?\.public_name/,
     "the render fallback must pass the tenant identity name",
   );
   // brandLabel falls back to the PLATFORM brand; stamping "Tulala" into a
   // tenant's headline would be worse than the neutral fallback.
-  assert.doesNotMatch(call[1]!, /brandLabel/);
+  assert.doesNotMatch(callSrc, /brandLabel/);
 });
 
 test("the resolver wires pruneStarterRosterForAudience after personalisation", () => {

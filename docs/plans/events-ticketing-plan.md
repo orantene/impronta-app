@@ -747,10 +747,154 @@ Named so nobody reads the mockups and believes it is coming in this wave.
 
 ---
 
+## 6a. E4's THREE BLOCKS: declare needs, do not self-fetch. Decided before building.
+
+`event_list`, `event_hero` and `ticket_picker` all want tenant-scoped data, so the decision is
+*upstream of any default*, and it is made now rather than at the keyboard.
+
+**The mechanism, verified on `origin/main` in
+`lib/site-admin/builder-node/native-data-block-needs.ts`:** a native block either **declares what it
+needs** and the server resolves it into props, or it **fetches its own** and must then own its scope
+validation. `menu_board` does the first — its `offerings` arrive as a resolved prop, which is why
+`options.dataSources.tenantId ?? ""` costs it nothing worse than a cart forgetting its quantities.
+
+**COPYING THAT DEFAULT INTO A BLOCK THAT FETCHES CHANGES WHAT IT MEANS.** The identical line is a
+*cosmetic* default in `menu_board` and a *data-scope* default in a self-fetching block, where an empty
+id scopes a query and produces a total silent failure that reads as a network blip. Copy the check, not
+just the default.
+
+**And the needs are PER NODE, not per block type**, which is the part that decides my design. The file's
+own reason: two directory nodes on one page can be scoped differently, and a single shared array
+*"would paint one of them with the other's people."* **A festival page with two `ticket_picker` nodes is
+exactly that failure** — one picker rendering the other event's tiers and prices, at the moment of
+purchase. Not hypothetical: the festival design ships multiple ticket sections.
+
+So E4 adds `NativeTicketPickerNeed { nodeId, eventId, sessionId? }` and friends to that file rather
+than reading a page-level `dataSources.events`. **One node, one event, one resolution.**
+
+**Trace the render path before writing the block, not after.** `mountBodyCanvas` is named for its effect
+on the DOM rather than for who is looking, so the `? null :` branch reads as the bug when it is the
+editor path. And `dataTenantId = previewSubject?.id ?? tenantId`, so a self-fetching block queries the
+**previewed** tenant in preview — correct for a picker, and wrong for a door, which would ask about a
+venue it is not standing in.
+
+## 6a-ii. PARTIAL REFUNDS: RULED — one allocation per admission, no new primitive
+
+`release_capacity(uuid[])` is **whole-allocation only**. Today `createPurchase` reserves one allocation
+of N units per line and mint-on-paid points all N admissions at it, so refunding two of four has two
+wrong answers: release the allocation and **oversell by exactly the tickets kept** (found at a door), or
+keep it and **lose the resale** (visible). **0.8b keeps and says so** — `partial_refund_cannot_release_units`
+is a named return in Orders' plan, not a silent omission. Full-line refunds are correct today.
+
+**Capacity RULED against the primitive I leaned toward, and they were right.** A `release_capacity_units(alloc, n)`
+decrement releases a *quantity*, not an *identity*: a retried webhook or a double-clicked refund calls it
+twice and frees seats still in someone's pocket — the exact `release_offering_stock` shape Capacity dropped
+in #1661. It also turns `units` into a mutable counter and gives back the engine's load-bearing invariant:
+remaining is *derived from rows*, so a double release is **structurally unable** to inflate availability.
+And I had just built mint-on-settle to be idempotent on retry, then proposed a release that a retry would
+double-apply.
+
+**Ruling: mint one allocation per admission.** Refund of one admission is `release_capacity(ARRAY[id])`,
+already idempotent by identity (`released_at` makes the second call a no-op). **Verified on production,
+rolled back, at Capacity's request rather than on their word:**
+
+```
+A: 4 single-unit requests vs 3 seats -> refused sold_out, rows_written=0   (atomic)
+B: 3 single-unit requests vs 3 seats -> 3 rows, 3 distinct ids returned    (no coalescing)
+C: release one id TWICE              -> live=2                             (identity release idempotent)
+```
+
+The batch loops per request under the ordered lock, one exception handler over the whole block. No bug.
+
+**Who changes what:** reserve shape in `createPurchase` (one allocation per unit) is **Orders'**; my
+mint-on-paid then takes each admission's own allocation instead of the line's first — the plan already
+carries `allocationId` per row, so it is the lookup that changes. Nothing before the reserve change lands.
+
+**Refund-by-line contract, given to Orders and built:** join is `admissions.order_line_id` only —
+`line_seq` is a retry key, not a foreign key. Never stamp an admission with `admitted_count > 0` (a
+dispute). Highest `line_seq` first among the unadmitted, so a named holder's first ticket survives.
+Refund-by-admission-id is the primitive. **The stamp goes on and comes off in ONE place**, or the door
+lies in the reverse direction — Orders is building the un-stamp beside the stamp with one guard.
+
+## 6b. Where this area actually stands, 2026-09-04
+
+**Everything buildable without another department's file is built.** Eight of ten slices have shipped
+or are pushed; the remaining two and the surfaces of three others are blocked on named files owned by
+named people, not on judgment.
+
+| Slice | State | Migration |
+|---|---|---|
+| E0 `admissions` | **merged, live** | `…360` |
+| E1 `events` + delete guard | **merged, live** | `…361`, `…362` |
+| `party_size` rationale | **merged, live** | `…363` |
+| E2 tiers on variants | **merged, live** | `…364` |
+| `admits_per_unit` | **merged, live** | `…365` |
+| E5b mint idempotency + shortfall view + `order_lines.session_id` | **merged, live** | `…366` |
+| E6 tenant promo codes | pushed, applied, unmerged | `…367` |
+| E9 lineup | pushed, applied, unmerged | `…368` |
+| E8 `check_in` + the no-show fix | pushed, applied, unmerged | `…369`, `…370` |
+| **SECURITY** shortfall view leak | pushed, applied, unmerged | `…371` |
+
+**Blocked, each on one named thing:**
+
+- **E3's screens** — there is no `events` rail slot. My brief said the Dashboards Director had added
+  it; verified four ways against main, it does not exist. Routed as one three-area contract.
+- **E4's `/events` and `/r`** — the `surface-allow-list.ts` decomposition. That file is at its
+  800-line ceiling and cannot absorb one line today. Four registrations, not two.
+- **E5b's wiring** — Orders is adding an `onOrderPaid?` callback after their own red PR clears. The
+  shortfall view is already on main **ahead** of the hook, which is what makes their best-effort
+  ruling safe rather than merely convenient.
+- **E7 payout hold** — Finance's `release_after` column. **Parked, not faked.** `booking_payouts` has
+  no time column and `releaseHeldPayouts` has no time predicate at either site, so holding a ticket
+  payout as `'held'` releases it early on the next account flip or reconcile, silently.
+- **E8's camera scan** — the owner's click on a real iPhone. Cannot be produced here at all: the iOS
+  Simulator has no camera, so any green would be evidence about a thing that does not exist.
+
+## 6c. What this area learned, in the order it cost something
+
+1. **A brief is a claim like any other.** Four items in mine did not survive contact with `origin/main`
+   — the `admissions` shape, the rail slot, the payout hold, and `order_lines.session_id`, the last of
+   which I asserted myself and had confirmed back to me by the table's owner. Verify a dependency on
+   `origin/main`, never in the conversation about it.
+2. **Existence is not shape, and shape is not behaviour.** `to_regclass` passes on a table that
+   enforces nothing. Every migration here was proven by a rolled-back probe that made the guards
+   *refuse*.
+3. **A green lane is not a green branch.** `tsx --test` executes and does not typecheck; seven tests
+   passed over five type errors.
+4. **A privilege sweep catches what a careful reading cannot** — *and the sweep itself needs a
+   discriminator, or it becomes the next bug.* I wrote a true sentence about view ownership, drew the
+   wrong conclusion from it, and shipped a cross-tenant read; the comment recording the error read like
+   diligence. But the rule I then published would have **broken** a correct view:
+   `inquiry_offer_line_items_talent_view` is in the identical state mine was — `security_invoker` unset,
+   running as owner, bypassing RLS — and is **right**, because it carries its own `auth.uid()` scope and
+   the base table's policies do not admit a talent by `talent_profile_id` at all. It exists *because*
+   RLS refuses that access. Setting the invoker flag returns zero rows for every talent, silently,
+   since an empty result is what a correctly-filtered view looks like. **The two are indistinguishable
+   by shape and opposite in correctness.** The discriminator: *does the view carry its own scope, and
+   would RLS have granted this access anyway?* A sweep that flags both for a human is useful; one that
+   auto-fixes, or whose message says "set security_invoker", is worse than none.
+
+5. **One authority per fact.** The units-versus-people confusion surfaced five times in five different
+   costumes — a column, a detector, a constraint, a door count, a reconciler predicate. A bad column
+   does not just store a wrong number; it teaches every later reader to compute one.
+6. **A weak guard that is correct beats a strong one that refuses valid states.** The `admissions`
+   anchor check stayed weak over three separate objections, and then the owner's cash door sale and
+   Reservations' walk-in both turned out to need exactly the room it left.
+
 ## 7. Log
 
 | Date | Entry |
 |---|---|
+| 2026-09-05 | **Merged, second wave**: #1724 (E4b receipt, `0be6c28f1`, after two rebases on the shared QA file), #1740 (per-unit mint, `144080dad`, owner login), #1750 (E8b sell at the door, `6918aa09b`), #1747 (E4c receipt QR + `receipt_for_code` on `PUBLIC_SURFACE_FUNCTIONS`, `15952b4ee`), #1745 (plan log). **Nothing of mine is open.** Production at `f92bee33f` at 08:45. |
+| 2026-09-05 | **E8b shipped — the bootstrap for the whole E8 block.** `sellAtDoor`: reserve one unit on the tier's pool for the session → commit → insert the admission against that allocation with `door_amount_cents` + `door_paid_via` → `check_in` (actor) under the same lock; release on any failure after the reserve. `…378` adds the two money columns (order-backed rows may carry neither); `…379` PAIRS them (both or neither) — the pair, not the anchor, because Reservations' restaurant walk-in is a no-order, no-money admission by design. Night report: takings by method + a red "walk-ups without a recorded amount" line. Commission zero by construction. Behaviour probe could not run: **production has 0 events, 0 sessions, 0 admissions, 0 orders** (venues 14, pools 7) — staging data gates the QA pass, raised with the owner by the Director. |
+| 2026-09-05 | **Band `…360`–`…379` is FULL. New band from the Director: `20261229000800`–`…819`** (not `…387`+, which sits next to Reservations' numbers; above every applied version). A claimed number is not an applied one — `…011144`/`…014658` sit on long-open PRs. A stacked PR's `files` shows its parent's migrations (the Director's band scan mis-attributed `…376/…377` to #1747 that way). |
+| 2026-09-05 | **Two ordering misses in my merge chain, same root, recorded against me.** (a) #1750 merged ahead of #1747 because a GitHub connection reset returned an EMPTY state and `[ "" != "open" ]` read empty as closed — **an empty API reply is not a state**; every watch now treats empty as unknown and retries. (b) #1747 then merged with no gap after #1750 because the old watch I "killed" was still running — a `pkill` pattern that did not match, asserted stopped without `pgrep` afterwards. Every merge met five SUCCESS + red 0 + `mergeable=true` + a green covering run at the call; only the order/gap promises failed. |
+| 2026-09-05 | **Merged tonight**: #1718 (refund-by-line contract, `c772b59`), #1721 (QA rows, `bcb1bff`), #1736 (`runs_events` switch, `f4cec4988`, live 07:02), #1727 (E8 door UI, `ef472875c`), #1740 (per-unit mint, `144080dad`). #1736 and #1740 were merged under the owner login outside my one-at-a-time chain; both were five-green. #1724 (E4b receipt) conflicted twice on `phase-boundary-qa.md` — every area appends QA rows at the same spot — rebased twice, re-gating. |
+| 2026-09-05 | **E3 gap found and closed**: `runs_events` shipped in `…372` with a migration, a type and NO reader or writer; no workspace could switch events on. #1736 adds store + owner-only action + Settings card beside `WorkspaceTypeCard`, and `runsEvents` on the identity bridge in the `takesReservations` shape. The rail door (entry after `menu`, `SIDEBAR_ICON`, `WORKSPACE_PAGES`, the `context.tsx` filter) stays Dashboards' — rows 3/4 of the slot contract. **A flag's PR is not done until something writes it.** |
+| 2026-09-05 | **Receipt follow-up owed (after #1724)**: `receipt_for_code` onto `PUBLIC_SURFACE_FUNCTIONS` (Front Door: the revoke-direction guard is what protects a door); QR via QR & Links' `encodeQr`/`toSvg` when #1658 merges — `ecc: "Q"` at the call site, per-admission `try/catch` (`encodeQr` THROWS on overflow; five codes + one honest gap, never a 500), overflow logged loudly as a TOKEN bug, en+es "no code" copy with the typed code, quiet zone untouched. Token measured: 100–105 bytes → v8/49 modules at Q, **3 bytes under v8's ceiling**; never `H` (dies ~110). Safe shortening lever: uuid as raw bytes (Sessions' file); HMAC truncation withdrawn as a security trade. Two scan QA rows (dim phone / print) to write — QR & Links has measured nothing by camera. |
+| 2026-09-05 | **Creative Director handed over `page-designs/festival.ts`** ("Live event") as the reference tree for `/events/<slug>`'s design: retired from signup and AI candidates (a festival is an event, not a business), kept for this area. Not wired. It carries its own `nav`, so inside a venue site it must inherit header/nav; first render goes to the Creative Director before it ships. Blocks on it declare per-node needs (Page Builder registration asked, unanswered) and show no remaining counts. |
+| 2026-09-05 | **per-unit allocations, and the declaration the ticket caller MUST make.** Orders' #1717 (merged `1511a6d61`) reserves one allocation per unit **only when the purchase declares `perUnitDomainRow: true`** on the capacity need (`lib/orders/capacity-requests.ts`: "the caller DECLARES which, because the pipeline cannot infer it"). **On main no caller declares it**, so every line — session-backed included — still holds one row of N and refund-by-line cannot yet free one seat. The mint (`mint-on-paid.ts`) now maps admission `line_seq` k to the k-th committed allocation of its line (ordered `created_at, id`) when the counts match, and shares the single allocation otherwise; a mismatched shape falls back rather than guessing. **Contract for E4c / the Sheet's ticket checkout: the capacity need for a ticket line passes `perUnitDomainRow: true`.** Written here so the PR that creates the caller carries it — a registration deferred in a comment lives in nobody's checklist (`…375` → `…377`, same night). |
 | 2026-09-03 | Sessions & Classes ratified `customer_id`/`holder_name`/`holder_email` (holder, never the buyer) and accepted `sessions.event_id` in my migration. **Their finding adopted and extended**: a deleted event would have published its sessions to the public schedule, so delete is a cancellation and `DELETE` is draft-only. **Their claim that the `paid` seam does not exist is wrong** — `complete-order.ts:156` + `transactions.ts:873`, both on main. Credit corrected: `tier-pools.ts` is Capacity's, not Sessions'. |
 | 2026-09-03 | **E0 `admissions` designed** and sent to the Director. Ownership reversed: it is mine, not Sessions' (§0). Board's nullable-`allocation_id` shape adopted; two additions argued (`units`, `token_version`), one stronger guard considered and refused. **A3b withdrawn — `order_lines.session_id` already exists** at `20261228000142:73`. |
 | 2026-09-03 | Plan written. Verified against `origin/main` @ `6f7351fc9`. Seven contradictions raised (§1). **Blocked on `admissions`**, which does not exist. Sent to the Sessions, Events & Reservations Director. No go, no code, no migration claimed. |
+

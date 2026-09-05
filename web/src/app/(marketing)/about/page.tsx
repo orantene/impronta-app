@@ -14,6 +14,8 @@ import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildBreadcrumbJsonLd, breadcrumbJsonLdToString } from "@/lib/seo/breadcrumb-json-ld";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { withLocaleHref } from "@/i18n/pathnames";
+import { SUPPORT_EMAIL, SUPPORT_EMAIL_CAN_RECEIVE } from "@/lib/platform/support-contact";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -156,10 +158,10 @@ export default async function AboutPage() {
       forHeadingA: "Independent talent.",
       forHeadingB: "Agencies. Staffing networks.",
       talkEyebrow: "Talk to us",
-      talkHeading: "One inbox. No ticket queue.",
+      talkHeading: "One place to reach us. No ticket queue.",
       talkBody:
-        "Questions about the product, your account, or partnering with Tulala? Email us. We reply the same day, there\u2019s no separate contact form, this is it.",
-      talkCta: "Email hello@" + PLATFORM_BRAND.domain,
+        "Write to the team and a person answers. The message lands in the same place as everything else, so nothing gets lost between inboxes.",
+      talkCta: "Ask us anything",
     },
     es: {
       heroEyebrow: "Nosotros",
@@ -184,10 +186,10 @@ export default async function AboutPage() {
       forHeadingA: "Talento independiente.",
       forHeadingB: "Agencias. Redes de staffing.",
       talkEyebrow: "Habla con nosotros",
-      talkHeading: "Un solo buzón. Sin fila de tickets.",
+      talkHeading: "Un solo lugar para encontrarnos. Sin fila de tickets.",
       talkBody:
-        "¿Dudas sobre el producto, tu cuenta o cómo asociarte con Tulala? Escríbenos. Respondemos el mismo día, no hay un formulario de contacto aparte, esta es la vía.",
-      talkCta: "Escribir a hello@" + PLATFORM_BRAND.domain,
+        "Escribe al equipo y te responde una persona. El mensaje llega al mismo sitio que todo lo demás, así que no se pierde entre bandejas.",
+      talkCta: "Pregúntanos lo que quieras",
     },
   });
 
@@ -196,7 +198,14 @@ export default async function AboutPage() {
     { name: c.heroEyebrow, url: `https://${PLATFORM_BRAND.domain}/about` },
   ]);
 
-  const mailHref = `mailto:hello@${PLATFORM_BRAND.domain}`;
+  // Points at the contact form, not the mailbox, while the mailbox cannot
+  // receive. `tulala.digital` has no MX record, so a mailto here bounces every
+  // prospect who follows it. The flag restores the address in one line once MX
+  // exists and a test message is confirmed delivered; see
+  // lib/platform/support-contact.ts.
+  const mailHref = SUPPORT_EMAIL_CAN_RECEIVE
+    ? `mailto:${SUPPORT_EMAIL}`
+    : withLocaleHref("/contact", locale);
 
   return (
     <>
@@ -374,8 +383,14 @@ export default async function AboutPage() {
         </MarketingContainer>
       </MarketingSection>
 
-      {/* Talk to us — the real contact surface. Deliberately no separate
-          /contact page: this email is it. */}
+      {/* Talk to us, the real contact surface.
+          This comment used to say "deliberately no separate /contact page:
+          this email is it". Both halves were wrong. A /contact page exists and
+          works, and the email does not: `tulala.digital` has no MX record, so
+          the mailto here bounced every prospect who clicked it. The
+          destination is now gated on SUPPORT_EMAIL_CAN_RECEIVE, the same
+          constant /support uses, so when MX lands both pages come back
+          together and neither is left behind. */}
       <MarketingSection spacing="tight">
         <MarketingContainer size="default">
           <div

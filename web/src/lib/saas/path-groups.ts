@@ -291,6 +291,10 @@ export const APP_API_PREFIXES = [
   "/api/talent",
   // HQ support investigation bundle (session or SUPPORT_INVESTIGATION_TOKEN).
   "/api/platform",
+  // QR & Links: renderings of a link's code (qr.svg/png/pdf). Staff-only and
+  // gated on the SESSION's tenant, not the host, so it works on the agency
+  // host and on the app host, where the host carries no tenant at all.
+  "/api/links",
 ] as const;
 
 export const APP_API_EXACT_PATHS = [
@@ -323,6 +327,31 @@ export const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
  * entry the proxy 404s every scan before Next routing runs.
  */
 export const CANONICAL_LINK_PREFIX = "/q" as const;
+
+/**
+ * Events & Ticketing E4 — the public event pages (`/events`, `/events/<slug>`).
+ * Agency and hub only, for the same reason `/q` is: an event slug means nothing
+ * without a tenant to look it up under, and `casarizo.com/events/noche-de-salsa`
+ * and `otherplace.com/events/noche-de-salsa` are different nights.
+ *
+ * Without this entry the proxy rewrites to `/_page-not-found` BEFORE Next
+ * routing runs, so the route exists on disk and serves an HTML 404 — which
+ * reads as a routing bug and is not one.
+ */
+export const CANONICAL_EVENTS_PREFIX = "/events" as const;
+
+/**
+ * Events & Ticketing E4b — the public receipt (`/r/<code>`).
+ *
+ * THIS PATH IS PERMANENT IN A WAY MOST ARE NOT. A receipt link is printed on a
+ * ticket and emailed to a buyer; it is not a link on a page anyone can update.
+ * Shipping the receipt at a temporary path and moving it later leaves every
+ * ticket already issued pointing at a dead URL, with no way to reach the people
+ * holding them. The view behind it may be replaced freely; the path may not.
+ *
+ * Agency and hub only: a receipt code is scoped to the tenant that issued it.
+ */
+export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 
 /**
  * Marketing-only public pages. These render the public SaaS marketing site

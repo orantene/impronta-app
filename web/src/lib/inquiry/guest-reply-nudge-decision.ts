@@ -119,9 +119,19 @@ export function decideGuestReplyNudge(
   if (input.threadType !== "private") return { send: false, reason: "not_private" };
   if (!input.senderIsStaff) return { send: false, reason: "not_staff_reply" };
 
+  // Reachable = a guest session, an attached client account, OR simply a real
+  // contact email. The third case is not hypothetical: a live inquiry from
+  // 2026-09-01 (agency_site, real address) carries neither a guest session nor
+  // a client account, because provisioning declined the address — and the
+  // audience resolver `clientOrGuest` would have emailed the raw contact just
+  // fine. Requiring a party made this gate STRICTER than the resolver behind
+  // it, so a real person with a deliverable address got silence. The seed
+  // placeholder check below is what actually protects us from mailing
+  // synthetic addresses; party membership never was.
   const guestSessionId = (input.guestSessionId ?? "").trim();
   const clientUserId = (input.clientUserId ?? "").trim();
-  if (!guestSessionId && !clientUserId) {
+  const contactEmail = (input.contactEmail ?? "").trim();
+  if (!guestSessionId && !clientUserId && !contactEmail) {
     return { send: false, reason: "no_client_party" };
   }
 

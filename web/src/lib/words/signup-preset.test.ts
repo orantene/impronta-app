@@ -99,3 +99,40 @@ test("a derived preset actually changes what the site says", () => {
   const es = resolveWords({ presetId: id }, "es");
   assert.equal(es.word("reservations.place"), "Silla");
 });
+
+test("a photographer is not a gym — the ordering that makes portfolio reachable", () => {
+  // "photography studio" and "estudio fotográfico" both contain the word this
+  // list gives to gyms. Portfolio sits ABOVE studio_gym for exactly that
+  // reason, and without the ordering every photographer in the funnel resolves
+  // to a GYM. This is the third ordering trap in this file (salon before shop,
+  // bar before restaurant), so it is asserted rather than trusted.
+  assert.equal(pickSignupPreset({ businessDescription: "Photography studio" }), "portfolio");
+  assert.equal(pickSignupPreset({ businessDescription: "Estudio fotográfico" }), "portfolio");
+  // And a real gym is still a gym.
+  assert.equal(pickSignupPreset({ businessDescription: "Yoga studio" }), "studio_gym");
+});
+
+test("portfolio covers the people the editorial design was built for", () => {
+  // The reason this preset exists: without it the design is unreachable after
+  // the preset.designId collapse, and a photographer resolves to custom, then
+  // to the services design, and is handed a PRICE LIST for a body of work.
+  for (const businessDescription of [
+    "Wedding photographer", "Portrait and headshot photography",
+    "Tattoo artist", "Art gallery", "Ilustrador independiente", "Fotógrafo de boda",
+  ]) {
+    assert.equal(
+      pickSignupPreset({ audience: "operator", businessDescription }),
+      "portfolio",
+      businessDescription,
+    );
+  }
+});
+
+test("portfolio actually carries the editorial design", () => {
+  // The whole point. A preset that did not carry it would leave the design
+  // stranded exactly as the collapse would have.
+  const words = resolveWords({ presetId: "portfolio" }, "en");
+  assert.equal(words.preset.designId, "editorial");
+  assert.equal(words.preset.representsPeople, true);
+  assert.equal(words.headerVerbLabel(), "Get in touch");
+});

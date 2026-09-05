@@ -1,3 +1,24 @@
+/**
+ * DEAD DEFAULT CTAs, and why these point at the inquiry.
+ *
+ * Every `/directory`, `/talent` and `/work` default in this file used to 404 on
+ * a business workspace. They are not a regression anyone introduced: they are
+ * the direct product of the OLD dead-CTA guard, which failed builds for
+ * `/contact` and told authors to write `/directory` instead — enforcing a route
+ * that only resolves where `rosterEnabled(workspace_type)` is true.
+ *
+ * They now point at `?inquiry=open`, which is what the current guard
+ * prescribes. It is query-only, so it stays on whatever page the section is on
+ * and resolves on every workspace type and both host shapes.
+ *
+ * The labels are the tell that this is a correction and not a downgrade: these
+ * read "Start a request" and "Start an Inquiry" and pointed at a directory
+ * listing. Opening the inquiry is what they always said they did.
+ *
+ * A tenant that genuinely wants its roster can still link there — this is a
+ * DEFAULT, editable in the builder. What a default may not do is 404 on the
+ * majority of workspaces before anyone has touched it.
+ */
 import type { SectionTypeKey } from "../registry";
 import {
   getBuilderDataSourceDefinition,
@@ -539,13 +560,13 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
         actionHref: "/directory",
         submitLabel: "Search",
       },
-      primaryCta: { label: "Start an Inquiry", href: "/directory" },
+      primaryCta: { label: "Start an Inquiry", href: "?inquiry=open" },
       secondaryCta: { label: "Apply as talent", href: "/register" },
       chipsSource: "manual",
       chips: [
-        { label: "Riviera Maya", href: "/directory" },
-        { label: "Mexico City", href: "/directory" },
-        { label: "Buenos Aires", href: "/directory" },
+        { label: "Riviera Maya", href: "?inquiry=open" },
+        { label: "Mexico City", href: "?inquiry=open" },
+        { label: "Buenos Aires", href: "?inquiry=open" },
         { label: "More cities coming" },
       ],
       statSource: "manual",
@@ -585,20 +606,20 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
         {
           label: "Riviera Maya",
           region: "Mexico",
-          href: "/directory",
+          href: "?inquiry=open",
           featured: true,
           status: "active",
         },
         {
           label: "Mexico City",
           region: "Mexico",
-          href: "/directory",
+          href: "?inquiry=open",
           status: "active",
         },
         {
           label: "Buenos Aires",
           region: "Argentina",
-          href: "/directory",
+          href: "?inquiry=open",
           status: "active",
         },
       ],
@@ -667,8 +688,8 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       headline: "Tell us what you need and we will build the shortlist.",
       copy: "A single agency-managed request for talent, locations, timing, and production needs.",
       reassurance: "No direct contact. Every booking stays managed by the agency.",
-      primaryCta: { label: "Start a request", href: "/directory" },
-      secondaryCta: { label: "Browse talent", href: "/directory" },
+      primaryCta: { label: "Start a request", href: "?inquiry=open" },
+      secondaryCta: { label: "Browse talent", href: "?inquiry=open" },
       variant: "centered-overlay",
       imageSide: "right",
       bandTone: "ivory",
@@ -757,8 +778,8 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       headline: "A sharper way to shape the talent shortlist.",
       subheadline:
         "Blend editorial presentation with agency-managed discovery, so visitors understand the offer before they search.",
-      primaryCta: { label: "Start a brief", href: "/directory" },
-      secondaryCta: { label: "Browse talent", href: "/directory" },
+      primaryCta: { label: "Start a brief", href: "?inquiry=open" },
+      secondaryCta: { label: "Browse talent", href: "?inquiry=open" },
       imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f",
       imageAlt: "Editorial model campaign",
       side: "media-right",

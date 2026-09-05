@@ -48,6 +48,18 @@ export type BookEntry = BookRow & {
   /** Commercial state, shown separately. Never folded into `state`. */
   isRefunded: boolean;
   isVoid: boolean;
+  /**
+   * They were marked a no-show and then arrived.
+   *
+   * A SEPARATE FIELD FOR THE SAME REASON `isRefunded` IS ONE. Making arrival
+   * win the STATE is right — they are sitting down — but it would make the
+   * stamp invisible, and a no-show FEE may already be on this guest's bill.
+   * The host stand is the one place a human can explain that charge to the
+   * person standing in front of them, so the fact has to survive the state it
+   * lost to. Folding it away would be the same collapse this file refuses for
+   * `status`.
+   */
+  wasMarkedNoShow: boolean;
 };
 
 /** How soon before the seating a row starts reading as "arriving". */
@@ -63,10 +75,23 @@ export const ARRIVING_WINDOW_MINUTES = 15;
  */
 export function bookState(row: BookRow, now: Date, graceMinutes: number): BookState {
   if (row.completedAt !== null) return "completed";
-  if (row.noShowAt !== null) return "no_show";
 
+  // ARRIVAL BEATS A NO-SHOW STAMP, and the stamp is NOT cleared.
+  //
+  // Someone can be marked a no-show and then walk in: the host was early, or
+  // the grace job fired while they were parking. The obvious repair is to null
+  // `no_show_at` on arrival, and it is wrong — a no-show fee may ALREADY HAVE
+  // BEEN CHARGED off that stamp, and clearing it leaves money that moved with
+  // nothing on the row explaining why. The guest disputes the charge and the
+  // record cannot answer.
+  //
+  // So the stamp stays as the record of what was decided and when, and the
+  // DISPLAY prefers the newer fact: they are here. Agreed with Events &
+  // Ticketing, who own `check_in`; no-show semantics are mine.
   if (row.admittedCount >= row.partySize) return "seated";
   if (row.admittedCount > 0) return "part_seated";
+
+  if (row.noShowAt !== null) return "no_show";
 
   const at = row.startsAt.getTime();
   const t = now.getTime();
@@ -97,6 +122,9 @@ export function buildBook(
             : 0,
         isRefunded: row.status === "refunded",
         isVoid: row.status === "void",
+        // True only when the stamp LOST to an arrival. A row still reading
+        // `no_show` does not need a badge saying so.
+        wasMarkedNoShow: row.noShowAt !== null && row.admittedCount > 0,
       };
     })
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
