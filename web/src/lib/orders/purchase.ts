@@ -25,6 +25,7 @@ import {
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { generateOpaqueCode } from "@/lib/links/code";
+import { buildPerUnitRequests } from "@/lib/orders/capacity-requests";
 import {
   pricePurchase,
   amountToCollectCents,
@@ -507,14 +508,18 @@ export async function createPurchase(
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
 
+      const built = buildPerUnitRequests(needs, lineIdByOffering);
+      if (!built.ok) {
+        await unwind(`capacity request too large: ${built.count}`);
+        return {
+          ok: false,
+          reason: "capacity_unavailable",
+          error: "That is more seats than one order can hold.",
+        };
+      }
+
       const reserved = await reserveCapacityBatch(
-        needs.map((need) => ({
-          poolId: need.poolId,
-          startsAt: need.startsAt ?? null,
-          endsAt: need.endsAt ?? null,
-          units: need.units ?? 1,
-          orderLineId: lineIdByOffering.get(need.offeringId) ?? null,
-        })),
+        built.requests,
         {
           ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
           createdBy: input.actorUserId,
