@@ -26,7 +26,8 @@ export default async function Image({
     return renderOgCard({
       kicker: "TULALA",
       title: "Tulala",
-      subtitle: "Sell what you do, not what you ship",
+      // See the note in for/[category]: the footer carries the tagline.
+      subtitle: "Guides for people who sell their time",
     });
   }
 

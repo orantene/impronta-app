@@ -26,7 +26,9 @@ export default async function Image({
     return renderOgCard({
       kicker: "TULALA",
       title: "Tulala",
-      subtitle: "Sell what you do, not what you ship",
+      // NOT the tagline: the footer carries that structurally now, and a
+      // caller repeating it prints the same line twice on one card.
+      subtitle: "Booking pages for every kind of work",
     });
   }
 

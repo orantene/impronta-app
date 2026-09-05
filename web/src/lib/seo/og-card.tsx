@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { TulalaWordmarkFilled } from "./tulala-wordmark-filled";
 
 /**
  * Shared Open Graph card for the marketing sub-pages.
@@ -35,20 +36,32 @@ export function renderOgCard({
   kicker,
   title,
   subtitle,
-  strapline = "Sell what you do, not what you ship",
+  locale = "en",
 }: {
   kicker: string;
   title: string;
   subtitle: string;
   /**
-   * Brand descriptor in the card's footer. There is one card file per route
-   * segment, not per locale, so a Spanish-first page (`/contratar-modelos`,
-   * `/agencia-de-talento`) serves a Spanish card and needs the descriptor in
-   * Spanish too — otherwise the card mixes both languages. Defaults to the
-   * English descriptor, so no existing caller changes.
+   * Which language this card is for. There is one card file per route segment
+   * rather than per locale, so a Spanish-first page serves a Spanish card and
+   * needs the descriptor in Spanish too, otherwise the card mixes languages.
+   *
+   * STRUCTURAL, not a caller-supplied string. It used to be a free `strapline`
+   * argument, which meant every caller could put anything in the brand's
+   * footer line, and one of them did. One lockup on every card means one line
+   * on every card. (J2)
    */
-  strapline?: string;
+  locale?: "en" | "es";
 }) {
+  const strapline =
+    locale === "es"
+      ? "Vende lo que haces, no lo que envías"
+      : "Sell what you do, not what you ship";
+
+  // A card whose title IS the brand should DRAW the wordmark rather than
+  // typeset the word at 76px in whatever face Satori resolves. Callers that
+  // pass a real page title keep the typeset heading.
+  const titleIsBrand = title.trim().toLowerCase() === "tulala";
   return new ImageResponse(
     (
       <div
@@ -87,20 +100,29 @@ export function renderOgCard({
           {kicker}
         </div>
 
-        <div
-          style={{
-            fontSize: 76,
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            color: INK,
-            lineHeight: 1.06,
-            marginBottom: 28,
-            display: "flex",
-            maxWidth: 1000,
-          }}
-        >
-          {title}
-        </div>
+        {titleIsBrand ? (
+          // The lockup, drawn. Height chosen so the wordmark occupies roughly
+          // the optical weight the 76px type did, keeping every other card in
+          // the set visually consistent with this one.
+          <div style={{ display: "flex", marginBottom: 28 }}>
+            <TulalaWordmarkFilled height={96} ink={INK} />
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: 76,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: INK,
+              lineHeight: 1.06,
+              marginBottom: 28,
+              display: "flex",
+              maxWidth: 1000,
+            }}
+          >
+            {title}
+          </div>
+        )}
 
         <div
           style={{

@@ -9,6 +9,6 @@ export default function Image() {
     kicker: "Agencia de talento",
     title: "La agencia que trabaja como plataforma.",
     subtitle: "Directorio global para contratar. Sitio propio para representar talento.",
-    strapline: "Vende lo que haces, no lo que envías",
+    locale: "es",
   });
 }
