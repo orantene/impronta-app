@@ -102,23 +102,22 @@ test("no preset points at a design that does not exist", () => {
   );
 });
 
-test("an invalid design tree renders NOTHING — why the fail-safe exists", () => {
-  // The end-to-end proof of the regression, not just of the guard.
+test("an invalid design tree no longer renders NOTHING: the resolver serves it without the invalid node", () => {
+  // The end-to-end proof of the mechanism, kept honest through its change.
   //
-  // `resolveSnapshotBuilderTree` validates `snapshot.builderTree`; when it
-  // fails it returns `source: "legacy_slots"` with a tree built from `slots`.
-  // The page-less fallback builds its snapshot with `slots: []`, so an invalid
-  // tree resolves to ZERO nodes — a header, a footer and nothing between, with
-  // no error anywhere. That is precisely what a live restaurant served.
+  // UNTIL 2026-09-05: `resolveSnapshotBuilderTree` validated `snapshot.builderTree`
+  // and, on failure, returned `source: "legacy_slots"` built from `slots`. The
+  // page-less fallback builds its snapshot with `slots: []`, so ONE invalid
+  // node anywhere resolved to ZERO nodes: a header, a footer and nothing
+  // between, with no error anywhere. Three live restaurant pages served
+  // exactly that in one day (#1752, an invalid token write, #1817).
   //
-  // Pinned because the earlier guard proves only that we can DETECT an invalid
-  // design. This proves what happens if one ever reaches the renderer, which is
-  // the reason resolvePresetDesignTree refuses to return one.
-  // Duplicate ids, NOT a disallowed child kind. The original defect was
-  // `menu_board` under `container` — which this PR makes legal, so using it
-  // here would have made this test pass for the wrong reason the moment the fix
-  // landed. A structural violation no allow-list can bless keeps the mechanism
-  // under test rather than the symptom.
+  // NOW: the resolver drops the nodes the validator named, re-validates, and
+  // serves the remainder with `salvaged: true` and the issues attached. The
+  // blank outcome is reserved for a tree with nothing valid left. This test
+  // pins the new contract with the same structural violation as before
+  // (duplicate ids, which no allow-list can bless), so it is the mechanism
+  // under test, not the symptom.
   const invalidTree = [
     {
       id: "root",
@@ -136,13 +135,14 @@ test("an invalid design tree renders NOTHING — why the fail-safe exists", () =
     slots: [],
   } as never);
 
-  assert.equal(
-    resolved.tree.length,
-    0,
-    "an invalid tree should resolve to nothing — if this is non-zero the blank-page mechanism has changed and the fail-safe needs revisiting",
-  );
-  assert.ok(
-    resolved.issues.length > 0,
-    "the resolver should report why it dropped the tree",
-  );
+  assert.equal(resolved.source, "snapshot_builder_tree", "one invalid node must not send the page to the empty slot list");
+  assert.equal(resolved.salvaged, true);
+  assert.ok(resolved.issues.length > 0, "the failure must still be reported");
+  const root = resolved.tree[0] as { children?: Array<{ props: { text: string } }> };
+  assert.equal(root.children?.length, 1, "the offending duplicate is dropped, its valid sibling stays");
+  assert.equal(root.children?.[0]?.props.text, "one");
+
+  // The fail-safe in resolvePresetDesignTree still refuses a design that does
+  // not validate; that guard is upstream of this resolver and unchanged.
 });
+
