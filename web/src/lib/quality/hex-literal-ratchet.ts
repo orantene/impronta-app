@@ -48,6 +48,15 @@
  * Re-record with `node scripts/regen-hex-literal-ratchet-baseline.mjs` AFTER
  * you have fixed or justified the drift, never to turn a red test green.
  *
+ * RE-RECORD AT MERGE TIME, NOT AT BRANCH TIME (paid for on 2026-09-05)
+ * ──────────────────────────────────────────────────────────────────
+ * The first baseline was taken on the PR's base commit; a file with three
+ * literals merged to main in the hours before the gate did, the PR's checks
+ * ran on the older merge ref and stayed green, and main went red on the gate's
+ * own merge commit. Any PR that changes the baseline must re-run the regen on
+ * the latest origin/main immediately before merge. A ratchet PR that sat in
+ * the queue is stale by construction.
+ *
  * This module deliberately does NOT import `node:test`, so `next build` and
  * `tsc` can treat it like any other source file. The tests live in
  * `hex-literal-ratchet.static.test.ts`, on the `test:size-ratchet` lane.
