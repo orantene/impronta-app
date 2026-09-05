@@ -71,6 +71,11 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { DEFAULT_POOL_KEY } from "@/lib/sessions/session-plan";
+import {
+  createSessionWithPools,
+  ensureSessionPools,
+} from "@/lib/sessions/session-writer";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
   DEFAULT_HORIZON_DAYS,
@@ -250,72 +255,42 @@ export async function GET(request: Request) {
       }
 
       for (const occ of decision.create) {
-        const { data: inserted, error: insertError } = await admin
-          .from("sessions")
-          .upsert(
-            {
-              tenant_id: series.tenantId,
-              series_id: series.id,
-              venue_id: row.venue_id ?? null,
-              offering_id: row.offering_id ?? null,
-              starts_at: occ.startsAt,
-              ends_at: occ.endsAt,
-              status: "scheduled",
-            },
-            { onConflict: "series_id,starts_at", ignoreDuplicates: true },
-          )
-          .select("id")
-          .maybeSingle();
-        if (insertError) {
-          logServerError("cron/materialise-sessions.insert", insertError);
-          continue;
-        }
-        // `ignoreDuplicates` returns no row when the occurrence already existed,
-        // which is the normal second-run path and not an error.
-        if (!inserted?.id) continue;
-        created += 1;
+        // One creator. This used to insert the row and call
+        // `upsert_capacity_pool` inline, and it was correct; the staff
+        // scheduler needed the same thing, and two correct copies of one write
+        // diverge the first time either changes. See session-writer.ts.
+        const result = await createSessionWithPools(
+          admin,
+          {
+            tenantId: series.tenantId,
+            seriesId: series.id,
+            venueId: row.venue_id ?? null,
+            offeringId: row.offering_id ?? null,
+            startsAt: occ.startsAt,
+            endsAt: occ.endsAt,
+          },
+          [{ poolKey: DEFAULT_POOL_KEY, units: series.seats }],
+        );
 
-        const { error: poolError } = await admin.rpc("upsert_capacity_pool", {
-          p_tenant_id: series.tenantId,
-          p_subject_kind: "session_tier",
-          p_subject_id: String(inserted.id),
-          p_units_total: series.seats,
-          p_pool_key: "default",
-          p_parent_pool_id: null,
-          p_overbook_units: 0,
-          p_hold_ttl_seconds: 900,
-          p_unit_label: "seat",
-          p_is_active: true,
-        });
-        if (poolError) {
-          // Left for the next sweep's backfill rather than retried here: the
-          // session exists, the repair path will find it, and hammering a
-          // failing RPC inside a loop is how one bad row stalls a whole run.
-          logServerError("cron/materialise-sessions.pool", poolError);
-          continue;
-        }
-        poolsCreated += 1;
+        // A duplicate is the normal second-run path, not a failure.
+        if (!result.ok && result.reason !== "pools_failed") continue;
+
+        created += 1;
+        // `pools_failed` still created the session, and its unmade pool is left
+        // for the next sweep's backfill rather than retried here: hammering a
+        // failing RPC inside a loop is how one bad row stalls a whole run.
+        poolsCreated += result.poolsCreated;
       }
 
-      // The repair path, exercised every run.
+      // The repair path, exercised every run. `ensureSessionPools` creates
+      // only what is ABSENT — it must never re-assert an existing pool, since
+      // upsert_capacity_pool would reset units_total on a pool that may have
+      // seats sold against it or a count an operator deliberately raised.
       for (const sessionId of decision.poolBackfill) {
-        const { error: backfillError } = await admin.rpc("upsert_capacity_pool", {
-          p_tenant_id: series.tenantId,
-          p_subject_kind: "session_tier",
-          p_subject_id: sessionId,
-          p_units_total: series.seats,
-          p_pool_key: "default",
-          p_parent_pool_id: null,
-          p_overbook_units: 0,
-          p_hold_ttl_seconds: 900,
-          p_unit_label: "seat",
-          p_is_active: true,
-        });
-        if (backfillError) {
-          logServerError("cron/materialise-sessions.backfill", backfillError);
-          continue;
-        }
-        poolsCreated += 1;
+        const repaired = await ensureSessionPools(admin, series.tenantId, sessionId, [
+          { poolKey: DEFAULT_POOL_KEY, units: series.seats },
+        ]);
+        poolsCreated += repaired.created.length;
       }
     }
 

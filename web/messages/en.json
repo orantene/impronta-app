@@ -12022,6 +12022,21 @@
           "invalid_seats": "the seat count on this series is not usable.",
           "invalid_window": "the scheduling window is not usable."
         }
+      },
+      "schedule": {
+        "heading": "Schedule a night",
+        "event": "Event",
+        "noEvent": "No event (standalone class)",
+        "starts": "Starts",
+        "ends": "Ends",
+        "seats": "Seats for this night",
+        "seatsHint": "Seats belong to the night, not to the tier. The same tier can be 6 tables tonight and 4 tomorrow.",
+        "noTiers": "This event has no ticket tiers yet. Add tiers before scheduling a night.",
+        "defaultTier": "General",
+        "submit": "Schedule this night",
+        "submitting": "Scheduling...",
+        "created": "Scheduled, with seats for {count} tiers.",
+        "loadFailed": "Could not load events."
       }
     }
   },
