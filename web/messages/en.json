@@ -11874,7 +11874,37 @@
     "adminMenu": {
       "title": "Menu",
       "subtitle": "Workspace-owned items customers can order from your site.",
-      "noTenant": "No active workspace."
+      "noTenant": "No active workspace.",
+      "import": {
+        "action": {
+          "create": "New",
+          "update": "Update",
+          "unchanged": "Same"
+        },
+        "categories": "{n} categories",
+        "close": "Close",
+        "confirm": "Import {create} new, update {update}",
+        "done": "Imported. {created} created, {updated} updated.",
+        "nothingToDo": "This file matches what you already have. Nothing to import.",
+        "open": "Import a menu",
+        "orphans": "{n} no longer in this file (nothing will be deleted)",
+        "placeholder": "Paste the menu export (JSON)",
+        "preview": "Preview",
+        "reading": "Reading",
+        "reason": {
+          "no_category": "its category is missing from the file",
+          "no_name": "it has no name",
+          "no_price": "it has no price",
+          "negative_price": "its price is negative",
+          "disabled": "it is switched off in the file"
+        },
+        "refused": "{n} not imported",
+        "tiered": "{n} price options",
+        "title": "Import a menu",
+        "unchanged": "{n} unchanged",
+        "willCreate": "{n} to create",
+        "willUpdate": "{n} to update"
+      }
     },
     "adminReviews": {
       "eyebrow": "Reputation",

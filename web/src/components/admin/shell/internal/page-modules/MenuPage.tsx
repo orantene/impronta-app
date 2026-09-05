@@ -7,6 +7,7 @@
 
 import { useAdminShell } from "../state";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
+import { MenuImportPanel } from "./MenuImportPanel";
 import { useT } from "@/i18n/use-t";
 
 export function MenuPage() {
@@ -30,6 +31,7 @@ export function MenuPage() {
       <p className="mb-5 text-sm text-black/60">
         {t("dashboard.adminMenu.subtitle")}
       </p>
+      <MenuImportPanel tenantId={tenantId} />
       <TalentOfferingsManager owner={{ kind: "workspace", tenantId }} />
     </div>
   );
