@@ -11993,6 +11993,21 @@
           "invalid_seats": "el numero de plazas de esta serie no es utilizable.",
           "invalid_window": "la ventana de programacion no es utilizable."
         }
+      },
+      "schedule": {
+        "heading": "Programar una noche",
+        "event": "Evento",
+        "noEvent": "Sin evento (clase independiente)",
+        "starts": "Comienza",
+        "ends": "Termina",
+        "seats": "Plazas para esta noche",
+        "seatsHint": "Las plazas son de la noche, no del nivel. El mismo nivel puede ser 6 mesas esta noche y 4 manana.",
+        "noTiers": "Este evento aun no tiene niveles de entrada. Agrega niveles antes de programar una noche.",
+        "defaultTier": "General",
+        "submit": "Programar esta noche",
+        "submitting": "Programando...",
+        "created": "Programada, con plazas para {count} niveles.",
+        "loadFailed": "No se pudieron cargar los eventos."
       }
     }
   },

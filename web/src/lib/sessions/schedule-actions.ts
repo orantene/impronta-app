@@ -52,6 +52,12 @@ import {
   type SkippedOccurrence,
 } from "@/lib/sessions/materialise";
 import type { IsoWeekday } from "@/lib/sessions/recurrence";
+import { improntaLog } from "@/lib/server/structured-log";
+import {
+  describeSessionRefusal,
+  planSession,
+} from "@/lib/sessions/session-plan";
+import { createSessionWithPools } from "@/lib/sessions/session-writer";
 
 export type ScheduleOccurrence = {
   id: string;
@@ -289,5 +295,231 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
   } catch (error) {
     logServerError("sessions.loadSchedule", error);
     return { ok: false, error: "Could not load the schedule." };
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE WRITE PATH — scheduling a night, which until now nothing could do.
+ *
+ * The cron materialises `session_series` forward 90 days and creates each
+ * session's capacity pool with it. What did not exist was any way for a HUMAN
+ * to produce either input: `session_series` was only ever SELECTed in this
+ * repository, so the sweep faithfully materialised series that nothing could
+ * create. An engine with no door.
+ *
+ * This is the door for the one-off case: an admin schedules a night, optionally
+ * against an event, and gives seats per tier for THAT night.
+ *
+ * Seats are per-night input, not a property of the tier. The same "VIP table"
+ * tier is six tables one night and four the next, so the number belongs to the
+ * night. A tier is not a table.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+export type EventTierOption = {
+  poolKey: string;
+  label: string;
+  amountCents: number;
+};
+
+export type ScheduleEventOption = {
+  id: string;
+  title: string;
+  tiers: EventTierOption[];
+};
+
+export type ScheduleSessionInput = {
+  tenantId: string;
+  startsAt: string;
+  endsAt: string;
+  eventId?: string | null;
+  venueId?: string | null;
+  title?: string | null;
+  /** Seats per tier pool_key for this night. */
+  tiers: Array<{ poolKey: string; units: number }>;
+};
+
+export type ScheduleSessionResult =
+  | { ok: true; sessionId: string; poolsCreated: number }
+  | { ok: false; message: string };
+
+/**
+ * The events an admin can schedule a night against, with their tiers.
+ *
+ * Tiers without a `pool_key` are omitted rather than defaulted: a variant with
+ * no pool key is not a tier, and inventing one here would mint a key that
+ * Events' writer does not know about and nothing would ever resolve.
+ */
+export async function loadSchedulableEvents(
+  tenantId: string,
+): Promise<{ ok: true; events: ScheduleEventOption[] } | { ok: false; message: string }> {
+  try {
+    const staff = await requireWorkspaceStaffAction();
+    if (!staff.ok || staff.tenantId !== tenantId) {
+      return { ok: false, message: "Not authorized for this workspace." };
+    }
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, message: "Service unavailable." };
+
+    const { data: eventRows, error: eventError } = await admin
+      .from("events")
+      .select("id, title, offering_id")
+      .eq("tenant_id", tenantId)
+      .order("title", { ascending: true })
+      .limit(200);
+    if (eventError) {
+      logServerError("sessions.loadSchedulableEvents.events", eventError);
+      return { ok: false, message: "Could not load events." };
+    }
+
+    const offeringIds = (eventRows ?? [])
+      .map((row) => row.offering_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    const tiersByOffering = new Map<string, EventTierOption[]>();
+    if (offeringIds.length > 0) {
+      const { data: variantRows, error: variantError } = await admin
+        .from("talent_offering_variants")
+        .select("offering_id, label, pool_key, amount_cents")
+        .in("offering_id", offeringIds);
+      if (variantError) {
+        // A wrong tier list would let an operator give seats to a tier that is
+        // not there, so this refuses rather than showing events with no tiers.
+        logServerError("sessions.loadSchedulableEvents.variants", variantError);
+        return { ok: false, message: "Could not load ticket tiers." };
+      }
+      for (const row of variantRows ?? []) {
+        const poolKey = typeof row.pool_key === "string" ? row.pool_key.trim() : "";
+        if (!poolKey) continue;
+        const offeringId = String(row.offering_id);
+        const list = tiersByOffering.get(offeringId) ?? [];
+        list.push({
+          poolKey,
+          label: typeof row.label === "string" ? row.label : poolKey,
+          amountCents: Number(row.amount_cents ?? 0),
+        });
+        tiersByOffering.set(offeringId, list);
+      }
+    }
+
+    return {
+      ok: true,
+      events: (eventRows ?? []).map((row) => ({
+        id: String(row.id),
+        title: typeof row.title === "string" ? row.title : "Untitled event",
+        tiers: row.offering_id ? (tiersByOffering.get(String(row.offering_id)) ?? []) : [],
+      })),
+    };
+  } catch (err) {
+    logServerError("sessions.loadSchedulableEvents", err);
+    return { ok: false, message: "Could not load events." };
+  }
+}
+
+/**
+ * Schedule one night and create its pools.
+ *
+ * The tier keys are re-read from the database here rather than trusted from the
+ * form: a client that posts `{poolKey: "vip", units: 500}` for an event with no
+ * VIP tier would otherwise create a real pool that nothing resolves. The plan
+ * refuses an unknown key, and the known set has to come from the server for
+ * that refusal to mean anything.
+ */
+export async function scheduleSession(
+  input: ScheduleSessionInput,
+): Promise<ScheduleSessionResult> {
+  try {
+    const staff = await requireWorkspaceStaffAction();
+    if (!staff.ok || staff.tenantId !== input.tenantId) {
+      return { ok: false, message: "Not authorized for this workspace." };
+    }
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, message: "Service unavailable." };
+
+    let knownPoolKeys: string[] = [];
+    let offeringId: string | null = null;
+    let venueId: string | null = input.venueId ?? null;
+
+    if (input.eventId) {
+      const { data: event, error: eventError } = await admin
+        .from("events")
+        .select("id, offering_id, venue_id")
+        .eq("id", input.eventId)
+        .eq("tenant_id", input.tenantId)
+        .maybeSingle();
+      if (eventError) {
+        logServerError("sessions.scheduleSession.event", eventError);
+        return { ok: false, message: "Could not read the event." };
+      }
+      // Same answer as a genuinely missing event: a staff member in one
+      // workspace learns nothing about ids in another.
+      if (!event) return { ok: false, message: "That event was not found." };
+
+      offeringId = event.offering_id ? String(event.offering_id) : null;
+      venueId = venueId ?? (event.venue_id ? String(event.venue_id) : null);
+
+      if (offeringId) {
+        const { data: variants, error: variantError } = await admin
+          .from("talent_offering_variants")
+          .select("pool_key")
+          .eq("offering_id", offeringId);
+        if (variantError) {
+          logServerError("sessions.scheduleSession.variants", variantError);
+          return { ok: false, message: "Could not read the event's ticket tiers." };
+        }
+        knownPoolKeys = (variants ?? [])
+          .map((row) => (typeof row.pool_key === "string" ? row.pool_key.trim() : ""))
+          .filter((key) => key.length > 0);
+      }
+    }
+
+    const plan = planSession({
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      tiers: input.tiers,
+      knownPoolKeys,
+    });
+    if (!plan.ok) return { ok: false, message: describeSessionRefusal(plan) };
+
+    const result = await createSessionWithPools(
+      admin,
+      {
+        tenantId: input.tenantId,
+        eventId: input.eventId ?? null,
+        venueId,
+        offeringId,
+        title: input.title?.trim() || null,
+        startsAt: plan.startsAt,
+        endsAt: plan.endsAt,
+      },
+      plan.pools,
+    );
+
+    if (!result.ok && result.reason === "duplicate_occurrence") {
+      return { ok: false, message: "A session already exists at that time." };
+    }
+    if (!result.ok && result.reason === "insert_failed") {
+      return { ok: false, message: "Could not create the session." };
+    }
+    if (!result.ok) {
+      // The session exists but not all of its pools do. Said plainly, with the
+      // count, because a tier with no pool is unsellable for this night and
+      // silence here is exactly the failure the plan refuses to create.
+      return {
+        ok: false,
+        message: `The session was created, but only ${result.poolsCreated} of ${plan.pools.length} tiers got seats. Open the session and add the missing tiers before selling.`,
+      };
+    }
+
+    void improntaLog("sessions.scheduled", {
+      tenantId: input.tenantId,
+      sessionId: result.sessionId,
+      eventId: input.eventId ?? null,
+      pools: result.poolsCreated,
+    });
+
+    return { ok: true, sessionId: result.sessionId, poolsCreated: result.poolsCreated };
+  } catch (err) {
+    logServerError("sessions.scheduleSession", err);
+    return { ok: false, message: "Could not create the session." };
   }
 }

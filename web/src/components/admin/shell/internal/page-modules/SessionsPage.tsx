@@ -25,6 +25,7 @@ import { useAdminShell } from "../state";
 import { useT } from "@/i18n/use-t";
 import { PageHeader } from "./pages-shared";
 import { loadSchedule, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
+import { ScheduleNightForm } from "./ScheduleNightForm";
 
 const ISO_WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -115,6 +116,11 @@ export function SessionsPage() {
           {error}
         </div>
       ) : null}
+
+      {/* The write path. Below the refusals on purpose: someone whose class is
+          missing needs the reason before they are offered a way to make
+          another one. */}
+      <ScheduleNightForm tenantId={tenantId} onScheduled={() => void refresh()} />
 
       {/* ── Refusals ─────────────────────────────────────────────────────────
           Above the schedule on purpose. Someone opens this page because a class
