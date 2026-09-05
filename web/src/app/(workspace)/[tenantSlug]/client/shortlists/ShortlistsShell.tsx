@@ -408,7 +408,7 @@ function ShortlistCard({
           border: "1px solid rgba(180,130,20,0.20)",
           borderRadius: 8,
           fontSize: 11.5,
-          color: "#8A6F1A",
+          color: "var(--color-admin-amber)",
         }}>
           {shareState.message}
         </div>

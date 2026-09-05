@@ -68,7 +68,7 @@ export function ProUpgradeButton({
         {state === "pending" ? t("client.subscription.startingCheckout") : label}
       </button>
       {message && (
-        <div style={{ marginTop: 8, fontSize: 11, color: "#8A6F1A", lineHeight: 1.4 }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-admin-amber)", lineHeight: 1.4 }}>
           {message}
         </div>
       )}

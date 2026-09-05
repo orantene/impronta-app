@@ -23,7 +23,7 @@ const C = {
   surface:    "rgba(11,11,13,0.02)",
   accent:     "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(138,111,26,0.10)",
   success:    "#2E7D5B",
   successSoft:"rgba(46,125,91,0.10)",

@@ -30,7 +30,7 @@ const C = {
   accentSoft: "rgba(15,79,62,0.08)",
   successDeep: "#1A7348",
   successSoft: "rgba(26,115,72,0.10)",
-  amberDeep:  "#8A6F1A",
+  amberDeep:  "var(--color-admin-amber-deep)",
   amberSoft:  "rgba(138,111,26,0.10)",
   indigoDeep: "#2B3FA3",
   indigoSoft: "rgba(43,63,163,0.07)",
