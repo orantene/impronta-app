@@ -94,7 +94,7 @@ test("Talent and per-talent Budget are gated at the parent, not reworded", () =>
     assert.ok(at > 0, `${section} is not rendered any more`);
     const before = src.slice(Math.max(0, at - 260), at);
     assert.ok(
-      /representsPeople\s*\?/.test(before),
+      /representsPeople\s*(\?|&&)/.test(before),
       `${section} is rendered without a representsPeople gate, so a business tenant still meets it`,
     );
   }
