@@ -78,8 +78,8 @@ const en = {
   },
   workspace: {
     free: {
-      line: "A three page site on a tulala address.",
-      bullets: ["Three pages", "A tulala address", "Inquiry inbox"],
+      line: "A five page site on a tulala address.",
+      bullets: ["Five pages", "A tulala address", "Inquiry inbox"],
       cta: "Start free",
     },
     website: {
@@ -191,8 +191,8 @@ const es: PricingLaddersCopy = {
   },
   workspace: {
     free: {
-      line: "Un sitio de tres páginas en una dirección tulala.",
-      bullets: ["Tres páginas", "Una dirección tulala", "Bandeja de solicitudes"],
+      line: "Un sitio de cinco páginas en una dirección tulala.",
+      bullets: ["Cinco páginas", "Una dirección tulala", "Bandeja de solicitudes"],
       cta: "Empieza gratis",
     },
     website: {

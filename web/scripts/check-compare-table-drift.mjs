@@ -48,6 +48,7 @@ if (!url || !key) {
   process.exit(1);
 }
 
+const { readFileSync } = await import("node:fs");
 const { findCompareTableDrift } = await import(
   "../src/lib/pricing/enforced-plan-facts.ts"
 );
@@ -140,6 +141,60 @@ try {
     );
     process.exit(1);
   }
+
+  // ── Third check: the pricing LADDER copy, which the row check cannot see ──
+  //
+  // /pricing states plan facts in two structurally different places: the
+  // compare table (product_features rows, checked above) and the ladder card
+  // bullets (prose in pricing-ladders-copy.ts). They drifted apart on 09-05:
+  // #1600 raised the Free page allowance to 5 and the compare table followed,
+  // while the ladder card still read "A three page site" / "Three pages" in
+  // both locales. Same page, same fact, two numbers, and the row-based guard
+  // was structurally blind to it because prose is not a row.
+  const copySrc = readFileSync(
+    new URL("../src/lib/marketing/pricing-ladders-copy.ts", import.meta.url),
+    "utf8",
+  );
+  const { enforcedFactsForPlan } = await import(
+    "../src/lib/pricing/enforced-plan-facts.ts"
+  );
+  const freePages = enforcedFactsForPlan("free").publicPages;
+
+  // Assert the CORRECT number is PRESENT, rather than scanning for wrong ones.
+  // The scan-for-wrong version fired a false positive immediately: Spanish
+  // "una página" is the indefinite article, "a page", not a claim of one page.
+  // A positive assertion has no such ambiguity — either the copy states the
+  // enforced number or it does not.
+  const WORDS = { 1: ["one", "un"], 3: ["three", "tres"], 5: ["five", "cinco"] };
+  const expected = WORDS[freePages];
+  const copyProblems = [];
+
+  if (!expected) {
+    copyProblems.push(
+      `no EN/ES spelling known for a Free allowance of ${freePages}; add it to WORDS in this script`,
+    );
+  } else {
+    const [en, es] = expected;
+    if (!new RegExp(`${en} page`, "i").test(copySrc)) {
+      copyProblems.push(`English ladder copy does not say "${en} page(s)" for the Free tier`);
+    }
+    if (!new RegExp(`${es} página`, "i").test(copySrc)) {
+      copyProblems.push(`Spanish ladder copy does not say "${es} página(s)" for the Free tier`);
+    }
+  }
+
+  if (copyProblems.length > 0) {
+    console.error(
+      "\nFAIL: the pricing ladder copy states a page count the product does not enforce:\n",
+    );
+    for (const c of copyProblems) console.error(`  ${c}`);
+    console.error(
+      "\nBUILDER_PLAN_POLICY.free.maxPublicPages is the enforced number. The\n" +
+        "compare table and the ladder card must both agree with it.\n",
+    );
+    process.exit(1);
+  }
+  console.log(`pricing ladder copy: free page count agrees with the enforced ${freePages}`);
 
   console.log(`compare-table drift: ${rows.length} row(s) checked, none contradict enforcement`);
   process.exit(0);
