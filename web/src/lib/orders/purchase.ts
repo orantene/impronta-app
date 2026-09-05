@@ -26,6 +26,19 @@ import {
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
+import type {
+  PurchaseInput,
+  PurchaseLineInput,
+  PurchaseRefusalReason,
+  PurchaseResult,
+} from "@/lib/orders/purchase-types";
+
+export type {
+  PurchaseInput,
+  PurchaseLineInput,
+  PurchaseRefusalReason,
+  PurchaseResult,
+};
 import {
   pricePurchase,
   amountToCollectCents,
@@ -69,142 +82,6 @@ import {
  * money.
  */
 
-export type PurchaseLineInput = {
-  offeringId: string;
-  units: number;
-  variantId?: string | null;
-  addonIds?: string[];
-};
-
-export type PurchaseInput = {
-  tenantId: string;
-  /** Per CART, not per click — the idempotency anchor. */
-  clientOrderKey: string;
-  /** Null for a guest. Never invented. */
-  actorUserId: string | null;
-  contact: { email?: string | null; phone?: string | null; displayName?: string | null };
-  lines: PurchaseLineInput[];
-  /** INTENT, not policy. Re-validated against the offering rows. */
-  paymentChoice: PaymentChoice;
-  sourceChannel: string;
-  sourcePage?: string | null;
-  /** Capacity pools this purchase must hold, per line. */
-  capacity?: Array<{
-    offeringId: string;
-    poolId: string;
-    startsAt?: string | null;
-    endsAt?: string | null;
-    units?: number;
-    /** Per-unit domain row exists (an admission per seat)? See capacity-requests.ts. */
-    perUnitDomainRow?: boolean;
-  }>;
-  /**
-   * A code the buyer typed. Optional, and when present it is HONOURED OR THE
-   * PURCHASE REFUSES — never quietly dropped. Someone who entered a code and
-   * was charged full price has been overcharged by silence.
-   */
-  promoCode?: string | null;
-  locale?: string | null;
-  /**
-   * Open a conversation for this purchase and post the order card into it.
-   *
-   * "Any order can open a thread lazily" is the contract; this is the eager
-   * form, for channels where staff work the order in Messages today. A menu
-   * order takes it, because that is where a menu order is visible NOW, and
-   * removing the thread would be a regression dressed as an architecture change.
-   *
-   * What it does NOT do is run the inquiry state machine: no offer, no approval,
-   * no `status: 'approved'` forced under the service role, no version dance.
-   * The inquiry here is a CONVERSATION, which is all it was ever needed for.
-   */
-  openThread?: boolean;
-  /**
-   * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
-   *
-   * Capacity answers "are there seats left"; a slot answers "is this person
-   * free at this time". A timed appointment needs both, and the instant-book
-   * engine held them separately with its own compensation — the one thing it
-   * did that Menu never needed.
-   *
-   * The TTL comes from the POOL, not from this file, so the two clocks agree.
-   * Capacity's warning: hold the slot on its own timer and the units come back
-   * in fifteen minutes while the slot stays blocked for two days.
-   */
-  reservation?: {
-    talentProfileId: string;
-    startsAt: string;
-    endsAt: string;
-    title?: string | null;
-    /** The pool whose TTL governs both holds. */
-    poolId?: string | null;
-  } | null;
-};
-
-export type PurchaseRefusalReason =
-  | "empty_order"
-  | "unknown_offering"
-  | "offering_not_published"
-  | "cross_tenant_line"
-  | "account_required"
-  | "pay_in_person_not_allowed"
-  | "deposit_not_offered"
-  | "invalid_units"
-  | "invalid_payment_choice"
-  | "offering_not_priceable"
-  | "variant_not_on_offering"
-  | "addon_not_on_offering"
-  | "amount_out_of_range"
-  | "no_contact"
-  | "sold_out"
-  /** The capacity engine could not be REACHED. A retry, not an absence. */
-  | "capacity_unavailable"
-  /** Someone else holds that time. Distinct from sold_out: seats remain. */
-  | "slot_taken"
-  /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
-  | "slot_required"
-  /** Promo refusals. A code the buyer TYPED must never be silently ignored. */
-  | "promo_unknown"
-  | "promo_not_started"
-  | "promo_expired"
-  | "promo_exhausted"
-  | "promo_customer_limit"
-  | "promo_not_applicable"
-  /** The promo READ failed. A retry, not a verdict on the code. */
-  | "promo_unavailable"
-  | "engine_error";
-
-export type PurchaseResult =
-  | {
-      ok: true;
-      orderId: string;
-      customerId: string;
-      totalCents: number;
-      /** What the pipeline decided to collect now. Derived, never sent. */
-      collectCents: number;
-      /** True when the order is reserved with no card. */
-      payInPerson: boolean;
-      allocationIds: string[];
-      /**
-       * The transaction to charge, when there is money to collect. Null for a
-       * free reserve or pay-in-person.
-       *
-       * Stripe is deliberately NOT called from this pipeline: the caller passes
-       * this to `createCheckoutSessionForTransaction`, which already carries the
-       * `cs_txn_<id>` idempotency key. Keeping the network call out of the
-       * orchestrator is what makes the orchestrator testable, and it means there
-       * is still exactly one place that talks to Checkout.
-       */
-      transactionId: string | null;
-      /** The operations anchor. See the note at step 9. */
-      bookingId: string | null;
-      /** The conversation, when one was opened. */
-      inquiryId: string | null;
-      /** The calendar hold, when a slot was taken. */
-      reservationHoldId: string | null;
-    }
-  | { ok: false; reason: PurchaseRefusalReason; offeringId?: string; error?: string };
-
-/** Only used when a pool cannot tell us its own TTL. */
 const FALLBACK_HOLD_TTL_SECONDS = 15 * 60;
 
 export async function createPurchase(
@@ -283,11 +160,19 @@ export async function createPurchase(
     }
 
     // ── 3. Price from catalog rows.
+    // `priced.lines[i]` ↔ `input.lines[i]`: pricing pushes one per request in
+    // order. The session binding rides that index; a KEYED join would be wrong
+    // because two lines may share an offering with different sessions.
     const priced = pricePurchase(input.lines, {
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
     });
+    // Refuses rather than stamping session ids onto the wrong lines.
+    if (priced.ok && priced.lines.length !== input.lines.length) {
+      logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);
+      return { ok: false, reason: "engine_error", error: "Could not price the order." };
+    }
     if (!priced.ok) {
       return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
     }
@@ -324,13 +209,9 @@ export async function createPurchase(
 
     // ── 5. Create the order. `draft` until capacity is held and the payment
     //       decision is made, so an abandoned cart never looks pending.
-    // ── 5b. Promo, resolved BEFORE the order exists.
-    //
-    // Resolving first means a buyer who mistyped a code, or reached one that is
-    // used up, is told so without an order being created and unwound. The
-    // counts read here are advisory — `redeem_tenant_promo` re-counts under a
-    // row lock and is the authority — but catching the common cases early is
-    // cheaper than compensating for them.
+    // ── 5b. Promo, resolved BEFORE the order exists so a bad code is refused
+    // without one being created and unwound. Counts here are advisory; 5c
+    // re-counts under a row lock and is the authority.
     let promoDiscountCents = 0;
     let promoCodeId: string | null = null;
     if (input.promoCode) {
@@ -455,6 +336,9 @@ export async function createPurchase(
       talent_profile_id: l.talentProfileId,
       owner_tenant_id: l.ownerTenantId,
       talent_cost_cents: l.talentCostCents,
+      // Never `orders.session_id` (a box-office convenience); this is what
+      // `mint-on-paid` filters on.
+      session_id: input.lines[i]?.sessionId ?? null,
       sort_order: i,
     }));
 
