@@ -248,6 +248,10 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };
+      // Orders' pipeline refuses an in_person order for a finished session
+      // (#1836, `session_already_ended`); my picker never sends one, but the
+      // sentence should be the honest one if a caller ever does.
+      if (String(result.reason) === "session_already_ended") return { ok: false, reason: "night_not_on_sale", detail: "session_already_ended" };
       if (result.reason === "invalid_units") return { ok: false, reason: "quantity" };
       if (result.reason === "offering_not_published" || result.reason === "unknown_offering" || result.reason === "cross_tenant_line") {
         return { ok: false, reason: "not_sellable" };
