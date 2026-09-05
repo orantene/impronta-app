@@ -28,6 +28,9 @@ import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-temp
 import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
 import { PLATFORM_DEFAULT_STOREFRONT_SLUG } from "./default-storefront-tree";
 import { pruneStarterRosterForAudience } from "./starter-roster-prune";
+import { loadTenantWords } from "@/lib/words/server";
+import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
+import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
@@ -123,6 +126,52 @@ async function loadReservedStorefrontSlugTree(
  * mode we are guarding against is a personaliser that is alive in its unit test
  * and dead at its real call site. Pass `{}` only when nothing is known.
  */
+/**
+ * The tenant's own default design, from `preset.designId`, or null.
+ *
+ * Deliberately swallows every failure: this sits on the page-less fallback
+ * path for a live storefront, so a words-table hiccup must degrade to the
+ * platform default rather than 500 a visitor.
+ */
+async function resolvePresetDesignTree(
+  tenantId: string,
+): Promise<BuilderNodeTree | null> {
+  try {
+    const words = await loadTenantWords(tenantId, "en");
+    const designId = words.preset?.designId;
+    if (!designId) return null;
+    const design = getPageDesign(designId);
+    if (!design || design.tree.length === 0) return null;
+
+    // FAIL SAFE — never hand back a tree the renderer will drop.
+    //
+    // This is the lesson from the regression that made this check exist: the
+    // preset resolved `restaurant-orderable` correctly, the tree was returned
+    // happily, and the renderer discarded it because `menu_board` was not an
+    // allowed child of `container`. A page-less restaurant rendered a header,
+    // a footer and NOTHING in between — which is worse for a guest than the
+    // wrong template, because the wrong template at least looks like a site.
+    //
+    // The allow-list bug is fixed and a guard now pins every preset-owned
+    // design as valid, but neither of those helps if a design breaks later.
+    // Returning null here degrades to the platform default — today's
+    // behaviour — instead of to a blank page.
+    const validation = validateBuilderNodeTree(design.tree as BuilderNodeTree);
+    if (!validation.ok) {
+      void improntaLog("site_admin_default_storefront.warn", {
+        message:
+          "[default-storefront] preset design failed validation; falling back to the platform default",
+        designId,
+        issue: validation.issues[0]?.message ?? "unknown",
+      });
+      return null;
+    }
+    return validation.tree;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
   personalisation: StarterPersonalisation,
