@@ -35,6 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
+import { foregroundForPrimary } from "./contrast-pair";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
 export interface ResolveDesignTokensInput {
@@ -149,6 +150,25 @@ export function designTokensToCssVars(
       out[cssVar] = value;
     }
   }
+
+  // DERIVED — the readable foreground for the tenant's primary.
+  //
+  // `.site-theme-tenant-override` re-pins `--primary` from
+  // `--token-color-primary` and never re-pinned `--primary-foreground`, so a
+  // brandless tenant painted #0a0a0a on #111111: about 1.05:1, an invisible
+  // button label. Projecting the pair here means the foreground follows the
+  // primary automatically for every tenant, including ones that never open the
+  // design panel.
+  //
+  // Emitted ONLY when the primary is a colour we can measure. An unparseable
+  // value (a CSS keyword, a gradient, a var reference) leaves the var unset so
+  // the existing cascade is untouched — absence stays distinct from a value.
+  const primary = out[COLOR_VAR_NAMES["color.primary"]!];
+  if (typeof primary === "string" && primary.length > 0) {
+    const onPrimary = foregroundForPrimary(primary);
+    if (onPrimary) out["--token-color-primary-on"] = onPrimary;
+  }
+
   return out;
 }
 
