@@ -57,7 +57,7 @@ const C = {
   accentSoft: "rgba(15,79,62,0.10)",
   error: "#dc2626",
   errorSoft: "#FCA5A5",
-  success: "#16a34a",
+  success: "var(--color-admin-green)",
 } as const;
 const FONT = '"Inter", system-ui, sans-serif';
 

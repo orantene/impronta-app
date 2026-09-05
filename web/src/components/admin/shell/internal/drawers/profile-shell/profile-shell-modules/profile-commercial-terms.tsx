@@ -257,7 +257,7 @@ export function CommercialTermsEditor({
       {/* Async state */}
       <div style={{ minHeight: 16 }}>
         {saving && <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{copy.t("Saving…")}</span>}
-        {saveState === "saved" && <span style={{ fontSize: 11, color: "#16a34a" }}>{copy.t("Saved")}</span>}
+        {saveState === "saved" && <span style={{ fontSize: 11, color: "var(--color-admin-green)" }}>{copy.t("Saved")}</span>}
         {saveState === "error" && saveError && <span style={{ fontSize: 11, color: "#dc2626" }}>{copy.t(saveError)}</span>}
       </div>
     </div>

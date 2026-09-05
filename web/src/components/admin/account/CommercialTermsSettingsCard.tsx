@@ -43,7 +43,7 @@ const C = {
   surface:    "rgba(24,24,27,0.03)",
   error:      "#dc2626",
   errorSoft:  "#FCA5A5",
-  success:    "#16a34a",
+  success:    "var(--color-admin-green)",
   accent:     "#0B0B0D",
 } as const;
 
