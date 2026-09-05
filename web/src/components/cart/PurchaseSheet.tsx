@@ -50,6 +50,7 @@ import {
 import { cartTotals, depositDueCents, type CartLineInput } from "@/lib/cart/totals";
 import { refusalCopy } from "@/lib/cart/refusal-copy";
 import type { WordLocale } from "@/lib/words";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 
 /**
  * Sheet chrome, en and es together so a missing translation is visible at the
@@ -89,13 +90,22 @@ function t(key: keyof typeof CHROME, locale: WordLocale): string {
   return CHROME[key][locale === "es" ? "es" : "en"];
 }
 
-function money(cents: number, currency: string, locale: WordLocale): string {
-  // USD only, platform-wide. Currency is passed rather than assumed so this
-  // does not become the place that hardcodes it.
-  return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
+function money(cents: number, currency: string, _locale: WordLocale): string {
+  // Delegates to the ONE order money formatter. This was the FOURTH rendering
+  // of the same money, and the most dangerous, because `Intl` with a locale
+  // INVERTS the symbols:
+  //
+  //   es-MX + MXN  ->  $4,500.00      pesos wearing a dollar sign
+  //   es-MX + USD  ->  USD 4,500.00   dollars wearing a code
+  //
+  // So on the Spanish checkout panel a peso amount looked like dollars while a
+  // dollar amount looked like a code — the exact opposite of every other
+  // surface, on the one panel a customer touches before paying.
+  //
+  // Locale is kept in the signature and ignored: an amount of money is not
+  // translated, and having it here invited the locale-dependent formatting
+  // that caused this.
+  return formatOrderMoney(cents, currency);
 }
 
 /**
