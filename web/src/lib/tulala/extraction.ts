@@ -75,6 +75,60 @@ export const EXTRACTION_SCHEMA: JsonSchemaForChat = {
   },
 };
 
+/**
+ * The IMPORT variant, and the only difference is `maxItems`.
+ *
+ * A conversation yields a few facts per turn, so 12 is generous there. A page
+ * import is not a turn: El Paisa's menu page alone carries a name, a
+ * description, hours, socials, a logo, a palette, section names and every dish.
+ * Under the conversational cap the extractor would return the first twelve and
+ * we would never know which it dropped — a silent truncation that reads exactly
+ * like "the page did not say".
+ *
+ * A separate schema rather than a raised shared one: the conversational cap is
+ * load-bearing for turn latency and cost, and widening it for everyone to serve
+ * one caller is how a limit stops meaning anything.
+ */
+export const IMPORT_EXTRACTION_SCHEMA: JsonSchemaForChat = {
+  name: "tulala_fact_extraction_import",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["facts"],
+    properties: {
+      facts: {
+        type: "array",
+        maxItems: 40,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["key", "value", "confidence", "quote"],
+          properties: {
+            key: { type: "string", description: "Must be one of the listed fact keys." },
+            value: {
+              type: "string",
+              description:
+                "The value as a string. For yes/no facts use exactly 'true' or 'false'. For numbers, digits only. For lists, comma-separated.",
+            },
+            confidence: {
+              type: "number",
+              description:
+                "0.9+ they said it almost verbatim. 0.6-0.8 clearly implied. 0.4-0.5 a reasonable guess. Below 0.4, do not include it.",
+            },
+            quote: {
+              type: "string",
+              description:
+                "The user's own words this came from, verbatim, max 200 chars. Empty string if inferred from context rather than a phrase.",
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+
 // ─── Floors ───────────────────────────────────────────────────────────────────
 
 /**

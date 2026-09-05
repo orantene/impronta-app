@@ -37,7 +37,7 @@ import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-us
 
 import { recordFacts, type BriefOwner } from "./brief-store.server";
 import type { Brief, FactInput } from "./brief-store";
-import { EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
+import { IMPORT_EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
 import { buildImportPrompt, buildImportMessage } from "./prompts";
 import {
   extractHandles,
@@ -226,7 +226,7 @@ async function extractFromPage(
     const completion = await adapter.chatCompletion({
       systemPrompt: buildImportPrompt({ pack: packForBrief(brief), locale }),
       userMessage: buildImportMessage(page, brief),
-      jsonSchema: EXTRACTION_SCHEMA,
+      jsonSchema: IMPORT_EXTRACTION_SCHEMA,
       maxTokens: EXTRACTION_MAX_TOKENS,
       temperature: 0,
     });
