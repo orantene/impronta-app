@@ -35,6 +35,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   // RESERVATIONS — the booking block is a whole page band like the others.
   "reserve_table",
   "session_picker",
+  "qr_code",
   "talent_type_grid",
   // BUILDER 2027 · P2A — the native page bands (marquee strip, directory grid,
   // featured showcase, location map, sticky scroll, stats, before/after) and the

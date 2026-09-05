@@ -239,6 +239,13 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
+    case "qr_code":
+      // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
+      return {
+        id: makeId("qr_code"),
+        kind: "qr_code",
+        props: { linkCode: "" },
+      };
     case "session_picker":
       return {
         id: makeId("session_picker"),

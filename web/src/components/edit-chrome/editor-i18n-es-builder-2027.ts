@@ -173,6 +173,8 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Sessions": "Sesiones",
   "The session offering this block books":
     "La sesión que reserva este bloque",
+  // QR & LINKS — the qr_code props panel.
+  "Paste a link code": "Pega un código de enlace",
   // C11 — the anchor field on the Data panel. Lives in the Builder 2027
   // catalog rather than editor-i18n-es-inspectors.ts, which sits at exactly
   // the 800-line max-lines budget: adding here keeps the budget intact

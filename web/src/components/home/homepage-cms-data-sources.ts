@@ -7,6 +7,7 @@
  * locations, directory shortcuts, media assets, collections), and fetches them
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
+import { headers } from "next/headers";
 import {
   collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
@@ -105,6 +106,17 @@ export async function loadBuilderNodeDataSources(
   previewSubject?: { kind: string; id: string } | null,
 ): Promise<BuilderNodeRenderDataSources> {
   const dataTenantId = previewSubject?.id ?? tenantId;
+  // The public origin the qr_code block composes `<origin>/q/<code>` from. Read
+  // from the request host; degrade to undefined outside a request (preview),
+  // where a scheme-less short link is acceptable. Set BEFORE the no-data-needs
+  // early return so a page whose only native block is a qr_code still gets it.
+  let publicOrigin: string | undefined;
+  try {
+    const host = (await headers()).get("host");
+    publicOrigin = host ? `https://${host}` : undefined;
+  } catch {
+    publicOrigin = undefined;
+  }
   const featuredLimit = collectBuilderDataBindingMax(
     nodes,
     "featured_talent_profiles",
@@ -145,7 +157,7 @@ export async function loadBuilderNodeDataSources(
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
   ) {
-    return {};
+    return { publicOrigin };
   }
   // The storefront read bypasses RLS (service role) for media + collections.
   const serviceSupabase =
@@ -274,6 +286,7 @@ export async function loadBuilderNodeDataSources(
 
   return {
     tenantId: dataTenantId,
+    publicOrigin,
     featuredTalentProfiles,
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,

@@ -1029,6 +1029,15 @@ const sessionPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const qrCodePropsSchema = z.object({
+  linkCode: z.string().max(200),
+  foreground: z.string().max(9).optional(),
+  cornerStyle: z.enum(["square", "rounded"]).optional(),
+  caption: z.string().max(240).optional(),
+  showShortLink: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /**
  * WS7 Phase 0 — NATIVE `talent_type_grid`. Same relationship to the frozen
  * curated `talent_type_grid` schema: the authoring fields survive, the section
@@ -1915,6 +1924,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "A guest picks a seat in an upcoming session or class and books it, held as an order; the seat past capacity is refused.",
       children: { type: "none" },
       propsSchema: sessionPickerPropsSchema,
+    },
+    qr_code: {
+      kind: "qr_code",
+      label: "QR code",
+      description:
+        "A scannable code for one of your links, rendered on the page. Point a phone at it and it opens the link.",
+      children: { type: "none" },
+      propsSchema: qrCodePropsSchema,
     },
     talent_type_grid: {
       kind: "talent_type_grid",
