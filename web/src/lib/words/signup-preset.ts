@@ -64,6 +64,21 @@ const KEYWORD_PRESETS: ReadonlyArray<{
     words: ["restaurant", "restaurante", "cafe", "café", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
     presetId: "restaurant",
   },
+  // Portfolio BEFORE studio_gym, and this ordering is load-bearing: a
+  // "photography studio" and an "estudio fotográfico" both contain the word
+  // this list gives to gyms. Without this row above it, every photographer in
+  // the funnel resolves to a GYM.
+  {
+    words: [
+      "photography", "photographer", "photo", "fotografia", "fotografía",
+      "fotografo", "fotógrafo", "fotografico", "fotográfico",
+      "fotografica", "fotográfica", "portrait", "retrato", "headshot",
+      "wedding", "boda", "gallery", "galeria", "galería",
+      "tattoo", "tatuaje", "illustrator", "ilustrador", "ceramics", "ceramista",
+      "painter", "pintor", "artist", "artista",
+    ],
+    presetId: "portfolio",
+  },
   { words: ["gym", "yoga", "pilates", "fitness", "studio", "estudio", "crossfit"], presetId: "studio_gym" },
   { words: ["padel", "tennis", "tenis", "court", "cancha", "bowling", "futbol", "fútbol"], presetId: "sports_venue" },
   { words: ["tour", "tours", "excursion", "excursión", "diving", "buceo", "snorkel"], presetId: "tours_activities" },
