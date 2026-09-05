@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import {
   buildLegacySectionBuilderTree,
   deriveLegacySectionChildNodes,
@@ -20,6 +21,12 @@ export interface SnapshotBuilderTreeResolution {
   source: BuilderTreeSource;
   tree: BuilderNodeTree;
   issues: ReadonlyArray<BuilderNodeValidationIssue>;
+  /**
+   * True when the snapshot's tree failed validation and the page is being
+   * served from the tree with its invalid nodes REMOVED (see
+   * `salvageBuilderTree`). `issues` then names what was dropped, by path.
+   */
+  salvaged?: boolean;
 }
 
 export type PublishBuilderTreeResolution =
@@ -224,6 +231,25 @@ export function resolveSnapshotBuilderTree(
         issues: [],
       };
     }
+    // A VALIDATOR THAT REFUSES IS RIGHT; A FALLBACK THAT ANSWERS WITH NOTHING
+    // IS NOT. Three blank El Paisa pages on 2026-09-05 had one shape: one bad
+    // node somewhere (a repeater the renderer would not accept, an invalid
+    // token write, two paragraphs emptied by a stripped placeholder), the
+    // whole tree refused here, and the page-less fallback's `slots: []` served
+    // a header, a footer and nothing between, silently. So: drop the nodes the
+    // validator named, re-validate, and serve the rest. Only when nothing can
+    // be salvaged does this fall to the legacy slots, exactly as before.
+    const salvaged = salvageBuilderTree(snapshot.builderTree, parsed.issues);
+    if (salvaged) {
+      reportSalvage(parsed.issues, salvaged.dropped);
+      return {
+        source: "snapshot_builder_tree",
+        tree: salvaged.tree,
+        issues: parsed.issues,
+        salvaged: true,
+      };
+    }
+    reportSalvage(parsed.issues, []);
     const fallback = buildLegacySectionBuilderTree(slots);
     return {
       source: "legacy_slots",
@@ -237,6 +263,96 @@ export function resolveSnapshotBuilderTree(
     tree: buildLegacySectionBuilderTree(slots),
     issues: [],
   };
+}
+
+/** Maximum prune-and-revalidate rounds; a dropped node can expose a new issue in its parent. */
+const SALVAGE_ROUNDS = 4;
+
+/**
+ * The node path (indices into `children`) named by a validator issue path such
+ * as `root.0.children.2.children.0.props.text`, or null when the issue is not
+ * about a node (e.g. `root` itself).
+ */
+export function issueNodePath(issuePath: string): number[] | null {
+  const parts = issuePath.split(".");
+  if (parts[0] !== "root" || parts.length < 2) return null;
+  const out: number[] = [];
+  let i = 1;
+  while (i < parts.length) {
+    const idx = Number(parts[i]);
+    if (!Number.isInteger(idx) || idx < 0) break;
+    out.push(idx);
+    if (parts[i + 1] !== "children") break;
+    i += 2;
+  }
+  return out.length > 0 ? out : null;
+}
+
+function removeNodeAtPath(tree: unknown[], path: ReadonlyArray<number>): boolean {
+  let siblings: unknown[] = tree;
+  for (let d = 0; d < path.length - 1; d++) {
+    const node = siblings[path[d]!] as { children?: unknown } | undefined;
+    if (!node || !Array.isArray(node.children)) return false;
+    siblings = node.children;
+  }
+  const last = path[path.length - 1]!;
+  if (last >= siblings.length) return false;
+  siblings.splice(last, 1);
+  return true;
+}
+
+/**
+ * Drop the nodes a validation pass named, re-validate, repeat a bounded number
+ * of times. Returns the validated remainder and the paths dropped, or null when
+ * the input is not a tree at all or nothing could be removed.
+ */
+export function salvageBuilderTree(
+  input: unknown,
+  issues: ReadonlyArray<BuilderNodeValidationIssue>,
+): { tree: BuilderNodeTree; dropped: string[] } | null {
+  if (!Array.isArray(input)) return null;
+  const working: unknown[] = structuredClone(input) as unknown[];
+  let currentIssues = issues;
+  const dropped: string[] = [];
+  for (let round = 0; round < SALVAGE_ROUNDS; round++) {
+    const paths = currentIssues
+      .map((issue) => issueNodePath(issue.path))
+      .filter((p): p is number[] => p !== null);
+    if (paths.length === 0) return null;
+    // Deepest and rightmost first, so earlier splices do not shift later paths.
+    const unique = Array.from(new Map(paths.map((p) => [p.join("."), p])).values()).sort(
+      (a, b) => b.length - a.length || b.join(".").localeCompare(a.join(".")),
+    );
+    let removedAny = false;
+    for (const p of unique) {
+      if (removeNodeAtPath(working, p)) {
+        removedAny = true;
+        dropped.push(`root.${p.join(".children.")}`);
+      }
+    }
+    if (!removedAny) return null;
+    if (working.length === 0) return null;
+    const again = validateBuilderNodeTree(working);
+    if (again.ok) return { tree: again.tree, dropped };
+    currentIssues = again.issues;
+  }
+  return null;
+}
+
+function reportSalvage(
+  issues: ReadonlyArray<BuilderNodeValidationIssue>,
+  dropped: ReadonlyArray<string>,
+): void {
+  // The structured logger deliberately avoids `next/headers`, so it is safe on
+  // this module's two runtimes (server render path and the editor bundle).
+  void improntaLog("site_admin_snapshot_tree.warn", {
+    message:
+      dropped.length > 0
+        ? "[snapshot-tree] builder tree failed validation; serving it WITHOUT the invalid node(s)"
+        : "[snapshot-tree] builder tree failed validation and could not be salvaged; serving legacy slots",
+    dropped: [...dropped],
+    issues: issues.slice(0, 8).map((i) => `${i.path}: ${i.message}`),
+  });
 }
 
 export function resolveSnapshotBuilderTreeForPublish(
