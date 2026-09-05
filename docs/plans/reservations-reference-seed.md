@@ -11,7 +11,7 @@ is a statement about one restaurant. Run it by hand against the tenant you mean.
 
 | Thing | Value | Why it is not the default |
 |---|---|---|
-| `venues.timezone` | `America/Cancun` | The column defaults to `UTC` and **every production venue had silently inherited it.** A venue on UTC resolves "dinner at seven" in the wrong wall clock. |
+| `venues.timezone` | **the venue's real zone** | The column defaults to `UTC` and **every production venue had silently inherited it.** A venue on UTC resolves "dinner at seven" in the wrong wall clock. Get it from the restaurant, not from the seed you copied — see the correction below. |
 | Room + 10 tables | 4 two-tops, 6 four-tops | The band pools are sized from these. |
 | 2 `space_groups` | `kind='party_band'`, `sell_mode='band'` | A party-size band is CAPACITY, not a room. |
 | Both capacity pools | **`parent_pool_id = NULL`** | Parentless on purpose (Spaces SS-2): a parented band pool double-counts the room against itself. |
@@ -70,7 +70,7 @@ DECLARE
   v uuid; room uuid; g2 uuid; g4 uuid; off uuid; i int;
 BEGIN
   INSERT INTO public.venues (tenant_id, name, slug, city, country_code, timezone, is_default, status)
-  VALUES (t, 'El Paisa', 'el-paisa', 'Playa del Carmen', 'MX', 'America/Cancun', true, 'active')
+  VALUES (t, 'El Paisa', 'el-paisa', 'Glew', 'AR', 'America/Argentina/Buenos_Aires', true, 'active')
   RETURNING id INTO v;
 
   INSERT INTO public.spaces (tenant_id, venue_id, parent_id, kind, name, party_min, party_max, sort_order)
@@ -153,3 +153,35 @@ Derived from the ROWS, not from intent. Test against this.
 - Anything inside **60 minutes** is not offered. Real.
 - **"Nothing available today"** at a normal hour, or **"we are closed that day"**
   anywhere in the next 60 days, is a **BUG** — every weekday is open.
+
+## Correction 2026-09-05 — the timezone was copied, not looked up
+
+El Paisa was seeded `America/Cancun` because that is what the two tenants before
+it used. **It is in Glew, Buenos Aires province, Argentina** — "Parrilla El Paisa
+Regionales", a family parrilla, prices in ARS. Corrected on venue
+`b0a18aee-4d0f-4a65-90e8-da9a1b74f726` to `America/Argentina/Buenos_Aires`, with
+`city='Glew'`, `region='Buenos Aires'`, `country_code='AR'`.
+
+**Why this is the exact mistake this document was written to prevent, one level
+up.** The doc says to set the timezone explicitly rather than inherit `UTC`. I did
+— and then inherited it from the previous seed instead. A value that is *stated*
+is not the same as a value that is *checked*: the row looked deliberate and was
+still wrong, which is harder to catch than a default, because nothing about it
+reads as unset.
+
+**Nothing about the windows changed, and that is the design working.** Windows
+store a WALL CLOCK, not an instant, so lunch stayed `13:00` and dinner `19:00` —
+the venue's own hours are still its own hours. Only the instants they resolve to
+moved (lunch 18:00Z → 16:00Z), which is exactly what should happen when a venue
+turns out to be two hours east of where you thought.
+
+**Safe because nothing was booked.** Verified first: 0 capacity allocations, 0
+orders, 0 admissions on this tenant. **Changing a venue's timezone with live
+bookings would move the instant of every future seating** — a table booked for
+20:00 would silently become 18:00 or 22:00. If you must re-zone a venue that has
+taken bookings, that is a migration with a decision in it, not an `UPDATE`.
+
+**Fix the whole row, not the field you were asked about.** The correction named
+only the timezone; leaving `country_code='MX'` beside `region='Buenos Aires'`
+would have left a row that contradicts itself, and the next reader cannot tell
+which half is the stale one.
