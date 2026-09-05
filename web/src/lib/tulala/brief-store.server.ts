@@ -180,6 +180,50 @@ export async function loadBriefById(
   }
 }
 
+/**
+ * The brief a signup lead produced, for PROVISIONING to read.
+ *
+ * WHY THIS HAS NO OWNER ARGUMENT, UNLIKE EVERY OTHER READ HERE.
+ * `loadBriefById` is owner-scoped because a brief id must never be enough to
+ * read a brief. This one is not addressed by a brief id at all: the caller
+ * already holds the signup lead it is provisioning, and the lead is the
+ * authority. There is no id here for an attacker to guess into — you either are
+ * the provisioner acting on a lead, or you are not calling this.
+ *
+ * WHY IT EXISTS. The intake fetches a page, extracts facts, scores them and
+ * stores them with their source URL — and provisioning then reads exactly one
+ * string off the lead row and walks past the rest. The facts have been sitting
+ * in `tulala_brief_facts` the whole time with nobody reading them. This is the
+ * door.
+ */
+export async function loadBriefForSignupLead(signupLeadId: string): Promise<Brief | null> {
+  if (!signupLeadId) return null;
+  const sb = createServiceRoleClient();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from("tulala_briefs")
+      .select(BRIEF_SELECT)
+      .eq("signup_lead_id", signupLeadId)
+      // A lead can only have produced one live brief, but "abandoned" rows can
+      // exist beside it after a start-over. Newest wins, and status is not
+      // filtered: a brief the visitor abandoned still described their business,
+      // and refusing it would silently provision an empty workspace for someone
+      // who typed everything in.
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      logServerError("tulala.loadBriefForSignupLead", error);
+      return null;
+    }
+    return data ? mapBrief(data as unknown as BriefRow) : null;
+  } catch (err) {
+    logServerError("tulala.loadBriefForSignupLead", err);
+    return null;
+  }
+}
+
 // ─── Create ───────────────────────────────────────────────────────────────────
 
 export type EnsureBriefResult =
