@@ -44,6 +44,9 @@ const HOST = (value("host") ?? "http://localhost:3000").replace(/\/$/, "");
  */
 const HANDLER_404_SENTINEL = "This code is not active";
 
+const safeJson = (t) => { try { return JSON.parse(t); } catch { return null; } };
+const isHtml = (b) => b.trimStart().startsWith("<!DOCTYPE") || b.trimStart().startsWith("<html");
+
 let failures = 0;
 const ok = (m) => console.log(`  \x1b[32m✓\x1b[0m ${m}`);
 const bad = (m) => { failures++; console.log(`  \x1b[31m✗\x1b[0m ${m}`); };
@@ -100,6 +103,35 @@ async function readOnly() {
   if (spanish.body.includes("Este código no está activo")) ok("refusal is translated for an es visitor");
   else if (spanish.body.includes(HANDLER_404_SENTINEL)) bad("es visitor got the English refusal");
   else bad("es probe did not reach the resolver");
+
+  // Q2 — the QR asset endpoint. Staff-only, so an anonymous probe SHOULD get
+  // 404. That number alone proves nothing: the surface allow-list returns 404
+  // for an unregistered path too, which is the same trap as /q itself.
+  //
+  // They are distinguishable by BODY. The handler answers JSON; the allow-list
+  // serves the branded HTML page. So a JSON 404 proves the route was reached
+  // and refused on auth, and an HTML 404 proves it was never entered.
+  const asset = await get("/api/links/qa-does-not-exist/qr.svg");
+  if (asset.unreachable) {
+    bad(`could not reach the QR asset endpoint (${asset.error})`);
+  } else if (isHtml(asset.body)) {
+    bad(
+      "/api/links/<code>/qr.svg answered HTML — the route was never entered. " +
+      "Check /api/links in the surface allow-list (path-groups.ts).",
+    );
+  } else if (asset.status === 404 && safeJson(asset.body)) {
+    ok("QR asset endpoint reached and refused an anonymous caller (404 JSON, not HTML)");
+  } else if (asset.status === 200) {
+    bad("QR asset endpoint served an SVG to an ANONYMOUS caller — it must be staff-only");
+  } else {
+    bad(`QR asset endpoint answered ${asset.status} with a non-JSON body`);
+  }
+
+  // A bad format must be refused by the route's own matcher, not by a render.
+  const badFormat = await get("/api/links/anything/qr.gif");
+  if (isHtml(badFormat.body)) bad("qr.gif answered HTML — allow-list, not the route");
+  else if (badFormat.status === 404) ok("an unsupported asset format is refused");
+  else bad(`qr.gif answered ${badFormat.status}, expected 404`);
 
   // A code that cannot exist under links_code_format must still be refused
   // cleanly rather than 500 on the way to the database.
