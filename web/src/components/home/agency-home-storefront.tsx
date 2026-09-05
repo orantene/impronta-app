@@ -226,9 +226,13 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       // switches therefore resolve to their `else` case on this fallback path;
       // name substitution is unaffected.
       const resolved = serviceSupabase
-        ? await resolvePlatformDefaultStorefrontTree(serviceSupabase, {
-            businessName: identity?.public_name ?? null,
-          })
+        ? await resolvePlatformDefaultStorefrontTree(
+            serviceSupabase,
+            { businessName: identity?.public_name ?? null },
+            // Without the tenant id the resolver cannot read THIS tenant's
+            // preset.designId, and every page-less tenant gets the agency tree.
+            tenantId,
+          )
         : null;
       if (resolved && resolved.builderTree.length > 0) {
         defaultStorefrontSnapshot = {

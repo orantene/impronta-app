@@ -63,6 +63,14 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // exactly like `section_embed`: droppable inside a layout shell or at the root.
   "hero_search",
   "talent_type_grid",
+  // `menu_board` and `reserve_table` are page bands exactly like the two above,
+  // and page designs legitimately nest them inside a layout container. They
+  // were missing here while being allowed at the page ROOT by drop-policy —
+  // an inconsistency nothing exercised until a design tree was validated, at
+  // which point `restaurant-orderable` and `store-orderable` failed and
+  // rendered NOTHING.
+  "menu_board",
+  "reserve_table",
   // BUILDER 2027 · P2A — the native kinds are ordinary leaves for drop purposes
   // too, except `reveal`, which is itself a wrapper (it accepts any child) and
   // is therefore droppable anywhere a layout shell is.

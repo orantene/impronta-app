@@ -28,6 +28,10 @@ import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-temp
 import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
 import { PLATFORM_DEFAULT_STOREFRONT_SLUG } from "./default-storefront-tree";
 import { pruneStarterRosterForAudience } from "./starter-roster-prune";
+import { loadTenantWords } from "@/lib/words/server";
+import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
+import { bakePageDesignTree } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
+import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
@@ -123,11 +127,101 @@ async function loadReservedStorefrontSlugTree(
  * mode we are guarding against is a personaliser that is alive in its unit test
  * and dead at its real call site. Pass `{}` only when nothing is known.
  */
+/**
+ * The tenant's own default design, from `preset.designId`, or null.
+ *
+ * Deliberately swallows every failure: this sits on the page-less fallback
+ * path for a live storefront, so a words-table hiccup must degrade to the
+ * platform default rather than 500 a visitor.
+ */
+async function resolvePresetDesignTree(
+  tenantId: string,
+): Promise<BuilderNodeTree | null> {
+  try {
+    const words = await loadTenantWords(tenantId, "en");
+    const designId = words.preset?.designId;
+    if (!designId) return null;
+    const design = getPageDesign(designId);
+    if (!design || design.tree.length === 0) return null;
+
+    // BAKE IT, exactly as the one-click starter does.
+    //
+    // `page-design-bake-action.ts` routes every design through
+    // `bakePageDesignTree` — expand repeaters against the design's own
+    // dataSources, then re-mint every id — before a tree reaches a snapshot.
+    // This resolver handed `design.tree` over RAW and dropped
+    // `design.dataSources`, which is the one observable divergence from the
+    // path that works.
+    //
+    // It matters twice: an unexpanded repeater is not the content it stands
+    // for, and re-minting is what makes `impronta`'s duplicate ids resolve. A
+    // design that fails validation renders as NOTHING (see the fail-safe
+    // below), so "raw is close enough" is a blank page, not a rough edge.
+    const baked = bakePageDesignTree(design.tree, design.dataSources);
+    if (baked.length === 0) return null;
+
+    // FAIL SAFE — never hand back a tree the renderer will drop.
+    //
+    // This is the lesson from the regression that made this check exist: the
+    // preset resolved `restaurant-orderable` correctly, the tree was returned
+    // happily, and the renderer discarded it because `menu_board` was not an
+    // allowed child of `container`. A page-less restaurant rendered a header,
+    // a footer and NOTHING in between — which is worse for a guest than the
+    // wrong template, because the wrong template at least looks like a site.
+    //
+    // The allow-list bug is fixed and a guard now pins every preset-owned
+    // design as valid, but neither of those helps if a design breaks later.
+    // Returning null here degrades to the platform default — today's
+    // behaviour — instead of to a blank page.
+    const validation = validateBuilderNodeTree(baked as BuilderNodeTree);
+    if (!validation.ok) {
+      void improntaLog("site_admin_default_storefront.warn", {
+        message:
+          "[default-storefront] preset design failed validation; falling back to the platform default",
+        designId,
+        issue: validation.issues[0]?.message ?? "unknown",
+      });
+      return null;
+    }
+    return validation.tree;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
   personalisation: StarterPersonalisation,
+  tenantId?: string,
 ): Promise<ResolvedDefaultStorefront | null> {
   try {
+    // The tenant's OWN design comes first. Everything below resolves ONE
+    // platform-wide tree for every page-less tenant, personalised only by name
+    // — which is how a restaurant's homepage came to be titled "Represented
+    // talent" with APPLY AS TALENT buttons.
+    //
+    // Guarded three ways because this fires on a LIVE site: only with a
+    // tenantId, only when the preset names a design (`custom` carries null and
+    // falls through to the audience default, as ruled), and only when that
+    // design bakes and VALIDATES. Any failure falls through to the chain
+    // below, so the worst case is exactly today's behaviour rather than a
+    // blank page.
+    if (tenantId) {
+      const presetTree = await resolvePresetDesignTree(tenantId);
+      if (presetTree && presetTree.length > 0) {
+        const stampedPreset = personaliseStarterBuilderTree(
+          presetTree,
+          personalisation,
+        );
+        return {
+          builderTree: pruneStarterRosterForAudience(
+            stampedPreset,
+            personalisation.audience,
+          ),
+        };
+      }
+    }
+
     // Fallback chain: Lab pointer → reserved slug → null (caller keeps
     // DefaultStorefrontBody). With no pointer + no reserved row this returns
     // null — byte-identical to the pre-pointer behaviour.
