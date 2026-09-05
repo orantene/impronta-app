@@ -2,6 +2,7 @@ import {
   EVENTBRITE_TERMS,
   ticketFeeRows,
 } from "@/lib/marketing/ticket-fee-comparison";
+import { getFeatureByKey } from "@/lib/marketing/features";
 
 /**
  * The ticket fee table on the pricing page.
@@ -26,6 +27,14 @@ export function TicketFeeTable({
   tulalaRate?: number;
 }) {
   const es = locale === "es";
+
+  // Read from the catalogue rather than showing this unconditionally.
+  // The banner was correct when written and becomes FALSE the moment ticketing
+  // ships: a live product with a notice saying it does not exist. Tickets are
+  // days away, so this would have rotted almost immediately, and the person
+  // who ships ticketing should not also have to remember a sentence on the
+  // pricing page.
+  const ticketingLive = getFeatureByKey("ticketing")?.status === "live";
   const rows = ticketFeeRows(tulalaRate);
 
   const t = es
@@ -72,6 +81,7 @@ export function TicketFeeTable({
           honest price list by design — while this table compares our fee to a
           competitor's. Without this line the two read as a live offer, two
           clicks from a feature hub that correctly says "coming". */}
+      {ticketingLive ? null : (
       <p
         className="plt-body"
         style={{
@@ -88,6 +98,7 @@ export function TicketFeeTable({
           {t.notYetLink}
         </a>
       </p>
+      )}
       <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
         {t.eyebrow}
       </p>
