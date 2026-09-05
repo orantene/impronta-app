@@ -24,6 +24,18 @@ import {
 import { getEmailSubject, interpolate } from "../email-copy";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
+/**
+ * What this channel reports back: the provider message id plus the envelope it
+ * actually sent with, so the dispatcher can record `from` / `replyTo` on the
+ * dispatch row. Structurally identical to the dispatcher's ChannelSendOutcome;
+ * declared here to avoid a circular import between channel and dispatcher.
+ */
+export type EmailSendOutcome = {
+  providerRef: string | null;
+  from: string;
+  replyTo: string | null;
+};
+
 import type {
   AudienceContext,
   CatalogEntry,
@@ -51,7 +63,7 @@ export async function sendEmailNotification(
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-): Promise<string | null> {
+): Promise<EmailSendOutcome | null> {
   const cfg = entry.email;
   if (!cfg || !recipient.email) return null;
 

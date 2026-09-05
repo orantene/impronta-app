@@ -193,12 +193,16 @@ export async function dispatchEventNotifications(
         try {
           const handlerResult = await handler(enriched, entry, recipient, ctx);
           // A channel may return a bare provider ref (in_app) or an outcome
-          // object carrying the envelope (email). Normalise before use.
-          const outcome =
-            handlerResult != null && typeof handlerResult === "object"
-              ? handlerResult
-              : null;
-          const providerRef = outcome ? outcome.providerRef : handlerResult;
+          // object carrying the envelope (email). Normalise to two locals so
+          // both are properly narrowed for the rest of the block.
+          let outcome: ChannelSendOutcome | null = null;
+          let providerRef: string | null = null;
+          if (typeof handlerResult === "string") {
+            providerRef = handlerResult;
+          } else if (handlerResult != null) {
+            outcome = handlerResult;
+            providerRef = handlerResult.providerRef;
+          }
           if (providerRef == null) {
             await markDispatchLogSkipped(ctx.admin, logId);
             entryResult.skipped++;
@@ -215,9 +219,9 @@ export async function dispatchEventNotifications(
             });
           } else {
             await markDispatchLogSent(ctx.admin, logId, providerRef, {
-            basePayload: logEvent.payload ?? {},
-            envelope: outcome,
-          });
+              basePayload: logEvent.payload ?? {},
+              envelope: outcome,
+            });
             entryResult.dispatched++;
             void improntaLog(`notif.send.${channel}`, {
               eventType: enriched.type,
