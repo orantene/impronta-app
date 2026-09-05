@@ -101,6 +101,27 @@ export type InquiryDrawerProps = {
   tenantSlug: string;
   /** Agency display name for header copy. */
   agencyName: string;
+  /**
+   * Does this workspace REPRESENT PEOPLE?
+   *
+   * False for a restaurant, a salon, a clinic — every preset where
+   * `presetRepresentsPeople` is false. When false the Talent and Budget
+   * sections are not rendered at all, and the remaining copy drops its casting
+   * vocabulary.
+   *
+   * Measured on El Paisa in production: a diner who clicked "Reserve" was shown
+   * "Start a new project — we'll match talent and draft an offer", asked for a
+   * "Job name", the "end client", "how many talent", "type of talent" and what
+   * "talent brings" versus what the client provides. 38 of this drawer's 194
+   * strings are casting-shaped, and rewording them is not the fix: a diner does
+   * not need "how many talent" phrased better, they need it absent.
+   *
+   * DEFAULTS TO TRUE, so every existing mount — the agency workspace, the
+   * client area, the directory of a real talent agency — behaves exactly as it
+   * does today. Only a caller that KNOWS the workspace represents nobody turns
+   * it off.
+   */
+  representsPeople?: boolean;
   /** Logged-in client profile (if any). NULL = guest. */
   client: {
     user_id?: string | null;
@@ -150,6 +171,7 @@ export function InquiryDrawer({
   enableDraftAutosave,
   bindToInquiryCart = false,
   talentToolsSlot,
+  representsPeople,
   bookableOffering = null,
   onClose,
 }: InquiryDrawerProps) {
@@ -419,7 +441,9 @@ export function InquiryDrawer({
                 : step === "compose"
                   ? t(bookableOffering
                     ? "public.inquiryDrawer.titleComposeAppointment"
-                    : "public.inquiryDrawer.titleCompose")
+                    : representsPeople === false
+                      ? "public.inquiryDrawer.titleComposeGeneric"
+                      : "public.inquiryDrawer.titleCompose")
                   : t("public.inquiryDrawer.titleReview")}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
@@ -429,7 +453,9 @@ export function InquiryDrawer({
                   ? interpolate(
                       t(bookableOffering
                         ? "public.inquiryDrawer.leadComposeAppointment"
-                        : "public.inquiryDrawer.leadCompose"),
+                        : representsPeople === false
+                          ? "public.inquiryDrawer.leadComposeGeneric"
+                          : "public.inquiryDrawer.leadCompose"),
                       { agency: agencyName },
                     )
                   : interpolate(t("public.inquiryDrawer.leadReview"), { agency: agencyName })
@@ -489,6 +515,7 @@ export function InquiryDrawer({
               onStagedFiles={setStagedFiles}
               roster={roster}
               client={client}
+              representsPeople={representsPeople}
               talentToolsSlot={talentToolsSlot}
               boundToCart={bindToInquiryCart}
               onRemoveTalent={removeTalentFromCart}
@@ -586,8 +613,13 @@ function Compose(props: {
   onRemoveTalent?: (id: string) => void;
   bookableOffering?: BookableOffering | null;
   onSlotChange?: (value: SlotPickerValue | null) => void;
+  /** See `InquiryDrawerProps.representsPeople`. Defaults to true. */
+  representsPeople?: boolean;
 }) {
   const { intent, bookableOffering } = props;
+  // Defaulting HERE rather than at every call site: an existing caller that
+  // says nothing keeps today's behaviour, which is what every agency mount is.
+  const representsPeople = props.representsPeople !== false;
   const reservation = intent.source_context?.reservation as
     | { starts_at?: string; ends_at?: string; timezone?: string }
     | undefined;
@@ -607,6 +639,7 @@ function Compose(props: {
         client={props.client}
       />
       <ClientSection
+        representsPeople={representsPeople}
         requester={intent.requester}
         value={intent.client ?? {}}
         onChange={props.setClient}
@@ -625,21 +658,29 @@ function Compose(props: {
           <DateSection value={intent.date ?? {}} onChange={props.setDate} />
         </>
       )}
-      <TalentSection
-        value={intent.talent ?? {}}
-        onChange={props.setTalent}
-        roster={props.roster}
-        boundToCart={props.boundToCart}
-        onRemoveTalent={props.onRemoveTalent}
-        toolsSlot={props.talentToolsSlot}
-      />
+      {/* A workspace that represents nobody has no roster to pick from and no
+          per-talent rate to quote, so these two sections are absent rather
+          than reworded. Ruled by the CEO after El Paisa showed a diner a
+          casting brief. */}
+      {representsPeople ? (
+        <TalentSection
+          value={intent.talent ?? {}}
+          onChange={props.setTalent}
+          roster={props.roster}
+          boundToCart={props.boundToCart}
+          onRemoveTalent={props.onRemoveTalent}
+          toolsSlot={props.talentToolsSlot}
+        />
+      ) : null}
       {bookableOffering ? null : (
         <>
-      <BudgetSection
-        value={intent.budget ?? {}}
-        onChange={props.setBudget}
-        talentCount={intent.talent?.selected_ids?.length ?? 0}
-      />
+      {representsPeople ? (
+        <BudgetSection
+          value={intent.budget ?? {}}
+          onChange={props.setBudget}
+          talentCount={intent.talent?.selected_ids?.length ?? 0}
+        />
+      ) : null}
       <BriefSection
         value={intent.brief ?? {}}
         onChange={props.setBrief}
@@ -743,16 +784,25 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ClientSection({
-  requester, value, onChange,
+  requester, value, onChange, representsPeople = true,
 }: {
   requester: InquiryRequester;
   value: InquiryClient;
   onChange: (v: InquiryClient) => void;
+  /** See `InquiryDrawerProps.representsPeople`. */
+  representsPeople?: boolean;
 }) {
   const t = useT();
   const sameAsRequester = value.same_as_requester !== false; // default checked
   return (
-    <Section title={t("public.inquiryDrawer.clientTitle")} subtitle={t("public.inquiryDrawer.clientSubtitle")}>
+    <Section
+      title={t("public.inquiryDrawer.clientTitle")}
+      subtitle={t(
+        representsPeople
+          ? "public.inquiryDrawer.clientSubtitle"
+          : "public.inquiryDrawer.clientSubtitleGeneric",
+      )}
+    >
       <label style={checkboxRow}>
         <input
           type="checkbox"
@@ -796,17 +846,22 @@ export function ClientSection({
         </>
       )}
 
-      <FieldRow>
-        <Field label={t("public.inquiryDrawer.clientJobNameLabel")} hint={t("public.inquiryDrawer.clientJobNameHint")}>
-          <Input
-            value={value.job_name ?? ""}
-            onChange={(v) => onChange({ ...value, job_name: v })}
-            placeholder={interpolate(t("public.inquiryDrawer.clientJobNamePlaceholder"), {
-              name: requester.name?.split(" ")[0] ?? t("public.inquiryDrawer.clientJobNameFallback"),
-            })}
-          />
-        </Field>
-      </FieldRow>
+      {/* "Job name" and "a short title for this project" are casting words.
+          A diner booking a table has no job, so this is absent rather than
+          reworded — the same rule as the Talent and Budget sections. */}
+      {representsPeople ? (
+        <FieldRow>
+          <Field label={t("public.inquiryDrawer.clientJobNameLabel")} hint={t("public.inquiryDrawer.clientJobNameHint")}>
+            <Input
+              value={value.job_name ?? ""}
+              onChange={(v) => onChange({ ...value, job_name: v })}
+              placeholder={interpolate(t("public.inquiryDrawer.clientJobNamePlaceholder"), {
+                name: requester.name?.split(" ")[0] ?? t("public.inquiryDrawer.clientJobNameFallback"),
+              })}
+            />
+          </Field>
+        </FieldRow>
+      ) : null}
     </Section>
   );
 }
