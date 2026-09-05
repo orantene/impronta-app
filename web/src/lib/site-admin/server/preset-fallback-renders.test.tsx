@@ -7,6 +7,7 @@ import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
 import { bakePageDesignTree } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import { personaliseStarterBuilderTree } from "@/lib/site-admin/builder-node/starter-personalisation";
 import type { StarterPersonalisation } from "@/lib/site-admin/builder-node/starter-personalisation";
 import { INDUSTRY_PRESETS } from "@/lib/words/presets";
@@ -50,13 +51,21 @@ function renderPresetHomepage(
   assert.ok(design, `no design registered for "${designId}"`);
 
   const baked = bakePageDesignTree(design.tree, design.dataSources);
-  const validated = resolveSnapshotBuilderTree({
-    builderTree: baked as BuilderNodeTree,
+  // THE LIVE ORDER, exactly. `resolvePresetDesignTree` validates the baked
+  // tree, `resolvePlatformDefaultStorefrontTree` personalises it, and then the
+  // storefront hands the STAMPED tree to `resolveSnapshotBuilderTree`, which
+  // validates AGAIN and falls back to `slots: []` (a blank page) if the stamp
+  // broke anything. The first version of this test personalised after the
+  // last validation and so never saw the blank page a name-only tenant got.
+  const firstPass = validateBuilderNodeTree(baked as BuilderNodeTree);
+  assert.ok(firstPass.ok, `${designId} fails validation before personalisation`);
+  const stamped = personalisation
+    ? personaliseStarterBuilderTree(firstPass.tree, personalisation)
+    : firstPass.tree;
+  const resolved = resolveSnapshotBuilderTree({
+    builderTree: stamped,
     slots: [],
   } as never);
-  const resolved = personalisation
-    ? { ...validated, tree: personaliseStarterBuilderTree(validated.tree, personalisation) }
-    : validated;
 
   return renderToStaticMarkup(
     createElement(
@@ -177,6 +186,27 @@ for (const designId of ["restaurant-orderable", "restaurant"] as const) {
     assert.doesNotMatch(html, /Menu · Story/, "the design still draws its own nav row");
     const nameHits = html.match(/El Paisa/g) ?? [];
     assert.equal(nameHits.length, 1, `tenant name appears ${nameHits.length} times inside the design; the platform chrome already shows it, so the design shows it once, in the hero`);
+  });
+
+  test(`${designId}: a tenant with ONLY a name (El Paisa's real state) still gets a hero, its menu block and its button`, () => {
+    // Measured live on dpl_Dov2EWLdejpUZJabmh9cXmD81hkA: 107 characters of
+    // chrome and nothing else. The stamped tree failed re-validation on two
+    // emptied paragraphs and the fallback served slots: [].
+    const html = renderPresetHomepage(designId, { businessName: "El Paisa", businessTagline: null, businessCity: null });
+    assert.ok(html.length > 2000, `main rendered only ${html.length} characters: the blank-page shape`);
+    assert.match(html, /<h1[^>]*>[\s\S]*?El Paisa[\s\S]*?<\/h1>/, "no hero headline with the tenant name");
+    assert.match(html, /data-builder-node-kind="button"/, "no button rendered");
+    if (designId === "restaurant-orderable") {
+      assert.match(html, /data-builder-node-kind="menu_board"/, "the menu block is gone");
+      assert.match(html, /Browse the menu/, "the Browse button is gone");
+    }
+    // And the stamped tree is what the storefront re-validates: it must pass.
+    const design = getPageDesign(designId)!;
+    const baked = validateBuilderNodeTree(bakePageDesignTree(design.tree, design.dataSources) as BuilderNodeTree);
+    assert.ok(baked.ok);
+    const stamped = personaliseStarterBuilderTree(baked.tree, { businessName: "El Paisa" });
+    const again = validateBuilderNodeTree(stamped);
+    assert.ok(again.ok, `stamped tree fails re-validation: ${again.ok ? "" : JSON.stringify(again.issues.slice(0, 2))}`);
   });
 
   test(`${designId}: says NOTHING where the tenant has nothing, and the tenant's facts where it has them`, () => {

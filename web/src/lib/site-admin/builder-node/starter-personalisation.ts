@@ -74,7 +74,7 @@
  * render-time default-storefront fallback) share this one implementation.
  */
 
-import type { BuilderNodeTree } from "./types";
+import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /** Name used when the tenant has no display name yet. Matches the legacy
  *  `buildFreeStarterEntries` fallback so both starter paths read alike. */
@@ -354,5 +354,40 @@ export function personaliseStarterBuilderTree(
   ctx: StarterPersonalisation,
 ): BuilderNodeTree {
   if (!Array.isArray(tree) || tree.length === 0) return tree;
-  return mapValue(tree, "", ctx) as BuilderNodeTree;
+  const mapped = mapValue(tree, "", ctx) as BuilderNodeTree;
+  return mapped === tree ? tree : pruneEmptiedCopyNodes(mapped);
+}
+
+/**
+ * Node kinds whose `props.text` the registry requires to be NON-EMPTY
+ * (`z.string().min(1)`), so a placeholder that stripped to nothing would make
+ * the WHOLE tree fail validation downstream and render as a blank page.
+ *
+ * Paid for on 2026-09-05: a restaurant with a name but no city and no tagline
+ * rendered 107 characters of chrome and nothing else, because its eyebrow was
+ * `{{business.city}}`, its sub was `{{business.tagline}}`, both stripped to "",
+ * and `resolveSnapshotBuilderTree` re-validates the stamped tree. "Say nothing"
+ * must mean the node is GONE, not that it carries an empty string the schema
+ * refuses.
+ */
+const COPY_TEXT_KINDS: ReadonlySet<string> = new Set(["paragraph", "heading", "rich_text"]);
+
+function pruneEmptiedCopyNodes(tree: BuilderNodeTree): BuilderNodeTree {
+  const out: BuilderNode[] = [];
+  for (const node of tree) {
+    if (COPY_TEXT_KINDS.has(node.kind)) {
+      const text = (node.props as { text?: unknown }).text;
+      if (typeof text === "string" && text.trim().length === 0) continue;
+    }
+    if (node.kind === "button") {
+      const label = (node.props as { label?: unknown }).label;
+      if (typeof label === "string" && label.trim().length === 0) continue;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      out.push({ ...node, children: pruneEmptiedCopyNodes(node.children as BuilderNodeTree) } as BuilderNode);
+    } else {
+      out.push(node);
+    }
+  }
+  return out;
 }
