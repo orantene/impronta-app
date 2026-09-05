@@ -442,15 +442,19 @@ export function classify(
         "this way and BOTH of them are partial. Check this one by hand.",
     };
   }
-  if (!call.columns) return null; // conflicts on the primary key; always inferable
-  const base = { file: call.file, line: call.line, table: call.table ?? "?", columns: call.columns };
+  // Hoisted to a local: narrowing `call.columns` does not survive into the
+  // closure below, because TypeScript cannot know the property is unchanged by
+  // the time the callback runs.
+  const columns = call.columns;
+  if (!columns) return null; // conflicts on the primary key; always inferable
+  const base = { file: call.file, line: call.line, table: call.table ?? "?", columns };
 
   if (!call.table) {
     return { ...base, verdict: "unknown", detail: "could not resolve the table from a preceding .from()" };
   }
 
   const onTable = indexes.filter((i) => i.table === call.table);
-  const matches = onTable.filter((i) => !i.opaque && sameSet(i.columns, call.columns));
+  const matches = onTable.filter((i) => !i.opaque && sameSet(i.columns, columns));
 
   const total = matches.find((i) => !i.partial);
   if (total) {
@@ -494,7 +498,7 @@ export function classify(
     ...base,
     verdict: "missing",
     detail:
-      `no unique index or constraint on ${call.table} covers (${call.columns.join(", ")}). ` +
+      `no unique index or constraint on ${call.table} covers (${columns.join(", ")}). ` +
       `Postgres does NOT fall back to the primary key when a target is named — this is 42P10. ` +
       `Unique on this table: ${near}`,
   };
