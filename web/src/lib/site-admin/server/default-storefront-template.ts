@@ -192,8 +192,36 @@ async function resolvePresetDesignTree(
 export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
   personalisation: StarterPersonalisation,
+  tenantId?: string,
 ): Promise<ResolvedDefaultStorefront | null> {
   try {
+    // The tenant's OWN design comes first. Everything below resolves ONE
+    // platform-wide tree for every page-less tenant, personalised only by name
+    // — which is how a restaurant's homepage came to be titled "Represented
+    // talent" with APPLY AS TALENT buttons.
+    //
+    // Guarded three ways because this fires on a LIVE site: only with a
+    // tenantId, only when the preset names a design (`custom` carries null and
+    // falls through to the audience default, as ruled), and only when that
+    // design bakes and VALIDATES. Any failure falls through to the chain
+    // below, so the worst case is exactly today's behaviour rather than a
+    // blank page.
+    if (tenantId) {
+      const presetTree = await resolvePresetDesignTree(tenantId);
+      if (presetTree && presetTree.length > 0) {
+        const stampedPreset = personaliseStarterBuilderTree(
+          presetTree,
+          personalisation,
+        );
+        return {
+          builderTree: pruneStarterRosterForAudience(
+            stampedPreset,
+            personalisation.audience,
+          ),
+        };
+      }
+    }
+
     // Fallback chain: Lab pointer → reserved slug → null (caller keeps
     // DefaultStorefrontBody). With no pointer + no reserved row this returns
     // null — byte-identical to the pre-pointer behaviour.
