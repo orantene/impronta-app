@@ -17,6 +17,7 @@ import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceOrders } from "../../_data-bridge/orders";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import {
   bucketOf,
   filterOrders,
@@ -63,20 +64,6 @@ const STATUS_KEY: Record<string, string> = {
   partially_refunded: "statusPartiallyRefunded",
 };
 
-/**
- * Cents to a readable amount.
- *
- * `Intl` with the order's OWN currency rather than a hardcoded symbol. Orders
- * carry a currency column and a desk that renders every row with "$" would be
- * quietly wrong the first time one is not USD.
- */
-function money(cents: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
 
 function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
@@ -197,13 +184,13 @@ export default async function OrdersPage({
                 <span style={{ fontSize: 14 }}>
                   <span style={{ color: C.inkMuted }}>{t("totalsSettled")}: </span>
                   <strong style={{ color: C.green }}>
-                    {money(totals.settledCents, totalsCurrency, locale)}
+                    {formatOrderMoney(totals.settledCents, totalsCurrency)}
                   </strong>
                 </span>
                 <span style={{ fontSize: 14 }}>
                   <span style={{ color: C.inkMuted }}>{t("totalsOutstanding")}: </span>
                   <strong style={{ color: C.amber }}>
-                    {money(totals.outstandingCents, totalsCurrency, locale)}
+                    {formatOrderMoney(totals.outstandingCents, totalsCurrency)}
                   </strong>
                 </span>
                 {/* Named explicitly. A figure beside a filtered list that silently
@@ -267,7 +254,7 @@ export default async function OrdersPage({
                               fontVariantNumeric: "tabular-nums",
                             }}
                           >
-                            {money(row.totalCents, row.currency, locale)}
+                            {formatOrderMoney(row.totalCents, row.currency)}
                           </td>
                           <td
                             style={{
@@ -277,7 +264,7 @@ export default async function OrdersPage({
                               color: owed > 0 ? C.amber : C.inkDim,
                             }}
                           >
-                            {owed > 0 ? money(owed, row.currency, locale) : "—"}
+                            {owed > 0 ? formatOrderMoney(owed, row.currency) : "—"}
                           </td>
                           {/*
                             An unrecognised status shows its raw value rather than
