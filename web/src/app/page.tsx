@@ -26,6 +26,8 @@ import {
   loadPublicShareImageUrl,
 } from "@/lib/site-admin/server/reads";
 import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
+import { businessHomeMeta } from "@/lib/site-admin/server/tenant-home-meta";
+import { loadTenantWords } from "@/lib/words/server";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage, {
   generateMetadata as cmsPageMetadata,
@@ -101,21 +103,32 @@ export async function generateMetadata(): Promise<Metadata> {
     // seeded in 20260625100000). The only kind branch is render-time
     // dispatch below; data access is unified.
     const cmsLocale = isLocale(locale) ? locale : undefined;
-    const [homepage, identity, identityShareImage] = await Promise.all([
+    const [homepage, identity, identityShareImage, tenantWords] = await Promise.all([
       cmsLocale ? loadPublicHomepage(ctx.tenantId, cmsLocale) : Promise.resolve(null),
       loadPublicIdentity(ctx.tenantId),
       loadPublicShareImageUrl(ctx.tenantId),
+      // The preset decides whether "Represented talent" is even a candidate.
+      // A restaurant titled itself that way because nothing here asked.
+      ctx.kind === "agency"
+        ? loadTenantWords(ctx.tenantId, locale === "es" ? "es" : "en").catch(() => null)
+        : Promise.resolve(null),
     ]);
+    const businessMeta = tenantWords
+      ? businessHomeMeta(tenantWords.preset, identity, t)
+      : null;
     const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name;
     const fallbackTitle =
       ctx.kind === "hub"
         ? `Agencies on the platform · ${brandName}`
         : identity?.seo_default_title?.trim() ||
+          businessMeta?.title ||
           (identity?.public_name?.trim()
             ? `${identity.public_name.trim()} — ${identity.tagline?.trim() || t("public.meta.homeTitle")}`
             : t("public.meta.homeTitle"));
     const fallbackDescription =
-      identity?.seo_default_description?.trim() || t("public.meta.homeDescription");
+      identity?.seo_default_description?.trim() ||
+      businessMeta?.description ||
+      (businessMeta ? fallbackTitle : t("public.meta.homeDescription"));
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
     const localeAlternates = await buildTenantLocaleAlternates(locale, "/");

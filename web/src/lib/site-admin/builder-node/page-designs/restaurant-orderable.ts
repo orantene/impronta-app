@@ -7,6 +7,15 @@ import { INTER, PLAYFAIR } from "./tokens";
  * Restaurant landing page whose menu section uses a live `menu_board` node
  * (workspace-owned orderable items) instead of the decorative `menu_items`
  * repeater on the display-only restaurant design.
+ *
+ * TEMPLATED ON THE TENANT, NOT ON A FIXTURE. This design is the page-less
+ * fallback every `restaurant` preset renders (`default-storefront-template.ts`),
+ * so every string a visitor reads is either the tenant's own fact through the
+ * starter-personalisation vocabulary (`{{business.name}}`, `{{business.tagline}}`,
+ * `{{business.city}}`; the last two strip when absent) or neutral copy that
+ * asserts nothing about the business. A real restaurant in Glew rendered as
+ * "CASA LUMBRE · Modern Mexican Kitchen · Mexico City" with a chef it does not
+ * have; that fiction is gone and a render test pins it out.
  */
 
 const MAHOGANY = "#1a0f09";
@@ -128,7 +137,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                     id: "restaurant-orderable-brand",
                     kind: "paragraph",
                     props: {
-                      text: "CASA LUMBRE",
+                      text: "{{business.name}}",
                       style: {
                         fontFamily: PLAYFAIR,
                         fontSize: "18px",
@@ -161,7 +170,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                 id: "restaurant-orderable-eyebrow",
                 kind: "paragraph",
                 props: {
-                  text: "Modern Mexican Kitchen · Mexico City",
+                  text: "{{business.city}}",
                   style: {
                     align: "center",
                     fontFamily: INTER,
@@ -178,7 +187,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                 id: "restaurant-orderable-headline",
                 kind: "heading",
                 props: {
-                  text: "Order from the kitchen",
+                  text: "{{business.name}}",
                   level: 1,
                   style: {
                     align: "center",
@@ -197,7 +206,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                 id: "restaurant-orderable-sub",
                 kind: "paragraph",
                 props: {
-                  text: "Published workspace menu · Quantities and checkout on this page",
+                  text: "{{business.tagline}}",
                   style: {
                     align: "center",
                     fontFamily: INTER,
@@ -314,7 +323,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                     id: "restaurant-orderable-story-body",
                     kind: "rich_text",
                     props: {
-                      text: "Chef Andrés Moya built the Casa Lumbre kitchen around {accent}a wood-fire grill and a weekly market run{/accent}. Order from the live menu below.",
+                      text: "Order from the {accent}live menu{/accent} below, or come by.",
                       style: {
                         fontFamily: INTER,
                         fontSize: "18px",
@@ -443,7 +452,7 @@ const restaurantOrderableTree: BuilderNode[] = [
             id: "restaurant-orderable-footer-brand",
             kind: "paragraph",
             props: {
-              text: "Casa Lumbre · Mexico City",
+              text: "{{business.name}}",
               style: {
                 fontFamily: PLAYFAIR,
                 fontSize: "16px",
@@ -456,7 +465,7 @@ const restaurantOrderableTree: BuilderNode[] = [
             id: "restaurant-orderable-footer-hours",
             kind: "paragraph",
             props: {
-              text: "Tue–Sun · 1pm – 11pm · Colonia Roma Norte",
+              text: "{{business.city}}",
               style: {
                 align: "right",
                 fontFamily: INTER,

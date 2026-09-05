@@ -21,6 +21,16 @@
  *      Resolves to the tenant's display name, or {@link STARTER_BUSINESS_NAME_FALLBACK}
  *      when the tenant has none yet.
  *
+ *   1b. TWO OPTIONAL FACTS, present or ABSENT, never invented
+ *        {{business.tagline}}   the tenant's own one-line description
+ *        {{business.city}}      the tenant's city
+ *      Each resolves to the tenant's value when one exists and is STRIPPED
+ *      (like an unknown placeholder, whitespace tidied) when it does not. A
+ *      design must not carry a fictional description or city for a tenant
+ *      that has none: a restaurant named El Paisa in Glew rendered as "Modern
+ *      Mexican Kitchen · Mexico City" because the fixture copy was literal.
+ *      Say nothing rather than invent.
+ *
  *   2. An AUDIENCE SWITCH — one template, four businesses
  *        {{audience: agency=A curated roster, ready for your next production.
  *                  | organization=Book us for your next event.
@@ -154,6 +164,13 @@ export interface StarterPersonalisation {
   /** Tenant display / public name. Null or blank falls back to the constant. */
   businessName?: string | null;
   /**
+   * The tenant's own one-line description (identity `tagline`). Absent means
+   * `{{business.tagline}}` is stripped, never replaced with fixture copy.
+   */
+  businessTagline?: string | null;
+  /** The tenant's city (identity `address_city`). Absent strips `{{business.city}}`. */
+  businessCity?: string | null;
+  /**
    * Signup answer to "Which describes you best?" ("agency" | "organization" |
    * "business" | "operator"). Absent at render-time fallback, where the answer
    * is not recoverable from the tenant row; audience switches then resolve to
@@ -203,6 +220,16 @@ function resolvePlaceholder(
   }
   if (lower === "business.name" || lower === "businessname") {
     return ctx.businessName?.trim() || STARTER_BUSINESS_NAME_FALLBACK;
+  }
+  // Optional facts: a value when the tenant has one, otherwise `null` so the
+  // caller strips the placeholder exactly as it strips an unknown one. There
+  // is deliberately NO fallback constant here: an invented description or city
+  // is the defect these exist to remove.
+  if (lower === "business.tagline" || lower === "businesstagline") {
+    return ctx.businessTagline?.trim() || null;
+  }
+  if (lower === "business.city" || lower === "businesscity") {
+    return ctx.businessCity?.trim() || null;
   }
   return null;
 }

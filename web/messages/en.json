@@ -3,6 +3,11 @@
     "meta": {
       "homeTitle": "Represented talent",
       "homeDescription": "Discover represented talent, save shortlists, and work with the agency, managed discovery and representation.",
+      "businessHomeMenuReservations": "Menu and reservations",
+      "businessHomeMenu": "Menu",
+      "businessHomeReservations": "Reservations",
+      "businessHomeAppointments": "Book an appointment",
+      "businessHomeEvents": "Events and tickets",
       "directoryTitle": "Directory",
       "directoryDescription": "Browse represented talent, save profiles to your shortlist and contact the agency.",
       "modelsTitle": "Models",
