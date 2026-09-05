@@ -19,6 +19,10 @@ import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { MarketingContainer, MarketingEyebrow } from "@/components/marketing/container";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingDirectoryShell } from "@/components/marketing/directory/MarketingDirectoryShell";
+import {
+  buildDirectoryPageWindow,
+  parsePageParam,
+} from "@/lib/directory/pagination";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   DIRECTORY_PAGE_SIZE,
@@ -70,6 +74,8 @@ type PageSearchParams = Promise<{
   avail?: string;
   view?: string;
   sort?: string;
+  /** 1-based page. Absent or junk means page 1 (see parsePageParam). */
+  page?: string;
 }>;
 
 export default async function MarketingDirectoryPage({
@@ -82,6 +88,11 @@ export default async function MarketingDirectoryPage({
 
   const view = normalizeView(sp.view);
   const sort = normalizeSort(sp.sort);
+  // Requested page, before we know the total. The window is rebuilt with the
+  // real total once the fetch returns, because only then can we clamp.
+  const requestedPage = parsePageParam(sp.page);
+  const requestedOffset = (requestedPage - 1) * DIRECTORY_PAGE_SIZE;
+
   const activeFilters: DirectoryActiveFilters = {
     q: cleanParam(sp.q),
     country: cleanParam(sp.country),
@@ -108,7 +119,7 @@ export default async function MarketingDirectoryPage({
           availableOnly: activeFilters.availableOnly || undefined,
           sort,
           limit: DIRECTORY_PAGE_SIZE,
-          offset: 0,
+          offset: requestedOffset,
         }),
     isMap
       ? loadDiscoverMapPoints({
@@ -141,6 +152,15 @@ export default async function MarketingDirectoryPage({
     ? await resolveCardDesign(hub.tenantId)
     : DEFAULT_CARD_DESIGN;
   const gridItems = gridData.items.map((row) => ({ ...row, design: hubDesign }));
+
+  // Rebuilt with the REAL total, which is the first moment clamping is possible.
+  // A ?page= past the end therefore reports the last page rather than an empty
+  // grid under a header that still promises the full count.
+  const pageWindow = buildDirectoryPageWindow(
+    gridData.total,
+    requestedPage,
+    DIRECTORY_PAGE_SIZE,
+  );
   // Card actions (favorite heart + inquire pill) need the discovery-state
   // provider; both hooks are guest-capable (localStorage mirror + guest RPCs),
   // so a signed-out visitor's favorites/lineup persist for their session.
@@ -263,6 +283,7 @@ export default async function MarketingDirectoryPage({
             initialItems={gridItems}
             initialTotal={gridData.total}
             pageSize={DIRECTORY_PAGE_SIZE}
+            pageWindow={pageWindow}
             mapPoints={mapPoints}
             mapUnmappedCount={mapData.unmappedCount}
             mapApiKey={mapApiKey}
