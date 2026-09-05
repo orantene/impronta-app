@@ -76,6 +76,11 @@ const PERSONA_ROOTS = [
   join(process.cwd(), "src", "components", "marketing", "support"),
   join(process.cwd(), "src", "lib", "support"),
   join(process.cwd(), "src", "lib", "marketing"),
+  // The email tree. Left out of the first widening, and it cost exactly what
+  // the earlier miss cost: the product said Orlando everywhere while the one
+  // customer-facing email that names the agent still said "Oran replied". A
+  // guard that covers four of five trees reports green on the tree it skips.
+  join(process.cwd(), "emails"),
 ] as const;
 
 function walkSourceFiles(dir: string, out: string[] = []): string[] {

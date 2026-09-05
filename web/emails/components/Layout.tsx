@@ -18,6 +18,22 @@ export interface EmailBrand {
   homeHref?: string;
   /** BCP-47 short code ("en" | "es") — drives <Html lang> + bilingual copy. */
   locale?: string;
+  /**
+   * Does the person receiving this actually have an account?
+   *
+   * The footer stated flatly that they did. It is hardcoded into this layout,
+   * so it also went to people with no account at all: guest support visitors,
+   * contact-form senders, invitees. They were told they had an account they
+   * never made — and they are precisely the readers most likely to answer that
+   * by pressing "report spam", because from where they sit the sentence looks
+   * like evidence that something signed them up without asking.
+   *
+   * The email channel knows the answer: it already branches on
+   * `recipient.userId` to choose between an account unsubscribe token and a
+   * guest one. Defaults to true so an unset value keeps the old wording rather
+   * than silently telling account holders they are strangers.
+   */
+  recipientHasAccount?: boolean;
 }
 
 const DEFAULTS = {
@@ -26,7 +42,27 @@ const DEFAULTS = {
   footerDomain: "tulala.digital",
   homeHref: "https://tulala.digital",
   locale: "en",
+  recipientHasAccount: true,
 };
+
+/**
+ * Why this email reached you, in the reader's own language.
+ *
+ * Fifty-one templates are written in English and Spanish, and then this line —
+ * and the unsubscribe link under it — were hardcoded English, so a Spanish
+ * email stopped being Spanish exactly where the reader needs it most: the
+ * sentence explaining why they got it and the link to stop getting it.
+ */
+function footerReason(locale: string, hasAccount: boolean, accountName: string): string {
+  if (locale === "es") {
+    return hasAccount
+      ? `Recibes esto porque tienes una cuenta en ${accountName}.`
+      : `Recibes esto porque esta dirección se usó para escribir a ${accountName}.`;
+  }
+  return hasAccount
+    ? `You received this because you have an account with ${accountName}.`
+    : `You received this because this address was used to contact ${accountName}.`;
+}
 
 interface LayoutProps {
   preview: string;
@@ -60,12 +96,16 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children
           {/* Footer */}
           <Section style={footer}>
             <Text style={footerText}>
-              You received this because you have an account with {b.accountName}.{" "}
+              {footerReason(b.locale ?? "en", b.recipientHasAccount !== false, b.accountName)}{" "}
               <Link href={b.homeHref} style={footerLink}>
                 {b.footerDomain}
               </Link>
             </Text>
-            <UnsubscribeFooter unsubscribeUrl={unsubscribeUrl} categoryLabel={categoryLabel} />
+            <UnsubscribeFooter
+              unsubscribeUrl={unsubscribeUrl}
+              categoryLabel={categoryLabel}
+              locale={b.locale ?? "en"}
+            />
           </Section>
         </Container>
       </Body>

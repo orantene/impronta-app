@@ -96,7 +96,7 @@ export const FEATURE_NAV_ITEMS: readonly FeatureNavItem[] = [
   {
     key: "tables-and-seating",
     group: "booked",
-    status: "coming",
+    status: "live",
     en: { name: "Tables & Seating", path: "/features/tables-and-seating" },
     es: { name: "Mesas y reservaciones", path: "/funciones/mesas-y-reservaciones" },
   },
