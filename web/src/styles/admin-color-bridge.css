@@ -67,6 +67,16 @@
   --color-admin-amber: #52606D;
   --color-admin-amber-soft: rgba(82, 96, 109, 0.10);
   --color-admin-amber-deep: #3A4651;
+  /* ── Trust-tier badge semantics (RULING 2026-09-05) ────────────────
+   * A tier literally named "Gold" keeps a gold treatment as a SCOPED
+   * semantic, not chrome. These are the ONLY sanctioned golds in admin and
+   * may be referenced ONLY by the tier ladder (ClientTrustPill / future tier
+   * badges) — never as general admin chrome, which uses the de-golded
+   * --color-admin-amber. See docs/plans/creative-direction-board-2026-09-03.md. */
+  --color-admin-tier-gold: #8A6F1A;
+  --color-admin-tier-gold-wash: rgba(217, 160, 58, 0.14);
+  --color-admin-tier-silver: #5C3FCC;
+  --color-admin-tier-silver-wash: rgba(125, 92, 255, 0.10);
   --color-admin-red: #B0303A;
   --color-admin-coral: #C26A45;
   --color-admin-coral-soft: rgba(194, 106, 69, 0.10);
