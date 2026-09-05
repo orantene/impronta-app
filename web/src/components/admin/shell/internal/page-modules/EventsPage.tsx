@@ -29,10 +29,14 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   addTier,
   createEvent,
+  loadSessionPools,
   loadWorkspaceEvents,
   setEventStatus,
+  setSessionPoolUnits,
+  updateTier,
   type EventListRow,
   type EventTierRow,
+  type SessionPoolRow,
 } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { PageHeader } from "./pages-shared";
 
@@ -226,6 +230,153 @@ function TierForm({ eventId, onAdded }: { eventId: string; onAdded: () => void }
       <p className="text-[12px] text-admin-ink-muted">A tier has no seat count: seats per night are set when a session is scheduled. Admits per ticket is for a table or a pass, for example a VIP table for 6.</p>
       {error ? <p className="text-[12px] text-admin-critical">{error}</p> : null}
     </form>
+  );
+}
+
+/**
+ * Inline tier editor. Edits label / price / admits / max / hidden and NEVER the
+ * pool key — the action's own patch has no `pool_key` in it, so a rename here
+ * cannot detach a night's seats. The only caller of `updateTier`.
+ */
+function TierEditor({ tier, onSaved }: { tier: EventTierRow; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState(tier.label);
+  const [price, setPrice] = useState((tier.amountCents / 100).toFixed(2));
+  const [admits, setAdmits] = useState(String(tier.admitsPerUnit));
+  const [max, setMax] = useState(tier.maxPerOrder === null ? "" : String(tier.maxPerOrder));
+  const [hidden, setHidden] = useState(tier.isHidden);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="text-[12px] font-semibold text-admin-ink-muted hover:text-admin-ink">
+        Edit
+      </button>
+    );
+  }
+  return (
+    <form
+      className="mt-[8px] flex w-full flex-col gap-[6px] rounded-[8px] border border-admin-border-soft p-[10px]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        const amountCents = Math.round(Number(price.replace(",", ".")) * 100);
+        start(async () => {
+          const res = await updateTier({
+            tierId: tier.id,
+            label,
+            amountCents,
+            admitsPerUnit: Math.max(1, Math.round(Number(admits) || 1)),
+            maxPerOrder: max.trim() === "" ? null : Math.max(1, Math.round(Number(max))),
+            isHidden: hidden,
+          });
+          if (!res.ok) { setError(res.error); return; }
+          setOpen(false);
+          onSaved();
+        });
+      }}
+    >
+      <div className="flex flex-wrap gap-[6px]">
+        <input aria-label="Tier name" value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} maxLength={80}
+          className="min-w-[160px] flex-1 rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[6px] text-[13px] text-admin-ink" />
+        <input aria-label="Price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} disabled={busy}
+          className="w-[100px] rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[6px] font-mono text-[12.5px] text-admin-ink" />
+        <input aria-label="Admits per ticket" inputMode="numeric" value={admits} onChange={(e) => setAdmits(e.target.value)} disabled={busy}
+          className="w-[70px] rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[6px] font-mono text-[12.5px] text-admin-ink" />
+        <input aria-label="Max per order" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)} disabled={busy} placeholder="max/order"
+          className="w-[90px] rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[6px] font-mono text-[12.5px] text-admin-ink" />
+        <label className="flex items-center gap-[4px] text-[12px] text-admin-ink-muted">
+          <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} disabled={busy} /> hidden (sold by link)
+        </label>
+      </div>
+      <p className="text-[11.5px] text-admin-ink-muted">Renaming keeps the pool and the sold seats of this tier. Seats per night are edited under Sessions.</p>
+      <div className="flex gap-[6px]">
+        <button type="submit" disabled={busy} className="rounded-admin-sm bg-admin-accent px-[10px] py-[6px] text-[12px] font-semibold text-white disabled:opacity-60">{busy ? "Saving…" : "Save"}</button>
+        <button type="button" disabled={busy} onClick={() => setOpen(false)} className="rounded-admin-sm border border-admin-border px-[10px] py-[6px] text-[12px] font-semibold text-admin-ink">Cancel</button>
+      </div>
+      {error ? <p className="text-[12px] text-admin-critical">{error}</p> : null}
+    </form>
+  );
+}
+
+/**
+ * Seats per tier for ONE night. The operator half of the oversell guard:
+ * `upsert_capacity_pool` refuses a shrink below what is sold with CP015 and
+ * the floor in DETAIL, and this is the surface that turns that number into a
+ * sentence. "Sold" is Capacity's committed PEAK, never a sum. A night with no
+ * pool for a tier says so; creating pools is Sessions' scheduler, not this form.
+ */
+function SessionSeats({ sessionId, onSaved }: { sessionId: string; onSaved: () => void }) {
+  const [rows, setRows] = useState<SessionPoolRow[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, { units: string; overbook: string }>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, start] = useTransition();
+
+  const load = useCallback(() => {
+    void loadSessionPools(sessionId).then((res) => {
+      if (!res.ok) { setLoadError(res.error); return; }
+      setRows(res.rows);
+      const d: Record<string, { units: string; overbook: string }> = {};
+      for (const r of res.rows) d[r.poolKey] = { units: r.unitsTotal === null ? "" : String(r.unitsTotal), overbook: r.overbookUnits === null ? "" : String(r.overbookUnits) };
+      setDraft(d);
+    });
+  }, [sessionId]);
+  useEffect(load, [load]);
+
+  if (loadError) return <p className="text-[12.5px] text-admin-critical">{loadError}</p>;
+  if (rows === null) return <p className="text-[12px] text-admin-ink-muted">Loading seats…</p>;
+  if (rows.length === 0) return <p className="text-[12px] text-admin-ink-muted">This event has no ticket tiers yet.</p>;
+
+  return (
+    <ul className="mt-[6px] flex flex-col gap-[6px]">
+      {rows.map((r) => {
+        const d = draft[r.poolKey] ?? { units: "", overbook: "" };
+        return (
+          <li key={r.poolKey} className="flex flex-wrap items-center gap-[8px] text-[12.5px]">
+            <span className="min-w-[140px] text-admin-ink">{r.tierLabel}</span>
+            {r.poolId === null ? (
+              <span className="text-admin-ink-muted">no seats for this night yet: this tier is not on sale for it until the night is scheduled with it</span>
+            ) : (
+              <>
+                <label className="flex items-center gap-[4px] text-admin-ink-muted">
+                  seats
+                  <input aria-label={`Seats for ${r.tierLabel}`} inputMode="numeric" value={d.units} disabled={busy}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [r.poolKey]: { ...d, units: e.target.value } }))}
+                    className="w-[80px] rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[5px] font-mono text-admin-ink" />
+                </label>
+                <label className="flex items-center gap-[4px] text-admin-ink-muted">
+                  overbook
+                  <input aria-label={`Overbook for ${r.tierLabel}`} inputMode="numeric" value={d.overbook} disabled={busy}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [r.poolKey]: { ...d, overbook: e.target.value } }))}
+                    className="w-[70px] rounded-admin-md border border-admin-border bg-admin-surface px-[8px] py-[5px] font-mono text-admin-ink" />
+                </label>
+                <span className="text-admin-ink-muted">
+                  {r.committedPeak === null ? "sold: unknown" : `sold: ${r.committedPeak}`}
+                  {r.isActive === false ? " · suspended" : ""}
+                </span>
+                <button type="button" disabled={busy}
+                  onClick={() => {
+                    const units = Math.round(Number(d.units));
+                    const overbook = d.overbook.trim() === "" ? null : Math.round(Number(d.overbook));
+                    setErrors((prev) => ({ ...prev, [r.poolKey]: "" }));
+                    start(async () => {
+                      const res = await setSessionPoolUnits({ sessionId, poolKey: r.poolKey, unitsTotal: Number.isFinite(units) ? units : -1, overbookUnits: overbook });
+                      if (!res.ok) { setErrors((prev) => ({ ...prev, [r.poolKey]: res.error })); return; }
+                      load();
+                      onSaved();
+                    });
+                  }}
+                  className="rounded-admin-sm bg-admin-accent px-[10px] py-[5px] text-[12px] font-semibold text-white disabled:opacity-60">
+                  Save
+                </button>
+                {errors[r.poolKey] ? <span className="basis-full text-admin-critical">{errors[r.poolKey]}</span> : null}
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -449,6 +600,16 @@ export function EventsPage() {
                 </p>
               )
             ) : null}
+            {tab === "sessions" && selected && selected.sessions.length > 0 ? (
+              <ul className="mt-[12px] flex max-w-[640px] flex-col gap-[12px]">
+                {selected.sessions.map((sn) => (
+                  <li key={sn.id} className="rounded-[10px] border border-admin-border-soft p-[10px]">
+                    <div className="text-[13px] font-semibold text-admin-ink">{whenLabel(sn.startsAt, selected.timeZone)}</div>
+                    <SessionSeats sessionId={sn.id} onSaved={load} />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             {tab === "tickets" && selected ? (
               <div>
@@ -460,7 +621,10 @@ export function EventsPage() {
                 ) : (
                   <div className="max-w-[560px]">
                     {selected.tiers.map((tier) => (
-                      <TierRow key={tier.id} tier={tier} />
+                      <div key={tier.id}>
+                        <TierRow tier={tier} />
+                        <TierEditor tier={tier} onSaved={load} />
+                      </div>
                     ))}
                   </div>
                 )}

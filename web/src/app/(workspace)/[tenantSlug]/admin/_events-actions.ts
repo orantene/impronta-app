@@ -25,7 +25,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { canTransition, toEventSlug, type EventStatus } from "@/lib/events/event-policy";
-import { newTierRow, saleState, type Tier } from "@/lib/events/tiers";
+import { explainPoolRefusal, newTierRow, poolKeyFor, saleState, type Tier } from "@/lib/events/tiers";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 
 export type EventTierRow = {
@@ -539,5 +539,210 @@ export async function addTier(input: {
   } catch (err) {
     logServerError("events.addTier", err);
     return { ok: false, error: "Could not add the tier." };
+  }
+}
+
+// ── The tier editor (E3c) ────────────────────────────────────────────────────
+
+const tierPatchSchema = z.object({
+  tierId: z.string().uuid(),
+  label: z.string().trim().min(1).max(80).optional(),
+  amountCents: z.number().int().min(0).optional(),
+  admitsPerUnit: z.number().int().min(1).max(1000).optional(),
+  maxPerOrder: z.number().int().min(1).nullable().optional(),
+  isHidden: z.boolean().optional(),
+});
+
+/**
+ * Edit a tier's label, price, admits, max-per-order, hidden — and NEVER its
+ * `pool_key`. The key was derived from the label once at creation; a rename
+ * is an UPDATE of `label` only, so the pool and its sold seats stay attached
+ * (§6a-iii). The select list below does not contain `pool_key`, on purpose.
+ *
+ * Tenant scope by derivation: the variant must belong to a WORKSPACE-owned
+ * offering of this tenant that an event of this tenant points at.
+ */
+export async function updateTier(input: {
+  tierId: string;
+  label?: string;
+  amountCents?: number;
+  admitsPerUnit?: number;
+  maxPerOrder?: number | null;
+  isHidden?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { tenantId } = guard;
+
+  const parsed = tierPatchSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Those tier values are out of range." };
+  const { tierId, ...patch } = parsed.data;
+  if (patch.label !== undefined && !poolKeyFor(patch.label)) {
+    return { ok: false, error: "That name has no letters or numbers in it." };
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  try {
+    const { data: v, error: vErr } = await admin
+      .from("talent_offering_variants").select("id, offering_id").eq("id", tierId).maybeSingle();
+    if (vErr) { logServerError("events.updateTier/variant", vErr); return { ok: false, error: "Could not load the tier." }; }
+    if (!v) return { ok: false, error: "No such tier." };
+    const { data: ev, error: eErr } = await admin
+      .from("events").select("id").eq("tenant_id", tenantId).eq("offering_id", v.offering_id as string).limit(1);
+    if (eErr) { logServerError("events.updateTier/event", eErr); return { ok: false, error: "Could not load the event." }; }
+    if ((ev ?? []).length === 0) return { ok: false, error: "No such tier in this workspace." };
+
+    const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.label !== undefined) row.label = patch.label;
+    if (patch.amountCents !== undefined) row.amount_cents = patch.amountCents;
+    if (patch.admitsPerUnit !== undefined) row.admits_per_unit = patch.admitsPerUnit;
+    if (patch.maxPerOrder !== undefined) row.max_per_order = patch.maxPerOrder;
+    if (patch.isHidden !== undefined) row.is_hidden = patch.isHidden;
+
+    const { error: uErr } = await admin.from("talent_offering_variants").update(row).eq("id", tierId);
+    if (uErr) { logServerError("events.updateTier/update", uErr); return { ok: false, error: "Could not save the tier." }; }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("events.updateTier", err);
+    return { ok: false, error: "Could not save the tier." };
+  }
+}
+
+export type SessionPoolRow = {
+  poolKey: string;
+  tierLabel: string;
+  /** Null when this night has no pool for the tier: unsellable for the night, and said so. */
+  poolId: string | null;
+  unitsTotal: number | null;
+  overbookUnits: number | null;
+  isActive: boolean | null;
+  /** Capacity's floor: the PEAK of committed units across windows. Null when unreadable. */
+  committedPeak: number | null;
+};
+
+/**
+ * Seats per tier for ONE night, with what is already sold.
+ *
+ * "Sold" is `capacity_pool_committed_peak(pool_id)` — the same function the
+ * shrink refusal checks against — never a sum over allocations. A sum would
+ * show 10 sold where the engine accepts 6, and the operator would be told
+ * they cannot do what the engine then allows.
+ */
+export async function loadSessionPools(sessionId: string): Promise<{ ok: true; rows: SessionPoolRow[] } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { supabase, tenantId } = guard;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a session." };
+  try {
+    const { data: session, error: sErr } = await supabase
+      .from("sessions").select("id, event_id").eq("id", sessionId).eq("tenant_id", tenantId).maybeSingle();
+    if (sErr) { logServerError("events.sessionPools/session", sErr); return { ok: false, error: "Could not load the session." }; }
+    if (!session?.event_id) return { ok: true, rows: [] };
+    const { data: ev, error: eErr } = await supabase
+      .from("events").select("offering_id").eq("id", session.event_id as string).eq("tenant_id", tenantId).maybeSingle();
+    if (eErr) { logServerError("events.sessionPools/event", eErr); return { ok: false, error: "Could not load the event." }; }
+    if (!ev?.offering_id) return { ok: true, rows: [] };
+    const [{ data: variants, error: vErr }, { data: pools, error: pErr }] = await Promise.all([
+      supabase.from("talent_offering_variants").select("label, pool_key, sort_order").eq("offering_id", ev.offering_id as string).order("sort_order", { ascending: true }),
+      supabase.from("capacity_pools").select("id, pool_key, units_total, overbook_units, is_active").eq("tenant_id", tenantId).eq("subject_kind", "session_tier").eq("subject_id", sessionId),
+    ]);
+    if (vErr) { logServerError("events.sessionPools/variants", vErr); return { ok: false, error: "Could not load ticket tiers." }; }
+    if (pErr) { logServerError("events.sessionPools/pools", pErr); return { ok: false, error: "Could not load capacity." }; }
+    const poolByKey = new Map((pools ?? []).map((p) => [p.pool_key as string, p]));
+    const rows: SessionPoolRow[] = [];
+    for (const v of variants ?? []) {
+      if (typeof v.pool_key !== "string" || !v.pool_key) continue;
+      const pool = poolByKey.get(v.pool_key) ?? null;
+      let peak: number | null = null;
+      if (pool) {
+        const { data: pk, error: pkErr } = await supabase.rpc("capacity_pool_committed_peak", { p_pool_id: pool.id as string });
+        if (pkErr) logServerError("events.sessionPools/peak", pkErr);
+        else peak = typeof pk === "number" ? pk : Number(pk);
+      }
+      rows.push({
+        poolKey: v.pool_key,
+        tierLabel: v.label as string,
+        poolId: pool ? (pool.id as string) : null,
+        unitsTotal: pool ? Number(pool.units_total) : null,
+        overbookUnits: pool ? Number(pool.overbook_units) : null,
+        isActive: pool ? Boolean(pool.is_active) : null,
+        committedPeak: peak,
+      });
+    }
+    return { ok: true, rows };
+  } catch (err) {
+    logServerError("events.sessionPools", err);
+    return { ok: false, error: "Could not load capacity for this night." };
+  }
+}
+
+/**
+ * Change the seats (and overbook) for one tier on one night.
+ *
+ * EDITS ONLY A POOL THAT EXISTS. Creating a night's pools is Sessions'
+ * `createSessionWithPools` / `ensureSessionPools` — the one creator (§6a-iii).
+ * `upsert_capacity_pool` would happily create on a miss, so this refuses first:
+ * a missing pool means "this night has no seats for that tier yet", which is a
+ * scheduling fact, not something the editor invents by saving a number.
+ *
+ * THE REFUSAL IS CAPACITY'S, CALLED, NOT RE-IMPLEMENTED. A shrink below the
+ * committed peak comes back as `CP015` with the floor in DETAIL, and that
+ * number is the sentence the operator sees. Overbook moves in the same call
+ * because the ceiling is `units_total + overbook_units`.
+ */
+export async function setSessionPoolUnits(input: {
+  sessionId: string;
+  poolKey: string;
+  unitsTotal: number;
+  overbookUnits?: number | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { tenantId } = guard;
+
+  const parsed = z.object({
+    sessionId: z.string().uuid(),
+    poolKey: z.string().min(1).max(40),
+    unitsTotal: z.number().int().min(0).max(1_000_000),
+    overbookUnits: z.number().int().min(0).max(1_000_000).nullable().optional(),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Seats must be a whole number, 0 or more." };
+  const { sessionId, poolKey, unitsTotal, overbookUnits } = parsed.data;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  try {
+    const { data: pool, error: pErr } = await admin
+      .from("capacity_pools").select("id, overbook_units").eq("tenant_id", tenantId)
+      .eq("subject_kind", "session_tier").eq("subject_id", sessionId).eq("pool_key", poolKey).maybeSingle();
+    if (pErr) { logServerError("events.setPoolUnits/read", pErr); return { ok: false, error: "Could not load capacity." }; }
+    if (!pool) return { ok: false, error: "This night has no seats for that tier yet. Schedule it with seats per tier first." };
+
+    const { error } = await admin.rpc("upsert_capacity_pool", {
+      p_tenant_id: tenantId,
+      p_subject_kind: "session_tier",
+      p_subject_id: sessionId,
+      p_units_total: unitsTotal,
+      p_pool_key: poolKey,
+      p_parent_pool_id: null,
+      p_overbook_units: overbookUnits === undefined ? null : overbookUnits,
+      p_hold_ttl_seconds: null,
+      p_unit_label: null,
+      p_is_active: null,
+    });
+    if (error) {
+      const code = (error as { code?: string }).code ?? "";
+      if (code !== "CP015" && code !== "CP004") logServerError("events.setPoolUnits/rpc", error);
+      return { ok: false, error: explainPoolRefusal(error as { code?: string; details?: string; message?: string }, unitsTotal) };
+    }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("events.setPoolUnits", err);
+    return { ok: false, error: "Could not save the seats for this night." };
   }
 }
