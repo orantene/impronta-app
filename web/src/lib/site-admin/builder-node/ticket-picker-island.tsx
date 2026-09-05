@@ -70,34 +70,34 @@ const COPY: Record<Locale, Record<string, string>> = {
   },
   es: {
     heading: "Entradas",
-    night: "Elige una noche",
-    tier: "Elige una entrada",
+    night: "Elegí una noche",
+    tier: "Elegí una entrada",
     loading: "Cargando entradas...",
-    not_configured: "Este bloque aun no esta configurado: necesita un evento para vender.",
-    noNights: "Todavia no hay ninguna noche a la venta.",
-    noTiers: "Todavia no hay entradas a la venta para esa noche.",
-    quantity: "Cuantas",
+    not_configured: "Este bloque aún no está configurado: necesita un evento para vender.",
+    noNights: "Todavía no hay ninguna noche a la venta.",
+    noTiers: "Todavía no hay entradas a la venta para esa noche.",
+    quantity: "Cuántas",
     email: "Correo",
-    emailHelp: "Tu entrada llega aqui. Si no puedes abrirla, te buscamos por tu nombre en la puerta.",
+    emailHelp: "Tu entrada llega acá. Si no podés abrirla, te buscamos por tu nombre en la puerta.",
     name: "Nombre",
     buy: "Pagar con tarjeta",
     buying: "Reservando tus plazas...",
     redirecting: "Llevandote al pago...",
-    door_opens_closer: "Pagar en la puerta se abre mas cerca de la fecha.",
-    door_doors_open: "Las puertas estan abiertas: paga en la puerta en persona.",
-    door_offered: "Pagar en la puerta estara disponible mas cerca de la noche.",
-    sold_out: "Esa noche se acaba de agotar con esa entrada. Elige otra y es tuya.",
-    night_not_on_sale: "Esa noche ya no esta a la venta. Elige otra.",
-    tier_not_on_sale: "Esa entrada no esta a la venta ahora.",
-    quantity_err: "Ese numero de entradas esta fuera de lo que admite un pedido.",
-    not_sellable: "Este evento no esta a la venta por ahora.",
-    unavailable: "No pudimos cargar las entradas. No se cobro nada. Intenta de nuevo.",
-    invalid_request: "Algo no se ve bien. Revisa los datos e intenta de nuevo.",
-    engine_error: "Algo fallo de nuestro lado. No se cobro nada.",
-    pay_at_door_not_yet: "Pagar en la puerta aun no esta disponible en linea. Paga con tarjeta, o en la puerta esa noche.",
+    door_opens_closer: "Pagar en la puerta se abre más cerca de la fecha.",
+    door_doors_open: "Las puertas están abiertas: pagá en la puerta en persona.",
+    door_offered: "Pagar en la puerta estará disponible más cerca de la noche.",
+    sold_out: "Esa noche se acaba de agotar con esa entrada. Elegí otra y es tuya.",
+    night_not_on_sale: "Esa noche ya no está a la venta. Elegí otra.",
+    tier_not_on_sale: "Esa entrada no está a la venta ahora.",
+    quantity_err: "Ese número de entradas está fuera de lo que admite un pedido.",
+    not_sellable: "Este evento no está a la venta por ahora.",
+    unavailable: "No pudimos cargar las entradas. No se cobró nada. Intentá de nuevo.",
+    invalid_request: "Algo no se ve bien. Revisá los datos e intentá de nuevo.",
+    engine_error: "Algo falló de nuestro lado. No se cobró nada.",
+    pay_at_door_not_yet: "Pagar en la puerta aún no está disponible en línea. Pagá con tarjeta, o en la puerta esa noche.",
     pay_at_door_not_offered: "Pagar en la puerta no se ofrece para esa noche.",
     emailRequired: "Necesitamos un correo para enviarte la entrada.",
-    not_found: "No encontramos ese pedido. No se cobro nada.",
+    not_found: "No encontramos ese pedido. No se cobró nada.",
   },
 };
 
@@ -221,7 +221,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale }: TicketP
                   <input type="radio" name="night" value={n.sessionId} disabled={!sellable} checked={night === n.sessionId}
                     onChange={() => { setNight(n.sessionId); setTier(null); setRefusal(null); }} />{" "}
                   {formatWhen(n.startsAt, data.timeZone, loc)}
-                  {!sellable ? ` — ${t("noTiers")}` : ""}
+                  {!sellable ? <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{t("noTiers")}</span> : null}
                   {ds ? <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{ds}</span> : null}
                 </label>
               );
