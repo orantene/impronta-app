@@ -1675,12 +1675,12 @@ function BuilderNodeContentInspectorBody({
         <BuilderNodeSection title="Style">
           <div className={KIT.field}>
             <label className={KIT.label}>Code colour</label>
-            <input
-              type="color"
-              className={KIT.input}
-              value={qr.foreground ?? "#000000"}
-              onChange={(event) => {
-                void commitPatch({ foreground: event.currentTarget.value });
+            <ColorSwatchButton
+              color={qr.foreground ?? "#000000"}
+              ariaLabel="Pick the code colour"
+              dataAttr={["data-builder-qr-color", "foreground"]}
+              onChange={(next) => {
+                void commitPatch({ foreground: next });
               }}
             />
           </div>
