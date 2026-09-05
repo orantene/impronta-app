@@ -1,0 +1,37 @@
+/**
+ * The Tulala wordmark as FILLED paths, for Satori.
+ *
+ * Supplied by Creative for J2. The app's `TulalaWordmark` draws stroked paths,
+ * and Satori's stroke support is limited enough that rendering it on a share
+ * card risked a broken lockup at 1200x630 on every link anyone shares: the
+ * most visible mistake available to us, and the one we are slowest to notice
+ * because nobody here looks at our own share cards.
+ *
+ * Creative outlined every stroke and pixel-diffed against the original at
+ * 1200x360: 55 of 101,703 ink pixels differ.
+ *
+ * Letters take `ink`; the trail keeps the brand orange deliberately, so the
+ * one warm note in the brand survives on a card that is otherwise forest and
+ * bone. Source asset: docs/plans/tulala-wordmark-filled.svg.
+ */
+export function TulalaWordmarkFilled({ height = 96, ink = "#161a16" }: { height?: number; ink?: string }) {
+  const width = Math.round(height * (120 / 36));
+  return (
+    <svg width={width} height={height} viewBox="0 0 120 36" fill="none">
+      <g fill={ink} fillRule="nonzero">
+      <path d="M6 7.5 L6 25 L6.03 25.84 L6.13 26.66 L6.3 27.44 L6.55 28.19 L6.89 28.9 L7.32 29.57 L7.84 30.16 L8.43 30.68 L9.1 31.11 L9.81 31.45 L10.56 31.7 L11.34 31.87 L12.16 31.97 L12.93 32 A2 2 0 0 0 13.07 28 L12.46 27.98 L12 27.93 L11.61 27.84 L11.29 27.73 L11.04 27.61 L10.83 27.48 L10.66 27.34 L10.52 27.17 L10.39 26.96 L10.27 26.71 L10.16 26.39 L10.07 26 L10.02 25.54 L10 25 L10 7.5 A2 2 0 0 0 6 7.5 Z" />
+      <path d="M3.5 16 L13.5 16 A2 2 0 0 0 13.5 12 L3.5 12 A2 2 0 0 0 3.5 16 Z" />
+      <path d="M19 14 L19 22.02 L19.09 23.31 L19.34 24.59 L19.76 25.83 L20.34 27 L21.07 28.09 L21.93 29.07 L22.91 29.93 L24 30.66 L25.17 31.24 L26.41 31.66 L27.69 31.91 L29 32 L30.31 31.91 L31.59 31.66 L32.83 31.24 L34 30.66 L35.09 29.93 L36.07 29.07 L36.93 28.09 L37.66 27 L38.24 25.83 L38.66 24.59 L38.91 23.31 L39 22.02 L39 14 A2 2 0 0 0 35 14 L35 21.98 L34.95 22.78 L34.8 23.55 L34.54 24.3 L34.2 25 L33.76 25.65 L33.24 26.24 L32.65 26.76 L32 27.2 L31.3 27.54 L30.55 27.8 L29.78 27.95 L29 28 L28.22 27.95 L27.45 27.8 L26.7 27.54 L26 27.2 L25.35 26.76 L24.76 26.24 L24.24 25.65 L23.8 25 L23.46 24.3 L23.2 23.55 L23.05 22.78 L23 21.98 L23 14 A2 2 0 0 0 19 14 Z" />
+      <path d="M43 6 L43 30 A2 2 0 0 0 47 30 L47 6 A2 2 0 0 0 43 6 Z" />
+      <path d="M71.25 22.1 A10.25 10.25 0 1 1 50.75 22.1 A10.25 10.25 0 1 1 71.25 22.1 Z M67.25 22.1 A6.25 6.25 0 1 0 54.75 22.1 A6.25 6.25 0 1 0 67.25 22.1 Z" />
+      <path d="M67 14 L67 30 A2 2 0 0 0 71 30 L71 14 A2 2 0 0 0 67 14 Z" />
+      <path d="M75 6 L75 30 A2 2 0 0 0 79 30 L79 6 A2 2 0 0 0 75 6 Z" />
+      <path d="M103.25 22.1 A10.25 10.25 0 1 1 82.75 22.1 A10.25 10.25 0 1 1 103.25 22.1 Z M99.25 22.1 A6.25 6.25 0 1 0 86.75 22.1 A6.25 6.25 0 1 0 99.25 22.1 Z" />
+      <path d="M99 14 L99 30 A2 2 0 0 0 103 30 L103 14 A2 2 0 0 0 99 14 Z" />
+      </g>
+      <circle cx="110.5" cy="28.6" r="3.6" fill="#ff8332" />
+      <circle cx="113.6" cy="20.6" r="2.5" fill="#ff8332" opacity="0.7" />
+      <circle cx="116.2" cy="14.4" r="1.7" fill="#ff8332" opacity="0.45" />
+    </svg>
+  );
+}
