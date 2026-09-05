@@ -59,6 +59,7 @@ import { ColorSwatchButton } from "./color-swatch-button";
 import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
+import { QrCodeLinkPicker } from "./qr-code-link-picker";
 import { InspectorLabelWithInfo, MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { BackgroundMediaCard } from "./background-media-card";
@@ -1629,18 +1630,12 @@ function BuilderNodeContentInspectorBody({
     return (
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Link">
-          <div className={KIT.field}>
-            <label className={KIT.label}>Link code</label>
-            <input
-              type="text"
-              className={KIT.input}
-              value={qr.linkCode ?? ""}
-              placeholder="Paste a link code"
-              onChange={(event) => {
-                void commitPatch({ linkCode: event.currentTarget.value });
-              }}
-            />
-          </div>
+          <QrCodeLinkPicker
+            linkCode={qr.linkCode ?? ""}
+            onPick={(code) => {
+              void commitPatch({ linkCode: code });
+            }}
+          />
         </BuilderNodeSection>
         <BuilderNodeSection title="Copy">
           <div className={KIT.field}>
