@@ -82,7 +82,7 @@ export default async function StatusPage() {
             width: 12,
             height: 12,
             borderRadius: 999,
-            background: allOk ? "#16a34a" : "#dc2626",
+            background: allOk ? "var(--tl-positive)" : "#dc2626",
           }}
           aria-hidden
         />
@@ -119,12 +119,12 @@ export default async function StatusPage() {
                   width: 8,
                   height: 8,
                   borderRadius: 999,
-                  background: c.ok ? "#16a34a" : "#dc2626",
+                  background: c.ok ? "var(--tl-positive)" : "#dc2626",
                 }}
               />
               <span style={{ fontSize: "0.95rem" }}>{c.label}</span>
             </div>
-            <span style={{ fontSize: "0.85rem", color: c.ok ? "#16a34a" : "#dc2626" }}>
+            <span style={{ fontSize: "0.85rem", color: c.ok ? "var(--tl-positive)" : "#dc2626" }}>
               {c.detail}
             </span>
           </div>
@@ -133,7 +133,7 @@ export default async function StatusPage() {
 
       <p style={{ fontSize: "0.85rem", color: "#999", marginTop: 24 }}>
         Last checked: {new Date().toISOString()} · Cache-control: no-store ·{" "}
-        <Link href="/" style={{ color: "#16a34a", textDecoration: "underline" }}>
+        <Link href="/" style={{ color: "var(--tl-positive)", textDecoration: "underline" }}>
           Back to home
         </Link>
       </p>

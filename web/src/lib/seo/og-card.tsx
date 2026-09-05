@@ -17,7 +17,18 @@ export const OG_CONTENT_TYPE = "image/png";
 const SURFACE = "#FAFAF7";
 const INK = "#0B0B0D";
 const MUTED = "rgba(11,11,13,0.55)";
-const ACCENT = "#0F4F3E";
+/**
+ * Marketing forest. Was `#0F4F3E`, which is the ADMIN forest: a workspace
+ * colour on the card that represents the brand everywhere a link is shared.
+ * The canonical tokens doc ratifies Admin and Marketing as deliberately
+ * separate systems, so this was not drift between two shades of the same
+ * green, it was the wrong system's green. (J2)
+ *
+ * A literal rather than `var(--tl-forest)` because this renders through
+ * Satori for a PNG, where CSS custom properties are not resolved. Keep it in
+ * step with `--tl-forest` in globals.css by hand.
+ */
+const ACCENT = "#1e3a2d";
 const SPARK = "#ff8332";
 
 export function renderOgCard({

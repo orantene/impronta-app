@@ -339,9 +339,9 @@ function StatusChip({ label }: { label: string }) {
   return (
     <span
       className="plt-mono inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em]"
-      style={{ background: "rgba(52,193,110,0.16)", color: "#1F7B3E" }}
+      style={{ background: "var(--tl-positive-bg)", color: "var(--tl-positive)" }}
     >
-      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#1F7B3E" }} />
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--tl-positive)" }} />
       {label}
     </span>
   );

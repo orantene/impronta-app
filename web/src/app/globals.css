@@ -1089,6 +1089,14 @@ html[data-public-font-preset="editorial"] {
   --tl-forest-glow: rgba(46, 107, 82, 0.18);
   --tl-forest-on: #f4efe6;
 
+  /* Brand accent. The logo's trail colour and the brand's only warm note.
+     It existed as a JS constant in tulala-logo.tsx and as --plt-accent in the
+     back-compat alias layer, the layer whose own comment says new code should
+     not use it, so anything wanting the brand orange had to hardcode it.
+     Canonical here; --plt-accent now points at this. (J5) */
+  --tl-accent: #ff8332;
+  --tl-accent-soft: #ffb583;
+
   /* Editorial supports — used as accents in editorial composition, not UI */
   --tl-sage: #8a907b;
   --tl-sage-soft: rgba(138, 144, 123, 0.16);
@@ -1168,8 +1176,8 @@ html[data-public-font-preset="editorial"] {
   --plt-forest-ring: var(--tl-forest-ring);
   --plt-forest-glow: var(--tl-forest-glow);
   /* Warm accent — marketing-only highlight (eyebrows, accents). */
-  --plt-accent: #ff8332;
-  --plt-accent-soft: #ffb583;
+  --plt-accent: var(--tl-accent);
+  --plt-accent-soft: var(--tl-accent-soft);
   --plt-forest-on: var(--tl-forest-on);
 
   --plt-positive: var(--tl-positive);

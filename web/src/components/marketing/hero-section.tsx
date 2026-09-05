@@ -243,7 +243,7 @@ function getBookingCards(locale: string): BookingCard[] {
 }
 
 const STATUS_TONES: Record<BookingTone, { bg: string; fg: string }> = {
-  paid: { bg: "rgba(52,193,110,0.16)", fg: "#1F7B3E" },
+  paid: { bg: "var(--tl-positive-bg)", fg: "var(--tl-positive)" },
   new: { bg: "rgba(46,107,82,0.16)", fg: "var(--plt-forest)" },
   sent: { bg: "rgba(15,23,20,0.07)", fg: "var(--plt-ink-soft)" },
 };
