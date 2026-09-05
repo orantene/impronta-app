@@ -29,6 +29,32 @@ test("tagline and city resolve to the tenant's own values when present", () => {
   assert.equal(personaliseStarterCopy("{{businessCity}} · {{business.name}}", ctx), "Glew · El Paisa");
 });
 
+test("a copy node whose ONLY content was an absent fact is PRUNED, not left empty (blank-page guard)", () => {
+  // The registry requires paragraph/heading/rich_text text to be non-empty. An
+  // emptied node would fail validation downstream and blank the whole page,
+  // which is what a name-only restaurant got on 2026-09-05.
+  const tree: BuilderNodeTree = [
+    {
+      id: "wrap",
+      kind: "container",
+      props: { layout: "stack" },
+      children: [
+        { id: "eyebrow", kind: "paragraph", props: { text: "{{business.city}}" } },
+        { id: "h", kind: "heading", props: { text: "{{business.name}}", level: 1 } },
+        { id: "sub", kind: "paragraph", props: { text: "{{business.tagline}}" } },
+        { id: "keep", kind: "paragraph", props: { text: "Order from the menu below." } },
+      ],
+    } as BuilderNode,
+  ];
+  const out = personaliseStarterBuilderTree(tree, { businessName: "El Paisa" });
+  const kids = (out[0] as BuilderNode & { children: BuilderNode[] }).children;
+  assert.deepEqual(kids.map((n) => n.id), ["h", "keep"]);
+  assert.equal((kids[0].props as { text: string }).text, "El Paisa");
+  // With the facts present, nothing is pruned.
+  const rich = personaliseStarterBuilderTree(tree, { businessName: "El Paisa", businessCity: "Glew", businessTagline: "Parrilla" });
+  assert.equal((rich[0] as BuilderNode & { children: BuilderNode[] }).children.length, 4);
+});
+
 test("tagline and city are STRIPPED when absent, never replaced with fixture copy", () => {
   // The defect this guards: a fallback design carried "Modern Mexican Kitchen ·
   // Mexico City" as literal text, so a restaurant in Glew was told it was in
