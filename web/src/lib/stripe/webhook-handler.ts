@@ -71,6 +71,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
+import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
 import {
   claimStripeEvent,
   releaseStripeEventClaim,
@@ -505,12 +506,18 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         reason: action.reason,
         status: action.status,
         closed: action.closed,
+        currency: action.currency,
+        evidenceDueBy: action.evidenceDueBy,
       });
       if (!wasBookingDispute) {
         logServerError(
           action.closed ? "stripe-webhook.dispute.closed" : "stripe-webhook.dispute.created",
           `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} closed=${action.closed} (event ${event.id})`,
         );
+
+        // Non-booking chargeback (subscription, top-up): this branch used to
+        // be a log line only. See dispute-notify.ts for why that mattered.
+        await notifyNonBookingDispute(action);
       }
       return;
     }

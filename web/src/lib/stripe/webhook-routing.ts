@@ -99,6 +99,14 @@ export type StripeAction =
       /** The raw event type. `created` and `closed` drive money; `updated`,
        *  `funds_withdrawn` and `funds_reinstated` are recorded only. */
       eventType: string;
+      /** The dispute's currency. Previously dropped, so the opened-alert
+       *  formatted an amount with a null currency. */
+      currency: string;
+      /** Stripe's evidence deadline as a unix timestamp, or null when Stripe
+       *  has not set one. Unanswered disputes are LOST BY DEFAULT, so this is
+       *  the single most actionable field on the event -- and until now it
+       *  reached only `logServerError`, never a human surface. */
+      evidenceDueBy: number | null;
     }
   | { kind: "trial_will_end"; subscriptionId: string; trialEnd: number | null }
   | {
@@ -358,6 +366,8 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         status: dispute.status ?? "unknown",
         closed: event.type === "charge.dispute.closed",
         eventType: event.type,
+        currency: dispute.currency ?? "usd",
+        evidenceDueBy: dispute.evidence_details?.due_by ?? null,
       };
     }
 
