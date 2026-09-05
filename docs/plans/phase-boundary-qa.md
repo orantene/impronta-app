@@ -1,5 +1,16 @@
 # Phase-boundary QA list — the owner clicks this ONCE
 
+> **New rows go in [`qa/<area>.md`](qa/README.md), not in this table.**
+>
+> This file is one flat table that every area appends to at the same spot, so it conflicts exactly
+> as often as it is used — one Events PR hit the same conflict twice in an hour on 2026-09-05, and
+> four open PRs across two departments append to these same lines today.
+>
+> **Nothing here was moved.** Splitting the table would have conflicted every open branch that has
+> rows in it, including other departments' — so the fix is additive only: new per-area files, plus
+> this paragraph at the top, where nobody appends. The list below stays valid and is still the one
+> the owner runs. It drains as areas re-touch their own rows.
+
 **Status:** seeded by the CEO 2026-09-04. This file did not exist; managers were being told to
 "batch QA" with nowhere to batch it to.
 
