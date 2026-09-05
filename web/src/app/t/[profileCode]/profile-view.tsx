@@ -217,6 +217,20 @@ type PublicFieldDefinitionEmbed = {
   /** Per-option ES label map { "<english option>": "<es label>" }. Used to
    *  localize select/multiselect/chips values on the public profile. */
   options_es?: Record<string, string> | null;
+  /**
+   * ENGLISH option labels. These existed in `option_labels_i18n` all along and
+   * were thrown away by the projection, which extracted only the `es` slot — so
+   * an English visitor saw the RAW STORED VALUE for every select field whose
+   * stored value is not already its label. Live example: the pronouns row on a
+   * public profile read `she_her`.
+   */
+  options_en?: Record<string, string> | null;
+  /**
+   * Measurement unit from `profile_field_definitions.unit` (20 definitions carry
+   * one: "hrs", "guests", "years", ...). It was never selected, so a numeric
+   * value rendered bare and a reply-time commitment of four hours read as "4".
+   */
+  unit?: string | null;
   config?: Record<string, unknown> | null;
   sort_order?: number;
   field_group_id?: string | null;
@@ -530,7 +544,7 @@ async function fetchPublicFieldValues(
       visibility_override,
       workflow_state,
       profile_field_definitions (
-        id, field_key, label_i18n, kind, tier, options, option_labels_i18n, display_order, field_group_id,
+        id, field_key, label_i18n, kind, tier, unit, options, option_labels_i18n, display_order, field_group_id,
         admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
         profile_field_groups ( sort_order, slug )
       )
@@ -809,10 +823,12 @@ async function fetchPublicFieldValues(
     // its existing locale pick over those slots.
     const labelMap: LocalizedMap =
       resolvedField?.label_i18n ?? asLocalizedMap(def.label_i18n);
-    const optionEsMap =
-      optionEsMapFromI18n(
-        resolvedField?.option_labels_i18n ?? def.option_labels_i18n,
-      );
+    // Project BOTH locales. Only `es` used to survive, which is why an English
+    // visitor fell through to the raw stored option value on every select field.
+    const optionLabelsI18n =
+      resolvedField?.option_labels_i18n ?? def.option_labels_i18n;
+    const optionEsMap = optionMapFromI18n(optionLabelsI18n, "es");
+    const optionEnMap = optionMapFromI18n(optionLabelsI18n, "en");
 
     projected.push({
       id: row.id,
@@ -826,6 +842,8 @@ async function fetchPublicFieldValues(
         label_es: localeSlot(labelMap, "es"),
         value_type: resolvedField?.kind ?? def.kind,
         options_es: optionEsMap,
+        options_en: optionEnMap,
+        unit: def.unit ?? null,
         config: null,
         sort_order: resolvedField?.display_order ?? def.display_order ?? 0,
         field_group_id: def.field_group_id,
@@ -1031,14 +1049,15 @@ function localeSlot(map: LocalizedMap, locale: string): string | null {
 
 /** Build the legacy `options_es` map ({ "<en option>": "<es label>" }) from the
  *  new per-option per-locale map ({ "<value>": { en, es } }). */
-function optionEsMapFromI18n(
+function optionMapFromI18n(
   raw: unknown,
+  locale: "en" | "es",
 ): Record<string, string> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const out: Record<string, string> = {};
   for (const [value, sub] of Object.entries(raw as Record<string, unknown>)) {
-    const es = localeSlot(asLocalizedMap(sub), "es");
-    if (es) out[value] = es;
+    const label = localeSlot(asLocalizedMap(sub), locale);
+    if (label) out[value] = label;
   }
   return Object.keys(out).length > 0 ? out : null;
 }
@@ -1055,12 +1074,22 @@ function formatFieldValue(row: PublicFieldValueRow, locale: string): string | nu
   // options_es when locale=es; fall back to the English string. (Replaces the
   // old, never-reachable fd.config branch — config was always projected null
   // and canonical options are plain string[], not {value,label_en} objects.)
+  // Label lookup for the ACTIVE locale, falling back to the other locale's
+  // label before falling back to the raw stored value.
+  //
+  // Previously only the Spanish map existed here, so English always returned
+  // the raw value. That is fine when the stored option IS its label ("Slim",
+  // "Woman"), and wrong when it is a key: the pronouns row on a public profile
+  // rendered `she_her` to every English visitor.
   const optEs = fd?.options_es ?? null;
+  const optEn = fd?.options_en ?? null;
+  const primary = locale === "es" ? optEs : optEn;
+  const secondary = locale === "es" ? optEn : optEs;
   const mapOpt = (val: string): string => {
     const t = val.trim();
-    if (locale === "es" && optEs) {
-      const es = optEs[t];
-      if (typeof es === "string" && es.trim()) return es.trim();
+    for (const map of [primary, secondary]) {
+      const hit = map?.[t];
+      if (typeof hit === "string" && hit.trim()) return hit.trim();
     }
     return t;
   };
@@ -1080,7 +1109,13 @@ function formatFieldValue(row: PublicFieldValueRow, locale: string): string | nu
     // options_es, so mapOpt is a no-op for them).
     return mapOpt(row.value_text);
   }
-  if (typeof row.value_number === "number") return String(row.value_number);
+  if (typeof row.value_number === "number") {
+    // Append the definition's unit. `profile_field_definitions.unit` carries one
+    // for 20 fields ("hrs", "guests", "years"); it was never selected, so a
+    // reply-time commitment of four hours rendered as a bare "4".
+    const unit = fd?.unit?.trim();
+    return unit ? `${row.value_number} ${unit}` : String(row.value_number);
+  }
   if (typeof row.value_boolean === "boolean") {
     return row.value_boolean
       ? pickLocale(locale, { en: "Yes", es: "Sí" })
