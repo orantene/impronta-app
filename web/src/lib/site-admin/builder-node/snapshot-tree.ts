@@ -350,8 +350,12 @@ function reportSalvage(
       dropped.length > 0
         ? "[snapshot-tree] builder tree failed validation; serving it WITHOUT the invalid node(s)"
         : "[snapshot-tree] builder tree failed validation and could not be salvaged; serving legacy slots",
-    dropped: [...dropped],
-    issues: issues.slice(0, 8).map((i) => `${i.path}: ${i.message}`),
+    // The structured logger takes scalar fields; the paths travel as one string.
+    dropped: dropped.join(", "),
+    issues: issues
+      .slice(0, 8)
+      .map((i) => `${i.path}: ${i.message}`)
+      .join(" | "),
   });
 }
 
