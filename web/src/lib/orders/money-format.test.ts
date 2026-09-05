@@ -38,11 +38,17 @@ test("the desk and the card agree, which is the whole point", () => {
       const p = join(d, e.name);
       if (e.isDirectory()) { walk(p); continue; }
       if (!/\.tsx?$/.test(e.name) || /\.test\.tsx?$/.test(e.name)) continue;
-      if (!/[\\/](orders|cart)[\\/]|admin[\\/]orders/.test(p)) continue;
+      // Every surface that renders an ORDER's money, including the public
+      // receipt — which is where the third implementation was found.
+      if (!/[\\/](orders|cart)[\\/]|admin[\\/]orders|\(public\)[\\/]r[\\/]/.test(p)) continue;
       const body = blankComments(readFileSync(p, "utf8"));
-      // `style: "currency"` is the specific hazard: it renders MX$ / US$ / bare
-      // codes differently across runtimes and locales.
-      if (/style:\s*["']currency["']/.test(body)) offenders.push(p.split("/web/")[1] ?? p);
+      // TWO hazards, because pinning only the first is why a third formatter
+      // shipped. `Intl` with a currency style renders MX$ / US$ / bare codes
+      // differently across runtimes; a hand-rolled `(cents / 100).toFixed(2)`
+      // hard-codes a two-decimal minor unit and drops thousands separators.
+      // The invariant is ONE formatter, not the absence of one technique.
+      if (/style:\s*["']currency["']/.test(body)) offenders.push(`${p.split("/web/")[1] ?? p} (Intl currency)`);
+      if (/\/\s*100\s*\)\s*\.toFixed\(/.test(body)) offenders.push(`${p.split("/web/")[1] ?? p} (hand-rolled /100)`);
     }
   };
   walk(dir);
@@ -66,4 +72,28 @@ test("an empty or lowercase currency does not produce a bare number", () => {
   // exists to remove.
   assert.equal(formatOrderMoney(100, ""), "$1.00", "empty falls back to the billing currency");
   assert.equal(formatOrderMoney(100, "ars"), "1.00 ARS", "case is normalised, not trusted");
+});
+
+test("the FOUR surfaces a customer or staff member sees agree", () => {
+  // Card, desk, public receipt, purchase Sheet. They disagreed four ways, and
+  // the Sheet was the worst: `Intl` with a locale INVERTS the symbols —
+  //   es-MX + MXN -> "$4,500.00"     pesos wearing a dollar sign
+  //   es-MX + USD -> "USD 4,500.00"  dollars wearing a code
+  // on the one panel a customer touches before paying.
+  const files = [
+    "src/lib/orders/order-card.ts",
+    "src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx",
+    "src/app/(public)/r/[code]/page.tsx",
+    "src/components/cart/PurchaseSheet.tsx",
+  ];
+  for (const f of files) {
+    const body = blankComments(readFileSync(join(process.cwd(), f), "utf8"));
+    assert.match(body, /formatOrderMoney/, `${f} must use the shared formatter`);
+  }
+});
+
+test("money is NOT locale-formatted — an amount is not translated", () => {
+  // The Sheet passed a locale into Intl, which is what inverted the symbols.
+  // The formatter takes no locale, and this pins that it never gains one.
+  assert.equal(formatOrderMoney.length, 2, "formatOrderMoney(cents, currency) — no locale");
 });

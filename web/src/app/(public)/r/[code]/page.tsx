@@ -10,6 +10,7 @@ import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 
 /**
  * `/r/<code>` — the public receipt. THIS PATH IS PERMANENT.
@@ -86,9 +87,12 @@ type Receipt = {
   }>;
 };
 
-function money(cents: number, currency: string): string {
-  return `${currency === "USD" ? "$" : `${currency} `}${(cents / 100).toFixed(2)}`;
-}
+// Delegates to the ONE order money formatter. This file had a third
+// implementation — `${code} ${(cents/100).toFixed(2)}` — which rendered
+// "ARS 4500.00": no thousands separator, and a hard /100 that is wrong for
+// every zero-decimal currency. It is the surface a CUSTOMER reads at a door,
+// so it was the worst of the three places to disagree.
+const money = formatOrderMoney;
 
 function whenLabel(iso: string | null, timeZone: string): string {
   if (!iso) return "Date to be announced";
