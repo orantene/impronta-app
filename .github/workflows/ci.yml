@@ -149,7 +149,15 @@ jobs:
       # four. All are green today; gating them keeps it that way.
       # `check:migrations-applied` is deliberately NOT here: it needs live
       # Supabase credentials, which this workflow does not carry.
-      - name: structural guards (field engine, fresh types, imports, seatbelt)
+      # `check:types-fresh` is INERT here and the step name used to claim it was
+      # not. It needs NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY, this
+      # job carries neither, so it prints "skipping types drift check" and exits
+      # 0 on every run — verified in the log of a passing gate. Even WITH creds
+      # it would still pass: drift is a WARNING unless TYPES_FRESH_CHECK_HARD_FAIL=1,
+      # which is set nowhere in the repo. Arming it needs a service-role key in
+      # CI, which is a security decision rather than a wiring one, so the name is
+      # corrected first and the coverage is not claimed until it exists.
+      - name: structural guards (field engine, imports, seatbelt) + types-drift (INERT, no creds)
         if: ${{ !cancelled() }}
         run: |
           npm run check:field-engine-integrity
