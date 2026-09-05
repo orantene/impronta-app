@@ -5326,7 +5326,12 @@
         "planLockedFeature": "Custom domain",
         "planLockedWhy": "Run your public site at a domain you own instead of a Tulala address.",
         "planLockedCta": "See the Agency plan"
-      }
+      },
+      "starterDoorTitle": "Your site has no pages yet",
+      "starterDoorBody": "Start from a ready-made set — a home page, a not-found page and a directory — then edit anything you like.",
+      "starterDoorCta": "Start from a starter",
+      "starterDoorPending": "Building your pages…",
+      "starterDoorFailed": "We could not build your pages just now. Nothing was changed."
     },
     "adminCardStudio": {
       "title": "Card Design",
