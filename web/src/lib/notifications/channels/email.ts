@@ -24,6 +24,18 @@ import {
 import { getEmailSubject, interpolate } from "../email-copy";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
+/**
+ * What this channel reports back: the provider message id plus the envelope it
+ * actually sent with, so the dispatcher can record `from` / `replyTo` on the
+ * dispatch row. Structurally identical to the dispatcher's ChannelSendOutcome;
+ * declared here to avoid a circular import between channel and dispatcher.
+ */
+export type EmailSendOutcome = {
+  providerRef: string | null;
+  from: string;
+  replyTo: string | null;
+};
+
 import type {
   AudienceContext,
   CatalogEntry,
@@ -51,7 +63,7 @@ export async function sendEmailNotification(
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-): Promise<string | null> {
+): Promise<EmailSendOutcome | null> {
   const cfg = entry.email;
   if (!cfg || !recipient.email) return null;
 
@@ -172,7 +184,16 @@ export async function sendEmailNotification(
   if (result.status === "failed") {
     throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
   }
-  return result.status === "sent" ? result.id : null;
+  if (result.status !== "sent") return null;
+  // Report the envelope we actually sent with. The dispatcher records it on
+  // the dispatch_log row, so a later "did that email carry a Reply-To?" is a
+  // SQL read rather than a request to open someone's inbox — the exact
+  // question we could not answer on 2026-09-05.
+  return {
+    providerRef: result.id,
+    from: result.from,
+    replyTo: result.replyTo ?? null,
+  };
 }
 
 /** String-only vars for subject interpolation: recipient/brand + flat payload. */
