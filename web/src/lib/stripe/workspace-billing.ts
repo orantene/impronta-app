@@ -527,6 +527,89 @@ export async function syncStripeSubscriptionToDb(
  *
  * Returns the date access runs until, so the caller can tell the customer.
  */
+/**
+ * Undo a pending cancellation, before the period ends.
+ *
+ * The mirror of `cancelWorkspaceSubscriptionAtPeriodEnd`. Cancelling sets
+ * `cancel_at_period_end: true` at Stripe and leaves the plan intact until the
+ * boundary, so until that boundary the subscription is still live and fully
+ * recoverable -- `cancel_at_period_end: false` puts it back with NO new charge,
+ * because nothing was ever refunded or ended.
+ *
+ * This existed for the client Pro path and not for workspaces, which meant a
+ * workspace owner who cancelled had no way back except waiting for the plan to
+ * lapse and buying it again. That is a worse outcome for them AND for us than
+ * one call.
+ *
+ * Deliberately refuses once Stripe reports the subscription `canceled`: past
+ * that point there is nothing to reactivate and the honest answer is a new
+ * checkout, not a silent no-op that looks like success.
+ */
+export async function reactivateWorkspaceSubscription(
+  tenantId: string,
+): Promise<BillingResult<{ hadSubscription: boolean; renewsAt: string | null }>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Database not available." };
+
+  const { data, error } = await admin
+    .from("workspace_subscriptions")
+    .select("stripe_subscription_id, status, current_period_end, cancel_at_period_end")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("workspace-billing.reactivate.load", error);
+    return { ok: false, error: "Could not read the subscription." };
+  }
+
+  const row = data as {
+    stripe_subscription_id?: string | null;
+    status?: string | null;
+    current_period_end?: string | null;
+    cancel_at_period_end?: boolean | null;
+  } | null;
+
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { hadSubscription: false, renewsAt: null } };
+  }
+  // Already ended at Stripe. Reactivation is not possible and pretending
+  // otherwise would leave the owner believing they still have a plan.
+  if (row.status === "canceled" || row.status === "cancelled") {
+    return { ok: false, error: "This plan has already ended. Start it again from the plans page." };
+  }
+  // Not cancelled: nothing to undo. Idempotent rather than an error, so a
+  // double click is harmless.
+  if (!row.cancel_at_period_end) {
+    return { ok: true, data: { hadSubscription: true, renewsAt: row.current_period_end ?? null } };
+  }
+
+  if (!isStripeConfigured()) {
+    return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
+  }
+  const stripe = getStripe();
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
+  }
+
+  try {
+    const updated = await stripe.subscriptions.update(row.stripe_subscription_id, {
+      cancel_at_period_end: false,
+    });
+    const periodEnd = updated.items?.data?.[0]?.current_period_end ?? null;
+    const renewsAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : row.current_period_end ?? null;
+
+    const { error: writeErr } = await admin
+      .from("workspace_subscriptions")
+      .update({ cancel_at_period_end: false, updated_at: new Date().toISOString() })
+      .eq("tenant_id", tenantId);
+    if (writeErr) logServerError("workspace-billing.reactivate.mirror", writeErr);
+
+    return { ok: true, data: { hadSubscription: true, renewsAt } };
+  } catch (err) {
+    logServerError("workspace-billing.reactivate", err);
+    return { ok: false, error: "Stripe could not restore the subscription. Nothing was changed." };
+  }
+}
+
 export async function cancelWorkspaceSubscriptionAtPeriodEnd(
   tenantId: string,
 ): Promise<BillingResult<{ effectiveAt: string | null; hadSubscription: boolean }>> {
