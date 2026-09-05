@@ -1615,6 +1615,52 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  // ── session_picker (guest-facing session booking block) ───────────────────
+  // Phase 1 panel: a title and the offering this block books. The offering
+  // PICKER (a select over the tenant's sessions) is phase 2; for now the
+  // offering id is entered directly. The island (owned by Sessions & Classes)
+  // fetches availability and sells the seat.
+  if (node.kind === "session_picker") {
+    const sp = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="title"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={sp.title ?? ""}
+              ariaLabel="Title"
+              className={KIT.input}
+              placeholder="Sessions"
+              onCommitBase={(next) =>
+                commitTextInput("title", sp.title ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Session">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Offering ID</label>
+            <input
+              type="text"
+              className={KIT.input}
+              value={sp.offeringId ?? ""}
+              placeholder="The session offering this block books"
+              onChange={(event) => {
+                void commitPatch({ offeringId: event.currentTarget.value });
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── reserve_table (guest-facing booking block) ────────────────────────────
   // Phase 1 panel: the fields that change what a guest SEES. The full
   // block-design experience (style tab, CTA design, shortcuts into Settings →
@@ -4870,6 +4916,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "reserve_table":
       return "Reserve · books a real table";
+    case "session_picker":
+      return "Sessions · book a seat";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

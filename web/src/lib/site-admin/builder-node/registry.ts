@@ -1023,6 +1023,12 @@ const reserveTablePropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const sessionPickerPropsSchema = z.object({
+  offeringId: z.string().max(200),
+  title: z.string().max(120).optional(),
+  style: builderNodeStyleSchema,
+});
+
 /**
  * WS7 Phase 0 — NATIVE `talent_type_grid`. Same relationship to the frozen
  * curated `talent_type_grid` schema: the authoring fields survive, the section
@@ -1901,6 +1907,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "A guest picks party size, date and time and books a real table. Availability comes from your venue's service windows; the booking is held as an order the host stand can see.",
       children: { type: "none" },
       propsSchema: reserveTablePropsSchema,
+    },
+    session_picker: {
+      kind: "session_picker",
+      label: "Book a session",
+      description:
+        "A guest picks a seat in an upcoming session or class and books it, held as an order; the seat past capacity is refused.",
+      children: { type: "none" },
+      propsSchema: sessionPickerPropsSchema,
     },
     talent_type_grid: {
       kind: "talent_type_grid",

@@ -507,6 +507,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
       "availability",
     ],
   }),
+  connected({
+    id: "conn-session-picker-native",
+    label: "Book a session",
+    description:
+      "A guest picks an upcoming session or class and books a seat, held as an order; the seat past capacity is refused.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "session_picker",
+    sourceType: "native-freeform",
+    connectedSource: "Sessions",
+    searchTerms: [
+      "session",
+      "class",
+      "book a seat",
+      "booking",
+      "schedule",
+      "sign up",
+      "capacity",
+    ],
+  }),
 
   // ── Connected / Dynamic Data ────────────────────────────────────────────
   connected({
