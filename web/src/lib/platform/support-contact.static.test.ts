@@ -18,6 +18,12 @@ import { SUPPORT_EMAIL_CAN_RECEIVE } from "./support-contact";
 const PAGES = [
   "src/app/(marketing)/support/page.tsx",
   "src/app/(marketing)/help/page.tsx",
+  // Added after /about was found still shipping a live mailto for the dead
+  // mailbox, three weeks of "we reply the same day" alongside it. The first
+  // fix only covered the two pages its author had looked at, and the claim
+  // that nothing said "email us" was made from that scope rather than checked
+  // across the tree.
+  "src/app/(marketing)/about/page.tsx",
 ];
 
 test("no marketing page offers the support mailbox while it cannot receive mail", () => {
