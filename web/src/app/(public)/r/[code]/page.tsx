@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
+import { encodeQr } from "@/lib/links/qr";
+import { toSvg } from "@/lib/links/qr/render";
 
 /**
  * `/r/<code>` — the public receipt. THIS PATH IS PERMANENT.
@@ -106,6 +108,47 @@ function whenLabel(iso: string | null, timeZone: string): string {
   }
 }
 
+/**
+ * The QR for ONE admission, or null.
+ *
+ * THE QR CARRIES THE ADMISSION TOKEN, NOT THE RECEIPT URL. Six seats is one
+ * receipt code and six QRs; a QR encoding the receipt URL would identify a
+ * purchase rather than admit a person, and one scan would let a party of six
+ * through on the first phone. Each code verifies on its own at `check_in`.
+ *
+ * `ecc: "Q"` AT THE CALL SITE, ON PURPOSE. The renderer's default is `M`,
+ * chosen for print, where paper is flat and lit. A door is a dim phone screen
+ * at a shallow angle; `Q` buys that margin and its cost is one symbol version.
+ * Never `H` on this token: `H` stops fitting at ~110 bytes and the token is
+ * 100–105, so one added field would turn a working ticket into a refusal.
+ *
+ * SYMBOL SIZE IS A BUDGET. The signed token is 105 bytes at the version
+ * ceiling, and version 8 at `Q` holds 108 — 3 bytes of headroom. Adding a
+ * field to `signAdmissionToken`'s payload steps the symbol to version 9
+ * silently (still fits, just bigger), and the overflow below only fires past
+ * 130. So the loud log here is the early warning; the quiet signal — a
+ * larger QR — will already have happened.
+ *
+ * PER ADMISSION, NEVER PER PAGE. `encodeQr` throws rather than truncating
+ * (a truncated token scans beautifully and admits nobody). Caught here so a
+ * long token costs one honest gap on one ticket, not a 500 on the receipt
+ * for the buyer — the wrong person at the wrong moment. The typed code
+ * remains the fallback the door can read.
+ */
+function qrFor(token: string, admissionId: string): string | null {
+  try {
+    return toSvg(encodeQr(token, { ecc: "Q" }).matrix);
+  } catch (err) {
+    // A bug about the TOKEN, not the renderer: it grew past a door-scannable
+    // symbol. Fix upstream in `signAdmissionToken`; do not raise `ecc` here.
+    logServerError(
+      `receipt.qr/overflow admission=${admissionId} bytes=${Buffer.byteLength(token, "utf8")}`,
+      err,
+    );
+    return null;
+  }
+}
+
 export default async function ReceiptPage({ params }: Params) {
   const { code } = await params;
   // A code that could not have been minted is refused before any read: the
@@ -171,11 +214,15 @@ export default async function ReceiptPage({ params }: Params) {
   // token, because a DB function that could mint a valid ticket must never
   // exist. `null` means the secret is unset — shown as such, never as a token
   // that will not verify.
-  const admissions = receipt.admissions.map((a) => ({
-    ...a,
-    token: signAdmissionToken(a.id, a.tokenVersion),
-    session: a.sessionId ? (sessionById.get(a.sessionId) ?? null) : null,
-  }));
+  const admissions = receipt.admissions.map((a) => {
+    const token = signAdmissionToken(a.id, a.tokenVersion);
+    return {
+      ...a,
+      token,
+      qrSvg: token ? qrFor(token, a.id) : null,
+      session: a.sessionId ? (sessionById.get(a.sessionId) ?? null) : null,
+    };
+  });
 
   const isRefunded = receipt.order.status === "refunded";
 
@@ -252,13 +299,29 @@ export default async function ReceiptPage({ params }: Params) {
                   {a.status === "valid" ? (
                     a.token ? (
                       <div className="mt-3">
-                        {/* The QR image lands when the renderer does; it will encode
-                            exactly this string. Until then the door reads it. */}
-                        <code className="block break-all rounded-md bg-black/[0.04] px-3 py-2 font-mono text-[12px] leading-relaxed">
+                        {a.qrSvg ? (
+                          // The SVG is produced by our own encoder from our own
+                          // signed token — no user-authored markup reaches it.
+                          // Its viewBox INCLUDES the four-module quiet zone; do
+                          // not crop or pad it away with CSS — a code flush
+                          // against a dark panel is the commonest door failure.
+                          <div
+                            className="mx-auto w-[240px] max-w-full rounded-md bg-white p-2"
+                            aria-label="Ticket QR code"
+                            role="img"
+                            dangerouslySetInnerHTML={{ __html: a.qrSvg }}
+                          />
+                        ) : null}
+                        {/* The typed code is always shown: it is what the door
+                            reads when a camera cannot, and the only thing shown
+                            when the code could not be drawn. */}
+                        <code className="mt-2 block break-all rounded-md bg-black/[0.04] px-3 py-2 font-mono text-[12px] leading-relaxed">
                           {a.token}
                         </code>
                         <p className="mt-1 text-[11px] text-black/40">
-                          Show this code. A scannable version is on its way.
+                          {a.qrSvg
+                            ? "Scan at the door, or show this code."
+                            : "Show this code at the door. It can be typed in."}
                         </p>
                       </div>
                     ) : (
