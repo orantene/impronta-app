@@ -62,6 +62,22 @@ import { notifySessionReminder } from "@/lib/notifications/producers/session-rem
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * "no_zone x3, no_copy x1" — refusal reasons counted, for the log line.
+ *
+ * Flat string on purpose: `improntaLog` accepts scalars only, and a log field
+ * that has to be re-parsed to be read is not a log field.
+ */
+function summariseRefusals(refusals: ReadonlyArray<{ reason: string }>): string {
+  if (refusals.length === 0) return "none";
+  const counts = new Map<string, number>();
+  for (const r of refusals) counts.set(r.reason, (counts.get(r.reason) ?? 0) + 1);
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, n]) => `${reason} x${n}`)
+    .join(", ");
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -214,7 +230,12 @@ export async function GET(request: Request) {
       notTomorrow,
       noCopy,
       refused: refusals.length,
-      refusals: refusals.slice(0, 20),
+      // improntaLog takes FLAT SCALARS (ImprontaLogFields). An array of
+      // {sessionId, reason} typechecks nowhere and reads as nothing useful in a
+      // log line anyway. A count per reason is what someone grepping this at
+      // 07:00 actually wants: "which way did the sweep refuse, and how often".
+      // The session ids are already in the JSON response for whoever needs them.
+      refusalReasons: summariseRefusals(refusals),
     });
 
     return NextResponse.json({

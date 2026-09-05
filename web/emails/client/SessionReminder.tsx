@@ -38,7 +38,18 @@ export default function SessionReminder({
   categoryLabel,
 }: Props) {
   return (
-    <Layout brand={brand} unsubscribeUrl={unsubscribeUrl} categoryLabel={categoryLabel}>
+    // The inbox preview line is REQUIRED by Layout and is derived here rather
+    // than asked of the caller, so no future sender can forget it and ship a
+    // reminder whose preview is whatever text the client scrapes first.
+    // lines[0] is the "at <time> (<zone>)" line, which complements the subject
+    // (that names the class) instead of repeating it. Already localised by
+    // buildSessionReminder, so this adds no untranslated string.
+    <Layout
+      preview={lines[0] ?? heading}
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={{ fontSize: 20, margin: "0 0 12px" }}>{heading}</Heading>
       {lines.map((line, i) => (
         <Text key={i} style={{ fontSize: 15, lineHeight: "22px", margin: "0 0 8px" }}>
