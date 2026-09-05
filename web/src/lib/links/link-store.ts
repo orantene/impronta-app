@@ -86,6 +86,55 @@ export async function findActiveLinkByCode(
   return (data as LinkRow | null) ?? null;
 }
 
+/** One row as a picker needs it: enough to choose, nothing more. */
+export type LinkSummary = {
+  id: string;
+  code: string;
+  name: string;
+  kind: LinkKind;
+  status: "active" | "paused";
+};
+
+/**
+ * A tenant's links, for a picker — the `qr_code` block's inspector binding a
+ * design to a link, and the QR and links page.
+ *
+ * Returns PAUSED links as well as active ones, with `status` on every row.
+ * `findActiveLinkByCode` deliberately hides paused links because a guest
+ * scanning one must get an honest refusal; an operator choosing which link to
+ * print must see them, or a paused code is invisible in the picker and they
+ * design a tent around a link that currently resolves to nothing. Two callers,
+ * two truths, and conflating them is how a code gets printed dead.
+ *
+ * Ordered by name so the picker is stable between renders. Capped, because an
+ * inspector dropdown is not a place to stream a thousand rows; a workspace
+ * that outgrows this needs search, not a longer list.
+ */
+export async function listLinksForTenant(
+  tenantId: string,
+  options: { limit?: number } = {},
+): Promise<LinkSummary[]> {
+  if (!tenantId) return [];
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  const { data, error } = await admin
+    .from("links")
+    .select("id, code, name, kind, status")
+    .eq("tenant_id", tenantId)
+    .order("name", { ascending: true })
+    .limit(options.limit ?? 200);
+
+  // A failed read is not "this tenant has no links". Returning [] on an error
+  // would render an empty picker that looks like an empty workspace, and the
+  // operator would create a duplicate link rather than find the one they have.
+  if (error) {
+    logServerError("links/listLinksForTenant", error);
+    throw new Error("Could not load this workspace's links.");
+  }
+  return (data ?? []) as LinkSummary[];
+}
+
 export type ScanRecord = {
   linkId: string;
   tenantId: string;
