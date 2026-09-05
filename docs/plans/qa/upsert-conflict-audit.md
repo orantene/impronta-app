@@ -25,12 +25,12 @@ and both tables were empty.
 | | |
 |---|---|
 | `.upsert(` calls in `web/src` (excl. tests) | **121** |
-| …naming an `onConflict` target | **111** (the other 10 conflict on the primary key — always inferable, never flagged) |
+| …naming an `onConflict` target | **113** (the rest conflict on the primary key — always inferable, never flagged) |
 | unique indexes/constraints parsed at HEAD | **470** |
-| **ok** | **96** |
+| **ok** | **106** |
 | **partial** — 42P10 at planning | **2** |
 | **missing** — 42P10 at planning | **1** |
-| **unknown** — not statically decidable | **14** |
+| **unknown** — not statically decidable | **4** |
 
 ## Breaking findings, routed to owners
 
@@ -113,19 +113,41 @@ Fixed and self-tested.
    every `ALTER TABLE` replayed, and a half-reliable check would emit advisories nobody can act on,
    which is worse than a stated gap.
 
-## The `unknown`s — reported, never failed on
+## The four remaining `unknown`s — and why there were fourteen
 
-Ten are *"could not resolve the table from a preceding `.from()`"*: the table is a variable or the
-chain is built dynamically, so a static scan cannot say which table it is. **These are not clean
-bills of health** — they are calls the audit could not read, and any of them could be a fourth
-defect. Worth a human eye, cheapest at the file:line given by `--json`.
+**Ten of the fourteen were not undecidable at all.** They name the table as an argument to a
+wrapper helper rather than through `.from()`:
 
-Two are `agency_taxonomy_settings` (`admin-taxonomy.ts:502`, `:630`): **no migration in this repo
-creates that table.** Its DDL predates the migration history. The database has a perfectly good
-total `(tenant_id, taxonomy_term_id)` constraint, so these two are **fine** — the audit simply
-cannot prove it from the repo. That distinction is deliberate: the first version of this audit
-called them `missing`, and a guard that makes confident false accusations gets switched off by the
-third person who has to disprove one.
+```ts
+supportFrom(admin, "support_message_reads").upsert(…)
+tenantScopedQuery(supabase, "agency_branding", tenantId).upsert(…)
+```
+
+The extractor only understood `.from("x")`. Routing those to eight owners as *"check this by hand
+against the database"* would have spent the one thing an `unknown` is for — a human's attention on a
+call nobody can read — on eight calls a scanner can resolve in a line of regex. **All ten now
+resolve, and all of them are `ok`.** An unrecognised wrapper still falls back to `unknown`, never
+to silence, and there is a test for that.
+
+**The four that genuinely remain, all baselined so a new one cannot join them silently:**
+
+| file:line | table | why | owner |
+|---|---|---|---|
+| `src/lib/inquiry/recipient-safety.ts:364` | `user_blocks` | target chosen at runtime | **Support** (fixing) |
+| `src/lib/notifications/resend-webhook.ts:244` | `email_suppressions` | target chosen at runtime; one candidate index is **partial** *and* an expression index | **Support / Notifications** |
+| `src/lib/server-actions/admin-taxonomy.ts:502` | `agency_taxonomy_settings` | no migration creates this table | **Directory & Profile** (database says it is fine) |
+| `src/lib/server-actions/admin-taxonomy.ts:630` | `agency_taxonomy_settings` | same | **Directory & Profile** (database says it is fine) |
+
+**`recipient-safety.ts:364` is the one to understand before trusting this guard.** Sessions proved
+42P10 through the real client, so it is a **confirmed defect that this audit reports as `unknown`,
+not as broken** — its target is a ternary and no static scan can read it. In the first version of
+#1820 it was worse: the extractor matched only string literals, so the call fell through to *"no
+`onConflict`"* and was classified **`ok`**. A proven defect, reported green.
+
+That is why **`unknown` now enters the baseline alongside `partial` and `missing`.** It does not
+claim a new call is wrong; it claims **nobody has checked it**, and it makes the guard go red until
+someone does. The single unreadable target anyone has actually probed turned out to be broken, so
+treating unreadable as safe is not a defensible default.
 
 ## The CI guard
 

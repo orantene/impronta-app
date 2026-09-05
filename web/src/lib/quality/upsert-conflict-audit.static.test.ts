@@ -30,7 +30,7 @@ import {
   diffAgainstBaseline,
   explainDrift,
   extractUpserts,
-  isBreaking,
+  toBaseline,
 } from "./upsert-conflict-audit";
 
 const BASELINE_PATH = join(WEB_ROOT, "src/lib/quality/upsert-conflict-audit.baseline.json");
@@ -129,8 +129,8 @@ test("a table separated by a statement boundary is not borrowed at all", () => {
   assert.equal(extractUpserts(src, "f.ts")[0].table, null);
 });
 
-test("every baselined key still corresponds to a real breaking finding", () => {
-  const live = new Set(audit().filter(isBreaking).map((f) => `${f.file}:${f.line}`));
+test("every baselined key still corresponds to a real finding", () => {
+  const live = new Set(audit().filter((f) => f.verdict !== "ok").map((f) => `${f.file}:${f.line}`));
   const stale = Object.keys(baseline).filter((k) => !live.has(k));
   assert.deepEqual(stale, [], `\nBaseline names ${stale.length} finding(s) that are gone:\n  ${stale.join("\n  ")}\n`);
 });
@@ -148,6 +148,19 @@ test("BITES: an onConflict that is not a string literal is UNKNOWN, never skippe
   assert.match(f!.detail, /computed at runtime/);
 });
 
+test("an UNREADABLE site is ratcheted like a broken one", () => {
+  // `recipient-safety.ts:364` is a PROVEN 42P10 and lands as `unknown` because its
+  // target is computed at runtime. If unknowns stayed out of the baseline, a new
+  // unreadable target could be added and the guard would stay green — and the one
+  // unreadable target anybody has actually checked turned out to be broken.
+  const b = toBaseline([
+    { file: "a.ts", line: 1, table: "t", columns: [], verdict: "unknown", detail: "" },
+    { file: "b.ts", line: 2, table: "t", columns: ["a"], verdict: "ok", detail: "" },
+  ]);
+  assert.deepEqual(b, { "a.ts:1": "unknown" });
+  assert.equal(diffAgainstBaseline([{ file: "c.ts", line: 3, table: "t", columns: [], verdict: "unknown", detail: "" }], b).length, 2);
+});
+
 test("BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index", () => {
   // Postgres allows NULLS [NOT] DISTINCT / INCLUDE / WITH / TABLESPACE there.
   // Testing for `where` immediately after the paren reads a PARTIAL index as
@@ -160,4 +173,25 @@ test("BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a pa
   );
   const idx = collectSchema(dir).indexes.find((i) => i.name === "t_a_b_uniq");
   assert.equal(idx?.partial, true, "a WHERE after NULLS NOT DISTINCT must still read as PARTIAL");
+});
+
+test("BITES: a table named through a wrapper helper resolves, it is not `unknown`", () => {
+  // Ten of the twelve "could not resolve the table" sites named the table as a
+  // helper argument rather than via `.from()`. Reporting those as unreadable
+  // would have sent eight owners to hand-check calls a scanner can resolve,
+  // which spends the one thing an `unknown` is for.
+  for (const src of [
+    `await supportFrom(admin, "support_message_reads").upsert(r, { onConflict: "a,b" });`,
+    `await tenantScopedQuery(supabase, "agency_branding", tenantId).upsert(r, { onConflict: "a,b" });`,
+  ]) {
+    const call = extractUpserts(src, "f.ts")[0];
+    assert.ok(call.table, `wrapper table not resolved in: ${src}`);
+  }
+});
+
+test("an UNRECOGNISED wrapper still falls back to unknown, never to silence", () => {
+  const src = `await someNewHelper(admin, "t").upsert(r, { onConflict: "a,b" });`;
+  const call = extractUpserts(src, "f.ts")[0];
+  assert.equal(call.table, null);
+  assert.equal(classify(call, IDX(), TABLES)?.verdict, "unknown");
 });

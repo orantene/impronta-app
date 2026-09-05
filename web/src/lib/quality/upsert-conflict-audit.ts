@@ -369,6 +369,27 @@ export function extractUpserts(raw: string, file: string): UpsertCall[] {
       break;
     }
 
+    // WRAPPER HELPERS. Ten of the twelve "could not resolve the table" sites were
+    // not undecidable at all — they name the table as an argument to a helper
+    // instead of `.from()`:
+    //
+    //   supportFrom(admin, "support_message_reads").upsert(…)
+    //   tenantScopedQuery(supabase, "agency_branding", tenantId).upsert(…)
+    //
+    // Reporting those as unreadable would have sent eight owners to check calls a
+    // scanner could resolve, which spends the one thing an `unknown` is for. Add a
+    // wrapper here when a new one appears; the fallback is still `unknown`, never
+    // silence.
+    if (!table) {
+      const WRAPPERS = /\b(?:supportFrom|tenantScopedQuery)\s*\(\s*[\w.]+\s*,\s*["'`]([a-z0-9_]+)["'`]/g;
+      for (const wm of [...before.matchAll(WRAPPERS)].reverse()) {
+        const between = before.slice(wm.index! + wm[0].length);
+        if (between.length > 400 || /[;}]/.test(between)) break;
+        table = normTable(wm[1]);
+        break;
+      }
+    }
+
     const oc = /onConflict\s*:\s*["'`]([^"'`]+)["'`]/.exec(args);
     // An `onConflict` whose value is NOT a string literal — `onConflict:
     // conflictTarget`, chosen at runtime. The first version of this scanner
@@ -487,15 +508,29 @@ export function audit(root?: string, migrations?: string): Finding[] {
     .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
-/** Findings that break at runtime. The CI guard fails on these. */
+/** Findings that are PROVEN to break at runtime. Used for the report, not the ratchet. */
 export const isBreaking = (f: Finding): boolean => f.verdict === "partial" || f.verdict === "missing";
 
 export type Baseline = Record<string, string>;
 
-/** `file:line` → verdict, for the ones already known. */
+/**
+ * `file:line` → verdict for every finding that is not `ok` — INCLUDING `unknown`.
+ *
+ * An `unknown` is a call this audit COULD NOT READ, and the CEO's question is the
+ * right one: `recipient-safety.ts:364` is a PROVEN 42P10 (Sessions reproduced it
+ * through the real client) and it lands here as `unknown`, because its conflict
+ * target is chosen at runtime. If `unknown` did not enter the baseline, the guard
+ * would stay green while a new unreadable target was added — and the one
+ * unreadable target we have actually checked turned out to be broken.
+ *
+ * So an unreadable site is ratcheted like a broken one. It does not claim the new
+ * call is wrong; it claims NOBODY HAS CHECKED IT, and forces a human to look
+ * before the baseline moves. That is the only honest thing a static scan can say
+ * about a string it cannot see.
+ */
 export function toBaseline(findings: readonly Finding[]): Baseline {
   const b: Baseline = {};
-  for (const f of findings.filter(isBreaking)) b[`${f.file}:${f.line}`] = f.verdict;
+  for (const f of findings.filter((x) => x.verdict !== "ok")) b[`${f.file}:${f.line}`] = f.verdict;
   return b;
 }
 
@@ -518,6 +553,8 @@ export function explainDrift(drift: readonly Drift[]): string {
     .map((d) =>
       d.actual
         ? `  ${d.key}\n      NEW ${d.actual.toUpperCase()} onConflict target.\n      ${d.detail}\n` +
+          `      An UNKNOWN is not an accusation — it is "nobody has checked this".\n` +
+          `      Probe it against the database, then record it here.\n` +
           `      Fix: name a TOTAL unique index, or make the index total, or drop the\n` +
           `           onConflict and let it conflict on the primary key.`
         : `  ${d.key}\n      FIXED (was ${d.expected}) — remove it from the baseline in this same\n` +
