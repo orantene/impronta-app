@@ -39,6 +39,15 @@ export function whenLabel(iso: string | null, timeZone: string, locale: Locale, 
   }
 }
 
+/** Time only, one formatter for both locales: "8:00 PM" / "20:00". */
+export function timeLabel(iso: string, timeZone: string, locale: Locale): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  try {
+    return d.toLocaleTimeString(locale === "es" ? "es" : "en", { timeZone, hour: "numeric", minute: "2-digit", hour12: locale !== "es" });
+  } catch { return ""; }
+}
+
 export type EventPageModel = {
   tenantId: string;
   eventId: string;
@@ -69,16 +78,17 @@ export function EventPageView(m: EventPageModel) {
         style={m.coverUrl ? { backgroundImage: `url(${m.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       >
         {m.coverUrl ? <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" /> : null}
-        <div className={`relative p-6 sm:p-10 ${m.coverUrl ? "text-white" : ""}`}>
+        <div className="relative p-6 sm:p-10" style={{ color: m.coverUrl ? "#fff" : "var(--token-color-ink)" }}>
           <div className="text-xs uppercase tracking-wide opacity-80">{eyebrow}</div>
           <h1 className="mt-2 text-[clamp(2rem,4vw,4.5rem)] font-semibold leading-[1.05] tracking-tight">{m.title}</h1>
           {subLine ? <p className="mt-2 text-base opacity-90 sm:text-lg">{subLine}</p> : null}
           {m.doorsAtIso ? (
-            <p className="mt-1 text-sm opacity-80">{t("doors")} {whenLabel(m.doorsAtIso, m.zone, m.locale).split(", ").pop()}</p>
+            <p className="mt-1 text-sm opacity-80">{t("doors")} {timeLabel(m.doorsAtIso, m.zone, m.locale)}</p>
           ) : null}
           <a
             href="#tickets"
-            className="mt-5 inline-block rounded-full bg-black px-5 py-3 text-sm font-semibold text-white max-sm:fixed max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:z-20 max-sm:text-center"
+            className="mt-5 inline-block rounded-full px-5 py-3 text-sm font-semibold max-sm:fixed max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:z-20 max-sm:text-center"
+            style={{ background: "var(--token-color-primary)", color: "var(--token-color-primary-on, #fff)" }}
           >
             {t("cta")}
           </a>
@@ -88,10 +98,10 @@ export function EventPageView(m: EventPageModel) {
       {/* LINEUP — only above one act; an empty grid never renders */}
       {m.acts.length > 1 ? (
         <section className="mt-10">
-          <h2 className="text-[clamp(1.35rem,2vw,2.25rem)] font-semibold">{t("lineup")}</h2>
+          <h2 className="text-[clamp(1.35rem,2vw,2.25rem)] font-semibold" style={{ color: "var(--token-color-ink)" }}>{t("lineup")}</h2>
           <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {m.acts.map((a) => (
-              <li key={a} className="rounded-xl border border-black/10 p-4 text-sm font-medium">{a}</li>
+              <li key={a} className="rounded-xl border p-4 text-sm font-medium" style={{ borderColor: "var(--token-color-line)", color: "var(--token-color-ink)" }}>{a}</li>
             ))}
           </ul>
         </section>
@@ -100,9 +110,9 @@ export function EventPageView(m: EventPageModel) {
       {/* NOTE — one optional paragraph, no stats */}
       {m.description ? (
         <section className="mt-10">
-          <p className="text-base leading-relaxed text-black/70">{m.description}</p>
+          <p className="text-base leading-relaxed" style={{ color: "var(--token-color-ink)", opacity: 0.7 }}>{m.description}</p>
           {m.ageGate || m.refundCutoffHours ? (
-            <p className="mt-2 text-xs text-black/50">
+            <p className="mt-2 text-xs" style={{ color: "var(--token-color-ink)", opacity: 0.5 }}>
               {m.ageGate ? t("ageGate").replace("{n}", String(m.ageGate)) : null}
               {m.ageGate && m.refundCutoffHours ? " · " : null}
               {m.refundCutoffHours ? t("refunds").replace("{h}", String(m.refundCutoffHours)) : null}
@@ -113,9 +123,9 @@ export function EventPageView(m: EventPageModel) {
 
       {/* TICKETS — the picker where the festival's pass cards were */}
       <section id="tickets" className="mt-10 scroll-mt-24">
-        <div className="text-xs uppercase tracking-wide text-black/50">{t("tickets")}</div>
-        <h2 className="mt-1 text-[clamp(1.35rem,2vw,2.25rem)] font-semibold tracking-tight">{t("pickTicket")}</h2>
-        <div className="mt-4 rounded-2xl border border-black/10">
+        <div className="text-xs uppercase tracking-wide" style={{ color: "var(--token-color-ink)", opacity: 0.5 }}>{t("tickets")}</div>
+        <h2 className="mt-1 text-[clamp(1.35rem,2vw,2.25rem)] font-semibold tracking-tight" style={{ color: "var(--token-color-ink)" }}>{t("pickTicket")}</h2>
+        <div className="mt-4 rounded-2xl border" style={{ borderColor: "var(--token-color-line)" }}>
           <TicketPickerIsland tenantId={m.tenantId} eventId={m.eventId} locale={m.locale} preload={m.islandPreload} />
         </div>
       </section>
