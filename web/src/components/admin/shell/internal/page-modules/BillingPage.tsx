@@ -285,7 +285,7 @@ export function AutoAckSettingsRow() {
         <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{t("dashboard.adminWorkspace.autoAckSaving")}</div>
       )}
       {savedOk && !saving && (
-        <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>{t("dashboard.adminWorkspace.autoAckSaved")}</div>
+        <div style={{ fontSize: 11, color: "var(--color-admin-green)", marginTop: 4 }}>{t("dashboard.adminWorkspace.autoAckSaved")}</div>
       )}
       {error && (
         <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{error}</div>
