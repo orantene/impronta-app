@@ -41,7 +41,18 @@ import { isKnownPlan, type PlanKey } from "./plan-catalog";
 
 export type AuthorizeResult =
   | { ok: true }
-  | { ok: false; reason: AuthorizeDenialReason; detail?: string };
+  | {
+      ok: false;
+      reason: AuthorizeDenialReason;
+      detail?: string;
+      /**
+       * Set only on `plan_lacks_capability`: the cheapest plan above the
+       * caller's that grants it, or null when none does (sales-led or
+       * genuinely unavailable). Callers render the upgrade CTA from this
+       * rather than composing their own "upgrade to X" string.
+       */
+      upgrade?: import("./paywall").PaywallUpgrade | null;
+    };
 
 export type AuthorizeDenialReason =
   | "unknown_capability"
@@ -167,7 +178,36 @@ export async function authorize(
     const { loadPlanEntitlements } = await import("./plan-entitlements-store");
     const entitlements = await loadPlanEntitlements();
     if (!planGrantsCapability(plan as PlanKey, capability, entitlements)) {
-      return { ok: false, reason: "plan_lacks_capability" };
+      // Resolve the offer from the SAME matrix that produced the denial, so the
+      // two can never disagree, and record the hit. Both are dynamic imports
+      // for the same reason the store is: this module is re-exported by the
+      // `@/lib/access` barrel, which pure test lanes import.
+      const { resolveUpgradeForCapability } = await import("./paywall");
+      const upgrade = resolveUpgradeForCapability(
+        plan as PlanKey,
+        capability as CapabilityKey,
+        entitlements,
+      );
+
+      // A paywall hit is the only signal that tells us whether a gate converts
+      // or just annoys. Fire-and-forget: analytics must never fail an auth
+      // check, and the logger swallows its own errors.
+      const { recordPaywallHit } = await import("./paywall-events");
+      void recordPaywallHit({
+        capability,
+        tenantId,
+        currentPlan: plan,
+        offeredPlan: upgrade?.planKey ?? null,
+      });
+
+      return {
+        ok: false,
+        reason: "plan_lacks_capability",
+        detail: upgrade
+          ? `granted by ${upgrade.planKey}`
+          : "no self-serve plan grants this",
+        upgrade,
+      };
     }
   }
   // Unknown plan keys fail open — fixed when Track B.4 wires the resolver
@@ -196,6 +236,13 @@ export class AccessDeniedError extends Error {
     public readonly tenantId: string,
     public readonly reason: AuthorizeDenialReason,
     public readonly detail?: string,
+    /**
+     * Set on plan denials: the plan that would grant this. Callers rendering an
+     * error boundary use it to show an upgrade path instead of a bare 403.
+     * Null or undefined means there is nothing to offer, and the surface should
+     * say so rather than inventing a CTA.
+     */
+    public readonly upgrade?: import("./paywall").PaywallUpgrade | null,
   ) {
     super(
       `forbidden: capability=${capability} tenant=${tenantId} reason=${reason}${detail ? ` detail=${detail}` : ""}`,
@@ -215,6 +262,7 @@ export async function requireCapability(
       tenantId,
       result.reason,
       result.detail,
+      result.upgrade ?? null,
     );
   }
 }
