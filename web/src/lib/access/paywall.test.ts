@@ -95,3 +95,47 @@ test("the message never contains a price", () => {
   assert.doesNotMatch(msg, /\$|\d+\s*(usd|mxn)/i);
   assert.match(msg, /Agency/);
 });
+
+test("the message is localised, and defaults to English", () => {
+  const m = matrix([["free", CAP, false], ["studio", CAP, false]]);
+  const upgrade = resolveUpgradeForCapability("free", CAP, m);
+
+  assert.match(paywallMessage("Pitches", upgrade, "es"), /es parte de Agency/);
+  assert.match(paywallMessage("Pitches", upgrade, "es"), /Mejora tu plan/);
+  assert.match(paywallMessage("Pitches", upgrade, "en"), /is part of Agency/);
+  // An unknown or absent locale must not produce an empty or half-built string.
+  assert.match(paywallMessage("Pitches", upgrade), /is part of Agency/);
+  assert.match(paywallMessage("Pitches", upgrade, "fr"), /is part of Agency/);
+});
+
+test("a sales-led plan says talk to us in both locales, never upgrade", () => {
+  // "Mejora tu plan" on a plan with no checkout would send someone to a
+  // purchase that does not exist.
+  const m = matrix([
+    ["free", CAP, false], ["website", CAP, false],
+    ["studio", CAP, false], ["agency", CAP, false],
+  ]);
+  const upgrade = resolveUpgradeForCapability("free", CAP, m);
+  assert.equal(upgrade?.isSelfServe, false);
+  assert.match(paywallMessage("Red", upgrade, "es"), /Hablemos/);
+  assert.doesNotMatch(paywallMessage("Red", upgrade, "es"), /Mejora tu plan/);
+  assert.match(paywallMessage("Cross-agency view", upgrade, "en"), /Talk to us/i);
+});
+
+test("no locale leaks a price into the message", () => {
+  const m = matrix([["free", CAP, false], ["studio", CAP, false]]);
+  const upgrade = resolveUpgradeForCapability("free", CAP, m);
+  for (const loc of ["en", "es"]) {
+    assert.doesNotMatch(paywallMessage("Pitches", upgrade, loc), /\$|\d+\s*(usd|mxn)/i);
+  }
+});
+
+test("KNOWN LIMIT: the feature name stays English in a Spanish message", () => {
+  // Not an oversight and not acceptable long-term. The capability registry has
+  // English displayName only, so a Spanish sentence carries an English noun.
+  // Pinned so that adding Spanish registry names later is a deliberate change
+  // that breaks this test, rather than something nobody remembers is owed.
+  const m = matrix([["free", CAP, false], ["studio", CAP, false]]);
+  const msg = paywallMessage("Pitches", resolveUpgradeForCapability("free", CAP, m), "es");
+  assert.match(msg, /^Pitches es parte de/);
+});
