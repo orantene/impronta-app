@@ -48,10 +48,20 @@ test("a missing brief does not take the signup down", () => {
   // Most signups have no brief at all — the short form creates none. Provisioning
   // must treat that as ordinary, not as an error, or adding this reader would
   // break every signup that does not use the conversational intake.
+  // Asserted as the RULE, not as adjacency. The first version of this pinned
+  // the load and the guard being on consecutive lines, and reddened the moment
+  // the load moved earlier so its industry could reach the settings — which was
+  // a correct change. A test that fails on layout is one people edit rather
+  // than believe.
   assert.match(
     signup,
-    /const brief = await loadBriefForSignupLead\([\s\S]{0,40}\n\s*if \(brief\) \{/,
-    "the brief must be optional: no brief is the common case, not a failure",
+    /brief\?\.facts/,
+    "the brief must be read optionally: no brief is the common case",
+  );
+  assert.match(
+    signup,
+    /if \(brief\) \{[\s\S]{0,200}linkBriefObjects\(/,
+    "the link must be guarded, or a signup with no brief throws at the last step",
   );
 });
 
