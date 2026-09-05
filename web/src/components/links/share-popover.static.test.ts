@@ -64,7 +64,10 @@ test("the unbuilt print designer is disabled, not merely styled to look disabled
   // QR and a PDF and only fired a toast. Shipping another lit-but-dead button
   // here would be the same broken promise in a new place.
   // The attribute on a real element, not the word anywhere in the file.
-  assert.match(component, /<button[^>]*\bdisabled\b/s, "the Design it templates must carry the disabled attribute");
+  // No `s` flag: this project targets ES2017 and dotAll needs ES2018 (TS1501).
+  // It was never needed anyway — `[^>]*` is a negated class and already spans
+  // newlines; `s` only changes what `.` matches, and there is no `.` here.
+  assert.match(component, /<button[^>]*\bdisabled\b/, "the Design it templates must carry the disabled attribute");
   assert.match(component, /copy\.t\("Coming soon\./, "and must say why, as a rendered string");
 });
 
