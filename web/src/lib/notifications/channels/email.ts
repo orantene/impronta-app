@@ -5,6 +5,7 @@ import { Text } from "@react-email/components";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { renderEmailHtml } from "@/lib/email/render";
 import { sendEmailResult } from "@/lib/email";
+import { resolveTenantReplyTo } from "@/lib/email/resend-client";
 import { Layout } from "../../../../emails/components/Layout";
 import {
   buildUnsubscribeApiUrl,
@@ -138,11 +139,21 @@ export async function sendEmailNotification(
 
   const html = await renderEmailHtml(element);
 
+  // Reply-To = the tenant's public contact address, so a customer who hits
+  // Reply reaches a mailbox that RECEIVES. Without it the reply goes to the
+  // From address (noreply@tulala.digital for any tenant without a verified
+  // white-label domain), and tulala.digital has no MX record — so the reply
+  // bounces and nobody learns it happened. Undefined for a tenant with no
+  // contact email, which leaves the header unset rather than inventing one.
+  // Platform sends (no tenant) never carry a tenant's address.
+  const replyTo = await resolveTenantReplyTo(platformSend ? null : event.tenantId);
+
   const result = await sendEmailResult({
     to: recipient.email,
     subject,
     html,
     headers,
+    replyTo,
     // Tenant-scoped notification: a tenant with white_label_email + a VERIFIED
     // sending domain sends from its own branded address (resolveTenantEmailFrom),
     // otherwise the platform default. platformFrom payloads always send platform.
