@@ -10,13 +10,15 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { loadOfferingSeats } from "@/lib/sessions/offering-seats";
+import { describeSeatsLeft, seatsLeft } from "@/lib/sessions/seats-left";
 
 export async function loadPublicBookableOfferings(args: {
   tenantId?: string | null;
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
-}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode }>> {
+}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null }>> {
   if (!args.tenantId && !args.talentProfileId) return [];
   try {
     const admin = createServiceRoleClient();
@@ -44,7 +46,7 @@ export async function loadPublicBookableOfferings(args: {
       kind: args.tenantId ? "agency" : "talent_site",
       tenantId: args.tenantId ?? null,
     };
-    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode }> = [];
+    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null }> = [];
     for (const offering of offerings) {
       if (!isSlotEligibleOffering(offering)) continue;
 
@@ -60,7 +62,7 @@ export async function loadPublicBookableOfferings(args: {
       // person-shaped and untouched.
       if (!offering.talentProfileId) {
         const houseMode = houseBookingModeFor(offering, host);
-        if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode });
+        if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });
         continue;
       }
 
@@ -69,8 +71,27 @@ export async function loadPublicBookableOfferings(args: {
         offeringId: offering.id,
         host,
       });
-      if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode });
+      if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
     }
+    // Seats last, on the kept list only: a cohort count for an offering nobody
+    // can book is a query for nothing. Absent pool means absent entry means no
+    // badge, which is why this cannot turn an unlimited service into "Sold out".
+    if (args.tenantId && kept.length > 0) {
+      const seats = await loadOfferingSeats(
+        admin,
+        args.tenantId,
+        kept.map((o) => o.id),
+      );
+      for (const offering of kept) {
+        const found = seats.get(offering.id);
+        if (!found) continue;
+        offering.seatsLabel = describeSeatsLeft(
+          seatsLeft(found.remaining, found.total),
+          args.locale ?? "en",
+        );
+      }
+    }
+
     return kept;
   } catch (err) {
     logServerError("public.book.offerings", err);
