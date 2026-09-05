@@ -17,12 +17,22 @@ import {
  * attendee and most do. "What you pay" would be wrong for them, on the one
  * page whose whole job is being checkable.
  */
-export function TicketFeeTable({ locale }: { locale: string }) {
+export function TicketFeeTable({
+  locale,
+  tulalaRate,
+}: {
+  locale: string;
+  /** Live platform take as a fraction, from platform_commission_config. */
+  tulalaRate?: number;
+}) {
   const es = locale === "es";
-  const rows = ticketFeeRows();
+  const rows = ticketFeeRows(tulalaRate);
 
   const t = es
     ? {
+        notYet:
+          "La venta de boletos todavía no está disponible. Esta tabla dice lo que costará un boleto cuando se lance.",
+        notYetLink: "Ver el estado en Funciones",
         eyebrow: "Lo que carga un boleto",
         title: "Una cuota fija castiga más a los boletos baratos",
         lede: "Eventbrite cobra un porcentaje más $1.79 fijos por boleto. Una cuota fija es un porcentaje que se encoge mientras el boleto sube de precio, así que pesa poco en un boleto caro y muchísimo en uno barato. La nuestra es un porcentaje plano, igual a cualquier precio.",
@@ -36,6 +46,9 @@ export function TicketFeeTable({ locale }: { locale: string }) {
         note: "Los precios cambian. Si algo aquí ya no es correcto, dinos y lo corregimos.",
       }
     : {
+        notYet:
+          "Ticketing is not available yet. This table states what a ticket will cost when it ships.",
+        notYetLink: "See its status on Features",
         eyebrow: "What a ticket carries",
         title: "A flat fee punishes cheap tickets hardest",
         lede: "Eventbrite charges a percentage plus a flat $1.79 per ticket. A flat fee is a percentage that shrinks as the ticket gets dearer, so it barely registers on an expensive ticket and takes a quarter of a cheap one. Ours is a flat percentage, the same share at any price.",
@@ -49,8 +62,32 @@ export function TicketFeeTable({ locale }: { locale: string }) {
         note: "Prices change. If anything here is out of date, tell us and we will fix it.",
       };
 
+  const featuresHref = es ? "/es/funciones/ticketing" : "/features/ticketing";
+
   return (
     <div className="mx-auto max-w-3xl">
+      {/* The qualifier is ABOVE the table and inside the same block, so the
+          numbers cannot be read without it. Ticketing has no purchase path at
+          all — /events and /events/<slug> are live but the detail page is an
+          honest price list by design — while this table compares our fee to a
+          competitor's. Without this line the two read as a live offer, two
+          clicks from a feature hub that correctly says "coming". */}
+      <p
+        className="plt-body"
+        style={{
+          color: "var(--plt-muted)",
+          border: "1px solid var(--plt-border)",
+          borderRadius: 8,
+          padding: "10px 14px",
+          marginBottom: 20,
+          fontSize: 14,
+        }}
+      >
+        {t.notYet}{" "}
+        <a href={featuresHref} style={{ color: "inherit", textDecoration: "underline" }}>
+          {t.notYetLink}
+        </a>
+      </p>
       <p className="plt-eyebrow" style={{ color: "var(--plt-muted)" }}>
         {t.eyebrow}
       </p>
