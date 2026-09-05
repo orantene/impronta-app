@@ -77,3 +77,25 @@ test("refunded totals are read the ENGINE's way, not a second way", () => {
   assert.match(SRC, /refund_of_transaction_id/, "sum the sibling refund rows");
   assert.doesNotMatch(SRC, /refunded_amount_cents/, "that column does not exist");
 });
+
+test("every Supabase read in the executor checks its error", () => {
+  // The size ratchet caught me dropping `error` on the admissions read. PostgREST
+  // does not throw — a denied policy, a missing table and a bad column all arrive
+  // as `data: null` — so unchecked, the stamping loop would iterate nothing and
+  // this would report a clean refund while every ticket on it still admits.
+  //
+  // That is the exact failure the atomic `refund_admission` exists to prevent,
+  // reintroduced one layer up by not reading a variable.
+  const reads = [...SRC.matchAll(/const \{([^}]*)\}\s*=\s*await admin/g)].map((m) => m[1]);
+  assert.ok(reads.length >= 4, `expected several reads, found ${reads.length}`);
+  const unchecked = reads.filter((d) => d.includes("data") && !d.includes("error"));
+  assert.deepEqual(unchecked, [], "a read whose error is dropped turns failure into an empty result");
+});
+
+test("a ticket that could not be voided is REPORTED, not hidden in a count", () => {
+  // Still `ok`: the money moved and the line state is right, and retrying is
+  // safe because `refund_admission` is idempotent. A hard failure here would
+  // invite a caller to re-run the refund legs, which are NOT.
+  assert.match(SRC, /admissionsIncomplete/, "the caller must be able to see it");
+  assert.match(SRC, /TICKETS_NOT_VOIDED_AFTER_REFUND/, "and a human must be paged");
+});

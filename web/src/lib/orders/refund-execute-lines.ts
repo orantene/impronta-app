@@ -24,6 +24,16 @@ export type RefundLinesResult =
       refundedCents: number;
       refundIds: string[];
       admissionsStamped: number;
+      /**
+       * TRUE when a ticket that should have been voided may not have been.
+       *
+       * Still `ok`, deliberately: the money moved and the line state is right,
+       * and retrying is SAFE because `refund_admission` is idempotent — so a
+       * hard failure here would invite a caller to re-run the refund legs,
+       * which are not. This flag plus the loud log is how a human learns a
+       * refunded ticket may still admit.
+       */
+      admissionsIncomplete: boolean;
       releasedPromoRedemption: boolean;
     }
   /** Nothing moved. Safe to retry unchanged. */
@@ -193,10 +203,27 @@ export async function refundOrderLines(
     // admission and releases its allocation under one row lock: releasing
     // without stamping leaves a refunded ticket that still admits.
     let stamped = 0;
-    const { data: admRows } = await admin
+    let admissionsIncomplete = false;
+    const { data: admRows, error: admErr } = await admin
       .from("admissions")
       .select("id, order_line_id, line_seq, admitted_count, status")
       .in("order_line_id", plan.lines.map((l) => l.id));
+
+    // I DROPPED THIS ERROR AND THE RATCHET CAUGHT IT. PostgREST does not throw:
+    // a denied policy, a missing table and a bad column all arrive as
+    // `data: null`. Unchecked, the loop below would iterate nothing, `stamped`
+    // would stay 0, and this would return ok — reporting a clean refund while
+    // every ticket on it still admits at a door. The exact failure the atomic
+    // `refund_admission` exists to prevent, reintroduced one layer up by not
+    // reading a variable.
+    if (admErr) {
+      admissionsIncomplete = true;
+      logServerError(
+        "orders.refundLines/TICKETS_NOT_VOIDED_AFTER_REFUND",
+        `order ${input.orderId}: money refunded but admissions could not be read (${admErr.message}). `
+          + `Tickets on this order may still admit. Needs a human.`,
+      );
+    }
 
     for (const a of (admRows ?? []) as Array<{ id: string; admitted_count: number; status: string }>) {
       if (a.admitted_count > 0 || a.status !== "valid") continue;
@@ -206,6 +233,7 @@ export async function refundOrderLines(
         continue;
       }
       if ((res as { ok?: boolean } | null)?.ok === true) stamped += 1;
+      else admissionsIncomplete = true;
     }
 
     // ── Promo. A FULL refund releases the redemption; a partial does not, and
@@ -225,6 +253,7 @@ export async function refundOrderLines(
       refundedCents: moved,
       refundIds,
       admissionsStamped: stamped,
+      admissionsIncomplete,
       releasedPromoRedemption: releasedPromo,
     };
   } catch (err) {
