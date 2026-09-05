@@ -174,7 +174,18 @@ export function GuestConversationBody({
             : brand.greeting?.trim()
               ? brand.greeting.trim()
               : interpolate(t("public.guestChat.greetingDefault"), {
-                  name: talentFirst,
+                  // FULL display name, not the first-name split. #1766 gave this
+                  // line the tenant's own `brand.greeting` when there is one;
+                  // this is the fallback beneath it, and it read
+                  // "Hi, I'm El's booking assistant" on El Paisa.
+                  //
+                  // `talentFirst` is everything before the first space, which is
+                  // right for a person and wrong for every business. Splitting
+                  // only for people needs the industry preset's
+                  // `representsPeople`, which resolves to "custom" on every live
+                  // workspace today, so it would change nothing. A full name is
+                  // never wrong, only slightly more formal for a person.
+                  name: brand.talentDisplayName.trim() || talentFirst,
                 })}
         </div>
       ) : null}

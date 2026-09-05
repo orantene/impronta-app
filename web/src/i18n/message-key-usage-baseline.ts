@@ -274,7 +274,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "public.guestChat.dockViewSwitcherAria",
   "public.guestChat.draftSubline",
   "public.guestChat.fieldSavedAnnounce",
-  "public.guestChat.leaveMessage",
   "public.guestChat.railCollapse",
   "public.guestChat.railExpand",
   "public.guestChat.railNavAria",
