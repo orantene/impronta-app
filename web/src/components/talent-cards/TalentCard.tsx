@@ -18,6 +18,7 @@ import {
   type TalentCardProps,
   type TalentCardRootMode,
 } from "./talent-card-shape";
+import { TalentCardEmptyPlate } from "./talent-card-empty-plate";
 
 /**
  * Canonical talent card — the SINGLE card every directory / featured surface
@@ -211,27 +212,13 @@ function Photo({
           ) : null}
         </>
       ) : (
-        // No-photo fallback — a quiet, letter-free line-art silhouette on the
-        // card surface. Never the name-as-text and never initials-in-a-box
-        // (product rule: imagery, never a placeholder block).
-        <div
-          aria-hidden
-          data-card-monogram
-          className="flex h-full items-center justify-center"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-2/5 w-2/5"
-            style={{ color: TALENT_CARD_VARS.muted, opacity: 0.5 }}
-          >
-            <circle cx="12" cy="8.2" r="3.6" fill="currentColor" />
-            <path
-              d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
+        // No-photo state — J9, built to the Creative Direction canvas. Replaces
+        // a line-art silhouette that sat on `--token-card-surface`; on the noir
+        // tenant that token is near-black, so the card read as a failed image
+        // load rather than as a talent without a photograph. Rule 04 of the
+        // canvas rules out a silhouette explicitly, alongside monograms,
+        // initials and icons — all four read as placeholder.
+        <TalentCardEmptyPlate discipline={data.primaryType} />
       )}
     </div>
   );

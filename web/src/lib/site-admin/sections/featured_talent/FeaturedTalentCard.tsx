@@ -31,6 +31,7 @@ import Link from "next/link";
 import type { FeaturedTalentCardDTO } from "./fetch";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { withLocaleHref, type LocaleUrlSettings } from "@/i18n/pathnames";
+import { TalentCardEmptyPlate } from "@/components/talent-cards/talent-card-empty-plate";
 
 function profileHref(card: FeaturedTalentCardDTO): string {
   const code = encodeURIComponent(card.profileCode);
@@ -160,16 +161,19 @@ function FeaturedTalentCardInner({
           priority={priority}
         />
       ) : (
-        // Editorial monogram fallback — the talent's name set in the display
-        // face, never initials-in-a-box (product rule: imagery, never a
-        // placeholder block). Matches the canonical <TalentCard> fallback.
-        <div
-          className="flex h-full min-h-[220px] items-center justify-center px-4 text-center font-display text-sm tracking-[0.18em] text-muted-foreground"
-          data-card-monogram
-          aria-hidden
-        >
-          {card.displayName}
-        </div>
+        // No-photo state — the SAME plate the canonical <TalentCard> renders.
+        //
+        // The comment that stood here claimed this "Matches the canonical
+        // <TalentCard> fallback". It did not: the canonical card drew a line-art
+        // silhouette while this one set the talent's NAME large — two siblings
+        // with two different empty states and a comment asserting they agreed.
+        // Worse, the name is already rendered in the caption below, so an empty
+        // featured card printed it twice.
+        //
+        // Both now render `TalentCardEmptyPlate`, so the J9 rules are enforced
+        // in one place and a future change cannot fix one card and miss the
+        // other. The discipline is the image (rule 02).
+        <TalentCardEmptyPlate discipline={card.primaryTalentTypeLabel} />
       )}
 
       <div
