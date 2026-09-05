@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isDue, laterHold } from "./booking-payouts-ledger";
+import { isDue, laterHold } from "./payout-release-gate";
 
 const NOW = new Date("2026-09-03T12:00:00.000Z");
 const past = "2026-09-01T12:00:00.000Z";
