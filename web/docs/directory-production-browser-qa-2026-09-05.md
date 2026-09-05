@@ -11,7 +11,7 @@ NOT deployed (see row 4 — it should not be).
 
 | # | Surface | Verdict |
 |---|---|---|
-| 1 | `/global-directory` — render, hydration, search, filters, modal, pagination | **FAIL** (3 defects) |
+| 1 | `/global-directory` — render, hydration, search, filters, modal, pagination | **FAIL** (2 defects; a third was RETRACTED) |
 | 2 | Three public profile pages incl. one claimed | **PASS** |
 | 3 | Two `/w/` tenants + El Paisa + Impronta — hydration | **PASS** |
 | 4 | Guest dock reads the full business name on El Paisa | **PASS — already correct without #1733** |
@@ -35,20 +35,46 @@ of the page is blank" are different claims.**
 
 ---
 
-## FAIL 1 — 29 of 53 publicly listed talents are unreachable
+## RETRACTED — "29 of 53 talents are unreachable" was FALSE
 
-`/global-directory` prints **"53 profiles"** and renders **24**.
+This section originally reported that `/global-directory` promised 53 profiles,
+rendered 24, and offered no way to reach the other 29. It was escalated as the
+largest guest-visible loss on the platform. **It was wrong, and it was my
+error.**
 
-Verified by DOM count, not by eye: 24 unique `a[href^="/t/"]`. There is no
-load-more or next control on the page (`Show all 10` belongs to the *city* facet),
-and ten consecutive scrolls to `document.body.scrollHeight` added zero cards.
+The directory paginates correctly. Measured in a real browser:
 
-More than half the roster — including talent who chose to be listed — cannot be
-reached by any guest, on the page whose entire purpose is to surface them.
+| step | reachable |
+|---|---|
+| initial load | 24 |
+| click "Show more (29 left)" | 48 |
+| click again | **53**, button correctly disappears |
 
-Highest-severity finding of this pass.
+Zero page errors. A visible 196x48 button was on the page the whole time.
 
-## FAIL 2 — the country facet splits on accents, and the filter cannot cross the split
+**How the error was produced**, because the mechanism is the reusable part:
+
+```js
+page.locator("button").filter({ hasText: /load more|show more|next/i }).first()
+```
+
+`/next/i` matched **"Open in the next 30 days"** — an availability filter
+checkbox — and `.first()` returned that element. Its label was read, "no
+pagination control" was concluded, and the conclusion was then "confirmed" by
+scrolling for an infinite-load this page correctly does not use. Two checks
+agreeing, both pointed at the wrong element.
+
+It is the same shape as the incident recorded as *a true measurement of the
+wrong thing*: the DOM count of 24 was real, and it was the count of page one.
+Claiming it was "verified by DOM count" made a page-one measurement sound like a
+total.
+
+`e2e/directory-reachability.spec.ts` now asserts the outcome — every profile the
+header promises is reachable after exhausting paging — so this question is
+answered by a test rather than by anyone's locator. It passes against
+production.
+
+## FAIL 1 (real) — the country facet splits on accents, and the filter cannot cross the split
 
 The facet renders `Mexico (43)` and `México (4)` as two separate options.
 
@@ -64,10 +90,14 @@ uses `.ilike()`, which is case-insensitive and accent-**sensitive**.
 
 Measured impact, disjoint sets:
 
-| query | cards |
+| query | profiles |
 |---|---|
-| `?country=Mexico` | 24 |
+| `?country=Mexico` | 43 |
 | `?country=México` | 4 |
+
+(An earlier revision of this file gave these as 24 and 4. Those were first-PAGE
+card counts, not totals — the same page-one-as-total error as the retraction
+above. The totals are 43 and 4, and they are still disjoint.)
 
 A buyer filtering to Mexico never sees those 4 talents, and nothing on screen
 suggests a second Mexico exists.
@@ -80,7 +110,7 @@ sitting beside `residence_country_id` / `residence_city_id`, which are foreign
 keys into a `countries` table that contains exactly **one** Mexico row. Two
 stores for one fact, and the directory reads the unvalidated one.
 
-## FAIL 3 — the city facet pairs cities with countries they are not in
+## FAIL 2 (real) — the city facet pairs cities with countries they are not in
 
 Visible on the live page right now:
 
@@ -162,8 +192,8 @@ Recommended: **close #1733.** Held with the Platform Features merge loop.
 
 ## Owed
 
-- Fix FAIL 1 (pagination) — largest guest-visible loss on the platform.
-- Fold diacritics in the facet key and in the filter predicate; then converge
-  `home_*_text` onto the `locations` / `countries` foreign keys so the free-text
-  store stops being the one the directory reads.
+- ~~Fix pagination~~ — retracted, there was no defect.
+- **Done in this PR:** the facets now derive from the residence foreign key
+  rather than the free text, so one place is one bucket and a city cannot be
+  paired with a country it is not in.
 - Modal copy pass: pronoun labels, units, empty `FEE`, duplicate headings.
