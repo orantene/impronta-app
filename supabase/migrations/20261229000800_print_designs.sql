@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS public.print_designs (
   size          text NOT NULL DEFAULT 'table_tent',
   -- The freeform builder tree, same shape the other freeform surfaces persist.
   builder_tree  jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- Optimistic-concurrency counter. The adapter's save is compare-and-swap on
+  -- this: it checks the caller's expectedVersion, then writes with version + 1,
+  -- so a second tab editing the same design gets an honest "changed elsewhere"
+  -- instead of a silent clobber. (site_shell derives its version from
+  -- updated_at; print uses an explicit column, ruled 2026-09-05.)
+  version       integer NOT NULL DEFAULT 0,
   created_by    uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
