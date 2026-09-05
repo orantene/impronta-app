@@ -167,13 +167,21 @@ export default async function ReceiptPage({ params }: Params) {
 
   // One call. Error destructured and acted on: a refusal must not render as
   // "no receipt", which is what an unknown code also looks like.
+  // TOLERANT OF BOTH SHAPES, ON PURPOSE. `receipt_for_code` is scalar jsonb
+  // today (a miss = one NULL) and moves to SETOF jsonb (a miss = zero rows,
+  // PostgREST hands back an array) in a migration applied only AFTER this
+  // page is on the running build. Changing the function's shape under the
+  // deployed page turned every unknown code into a 500 for four minutes on
+  // 2026-09-06 (…804, rolled back by …805). A function SHAPE change is
+  // code-first; schema-first is for additive schema.
   const { data, error } = await supabase.rpc("receipt_for_code", { p_code: code });
   if (error) {
     logServerError("receipt.read", error);
     notFound();
   }
-  const receipt = (data ?? null) as Receipt | null;
-  if (!receipt) notFound();
+  const raw: unknown = data ?? null;
+  const receipt = (Array.isArray(raw) ? ((raw[0] as Receipt | undefined) ?? null) : (raw as Receipt | null));
+  if (!receipt || typeof receipt !== "object" || !("order" in receipt) || !receipt.order) notFound();
 
   // A receipt code is scoped to the tenant that issued it. A valid code from
   // another tenant presented on this host is treated exactly as an unknown one,
