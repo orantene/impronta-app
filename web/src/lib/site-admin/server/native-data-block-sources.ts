@@ -310,7 +310,21 @@ export function deriveWorkspaceMenuOfferings(
     if (row.owner_kind !== "workspace") continue;
     if (row.status !== "published") continue;
     if (row.moderation_state !== "approved") continue;
+    // A RESERVATION IS NOT A DISH. Measured live on a page-less restaurant:
+    // "Tonight's selection" listed exactly one line, "Table reservation $0",
+    // with a quantity stepper, because the seeded reservation offering is a
+    // published workspace offering like any dish. The board is the PUBLIC
+    // menu: an item held for request only (`visibility` other than public)
+    // is not on it, and a line with no price that is not a quote is not a
+    // dish either. Kind is deliberately not the gate (see the stock rule
+    // below: a pizza can be a `service`, a course is a `package`).
+    if (typeof row.visibility === "string" && row.visibility !== "public") continue;
     const offering = rowToOffering(row as TalentOfferingRow, locale);
+    const unpriced =
+      !(offering.amountCents > 0) &&
+      offering.priceDisplay !== "quote" &&
+      offering.priceType !== "custom";
+    if (unpriced) continue;
     out.push({
       id: offering.id,
       title: offering.title,
