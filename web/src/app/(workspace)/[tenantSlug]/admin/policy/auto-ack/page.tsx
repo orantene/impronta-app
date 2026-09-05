@@ -34,7 +34,7 @@ const C = {
   accentSoft: "rgba(29,78,216,0.08)",
   success:    "#1A7348",
   successSoft: "rgba(26,115,72,0.10)",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(138,111,26,0.10)",
 } as const;
 

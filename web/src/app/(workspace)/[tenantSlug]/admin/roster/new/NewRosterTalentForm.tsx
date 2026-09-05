@@ -17,7 +17,7 @@ const C = {
   accent:      "#0F4F3E",
   accentSoft:  "rgba(15,79,62,0.08)",
   accentBorder:"rgba(15,79,62,0.20)",
-  amber:       "#8A6F1A",
+  amber:       "var(--color-admin-amber)",
   amberSoft:   "rgba(212,160,23,0.10)",
   amberBorder: "rgba(212,160,23,0.25)",
   error:       "#c0392b",

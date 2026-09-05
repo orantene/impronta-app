@@ -51,7 +51,7 @@ const C = {
   cardBg: "#ffffff",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
-  amber: "#8A6F1A",
+  amber: "var(--color-admin-amber)",
   amberSoft: "rgba(212,160,23,0.12)",
   red: "#A33A3A",
   redSoft: "rgba(163,58,58,0.11)",

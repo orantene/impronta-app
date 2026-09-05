@@ -48,7 +48,7 @@ const C = {
   coral:      "#B04A22",
   coralSoft:  "rgba(176,74,34,0.10)",
   coralDeep:  "#8C3318",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(138,111,26,0.10)",
   success:    "#2E7D5B",
   successSoft:"rgba(46,125,91,0.10)",

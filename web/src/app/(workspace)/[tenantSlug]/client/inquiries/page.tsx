@@ -37,7 +37,7 @@ const C = {
   blueDeep:   "#1D4ED8",
   successDeep: "#1A7348",
   successSoft: "rgba(26,115,72,0.10)",
-  amberDeep:  "#8A6F1A",
+  amberDeep:  "var(--color-admin-amber-deep)",
   amberSoft:  "rgba(138,111,26,0.10)",
 } as const;
 

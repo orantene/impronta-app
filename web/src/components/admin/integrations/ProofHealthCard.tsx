@@ -18,7 +18,7 @@ const C = {
   border: "rgba(24,24,27,0.10)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
-  warn: "#8A6F1A",
+  warn: "var(--color-admin-amber)",
   warnSoft: "rgba(212,160,23,0.14)",
 } as const;
 const F = '"Inter", system-ui, sans-serif';

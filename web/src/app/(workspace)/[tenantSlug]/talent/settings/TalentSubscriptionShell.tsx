@@ -26,7 +26,7 @@ const C = {
   green:      "#2E7D5B",
   violet:     "#7D5CFF",
   violetSoft: "rgba(125,92,255,0.08)",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(180,130,20,0.08)",
   orange:     "#D96B3A",
   orangeSoft: "rgba(217,107,58,0.08)",

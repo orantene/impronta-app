@@ -70,7 +70,7 @@ const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
   free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
   website: { label: "Website", bg: "rgba(20,120,110,0.10)",  color: "#166F65" },
-  studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "#8A6F1A" },
+  studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "var(--color-admin-amber)" },
   agency:  { label: "Agency",  bg: "rgba(30,80,160,0.10)",   color: "#2B5F8A" },
   network: { label: "Network", bg: "rgba(100,50,200,0.10)",  color: "#6B3EC2" },
 };
@@ -159,8 +159,8 @@ function RosterUsageBar({ count, limit, t }: { count: number; limit: number | nu
 
   const pct = limit > 0 ? Math.min((count / limit) * 100, 100) : 0;
   const nearLimit = pct >= 80;
-  const barColor = nearLimit ? "#D4A017" : C.accent;
-  const countColor = nearLimit ? "#8A6F1A" : C.ink;
+  const barColor = nearLimit ? C.amber : C.accent;
+  const countColor = nearLimit ? C.amber : C.ink;
 
   return (
     <div

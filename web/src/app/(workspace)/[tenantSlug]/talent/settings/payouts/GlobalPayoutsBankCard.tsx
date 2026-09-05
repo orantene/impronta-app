@@ -22,7 +22,7 @@ const C = {
   accent: "#1f4a3a",
   green: "#1A7348",
   greenSoft: "rgba(26,115,72,0.10)",
-  amber: "#8A6F1A",
+  amber: "var(--color-admin-amber)",
   amberSoft: "rgba(138,111,26,0.12)",
   coral: "#A33A3A",
 } as const;

@@ -33,7 +33,7 @@ const C = {
   green:      "#2E7D5B",
   greenSoft:  "rgba(46,125,91,0.10)",
   greenDeep:  "#1A5E3C",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(212,160,23,0.10)",
   error:      "#c0392b",
   errorSoft:  "rgba(192,57,43,0.08)",

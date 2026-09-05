@@ -18,7 +18,7 @@ const C = {
   surface:    "rgba(11,11,13,0.02)",
   accent:     "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
-  amber:      "#8A6F1A",
+  amber:      "var(--color-admin-amber)",
   amberSoft:  "rgba(180,130,20,0.10)",
 } as const;
 
@@ -66,7 +66,7 @@ function ClientTrustPill({ tier }: { tier: "basic" | "verified" | "silver" | "go
     basic:    { label: "Basic",    bg: "rgba(11,11,13,0.06)",     color: C.inkMuted, emoji: "○" },
     verified: { label: "Verified", bg: "rgba(46,125,91,0.10)",    color: "#1B5C45",  emoji: "✓" },
     silver:   { label: "Silver",   bg: "rgba(125,92,255,0.10)",   color: "#5C3FCC",  emoji: "✦" },
-    gold:     { label: "Gold",     bg: "rgba(217,160,58,0.14)",   color: "#8A6F1A",  emoji: "★" },
+    gold:     { label: "Gold",     bg: "rgba(217,160,58,0.14)",   color: "var(--color-admin-amber)",  emoji: "★" },
   };
   const s = styleMap[tier];
   return (
