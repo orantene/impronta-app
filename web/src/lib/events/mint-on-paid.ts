@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { seatLostLines } from "@/lib/events/ticket-purchase";
 import { planAdmissions } from "@/lib/events/mint-admissions";
 
 /**
@@ -129,7 +130,30 @@ export async function mintAdmissionsForPaidOrder(
 
   const rows: Array<Record<string, unknown>> = [];
 
+  // PAYMENT CAN LAND AFTER THE HOLD LAPSED. `completeOrderForTransaction`
+  // refuses to revive a lapsed hold and still flips the order to paid (its
+  // DECISION 2). A ticket line with NO committed allocation must not become a
+  // ticket for a seat that does not exist: it mints nothing and becomes a
+  // refund intent, executed by a separate cron where the result is
+  // inspectable (design §5b.0). This hook never calls the refund executor —
+  // its catch-all would swallow the one outcome that needs a person.
+  const lost = seatLostLines(ticketLines, allocsByLine);
+  if (lost.length > 0) {
+    const { error: intentErr } = await admin.from("ticket_refund_intents").upsert(
+      lost.map((lineId) => ({ tenant_id: ctx.tenantId, order_id: ctx.orderId, order_line_id: lineId, reason: "seat_lost_after_payment" })),
+      { onConflict: "order_line_id", ignoreDuplicates: true },
+    );
+    if (intentErr) {
+      // Loud: a lost seat with no recorded intent is a customer charged for
+      // nothing and nobody told. The mint still refuses the line below.
+      logServerError("events.mintOnPaid/SEAT_LOST_INTENT_WRITE_FAILED", `${intentErr.message} order=${ctx.orderId} lines=${lost.join(",")}`);
+    }
+    for (const lineId of lost) outcome.skipped.push({ lineId, reason: "seat_lost_after_payment" });
+  }
+  const lostSet = new Set(lost);
+
   for (const line of ticketLines) {
+    if (lostSet.has(line.id)) continue;
     // No sentinel key: a line with no variant has NO variant entry, not the
     // entry of the empty string.
     const admitsPerUnit = line.variantId ? (admitsByVariant.get(line.variantId) ?? 1) : 1;
