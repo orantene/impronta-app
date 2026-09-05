@@ -237,7 +237,7 @@ html[data-public-font-preset="editorial"] {
   .site-theme-platform {
     --background: var(--tl-bone, #f4efe6);
     --foreground: var(--tl-ink, #161a16);
-    --card: var(--tl-surface, #faf6ee);
+    --card: var(--tl-surface-raised, #ffffff);
     --card-foreground: var(--tl-ink, #161a16);
     --popover: var(--tl-surface-raised, #ffffff);
     --popover-foreground: var(--tl-ink, #161a16);
