@@ -113,6 +113,15 @@ export async function POST(request: Request) {
     }
 
     const json = await request.json().catch(() => ({}));
+    // Per-stage timing. The model call is measurable from outside; the rest of
+    // the request is not, and "12 to 14 seconds" was attributed to the model
+    // for want of anything better. Three timed calls put the model at ~2.7s
+    // after the thinking fix, which leaves most of the wait unexplained. This
+    // makes the next person's answer a reading rather than a hypothesis.
+    const t0 = Date.now();
+    const marks: Array<[string, number]> = [];
+    const mark = (name: string) => marks.push([name, Date.now() - t0]);
+
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
@@ -201,12 +210,30 @@ export async function POST(request: Request) {
       `locale=${locale}`,
     ].join("\n");
 
+    mark("grounding");
     const adapter = await resolveAiChatAdapter();
+    mark("adapter");
     const completion = await Promise.race([
       adapter.chatCompletion({
         systemPrompt: SYSTEM_PROMPT,
         userMessage,
         temperature: 0.2,
+        // Measured, not assumed. This model thinks by default, and the guest
+        // support call never asked it to: 238 of 434 output tokens were
+        // thinking, more than half the latency, on a question a visitor is
+        // waiting on with a spinner. Three timed calls each way, same prompt,
+        // same schema, same budget:
+        //
+        //   default   5.98 / 4.30 / 5.17 s   434 output tokens (238 thinking)
+        //   disabled  2.75 / 2.71 / 2.53 s   182 output tokens (0 thinking)
+        //
+        // Quality was checked on the judgement that matters most before
+        // shipping this, not after: asked whether it could sell tickets today
+        // (ON THE ROADMAP grounding) and take reservations (live), it still
+        // refused the first and confirmed the second, at 0.95 confidence.
+        // Retrieval already does the reasoning here; the model is summarising
+        // grounding it has been handed, not deducing anything.
+        thinking: false,
         // 700 was too tight and it cost real answers. Production QA asked
         // "can I sell tickets to an event today?" and the model produced the
         // RIGHT answer, then ran out of budget mid-sentence: the JSON was
@@ -231,6 +258,7 @@ export async function POST(request: Request) {
       }),
     ]);
 
+    mark("model");
     if (!completion.ok) {
       // The provider's own words — an expired key, a refused model and a
       // timeout are three different problems with three different fixes.
@@ -310,6 +338,12 @@ export async function POST(request: Request) {
       });
     }
 
+    mark("persist");
+    void improntaLog("support.guest_ai.timing", {
+      ticketId,
+      totalMs: Date.now() - t0,
+      stages: marks.map(([n, ms]) => `${n}:${ms}ms`).join(" "),
+    });
     recordAiUsageEstimate(ticket.tenantId ?? DEFAULT_AI_TENANT_ID).catch((err) =>
       logServerError("api/ai/guest-support-chat/recordAiUsageEstimate", err),
     );
