@@ -20,6 +20,8 @@
  * than an empty string.
  */
 
+import { formatOrderMoney } from "@/lib/orders/money-format";
+
 export type OrderCardState =
   | "draft"
   | "quoted"
@@ -134,7 +136,7 @@ export function orderCardView(
       ? order.outstandingCents
       : order.totalCents;
 
-  const parts = [formatMoney(amountCents, order.currency)];
+  const parts = [formatOrderMoney(amountCents, order.currency)];
   if (order.lineCount > 0) {
     parts.push(`${order.lineCount} ${order.lineCount === 1 ? "item" : "items"}`);
   }
@@ -156,18 +158,3 @@ export function orderCardView(
   };
 }
 
-/**
- * Minor units to a displayable string.
- *
- * Deliberately not `Intl.NumberFormat` with a currency style: that renders
- * "MX$" and "US$" inconsistently across runtimes, and this string sits next to
- * a figure the client is about to be charged. Explicit and boring beats clever.
- */
-function formatMoney(cents: number, currency: string): string {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  const whole = Math.floor(abs / 100);
-  const frac = String(abs % 100).padStart(2, "0");
-  const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${sign}${currency === "USD" ? "$" : ""}${grouped}.${frac}${currency === "USD" ? "" : ` ${currency}`}`;
-}
