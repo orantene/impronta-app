@@ -25,7 +25,7 @@ import {
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { generateOpaqueCode } from "@/lib/links/code";
-import { buildPerUnitRequests } from "@/lib/orders/capacity-requests";
+import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import {
   pricePurchase,
   amountToCollectCents,
@@ -95,6 +95,8 @@ export type PurchaseInput = {
     startsAt?: string | null;
     endsAt?: string | null;
     units?: number;
+    /** Per-unit domain row exists (an admission per seat)? See capacity-requests.ts. */
+    perUnitDomainRow?: boolean;
   }>;
   /**
    * A code the buyer typed. Optional, and when present it is HONOURED OR THE
@@ -508,22 +510,21 @@ export async function createPurchase(
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
 
-      const built = buildPerUnitRequests(needs, lineIdByOffering);
+      const built = buildCapacityRequests(needs, lineIdByOffering);
       if (!built.ok) {
-        await unwind(`capacity request too large: ${built.count}`);
-        return {
-          ok: false,
-          reason: "capacity_unavailable",
-          error: "That is more seats than one order can hold.",
-        };
+        await unwind(`capacity requests refused: ${built.reason}`);
+        // Distinguished: one is a cart nobody can fulfil, the other a unit this
+        // engine cannot hold.
+        return built.reason === "fractional_units_unsupported"
+          ? { ok: false, reason: "invalid_units", offeringId: built.offeringId,
+              error: "This item cannot be sold in part quantities." }
+          : { ok: false, reason: "capacity_unavailable",
+              error: "That is more seats than one order can hold." };
       }
 
       const reserved = await reserveCapacityBatch(
         built.requests,
-        {
-          ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
-          createdBy: input.actorUserId,
-        },
+        { ttlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS, createdBy: input.actorUserId },
         admin,
       );
 
