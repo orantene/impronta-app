@@ -35,7 +35,7 @@ import { formatDateLabel, formatMoneyCents } from "./catalog-render";
  * alert today beats waiting for one; the deadline is in the body so the alert is
  * actionable on its own.
  */
-const PAYMENT_DISPUTE_OPENED_PLATFORM: CatalogEntry = {
+export const PAYMENT_DISPUTE_OPENED_PLATFORM: CatalogEntry = {
   id: "payment.dispute.opened.platform",
   category: "platform_alerts",
   // Was `in_app` only: a chargeback rang one bell and emailed nobody, while the
