@@ -35,6 +35,7 @@ import { REVIEWS_CATALOG_ENTRIES } from "./catalog-entries-reviews";
 import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
 import { RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-reservation";
 import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reservation";
+import { SESSION_CATALOG_ENTRIES } from "./catalog-entries-sessions";
 import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 
 /**
@@ -734,6 +735,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...SUPPORT_CATALOG_ENTRIES,
   ...RESERVATION_CATALOG_ENTRIES,
   ...TABLE_RESERVATION_CATALOG_ENTRIES,
+  ...SESSION_CATALOG_ENTRIES,
   ...ACCOUNT_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,

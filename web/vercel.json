@@ -95,6 +95,9 @@
     },
     "src/app/api/cron/materialise-sessions/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/session-reminders/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -173,6 +176,10 @@
     {
       "path": "/api/cron/materialise-sessions",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/session-reminders",
+      "schedule": "10 * * * *"
     },
     {
       "path": "/api/cron/refresh-demand-scores",
