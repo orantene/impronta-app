@@ -108,6 +108,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     menu_board: "actions",
     reserve_table: "actions",
     session_picker: "actions",
+    qr_code: "actions",
     carousel: "layout",
     masonry: "layout",
     accordion: "structure",
@@ -196,6 +197,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   menu_board: "menu orderable items quantities checkout restaurant catering workspace menu",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   session_picker: "session class book seat booking schedule sign up capacity workshop course",
+  qr_code: "qr code scan link print table tent share menu",
     form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
@@ -276,6 +278,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "menu_board",
     "reserve_table",
     "session_picker",
+    "qr_code",
     "talent_type_grid",
     // BUILDER 2027 · P2A — all twelve are shipped + droppable. The four roster
     // bands reach the picker through the CONNECTED tab and the four `header_*`

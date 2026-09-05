@@ -128,11 +128,19 @@ import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
+import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   tenantId?: string;
+  /**
+   * The public origin the page is served on (scheme+host, no trailing slash),
+   * e.g. "https://casarizo.com". Set by loadBuilderNodeDataSources from the
+   * request host. The `qr_code` block composes `<publicOrigin>/q/<code>` from
+   * it; absent (edit-mode preview, no request scope) ⇒ a scheme-less short link.
+   */
+  publicOrigin?: string;
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
   /**
    * PHASE 8B — the SAME cards, resolved PER native `featured_talent` NODE.
@@ -5544,6 +5552,33 @@ function renderBuilderNodeElement(
             offeringId={p.offeringId}
             title={text("title", p.title) || undefined}
             locale={options.contentLocale?.locale}
+          />
+        </div>
+      );
+    }
+    case "qr_code": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--qr-code"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <QrCodeBlock
+            code={p.linkCode}
+            origin={options.dataSources.publicOrigin ?? ""}
+            dark={p.foreground}
+            rounded={p.cornerStyle === "rounded"}
+            caption={text("caption", p.caption) || undefined}
+            showShortLink={p.showShortLink !== false}
           />
         </div>
       );

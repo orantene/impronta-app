@@ -133,7 +133,7 @@ function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }):
  * with nothing failing — the same silent-partial-registration shape this file
  * exists to catch.
  *
- * `reserve_table` and `session_picker` are here despite having NO
+ * `reserve_table`, `session_picker` and `qr_code` are here despite having NO
  * `native-data-block-needs` entry: they load their data client-side through a
  * dynamically imported server action, so they need no server provisioning, but
  * each is still a registry leaf
@@ -146,6 +146,7 @@ const NATIVE_DATA_BLOCK_KINDS = [
   "talent_type_grid",
   "reserve_table",
   "session_picker",
+  "qr_code",
 ] as const;
 
 // ── registry + insertability ────────────────────────────────────────────────

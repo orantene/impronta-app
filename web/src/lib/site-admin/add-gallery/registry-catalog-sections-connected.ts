@@ -528,6 +528,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
       "capacity",
     ],
   }),
+  connected({
+    id: "conn-qr-code-native",
+    label: "QR code",
+    description:
+      "A scannable code for one of your links. Point a phone at it and it opens the link.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "qr_code",
+    sourceType: "native-freeform",
+    connectedSource: "QR & Links",
+    searchTerms: [
+      "qr",
+      "qr code",
+      "scan",
+      "link",
+      "print",
+      "table tent",
+      "share",
+    ],
+  }),
 
   // ── Connected / Dynamic Data ────────────────────────────────────────────
   connected({

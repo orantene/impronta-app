@@ -1620,6 +1620,90 @@ function BuilderNodeContentInspectorBody({
   // PICKER (a select over the tenant's sessions) is phase 2; for now the
   // offering id is entered directly. The island (owned by Sessions & Classes)
   // fetches availability and sells the seat.
+  // ── qr_code (a scannable link, rendered inline) ───────────────────
+  // FORK (b): pure inline render. The block stores the link CODE; render
+  // composes <origin>/q/<code>. MVP: the code is typed directly; the link
+  // PICKER (a select over listLinksForTenant, paused rows shown) is a follow-up.
+  if (node.kind === "qr_code") {
+    const qr = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Link">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Link code</label>
+            <input
+              type="text"
+              className={KIT.input}
+              value={qr.linkCode ?? ""}
+              placeholder="Paste a link code"
+              onChange={(event) => {
+                void commitPatch({ linkCode: event.currentTarget.value });
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Caption</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="caption"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={qr.caption ?? ""}
+              ariaLabel="Caption"
+              className={KIT.input}
+              onCommitBase={(next) =>
+                commitTextInput("caption", qr.caption ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>
+              <input
+                type="checkbox"
+                checked={qr.showShortLink !== false}
+                onChange={(event) => {
+                  void commitPatch({ showShortLink: event.currentTarget.checked });
+                }}
+              />{" "}
+              Show the short link
+            </label>
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Style">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Code colour</label>
+            <input
+              type="color"
+              className={KIT.input}
+              value={qr.foreground ?? "#000000"}
+              onChange={(event) => {
+                void commitPatch({ foreground: event.currentTarget.value });
+              }}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Corner style</label>
+            <select
+              className={KIT.input}
+              value={qr.cornerStyle ?? "square"}
+              onChange={(event) => {
+                void commitPatch({
+                  cornerStyle: event.currentTarget.value as "square" | "rounded",
+                });
+              }}
+            >
+              <option value="square">Square</option>
+              <option value="rounded">Rounded</option>
+            </select>
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   if (node.kind === "session_picker") {
     const sp = node.props;
     return (
@@ -4918,6 +5002,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Reserve · books a real table";
     case "session_picker":
       return "Sessions · book a seat";
+    case "qr_code":
+      return "QR code · a scannable link";
     case "talent_type_grid":
       return node.props.mode === "dynamic"
         ? "Disciplines · from your roster"

@@ -46,6 +46,7 @@ export type BuilderNodeKind =
   | "menu_board"
   | "reserve_table"
   | "session_picker"
+  | "qr_code"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
   // registry Impronta's live pages reach through `section_embed` bridges.
@@ -1152,6 +1153,21 @@ export interface BuilderSessionPickerNode extends BuilderNodeBase {
   };
 }
 
+// QR code block. FORK (b): a pure inline render (see qr-code-block.tsx). Stores
+// the link CODE; render composes <origin>/q/<code>. NO native-data-block-needs
+// entry.
+export interface BuilderQrCodeNode extends BuilderNodeBase {
+  kind: "qr_code";
+  props: {
+    linkCode: string;
+    foreground?: string;
+    cornerStyle?: "square" | "rounded";
+    caption?: string;
+    showShortLink?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderMenuBoardNode extends BuilderNodeBase {
   kind: "menu_board";
   props: {
@@ -2090,6 +2106,7 @@ export type BuilderNode =
   | BuilderMenuBoardNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
+  | BuilderQrCodeNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode
