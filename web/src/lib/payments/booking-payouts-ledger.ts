@@ -15,6 +15,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
+import { isDue, laterHold } from "./payout-release-gate";
 import { getTalentConnectedAccountSnapshot, canRouteTransfersToTalent } from "@/lib/payments/stripe-connect-talent";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -42,19 +43,8 @@ export type PayoutLeg = {
   /** Rail this leg was routed on (connect_transfer | global_payouts). NULL =
    *  legacy/Connect. releaseHeldPayouts uses it to never release a GP leg via Connect. */
   payoutRail: string | null;
-  /**
-   * Earliest moment this leg may be transferred. `null` means DUE NOW.
-   *
-   * REQUIRED, not optional, and deliberately so. The column is nullable so the
-   * migration is a non-event for existing rows, but a producer that simply
-   * FORGOT this field would get immediate release -- which is the exact bug
-   * this exists to prevent. Making it required turns forgetting into a compile
-   * error at the one writer instead of an early payout nobody sees.
-   *
-   * Independent of `status`. A leg can be blocked by account readiness AND by
-   * time at once; `status` can only say one thing, which is why this is a
-   * separate field rather than a `scheduled` state.
-   */
+  /** Earliest transfer time; `null` = due now. REQUIRED so forgetting it is a
+   *  compile error, not an early payout. See payout-release-gate.ts. */
   releaseAfter: string | null;
 };
 
@@ -102,25 +92,6 @@ export function payoutIdempotencyKey(bookingId: string, participantId: string, p
   return `transfer_${bookingId}_${participantId}_${party}`;
 }
 
-/**
- * The later of two holds, treating `null` as "due now" (i.e. no hold).
- *
- * Pure, and exported so the rule is testable without a database. The rule it
- * encodes: a hold may be EXTENDED, never shortened or removed by routine
- * bookkeeping. `null` can therefore never win over a real timestamp -- an
- * upsert that omits the gate must not release the money.
- */
-export function laterHold(a: string | null, b: string | null): string | null {
-  if (!a) return b;
-  if (!b) return a;
-  return new Date(b).getTime() > new Date(a).getTime() ? b : a;
-}
-
-/** True when a leg is due: no gate, or the gate has passed. */
-export function isDue(releaseAfter: string | null, now: Date = new Date()): boolean {
-  if (!releaseAfter) return true;
-  return new Date(releaseAfter).getTime() <= now.getTime();
-}
 
 /**
  * Upsert a payout leg into the ledger. Idempotent on (booking, participant,
@@ -159,15 +130,8 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
     };
 
     if (existing) {
-      // A HOLD MAY BE EXTENDED, NEVER SHORTENED OR REMOVED BY ROUTINE
-      // BOOKKEEPING. This function is idempotent and rewrites `base` wholesale,
-      // so spreading release_after into the update would let any retry that
-      // happened to pass `null` WIPE the gate and release the money early --
-      // the same defect this whole change exists to prevent, one level down.
-      //
-      // So the update keeps whatever gate is already stored, and only moves it
-      // LATER. Cancelling a hold is an explicit act elsewhere, never a side
-      // effect of recording a leg.
+      // Extend a hold, never shorten it: a retry passing null must not wipe
+      // the gate this upsert rewrites wholesale. See laterHold().
       const existingRelease = (existing.release_after as string | null) ?? null;
       const nextRelease = laterHold(existingRelease, leg.releaseAfter);
       await sb
@@ -292,12 +256,7 @@ export async function releaseHeldPayouts(
     const scope = payoutLegPayeeScope(target);
     if (!scope) return [];
 
-    // `status` says the payee's account could not receive. `release_after` says
-    // the money is not due yet -- a ticket payout gated until the show. Both
-    // must be satisfied: an account.updated flip or the reconcile cron
-    // legitimately resolves the first and must NOT resolve the second.
-    // Without this predicate a show-gated leg releases on the next account flip
-    // or the next cron run, silently, and the only signal is that it worked.
+    // `status` = ACCOUNT, `release_after` = DATE. See payout-release-gate.ts.
     let query = sb
       .from("booking_payouts")
       .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail, release_after")
@@ -457,12 +416,7 @@ export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<Hel
   try {
     const { data, error } = await sb
       .from("booking_payouts")
-      // Deliberately NOT filtered by release_after. This is the platform-admin
-      // reconciliation view and an admin must see everything -- hiding
-      // scheduled legs is how money goes missing quietly. But the gate is
-      // SELECTED so the list can distinguish "stuck" from "scheduled":
-      // twenty legs correctly waiting for a show must not read as twenty
-      // problems, which is the same cry-wolf failure as an over-eager alarm.
+      // Unfiltered on purpose: an admin sees every leg; the gate is SELECTED.
       .select(
         "id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, status, attempts, last_error, created_at, release_after",
       )
@@ -841,3 +795,5 @@ export async function reverseBookingPayouts(
   }
   return outcomes;
 }
+
+export { isDue, laterHold }; // re-exported: ledger callers keep one import

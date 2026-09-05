@@ -31,6 +31,8 @@ type Row = {
   attempts: number;
   status: string;
   payout_rail?: string | null;
+  /** NULL / absent = due now. A future value is a hold the release path must respect. */
+  release_after?: string | null;
 };
 
 type Update = { id: string; patch: Record<string, unknown> };
@@ -40,6 +42,7 @@ function makeSupabase(rows: Row[], updates: Update[]): SupabaseClient {
   const make = () => {
     const filters: Array<[string, unknown]> = [];
     let pendingPatch: Record<string, unknown> | null = null;
+    let orCutoff: string | null = null;
     const chain: Record<string, unknown> = {
       select: () => chain,
       in: () => chain,
@@ -61,15 +64,29 @@ function makeSupabase(rows: Row[], updates: Update[]): SupabaseClient {
         pendingPatch = patch;
         return chain;
       },
+      // The release path filters `release_after.is.null,release_after.lte.<iso>`.
+      // The mock APPLIES it rather than swallowing it: a stub that accepted the
+      // call and ignored the predicate would let the gate regress with the
+      // suite still green, which is the failure this whole change is about.
+      or: (expr: string) => {
+        const m = /^release_after\.is\.null,release_after\.lte\.(.+)$/.exec(expr);
+        if (!m) throw new Error(`unexpected .or() predicate in mock: ${expr}`);
+        orCutoff = m[1];
+        return chain;
+      },
       then: undefined,
     };
     // make the select chain awaitable → filtered held rows
     (chain as { then: unknown }).then = (resolve: (v: unknown) => void) => {
-      const filtered = rows.filter(
-        (r) =>
-          (r.status === "held" || r.status === "failed") &&
-          filters.every(([c, v]) => (r as unknown as Record<string, unknown>)[c] === v),
-      );
+      const filtered = rows.filter((r) => {
+        if (!(r.status === "held" || r.status === "failed")) return false;
+        if (!filters.every(([c, v]) => (r as unknown as Record<string, unknown>)[c] === v)) return false;
+        if (orCutoff === null) return true;
+        // NULL means due now; otherwise the gate must have passed.
+        const gate = (r as unknown as Record<string, unknown>).release_after as string | null | undefined;
+        if (!gate) return true;
+        return new Date(gate).getTime() <= new Date(orCutoff).getTime();
+      });
       resolve({ data: filtered, error: null });
     };
     return chain;
@@ -126,6 +143,44 @@ test("released: held talent leg → transferred once the account is enabled", as
   const patch = updates.find((u) => u.id === "L1")?.patch;
   assert.equal(patch?.status, "transferred");
   assert.equal(patch?.stripe_transfer_id, "tr_1");
+});
+
+test("a leg gated to a FUTURE date is not released, even with the account enabled", async () => {
+  // THE HAZARD THIS EXISTS FOR. `held` used to mean only "the account cannot
+  // receive". A ticket payout also needs "the show has not happened yet", and
+  // an account.updated flip or the reconcile cron resolves the FIRST while
+  // leaving the second untrue. Without the gate this row transfers before the
+  // show, silently, and the only signal is that it worked.
+  const future = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = [heldRow({ id: "L1", party: "talent", release_after: future })];
+  const updates: Update[] = [];
+  const { calls, stripe } = makeStripe();
+
+  const out = await releaseHeldPayouts(
+    { talentProfileId: "tp1" },
+    { sb: makeSupabase(rows, updates), stripe, resolveTalentAccount: async () => "acct_talent_tp1" },
+  );
+
+  assert.equal(out.length, 0, "a not-yet-due leg must not even be considered");
+  assert.equal(calls.length, 0, "NO transfer may be attempted before the gate passes");
+  assert.equal(updates.length, 0, "the row must be left alone");
+});
+
+test("a leg whose gate has PASSED releases normally", async () => {
+  // The other half: the gate must not become a permanent hold.
+  const past = new Date(Date.now() - 60_000).toISOString();
+  const rows = [heldRow({ id: "L1", party: "talent", release_after: past })];
+  const updates: Update[] = [];
+  const { calls, stripe } = makeStripe();
+
+  const out = await releaseHeldPayouts(
+    { talentProfileId: "tp1" },
+    { sb: makeSupabase(rows, updates), stripe, resolveTalentAccount: async () => "acct_talent_tp1" },
+  );
+
+  assert.equal(out.length, 1);
+  assert.equal(out[0].result, "released");
+  assert.equal(calls.length, 1, "a due leg still transfers");
 });
 
 test("still_held: stays held when the account is NOT yet enabled (no transfer)", async () => {
