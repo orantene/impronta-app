@@ -327,6 +327,38 @@ export async function PublicHeader() {
       ? await resolveHeaderVerbDestination(tenantIdForIdentity, presetVerb.preset.headerVerb)
       : null;
   const ctaHref = explicitCtaHref || presetVerbHref;
+
+  // AN UNBRANDED TENANT MUST NEVER RENDER AN UNREADABLE CTA.
+  //
+  // Measured in production on El Paisa, whose `theme_json` is `{}`:
+  //
+  //     background rgb(17,17,17)   text rgb(10,10,10)     contrast ~1.02:1
+  //
+  // A solid black button with black text on it. The label was correct
+  // ("Reserve") and no human could read it.
+  //
+  // ROOT CAUSE IS NOT HERE, and this does not pretend to fix it.
+  // `.site-theme-tenant-override` in globals.css declares
+  //   --impronta-gold: var(--token-color-primary, var(--impronta-gold));
+  // whose fallback references ITSELF. That is a cycle, so the declaration is
+  // invalid at computed-value time and resolves EMPTY for every tenant with no
+  // `color.primary` token. `--primary` then falls back to a dark value while
+  // `--primary-foreground` stays `#0a0a0a` from the dark block, and the pair
+  // comes apart. The comment fifteen lines below that declaration documents
+  // this exact trap and fixed it for `--impronta-black` — the neighbouring
+  // lines were left as they were. Every primary button on every unbranded
+  // tenant is affected, not just this one, so the real fix belongs with the
+  // owner of that stylesheet and is reported separately.
+  //
+  // What this does is narrower and safe: when the tenant supplies NO brand
+  // colour, the preset verb button uses the theme's own ink-on-paper pair,
+  // which is defined together and therefore cannot come apart. A tenant that
+  // HAS a brand colour keeps it, and an operator's explicit CTA is untouched.
+  const hasBrandPrimary = tokenString("color.primary", "").length > 0;
+  const ctaNeedsSafePair = Boolean(presetVerbHref) && !explicitCtaHref && !hasBrandPrimary;
+  const ctaSafePairClass = ctaNeedsSafePair
+    ? " bg-foreground text-background hover:bg-foreground/90"
+    : "";
   const hasCta = Boolean(ctaLabel && ctaHref);
   // Tenant Registration Engine — auto "Join the team" CTA. Renders only on a
   // tenant storefront where registration is live AND the operator hasn't set
@@ -594,14 +626,14 @@ export async function PublicHeader() {
           {showCtaInDesktopBar ? (
             <Button
               size="sm"
-              className={`mr-1 hidden md:inline-flex ${showCtaInMobileBar ? "sm:inline-flex" : ""}`}
+              className={`mr-1 hidden md:inline-flex ${showCtaInMobileBar ? "sm:inline-flex" : ""}${ctaSafePairClass}`}
               asChild
             >
               <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
             </Button>
           ) : null}
           {showCtaInMobileBar && !showCtaInDesktopBar ? (
-            <Button size="sm" className="mr-1 inline-flex md:hidden" asChild>
+            <Button size="sm" className={`mr-1 inline-flex md:hidden${ctaSafePairClass}`} asChild>
               <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
             </Button>
           ) : null}

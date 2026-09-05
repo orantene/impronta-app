@@ -240,7 +240,17 @@ export function GuestDockHomeView({
             lineHeight: 1.35,
           }}
         >
-          {t("public.guestChat.homeHeroLine")}
+          {/* THE OPENER IS THE TENANT'S, NOT THE PLATFORM'S.
+              This rendered `public.guestChat.homeHeroLine` unconditionally —
+              "Hi, tell us about your event and we'll line up the right talent."
+              On El Paisa, a restaurant, that greeted a diner by asking about
+              their casting needs. `AgencyChatLauncherMount` had already
+              resolved the industry preset's voice and passed it in as
+              `brand.greeting`; this line simply did not read it, so the whole
+              preset chat voice was inert on every live tenant.
+              The catalog string stays as the fallback for a tenant with no
+              greeting and no preset, which is what it was written for. */}
+          {brand.greeting?.trim() || t("public.guestChat.homeHeroLine")}
         </div>
       </div>
 
