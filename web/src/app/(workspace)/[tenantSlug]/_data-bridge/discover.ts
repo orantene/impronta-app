@@ -4,6 +4,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import {
+  buildLocationCatalog,
+  buildLocationFacets,
+  resolveLocationFilterIds,
+  type CanonicalLocation,
+} from "@/lib/directory/location-facets";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -22,13 +28,21 @@ import { byLabel } from "@/lib/field-engine/sort-comparators";
 // card → hero → public_watermarked → gallery → original.
 
 // ---------------------------------------------------------------------------
-// Free-text location data-quality helpers.
+// Location facets read the residence FOREIGN KEY, not the free text.
 //
-// `home_country_text` / `home_city_text` are denormalized free text in the
-// matview, so upstream entry produces case variants ("Mexico" vs "mexico").
-// Facets group case-insensitively (so the variants don't split into two rows
-// with halved counts) and the country/city WHERE clauses match the chosen
-// display value case-insensitively so it still catches every stored variant.
+// `home_country_text` / `home_city_text` are denormalized free text, and the
+// old grouping key was `country.toLowerCase()` — which folds case but NOT
+// diacritics. Production carried "Mexico" (41), "mexico" (2) and "México" (4);
+// the first two folded together and the third became a rival bucket, so
+// ?country=Mexico returned 43 and ?country=México returned 4, disjoint.
+// The city label was composed from the two free-text fields independently, so
+// "Buenos Aires, Mexico" could render.
+//
+// Both facets now derive from `residence_city_id` -> `locations` -> `countries`
+// (see lib/directory/location-facets.ts), which makes one Mexico structural and
+// a wrong city/country pair impossible. Params stay human-readable and are
+// matched through `normalizeLocationKey`, so old ?country=México links resolve
+// to the single bucket instead of breaking.
 // ---------------------------------------------------------------------------
 
 /** True if `s` contains any uppercase character (Unicode-aware). */
@@ -47,12 +61,35 @@ function preferDisplay(prev: string | undefined, next: string): string {
 }
 
 /**
- * Escape ILIKE wildcards so a facet value matches as a case-insensitive
- * literal rather than a glob (no country/city realistically contains % or _,
- * but treating them as wildcards would be a silent correctness bug).
+ * Load the canonical location catalog (id -> city + its own country).
+ *
+ * Shared by the facet builders and the WHERE clauses so both read one
+ * derivation. When they read different ones they drift, which is precisely how
+ * the free-text version displayed a "México" bucket whose own filter could not
+ * reproduce it.
  */
-function likeEscape(value: string): string {
-  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+async function loadLocationCatalog(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  locale = "en",
+): Promise<Map<string, CanonicalLocation>> {
+  if (!admin) return new Map();
+  const [locs, countries] = await Promise.all([
+    admin.from("locations").select("id, country_code, city_slug, display_name_i18n"),
+    admin.from("countries").select("iso2, name_en, name_es"),
+  ]);
+  if (locs.error) {
+    logServerError("workspace.loadLocationCatalog.locations", locs.error);
+    return new Map();
+  }
+  if (countries.error) {
+    logServerError("workspace.loadLocationCatalog.countries", countries.error);
+    return new Map();
+  }
+  return buildLocationCatalog(
+    (locs.data ?? []) as never[],
+    (countries.data ?? []) as never[],
+    locale,
+  );
 }
 
 export type DiscoverTalentListItem = {
@@ -217,10 +254,23 @@ export async function loadDiscoverTalents(
       { count: "exact" },
     );
 
-  if (opts.country)   query = query.ilike("home_country_text", likeEscape(opts.country));
   if (opts.category)  query = query.eq("category_slug", opts.category);
   if (opts.hub)       query = query.eq("agency_tenant_id", opts.hub);
-  if (opts.city)      query = query.ilike("home_city_text", likeEscape(opts.city));
+  // Location filters resolve through the residence FK, never the free text.
+  // `resolveLocationFilterIds` returns [] when the params match nothing, and
+  // that MUST scope to no results rather than silently dropping the filter —
+  // a filter that no-ops when unresolvable is how a scoped page starts showing
+  // everything.
+  if (opts.country || opts.city) {
+    const catalog = await loadLocationCatalog(admin);
+    const ids = resolveLocationFilterIds(catalog, {
+      country: opts.country,
+      city: opts.city,
+    });
+    query = ids.length
+      ? query.in("residence_city_id", ids)
+      : query.is("id", null);
+  }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
   if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
@@ -354,7 +404,7 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
 
   const { data, error } = await admin
     .from("talent_discover_index")
-    .select("home_country_text, home_city_text, category_slug, category_label, trust_tier");
+    .select("residence_city_id, category_slug, category_label, trust_tier");
 
   if (error) {
     logServerError("workspace.loadDirectoryFacets", error);
@@ -362,29 +412,21 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   }
 
   type Row = {
-    home_country_text: string | null;
-    home_city_text: string | null;
+    residence_city_id: string | null;
     category_slug: string | null;
     category_label: string | null;
     trust_tier: string | null;
   };
   const rows = (data ?? []) as unknown as Row[];
 
-  // Country / city aggregates fold case (see helpers at top of file); category
-  // slug and trust tier are controlled enums, so a plain string key is correct.
-  const countryAgg = new Map<string, { display: string; count: number }>();
+  // Category slug and trust tier are controlled enums, so a plain string key is
+  // correct for them. Country and city are NOT: they now derive from the
+  // residence FK via the shared catalog, so one Mexico is structural and a
+  // city can never be paired with a country it is not in.
   const categoryCounts = new Map<string, { label: string; count: number }>();
-  const cityAgg = new Map<string, { city: string; countryKey: string | null; count: number }>();
   const trustCounts = new Map<string, number>();
 
   for (const row of rows) {
-    const country = row.home_country_text?.trim();
-    if (country) {
-      const key = country.toLowerCase();
-      const cur = countryAgg.get(key);
-      countryAgg.set(key, { display: preferDisplay(cur?.display, country), count: (cur?.count ?? 0) + 1 });
-    }
-
     const slug = row.category_slug?.trim();
     const label = row.category_label?.trim();
     if (slug && label) {
@@ -392,45 +434,18 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
       categoryCounts.set(slug, { label: existing?.label ?? label, count: (existing?.count ?? 0) + 1 });
     }
 
-    const city = row.home_city_text?.trim();
-    if (city) {
-      // Bucket by (city, country) composite so a city that appears in more than
-      // one country yields a distinct, exactly-scopable row each ("London, UK"
-      // vs "London, Canada") instead of collapsing to the majority country.
-      // Case folds within each bucket; display prefers a cased variant. The
-      // map key is JSON (not a raw separator char) so it can't collide.
-      const cityKey = city.toLowerCase();
-      const countryKey = country ? country.toLowerCase() : null;
-      const mapKey = JSON.stringify([cityKey, countryKey]);
-      const cur = cityAgg.get(mapKey);
-      cityAgg.set(mapKey, {
-        city: preferDisplay(cur?.city, city),
-        countryKey,
-        count: (cur?.count ?? 0) + 1,
-      });
-    }
-
     const tier = row.trust_tier?.trim();
     if (tier) trustCounts.set(tier, (trustCounts.get(tier) ?? 0) + 1);
   }
 
+  const { countries, cities } = buildLocationFacets(rows, await loadLocationCatalog(admin));
+
   return {
-    countries: Array.from(countryAgg.values())
-      .map(({ display, count }) => ({ value: display, count }))
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+    countries,
     categories: Array.from(categoryCounts.entries())
       .map(([value, { label, count }]) => ({ value, label, count }))
       .sort((a, b) => b.count - a.count || byLabel(a, b)),
-    cities: Array.from(cityAgg.values())
-      .map(({ city, countryKey, count }) => ({
-        city,
-        // Resolve to the country's canonical display so it matches the country
-        // facet value exactly — the DirectoryFilters country→city cross-filter
-        // compares these by equality.
-        country: countryKey ? (countryAgg.get(countryKey)?.display ?? null) : null,
-        count,
-      }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city)),
+    cities,
     trustTiers: Array.from(trustCounts.entries())
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
@@ -481,9 +496,22 @@ export async function loadDiscoverMapPoints(
     .order("display_name", { ascending: true, nullsFirst: false })
     .limit(500);
 
-  if (opts.country)   query = query.ilike("home_country_text", likeEscape(opts.country));
   if (opts.category)  query = query.eq("category_slug", opts.category);
-  if (opts.city)      query = query.ilike("home_city_text", likeEscape(opts.city));
+  // Location filters resolve through the residence FK, never the free text.
+  // `resolveLocationFilterIds` returns [] when the params match nothing, and
+  // that MUST scope to no results rather than silently dropping the filter —
+  // a filter that no-ops when unresolvable is how a scoped page starts showing
+  // everything.
+  if (opts.country || opts.city) {
+    const catalog = await loadLocationCatalog(admin);
+    const ids = resolveLocationFilterIds(catalog, {
+      country: opts.country,
+      city: opts.city,
+    });
+    query = ids.length
+      ? query.in("residence_city_id", ids)
+      : query.is("id", null);
+  }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
   if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
