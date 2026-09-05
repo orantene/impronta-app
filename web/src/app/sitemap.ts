@@ -56,52 +56,58 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
   const admin = createServiceRoleClient();
   if (!admin) return [];
 
+  // ─── THE URL AND THE GATE MUST DESCRIBE THE SAME OBJECT ───────────────────
+  //
+  // This branch emits `/t/<code>`, the talent PROFILE page. It used to source
+  // from `talent_sites` gated on `status = "published"` — the talent's separate,
+  // opt-in MICROSITE. Two different objects: the profile page is public for
+  // every publicly-listed talent whether or not they ever built a microsite.
+  //
+  // Measured on production 2026-09-05, which is why this changed:
+  //
+  //     talent_sites rows                     5
+  //     ...of those published                 0
+  //     profiles passing the public gate      79
+  //     talent profile URLs in sitemap.xml    0
+  //
+  // So the sitemap advertised NONE of 79 live, publicly reachable profile pages,
+  // on a product whose directory exists to get talent found. Spot-checked three
+  // at random before changing anything: all serve HTTP 200 with no microsite.
+  //
+  // The gate below is the canonical public-listing gate, copied from the
+  // directory's own listing query (`fetch-directory-page.ts`): deleted_at null,
+  // not hidden, `is_publicly_listed`, and `profile_kind <> "resource"`. It must
+  // stay in step with that query — if the directory shows a card, the sitemap
+  // should advertise it, and if it does not, we must not.
   type PlatformTalentSitemapRow = {
-    published_at: string | null;
+    profile_code: string | null;
     updated_at: string | null;
-    talent_profiles:
-      | {
-          profile_code: string | null;
-          visibility: string | null;
-          deleted_at: string | null;
-          is_publicly_hidden: boolean | null;
-        }
-      | {
-          profile_code: string | null;
-          visibility: string | null;
-          deleted_at: string | null;
-          is_publicly_hidden: boolean | null;
-        }[]
-      | null;
+    created_at: string | null;
   };
 
   const { data: rowsRaw } = await admin
-    .from("talent_sites")
-    .select(
-      "published_at, updated_at, talent_profiles!inner(profile_code, visibility, deleted_at, is_publicly_hidden)",
-    )
-    .eq("status", "published")
-    .not("published_snapshot", "is", null)
-    .eq("talent_profiles.visibility", "public")
-    .is("talent_profiles.deleted_at", null)
-    .eq("talent_profiles.is_publicly_hidden", false)
-    .order("published_at", { ascending: false })
+    .from("talent_profiles")
+    .select("profile_code, updated_at, created_at")
+    .is("deleted_at", null)
+    .eq("is_publicly_hidden", false)
+    .eq("is_publicly_listed", true)
+    .eq("visibility", "public")
+    .neq("profile_kind", "resource")
+    .not("profile_code", "is", null)
+    .order("updated_at", { ascending: false })
     .limit(5000);
 
   const rows = (rowsRaw ?? []) as unknown as PlatformTalentSitemapRow[];
   return rows.flatMap((row) => {
-    const profile = Array.isArray(row.talent_profiles)
-      ? row.talent_profiles[0]
-      : row.talent_profiles;
-    const profileCode = profile?.profile_code?.trim();
+    const profileCode = row.profile_code?.trim();
     if (!profileCode) return [];
 
     const code = encodeURIComponent(profileCode);
-    // published_at/updated_at are the honest dates. The fallback stays
-    // `new Date()` because a published site row with neither timestamp gives us
-    // nothing truthful to assert, and dropping the entry would cost discovery.
-    const lastModified = row.published_at || row.updated_at
-      ? new Date(row.published_at ?? row.updated_at!)
+    // updated_at/created_at are the honest dates. The fallback stays
+    // `new Date()` because a row with neither gives us nothing truthful to
+    // assert, and dropping the entry would cost discovery.
+    const lastModified = row.updated_at || row.created_at
+      ? new Date(row.updated_at ?? row.created_at!)
       : new Date();
 
     const enUrl = new URL(`/t/${code}`, PLATFORM_TALENT_SITEMAP_BASE).toString();
