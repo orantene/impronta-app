@@ -45,10 +45,12 @@ test("an order spanning two sessions holds until the LATEST ends", () => {
   assert.equal(r.ok && r.seconds, 8 * 60 * 60);
 });
 
-test("a session already over falls back to the pool TTL rather than a zero hold", () => {
-  // The order is still valid — someone may be buying at the door of a running
-  // event — it just has no future end to hold against. A zero or negative TTL
-  // would be a hold that expires before it exists.
+test("a session already over REFUSES — it is a mistake, not a late sale", () => {
+  // I had this falling back, reasoning that someone buying at the door of a
+  // running event is a real customer. Events corrected it: that person is the
+  // door's own `sellAtDoor`, which commits immediately and holds nothing. An
+  // ONLINE pay-at-the-door order for a finished session would otherwise buy a
+  // pool-TTL hold on a seat nobody can use.
   const r = doorHoldSeconds({
     paymentChoice: "in_person",
     sessionEnds: [at("2026-09-05T11:00:00.000Z")],
@@ -67,15 +69,25 @@ test("a session ending in seconds is not worth holding for", () => {
   assert.equal(r.ok, false, `under ${MIN_DOOR_HOLD_SECONDS}s falls back`);
 });
 
-test("an absurdly distant session is CLAMPED — an unbounded hold is the bug we avoided", () => {
-  // A hold nothing reclaims is the commit-has-no-TTL problem under a new name,
-  // which is why the ruling went the way it did.
+test("the clamp is the ENGINE's cap, not a number I chose", () => {
+  // `capacity_pools_hold_ttl_seconds_check` is BETWEEN 30 AND 604800 and
+  // `_capacity_reserve_locked` raises CP007 above it. My first version clamped
+  // at 30 days, which passes here and DIES AT RESERVE — a session eight days
+  // out would have been refused by the database with an opaque code after
+  // everything upstream succeeded. Events caught it.
   const r = doorHoldSeconds({
     paymentChoice: "in_person",
     sessionEnds: [at("2099-01-01T00:00:00.000Z")],
     now: NOW,
   });
   assert.equal(r.ok && r.seconds, MAX_DOOR_HOLD_SECONDS);
+  assert.equal(MAX_DOOR_HOLD_SECONDS, 604800, "the engine's cap, in its own units");
+});
+
+test("a session 8 days out clamps to 7 — the case that would have died at reserve", () => {
+  const eightDays = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+  const r = doorHoldSeconds({ paymentChoice: "in_person", sessionEnds: [eightDays], now: NOW });
+  assert.equal(r.ok && r.seconds, 604800, "clamped below CP007 rather than raising it");
 });
 
 test("null, missing and unparseable ends are skipped, not treated as now", () => {

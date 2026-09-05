@@ -445,7 +445,20 @@ export async function createPurchase(
               (r) => (r as { ends_at: string | null }).ends_at,
             ),
           });
-          if (door.ok) holdTtlSeconds = door.seconds;
+          if (door.ok) {
+            holdTtlSeconds = door.seconds;
+          } else if (door.reason === "already_ended") {
+            // REFUSES. An online pay-at-the-door order for a session that is
+            // over is a mistake, not a late sale — the late sale is the door's
+            // own `sellAtDoor`, which commits immediately and holds nothing.
+            // Falling back would sell a pool-TTL hold on a seat nobody can use.
+            await unwind("door order for a session that has ended");
+            return {
+              ok: false,
+              reason: "session_already_ended",
+              error: "That session has already ended.",
+            };
+          }
         }
       }
 

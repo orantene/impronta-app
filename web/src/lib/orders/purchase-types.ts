@@ -128,6 +128,8 @@ export type PurchaseRefusalReason =
   | "slot_taken"
   /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
   | "slot_required"
+  /** An online pay-at-the-door order for a session that is over. */
+  | "session_already_ended"
   /** Promo refusals. A code the buyer TYPED must never be silently ignored. */
   | "promo_unknown"
   | "promo_not_started"

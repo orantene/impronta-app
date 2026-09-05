@@ -14,16 +14,33 @@
  * source, no arithmetic at the seam.
  */
 
-/** A hold may not outlive this, whatever the data says. 30 days. */
-export const MAX_DOOR_HOLD_SECONDS = 30 * 24 * 60 * 60;
+/**
+ * THE ENGINE'S CAP, not a product choice. 7 days.
+ *
+ * `capacity_pools_hold_ttl_seconds_check` is `BETWEEN 30 AND 604800`, and
+ * `_capacity_reserve_locked` raises `CP007 invalid_ttl` above it. My first
+ * version clamped at 30 days, which passes here and DIES AT RESERVE — a door
+ * order for a session eight days out would have been refused by the database
+ * with an opaque code after everything upstream had succeeded.
+ *
+ * Events caught it. Clamping to the engine's own number means the refusal
+ * cannot happen rather than being mapped after the fact.
+ */
+export const MAX_DOOR_HOLD_SECONDS = 604800;
 
-/** Below this a hold is not worth taking; the caller falls back to the pool TTL. */
+/**
+ * Below this a hold is not worth taking. The engine's floor is 30 seconds; this
+ * is deliberately stricter, because a hold measured in seconds is indistinct
+ * from no hold at all.
+ */
 export const MIN_DOOR_HOLD_SECONDS = 60;
 
 export type DoorHoldResolution =
   | { ok: true; seconds: number }
   /** Use the pools' own TTL. Not an error — most orders are not door orders. */
-  | { ok: false; reason: "not_a_door_order" | "no_session_end" | "already_ended" };
+  | { ok: false; reason: "not_a_door_order" | "no_session_end" }
+  /** REFUSE the purchase. An online door order for a finished session. */
+  | { ok: false; reason: "already_ended" };
 
 /**
  * Seconds from `now` until the latest session on the order ends.
@@ -53,9 +70,14 @@ export function doorHoldSeconds(input: {
 
   const seconds = Math.floor((latest - now) / 1000);
 
-  // A session already over cannot bound a hold. Falling back to the pool TTL is
-  // right: the order is still valid (someone may be buying at the door of a
-  // running event), it just has no future end to hold against.
+  // A session already over REFUSES the purchase rather than falling back.
+  //
+  // I had this as a fallback, reasoning that someone buying at the door of a
+  // running event is a real customer. Events corrected it: that person is the
+  // door's own `sellAtDoor`, which commits immediately and holds nothing. An
+  // ONLINE pay-at-the-door order for an event that has ended is not a late
+  // sale, it is a mistake — and falling back would sell it a pool-TTL hold on a
+  // seat nobody can use.
   if (seconds < MIN_DOOR_HOLD_SECONDS) return { ok: false, reason: "already_ended" };
 
   return { ok: true, seconds: Math.min(seconds, MAX_DOOR_HOLD_SECONDS) };
