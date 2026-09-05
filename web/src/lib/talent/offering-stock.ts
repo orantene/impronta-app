@@ -14,9 +14,6 @@
  * logged and swallowed so it never blocks the cancel it accompanies.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
 
 type OfferingContext = {
   offering_id?: string;
@@ -56,50 +53,25 @@ export function shouldReleaseStock(ctx: OfferingContext | null): ctx is Offering
  * `stock_reserved` flag is flipped false, so a second path hitting the same
  * inquiry (e.g. staff cancel followed by a refund) can never double-restock.
  */
-export async function releaseReservedOfferingStock(
-  inquiryId: string,
-  adminClient?: SupabaseClient,
-): Promise<boolean> {
-  const admin = (adminClient ?? createServiceRoleClient()) as SupabaseClient | null;
-  if (!admin) return false;
-  try {
-    const { data: inq, error } = await admin
-      .from("inquiries")
-      .select("source_context")
-      .eq("id", inquiryId)
-      .maybeSingle();
-    if (error || !inq) {
-      if (error) logServerError("offering-stock/lookup", error);
-      return false;
-    }
-    const sourceContext = (inq as { source_context?: unknown }).source_context;
-    const ctx = readInquiryOfferingContext(sourceContext);
-    if (!shouldReleaseStock(ctx)) return false;
-    const qty =
-      typeof ctx.stock_reserved_qty === "number" && Number.isFinite(ctx.stock_reserved_qty) && ctx.stock_reserved_qty > 0
-        ? Math.round(ctx.stock_reserved_qty)
-        : 1;
-    const { error: rpcErr } = await admin.rpc("release_offering_stock", {
-      p_offering_id: ctx.offering_id,
-      p_qty: qty,
-    });
-    if (rpcErr) {
-      logServerError("offering-stock/release", rpcErr);
-      return false;
-    }
-    // Flip the flag so no other cancel/refund path releases these units again.
-    const nextContext = {
-      ...(sourceContext as Record<string, unknown>),
-      offering: { ...(ctx as Record<string, unknown>), stock_reserved: false },
-    };
-    const { error: flagErr } = await admin
-      .from("inquiries")
-      .update({ source_context: nextContext })
-      .eq("id", inquiryId);
-    if (flagErr) logServerError("offering-stock/flag-clear", flagErr);
-    return true;
-  } catch (err) {
-    logServerError("offering-stock/release", err);
-    return false;
-  }
-}
+
+/**
+ * `releaseReservedOfferingStock` was REMOVED here (0.6b-3).
+ *
+ * It was the last caller of the `release_offering_stock` RPC, which frees a
+ * QUANTITY newest-first and so can release a different allocation than the one
+ * the caller reserved. Capacity is dropping that RPC and its reserve twin; this
+ * removal is what unblocks them.
+ *
+ * Safe because the path was UNREACHABLE, not merely unused, and each leg was
+ * checked rather than assumed:
+ *   - both engines that wrote `source_context.offering.stock_reserved` are
+ *     deleted, and no code writes that stamp (grep: comments only);
+ *   - production carries zero stamped inquiries, and zero offerings with
+ *     `inventory_qty` set but no `capacity_pool_id` — the second is Capacity's
+ *     check, and it is the one whose failure mode is a live oversell rather
+ *     than a stranded row.
+ *
+ * The pure half stays: `readInquiryOfferingContext` still has three callers and
+ * touches no RPC. Retiring the RPC and retiring this module were never the same
+ * job, and conflating them would have deleted a parser nobody asked to remove.
+ */

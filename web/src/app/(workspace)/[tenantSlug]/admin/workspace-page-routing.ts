@@ -22,6 +22,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "media",
   "pitches",
   "financials", // L46 — canonical server route; not a SPA tab
+  "orders",     // 0.10 — canonical server route; not a SPA tab
   "payouts",    // Stripe Connect payout onboarding + base reservation fee (in-shell SPA section)
   "settings",
 ]);

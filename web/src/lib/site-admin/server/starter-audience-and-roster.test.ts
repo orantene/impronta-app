@@ -46,15 +46,44 @@ function heroHeadline(audience?: StarterAudience): string {
 
 // ── FIX 3: the audience actually reaches the seed ──────────────────────────
 
+/**
+ * Each `ensureWorkspaceScaffold({ ... })` call block, as source text.
+ *
+ * Counting a field's occurrences ACROSS THE WHOLE FILE, which is what these
+ * assertions used to do, is wrong in both directions:
+ *  - false positive: any unrelated call that happens to pass
+ *    `audience: lead.audience` inflates the count (the industry-preset
+ *    derivation does exactly this, legitimately);
+ *  - false negative: a scaffold call could DROP the field and still match, so
+ *    long as some other line elsewhere supplied the count — which is the very
+ *    bug these tests exist to catch.
+ *
+ * Reading the blocks and asserting each one carries the field measures the
+ * thing rather than a proxy for it.
+ */
+function scaffoldCallBlocks(source: string): string[] {
+  const blocks: string[] = [];
+  const marker = "ensureWorkspaceScaffold({";
+  let from = 0;
+  for (;;) {
+    const start = source.indexOf(marker, from);
+    if (start === -1) break;
+    const end = source.indexOf("});", start);
+    if (end === -1) break;
+    blocks.push(source.slice(start, end));
+    from = end;
+  }
+  return blocks;
+}
+
 test("every provisioning call site hands the seed an audience", () => {
-  const source = read("lib/saas/workspace-signup.server.ts");
-  const scaffoldCalls = source.match(/ensureWorkspaceScaffold\(\{/g) ?? [];
-  const audiencePasses = source.match(/\n\s*audience: lead\.audience,/g) ?? [];
-  assert.ok(scaffoldCalls.length >= 3, "expected the three provisioning paths");
-  assert.equal(
-    audiencePasses.length,
-    scaffoldCalls.length,
-    "one of the ensureWorkspaceScaffold calls is not passing the audience -- that was the whole bug, and the fresh-creation path is the one that matters",
+  const blocks = scaffoldCallBlocks(read("lib/saas/workspace-signup.server.ts"));
+  assert.ok(blocks.length >= 3, "expected the three provisioning paths");
+  const missing = blocks.filter((b) => !/\n\s*audience: lead\.audience,/.test(b));
+  assert.deepEqual(
+    missing,
+    [],
+    "an ensureWorkspaceScaffold call is not passing the audience -- that was the whole bug, and the fresh-creation path is the one that matters",
   );
 });
 
@@ -89,10 +118,12 @@ test("the signup blurb is selected, stamped, and threaded to the seed", () => {
     /\[SIGNUP_BUSINESS_DESCRIPTION_KEY\]:/,
     "the agencies insert must stamp the blurb alongside the other signup_* keys",
   );
-  const scaffoldCalls = provisioner.match(/ensureWorkspaceScaffold\(\{/g) ?? [];
-  const blurbPasses =
-    provisioner.match(/\n\s*businessDescription: lead\.business_description,/g) ?? [];
-  assert.equal(blurbPasses.length, scaffoldCalls.length);
+  const blocks = scaffoldCallBlocks(provisioner);
+  assert.ok(blocks.length >= 3, "expected the three provisioning paths");
+  const missingBlurb = blocks.filter(
+    (b) => !/\n\s*businessDescription: lead\.business_description,/.test(b),
+  );
+  assert.deepEqual(missingBlurb, [], "a scaffold call is not threading the blurb");
   assert.match(
     read("lib/site-admin/server/onboard-starter-content.ts"),
     /persistSignupBusinessDescription\(client, \{/,

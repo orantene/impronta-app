@@ -11,7 +11,15 @@ export type CalendarListEvent = {
   status: string;
   starts_at?: string | null;
   timezone?: string | null;
-  kind?: "inquiry" | "booking" | "hold" | "order";
+  /**
+   * DUPLICATED FROM `_data-bridge/calendar.ts`'s `CalendarEventKind`, and it
+   * has to be: that module is `server-only`, so a client component cannot
+   * import from it even for a type. The two are hand-maintained copies of one
+   * union, which is why adding a kind on the server side reddened the build
+   * here rather than at the source — the assignment at CalendarPage.tsx is the
+   * only thing holding them together. Add to both, or neither.
+   */
+  kind?: "inquiry" | "booking" | "hold" | "order" | "session";
 };
 
 function eventDayKey(ev: CalendarListEvent): string {

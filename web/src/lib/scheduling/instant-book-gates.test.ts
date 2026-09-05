@@ -102,8 +102,13 @@ test("weeklyHasBookableWindow is true when any day 0-6 has a window", () => {
   assert.equal(weeklyHasBookableWindow(null), false);
 });
 
+// REPOINTED at the purchase pipeline. `instant-book-engine.ts` was deleted in
+// 0.6b-2 and this guard EARNED its keep on the way out: my first rewire dropped
+// the slot-required gate entirely, so a timed service with bookable hours would
+// have been purchasable with no time attached — a paid appointment nobody could
+// attend. The guard outlived the file it pinned and was still right.
 const ENGINE = readFileSync(
-  join(__dirname, "..", "inquiry", "instant-book-engine.ts"),
+  join(__dirname, "..", "orders", "purchase.ts"),
   "utf8",
 );
 const MOUNT = readFileSync(

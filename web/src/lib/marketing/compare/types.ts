@@ -58,6 +58,17 @@ export type Comparison = {
   pricingCheckedOn: string;
   /** Public sources, rendered as links so a reader can verify us. */
   sources: { label: string; url: string }[];
+  /**
+   * Optional. Set when the figures could NOT be read from the competitor's own
+   * pricing page, and say why.
+   *
+   * The rule for these pages is that every number is verified at source. When
+   * that is not possible, the honest move is to publish the limitation rather
+   * than to imply a reading we did not do: a page whose entire job is being
+   * checkable cannot start by overstating its own sourcing. Rendered next to
+   * the checked-on date.
+   */
+  sourceCaveat?: { en: string; es: string };
   en: ComparisonContent;
   es: ComparisonContent;
 };

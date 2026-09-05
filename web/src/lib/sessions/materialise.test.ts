@@ -257,3 +257,87 @@ test("a fully materialised, fully pooled series asks for nothing", () => {
   assert.equal(second.ok === true && second.create.length, 0);
   assert.equal(second.ok === true && second.poolBackfill.length, 0);
 });
+
+// ── The gap collision: two wall clocks, one instant ────────────────────────
+
+test("a SHIFTED occurrence colliding with an instant another series holds is refused", () => {
+  // Madrid jumps 02:00 -> 03:00 on 2027-03-28. A 02:30 series resolves to the
+  // same instant as a 03:30 series. Two sessions there means two tier pools
+  // selling one room, and nothing refuses it while the pools are parentless.
+  const now = new Date("2027-03-28T00:00:00Z");
+  const at0330 = decideMaterialisation(
+    series({ localTime: "03:30", weekdays: [7], startsOn: "2027-03-28", endsOn: "2027-03-28" }),
+    [],
+    now,
+  );
+  assert.equal(at0330.ok, true);
+  if (!at0330.ok) return;
+  assert.equal(at0330.create.length, 1);
+  assert.equal(at0330.create[0]!.kind, "exact");
+
+  const at0230 = decideMaterialisation(
+    series({ localTime: "02:30", weekdays: [7], startsOn: "2027-03-28", endsOn: "2027-03-28" }),
+    [],
+    now,
+    DEFAULT_HORIZON_DAYS,
+    [{ sessionId: "sess-0330", startsAt: at0330.create[0]!.startsAt, title: "Salsa" }],
+  );
+  assert.equal(at0230.ok, true);
+  if (!at0230.ok) return;
+  // Same instant, proven rather than assumed — otherwise this test passes for
+  // the wrong reason the day the resolver changes.
+  assert.equal(at0230.skipped.length, 1, "the shifted occurrence was not refused");
+  assert.equal(at0230.skipped[0]!.reason, "gap_shift_collision");
+  // The refusal must NAME what it collided with. A refusal a human cannot
+  // distinguish from a different refusal is the defect this scope risks.
+  assert.equal(at0230.skipped[0]!.collidesWithSessionId, "sess-0330");
+  assert.equal(at0230.skipped[0]!.collidesWithTitle, "Salsa");
+  assert.equal(at0230.create.length, 0);
+  assert.equal(
+    Date.parse(at0230.skipped[0]!.startsAt),
+    Date.parse(at0330.create[0]!.startsAt),
+    "the fixture did not actually collide",
+  );
+});
+
+test("an EXACT occurrence on an occupied instant is NOT refused", () => {
+  // Two classes at 18:00 in two different rooms is normal, and a unique index
+  // on (venue, starts_at) would have refused it. Only a shift is suspect.
+  const now = new Date("2027-06-01T00:00:00Z");
+  const first = decideMaterialisation(series({ startsOn: "2027-06-01" }), [], now);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const second = decideMaterialisation(
+    series({ id: "series-2", startsOn: "2027-06-01" }),
+    [],
+    now,
+    DEFAULT_HORIZON_DAYS,
+    first.create.map((o, i) => ({ sessionId: `other-${i}`, startsAt: o.startsAt, title: "Vinyasa B" })),
+  );
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  assert.equal(second.skipped.length, 0, "refused a legitimate second room");
+  assert.equal(second.create.length, first.create.length);
+});
+
+test("a shifted occurrence on a FREE instant is created normally", () => {
+  const now = new Date("2027-03-28T00:00:00Z");
+  const d = decideMaterialisation(
+    series({ localTime: "02:30", weekdays: [7], startsOn: "2027-03-28", endsOn: "2027-03-28" }),
+    [],
+    now,
+  );
+  assert.equal(d.ok, true);
+  if (!d.ok) return;
+  assert.equal(d.create.length, 1);
+  assert.equal(d.create[0]!.kind, "shifted");
+  assert.equal(d.skipped.length, 0);
+});
+
+test("an ordinary occurrence carries kind 'exact', so the collision rule stays narrow", () => {
+  const d = decideMaterialisation(series(), [], new Date("2027-06-01T00:00:00Z"));
+  assert.equal(d.ok, true);
+  if (!d.ok) return;
+  assert.ok(d.create.length > 0);
+  for (const occ of d.create) assert.equal(occ.kind, "exact");
+});

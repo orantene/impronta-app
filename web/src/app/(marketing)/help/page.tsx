@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingContainer, MarketingSection } from "@/components/marketing/container";
-import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -98,9 +97,10 @@ export default async function HelpIndexPage() {
       : "Pick your role to find the right guides. And if you cannot find what you need, you are not left alone with the documentation.",
     humanTitle: es ? "¿No lo encuentras?" : "Cannot find it?",
     humanBody: es
-      ? "Te responde una persona real, no un bot. Escribe a"
-      : "A real person answers, not a bot. Write to",
+      ? "Te responde una persona real, no un bot. Escríbenos desde"
+      : "A real person answers, not a bot. Write to us from",
     humanTail: es ? ". Leemos todos los mensajes." : ". We read every message.",
+    contactLink: es ? "la página de contacto" : "the contact page",
     promise: es ? "Cómo funciona nuestro soporte" : "How our support works",
   };
 
@@ -176,12 +176,16 @@ export default async function HelpIndexPage() {
               style={{ fontSize: "0.9375rem", lineHeight: 1.65, color: "var(--plt-ink-soft)" }}
             >
               <strong style={{ color: "var(--plt-ink)" }}>{t.humanTitle}</strong> {t.humanBody}{" "}
+              {/* Labelled by where it GOES, not by an address. This link
+                  already pointed at the contact form while displaying
+                  hello@tulala.digital, so a reader would copy an address that
+                  cannot receive mail: the domain has no MX record. */}
               <Link
                 href={withLocaleHref("/contact", locale)}
                 className="underline underline-offset-2"
                 style={{ color: "var(--plt-forest)" }}
               >
-                {SUPPORT_EMAIL}
+                {t.contactLink}
               </Link>
               {t.humanTail}{" "}
               <Link

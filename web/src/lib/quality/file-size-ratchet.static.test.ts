@@ -299,7 +299,15 @@ const BUDGETS: Record<string, number> = {
   // +14 (website plan key) stacked on +10 (analytics tiles) — two branches
   // landed the same day; the true count is their sum (exact number below is
   // the measured file size after the rebase, not either branch's claim).
-  "src/components/admin/shell/internal/state/fixtures.ts": 5150,
+  // +1 (0.10 Orders): `PAGE_META` is a `Record<WorkspacePage, …>`, so adding
+  // `orders` to that union makes an entry here mandatory — tsc fails with
+  // TS2741 without it. There is no waste to trim: the diff against main is
+  // exactly +1/-0 and the line is compiler-required, which is why this raises
+  // the budget rather than extracting. The alternative considered and REJECTED
+  // was dropping `orders` from the WorkspacePage union to dodge the line;
+  // `resolveWorkspaceAdminPage` casts its result to that union, so a segment
+  // outside it makes the return type a lie to save one line.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5151,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and

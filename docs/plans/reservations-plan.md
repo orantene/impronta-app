@@ -18,30 +18,60 @@ reported it.
 
 ## 0. Where the brief and the code disagree
 
-### C1 — `client_stripe_customers` cannot hold a card on file for a table. Two independent reasons.
+### C1 — `client_stripe_customers` cannot hold a card on file. One reason, not two. **Corrected.**
 
-§05 says "a SetupIntent against the client Stripe customer that already exists". That object cannot do it.
+**Reason 1 stands, and it is sufficient.** `user_id UUID PRIMARY KEY REFERENCES auth.users(id)`
+([`20260901180000_trust_economics.sql:25`](../../supabase/migrations/20260901180000_trust_economics.sql#L25)).
+A guest who gives only an email has no `auth.users` row, and Orders 0.4 deliberately stops provisioning
+them. The no-show moat exists for exactly that guest. The table cannot represent them.
 
-1. **Keyed by an auth user.** `user_id UUID PRIMARY KEY REFERENCES auth.users(id)`
-   ([`20260901180000_trust_economics.sql:25`](../../supabase/migrations/20260901180000_trust_economics.sql#L25)).
-   A guest who gives only an email has no `auth.users` row, and Orders 0.4 deliberately **stops
-   provisioning them**. The no-show moat is for exactly that guest.
-2. **On the wrong Stripe account.** The platform uses **Direct Charges on the connected account** —
-   `stripe.checkout.sessions.create(params, { stripeAccount })`
-   ([`stripe-checkout.ts:136-147`](../../web/src/lib/payments/stripe-checkout.ts#L136)) — and
-   [`20260907150100:36-42`](../../supabase/migrations/20260907150100_stripe_connect_accounts.sql#L36)
-   states the connected account carries chargebacks. A PaymentMethod on the platform account cannot be
-   charged on a connected one.
+**Reason 2 was WRONG and I am recording how, because the mechanism matters more than the error.**
+I wrote that the platform charges with Direct Charges on the connected account, so a platform-account
+PaymentMethod could not be charged. **It does not.** `stripe-checkout.ts` on `origin/main` says in its
+own header: *"THE CHARGE ALWAYS LANDS ON THE PLATFORM ACCOUNT… That branch was removed (finance audit,
+2026-09-01)… Do not reintroduce a connected-account branch here."* Connected accounts are onboarded under
+Stripe's `recipient` agreement with capability set `{transfers}` and **cannot take a card at all**.
+`application_fee_amount` has zero live uses on main; all four occurrences are comments describing the
+removed lane. Money reaches tenants by `stripe.transfers.create` — separate charges and transfers.
 
-Fix: `customer_payment_methods`, tenant-scoped, storing the account it was saved on (§1.3).
+**How I got it wrong: I read the file out of the shared checkout, not out of `origin/main`.**
+`/Users/oranpersonal/Desktop/impronta-app` sits on `fix/agency-contact-smoke`, **138 commits behind**, and
+its working copy still contains `stripeAccount: input.connectedAccountId`, which main deleted in `9506ceebd`
+on 2026-09-01 — two days before I read it. The stale tree reads identically to a current one, which is
+why this is in `feedback_absolute_paths_and_origin_main_for_claims` as a standing rule. I had that rule
+and still did it, on my very first verification, before I had made a worktree.
 
-### C2 — D2 is mostly already answered by that charge model
+**What changes because of it:**
 
-Direct charges put a forfeiture in the restaurant's balance the moment it settles; the platform cannot
-"keep" it without a transfer nothing builds. The only live question is `application_fee_amount` on a
-penalty charge, which **defaults to 0 today**. Recommendation: **tenant keeps it; fee 0 on a no-show or
-forfeiture; normal fee on a deposit applied to the bill.** A penalty is not a sale, a cut of one reads
-badly to both sides, and penalty charges are the most chargeback-prone money on the platform.
+- The conclusion is unaffected: `client_stripe_customers` still cannot hold this card, on reason 1 alone.
+- **§1.3's DDL is wrong and is corrected there.** `stripe_account_id` existed to name the *connected*
+  account a card was saved on. There is no such account. A saved card is a platform-account Customer and
+  PaymentMethod, and the row is tenant-scoped by its own `tenant_id` rather than by a Stripe account.
+- **D2's stated mechanism is void even though its outcome is not** (C2).
+
+### C2 — D2's outcome stands; its stated mechanism was void before it was ruled
+
+I narrowed D2 to "the only live question is `application_fee_amount` on a penalty charge", and the
+Director put that to the owner. **There is nothing to set to zero.** `application_fee_amount` has no live
+use on main, and the premise underneath my narrowing — *"Direct charges already put a forfeiture in the
+tenant's Stripe balance"* — was false two days before I wrote it (C1).
+
+**The outcome is unchanged and correct:** the tenant keeps the forfeiture, and the platform takes **no
+commission** on a penalty. The mechanism is a platform charge followed by
+`stripe.transfers.create` to the tenant with no commission deducted, following the existing shape at
+[`booking-payouts-ledger.ts:297`](../../web/src/lib/payments/booking-payouts-ledger.ts#L297) and its
+`transfer_group` convention, which refunds and reversals key off.
+
+**The genuinely open question, which the charge model creates:** because the charge lands on the platform,
+Stripe's processing fee on a forfeiture is sunk on our balance before any transfer — roughly $0.88 on a
+$20 deposit, on the one flow whose volume rises when customers behave badly. **Ruled under silence: the
+tenant nets the processing fee**, so "we take zero" stays literally true (zero *commission*) while the
+platform does not pay a card fee for someone else's no-show. The receipt shows the processing line rather
+than deducting it silently. If overturned, it is one number and one string.
+
+**No per-booking and no per-cover fee, ever, and nothing in the schema may imply one.** Competitors charge
+per network cover; we charge nothing until somebody pays. A reservation genuinely is not a transaction, so
+there is no column, no disabled control and no placeholder for one.
 
 ### C3 — the weekly-hours shape provably cannot express a window crossing midnight
 
@@ -297,9 +327,10 @@ structurally distinct from a value. That is the standing rule from
 `incident_a_function_that_answers_instead_of_refusing`, and it is why these are nullable ints rather than
 a sentinel like 0 or 999.
 
-### 1.3 `customer_payment_methods` (PR R5)
+### 1.3 `customer_payment_methods` (PR R5, migration `20261229000382`)
 
-The C1 fix.
+The C1 fix, **corrected**: cards live on the **platform** account, because that is the only account that
+can take one. The row is tenant-scoped by its own column, not by a Stripe account id.
 
 ```sql
 create table public.customer_payment_methods (
@@ -307,9 +338,11 @@ create table public.customer_payment_methods (
   tenant_id                uuid not null references public.agencies(id) on delete cascade,
   customer_id              uuid not null references public.customers(id) on delete cascade,
 
-  stripe_account_id        text not null,   -- acct_*, the tenant's connected account
-  stripe_customer_id       text not null,   -- cus_*, created ON that account
-  stripe_payment_method_id text not null,   -- pm_*
+  -- Both on the PLATFORM account. There is no connected-account variant:
+  -- our connected accounts are `recipient`-agreement with capability
+  -- {transfers} and cannot take a card at all.
+  stripe_customer_id       text not null,
+  stripe_payment_method_id text not null,
 
   brand      text null,
   last4      text null check (last4 is null or last4 ~ '^[0-9]{4}$'),
@@ -324,16 +357,18 @@ create table public.customer_payment_methods (
 );
 
 create unique index customer_payment_methods_pm_uniq
-  on public.customer_payment_methods (stripe_account_id, stripe_payment_method_id);
+  on public.customer_payment_methods (stripe_payment_method_id);
 create unique index customer_payment_methods_default_uniq
   on public.customer_payment_methods (tenant_id, customer_id)
   where is_default and status = 'active';
 ```
 
-`stripe_account_id` is stored on the row rather than read from `agencies` at charge time, because a
-tenant can reconnect a different Stripe account and a method saved on the old one is then unusable.
-Storing it makes that a visible mismatch instead of a confusing decline. No card data is held; brand,
-last4 and expiry come back from Stripe for display.
+**The tenant scoping is the row's job now.** A platform-account PaymentMethod is charge-able by the
+platform for any tenant, so nothing in Stripe stops a cross-tenant charge — only this column and the code
+above it do. That makes `tenant_id` a security boundary here rather than a convenience, and every read
+must carry it.
+
+**A forfeiture is therefore a platform charge followed by a transfer**, not a direct charge (C2).
 
 ### 1.4 What I call, and what I still need from other managers
 
@@ -460,15 +495,34 @@ and evidenced on production.
 
 ---
 
-## 5. Roles
+## 5. Roles — `host` must NOT be a membership role
 
-`host` is the first **lateral** role in a model documented as strictly hierarchical (C5), and Events needs
-`door` with the same shape. Built twice we get two answers to "may a host see a guest's phone number".
-Proposal: Events builds one operational-roles slice; I add `host` on top. Capabilities I need:
+**Corrected 2026-09-04 after reading the function rather than assuming it.**
+[`is_staff_of_tenant`](../../supabase/migrations/20260602100000_saas_p2_rls_tenant_isolation.sql#L43)
+is the predicate under **every RLS policy on every tenantised table**, and its body is:
+
+```sql
+SELECT public.is_platform_admin()
+  OR EXISTS (SELECT 1 FROM public.agency_memberships m
+              WHERE m.profile_id = auth.uid()
+                AND m.tenant_id  = target_tenant_id
+                AND m.status IN ('active','pending_acceptance'));
+```
+
+**It never reads `role`.** So adding `host` to the membership role CHECK would not create a narrow
+role; it would grant a host read access to the entire workspace — the roster, the clients, the money —
+through every policy in the schema. My earlier plan said "Events builds the `door` slice and I add
+`host` on top", which was right about not forking and wrong about the mechanism.
+
+The pattern is a **SECURITY DEFINER function plus app-layer gating**, not a membership row. Events is
+building the `door` shape first; I build `host` on that shape. Capabilities the host stand needs:
 `view_reservation_book`, `seat_guest`, `mark_no_show`, `create_walkin`, and read of name, party size and
 notes — **not** email, phone, spend, or notes marked private.
 
----
+**A related trap, same source:** `product_discounts.code` is **globally unique**
+([`20260527213552:133`](../../supabase/migrations/20260527213552_product_discounts.sql#L133)). If
+Reservations ever grows promo or comp codes, that shape must not be copied — the first venue to create
+`SALSA10` would take it from every other venue on the platform.
 
 ## 6. Invariants I hold, and will refuse to break
 
