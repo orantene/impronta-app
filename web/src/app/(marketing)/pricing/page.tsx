@@ -11,6 +11,7 @@ import { PricingLaddersSection } from "@/components/marketing/pricing-ladders-se
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
@@ -47,6 +48,11 @@ export default async function PricingPage({
 }) {
   const resolved = await searchParams;
   const { currency, source } = await resolveCurrency(resolved);
+  // The displayed fee reads from platform_commission_config. A typed 0.06
+  // shipped on this page once; the standing rule is that no displayed price or
+  // fee is a literal, because every hardcoded one in this codebase has
+  // eventually drifted from what the card is actually charged.
+  const ticketRate = (await loadPlatformTakeBps(null)) / 10_000;
   const locale = await getRequestLocale();
   const c = pickLocale(locale, {
     en: {
@@ -165,11 +171,14 @@ export default async function PricingPage({
       {/* What a ticket carries, here and on Eventbrite. Lives on pricing
           rather than the ticketing feature page: ticketing is still
           `status: "coming"`, so a comparison page would invite someone to
-          switch to a product they cannot buy. Here it is a statement about how
-          we charge, which needs no shipped product. */}
+          switch to a product they cannot buy.
+          The table itself now carries a qualifier saying ticketing is not
+          available yet and linking to the hub entry, because a fee comparison
+          with no qualifier reads as a live offer regardless of where it sits.
+          The rate comes from platform_commission_config, never a literal. */}
       <MarketingSection>
         <MarketingContainer size="wide">
-          <TicketFeeTable locale={locale} />
+          <TicketFeeTable locale={locale} tulalaRate={ticketRate} />
         </MarketingContainer>
       </MarketingSection>
 

@@ -35,8 +35,23 @@ const EB_SERVICE_RATE = 0.037;
 const EB_SERVICE_FLAT = 1.79;
 const EB_PROCESSING_RATE = 0.029;
 
-/** Ours: one rate, every plan, card processing inside it. */
-export const TULALA_RATE = 0.06;
+/**
+ * Ours: one rate, every plan, card processing inside it.
+ *
+ * FALLBACK ONLY. This page must state the rate the platform actually charges,
+ * which lives in `platform_commission_config.default_take_bps`, and callers
+ * pass it in. This constant is what renders when that read fails, so a
+ * config outage degrades to a slightly stale number rather than a blank
+ * pricing page or a thrown error on a public route.
+ *
+ * It exists at all because a typed fee already shipped here once: the standing
+ * rule is that every displayed price or fee reads from
+ * `platform_commission_config` and never from a literal, and this page violated
+ * it on the day the rule was made. `check-compare-table-drift` now fails if
+ * this constant stops matching the live config, so the fallback cannot silently
+ * become the wrong answer.
+ */
+export const TULALA_RATE_FALLBACK = 0.06;
 /** The half added to the buyer. The seller carries the rest. */
 export const TULALA_BUYER_SHARE = 0.03;
 
@@ -48,7 +63,8 @@ export type FeeRow = {
   eventbritePct: number;
   /** Total the ticket carries here. */
   tulala: number;
-  /** Always 6. Stated so the flat shape is visible next to theirs. */
+  /** The flat rate as a percentage, from live config. Stated so the flat shape
+   *  is visible next to Eventbrite's shrinking one. */
   tulalaPct: number;
   /** True for the rows the copy leads on. See the module note above. */
   headline: boolean;
@@ -58,18 +74,24 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function ticketFeeRows(): FeeRow[] {
+/**
+ * @param tulalaRate the LIVE platform take as a fraction (0.06 for 600 bps).
+ * Callers resolve it from `platform_commission_config`; omitting it falls back
+ * to the constant above.
+ */
+export function ticketFeeRows(tulalaRate: number = TULALA_RATE_FALLBACK): FeeRow[] {
+  const ratePct = Math.round(tulalaRate * 1000) / 10;
   return [5, 10, 20, 50, 100].map((faceValue) => {
     const eventbrite = round2(
       faceValue * EB_SERVICE_RATE + EB_SERVICE_FLAT + faceValue * EB_PROCESSING_RATE,
     );
-    const tulala = round2(faceValue * TULALA_RATE);
+    const tulala = round2(faceValue * tulalaRate);
     return {
       faceValue,
       eventbrite,
       eventbritePct: Math.round((eventbrite / faceValue) * 1000) / 10,
       tulala,
-      tulalaPct: 6,
+      tulalaPct: ratePct,
       headline: faceValue === 10 || faceValue === 20,
     };
   });

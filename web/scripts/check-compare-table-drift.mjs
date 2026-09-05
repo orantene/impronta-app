@@ -75,6 +75,41 @@ try {
     process.exit(1);
   }
 
+  // ── Second check: the displayed ticket fee must match live config ─────────
+  //
+  // `ticket-fee-comparison.ts` keeps a FALLBACK rate for when the config read
+  // fails. A fallback that has drifted from the live value is worse than none:
+  // it renders a confidently wrong fee on a public page exactly when the read
+  // is broken and nobody is watching. This is also the specific rule a typed
+  // 0.06 on /pricing violated on the day it was made.
+  const cfgRes = await fetch(
+    `${url}/rest/v1/platform_commission_config?select=default_take_bps&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+  );
+
+  if (cfgRes.ok) {
+    const cfg = await cfgRes.json();
+    const liveBps = cfg?.[0]?.default_take_bps;
+    const { TULALA_RATE_FALLBACK } = await import(
+      "../src/lib/marketing/ticket-fee-comparison.ts"
+    );
+    const fallbackBps = Math.round(TULALA_RATE_FALLBACK * 10_000);
+
+    if (typeof liveBps === "number" && liveBps !== fallbackBps) {
+      console.error(
+        `\nFAIL: the ticket fee fallback has drifted from live config.\n\n` +
+          `  ticket-fee-comparison.ts TULALA_RATE_FALLBACK = ${fallbackBps} bps\n` +
+          `  platform_commission_config.default_take_bps  = ${liveBps} bps\n\n` +
+          `The page reads live config, so customers see the right number today, ` +
+          `but the fallback renders when that read fails. Update the constant.\n`,
+      );
+      process.exit(1);
+    }
+    console.log(`ticket fee fallback: ${fallbackBps} bps, matches live config`);
+  } else {
+    console.log(`ticket fee fallback: skipped (REST ${cfgRes.status})`);
+  }
+
   console.log(`compare-table drift: ${rows.length} row(s) checked, none contradict enforcement`);
   process.exit(0);
 } catch (err) {
