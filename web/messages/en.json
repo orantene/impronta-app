@@ -4500,6 +4500,18 @@
         "saved": "Saved",
         "ownerOnly": "Only the workspace owner can change what this workspace is for."
       },
+      "runsEvents": {
+        "title": "Does this workspace run events?",
+        "desc": "Switching events on shows the Events surface: ticketed nights, tiers, the lineup and the door. Switching it off hides the link and changes nothing else.",
+        "onLabel": "Yes, we run events",
+        "onDesc": "Ticketed nights, workshops, shows. Tiers, promo codes, the lineup and the door live under Events.",
+        "offLabel": "No events",
+        "offDesc": "The Events link is hidden. No event, session, tier or ticket is cancelled or deleted, and every published event page still works.",
+        "loading": "Loading…",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "ownerOnly": "Only the workspace owner can switch events on or off."
+      },
       "defaultCurrency": {
         "desc": "Which currency tab opens first on Business Financials when multiple are present. Display-only, no FX conversion."
       },

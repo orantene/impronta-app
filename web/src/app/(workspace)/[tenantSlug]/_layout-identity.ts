@@ -57,6 +57,13 @@ export type TenantIdentityPayload = {
    * a feature they do not have.
    */
   takesReservations: boolean;
+  /**
+   * `agencies.runs_events` — this workspace does events. Written ONLY by
+   * `setRunsEvents`; read here so the rail can decide whether to draw the
+   * Events link. Same rules as `takesReservations`: a LINK decision, never a
+   * route gate, and a column on the row already selected, so it costs nothing.
+   */
+  runsEvents: boolean;
   /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
@@ -119,7 +126,7 @@ export async function loadTenantIdentity(
     admin
       .from("agencies")
       .select(
-        "id, slug, display_name, plan_tier, kind, workspace_type, default_coordinator_user_id, settings, takes_reservations",
+        "id, slug, display_name, plan_tier, kind, workspace_type, default_coordinator_user_id, settings, takes_reservations, runs_events",
       )
       .eq("id", tenantId)
       .maybeSingle(),
@@ -187,6 +194,7 @@ export async function loadTenantIdentity(
     // link rather than showing one that goes nowhere.
     takesReservations:
       (data as { takes_reservations?: unknown }).takes_reservations === true,
+    runsEvents: (data as { runs_events?: unknown }).runs_events === true,
     logoUrl,
     accentColor,
     verifiedDomain,

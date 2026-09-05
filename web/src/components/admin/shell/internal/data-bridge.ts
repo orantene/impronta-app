@@ -344,6 +344,12 @@ export type BridgeData = {
      * stale one must not refuse a workspace a page it owns.
      */
     takesReservations?: boolean;
+    /**
+     * `agencies.runs_events` — set by the owner on Settings. Same contract as
+     * `takesReservations`: optional on the wire, compared `=== true`, decides
+     * whether the Events LINK is drawn and never whether the route resolves.
+     */
+    runsEvents?: boolean;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

@@ -24,6 +24,7 @@ import { DiscoverExposureSection } from "./DiscoverExposureSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
+import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
 import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
 import { VenueSettingsCard } from "@/components/spaces/VenueSettingsCard";
@@ -400,6 +401,8 @@ export function WorkspacePageView() {
                 its own file because this one is already past the 800-line
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
+            {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
+            <RunsEventsCard canEdit={isOwner} />
             <DefaultCurrencySettingsRow />
             <SupportReplaySettingsRow />
           </>
@@ -408,6 +411,10 @@ export function WorkspacePageView() {
           {
             title: t("dashboard.adminWorkspace.workspaceType.title"),
             desc: t("dashboard.adminWorkspace.workspaceType.desc"),
+          },
+          {
+            title: t("dashboard.adminWorkspace.runsEvents.title"),
+            desc: t("dashboard.adminWorkspace.runsEvents.desc"),
           },
           {
             // The row this indexes is `DefaultCurrencySettingsRow`; mirror ITS

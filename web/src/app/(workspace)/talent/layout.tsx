@@ -76,6 +76,8 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   // The platform talent surface has no venue and no service rules, so this is
   // false as a fact, not as a default.
   takesReservations: false,
+  // No tenant, no events. False as a fact.
+  runsEvents: false,
   logoUrl: null,
   accentColor: null,
   verifiedDomain: null,
