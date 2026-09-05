@@ -24,6 +24,7 @@ import {
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
+import { generateOpaqueCode } from "@/lib/links/code";
 import {
   pricePurchase,
   amountToCollectCents,
@@ -369,6 +370,16 @@ export async function createPurchase(
         discount_cents: promoDiscountCents,
         tax_cents: 0,
         total_cents: priced.subtotalCents - promoDiscountCents,
+        // Public receipt identifier for `/r/<code>`. Assigned HERE because the
+        // column is meaningless until an order exists to be shown, and this is
+        // the one place an order is created.
+        //
+        // Reuses the links engine's generator rather than writing a second one:
+        // 20 characters from a 33-symbol alphabet with every confusable pair
+        // already removed (~100 bits). A receipt gets read off paper and typed
+        // by a person, so "no l vs 1" is not cosmetic — and that rule is
+        // already solved, tested, and guarded in one place.
+        receipt_code: generateOpaqueCode(),
         source_channel: input.sourceChannel,
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
