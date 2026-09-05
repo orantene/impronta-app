@@ -1,3 +1,8 @@
+import {
+  CAPACITY_HOLD_TTL_MAX_SECONDS,
+  clampToEngineHoldTtl,
+} from "@/lib/capacity/hold-ttl-bounds";
+
 /**
  * How long a pay-at-the-door hold lives.
  *
@@ -15,18 +20,19 @@
  */
 
 /**
- * THE ENGINE'S CAP, not a product choice. 7 days.
+ * The ceiling, DERIVED from the engine rather than restated.
  *
- * `capacity_pools_hold_ttl_seconds_check` is `BETWEEN 30 AND 604800`, and
- * `_capacity_reserve_locked` raises `CP007 invalid_ttl` above it. My first
- * version clamped at 30 days, which passes here and DIES AT RESERVE — a door
- * order for a session eight days out would have been refused by the database
- * with an opaque code after everything upstream had succeeded.
+ * My first version clamped at 30 days — three times what the engine accepts —
+ * so a door order eight days out passed here and died at reserve with an opaque
+ * `CP007 invalid_ttl`. Replacing it with a literal `604800` fixes today and
+ * reproduces the defect one refactor later: two copies of one number, drifting
+ * silently. Events made that argument and it is right.
  *
- * Events caught it. Clamping to the engine's own number means the refusal
- * cannot happen rather than being mapped after the fact.
+ * `CAPACITY_HOLD_TTL_MAX_SECONDS` is asserted against the migration SQL by
+ * `capacity/hold-ttl-bounds.static.test.ts`, so a change to the CHECK fails a
+ * test rather than a customer's reserve.
  */
-export const MAX_DOOR_HOLD_SECONDS = 604800;
+export const MAX_DOOR_HOLD_SECONDS = CAPACITY_HOLD_TTL_MAX_SECONDS;
 
 /**
  * Below this a hold is not worth taking. The engine's floor is 30 seconds; this
@@ -80,5 +86,7 @@ export function doorHoldSeconds(input: {
   // seat nobody can use.
   if (seconds < MIN_DOOR_HOLD_SECONDS) return { ok: false, reason: "already_ended" };
 
-  return { ok: true, seconds: Math.min(seconds, MAX_DOOR_HOLD_SECONDS) };
+  // Clamped through the engine's own helper: a product limit may tighten
+  // this, never widen it.
+  return { ok: true, seconds: clampToEngineHoldTtl(seconds) };
 }
