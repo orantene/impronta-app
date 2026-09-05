@@ -131,7 +131,7 @@ export const TABLES_FEATURE: Feature = {
       },
       {
         q: "What about walk ins?",
-        a: "Not tracked here yet. Reservations know what has been booked, not what is currently sitting down, so a walk in does not consume a slot. Keep counting walk ins the way you do today and treat the reservation list as the part that is handled for you.",
+        a: "Reservations record what was booked rather than who is currently sitting down, so a walk in does not consume a slot. Keep counting walk ins the way you do today, and let the reservation list be the part that is already handled for you.",
       },
       {
         q: "Can I take a deposit only for large parties?",
@@ -240,7 +240,7 @@ export const TABLES_FEATURE: Feature = {
       },
       {
         q: "¿Y los que llegan sin reservación?",
-        a: "Todavía no se controlan aquí. Las reservaciones saben lo que se apartó, no quién está sentado en este momento, así que quien llega sin reservación no ocupa un lugar del sistema. Sigue contándolos como hasta ahora y deja que la lista de reservaciones sea la parte que ya está resuelta.",
+        a: "Las reservaciones registran lo que se apartó, no quién está sentado en ese momento, así que quien llega sin reservación no ocupa un lugar del sistema. Sigue contándolos como hasta ahora, y deja que la lista de reservaciones sea la parte que ya está resuelta.",
       },
       {
         q: "¿Puedo pedir anticipo solo para grupos grandes?",
