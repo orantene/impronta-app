@@ -108,3 +108,71 @@ test("refund needs money to have ACTUALLY moved", () => {
   // Settled state but nothing collected — a free reserve. Nothing to give back.
   assert.equal(canRefund({ status: "paid", collectedCents: 0 }), false);
 });
+
+// ── Mixed-currency totals ───────────────────────────────────────────────────
+//
+// `orders.currency` is per ROW. The totals strip used to sum every row and
+// label the result with the FIRST row's currency, on the stated assumption
+// that "every row in a filtered view shares a currency in practice". Nothing
+// enforced that, and when it is false the figure is plausibly shaped,
+// confidently labelled, and wrong in a way nobody can see.
+
+test("single currency: the flat figures are populated and named", () => {
+  const rows = [
+    row({ id: "a", status: "paid", currency: "USD", totalCents: 5000, collectedCents: 5000 }),
+    row({ id: "b", status: "pending_payment", currency: "USD", totalCents: 3000, collectedCents: 0 }),
+  ];
+  const t = totalsFor(rows);
+  assert.equal(t.currency, "USD", "a single-currency list names its currency");
+  assert.equal(t.settledCents, 5000);
+  assert.equal(t.outstandingCents, 3000);
+  assert.equal(t.byCurrency.length, 1);
+});
+
+test("MIXED currencies are never added together", () => {
+  const rows = [
+    row({ id: "a", status: "paid", currency: "USD", totalCents: 5000, collectedCents: 5000 }),
+    row({ id: "b", status: "paid", currency: "ARS", totalCents: 100000, collectedCents: 100000 }),
+  ];
+  const t = totalsFor(rows);
+  assert.equal(t.byCurrency.length, 2, "one bucket per currency");
+  const usd = t.byCurrency.find((c) => c.currency === "USD")!;
+  const ars = t.byCurrency.find((c) => c.currency === "ARS")!;
+  assert.equal(usd.settledCents, 5000);
+  assert.equal(ars.settledCents, 100000);
+  // The old behaviour would have produced 105000 labelled "USD".
+  assert.notEqual(usd.settledCents + ars.settledCents, usd.settledCents);
+});
+
+test("a mixed list refuses to name one currency, and zeroes the flat figures", () => {
+  // A caller that ignores `currency` must show an obvious nothing rather than a
+  // convincing wrong number.
+  const rows = [
+    row({ id: "a", status: "paid", currency: "USD", totalCents: 5000, collectedCents: 5000 }),
+    row({ id: "b", status: "paid", currency: "ARS", totalCents: 100000, collectedCents: 100000 }),
+  ];
+  const t = totalsFor(rows);
+  assert.equal(t.currency, null, "no single currency can be named");
+  assert.equal(t.settledCents, 0);
+  assert.equal(t.outstandingCents, 0);
+  assert.equal(t.count, 2, "the row COUNT is still meaningful across currencies");
+});
+
+test("currency codes are compared case-insensitively", () => {
+  // 'usd' and 'USD' are one currency, not two buckets.
+  const rows = [
+    row({ id: "a", status: "paid", currency: "usd", totalCents: 1000, collectedCents: 1000 }),
+    row({ id: "b", status: "paid", currency: "USD", totalCents: 2000, collectedCents: 2000 }),
+  ];
+  const t = totalsFor(rows);
+  assert.equal(t.byCurrency.length, 1);
+  assert.equal(t.currency, "USD");
+  assert.equal(t.settledCents, 3000);
+});
+
+test("an empty list names no currency and totals nothing", () => {
+  const t = totalsFor([]);
+  assert.equal(t.count, 0);
+  assert.equal(t.currency, null);
+  assert.deepEqual(t.byCurrency, []);
+});
