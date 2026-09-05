@@ -272,7 +272,8 @@ export async function GET(request: Request) {
       failedPayouts: failedPayoutCount,
       unattributedPaidTenants: unattributedTenantCount,
       unattributedPaidTalents: unattributedTalentCount,
-      unhealthyCrons: unhealthyHeartbeats.map((v) => `${v.job}:${v.state}`),
+      // improntaLog payloads are scalars only; join rather than pass an array.
+      unhealthyCrons: unhealthyHeartbeats.map((v) => `${v.job}:${v.state}`).join(", ") || "none",
       balanceMismatch: balanceMismatchSummary ?? "none",
     });
 
