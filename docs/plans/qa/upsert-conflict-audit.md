@@ -27,10 +27,10 @@ and both tables were empty.
 | `.upsert(` calls in `web/src` (excl. tests) | **121** |
 | …naming an `onConflict` target | **113** (the rest conflict on the primary key — always inferable, never flagged) |
 | unique indexes/constraints parsed at HEAD | **470** |
-| **ok** | **106** |
-| **partial** — 42P10 at planning | **2** |
+| **ok** | **108** |
+| **partial** — 42P10 at planning | **1** |
 | **missing** — 42P10 at planning | **1** |
-| **unknown** — not statically decidable | **4** |
+| **unknown** — not statically decidable | **3** |
 
 ## Breaking findings, routed to owners
 
@@ -38,7 +38,6 @@ and both tables were empty.
 |---|---|---|---|---|---|
 | `src/lib/server-actions/roster-import.ts:328` | `agency_talent_roster` | `tenant_id,talent_profile_id` | **partial** | `agency_talent_roster_tenant_talent_live_uniq` | **Directory & Profile** |
 | `src/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions.ts:96` | `talent_profile_taxonomy` | `talent_profile_id,taxonomy_term_id,relationship_type` | **missing** | — (PK covers only the first two) | **Directory & Profile** |
-| `src/lib/events/mint-on-paid.ts:174` | `admissions` | `order_line_id,line_seq` | **partial** | `admissions_line_seq_uniq` | **Events & Ticketing** |
 
 ### `roster-import.ts:328` — new, and the only one nobody knew about
 
@@ -56,15 +55,36 @@ may hold one row per term, whatever the relationship), or a unique index over al
 (and a profile may hold the same term under several relationships). **That is a product question
 about the taxonomy model, which is why this is routed rather than fixed.**
 
-### `mint-on-paid.ts:174` — the repo and the database disagree
+### `mint-on-paid.ts:174` — FIXED (#1818, `…803`), and it was never drift
 
-**The database has `admissions_line_seq_uniq` as TOTAL. Every migration in this repo creates it
-PARTIAL** (`20261229000366`, `WHERE order_line_id IS NOT NULL AND line_seq IS NOT NULL`), and no
-later migration alters it. So it was fixed **directly in the database with no migration**.
+Reported here first as *"fixed directly in the database with no migration"*. **That was wrong.**
+Events runs a **schema-first protocol**: the migration is applied and recorded on production
+*before* the push, so production reading total while `origin/main` still said partial was the
+protocol working, not a hand-edit. The exposure I described was real — a fresh environment built
+from main during that window gets the partial index back — but it is a **window between apply and
+merge**, not unrecorded drift. One `gh pr list` would have told me.
 
-Production works today. **A rebuilt environment — a new project, a branch database, a restore —
-recreates the broken partial index and mint-on-paid fails again.** The fix is a migration that
-makes it total, so the repo and the database agree.
+**Worth keeping, because it will recur:** this guard measures the migrations *on the branch*, so
+during any schema-first window it reports a finding production has already fixed. That is the
+conservative direction and the reason it caught this at all — but read a finding against an open
+PR before calling it drift.
+
+### `resend-webhook.ts:244` — FIXED (#1831), and the fix is better than anything proposed
+
+Found only after the extractor learned to read non-literal targets. The guest branch named
+`email_address` while the only index was on `lower(email_address) WHERE user_id IS NULL` — an
+expression index *and* a partial one, two independent reasons `ON CONFLICT` could not infer it.
+**Probed: `42P10` on the guest branch, `23503` on the user branch** (which proves the user branch
+planned). No guest bounce had ever been suppressed, so hard bounces for guests and invitees
+suppressed nothing and dead addresses kept being mailed — the **third** time this path has died on
+a null `user_id`.
+
+Three fixes were discussed: make the index total, catch `23505` around a select-then-insert, or an
+RPC naming the expression target. **Support chose a fourth and better one** — stored generated
+columns (`user_key = coalesce(user_id, <zero uuid>)`, `email_key = lower(email_address)`), so the
+uniqueness is expressible as **plain columns, inferrable, and identical for both kinds of
+recipient**. One conflict target, no runtime branch, no expression, no race. *A conflict target
+that depends on the data is a branch only half of production ever exercises.*
 
 ## Two more defects found AFTER the first version — both were gaps in this audit
 

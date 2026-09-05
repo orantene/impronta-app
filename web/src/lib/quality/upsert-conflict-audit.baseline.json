@@ -1,8 +1,6 @@
 {
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions.ts:96": "missing",
-  "src/lib/events/mint-on-paid.ts:174": "partial",
   "src/lib/inquiry/recipient-safety.ts:364": "unknown",
-  "src/lib/notifications/resend-webhook.ts:244": "unknown",
   "src/lib/server-actions/admin-taxonomy.ts:502": "unknown",
   "src/lib/server-actions/admin-taxonomy.ts:630": "unknown",
   "src/lib/server-actions/roster-import.ts:328": "partial"
