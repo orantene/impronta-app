@@ -32,33 +32,23 @@ export function SupportStartHere({
 }) {
   return (
     <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
+      {/* Colours come from classes, not inline styles: this tree has a guard
+          against inline color/background so the panel and the page cannot drift
+          apart on theme tokens. */}
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event(TULALA_SUPPORT_OPEN_EVENT))}
-        className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full px-6 text-center font-semibold"
-        style={{
-          background: "var(--plt-ink)",
-          color: "var(--plt-bg)",
-          fontSize: "1.0625rem",
-        }}
+        className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full bg-[var(--plt-ink)] px-6 text-center text-[1.0625rem] font-semibold text-[var(--plt-bg)]"
       >
         {askLabel}
       </button>
       <a
         href={writeHref}
-        className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full px-6 text-center"
-        style={{
-          border: "1px solid var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-          fontSize: "1.0625rem",
-        }}
+        className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full border border-[var(--plt-hairline-strong)] px-6 text-center text-[1.0625rem] text-[var(--plt-ink)]"
       >
         {writeLabel}
       </a>
-      <p
-        className="plt-body mt-1 text-center sm:hidden"
-        style={{ color: "var(--plt-muted)", fontSize: "0.9rem" }}
-      >
+      <p className="plt-body mt-1 text-center text-[0.9rem] text-[var(--plt-muted)] sm:hidden">
         {hint}
       </p>
     </div>

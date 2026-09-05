@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { Layout } from "./Layout";
@@ -19,17 +18,18 @@ import { Layout } from "./Layout";
 // sentence explaining why they got it and the link to stop getting it.
 
 function render(brand: Record<string, unknown>, unsubscribeUrl?: string): string {
+  // JSX rather than createElement: Layout declares `children` as a required
+  // prop, so the third-argument form does not satisfy the overload, while the
+  // lint rule forbids passing children inside props. JSX satisfies both.
   return renderToStaticMarkup(
-    createElement(
-      Layout,
-      {
-        preview: "p",
-        brand: brand as never,
-        unsubscribeUrl,
-        categoryLabel: "offer updates",
-      },
-      createElement("p", null, "body"),
-    ),
+    <Layout
+      preview="p"
+      brand={brand as never}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel="offer updates"
+    >
+      <p>body</p>
+    </Layout>,
   );
 }
 
