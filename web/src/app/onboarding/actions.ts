@@ -185,12 +185,26 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
   // entry referenced "client.welcome", so no client has ever been welcomed.
   // Mirrors the talent path below: fire-and-forget, platform-scoped, and a
   // failure here must never block onboarding (the redirect still happens).
+  // GATED OFF by default (CEO ruling, 2026-09-05). The entry, template and
+  // EN/ES copy are all live and tested; only the SENDING is held. Reason: this
+  // is a brand-new RECURRING outbound path, and tulala.digital currently has
+  // NO SPF record, DMARC p=none, and an empty email_suppressions table — new
+  // volume against an unhardened sender degrades deliverability of the mail
+  // that already matters (sign-in links, reply mirrors, booking notices).
+  //
+  // TURN IT ON when BOTH are true — do not let this become a permanent off:
+  //   1. tulala.digital publishes SPF (and DKIM) for the sending domain, and
+  //   2. Support's bounce classifier is populating email_suppressions, so a
+  //      bad address is actually suppressed instead of silently re-mailed.
+  // Then set CLIENT_WELCOME_EMAIL_ENABLED=1 and delete this gate.
+  const clientWelcomeEnabled = process.env.CLIENT_WELCOME_EMAIL_ENABLED === "1";
+
   const clientUserId = user.id;
   const clientDisplayName =
     (user.user_metadata?.full_name as string | undefined)?.trim() ||
     (user.user_metadata?.name as string | undefined)?.trim() ||
     null;
-  void (async () => {
+  if (clientWelcomeEnabled) void (async () => {
     try {
       const { dispatchEventNotifications } = await import(
         "@/lib/notifications/dispatcher"
