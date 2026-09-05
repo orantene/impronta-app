@@ -143,3 +143,49 @@ test("the anchor rule is checked here, so the refusal names the problem", () => 
   assert.ok(rsvp.ok);
   assert.equal(rsvp.rows[0]?.allocationId, null);
 });
+
+test("one allocation per unit: each admission takes its own, in unit order", () => {
+  const plan = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1", "a-2", "a-3"],
+  });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.deepEqual(
+    plan.rows.map((r) => r.allocationId),
+    ["a-1", "a-2", "a-3"],
+  );
+});
+
+test("one allocation of N: every admission shares it, and a count mismatch never guesses", () => {
+  const shared = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1"],
+  });
+  assert.equal(shared.ok, true);
+  if (!shared.ok) return;
+  assert.deepEqual(shared.rows.map((r) => r.allocationId), ["a-1", "a-1", "a-1"]);
+
+  // Two rows for three units is a shape nobody declared. Falling back to the
+  // line's allocation keeps refund-by-line honest (it reads order_line_id)
+  // instead of assigning two seats an identity and the third none.
+  const odd = planAdmissions({
+    orderLineId: "line-1",
+    units: 3,
+    admitsPerUnit: 1,
+    sessionId: "s-1",
+    allocationId: "a-1",
+    allocationIds: ["a-1", "a-2"],
+  });
+  assert.equal(odd.ok, true);
+  if (!odd.ok) return;
+  assert.deepEqual(odd.rows.map((r) => r.allocationId), ["a-1", "a-1", "a-1"]);
+});

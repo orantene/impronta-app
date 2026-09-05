@@ -103,20 +103,28 @@ export async function mintAdmissionsForPaidOrder(
   // allocation that paid for it, so refund-by-line can free exactly its units.
   const { data: allocRows, error: allocErr } = await admin
     .from("capacity_allocations")
-    .select("id, order_line_id")
+    .select("id, order_line_id, created_at")
     .in(
       "order_line_id",
       ticketLines.map((l) => l.id),
     )
-    .eq("state", "committed");
+    .eq("state", "committed")
+    // Deterministic unit order, so a webhook retry maps the same allocation to
+    // the same `line_seq`. `id` breaks a created_at tie (one batch, one clock).
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
 
   if (allocErr) {
     throw new Error(`mint-on-paid: could not read allocations: ${allocErr.message}`);
   }
-  const allocByLine = new Map<string, string>();
+  // ALL allocations per line, in order. Orders reserves one allocation per
+  // unit when the purchase declares `perUnitDomainRow` (#1717), and one row
+  // of N otherwise; the planner tells the two apart by count.
+  const allocsByLine = new Map<string, string[]>();
   for (const a of allocRows ?? []) {
     const lineId = a.order_line_id as string | null;
-    if (lineId && !allocByLine.has(lineId)) allocByLine.set(lineId, a.id as string);
+    if (!lineId) continue;
+    allocsByLine.set(lineId, [...(allocsByLine.get(lineId) ?? []), a.id as string]);
   }
 
   const rows: Array<Record<string, unknown>> = [];
@@ -131,7 +139,8 @@ export async function mintAdmissionsForPaidOrder(
       units: line.units,
       admitsPerUnit,
       sessionId: line.sessionId,
-      allocationId: allocByLine.get(line.id) ?? null,
+      allocationId: allocsByLine.get(line.id)?.[0] ?? null,
+      allocationIds: allocsByLine.get(line.id),
     });
 
     if (!plan.ok) {

@@ -95,6 +95,15 @@ export type MintInput = {
   sessionId?: string | null;
   spaceId?: string | null;
   allocationId?: string | null;
+  /**
+   * One allocation per unit, in unit order — set when the purchase declared
+   * `perUnitDomainRow` and the engine held N rows for N units. Row k takes
+   * `allocationIds[k]`. When the length does not equal `units` (one row of N,
+   * or a shape this planner cannot interpret) every row falls back to
+   * `allocationId`, which keeps today's behaviour rather than guessing which
+   * unit owns which row.
+   */
+  allocationIds?: readonly string[];
   startsAt?: string | null;
   customerId?: string | null;
   /**
@@ -139,15 +148,16 @@ export function planAdmissions(input: MintInput): ({ ok: true } & MintPlan) | Mi
     };
   }
 
+  const perUnit = input.allocationIds !== undefined && input.allocationIds.length === units;
   const rows: MintRow[] = [];
   for (let i = 0; i < units; i += 1) {
     const holder = input.holders?.[i];
     rows.push({
       orderLineId: input.orderLineId,
-      // Every row of a line shares the line's allocation: one allocation of 4
-      // units backs four ticket rows. Attribution stays honest because
-      // refund-by-line reads `order_line_id`, which is per row.
-      allocationId: input.allocationId ?? null,
+      // Per-unit when the engine held one allocation per unit (refund-by-line
+      // then frees exactly this seat, and a retry is a no-op on `released_at`);
+      // otherwise every row shares the line's single allocation of N.
+      allocationId: perUnit ? (input.allocationIds![i] ?? null) : (input.allocationId ?? null),
       sessionId: input.sessionId ?? null,
       spaceId: input.spaceId ?? null,
       customerId: input.customerId ?? null,
