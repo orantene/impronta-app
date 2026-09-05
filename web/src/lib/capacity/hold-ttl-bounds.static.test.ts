@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { join } from "node:path";
 
 import {
@@ -49,4 +51,34 @@ test("clamping never widens the engine's bound, whatever a product asks for", ()
 
 test("below the floor clamps up, so a hold is never shorter than the engine allows", () => {
   assert.equal(clampToEngineHoldTtl(5), CAPACITY_HOLD_TTL_MIN_SECONDS);
+});
+
+
+test("nothing outside this module restates the engine's bounds", () => {
+  // The durable half. The 30-day drift was ONE instance; three files carrying
+  // the same literal is the class. `reservation-hold.ts` even asserted in a
+  // comment that its copies "cannot disagree" — an invariant nothing enforced,
+  // true only while a human remembered.
+  //
+  // Pinned as a SHAPE: a bare 604800 or a `= 30` TTL constant anywhere but here
+  // is a second source, whatever it is called.
+  const roots = ["src/lib", "src/app"];
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === ".next") continue;
+      const p = join(dir, e.name);
+      if (e.isDirectory()) { walk(p); continue; }
+      if (!/\.tsx?$/.test(e.name) || /\.test\.tsx?$/.test(e.name)) continue;
+      if (p.endsWith("hold-ttl-bounds.ts")) continue;
+      const body = blankComments(readFileSync(p, "utf8"));
+      if (/\b604800\b/.test(body)) offenders.push(p.split("/src/")[1] ?? p);
+    }
+  };
+  for (const r of roots) walk(join(process.cwd(), r));
+  assert.deepEqual(
+    offenders,
+    [],
+    "these restate the engine's hold cap; import CAPACITY_HOLD_TTL_MAX_SECONDS instead",
+  );
 });
