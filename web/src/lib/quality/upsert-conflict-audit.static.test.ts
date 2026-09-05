@@ -16,7 +16,8 @@
  * so production works and a fresh environment would not.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -132,4 +133,31 @@ test("every baselined key still corresponds to a real breaking finding", () => {
   const live = new Set(audit().filter(isBreaking).map((f) => `${f.file}:${f.line}`));
   const stale = Object.keys(baseline).filter((k) => !live.has(k));
   assert.deepEqual(stale, [], `\nBaseline names ${stale.length} finding(s) that are gone:\n  ${stale.join("\n  ")}\n`);
+});
+
+test("BITES: an onConflict that is not a string literal is UNKNOWN, never skipped", () => {
+  // `recipient-safety.ts` picks between two indexes at runtime and BOTH are
+  // partial. The first version of this scanner matched only literals, so that
+  // call fell through to "no onConflict" and was reported as safe. A target we
+  // cannot read must be reported as unread.
+  const src = `await db.from("t").upsert(row, { onConflict: conflictTarget });`;
+  const call = extractUpserts(src, "f.ts")[0];
+  assert.equal(call.dynamic, true);
+  const f = classify(call, IDX(), TABLES);
+  assert.equal(f?.verdict, "unknown");
+  assert.match(f!.detail, /computed at runtime/);
+});
+
+test("BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index", () => {
+  // Postgres allows NULLS [NOT] DISTINCT / INCLUDE / WITH / TABLESPACE there.
+  // Testing for `where` immediately after the paren reads a PARTIAL index as
+  // TOTAL — the guard reporting green on the exact defect it exists to catch.
+  const dir = mkdtempSync(join(tmpdir(), "idx-"));
+  writeFileSync(
+    join(dir, "0001_x.sql"),
+    `CREATE TABLE public.t (a uuid, b uuid);\n` +
+      `CREATE UNIQUE INDEX t_a_b_uniq ON public.t (a, b) NULLS NOT DISTINCT WHERE a IS NOT NULL;\n`,
+  );
+  const idx = collectSchema(dir).indexes.find((i) => i.name === "t_a_b_uniq");
+  assert.equal(idx?.partial, true, "a WHERE after NULLS NOT DISTINCT must still read as PARTIAL");
 });

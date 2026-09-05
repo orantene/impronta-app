@@ -52,6 +52,27 @@ if (args.has("--json")) {
     console.log(`\n${f.file}:${f.line}  [${f.verdict}]  ${f.table}(${f.columns.join(",")})`);
     console.log(`    ${f.detail}`);
   }
+
+  for (const line of [
+    "",
+    "TWO THINGS THIS DOES NOT PROVE — read before treating a clean run as safety.",
+    "",
+    "1. An 'ok' means the STATEMENT CAN PLAN. It does NOT mean the writer works.",
+    "   Four empty tables today looked identical to working ones.",
+    "",
+    "2. A TOTAL UNIQUE INDEX IS NECESSARY, NOT SUFFICIENT. Postgres indexes are",
+    "   NULLS DISTINCT by default, so a unique index on (a, b) does not constrain",
+    "   rows where either column is NULL: ON CONFLICT plans fine and never fires.",
+    "   That is how a doubled event night survived the fix that made",
+    "   sessions_series_occurrence_uniq total — event sessions have a null",
+    "   series_id and still never collided. THIS AUDIT DOES NOT CHECK NULLABILITY.",
+    "   Proving a column NOT NULL needs every ALTER TABLE replayed, and a",
+    "   half-reliable check would emit advisories nobody can act on, which is",
+    "   worse than a stated gap. If a conflict target contains a nullable column,",
+    "   an 'ok' here is not the end of the question.",
+  ]) {
+    console.log(line);
+  }
 }
 
 process.exitCode = 0;

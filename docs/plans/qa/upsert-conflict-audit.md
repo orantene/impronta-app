@@ -30,7 +30,7 @@ and both tables were empty.
 | **ok** | **96** |
 | **partial** — 42P10 at planning | **2** |
 | **missing** — 42P10 at planning | **1** |
-| **unknown** — not statically decidable | **12** |
+| **unknown** — not statically decidable | **14** |
 
 ## Breaking findings, routed to owners
 
@@ -66,7 +66,54 @@ Production works today. **A rebuilt environment — a new project, a branch data
 recreates the broken partial index and mint-on-paid fails again.** The fix is a migration that
 makes it total, so the repo and the database agree.
 
-## The 12 `unknown`s — reported, never failed on
+## Two more defects found AFTER the first version — both were gaps in this audit
+
+Sessions & Classes handed over two traps. Both were real, and both meant the first version of this
+audit reported safety it had not checked.
+
+### Trap one: a conflict target chosen at RUNTIME was silently dropped
+
+`recipient-safety.ts:364` does `onConflict: conflictTarget` where the value is a ternary. The
+scanner matched only string literals, so the call fell through to *"no `onConflict`"* and was
+treated as conflicting on the primary key — **reported as safe.** That is how this audit missed
+`user_blocks`, the fourth confirmed instance, where both candidate indexes were partial and
+blocking a user had never worked.
+
+Fixed: `onConflict` present but not a literal is now **`unknown`**, never skipped. **It surfaced a
+second such site nobody had flagged** — `resend-webhook.ts:244` on `email_suppressions`, where one
+candidate index (`email_suppressions_guest_uq`) is **partial** and is also an expression index.
+Whether the runtime branch reaches it needs a human. → **Support / Notifications.**
+
+`user_blocks` now reads **total** in production — Support fixed it after Sessions measured it.
+
+### Trap two: `NULLS NOT DISTINCT` hid a partial index from the partial detector
+
+Postgres allows `NULLS [NOT] DISTINCT`, `INCLUDE (…)`, `WITH (…)` and `TABLESPACE` between the
+column list and `WHERE`. The detector tested for `where` *immediately* after the closing
+parenthesis, so an index like #1814's
+
+```sql
+CREATE UNIQUE INDEX sessions_event_night_uniq
+  ON public.sessions (event_id, starts_at, venue_id) NULLS NOT DISTINCT
+  WHERE event_id IS NOT NULL;
+```
+
+would have been read as **total**. A guard reporting green on the exact defect it exists to catch.
+Fixed and self-tested.
+
+## What this audit does NOT prove — printed in its own output
+
+1. **An `ok` means the statement can PLAN. It does not mean the writer works.** Four empty tables
+   today looked identical to working ones.
+2. **A total unique index is necessary, not sufficient.** Indexes are `NULLS DISTINCT` by default,
+   so a unique index on `(a, b)` does not constrain rows where either is NULL: `ON CONFLICT` plans
+   fine and never fires. **That is how a doubled event night survived the fix that made
+   `sessions_series_occurrence_uniq` total** — event sessions have a null `series_id` and still
+   never collided. **This audit does not check nullability.** Proving a column `NOT NULL` needs
+   every `ALTER TABLE` replayed, and a half-reliable check would emit advisories nobody can act on,
+   which is worse than a stated gap.
+
+## The `unknown`s — reported, never failed on
 
 Ten are *"could not resolve the table from a preceding `.from()`"*: the table is a variable or the
 chain is built dynamically, so a static scan cannot say which table it is. **These are not clean

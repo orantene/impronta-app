@@ -71,6 +71,8 @@ export type UpsertCall = {
   table: string | null;
   /** Null when the call names no onConflict — it conflicts on the primary key. */
   columns: string[] | null;
+  /** True when `onConflict` is present but its value is not a string literal. */
+  dynamic?: boolean;
   raw: string;
 };
 
@@ -208,7 +210,18 @@ export function collectSchema(dir = MIGRATIONS_DIR): { indexes: UniqueIndex[]; t
     while ((m = idxRe.exec(sql)) !== null) {
       const grp = balanced(sql, idxRe.lastIndex - 1);
       if (!grp) continue;
-      const tail = sql.slice(grp.end + 1, grp.end + 400);
+      // Postgres allows NULLS [NOT] DISTINCT, INCLUDE (…), WITH (…) and
+      // TABLESPACE between the column list and WHERE. Testing for `where`
+      // immediately after the paren reads a PARTIAL index as TOTAL — a guard
+      // reporting green on the exact defect it exists to catch. `#1814` adds
+      // `… (event_id, starts_at, venue_id) NULLS NOT DISTINCT WHERE event_id IS
+      // NOT NULL`, which the naive test would have waved through.
+      const tail = sql
+        .slice(grp.end + 1, grp.end + 600)
+        .replace(/^\s*nulls\s+(not\s+)?distinct\b/i, "")
+        .replace(/^\s*include\s*\([^)]*\)/i, "")
+        .replace(/^\s*with\s*\([^)]*\)/i, "")
+        .replace(/^\s*tablespace\s+\w+/i, "");
       const partial = /^\s*where\b/i.test(tail);
       const { columns, opaque } = parseColumnList(grp.inner);
       const name = m[1].replace(/"/g, "").toLowerCase();
@@ -357,12 +370,21 @@ export function extractUpserts(raw: string, file: string): UpsertCall[] {
     }
 
     const oc = /onConflict\s*:\s*["'`]([^"'`]+)["'`]/.exec(args);
+    // An `onConflict` whose value is NOT a string literal — `onConflict:
+    // conflictTarget`, chosen at runtime. The first version of this scanner
+    // matched only literals, so such a call fell through to "no onConflict" and
+    // was skipped as if it conflicted on the primary key. That is how this audit
+    // MISSED `recipient-safety.ts:364`, where both candidate indexes are partial
+    // and blocking a user has never worked. A target we cannot read must be
+    // reported as unread, never as safe.
+    const dynamic = !oc && /onConflict\s*:/.test(args);
     out.push({
       file,
       line: source.slice(0, m.index).split("\n").length,
       table,
       columns: oc ? oc[1].split(",").map((c) => c.trim().toLowerCase()).filter(Boolean) : null,
-      raw: (oc?.[0] ?? ".upsert() with no onConflict").slice(0, 120),
+      dynamic,
+      raw: (oc?.[0] ?? (dynamic ? "onConflict: <not a literal>" : ".upsert() with no onConflict")).slice(0, 120),
     });
     if (grp) re.lastIndex = grp.end;
   }
@@ -386,6 +408,19 @@ export function classify(
   indexes: readonly UniqueIndex[],
   knownTables?: ReadonlySet<string>,
 ): Finding | null {
+  if (call.dynamic) {
+    return {
+      file: call.file,
+      line: call.line,
+      table: call.table ?? "?",
+      columns: [],
+      verdict: "unknown",
+      detail:
+        "onConflict is computed at runtime, so its target cannot be read statically. " +
+        "NOT a clean bill of health — `recipient-safety.ts` picks between two indexes " +
+        "this way and BOTH of them are partial. Check this one by hand.",
+    };
+  }
   if (!call.columns) return null; // conflicts on the primary key; always inferable
   const base = { file: call.file, line: call.line, table: call.table ?? "?", columns: call.columns };
 
