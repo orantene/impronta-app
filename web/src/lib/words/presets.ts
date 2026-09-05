@@ -60,6 +60,7 @@ export const INDUSTRY_PRESET_IDS = [
   "dropoff_service",
   "practice",
   "act",
+  "portfolio",
   "agency",
   "custom",
 ] as const;
@@ -449,6 +450,42 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     designId: "coach",
     representsPeople: true,
   },
+  /**
+   * PORTFOLIO — ruled by the Creative Director 2026-09-05, and it exists to stop
+   * the `preset.designId` collapse retiring a CUSTOMER rather than a design.
+   *
+   * Once `preset.designId` is the single source of a tenant's default design,
+   * nothing maps to `editorial` — the single-artist photography portfolio. But
+   * today's keyword matcher sends photographer, wedding, portrait, headshot,
+   * artist and gallery briefs straight to it, and none of the other nineteen
+   * presets covers those people. Without this row a photographer resolves to
+   * `custom`, then to the services design, and is handed a PRICE LIST for a body
+   * of work.
+   *
+   * Covers photographers, illustrators, tattoo artists, ceramicists, painters.
+   * `menu: true` because they do have a price list — sessions, prints. `ask`
+   * because the buy is a conversation. `representsPeople: true` because the site
+   * is about who made the work.
+   *
+   * `words` and `chatVoice` were NOT in the ruling and are mine; the paste
+   * omitted both and the type requires them. The Creative Director owns brand
+   * voice and should overrule the chat line if it is off.
+   */
+  portfolio: {
+    id: "portfolio",
+    label: { en: "Portfolio", es: "Portafolio" },
+    blurb: { en: "the work, then the inquiry", es: "la obra, luego la consulta" },
+    words: {},
+    features: { menu: true, reservations: false, events: false, appointments: false },
+    headerVerb: "ask",
+    chatVoice: {
+      en: "Tell us what you have in mind and we will talk it through",
+      es: "Cuéntanos qué tienes en mente y lo platicamos",
+    },
+    designId: "editorial",
+    representsPeople: true,
+  },
+
   agency: {
     id: "agency",
     label: { en: "Agency", es: "Agencia" },
