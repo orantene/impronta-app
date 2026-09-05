@@ -12570,6 +12570,8 @@
       "agencyIdentitySection": "Identidad de la agencia",
       "displayNameLabel": "Nombre a mostrar",
       "contactEmail": "Correo de contacto",
+      "contactEmailReplyHint": "Las respuestas de los clientes llegan a esta dirección.",
+      "contactEmailEmpty": "Sin definir. Agrega una para que las respuestas de los clientes lleguen.",
       "phoneLabel": "Teléfono",
       "locationLabel": "Ubicación",
       "updateAtIdentity": "Actualizar en",
