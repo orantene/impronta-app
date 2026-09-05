@@ -352,6 +352,78 @@ export function projectSubscriptionInvoice(input: {
  * between, and a balance sheet that cannot show "in transit" cannot explain the
  * gap between the Stripe dashboard and the bank statement.
  */
+/**
+ * A Connect transfer paying a payout leg out to its recipient.
+ *
+ *   DEBIT   <party>_payable   amount   (the liability is discharged)
+ *   CREDIT  stripe_balance    amount   (the money left our balance)
+ *
+ * WHY THIS EXISTS. `projectBookingPayment` CREDITS `talent_payable` /
+ * `workspace_payable` when the client pays, and nothing ever debited them
+ * again. The books therefore said we still owed every recipient everything we
+ * had ever owed them, no matter how much we had actually paid out, and our
+ * `stripe_balance` was never reduced by the money that left.
+ *
+ * `projectPayout` skips connected-account payouts on the stated grounds that
+ * "ours was already reduced when the transfer left" -- which was true of the
+ * intent and false of the code, because no projection performed that
+ * reduction. This is that missing reduction. Do not also project the
+ * connected account's own payout to its bank: that moves money on THEIR
+ * ledger, and booking it here would double-count the same money leaving.
+ *
+ * Only a leg that actually settled may be projected. A 'held' leg has moved no
+ * money, and a 'failed' or 'reversed' leg either never left or came back --
+ * projecting any of them would discharge a liability we still owe.
+ */
+export function projectTransfer(input: {
+  transferId: string;
+  /** Which liability this leg discharges. */
+  party: "talent" | "workspace";
+  amountCents: number;
+  currency: string;
+  occurredAt: string;
+  talentProfileId?: string | null;
+  tenantId?: string | null;
+}): ProjectionResult {
+  if (input.amountCents <= 0) {
+    return { ok: false, error: "a transfer must have a positive amount" };
+  }
+  if (!input.transferId) {
+    // Without the provider id there is no deterministic group key, so a re-run
+    // would write a second copy of the same movement.
+    return { ok: false, error: "a transfer must carry its provider transfer id" };
+  }
+  const account = input.party === "talent" ? "talent_payable" : "workspace_payable";
+  const currency = input.currency.toUpperCase();
+  const common = {
+    groupKey: `transfer:${input.transferId}`,
+    groupKind: "transfer",
+    currency,
+    providerObjectId: input.transferId,
+    occurredAt: input.occurredAt,
+  };
+  return {
+    ok: true,
+    legs: [
+      {
+        ...common,
+        accountCode: account,
+        amountCents: input.amountCents,
+        talentProfileId: input.party === "talent" ? (input.talentProfileId ?? null) : null,
+        tenantId: input.tenantId ?? null,
+        memo: `Paid out to ${input.party}`,
+      },
+      {
+        ...common,
+        accountCode: "stripe_balance",
+        amountCents: -input.amountCents,
+        tenantId: input.tenantId ?? null,
+        memo: `Transfer to ${input.party} left the balance`,
+      },
+    ],
+  };
+}
+
 export function projectPayout(input: {
   payoutId: string;
   amountCents: number;

@@ -16,6 +16,7 @@
  *   2. balance transactions       → the processing fee Stripe charged
  *   3. paid invoices              → subscription revenue (and tax, when there is any)
  *   4. payouts                    → balance → in transit → bank
+ *   5. settled transfers          → the payable is discharged, balance goes down
  *
  * Refunds are deliberately NOT projected from `booking_transactions` refund
  * rows yet: a refund's ledger treatment depends on whether the payout was
@@ -34,6 +35,7 @@ import {
   projectProcessingFee,
   projectSubscriptionInvoice,
   projectPayout,
+  projectTransfer,
   type CommissionLane,
 } from "./project";
 import { writeLedgerGroup } from "./write";
@@ -47,6 +49,7 @@ export type ProjectionRunResult = {
   processingFees: { projected: number; skipped: number; refused: number };
   invoices: { projected: number; skipped: number; refused: number };
   payouts: { projected: number; skipped: number; refused: number };
+  transfers: { projected: number; skipped: number; refused: number };
   /** Reasons a source was refused, so a stuck row is diagnosable without a
    *  database session. Capped — the point is a sample, not a dump. */
   refusals: string[];
@@ -64,6 +67,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
     processingFees: emptyCounts(),
     invoices: emptyCounts(),
     payouts: emptyCounts(),
+    transfers: emptyCounts(),
     refusals: [],
   };
 
@@ -256,6 +260,52 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
         } else {
           result.payouts.projected += 1;
         }
+      }
+    }
+
+    // ── 5. Settled Connect transfers ────────────────────────────────────────
+    // The leg that discharges what `projectBookingPayment` accrued. ONLY
+    // 'transferred' legs: a 'held' leg has moved no money, and 'failed' /
+    // 'reversed' either never left or came back, so projecting any of them
+    // would write off a liability we still owe.
+    const { data: legs } = await sb
+      .from("booking_payouts")
+      .select("stripe_transfer_id, party, amount_cents, currency, talent_profile_id, tenant_id, transferred_at, updated_at")
+      .eq("status", "transferred")
+      .not("stripe_transfer_id", "is", null)
+      .limit(BATCH);
+
+    for (const raw of legs ?? []) {
+      const l = raw as Record<string, unknown>;
+      const transferId = String(l.stripe_transfer_id ?? "");
+      const party = String(l.party ?? "");
+      if (party !== "talent" && party !== "workspace") {
+        result.transfers.refused += 1;
+        note(`transfer ${transferId}: unknown party '${party}'`);
+        continue;
+      }
+      const projected = projectTransfer({
+        transferId,
+        party,
+        amountCents: Number(l.amount_cents ?? 0),
+        currency: String(l.currency ?? "USD"),
+        occurredAt: String(l.transferred_at ?? l.updated_at ?? new Date().toISOString()),
+        talentProfileId: (l.talent_profile_id as string | null) ?? null,
+        tenantId: (l.tenant_id as string | null) ?? null,
+      });
+      if (!projected.ok) {
+        result.transfers.refused += 1;
+        note(`transfer ${transferId}: ${projected.error}`);
+        continue;
+      }
+      const w = await writeLedgerGroup(projected.legs);
+      if (!w.ok) {
+        result.transfers.refused += 1;
+        note(`transfer ${transferId}: ${w.error}`);
+      } else if (w.skipped) {
+        result.transfers.skipped += 1;
+      } else {
+        result.transfers.projected += 1;
       }
     }
 
