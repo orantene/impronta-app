@@ -9,7 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import { doorsAt } from "@/lib/events/event-policy";
 import { resolveLineupState } from "@/lib/events/lineup";
-import { TicketPickerIsland } from "@/lib/site-admin/builder-node/ticket-picker-island";
+import { EventPageView, type Locale } from "./event-page-view";
 
 /**
  * `/events/<slug>` — one event on a venue's own site (E5 step 4, the design half).
@@ -41,50 +41,6 @@ import { TicketPickerIsland } from "@/lib/site-admin/builder-node/ticket-picker-
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ slug: string }> };
-type Locale = "en" | "es";
-
-const COPY: Record<Locale, Record<string, string>> = {
-  en: {
-    dateTba: "Date to be announced",
-    doors: "doors",
-    at: "at",
-    cta: "Get tickets",
-    lineup: "Lineup",
-    tickets: "Tickets",
-    pickTicket: "Pick your ticket",
-    with: "With",
-    ageGate: "Ages {n}+",
-    refunds: "Refunds until {h} hours before doors",
-  },
-  es: {
-    dateTba: "Fecha por anunciar",
-    doors: "puertas",
-    at: "en",
-    cta: "Conseguir entradas",
-    lineup: "Cartel",
-    tickets: "Entradas",
-    pickTicket: "Elegí tu entrada",
-    with: "Con",
-    ageGate: "Mayores de {n}",
-    refunds: "Reembolsos hasta {h} horas antes de puertas",
-  },
-};
-
-function whenLabel(iso: string | null, timeZone: string, locale: Locale, withTime = true): string {
-  if (!iso) return COPY[locale].dateTba;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return COPY[locale].dateTba;
-  try {
-    return d.toLocaleString(locale === "es" ? "es" : "en", {
-      timeZone, weekday: "long", day: "numeric", month: "long",
-      ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
-    });
-  } catch {
-    // Never silently answer in the reader's zone.
-    return d.toISOString();
-  }
-}
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   return { title: slug.replace(/-/g, " ") };
@@ -120,7 +76,6 @@ export default async function PublicEventPage({ params }: Params) {
   // decide, the venue does.
   const supported = (agencyRow?.supported_locales as string[] | null) ?? [];
   const locale: Locale = (supported[0] ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
-  const t = (k: string) => COPY[locale][k] ?? COPY.en[k] ?? k;
 
   const zone = pickTimezone({
     venue: (venueRow?.timezone as string | null) ?? null,
@@ -151,75 +106,24 @@ export default async function PublicEventPage({ params }: Params) {
     }
   }
 
-  const eyebrow = `${whenLabel(nextAt, zone, locale, false)}${venueName ? ` · ${venueName}` : ""}`;
-  const subLine = acts.length === 1 ? `${t("with")} ${acts[0]}` : null;
-  const description = ((event.description as string | null) ?? "").trim();
-  const coverUrl = (cover?.public_url as string | null) ?? null;
-
   return (
     <>
       <PublicHeader />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-24 sm:px-6 sm:pb-10">
-        {/* HERO — 60vh on a venue page, the event's own image the only colour */}
-        <section
-          className="relative -mx-4 flex min-h-[60vh] flex-col justify-end overflow-hidden rounded-none sm:-mx-6 sm:rounded-2xl"
-          style={coverUrl ? { backgroundImage: `url(${coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-        >
-          {coverUrl ? <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" /> : null}
-          <div className={`relative p-6 sm:p-10 ${coverUrl ? "text-white" : ""}`}>
-            <div className="text-xs uppercase tracking-wide opacity-80">{eyebrow}</div>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-6xl">{event.title as string}</h1>
-            {subLine ? <p className="mt-2 text-base opacity-90 sm:text-lg">{subLine}</p> : null}
-            {doors ? (
-              <p className="mt-1 text-sm opacity-80">
-                {t("doors")} {whenLabel(doors.toISOString(), zone, locale).split(", ").pop()}
-              </p>
-            ) : null}
-            <a
-              href="#tickets"
-              className="mt-5 inline-block rounded-full bg-black px-5 py-3 text-sm font-semibold text-white sm:static sm:mt-5 max-sm:fixed max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:z-20 max-sm:text-center"
-            >
-              {t("cta")}
-            </a>
-          </div>
-        </section>
-
-        {/* LINEUP — only above one act; an empty grid never renders */}
-        {acts.length > 1 ? (
-          <section className="mt-10">
-            <h2 className="text-lg font-semibold">{t("lineup")}</h2>
-            <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {acts.map((a) => (
-                <li key={a} className="rounded-xl border border-black/10 p-4 text-sm font-medium">{a}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* NOTE — one optional paragraph, no stats */}
-        {description ? (
-          <section className="mt-10">
-            <p className="text-base leading-relaxed text-black/70">{description}</p>
-            {(event.age_gate as number | null) || (event.refund_cutoff_hours as number | null) ? (
-              <p className="mt-2 text-xs text-black/50">
-                {event.age_gate ? t("ageGate").replace("{n}", String(event.age_gate)) : null}
-                {event.age_gate && event.refund_cutoff_hours ? " · " : null}
-                {event.refund_cutoff_hours ? t("refunds").replace("{h}", String(event.refund_cutoff_hours)) : null}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
-
-        {/* TICKETS — the picker where the festival's pass cards were. It shows a
-            working purchase or the honest state that names why; never a dead button. */}
-        <section id="tickets" className="mt-10 scroll-mt-24">
-          <div className="text-xs uppercase tracking-wide text-black/50">{t("tickets")}</div>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight">{t("pickTicket")}</h2>
-          <div className="mt-4 rounded-2xl border border-black/10">
-            <TicketPickerIsland tenantId={scope.tenantId} eventId={event.id as string} locale={locale} />
-          </div>
-        </section>
-      </main>
+      <EventPageView
+        tenantId={scope.tenantId}
+        eventId={event.id as string}
+        title={event.title as string}
+        description={((event.description as string | null) ?? "").trim()}
+        locale={locale}
+        zone={zone}
+        venueName={venueName}
+        nextAt={nextAt}
+        doorsAtIso={doors ? doors.toISOString() : null}
+        acts={acts}
+        coverUrl={(cover?.public_url as string | null) ?? null}
+        ageGate={(event.age_gate as number | null) ?? null}
+        refundCutoffHours={(event.refund_cutoff_hours as number | null) ?? null}
+      />
       <PublicFooter />
     </>
   );

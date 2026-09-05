@@ -106,6 +106,12 @@ export interface TicketPickerIslandProps {
   eventId: string;
   title?: string;
   locale?: string;
+  /**
+   * TEST-ONLY: seed the loaded state so a static render (the Creative
+   * Director's file review) shows a real state instead of "loading". Never
+   * set on a live page; when set, no action is called.
+   */
+  preload?: { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] } | null;
 }
 
 function formatWhen(iso: string, timeZone: string | null, locale: Locale): string {
@@ -124,14 +130,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Loaded = { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] };
 
-export function TicketPickerIsland({ tenantId, eventId, title, locale }: TicketPickerIslandProps) {
+export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }: TicketPickerIslandProps) {
   const loc = pickLocale(locale);
   const t = (key: string) => COPY[loc][key] ?? COPY.en[key] ?? key;
   // NOT CONFIGURED is decided here, before any action: an author who dropped
   // the block with no event sees why, not an outage.
   const configured = UUID.test(tenantId) && UUID.test(eventId);
 
-  const [data, setData] = useState<Loaded | null>(null);
+  const [data, setData] = useState<Loaded | null>(preload ?? null);
   const [loadRefusal, setLoadRefusal] = useState<string | null>(null);
   const [night, setNight] = useState<string | null>(null);
   const [tier, setTier] = useState<string | null>(null);
@@ -143,14 +149,14 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale }: TicketP
   const [refusal, setRefusal] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!configured) return;
+    if (!configured || preload) return;
     try {
       const { loadTicketPicker } = await import("@/app/(public)/_events/ticket-picker-actions");
       const res = await loadTicketPicker({ tenantId, eventId });
       if (res.ok) { setData({ eventTitle: res.eventTitle, currency: res.currency, timeZone: res.timeZone, tiers: res.tiers, nights: res.nights }); setLoadRefusal(null); }
       else { setData(null); setLoadRefusal(t(res.reason)); }
     } catch { setData(null); setLoadRefusal(t("unavailable")); }
-  }, [configured, tenantId, eventId, loc]);
+  }, [configured, preload, tenantId, eventId, loc]);
   useEffect(() => { void load(); }, [load]);
 
   const chosenNight = useMemo(() => data?.nights.find((n) => n.sessionId === night) ?? null, [data, night]);
