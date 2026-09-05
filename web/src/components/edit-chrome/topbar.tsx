@@ -1318,9 +1318,7 @@ function ViewportSwitcher({
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
   const { advanced } = useAdvancedMode();
-  // Piece B slice 1 — a fixed-size print artboard has no breakpoints, so the
-  // viewport switcher is a control that cannot mean anything there. Gate on the
-  // capability (not surfaceKind); false for print, true everywhere else.
+  // Piece B slice 1 — gate the switcher on the capability (not surfaceKind).
   const { canUseResponsiveBreakpoints } = useEditContext();
   // Picking a tier: Mobile enters the editing mode; the others exit it. When no
   // mode plumbing is present, this is exactly the old `setDevice`.
