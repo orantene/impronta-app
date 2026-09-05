@@ -391,7 +391,7 @@ function InboxRow({
   const toneStyles: Record<typeof tone, { bg: string; fg: string }> = {
     new: { bg: "rgba(46,107,82,0.14)", fg: "var(--plt-forest)" },
     ink: { bg: "rgba(15,23,20,0.08)", fg: "var(--plt-ink)" },
-    booked: { bg: "rgba(52,193,110,0.16)", fg: "#1F7B3E" },
+    booked: { bg: "var(--tl-positive-bg)", fg: "var(--tl-positive)" },
   };
   const s = toneStyles[tone];
   return (
