@@ -5,6 +5,7 @@ import { notifyWorkspaceSignupWelcome } from "./workspace-signup-welcome-notify"
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
+import { linkBriefObjects, loadBriefForSignupLead } from "@/lib/tulala/brief-store.server";
 import {
   SIGNUP_BUSINESS_DESCRIPTION_KEY,
   normalizeSignupBusinessDescription,
@@ -708,6 +709,36 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (profileError) {
     logServerError("workspace-signup.updateProfile", profileError);
+  }
+
+  // THE BRIEF GETS AN OWNER, AND IT HAPPENS BEFORE THE SCAFFOLD RUNS.
+  //
+  // The intake fetches someone's page, extracts facts, scores them and stores
+  // them in `tulala_brief_facts` with their source URL. Provisioning then read
+  // ONE string off the lead row — `business_description` — and walked past all
+  // of it. The facts were never missing; nothing ever looked.
+  //
+  // Stamping `tenant_id` is what makes them findable FROM the workspace
+  // afterwards, which is what "Regenerate from brief" needs on its second run:
+  // without it the only route back to the brief is the signup lead, and a
+  // workspace has no reason to remember which lead created it.
+  //
+  // ORDER IS LOAD-BEARING, hence its position above the scaffold rather than
+  // below. `ensureWorkspaceScaffold` seeds navigation and homepage copy ONCE
+  // from settings and never re-derives them. A fact that arrives after that
+  // produces a workspace whose settings and whose visible page disagree
+  // permanently — which is exactly how a restaurant ended up rendering a models
+  // agency. Non-fatal on failure: a workspace that exists without its brief
+  // linked is recoverable, a signup that dies at the last step is not.
+  const brief = await loadBriefForSignupLead(lead.id);
+  if (brief) {
+    const linked = await linkBriefObjects(brief.id, { tenantId: agency.id });
+    if (!linked.ok) {
+      logServerError(
+        "workspace-signup.linkBrief",
+        new Error(`brief ${brief.id} not linked to tenant ${agency.id}`),
+      );
+    }
   }
 
   await ensureWorkspaceScaffold({
