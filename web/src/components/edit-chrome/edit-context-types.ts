@@ -154,6 +154,15 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
    */
   canEditTheme: boolean;
   /**
+   * Piece B slice 1 — whether this surface offers per-breakpoint responsive
+   * editing. Mirrors `capabilities.responsiveBreakpoints`. False on the print
+   * artboard (a fixed physical size has no breakpoints); the device toggle and
+   * the ⌘1/2/3 shortcuts gate on it so a designer never gets a viewport control
+   * that cannot mean anything. A capability flag, so chrome never branches on
+   * surfaceKind for this.
+   */
+  canUseResponsiveBreakpoints: boolean;
+  /**
    * Phase 7A — governed nested builder nodes / element library affordances.
    * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.
    */

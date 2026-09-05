@@ -360,6 +360,10 @@ export function EditProvider({
   // Theme for the homepage/workspace shell editors that already had it.
   const canEditTheme =
     resolvedSurfaceConfig.capabilities.themeTokens || canEditSiteShell;
+  // Piece B slice 1 — per-breakpoint responsive editing. Off for the print
+  // artboard (fixed physical size); the device toggle + ⌘1/2/3 gate on it.
+  const canUseResponsiveBreakpoints =
+    resolvedSurfaceConfig.capabilities.responsiveBreakpoints;
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
@@ -5735,6 +5739,7 @@ export function EditProvider({
       canEditSiteShell,
       surfaceKind: resolvedSurfaceConfig.surface.kind,
       canEditTheme,
+      canUseResponsiveBreakpoints,
       publishViaSurfaceAdapter,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
@@ -6014,6 +6019,7 @@ export function EditProvider({
       // surfaceKind is read off resolvedSurfaceConfig (a dep below); canEditTheme
       // is derived from it + canEditSiteShell, both stable per mount.
       canEditTheme,
+      canUseResponsiveBreakpoints,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
       // galleryPolicy comes from the surface config object; resolvedSurfaceConfig
