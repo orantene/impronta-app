@@ -42,6 +42,8 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { isLocale } from "@/lib/site-admin/locales";
 import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { loadTenantWords } from "@/lib/words/server";
+import { businessHomeMeta } from "@/lib/site-admin/server/tenant-home-meta";
 import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
 import { DefaultStorefrontBody } from "@/components/home/default-storefront-body";
 import { resolvePlatformDefaultStorefrontTree } from "@/lib/site-admin/server/default-storefront-template";
@@ -113,6 +115,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     actor,
     publicBranding,
     whitelabel,
+    tenantWords,
   ] = await Promise.all([
     cmsLocale
       ? loadHomepageForRender(tenantId, cmsLocale)
@@ -132,6 +135,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     getCachedActorSession(),
     loadPublicBranding(tenantId),
     loadTenantWhitelabel(tenantId),
+    // The tenant's preset decides whether the agency fallback strings apply at
+    // all. A restaurant's footer read "Agency-managed discovery and
+    // representation" because nothing on this path asked.
+    loadTenantWords(tenantId, locale === "es" ? "es" : "en").catch(() => null),
   ]);
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
   const tenantBrand = identity?.public_name?.trim() ?? null;
@@ -141,8 +148,18 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // "go to the composer" instruction. Showing both is contradictory.
   const showPreviewBanner = previewActive && !editActive;
   const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+  // Footer line: the operator's own, else the tenant's tagline, else, for a
+  // business that does not represent people, the preset's descriptor (or
+  // nothing). The agency sentence only falls through for presets that
+  // represent people.
+  const businessMeta = tenantWords
+    ? businessHomeMeta(tenantWords.preset, identity, t)
+    : null;
   const footerTagline =
-    identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
+    identity?.footer_tagline?.trim() ||
+    (businessMeta
+      ? identity?.tagline?.trim() || businessMeta.description || ""
+      : t("public.home.footer.tagline"));
   // Default-storefront CTA — prefer the operator's own configured CTA, then a
   // contact email, then the canonical public browse surface (`/directory` is
   // allow-listed on agency hosts).
@@ -228,7 +245,13 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       const resolved = serviceSupabase
         ? await resolvePlatformDefaultStorefrontTree(
             serviceSupabase,
-            { businessName: identity?.public_name ?? null },
+            {
+              businessName: identity?.public_name ?? null,
+              // Present or stripped, never invented: the design's eyebrow,
+              // sub and footer read these and say nothing when absent.
+              businessTagline: identity?.tagline ?? null,
+              businessCity: identity?.address_city ?? null,
+            },
             // Without the tenant id the resolver cannot read THIS tenant's
             // preset.designId, and every page-less tenant gets the agency tree.
             tenantId,

@@ -123,70 +123,21 @@ const restaurantTree: BuilderNode[] = [
                 zIndex: 2,
                 width: "100%",
                 maxWidthFree: "100%",
-                paddingTop: "0px",
+                // One header: the platform chrome carries name, nav and Reserve;
+                // the design's own nav row is gone, so the hero opens with room.
+                paddingTop: "140px",
                 paddingRight: "44px",
                 paddingBottom: "96px",
                 paddingLeft: "44px",
-                responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px", paddingBottom: "64px" } },
+                responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px", paddingTop: "80px", paddingBottom: "64px" } },
               },
             },
             children: [
               {
-                id: "restaurant-nav",
-                kind: "container",
-                props: {
-                  layout: "row",
-                  align: "center",
-                  style: {
-                    width: "100%",
-                    maxWidthFree: "1200px",
-                    justifyContent: "space-between",
-                    paddingTop: "36px",
-                    paddingBottom: "36px",
-                    marginBottomFree: "140px",
-                    boxShadow: `inset 0 -1px 0 0 ${LINE}`,
-                    responsive: { mobile: { marginBottomFree: "80px" } },
-                  },
-                },
-                children: [
-                  {
-                    id: "restaurant-brand",
-                    kind: "paragraph",
-                    props: {
-                      text: "CASA LUMBRE",
-                      style: {
-                        fontFamily: PLAYFAIR,
-                        fontSize: "18px",
-                        fontWeight: 700,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        textColor: CREAM,
-                      },
-                    },
-                  },
-                  {
-                    id: "restaurant-nav-links",
-                    kind: "paragraph",
-                    props: {
-                      text: "Menu · Story · Reserve",
-                      style: {
-                        fontFamily: INTER,
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        textColor: MUTED,
-                        responsive: { mobile: { visibility: "hidden" } },
-                      },
-                    },
-                  },
-                ],
-              },
-              {
                 id: "restaurant-eyebrow",
                 kind: "paragraph",
                 props: {
-                  text: "Modern Mexican Kitchen · Mexico City",
+                  text: "{{business.city}}",
                   style: {
                     align: "center",
                     fontFamily: INTER,
@@ -203,7 +154,7 @@ const restaurantTree: BuilderNode[] = [
                 id: "restaurant-headline",
                 kind: "heading",
                 props: {
-                  text: "Every dish is a\nconversation",
+                  text: "{{business.name}}",
                   level: 1,
                   style: {
                     align: "center",
@@ -222,7 +173,7 @@ const restaurantTree: BuilderNode[] = [
                 id: "restaurant-sub",
                 kind: "paragraph",
                 props: {
-                  text: "Open Tuesday – Sunday · Reservations recommended",
+                  text: "{{business.tagline}}",
                   style: {
                     align: "center",
                     fontFamily: INTER,
@@ -339,7 +290,7 @@ const restaurantTree: BuilderNode[] = [
                     id: "restaurant-story-body",
                     kind: "rich_text",
                     props: {
-                      text: "Chef Andrés Moya built the Casa Lumbre kitchen around {accent}a wood-fire grill and a weekly market run{/accent}, no freezers, no shortcuts. The menu changes when the produce does. [Read the full story](/story).",
+                      text: "Reserve a table below, or come by. {accent}The menu changes when the produce does.{/accent} [Read the full story](/story)",
                       style: {
                         fontFamily: INTER,
                         fontSize: "18px",
@@ -538,56 +489,6 @@ const restaurantTree: BuilderNode[] = [
         ],
       },
       // ── Footer ────────────────────────────────────────────────────────────
-      {
-        id: "restaurant-footer",
-        kind: "container",
-        props: {
-          layout: "row",
-          align: "center",
-          responsive: { mobile: { layout: "stack", align: "start" } },
-          style: {
-            width: "100%",
-            maxWidthFree: "1200px",
-            justifyContent: "space-between",
-            paddingTop: "48px",
-            paddingRight: "44px",
-            paddingBottom: "48px",
-            paddingLeft: "44px",
-            gap: "16px",
-            boxShadow: `inset 0 1px 0 0 ${LINE}`,
-          },
-        },
-        children: [
-          {
-            id: "restaurant-footer-brand",
-            kind: "paragraph",
-            props: {
-              text: "Casa Lumbre · Mexico City",
-              style: {
-                fontFamily: PLAYFAIR,
-                fontSize: "16px",
-                letterSpacing: "0.04em",
-                textColor: MUTED,
-              },
-            },
-          },
-          {
-            id: "restaurant-footer-hours",
-            kind: "paragraph",
-            props: {
-              text: "Tue–Sun · 1pm – 11pm · Colonia Roma Norte",
-              style: {
-                align: "right",
-                fontFamily: INTER,
-                fontSize: "14px",
-                textColor: MUTED,
-                opacity: 0.72,
-                responsive: { mobile: { align: "left" } },
-              },
-            },
-          },
-        ],
-      },
     ],
   },
 ];

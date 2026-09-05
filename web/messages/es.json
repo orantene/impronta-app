@@ -3,6 +3,11 @@
     "meta": {
       "homeTitle": "Talento representado",
       "homeDescription": "Descubre talento representado, guarda listas y trabaja con la agencia, descubrimiento y representación gestionados por la agencia.",
+      "businessHomeMenuReservations": "Menú y reservas",
+      "businessHomeMenu": "Menú",
+      "businessHomeReservations": "Reservas",
+      "businessHomeAppointments": "Reserva tu cita",
+      "businessHomeEvents": "Eventos y entradas",
       "directoryTitle": "Directorio",
       "directoryDescription": "Explora el talento representado: guarda perfiles en tu lista y contacta con la agencia.",
       "modelsTitle": "Modelos",

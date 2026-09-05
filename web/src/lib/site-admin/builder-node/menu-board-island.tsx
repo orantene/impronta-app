@@ -373,6 +373,26 @@ export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandPr
           type="submit"
           className="site-builder-node--menu-board-submit"
           disabled={isPending || selectedCount === 0}
+          // A real button on the tenant primary, like the header's Reserve.
+          // No stylesheet ever styled this class, so the browser default
+          // rendered: muted text on a transparent box, a ghost that computed as
+          // rgb(115,115,115) on nothing and failed contrast on a live
+          // restaurant. The pair is the projected tenant primary and its
+          // derived foreground (`--token-color-primary-on`, #1771), so it
+          // moves with the tenant's brand. Disabled keeps the fill and drops
+          // opacity: still a button, still readable, visibly not yet armed.
+          style={{
+            background: "var(--token-color-primary, var(--primary, #111111))",
+            color: "var(--token-color-primary-on, var(--primary-foreground, #ffffff))",
+            border: "0",
+            borderRadius: "999px",
+            padding: "14px 28px",
+            fontSize: "15px",
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            cursor: isPending || selectedCount === 0 ? "not-allowed" : "pointer",
+            opacity: isPending || selectedCount === 0 ? 0.6 : 1,
+          }}
         >
           {isPending ? copy.sending : copy.submit}
         </button>

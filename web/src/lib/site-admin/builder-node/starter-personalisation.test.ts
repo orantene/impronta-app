@@ -22,6 +22,24 @@ const CTX = { businessName: "Riviera Maya Work", audience: "agency" } as const;
 
 // ── the string grammar ────────────────────────────────────────────────────
 
+test("tagline and city resolve to the tenant's own values when present", () => {
+  const ctx = { businessName: "El Paisa", businessTagline: "Parrilla de familia", businessCity: "Glew" };
+  assert.equal(personaliseStarterCopy("{{business.tagline}}", ctx), "Parrilla de familia");
+  assert.equal(personaliseStarterCopy("{{ Business.City }}", ctx), "Glew");
+  assert.equal(personaliseStarterCopy("{{businessCity}} · {{business.name}}", ctx), "Glew · El Paisa");
+});
+
+test("tagline and city are STRIPPED when absent, never replaced with fixture copy", () => {
+  // The defect this guards: a fallback design carried "Modern Mexican Kitchen ·
+  // Mexico City" as literal text, so a restaurant in Glew was told it was in
+  // Mexico City. An absent fact must render as nothing.
+  const ctx = { businessName: "El Paisa" };
+  assert.equal(personaliseStarterCopy("{{business.tagline}}", ctx), "");
+  assert.equal(personaliseStarterCopy("{{business.city}}", ctx), "");
+  assert.equal(personaliseStarterCopy("Welcome to {{business.name}} in {{business.city}}.", ctx), "Welcome to El Paisa in.");
+  assert.equal(personaliseStarterCopy("{{business.tagline}}", { businessName: "x", businessTagline: "   " }), "");
+});
+
 test("substitutes the business name in both spellings, ignoring case and spacing", () => {
   for (const token of [
     "{{business.name}}",

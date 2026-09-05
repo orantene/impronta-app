@@ -7,6 +7,8 @@ import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
 import { bakePageDesignTree } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { personaliseStarterBuilderTree } from "@/lib/site-admin/builder-node/starter-personalisation";
+import type { StarterPersonalisation } from "@/lib/site-admin/builder-node/starter-personalisation";
 import { INDUSTRY_PRESETS } from "@/lib/words/presets";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
@@ -35,16 +37,26 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
  * none. So the failure mode of every mistake in this path is silence.
  */
 
-/** The fallback's pipeline, end to end, minus the database read. */
-function renderPresetHomepage(designId: string): string {
+/**
+ * The fallback's pipeline, end to end, minus the database read. `personalisation`
+ * mirrors the stamp `resolvePlatformDefaultStorefrontTree` applies before the
+ * tree leaves the server; omit it to render the design as authored.
+ */
+function renderPresetHomepage(
+  designId: string,
+  personalisation?: StarterPersonalisation,
+): string {
   const design = getPageDesign(designId);
   assert.ok(design, `no design registered for "${designId}"`);
 
   const baked = bakePageDesignTree(design.tree, design.dataSources);
-  const resolved = resolveSnapshotBuilderTree({
+  const validated = resolveSnapshotBuilderTree({
     builderTree: baked as BuilderNodeTree,
     slots: [],
   } as never);
+  const resolved = personalisation
+    ? { ...validated, tree: personaliseStarterBuilderTree(validated.tree, personalisation) }
+    : validated;
 
   return renderToStaticMarkup(
     createElement(
@@ -137,3 +149,45 @@ test("the BOOKING DOOR is pinned, so it cannot drop the way the menu did", () =>
     "the restaurant design lost its menu board",
   );
 });
+
+for (const designId of ["restaurant-orderable", "restaurant"] as const) {
+  test(`${designId}: templated on the TENANT, its name in, the fixture's fiction out`, () => {
+    // Measured live on elpaisa.tulala.digital: the body read "CASA LUMBRE /
+    // MODERN MEXICAN KITCHEN · MEXICO CITY / Chef Andrés Moya built the Casa
+    // Lumbre kitchen…" on a tenant named El Paisa. The design's copy was literal
+    // fixture text and the personaliser had nothing to substitute. The
+    // display-only sibling carried the same fiction.
+    const html = renderPresetHomepage(designId, {
+      businessName: "El Paisa",
+      businessTagline: null,
+      businessCity: null,
+    });
+    assert.match(html, /El Paisa/, "the tenant's name must appear in the hero");
+    for (const fiction of ["Casa Lumbre", "CASA LUMBRE", "Mexico City", "Andrés Moya", "Roma Norte", "Modern Mexican", "Colonia"]) {
+      assert.doesNotMatch(html, new RegExp(fiction), `fixture fiction "${fiction}" reached a tenant page`);
+    }
+  });
+
+  test(`${designId}: ONE header and ONE footer, the platform chrome's, never a second row from the design`, () => {
+    // Measured live: the platform chrome ("EL PAISA", Reserve) sat directly
+    // above the design's own nav row ("CASA LUMBRE", MENU · STORY · ORDER), two
+    // stacked headers on one page. The design must not draw chrome: no nav row,
+    // no footer strip, and the tenant's name exactly once (the hero headline).
+    const html = renderPresetHomepage(designId, { businessName: "El Paisa" });
+    assert.doesNotMatch(html, /Menu · Story/, "the design still draws its own nav row");
+    const nameHits = html.match(/El Paisa/g) ?? [];
+    assert.equal(nameHits.length, 1, `tenant name appears ${nameHits.length} times inside the design; the platform chrome already shows it, so the design shows it once, in the hero`);
+  });
+
+  test(`${designId}: says NOTHING where the tenant has nothing, and the tenant's facts where it has them`, () => {
+    const bare = renderPresetHomepage(designId, { businessName: "El Paisa" });
+    assert.doesNotMatch(bare, /\{\{/, "raw placeholder syntax on a live page");
+    const rich = renderPresetHomepage(designId, {
+      businessName: "El Paisa",
+      businessTagline: "Parrilla de familia en Glew, desde 2012.",
+      businessCity: "Glew",
+    });
+    assert.match(rich, /Parrilla de familia en Glew, desde 2012\./);
+    assert.match(rich, /Glew/);
+  });
+}
