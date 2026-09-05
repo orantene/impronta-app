@@ -9,6 +9,7 @@ import {
   loadBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { customDomainLockedCopy } from "@/lib/saas/workspace-public-url";
+import { getRequestLocale } from "@/i18n/request-locale";
 import {
   ensureCustomDomainOnVercelProject,
   loadCustomDomainVerificationRecord,
@@ -143,7 +144,9 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
   if (!builderPlanAllows(workspacePlan, "builder.domain.custom")) {
     redirectWithDomainError(
       tenantSlug,
-      customDomainLockedCopy(workspacePlan),
+      // The dashboard follows the operator's language, so the reason they
+      // cannot connect a domain should too.
+      customDomainLockedCopy(workspacePlan, await getRequestLocale()),
       returnTo,
     );
   }

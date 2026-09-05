@@ -1,4 +1,5 @@
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/surface-allow-list";
 
 export type WorkspaceUrlPlan =
@@ -88,11 +89,65 @@ export function planTierHasWhitelabel(planTier: string | null | undefined): bool
   return planTier === "agency" || planTier === "network" || planTier === "legacy";
 }
 
-export function customDomainLockedCopy(plan: WorkspaceUrlPlan): string {
+/**
+ * Plans that grant a capability, in ladder order, named as customers see them.
+ *
+ * DERIVED, never typed. The lists in this message were hardcoded strings —
+ * "Website, Agency, and Network" — sitting inches from the predicates that
+ * decide the same thing. They agree today. They are two sources for one fact,
+ * which is the shape that produced most of the 2026-09-02 commerce audit, and
+ * the one that put "Upgrade to Studio" on a page cap Website lifts for less.
+ *
+ * `legacy` is excluded deliberately: it is grandfathered and invisible, so
+ * naming it would offer an upgrade nobody can buy.
+ */
+function plansGranting(predicate: (p: WorkspaceUrlPlan) => boolean): string[] {
+  return Object.values(PLAN_CATALOG)
+    .filter(
+      (p) =>
+        p.audience === "workspace" &&
+        p.isVisible &&
+        !p.isArchived &&
+        predicate(p.key as WorkspaceUrlPlan),
+    )
+    .sort((a, b) => a.rank - b.rank)
+    .map((p) => p.displayName);
+}
+
+/** "Website, Agency and Network" / "Website, Agency y Network". */
+function joinPlans(names: string[], locale: string): string {
+  const and = locale === "es" ? "y" : "and";
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} ${and} ${names[names.length - 1]}`;
+}
+
+/**
+ * Why a workspace cannot connect a custom domain, and what does.
+ *
+ * Shown when `builderPlanAllows(plan, "builder.domain.custom")` refuses, which
+ * is the only path to this copy. Localised: this is a dashboard surface and the
+ * dashboard follows the operator's language.
+ *
+ * No price, ever. Prices live in `product_prices`, and every copy of one in
+ * code has eventually drifted from what the card is actually charged.
+ */
+export function customDomainLockedCopy(
+  plan: WorkspaceUrlPlan,
+  locale: string = "en",
+): string {
+  const es = locale === "es";
+  const domainPlans = joinPlans(plansGranting(customDomainEligible), locale);
+  const subdomainPlans = joinPlans(plansGranting(brandedSubdomainEligible), locale);
+
   if (plan === "free") {
-    return "Branded subdomains unlock on Website and Studio. Custom domains unlock on Website, Agency, and Network.";
+    return es
+      ? `Los subdominios de marca se activan en ${subdomainPlans}. Los dominios propios se activan en ${domainPlans}.`
+      : `Branded subdomains unlock on ${subdomainPlans}. Custom domains unlock on ${domainPlans}.`;
   }
-  return "Studio includes the branded Tulala subdomain. Custom domains unlock on Website, Agency, and Network.";
+  return es
+    ? `Tu plan incluye el subdominio de marca de Tulala. Los dominios propios se activan en ${domainPlans}.`
+    : `Your plan includes the branded Tulala subdomain. Custom domains unlock on ${domainPlans}.`;
 }
 
 export function workspacePlanPublicModelCopy(plan: WorkspaceUrlPlan): string {
