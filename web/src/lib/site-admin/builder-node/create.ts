@@ -239,6 +239,15 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
+    case "session_picker":
+      return {
+        id: makeId("session_picker"),
+        kind: "session_picker",
+        props: {
+          offeringId: "",
+          title: "",
+        },
+      };
     case "reserve_table":
       return {
         id: makeId("reserve_table"),

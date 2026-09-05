@@ -168,6 +168,11 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Shown only when your venue asks for a card":
     "Se muestra solo cuando tu local pide una tarjeta",
   "Your venue": "Tu local",
+  // SESSIONS & CLASSES — the session_picker props panel.
+  "Session": "Sesión",
+  "Sessions": "Sesiones",
+  "The session offering this block books":
+    "La sesión que reserva este bloque",
   // C11 — the anchor field on the Data panel. Lives in the Builder 2027
   // catalog rather than editor-i18n-es-inspectors.ts, which sits at exactly
   // the 800-line max-lines budget: adding here keeps the budget intact

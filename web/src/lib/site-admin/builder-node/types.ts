@@ -45,6 +45,7 @@ export type BuilderNodeKind =
   | "hero_search"
   | "menu_board"
   | "reserve_table"
+  | "session_picker"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
   // registry Impronta's live pages reach through `section_embed` bridges.
@@ -1138,6 +1139,19 @@ export interface BuilderReserveTableNode extends BuilderNodeBase {
   };
 }
 
+// Sessions & Classes' guest-facing "book a seat" block. The island
+// (session-picker-island.tsx) and its server action are owned by that manager;
+// this node just carries what a builder configures. `offeringId` binds the block
+// to one session offering; `title` is display copy.
+export interface BuilderSessionPickerNode extends BuilderNodeBase {
+  kind: "session_picker";
+  props: {
+    offeringId: string;
+    title?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderMenuBoardNode extends BuilderNodeBase {
   kind: "menu_board";
   props: {
@@ -2075,6 +2089,7 @@ export type BuilderNode =
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
   | BuilderReserveTableNode
+  | BuilderSessionPickerNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode
   | BuilderPricingTableNode

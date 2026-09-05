@@ -127,6 +127,7 @@ import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/capt
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
+import { SessionPickerIsland } from "./session-picker-island";
 import { menuBoardCopy } from "./menu-board-copy";
 
 export interface BuilderNodeRenderDataSources {
@@ -5522,6 +5523,31 @@ function renderBuilderNodeElement(
      * client-side. A static import of a "use server" module would pull it into
      * the client bundle; `menu_board` solves it the same way.
      */
+    case "session_picker": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--session-picker"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <SessionPickerIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            offeringId={p.offeringId}
+            title={text("title", p.title) || undefined}
+            locale={options.contentLocale?.locale}
+          />
+        </div>
+      );
+    }
     case "reserve_table": {
       const p = node.props;
       const text = (prop: string, value: string | undefined) =>

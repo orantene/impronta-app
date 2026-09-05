@@ -133,9 +133,10 @@ function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }):
  * with nothing failing — the same silent-partial-registration shape this file
  * exists to catch.
  *
- * `reserve_table` is here despite having NO `native-data-block-needs` entry: it
- * loads its availability client-side through a dynamically imported server
- * action, so it needs no server provisioning, but it is still a registry leaf
+ * `reserve_table` and `session_picker` are here despite having NO
+ * `native-data-block-needs` entry: they load their data client-side through a
+ * dynamically imported server action, so they need no server provisioning, but
+ * each is still a registry leaf
  * that must be insertable and must seed a valid tree. Those are what the
  * assertions below actually check.
  */
@@ -144,6 +145,7 @@ const NATIVE_DATA_BLOCK_KINDS = [
   "menu_board",
   "talent_type_grid",
   "reserve_table",
+  "session_picker",
 ] as const;
 
 // ── registry + insertability ────────────────────────────────────────────────
