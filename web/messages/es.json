@@ -5326,7 +5326,12 @@
         "planLockedFeature": "Dominio propio",
         "planLockedWhy": "Publica tu sitio en un dominio tuyo en lugar de una dirección de Tulala.",
         "planLockedCta": "Ver el plan Agency"
-      }
+      },
+      "starterDoorTitle": "Tu sitio aún no tiene páginas",
+      "starterDoorBody": "Empieza con un conjunto listo: una página de inicio, una de página no encontrada y un directorio. Después edita lo que quieras.",
+      "starterDoorCta": "Empezar con una plantilla",
+      "starterDoorPending": "Creando tus páginas…",
+      "starterDoorFailed": "No pudimos crear tus páginas ahora mismo. No se cambió nada."
     },
     "adminCardStudio": {
       "title": "Diseño de tarjeta",

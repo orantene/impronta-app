@@ -44,6 +44,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { Icon, type AdminShellIconName } from "../primitives";
 import { useAdminShell } from "../state";
 import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
+import { StarterDoor } from "./StarterDoor";
 
 function LaunchpadCard({
   icon,
@@ -147,6 +148,10 @@ export function WebsiteLaunchpad() {
 
   return (
     <section className="mb-[22px]">
+      {/* The empty-site door. Renders only when there are no pages at all —
+          the same condition this file already uses to say "No pages yet", a
+          sentence that named the problem and offered nothing. */}
+      <StarterDoor hasPages={w.pages.length > 0} />
       <h2 className="m-0 mb-[8px] font-admin-display text-admin-17 font-semibold tracking-[-0.2px] text-admin-ink">
         {t("dashboard.adminWebsite.launchpadHeading")}
       </h2>
