@@ -50,6 +50,12 @@ const COPY: Record<Locale, Record<string, string>> = {
     emailHelp: "Your ticket goes here. If you cannot open it, we will find you by name at the door.",
     name: "Name",
     buy: "Buy with card",
+    payHow: "How will you pay",
+    payCard: "Card now",
+    payDoor: "At the door",
+    payDoorHelp: "Your seats are held until the night ends. Pay at the door when you arrive. Offered only up to 7 days before the night.",
+    holdDoor: "Holding your seats for the door...",
+    heldDoor: "Your seats are held. Pay at the door when you arrive. Your receipt:",
     buying: "Holding your seats...",
     redirecting: "Taking you to payment...",
     door_opens_closer: "Paying at the door opens closer to the date.",
@@ -81,6 +87,12 @@ const COPY: Record<Locale, Record<string, string>> = {
     emailHelp: "Tu entrada llega acá. Si no podés abrirla, te buscamos por tu nombre en la puerta.",
     name: "Nombre",
     buy: "Pagar con tarjeta",
+    payHow: "Como vas a pagar",
+    payCard: "Tarjeta ahora",
+    payDoor: "En la puerta",
+    payDoorHelp: "Tus plazas quedan reservadas hasta que termine la noche. Pagas en la puerta al llegar. Solo hasta 7 dias antes de la noche.",
+    holdDoor: "Reservando tus plazas para la puerta...",
+    heldDoor: "Tus plazas estan reservadas. Pagas en la puerta al llegar. Tu recibo:",
     buying: "Reservando tus plazas...",
     redirecting: "Llevandote al pago...",
     door_opens_closer: "Pagar en la puerta se abre más cerca de la fecha.",
@@ -147,6 +159,8 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const [orderKey, setOrderKey] = useState(() => newOrderKey());
   const [busy, setBusy] = useState<"idle" | "holding" | "redirecting">("idle");
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [payHow, setPayHow] = useState<"full" | "in_person">("full");
+  const [held, setHeld] = useState<{ receiptCode: string | null } | null>(null);
 
   const load = useCallback(async () => {
     if (!configured || preload) return;
@@ -175,14 +189,22 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
     setBusy("holding"); setRefusal(null);
     try {
       const { startTicketPurchase, startTicketCardPayment } = await import("@/app/(public)/_events/ticket-picker-actions");
+      const choice = chosenNight.door.offered ? payHow : "full";
       const res = await startTicketPurchase({
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,
-        email: email.trim(), displayName: name.trim() || undefined, clientOrderKey: orderKey, paymentChoice: "full", locale: loc,
+        email: email.trim(), displayName: name.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
       });
       if (!res.ok) {
         setRefusal(t(res.reason === "quantity" ? "quantity_err" : res.reason));
         setOrderKey(newOrderKey()); // a NEW cart after a refusal
         void load(); // seats moved under us; the list on screen may now be a lie
+        setBusy("idle");
+        return;
+      }
+      if (res.payAtDoor) {
+        // Seats held until the night ends; no card, no transaction. The receipt
+        // shows the amount due and no QR until it is settled at the door.
+        setHeld({ receiptCode: res.receiptCode });
         setBusy("idle");
         return;
       }
@@ -203,6 +225,14 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
     : null;
 
   if (!configured) return <div data-ticket-picker="not_configured" style={{ padding: 16 }}>{t("not_configured")}</div>;
+  if (held) {
+    return (
+      <div data-ticket-picker="held" style={{ padding: 16 }}>
+        {t("heldDoor")}{" "}
+        {held.receiptCode ? <a href={`/r/${held.receiptCode}`}>/r/{held.receiptCode}</a> : null}
+      </div>
+    );
+  }
 
   return (
     <div data-ticket-picker="root" style={{ padding: 16 }}>
@@ -268,8 +298,20 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                 {t("name")}
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ display: "block", width: "100%" }} disabled={busy !== "idle"} autoComplete="name" />
               </label>
+              {chosenNight?.door.offered ? (
+                <div role="radiogroup" aria-label={t("payHow")} style={{ marginTop: 8 }}>
+                  <div>{t("payHow")}</div>
+                  <label style={{ display: "block" }}>
+                    <input type="radio" name="payHow" checked={payHow === "full"} onChange={() => setPayHow("full")} disabled={busy !== "idle"} /> {t("payCard")}
+                  </label>
+                  <label style={{ display: "block" }}>
+                    <input type="radio" name="payHow" checked={payHow === "in_person"} onChange={() => setPayHow("in_person")} disabled={busy !== "idle"} /> {t("payDoor")}
+                    <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{t("payDoorHelp")}</span>
+                  </label>
+                </div>
+              ) : null}
               <button type="button" onClick={() => void buy()} disabled={!canBuy} style={{ marginTop: 12 }}>
-                {busy === "holding" ? t("buying") : busy === "redirecting" ? t("redirecting") : t("buy")}
+                {busy === "holding" ? (chosenNight?.door.offered && payHow === "in_person" ? t("holdDoor") : t("buying")) : busy === "redirecting" ? t("redirecting") : (chosenNight?.door.offered && payHow === "in_person" ? t("payDoor") : t("buy"))}
               </button>
             </div>
           ) : null}

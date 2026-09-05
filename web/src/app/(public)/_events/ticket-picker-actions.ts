@@ -162,7 +162,7 @@ const buySchema = z.object({
 });
 
 export type StartTicketPurchaseResult =
-  | { ok: true; orderId: string; transactionId: string | null; receiptCode: string | null }
+  | { ok: true; orderId: string; transactionId: string | null; receiptCode: string | null; payAtDoor: boolean }
   | { ok: false; reason: "invalid_request" | "not_sellable" | "night_not_on_sale" | "tier_not_on_sale" | "quantity" | "sold_out"
       | "pay_at_door_not_yet" | "pay_at_door_not_offered" | "engine_error"; detail?: string };
 
@@ -216,14 +216,20 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
     if (pErr) { logServerError("events.buy.pool", pErr); return { ok: false, reason: "engine_error" }; }
     if (!pool) return { ok: false, reason: "night_not_on_sale", detail: "no_pool_for_tier" };
 
+    // PAY AT THE DOOR (step 1b). The product rule decides whether it is offered
+    // at all — never after doors open, never when the session ends beyond the
+    // engine's 7-day hold cap (B′). When it is, the pipeline DERIVES the hold:
+    // `lines[].sessionId` names the night, and Orders' `createPurchase` holds
+    // the seats until that session's END (Orders #1836). No TTL is passed from
+    // here — a duration computed off a wall clock at the seam is where drift
+    // lives. No transaction is created; the seat is committed at the door
+    // when `markPaid` runs with a person standing there.
     if (d.paymentChoice === "in_person") {
       const door = doorOfferState({
         allowPayInPerson: offering.allow_pay_in_person === true,
         sessionStartsAt: session.starts_at as string, sessionEndsAt: session.ends_at as string, now: new Date(),
       });
       if (!door.offered) return { ok: false, reason: "pay_at_door_not_offered", detail: door.reason };
-      // Step 1b: needs a per-order hold TTL of "session end" (Orders + Capacity).
-      return { ok: false, reason: "pay_at_door_not_yet" };
     }
 
     const req = tierReserveRequest(
@@ -233,6 +239,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
     if (!req) return { ok: false, reason: "engine_error", detail: "bad_window" };
 
     const result = await createPurchase(admin, buildTicketPurchase({
+      paymentChoice: d.paymentChoice,
       tenantId: d.tenantId, clientOrderKey: d.clientOrderKey, offeringId: ev.offering_id as string,
       variantId: tier.id, sessionId: d.sessionId, poolId: req.poolId,
       sessionStartsAt: req.startsAt ?? (session.starts_at as string), sessionEndsAt: req.endsAt ?? (session.ends_at as string),
@@ -251,7 +258,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
 
     const { data: orderRow, error: oErr } = await admin.from("orders").select("receipt_code").eq("id", result.orderId).maybeSingle();
     if (oErr) logServerError("events.buy.receipt", oErr);
-    return { ok: true, orderId: result.orderId, transactionId: result.transactionId ?? null, receiptCode: (orderRow?.receipt_code as string | null) ?? null };
+    return { ok: true, orderId: result.orderId, transactionId: result.transactionId ?? null, receiptCode: (orderRow?.receipt_code as string | null) ?? null, payAtDoor: result.payInPerson === true };
   } catch (err) {
     logServerError("events.buy", err);
     return { ok: false, reason: "engine_error" };

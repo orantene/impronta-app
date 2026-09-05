@@ -48,6 +48,8 @@ export function doorOfferState(args: {
 }
 
 export type TicketPurchaseArgs = {
+  /** "full" (card now) or "in_person" (a held seat, settled at the door). */
+  paymentChoice?: "full" | "in_person";
   tenantId: string;
   clientOrderKey: string;
   offeringId: string;
@@ -77,7 +79,7 @@ export function buildTicketPurchase(a: TicketPurchaseArgs): PurchaseInput {
     actorUserId: null,
     contact: { email: a.email, displayName: a.displayName ?? null },
     lines: [{ offeringId: a.offeringId, variantId: a.variantId, sessionId: a.sessionId, units: a.units }],
-    paymentChoice: "full",
+    paymentChoice: a.paymentChoice ?? "full",
     sourceChannel: "ticket_picker",
     sourcePage: a.sourcePage ?? null,
     capacity: [

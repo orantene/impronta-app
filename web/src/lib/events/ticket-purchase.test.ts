@@ -57,3 +57,14 @@ test("the seat-lost message says what happened, that it is refunded in full, and
   assert.match(m, /refunded \$150\.00 in full/);
   assert.match(m, /buy again|contact the venue/);
 });
+
+test("a pay-at-the-door purchase passes in_person and NO hold TTL: the pipeline derives it from the line's session", () => {
+  const input = buildTicketPurchase({
+    paymentChoice: "in_person",
+    tenantId: "t", clientOrderKey: "k", offeringId: "o", variantId: "v", sessionId: "s", poolId: "p",
+    sessionStartsAt: "2026-09-08T20:00:00Z", sessionEndsAt: "2026-09-08T23:00:00Z", units: 1, email: "a@b.c",
+  });
+  assert.equal(input.paymentChoice, "in_person");
+  assert.equal(input.lines[0]?.sessionId, "s");
+  assert.ok(!("holdTtlSeconds" in input) && !("holdTtlSecondsOverride" in input));
+});
