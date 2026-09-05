@@ -1,0 +1,3376 @@
+{
+  "version": "2.0",
+  "title": "PARRILLA EL PAISA",
+  "lastUpdated": "2026-08-14T00:56:12.689Z",
+  "config": {
+    "languages": [
+      "es",
+      "en"
+    ],
+    "defaultLanguage": "es",
+    "currency": {
+      "symbol": "$",
+      "code": "ARS"
+    },
+    "timezone": "America/Argentina/Buenos_Aires",
+    "fonts": {
+      "heading": "Playfair Display",
+      "body": "Inter"
+    },
+    "colors": {
+      "theme": "classic",
+      "accentOverride": null,
+      "overrides": {}
+    }
+  },
+  "restaurantInfo": {
+    "name": {
+      "es": "Parrilla El Paisa Regionales",
+      "en": "Parrilla El Paisa Regionales"
+    },
+    "description": {
+      "es": "Negocio familiar desde 2012 atendiendo como nos gustaría q nos atiendan y haciendo con amor y conciencia los productos varios de nuestra amada Argentina 🇦🇷🇦🇷❤️",
+      "en": "Productos artesanales y regionales de nuestra querida Argentina🇦🇷🇦🇷🇦🇷"
+    },
+    "logoUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Flogo_1775177118296_Cata%CC%81logo%20ElPaisa%20-%201.png?alt=media&token=163330fd-3d4d-4914-b2e8-91a548487650",
+    "coverImageUrl": "",
+    "social": {
+      "instagram": "Regionales_el-_paisa",
+      "facebook": "Regionales el Paisa",
+      "whatsapp": "1170825104",
+      "googleMaps": "Regionales el Paisa,glew",
+      "website": ""
+    },
+    "wifi": {
+      "ssid": "",
+      "password": "",
+      "enabled": false
+    },
+    "businessHours": [
+      {
+        "isOpen": false,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "22:00"
+          }
+        ]
+      },
+      {
+        "isOpen": false,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "22:00"
+          }
+        ]
+      },
+      {
+        "isOpen": true,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "01:00"
+          }
+        ]
+      },
+      {
+        "isOpen": true,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "01:00"
+          }
+        ]
+      },
+      {
+        "isOpen": true,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "01:00"
+          }
+        ]
+      },
+      {
+        "isOpen": true,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "01:00"
+          }
+        ]
+      },
+      {
+        "isOpen": true,
+        "ranges": [
+          {
+            "open": "10:00",
+            "close": "01:00"
+          }
+        ]
+      }
+    ]
+  },
+  "modules": {
+    "dailySpecials": {
+      "enabled": false,
+      "title": {
+        "es": "Plato del Día",
+        "en": "Today's Special"
+      },
+      "description": {
+        "es": "",
+        "en": ""
+      },
+      "items": [],
+      "displayStyle": "banner"
+    },
+    "announcements": {
+      "enabled": false,
+      "title": {
+        "es": "",
+        "en": ""
+      },
+      "message": {
+        "es": "",
+        "en": ""
+      },
+      "imageUrl": "",
+      "ctaText": {
+        "es": "¡Entendido!",
+        "en": "Got it!"
+      },
+      "ctaUrl": "",
+      "bgColor": "#1e293b",
+      "accentColor": "#3b82f6",
+      "showOncePerSession": true,
+      "schedule": {
+        "enabled": false,
+        "ranges": [
+          {
+            "from": "08:00",
+            "to": "23:00"
+          }
+        ]
+      }
+    }
+  },
+  "catalog": {
+    "categories": [
+      {
+        "id": "cat-picadas",
+        "translations": {
+          "es": "PICADAS ARTESANALES",
+          "en": "ARTISAN CHARCUTERIE BOARDS"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "pican_2": {
+            "name": "1 come 2 pican"
+          },
+          "pican_3": {
+            "name": "2/3"
+          },
+          "pican_5": {
+            "name": "4/5"
+          },
+          "pican_7": {
+            "name": "6/7"
+          }
+        },
+        "disabled": false,
+        "order": 0,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-entradas-guarniciones",
+        "translations": {
+          "es": "ENTRADAS Y GUARNICIONES",
+          "en": "STARTERS & SIDES"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 2,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-porciones",
+        "translations": {
+          "es": "PORCIONES",
+          "en": "PORTIONS"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "x1": {
+            "name": "Porción x1"
+          },
+          "x2": {
+            "name": "Porción x2"
+          },
+          "x4": {
+            "name": "Porción x4"
+          }
+        },
+        "disabled": false,
+        "order": 3,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-parrilla",
+        "translations": {
+          "es": "PARRILLA",
+          "en": "GRILL"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 4,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-carnes-kilo",
+        "translations": {
+          "es": "CARNES POR KILO",
+          "en": "MEATS BY THE KILO"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "kilo": {
+            "name": "Por Kilo"
+          }
+        },
+        "disabled": false,
+        "order": 5,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": "SANGUCHES DE PARRILLA",
+          "en": "GRILL SANDWICHES"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 6,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-sanguchazos",
+        "translations": {
+          "es": "SANGUCHAZOS DE FIAMBRE",
+          "en": "COLD CUT SANDWICHES"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 7,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-postres",
+        "translations": {
+          "es": "POSTRES CASEROS",
+          "en": "HOMEMADE DESSERTS"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 8,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": "BEBIDAS",
+          "en": "BEVERAGES"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "x500": {
+            "name": "x 500"
+          },
+          "x1000": {
+            "name": "x 1 Lts"
+          },
+          "x1500": {
+            "name": "x 1 1/2"
+          }
+        },
+        "disabled": false,
+        "order": 9,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-vinos",
+        "translations": {
+          "es": "VINOS",
+          "en": "WINES"
+        },
+        "description": {
+          "es": "Caseros y de bodega",
+          "en": "Homemade and winery wines"
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 10,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-cervezas",
+        "translations": {
+          "es": "CERVEZAS",
+          "en": "BEERS"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "x473": {
+            "name": "x 473"
+          },
+          "x710": {
+            "name": "x 710"
+          },
+          "x1000": {
+            "name": "x 1 Lts"
+          }
+        },
+        "disabled": false,
+        "order": 11,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-bebidas-alcohol",
+        "translations": {
+          "es": "OTRAS BEBIDAS CON ALCOHOL Y ENERGIZANTES",
+          "en": "OTHER ALCOHOLIC DRINKS & ENERGY DRINKS"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 12,
+        "categories": [],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cat-escabeches",
+        "translations": {
+          "es": "ESCABECHES",
+          "en": "PICKLED GOODS (ESCABECHES)"
+        },
+        "description": {
+          "es": "",
+          "en": ""
+        },
+        "priceTypes": {
+          "default": {
+            "name": "Precio"
+          }
+        },
+        "disabled": false,
+        "order": 13,
+        "categories": [
+          {
+            "id": "cat-escabeches-animales",
+            "translations": {
+              "es": "Animales",
+              "en": "Meats"
+            },
+            "description": {
+              "es": "",
+              "en": ""
+            },
+            "priceTypes": {
+              "default": {
+                "name": "Precio"
+              }
+            },
+            "disabled": false,
+            "order": 0,
+            "categories": []
+          },
+          {
+            "id": "cat-escabeches-verduras",
+            "translations": {
+              "es": "Verduras",
+              "en": "Vegetables"
+            },
+            "description": {
+              "es": "",
+              "en": ""
+            },
+            "priceTypes": {
+              "default": {
+                "name": "Precio"
+              }
+            },
+            "disabled": false,
+            "order": 1,
+            "categories": []
+          },
+          {
+            "id": "cat-escabeches-aceitunas",
+            "translations": {
+              "es": "Aceitunas",
+              "en": "Olives"
+            },
+            "description": {
+              "es": "",
+              "en": ""
+            },
+            "priceTypes": {
+              "default": {
+                "name": "Precio"
+              }
+            },
+            "disabled": false,
+            "order": 2,
+            "categories": []
+          }
+        ],
+        "schedule": {
+          "enabled": false,
+          "ranges": [
+            {
+              "from": "08:00",
+              "to": "23:00"
+            }
+          ]
+        }
+      }
+    ],
+    "products": [
+      {
+        "id": "prod-picada-clasica",
+        "categoryId": "cat-picadas",
+        "translations": {
+          "es": {
+            "name": "Picada Clásica",
+            "description": "2 tipos de salame, 2 tipos de longaniza, Queso de campo, Queso pategras, Mortadela, Lomito, Bondiola, Jamón crudo, Matambre, Aceitunas"
+          },
+          "en": {
+            "name": "Classic Board",
+            "description": "2 types of salami, 2 types of longaniza, Country cheese, Pategrás cheese, Mortadella, Cured pork loin, Bondiola, Prosciutto, Flank steak roll, Olives"
+          }
+        },
+        "prices": {
+          "pican_2": 3000000,
+          "pican_3": 4000000,
+          "pican_5": 5000000,
+          "pican_7": 7000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-picada-premium",
+        "categoryId": "cat-picadas",
+        "translations": {
+          "es": {
+            "name": "Picada Premium",
+            "description": "2 tipos de salame, 2 tipos de longaniza, Queso pategras, Queso fontina, Queso azul (a elección), Lomito, Panceta, Jamón crudo, Bondiola, Salame de ciervo y salame de jabalí, Jamón crudo de ciervo y jamón crudo de jabalí, Matambre, Aceitunas"
+          },
+          "en": {
+            "name": "Premium Board",
+            "description": "2 types of salami, 2 types of longaniza, Pategrás cheese, Fontina cheese, Blue cheese (choice), Cured pork loin, Bacon, Prosciutto, Bondiola, Deer and wild boar salami, Deer and wild boar prosciutto, Flank steak roll, Olives"
+          }
+        },
+        "prices": {
+          "pican_2": 4500000,
+          "pican_3": 5500000,
+          "pican_5": 6500000,
+          "pican_7": 8500000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779569730309_VID-20260523-WA0043.jpg?alt=media&token=0f564331-ca6b-406f-bd68-1ffcc1e3dfc4",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-picada-solo-quesos",
+        "categoryId": "cat-picadas",
+        "translations": {
+          "es": {
+            "name": "Picada Solo Quesos",
+            "description": "1 come o 2 pican y lleva 5 variedades de quesos"
+          },
+          "en": {
+            "name": "Cheese-only Board",
+            "description": "1 eats or 2 snack, includes 5 varieties of cheese"
+          }
+        },
+        "prices": {
+          "pican_2": 4500000,
+          "pican_3": 0,
+          "pican_5": 0,
+          "pican_7": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-empanadas-pollo",
+        "categoryId": "cat-entradas-guarniciones",
+        "translations": {
+          "es": {
+            "name": "Empanadas de Pollo",
+            "description": ""
+          },
+          "en": {
+            "name": "Chicken Empanadas",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-empanadas-carne",
+        "categoryId": "cat-entradas-guarniciones",
+        "translations": {
+          "es": {
+            "name": "Empanadas de Carne cortadas a cuchillo",
+            "description": ""
+          },
+          "en": {
+            "name": "Hand-cut Beef Empanadas",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 350000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567081601_IMG-20260523-WA0045(1).jpg?alt=media&token=879aef81-0f2c-4f09-aaf0-974b072e0690",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-empanadas-cordero",
+        "categoryId": "cat-entradas-guarniciones",
+        "translations": {
+          "es": {
+            "name": "Empanadas de Cordero cortadas a cuchillo",
+            "description": ""
+          },
+          "en": {
+            "name": "Hand-cut Lamb Empanadas",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 400000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780532938100_a09e9cc2-f4c0-40e4-ad54-341b7aaa7b9e.jpeg?alt=media&token=a5d9c9b0-23c8-4424-b96a-3724aef48910",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-provoleta",
+        "categoryId": "cat-entradas-guarniciones",
+        "translations": {
+          "es": {
+            "name": "Provoleta",
+            "description": ""
+          },
+          "en": {
+            "name": "Grilled Provolone Cheese",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 900000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-papas-fritas",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Papas Fritas",
+            "description": ""
+          },
+          "en": {
+            "name": "French Fries",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 300000,
+          "x2": 600000,
+          "x4": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-ensaladas-mixtas",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Ensaladas Mixtas",
+            "description": ""
+          },
+          "en": {
+            "name": "Mixed Salads",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 300000,
+          "x2": 600000,
+          "x4": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-ensalada-rusa",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Ensalada Rusa",
+            "description": ""
+          },
+          "en": {
+            "name": "Russian Salad",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 500000,
+          "x2": 900000,
+          "x4": 1800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-parrillada-2-salon",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Parrillada para 2 en Salón",
+            "description": ""
+          },
+          "en": {
+            "name": "BBQ for 2 (Dine-in)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 5500000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567589347_IMG-20260523-WA0062.jpg?alt=media&token=715e86ff-6293-4ee5-97e6-a86e661707a8",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-parrillada-2-llevar",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Parrillada para 2 para Llevar",
+            "description": ""
+          },
+          "en": {
+            "name": "BBQ for 2 (Takeout)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 5800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-parrilla-kg-eleccion",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Parrilla x kg (a elección)",
+            "description": ""
+          },
+          "en": {
+            "name": "BBQ by the kilo (choice)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-pollo-pata-muslo-solo",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Pollo (Pata y Muslo) Solo",
+            "description": ""
+          },
+          "en": {
+            "name": "Chicken (Leg & Thigh) Only",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-pollo-pata-muslo-guarnicion",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Pollo (Pata y Muslo) con Guarnición",
+            "description": "Pollo entero con papas fritas\n$28.000"
+          },
+          "en": {
+            "name": "Chicken (Leg & Thigh) with Side",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-asado",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Asado",
+            "description": ""
+          },
+          "en": {
+            "name": "Short Ribs",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-vacio",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Vacío",
+            "description": ""
+          },
+          "en": {
+            "name": "Flank Steak",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-cerdo",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Cerdo (Pechito, Bondiola)",
+            "description": ""
+          },
+          "en": {
+            "name": "Pork (Ribs, Bondiola)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-lechon",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Lechón",
+            "description": ""
+          },
+          "en": {
+            "name": "Suckling Pig",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-cordero",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Cordero",
+            "description": ""
+          },
+          "en": {
+            "name": "Lamb",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-kilo-bife-chorizo",
+        "categoryId": "cat-carnes-kilo",
+        "translations": {
+          "es": {
+            "name": "Bife de Chorizo",
+            "description": ""
+          },
+          "en": {
+            "name": "Sirloin Steak",
+            "description": ""
+          }
+        },
+        "prices": {
+          "kilo": 4500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-salame-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Salame con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Salami and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-longaniza-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Longaniza con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Longaniza and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-mortadela-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Mortadela con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Mortadella and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-jamon-cocido-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Jamón Cocido con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Cooked Ham and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567544910_IMG-20260523-WA0056.jpg?alt=media&token=da5cded6-9dd0-46f3-a9b1-0ab32beab317",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-jamon-crudo-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Jamón Crudo con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Prosciutto and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-bondiola-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Bondiola con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Bondiola and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-lomito-ahumado-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Lomito ahumado y/o con hierbas con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Smoked and/or Herbed Pork Loin and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-panceta-queso",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Panceta con queso",
+            "description": ""
+          },
+          "en": {
+            "name": "Bacon and Cheese Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-lengua-escabeche",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Lengua en Escabeche",
+            "description": ""
+          },
+          "en": {
+            "name": "Pickled Tongue Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 8,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-pollo-escabeche",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Pollo al Escabeche",
+            "description": ""
+          },
+          "en": {
+            "name": "Pickled Chicken Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 9,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-matambre-pollo",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Matambres Caseros: Pollo",
+            "description": ""
+          },
+          "en": {
+            "name": "Homemade Roll Sandwiches: Chicken",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 10,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-matambre-carne",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Matambres Caseros: Carne",
+            "description": ""
+          },
+          "en": {
+            "name": "Homemade Roll Sandwiches: Beef",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 11,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-matambre-cerdo",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Matambres Caseros: Cerdo",
+            "description": ""
+          },
+          "en": {
+            "name": "Homemade Roll Sandwiches: Pork",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 12,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-salame-ciervo-jabali",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Salame de ciervo o de jabalí",
+            "description": ""
+          },
+          "en": {
+            "name": "Deer or Wild Boar Salami Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 13,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-jamon-ciervo-jabali",
+        "categoryId": "cat-sanguchazos",
+        "translations": {
+          "es": {
+            "name": "Jamón crudo de ciervo o de jabalí",
+            "description": ""
+          },
+          "en": {
+            "name": "Deer or Wild Boar Prosciutto Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 14,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-oreo",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Oreo",
+            "description": ""
+          },
+          "en": {
+            "name": "Oreo Dessert",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567131175_20260523_163842.jpg?alt=media&token=fd91e3d3-a168-4e3a-b2e9-cf130fc8b4ca",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-chocotorta",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Chocotorta",
+            "description": ""
+          },
+          "en": {
+            "name": "Chocotorta",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567146435_20260523_163756.jpg?alt=media&token=030e04a2-22d3-47cb-8e48-fb0cf8a753be",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-durazno",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Durazno con crema",
+            "description": ""
+          },
+          "en": {
+            "name": "Peaches with Cream",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-flan",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Flan casero",
+            "description": ""
+          },
+          "en": {
+            "name": "Homemade Flan",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567219505_20260510_151735.jpg?alt=media&token=c6259e5a-7591-4e03-9977-c36acda7d930",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-vigilante",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Vigilante (Queso y Dulce)",
+            "description": ""
+          },
+          "en": {
+            "name": "Vigilante (Cheese and Quince/Sweet Potato paste)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-postre-adicional",
+        "categoryId": "cat-postres",
+        "translations": {
+          "es": {
+            "name": "Dulce de leche o crema (adicional)",
+            "description": ""
+          },
+          "en": {
+            "name": "Dulce de leche or cream (additional)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 100000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-gaseosas",
+        "categoryId": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": {
+            "name": "Gaseosas",
+            "description": ""
+          },
+          "en": {
+            "name": "Sodas",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x500": 450000,
+          "x1000": 0,
+          "x1500": 900000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-agua-saborizada",
+        "categoryId": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": {
+            "name": "Agua Saborizada",
+            "description": ""
+          },
+          "en": {
+            "name": "Flavored Water",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x500": 350000,
+          "x1000": 0,
+          "x1500": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-agua-mineral",
+        "categoryId": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": {
+            "name": "Agua Mineral  $2500 y con gas $2800",
+            "description": ""
+          },
+          "en": {
+            "name": "Mineral Water",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x500": 250000,
+          "x1000": 0,
+          "x1500": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-baggio",
+        "categoryId": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": {
+            "name": "Baggio",
+            "description": ""
+          },
+          "en": {
+            "name": "Baggio Juice",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x500": 0,
+          "x1000": 600000,
+          "x1500": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-cepita",
+        "categoryId": "cat-bebidas-sin-alcohol",
+        "translations": {
+          "es": {
+            "name": "Cepita",
+            "description": ""
+          },
+          "en": {
+            "name": "Cepita Juice",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x500": 0,
+          "x1000": 600000,
+          "x1500": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-brahma",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Brahma",
+            "description": ""
+          },
+          "en": {
+            "name": "Brahma",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 500000,
+          "x710": 800000,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-quilmes-rubia",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Quilmes Rubia",
+            "description": ""
+          },
+          "en": {
+            "name": "Quilmes Blonde",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 0,
+          "x710": 0,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-quilmes-negra",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Quilmes Negra",
+            "description": ""
+          },
+          "en": {
+            "name": "Quilmes Dark",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 700000,
+          "x710": 0,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-stella-rubia",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Stella Artois Rubia",
+            "description": ""
+          },
+          "en": {
+            "name": "Stella Artois Blonde",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 700000,
+          "x710": 1000000,
+          "x1000": 1400000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-stella-negra",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Stella Artois Negra",
+            "description": ""
+          },
+          "en": {
+            "name": "Stella Artois Dark",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 0,
+          "x710": 0,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-schneider",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Schneider",
+            "description": ""
+          },
+          "en": {
+            "name": "Schneider",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 0,
+          "x710": 800000,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-heineken",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Heineken",
+            "description": ""
+          },
+          "en": {
+            "name": "Heineken",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 0,
+          "x710": 1000000,
+          "x1000": 1400000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-cerveza-corona",
+        "categoryId": "cat-cervezas",
+        "translations": {
+          "es": {
+            "name": "Corona y Patagonia",
+            "description": ""
+          },
+          "en": {
+            "name": "Corona",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x473": 0,
+          "x710": 1200000,
+          "x1000": 0
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-vizcacha-pavita",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Vizcacha - Pavita",
+            "description": ""
+          },
+          "en": {
+            "name": "Viscacha - Turkey",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-ciervo-conejo",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Ciervo - Conejo",
+            "description": ""
+          },
+          "en": {
+            "name": "Deer - Rabbit",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-jabali-chivito",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Jabalí - Chivito",
+            "description": ""
+          },
+          "en": {
+            "name": "Wild Boar - Baby Goat",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566776407_file_000000004928720e9bf76c8f572bd6ee.png?alt=media&token=168508d2-c937-4062-91bf-36b2d3c5e931",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-bufalo-cordero",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Búfalo - Cordero",
+            "description": ""
+          },
+          "en": {
+            "name": "Buffalo - Lamb",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-codorniz-huevitos",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Codorniz - Huevitos",
+            "description": ""
+          },
+          "en": {
+            "name": "Quail - Quail Eggs",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-rinoncitos",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Riñoncitos de cordero",
+            "description": ""
+          },
+          "en": {
+            "name": "Lamb Kidneys",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-carpincho",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Carpincho",
+            "description": ""
+          },
+          "en": {
+            "name": "Capybara",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1350000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-yacare-faisan",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Yacaré - Faisán",
+            "description": ""
+          },
+          "en": {
+            "name": "Yacare - Pheasant",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-lengua",
+        "categoryId": "cat-escabeches-animales",
+        "translations": {
+          "es": {
+            "name": "Lengua en Escabeche",
+            "description": ""
+          },
+          "en": {
+            "name": "Pickled Tongue",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 8,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-verdes",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Verdes con carozo",
+            "description": ""
+          },
+          "en": {
+            "name": "Green with pit",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-sin-carozo",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Sin carozo",
+            "description": ""
+          },
+          "en": {
+            "name": "Pitted",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-negras",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Negras",
+            "description": ""
+          },
+          "en": {
+            "name": "Black",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-rellenas-jamon",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Rellenas: Jamón crudo - Panceta - Almendras",
+            "description": ""
+          },
+          "en": {
+            "name": "Stuffed: Prosciutto - Bacon",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566426351_file_00000000b0d471f79b64fd2ed149d984.png?alt=media&token=6c62dc47-964b-4b00-b975-0821afdb4d97",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-rellenas-lomito",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Rellenas: Lomito ahumado",
+            "description": ""
+          },
+          "en": {
+            "name": "Stuffed: Smoked Pork Loin",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-rellenas-morron",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Rellenas: Morrón - Provolone",
+            "description": ""
+          },
+          "en": {
+            "name": "Stuffed: Bell Pepper - Provolone",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-rellenas-parmesano",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Rellenas: Parmesano - Queso Azul",
+            "description": ""
+          },
+          "en": {
+            "name": "Stuffed: Parmesan - Blue Cheese",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-aceitunas-rellenas-palmitos",
+        "categoryId": "cat-escabeches-aceitunas",
+        "translations": {
+          "es": {
+            "name": "Rellenas: Palmitos",
+            "description": ""
+          },
+          "en": {
+            "name": "Stuffed: Hearts of Palm",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "f0d5c26a-f4d5-4a35-a39f-b19c8f27a938",
+        "categoryId": "cat-entradas-guarniciones",
+        "translations": {
+          "es": {
+            "name": "Tamales ",
+            "description": "De cerdo o de carne a eleccion"
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779413921626_IMG_9396.jpeg?alt=media&token=849c8657-6b07-47e6-9271-f30c298cbf6d",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 4
+      },
+      {
+        "id": "prod-bebida-fernet-lata",
+        "categoryId": "cat-bebidas-alcohol",
+        "translations": {
+          "es": {
+            "name": "Fernet 1882 Lata",
+            "description": ""
+          },
+          "en": {
+            "name": "Fernet 1882 Can",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-speed-chico",
+        "categoryId": "cat-bebidas-alcohol",
+        "translations": {
+          "es": {
+            "name": "Speed chico",
+            "description": ""
+          },
+          "en": {
+            "name": "Speed Energy Drink (Small)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-speed-grande",
+        "categoryId": "cat-bebidas-alcohol",
+        "translations": {
+          "es": {
+            "name": "Speed grande",
+            "description": ""
+          },
+          "en": {
+            "name": "Speed Energy Drink (Large)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-bebida-fernet-vaso",
+        "categoryId": "cat-bebidas-alcohol",
+        "translations": {
+          "es": {
+            "name": "Fernet Branca Vaso",
+            "description": ""
+          },
+          "en": {
+            "name": "Fernet Branca Glass",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-rosado-dulce",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Rosado Dulce",
+            "description": ""
+          },
+          "en": {
+            "name": "Sweet Rosé",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567241449_20260523_164719_02.jpg?alt=media&token=d009b719-4958-46fb-9dd2-415041e4c99e",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-tinto-dulce",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Tinto Dulce",
+            "description": ""
+          },
+          "en": {
+            "name": "Sweet Red",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-tinto-seco",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Tinto Seco",
+            "description": ""
+          },
+          "en": {
+            "name": "Dry Red",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-ciruela",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Ciruela",
+            "description": ""
+          },
+          "en": {
+            "name": "Plum Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-malbec",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Malbec",
+            "description": ""
+          },
+          "en": {
+            "name": "Malbec",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1400000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-dada",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Dadá",
+            "description": ""
+          },
+          "en": {
+            "name": "Dadá Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-los-arboles",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Los Árboles",
+            "description": ""
+          },
+          "en": {
+            "name": "Los Árboles Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-cordero-piel-lobo",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Cordero con Piel de Lobo",
+            "description": ""
+          },
+          "en": {
+            "name": "Cordero con Piel de Lobo Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-alma-mora",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Alma Mora",
+            "description": ""
+          },
+          "en": {
+            "name": "Alma Mora Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 8,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-profugo",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Prófugo",
+            "description": ""
+          },
+          "en": {
+            "name": "Prófugo Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 9,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-trumpeter",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Trumpeter",
+            "description": ""
+          },
+          "en": {
+            "name": "Trumpeter Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 10,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-luigi-bosca",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Luigi Bosca",
+            "description": ""
+          },
+          "en": {
+            "name": "Luigi Bosca Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 11,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-la-linda",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino La Linda",
+            "description": ""
+          },
+          "en": {
+            "name": "La Linda Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 12,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-gascon",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino Gascón",
+            "description": ""
+          },
+          "en": {
+            "name": "Gascón Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 13,
+        "modifiers": []
+      },
+      {
+        "id": "prod-vino-dv-catena",
+        "categoryId": "cat-vinos",
+        "translations": {
+          "es": {
+            "name": "Vino D.V. Catena",
+            "description": ""
+          },
+          "en": {
+            "name": "D.V. Catena Wine",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 14,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-berenjena",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Berenjena",
+            "description": ""
+          },
+          "en": {
+            "name": "Eggplant",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779569696383_file_00000000922471f792c44ae99fa466d2.png?alt=media&token=313729cb-461f-457d-81fd-4203bfe6a4e3",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-ajies",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Ajíes en vinagre",
+            "description": ""
+          },
+          "en": {
+            "name": "Pickled Chili Peppers",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-morrones",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Morrones agridulces",
+            "description": ""
+          },
+          "en": {
+            "name": "Sweet and Sour Bell Peppers",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-pepinos",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Pepinos",
+            "description": ""
+          },
+          "en": {
+            "name": "Cucumbers",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-cebollitas",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Cebollitas",
+            "description": ""
+          },
+          "en": {
+            "name": "Pearl Onions",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-pickles",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Pickles",
+            "description": ""
+          },
+          "en": {
+            "name": "Pickles",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566795908_file_00000000a8c071f7b2a788192fe25e6e.png?alt=media&token=cc219600-b3d0-4bcb-9672-6716a1c79b10",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-porotos",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Porotos",
+            "description": ""
+          },
+          "en": {
+            "name": "Beans",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-escabeche-tomates",
+        "categoryId": "cat-escabeches-verduras",
+        "translations": {
+          "es": {
+            "name": "Tomates",
+            "description": ""
+          },
+          "en": {
+            "name": "Tomatoes",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 700000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-choripan",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Choripán",
+            "description": ""
+          },
+          "en": {
+            "name": "Sausage Sandwich (Choripán)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 600000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 0,
+        "modifiers": []
+      },
+      {
+        "id": "prod-morcipan",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Morcipán",
+            "description": ""
+          },
+          "en": {
+            "name": "Blood Sausage Sandwich (Morcipán)",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 400000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 1,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-chinchulin",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Chinchulín o Riñón",
+            "description": ""
+          },
+          "en": {
+            "name": "Chitterlings or Kidney Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 2,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-bondiola",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Bondiola",
+            "description": ""
+          },
+          "en": {
+            "name": "Bondiola Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 3,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-vacio",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Vacío",
+            "description": ""
+          },
+          "en": {
+            "name": "Flank Steak Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1500000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 4,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sangu-vacio-xl",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche Vacío XL",
+            "description": ""
+          },
+          "en": {
+            "name": "XL Flank Steak Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 5,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-carne",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Carne",
+            "description": ""
+          },
+          "en": {
+            "name": "Beef Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1200000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 6,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-matambre-napolitana",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Matambre a la Napolitana",
+            "description": ""
+          },
+          "en": {
+            "name": "Napolitana-style Flank Steak Roll Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2500000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567751757_IMG-20260523-WA0064.jpg?alt=media&token=79015c37-d1d8-46a0-a389-5e093c08a0a5",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 7,
+        "modifiers": []
+      },
+      {
+        "id": "prod-sanguche-milanesa-sola",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Milanesas de carne solas o al pan",
+            "description": ""
+          },
+          "en": {
+            "name": "Plain Beef Schnitzel or Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 1000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 8,
+        "modifiers": [
+          {
+            "id": "mod-con-papas-mila-sola",
+            "name": {
+              "es": "Con fritas",
+              "en": "With fries"
+            },
+            "price": 200000,
+            "priceAction": "add"
+          }
+        ]
+      },
+      {
+        "id": "prod-sanguche-milanesa-completa",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche milanesa completo",
+            "description": "(lechuga, tomate, jamón y queso)"
+          },
+          "en": {
+            "name": "Complete Schnitzel Sandwich",
+            "description": "(lettuce, tomato, ham and cheese)"
+          }
+        },
+        "prices": {
+          "default": 1500000
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567807566_IMG-20260523-WA0065.jpg?alt=media&token=f0d59c13-87f0-452f-8a99-f46d780932f1",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 9,
+        "modifiers": [
+          {
+            "id": "mod-con-papas-mila-completa",
+            "name": {
+              "es": "Con fritas",
+              "en": "With fries"
+            },
+            "price": 200000,
+            "priceAction": "add"
+          }
+        ]
+      },
+      {
+        "id": "prod-sanguche-matambre-pizza",
+        "categoryId": "cat-sandwiches-parrilla",
+        "translations": {
+          "es": {
+            "name": "Sanguche de Matambre a la Pizza",
+            "description": ""
+          },
+          "en": {
+            "name": "Pizza-style Flank Steak Roll Sandwich",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2000000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "order": 10,
+        "modifiers": []
+      },
+      {
+        "id": "5563fe75-e9c4-4f7f-9c54-bb02b4cb640f",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Cazuela de LENTEJAS O MONDONGO",
+            "description": "Guiso de Lentejas\nGuiso de Mondongo"
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 1000000,
+          "x2": 0,
+          "x4": 0
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780528450863_441dc373-c344-4ddd-b2d7-41d5431c1d63.jpeg?alt=media&token=e241a26c-d022-4c5a-9e1b-7bf156cf3e46",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 3
+      },
+      {
+        "id": "2814a1e0-9057-4493-a088-a3e1c88c31e5",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Pastas caseras con salsa FILETTO ",
+            "description": "ÑOQUIS\nTALLARINES\n"
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 900000,
+          "x2": 0,
+          "x4": 0
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780528688318_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png?alt=media&token=dc42446d-597f-42be-8686-e383ee00b984",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 4
+      },
+      {
+        "id": "b1112f7c-3dab-4f6e-b618-34c2b0e6d454",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Pastas Caseras",
+            "description": "Ñoquis\nTallarines\nCon salsa boloñesa "
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 1000000,
+          "x2": 0,
+          "x4": 0
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780531780367_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png?alt=media&token=ac75ecec-57c9-4470-95eb-0d0d6fc6e52c",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 5
+      },
+      {
+        "id": "a87a8ead-c6e6-4749-939a-051176cc7daf",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Pastas caseras con salsa FILETTO ",
+            "description": "Sorrentinos \n*Caprese( cherry-albahaca y Muzzarella)\n*Muzzarella y verdura\n*Jamon y Muzzarella "
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 1200000,
+          "x2": 0,
+          "x4": 0
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780531914480_IMG_9604.jpeg?alt=media&token=129bea6b-0229-44aa-9b67-eb9284963b39",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 6
+      },
+      {
+        "id": "3528383f-5fa9-460c-976d-f6b7a93f2702",
+        "categoryId": "cat-porciones",
+        "translations": {
+          "es": {
+            "name": "Pastas Caseras con salsa boloñesa",
+            "description": "Sorrentinos\n*jamón y Muzzarella \n*verdura y Muzzarella\n* caprese( cherry-albahaca y Muzzarella)\n\n\n\n"
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "x1": 1300000,
+          "x2": 0,
+          "x4": 0
+        },
+        "imageUrl": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780532992505_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png?alt=media&token=a38045bf-7e7f-4295-8181-8cc6fc46de73",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 7
+      },
+      {
+        "id": "c067430b-1617-46d7-a6bf-8a46deb73b5f",
+        "categoryId": "cat-parrilla",
+        "translations": {
+          "es": {
+            "name": "Pollo entero con papas fritas",
+            "description": ""
+          },
+          "en": {
+            "name": "",
+            "description": ""
+          }
+        },
+        "prices": {
+          "default": 2800000
+        },
+        "imageUrl": "",
+        "allergens": [],
+        "tags": [],
+        "enabled": true,
+        "modifiers": [],
+        "order": 5
+      }
+    ]
+  }
+}
