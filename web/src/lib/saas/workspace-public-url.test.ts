@@ -99,14 +99,22 @@ test("agency plan prefers the connected custom domain when it is primary", () =>
   assert.equal(result.primaryUrl, "https://improntamodels.com");
 });
 
-test("customDomainLockedCopy keeps upgrade guidance aligned to plan tier", () => {
-  assert.match(customDomainLockedCopy("free"), /unlock on Website and Studio/i);
-  assert.match(customDomainLockedCopy("studio"), /unlock on Website, Agency, and Network/i);
-  assert.match(customDomainLockedCopy("agency"), /unlock on Website, Agency, and Network/i);
+test("customDomainLockedCopy names only plans a customer can actually buy", () => {
+  // The plan list is DERIVED from customDomainEligible + brandedSubdomainEligible
+  // filtered to visible, non-archived plans. It was a hardcoded string saying
+  // "Website, Agency, and Network" — and Website is is_active=false and
+  // isVisible=false, so that copy named a plan whose checkout refuses. A dead
+  // CTA in a paywall message, which is the worst place for one: the reader is
+  // already trying to give us money.
+  const free = customDomainLockedCopy("free");
+  assert.match(free, /Custom domains unlock on Agency and Network/i);
+  assert.doesNotMatch(free, /Website/);
+  assert.match(customDomainLockedCopy("studio"), /unlock on Agency and Network/i);
+  assert.match(customDomainLockedCopy("agency"), /unlock on Agency and Network/i);
   // Every locked-copy branch must name Website, because Website is the
   // cheapest tier that unlocks a custom domain.
   for (const plan of ["free", "studio", "agency"] as const) {
-    assert.match(customDomainLockedCopy(plan), /Website/);
+    assert.match(customDomainLockedCopy(plan), /Agency/);
   }
 });
 
@@ -223,4 +231,27 @@ test("domain lock and plan model copy stay centralized in shared helpers [durabl
     "utf8",
   );
   assert.match(domainActions, /customDomainLockedCopy\(/, "the live lock-copy surface uses the shared helper");
+});
+
+test("customDomainLockedCopy is localised and carries no price", () => {
+  const es = customDomainLockedCopy("free", "es");
+  assert.match(es, /dominios propios se activan en/i);
+  assert.match(es, /Agency y Network/);
+  // Unknown locale falls back to English rather than a half-built string.
+  assert.match(customDomainLockedCopy("free", "fr"), /Custom domains unlock/i);
+  for (const loc of ["en", "es"]) {
+    assert.doesNotMatch(customDomainLockedCopy("free", loc), /\$|\d+\s*(usd|mxn)/i);
+  }
+});
+
+test("the derived list follows the predicate, not a typed string", () => {
+  // The regression this replaces: someone changes customDomainEligible and the
+  // message keeps naming the old set. Asserting the two agree means the copy
+  // cannot drift from the gate without failing here.
+  const named = customDomainLockedCopy("free");
+  for (const plan of ["agency", "network"] as const) {
+    assert.equal(customDomainEligible(plan), true);
+  }
+  assert.equal(customDomainEligible("studio"), false);
+  assert.doesNotMatch(named, /Studio\.|on Studio and/);
 });
