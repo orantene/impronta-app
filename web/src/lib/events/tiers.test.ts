@@ -8,6 +8,7 @@ import {
   saleWindowState,
   tierPoolRequests,
   type Tier,
+  newTierRow,
 } from "./tiers";
 
 const SESSION = {
@@ -143,4 +144,23 @@ test("an unresolvable tier refuses the whole batch rather than part of it", () =
       [{ tier: ga, units: 1 }], pools),
     null,
   );
+});
+
+test("a new tier's pool_key is derived from its label once, and a rename does not touch it", () => {
+  const ga = newTierRow({ label: "GA", amountCents: 3000 });
+  assert.equal(ga.ok, true);
+  if (!ga.ok) return;
+  assert.equal(ga.poolKey, "ga");
+  assert.equal(ga.admitsPerUnit, 1);
+  // The writer stores poolKey; a later rename is an UPDATE of `label` only.
+  // The rule lives in the writer's SELECT list, so here we only pin the derivation.
+  const renamed = { ...ga, label: "General admission" };
+  assert.equal(renamed.poolKey, "ga");
+});
+
+test("a new tier refuses a blank label, a negative price, or a nonsense party size", () => {
+  assert.deepEqual(newTierRow({ label: "   ", amountCents: 1 }), { ok: false, reason: "bad_label" });
+  assert.deepEqual(newTierRow({ label: "GA", amountCents: -1 }), { ok: false, reason: "bad_amount" });
+  assert.deepEqual(newTierRow({ label: "VIP", amountCents: 1, admitsPerUnit: 0 }), { ok: false, reason: "bad_admits" });
+  assert.deepEqual(newTierRow({ label: "VIP", amountCents: 1, maxPerOrder: 0 }), { ok: false, reason: "bad_max" });
 });

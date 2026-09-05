@@ -156,3 +156,46 @@ export function tierPoolRequests(
   }
   return out;
 }
+
+export type NewTierInput = {
+  label: string;
+  amountCents: number;
+  admitsPerUnit?: number;
+  maxPerOrder?: number | null;
+  isHidden?: boolean;
+};
+
+export type NewTierRefusal =
+  | { ok: false; reason: "bad_label" }
+  | { ok: false; reason: "bad_amount" }
+  | { ok: false; reason: "bad_admits" }
+  | { ok: false; reason: "bad_max" };
+
+/**
+ * The row a new tier becomes. PURE, so the one rule that matters is testable:
+ * `pool_key` is derived from the label HERE, ONCE, at creation — and never
+ * recomputed on rename. A tier renamed from "GA" to "General admission" keeps
+ * its pool and its sold seats (E2). The writer stores this value; nothing
+ * downstream re-derives it.
+ */
+export function newTierRow(
+  input: NewTierInput,
+): ({ ok: true } & {
+  label: string;
+  amountCents: number;
+  admitsPerUnit: number;
+  poolKey: string;
+  maxPerOrder: number | null;
+  isHidden: boolean;
+}) | NewTierRefusal {
+  const label = input.label.trim();
+  if (label.length < 1 || label.length > 80) return { ok: false, reason: "bad_label" };
+  const poolKey = poolKeyFor(label);
+  if (!poolKey) return { ok: false, reason: "bad_label" };
+  if (!Number.isInteger(input.amountCents) || input.amountCents < 0) return { ok: false, reason: "bad_amount" };
+  const admits = input.admitsPerUnit ?? 1;
+  if (!Number.isInteger(admits) || admits < 1 || admits > 1000) return { ok: false, reason: "bad_admits" };
+  const max = input.maxPerOrder ?? null;
+  if (max !== null && (!Number.isInteger(max) || max < 1)) return { ok: false, reason: "bad_max" };
+  return { ok: true, label, amountCents: input.amountCents, admitsPerUnit: admits, poolKey, maxPerOrder: max, isHidden: Boolean(input.isHidden) };
+}
