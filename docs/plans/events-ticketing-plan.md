@@ -778,6 +778,22 @@ editor path. And `dataTenantId = previewSubject?.id ?? tenantId`, so a self-fetc
 **previewed** tenant in preview — correct for a picker, and wrong for a door, which would ask about a
 venue it is not standing in.
 
+## 6a-ii. PARTIAL REFUNDS CANNOT RELEASE CAPACITY TODAY — a gap found by answering Orders
+
+`release_capacity(p_allocation_ids uuid[])` and `commit_capacity(...)` both take **whole allocations**;
+there is no partial-unit release. `createPurchase` reserves **one allocation of N units** per line and
+mint-on-paid points all N admissions at it. So refunding two of four tickets has two wrong answers:
+release the allocation and **oversell by exactly the tickets kept** (invisible, found at a door), or
+keep it and **lose the resale** (visible, a revenue cost). **0.8b takes the second and says so.**
+Full-line refunds are correct today. Raised with Capacity: either `release_capacity_units(alloc, n)`
+under the pool lock, or one allocation per admission at reserve time. Their call.
+
+**Refund-by-line contract, given to Orders:** join is `admissions.order_line_id` only — `line_seq` is a
+retry key, not a foreign key. Never stamp an admission with `admitted_count > 0` (that is a dispute).
+Among the unadmitted, highest `line_seq` first so named holders' first tickets survive. Refund by
+admission id is the primitive; "N from line L" is a convenience over it. The stamp goes on and comes
+off in ONE place or the door lies in the reverse direction.
+
 ## 6b. Where this area actually stands, 2026-09-04
 
 **Everything buildable without another department's file is built.** Eight of ten slices have shipped
