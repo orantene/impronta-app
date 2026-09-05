@@ -11873,7 +11873,37 @@
     "adminMenu": {
       "title": "Menú",
       "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
-      "noTenant": "No hay un espacio de trabajo activo."
+      "noTenant": "No hay un espacio de trabajo activo.",
+      "import": {
+        "action": {
+          "create": "Nuevo",
+          "update": "Actualizar",
+          "unchanged": "Igual"
+        },
+        "categories": "{n} categorías",
+        "close": "Cerrar",
+        "confirm": "Importar {create} nuevos, actualizar {update}",
+        "done": "Importado. {created} creados, {updated} actualizados.",
+        "nothingToDo": "Este archivo coincide con lo que ya tienes. No hay nada que importar.",
+        "open": "Importar un menú",
+        "orphans": "{n} ya no están en este archivo (no se borrará nada)",
+        "placeholder": "Pega el archivo del menú (JSON)",
+        "preview": "Vista previa",
+        "reading": "Leyendo",
+        "reason": {
+          "no_category": "su categoría no está en el archivo",
+          "no_name": "no tiene nombre",
+          "no_price": "no tiene precio",
+          "negative_price": "su precio es negativo",
+          "disabled": "está desactivado en el archivo"
+        },
+        "refused": "{n} sin importar",
+        "tiered": "{n} opciones de precio",
+        "title": "Importar un menú",
+        "unchanged": "{n} sin cambios",
+        "willCreate": "{n} por crear",
+        "willUpdate": "{n} por actualizar"
+      }
     },
     "adminReviews": {
       "eyebrow": "Reputación",
