@@ -32,7 +32,6 @@ const LINE = "rgba(245,237,224,0.14)";
 
 const PHOTO = {
   hero: pageDesignPhoto("serviceProsScene"),
-  chef: pageDesignPhoto("directorPortrait"),
   interior: pageDesignPhoto("studioDesk"),
 };
 
@@ -303,11 +302,18 @@ const restaurantTree: BuilderNode[] = [
                 ],
               },
               {
-                id: "restaurant-story-image",
-                kind: "image",
+                // THE TENANT'S OWN PHOTO SLOT, empty until the owner supplies one.
+                // This was a stock portrait from the design photo set, a chef nobody is,
+                // on every page-less restaurant. The brief's rule: no real photo, then the
+                // charcoal ground and type, never a placeholder and never a stranger's
+                // face on a family restaurant. The slot keeps the split's footprint so the
+                // layout does not flinch when the photo arrives; the operator drops an
+                // image node into it.
+                id: "restaurant-story-photo-slot",
+                kind: "container",
                 props: {
-                  src: PHOTO.chef,
-                  alt: "Chef in the kitchen",
+                  layout: "stack",
+                  layerLabel: "Your photo",
                   style: {
                     width: "100%",
                     aspectRatioFree: "0.82",
@@ -315,8 +321,11 @@ const restaurantTree: BuilderNode[] = [
                     objectPosition: "center top",
                     borderRadius: "2px",
                     boxShadow: `0 40px 100px rgba(10,5,3,0.52)`,
+                    backgroundColor: PANEL,
+                    minHeight: "320px",
                   },
                 },
+                children: [],
               },
             ],
           },
