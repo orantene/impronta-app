@@ -5,6 +5,7 @@ import { INDUSTRY_PRESETS } from "@/lib/words/presets";
 
 import { PAGE_DESIGNS } from "./index";
 import { validateBuilderNodeTree } from "../validate";
+import { resolveSnapshotBuilderTree } from "../snapshot-tree";
 import type { BuilderNodeTree } from "../types";
 
 /**
@@ -98,5 +99,50 @@ test("no preset points at a design that does not exist", () => {
     dangling,
     [],
     `preset.designId names a design that does not exist: ${dangling.join(", ")}`,
+  );
+});
+
+test("an invalid design tree renders NOTHING — why the fail-safe exists", () => {
+  // The end-to-end proof of the regression, not just of the guard.
+  //
+  // `resolveSnapshotBuilderTree` validates `snapshot.builderTree`; when it
+  // fails it returns `source: "legacy_slots"` with a tree built from `slots`.
+  // The page-less fallback builds its snapshot with `slots: []`, so an invalid
+  // tree resolves to ZERO nodes — a header, a footer and nothing between, with
+  // no error anywhere. That is precisely what a live restaurant served.
+  //
+  // Pinned because the earlier guard proves only that we can DETECT an invalid
+  // design. This proves what happens if one ever reaches the renderer, which is
+  // the reason resolvePresetDesignTree refuses to return one.
+  // Duplicate ids, NOT a disallowed child kind. The original defect was
+  // `menu_board` under `container` — which this PR makes legal, so using it
+  // here would have made this test pass for the wrong reason the moment the fix
+  // landed. A structural violation no allow-list can bless keeps the mechanism
+  // under test rather than the symptom.
+  const invalidTree = [
+    {
+      id: "root",
+      kind: "container" as const,
+      props: { layout: "stack" as const },
+      children: [
+        { id: "dupe", kind: "paragraph" as const, props: { text: "one" } },
+        { id: "dupe", kind: "paragraph" as const, props: { text: "two" } },
+      ],
+    },
+  ];
+
+  const resolved = resolveSnapshotBuilderTree({
+    builderTree: invalidTree as unknown as BuilderNodeTree,
+    slots: [],
+  } as never);
+
+  assert.equal(
+    resolved.tree.length,
+    0,
+    "an invalid tree should resolve to nothing — if this is non-zero the blank-page mechanism has changed and the fail-safe needs revisiting",
+  );
+  assert.ok(
+    resolved.issues.length > 0,
+    "the resolver should report why it dropped the tree",
   );
 });
