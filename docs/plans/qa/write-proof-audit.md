@@ -123,3 +123,51 @@ failure that killed the scheduler and nothing more.
 
 The guest table-booking path end to end, and one real allocation created and deleted on a test
 tenant. The refusal proves execution; a row proves correctness, and no row has ever existed.
+
+## Update — the class has a third member, and it moves an item from "unproven" to "was broken"
+
+`onConflict` against a **partial** unique index cannot be planned: PostgREST does not send the
+predicate, so Postgres refuses with `42P10` before executing anything. No test that does not run the
+statement against a database can see it. Three writers were dead this way:
+
+| Writer | Table | Found by |
+|---|---|---|
+| `createSessionWithPools` | `sessions` | Sessions, #1813 |
+| the event-night duplicate | `sessions` | this audit, #1812 |
+| the admissions mint | `admissions` | Reservations, fixed in #1818 |
+
+**The mint one re-reads a number in this very document.** `admissions = 0` was recorded above as
+"never proven". It was worse: **every settled order's mint died at planning** and fell into
+`onOrderPaid`'s catch-all. The table was not empty because nothing had been sold; it was empty
+because the thing that fills it had never once worked.
+
+That is the sentence at the foot of this file arriving in practice, twice in one evening: **an empty
+table is equally consistent with "works and unused" and "has never once run"**, and here it was the
+second both times.
+
+### Index state after the fixes, verified on production
+
+```
+sessions_series_occurrence_uniq  UNIQUE (series_id, starts_at)                        NON-partial now
+sessions_event_night_uniq        UNIQUE (event_id, starts_at, venue_id) NULLS NOT DISTINCT
+                                        WHERE event_id IS NOT NULL
+admissions_line_seq_uniq         recreated non-partial (#1818), NULLs stay distinct
+```
+
+`NULLS NOT DISTINCT` on the event index is the right call — a night with no venue still collides
+with itself.
+
+### Residual, reported on #1812
+
+`createSessionWithPools` still declares `onConflict: "series_id,starts_at"`. An event session has
+`series_id = NULL`, that index is not `NULLS NOT DISTINCT`, so the declared target never conflicts;
+the duplicate is caught by the event index as `23505` and lands in `insertError` as
+**`insert_failed`, never `duplicate_occurrence`**. A double-click on "schedule a night" — the most
+likely operator action — therefore reports a generic failure. Fix is to map `23505` to the variant
+that already exists.
+
+### Standing check for this codebase
+
+Before trusting any `.upsert(..., { onConflict })`, confirm the unique index it names is **not**
+partial. There are 72 partial unique indexes in `public`. The failure is at planning time, it is
+total rather than intermittent, and every green test above it is measuring something else.
