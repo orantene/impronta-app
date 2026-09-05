@@ -10,7 +10,7 @@ import type { Feature } from "./types";
  * own website on top.
  *
  * SHIPPED 2026-09-04. Was still flagged "coming" the next morning, and the
- * guest AI derives its grounding from this flag — so the first answer the
+ * guest AI derives its grounding from this flag, so the first answer the
  * assistant ever gave a real visitor told a restaurant owner that our own
  * table reservations "are on our roadmap, but not live yet" and offered him a
  * waitlist. He could have booked a table that minute.
