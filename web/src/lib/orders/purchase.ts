@@ -24,6 +24,7 @@ import {
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
+import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import type {
@@ -414,6 +415,40 @@ export async function createPurchase(
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
 
+      // ── A DOOR HOLD LASTS UNTIL THE SESSION ENDS.
+      //
+      // Derived here rather than passed in: the caller already declares which
+      // session each line is for, so the pipeline reads when it ends. A caller
+      // handing over a duration would be computing `end - now` at request time,
+      // and a duration from a wall clock is where drift lives.
+      //
+      // Falls back to the pools' own TTL for everything else — a card order is
+      // bounded by Checkout, not by the event.
+      let holdTtlSeconds = shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS;
+      const sessionIds = input.lines
+        .map((l) => l.sessionId)
+        .filter((v): v is string => typeof v === "string" && v.length > 0);
+      if (input.paymentChoice === "in_person" && sessionIds.length > 0) {
+        const { data: sessionRows, error: sessionErr } = await admin
+          .from("sessions")
+          .select("id, ends_at")
+          .in("id", sessionIds);
+        if (sessionErr) {
+          // Logged, not fatal: a door order with an unreadable session still
+          // gets the pool TTL, which is the pre-existing behaviour rather than
+          // a refusal on a path that used to work.
+          logServerError("orders.createPurchase/doorHold", sessionErr);
+        } else {
+          const door = doorHoldSeconds({
+            paymentChoice: input.paymentChoice,
+            sessionEnds: (sessionRows ?? []).map(
+              (r) => (r as { ends_at: string | null }).ends_at,
+            ),
+          });
+          if (door.ok) holdTtlSeconds = door.seconds;
+        }
+      }
+
       const built = buildCapacityRequests(needs, lineIdByOffering);
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
@@ -428,7 +463,7 @@ export async function createPurchase(
 
       const reserved = await reserveCapacityBatch(
         built.requests,
-        { ttlSeconds: resolveHoldTtl(shortestTtlSeconds, input.holdTtlSecondsOverride), createdBy: input.actorUserId },
+        { ttlSeconds: holdTtlSeconds, createdBy: input.actorUserId },
         admin,
       );
 
