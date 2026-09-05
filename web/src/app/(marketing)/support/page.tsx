@@ -6,6 +6,7 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { SUPPORT_EMAIL, SUPPORT_EMAIL_CAN_RECEIVE } from "@/lib/platform/support-contact";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { SupportStartHere } from "@/components/marketing/support/SupportStartHere";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { breadcrumbJsonLdToString, buildBreadcrumbJsonLd } from "@/lib/seo/breadcrumb-json-ld";
@@ -57,6 +58,15 @@ export default async function SupportPage() {
       : "That is not support. That is a company protecting its time using yours. We do not run it that way, and this page exists so you can hold us to it.",
 
     reachTitle: es ? "Cómo nos escribes" : "How you reach us",
+    // The way in, said before the argument for it. Somebody opening a support
+    // page has already decided they need help; making them read why our
+    // support is good first is the behaviour this page criticises two
+    // paragraphs later.
+    startAsk: es ? "Hacer una pregunta" : "Ask a question",
+    startWrite: es ? "Escribir al equipo" : "Write to the team",
+    startHint: es
+      ? "Se abre aquí mismo. No hace falta cuenta."
+      : "It opens right here. No account needed.",
     reachLede: es
       ? "Dos caminos, los dos llegan a la misma persona. Nombramos solo los que existen hoy."
       : "Two ways in, both landing with the same person. We name only the ones that exist today.",
@@ -153,8 +163,14 @@ export default async function SupportPage() {
             >
               {t.title}
             </h1>
+            <SupportStartHere
+              askLabel={t.startAsk}
+              writeLabel={t.startWrite}
+              writeHref={L("/contact")}
+              hint={t.startHint}
+            />
             <div
-              className="plt-body mx-auto mt-6 flex max-w-2xl flex-col gap-4 text-left"
+              className="plt-body mx-auto mt-8 flex max-w-2xl flex-col gap-4 text-left"
               style={{ fontSize: "1.0625rem", lineHeight: 1.7, color: "var(--plt-ink-soft)" }}
             >
               <p>{t.lede}</p>

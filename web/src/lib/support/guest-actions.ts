@@ -386,5 +386,32 @@ export async function submitMarketingContactAction(input: {
   });
   if (!result.ok) return result;
   await stampLeadId(ident.admin, result.data.ticket, email);
+
+  // Tell the person we have it.
+  //
+  // This emit did not exist. The form created a ticket, sent the owner five
+  // notifications, and sent the person who wrote in NOTHING — verified against
+  // production, where no dispatch row has ever existed for a contact-form
+  // address. Their whole experience of the page headed "A real person answers"
+  // was the word "Sending…" and then silence, with no record they could return
+  // to and no way to tell the message had arrived at all.
+  //
+  // The chat panel's email capture has always emitted this; only the form was
+  // missing it, which is why it went unnoticed — the feature looked covered.
+  notify({
+    type: "support.guest.contact.confirm",
+    tenantId: null,
+    eventId: crypto.randomUUID(),
+    payload: {
+      ticketId: result.data.ticket.id,
+      ticketNumber: result.data.ticket.ticketNumber,
+      subject: input.topic.trim() || input.message.trim().slice(0, 80),
+      surface: "guest",
+      contactEmail: email,
+      contactName: input.name.trim() || null,
+      platformFrom: true,
+    },
+  });
+
   return { ok: true, ticketId: result.data.ticket.id };
 }

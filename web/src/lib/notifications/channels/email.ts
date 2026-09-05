@@ -91,7 +91,12 @@ export async function sendEmailNotification(
   // translated in email-copy, else the catalog entry's English subject() fn.
   // Body: the template renders EN/ES off brand.locale internally.
   let subject = resolveLocalizedSubject(cfg, event, recipient, brand);
-  let element = cfg.render({ event, recipient, brand, unsubscribeUrl });
+  // The footer used to tell every recipient they had an account with us,
+  // including guests and invitees who have none. The channel already knows:
+  // it branches on this exact field a few lines up to pick between an account
+  // unsubscribe token and a guest one.
+  const brandForRecipient = { ...brand, recipientHasAccount: Boolean(recipient.userId) };
+  let element = cfg.render({ event, recipient, brand: brandForRecipient, unsubscribeUrl });
 
   // P3b editable templates: an admin can override subject/body per (entry, locale)
   // without a deploy. Body text renders as React text children (auto-escaped, so

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { SupportMail } from "./_shared";
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import type { EmailBrand } from "../components/Layout";
 
 interface Props {
@@ -21,8 +22,8 @@ export default function AgentReply({
 }: Props) {
   return (
     <SupportMail
-      preview={`Oran replied - ${subject} [Tulala #${ticketNumber}]`}
-      heading="Oran replied"
+      preview={`${SUPPORT_AGENT.name} replied - ${subject} [Tulala #${ticketNumber}]`}
+      heading={`${SUPPORT_AGENT.name} replied`}
       intro={`There is a new reply on "${subject || "your ticket"}" (Tulala #${ticketNumber}).`}
       ctaUrl={replyUrl}
       brand={brand}

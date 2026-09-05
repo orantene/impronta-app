@@ -5,6 +5,7 @@ import TicketCreatedAlert from "../../../emails/support/TicketCreatedAlert";
 import TicketReplyAlert from "../../../emails/support/TicketReplyAlert";
 import TicketEscalatedAlert from "../../../emails/support/TicketEscalatedAlert";
 import AgentReply from "../../../emails/support/AgentReply";
+import MessageReceived from "../../../emails/support/MessageReceived";
 import TicketResolved from "../../../emails/support/TicketResolved";
 import AutoCloseWarning from "../../../emails/support/AutoCloseWarning";
 import TicketFixed from "../../../emails/support/TicketFixed";
@@ -289,13 +290,16 @@ const GUEST_CONTACT_CONFIRM: CatalogEntry = {
   hydrate: hydrateSupportLinks,
   resolveAudience: eventGuestContact("guest"),
   email: {
-    templateId: "support.message.agent",
-    subject: (event) =>
-      `We saved your email for ticket #${num(event, "ticketNumber")}`,
+    templateId: "support.message.received",
+    // Was "We saved your email for ticket #N", rendered with AgentReply — so
+    // the mail opened "<agent> replied" and "There is a new reply on your
+    // ticket" when nobody had replied. A false receipt sends the reader
+    // looking for an answer that does not exist.
+    subject: (event) => `We have your message (#${num(event, "ticketNumber")})`,
     render: ({ event, brand, unsubscribeUrl }) =>
-      React.createElement(AgentReply, {
+      React.createElement(MessageReceived, {
         ticketNumber: num(event, "ticketNumber"),
-        subject: str(event.payload.subject) ?? "your question",
+        subject: str(event.payload.subject) ?? "",
         replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,

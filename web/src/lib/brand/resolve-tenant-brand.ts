@@ -27,6 +27,13 @@ export type EmailBrand = {
    *  template-override lookup. Sourced from the tenant's default_locale; the
    *  resolvers always populate it, callers default to "en" when absent. */
   locale?: string;
+  /**
+   * Whether the person receiving this mail actually has an account. Set
+   * per-recipient by the email channel, not by the brand resolver — the brand
+   * is per tenant, this is per reader. Drives the footer's "why you got this"
+   * line, which used to claim an account for guests who have none.
+   */
+  recipientHasAccount?: boolean;
 };
 
 function siteUrl(): string {
