@@ -4500,6 +4500,18 @@
         "saved": "Guardado",
         "ownerOnly": "Solo el propietario del espacio de trabajo puede cambiar para qué se usa."
       },
+      "runsEvents": {
+        "title": "¿Este espacio de trabajo organiza eventos?",
+        "desc": "Activar eventos muestra la sección Eventos: noches con entradas, tipos de entrada, el cartel y la puerta. Desactivarlo oculta el enlace y no cambia nada más.",
+        "onLabel": "Sí, organizamos eventos",
+        "onDesc": "Noches con entradas, talleres, shows. Los tipos de entrada, los códigos promocionales, el cartel y la puerta viven en Eventos.",
+        "offLabel": "Sin eventos",
+        "offDesc": "El enlace Eventos se oculta. No se cancela ni se borra ningún evento, sesión, tipo de entrada o entrada, y todas las páginas de eventos publicadas siguen funcionando.",
+        "loading": "Cargando…",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "ownerOnly": "Solo el propietario del espacio de trabajo puede activar o desactivar los eventos."
+      },
       "defaultCurrency": {
         "desc": "Qué pestaña de moneda se abre primero en Finanzas del negocio cuando hay varias. Solo para visualización, sin conversión de divisas."
       },
