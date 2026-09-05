@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { doorCounts, summariseEvent, summariseTier, type TierPoolState } from "./summary";
+import {
+  doorCounts,
+  doorTakings,
+  summariseEvent,
+  summariseTier,
+  type TierPoolState,
+} from "./summary";
 
 const GA = { poolKey: "ga", label: "General admission", amountCents: 3000 };
 const VIP = { poolKey: "vip", label: "VIP table for 6", amountCents: 60000 };
@@ -109,4 +115,19 @@ test("part-arrived parties, refunds and no-shows each count once", () => {
   // A no-show is a human's positive call, never inferred from a zero count --
   // at 21:30 almost every row has a zero count and almost none is a no-show.
   assert.equal(counts.noShows, 3);
+});
+
+test("door takings sum only priced walk-ups, count unpriced ones apart, and ignore order-backed rows", () => {
+  const t = doorTakings([
+    { walkUp: true, status: "valid", doorAmountCents: 1500, doorPaidVia: "cash" },
+    { walkUp: true, status: "valid", doorAmountCents: 0, doorPaidVia: "cash" }, // a comp: priced, worth 0
+    { walkUp: true, status: "valid", doorAmountCents: 2000, doorPaidVia: "card_terminal" },
+    { walkUp: true, status: "void", doorAmountCents: 9999, doorPaidVia: "cash" }, // handed back
+    { walkUp: true, status: "valid", doorAmountCents: null, doorPaidVia: null }, // arrived some other way
+    { walkUp: false, status: "valid", doorAmountCents: null, doorPaidVia: null }, // online: money is on the order
+  ]);
+  assert.deepEqual(t.byMethod, { cash: 1500, card_terminal: 2000, other: 0 });
+  assert.equal(t.totalCents, 3500);
+  assert.equal(t.pricedWalkUps, 3);
+  assert.equal(t.unpricedWalkUps, 1);
 });
