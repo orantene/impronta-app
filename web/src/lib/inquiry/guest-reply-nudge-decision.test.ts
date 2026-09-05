@@ -80,14 +80,51 @@ describe("decideGuestReplyNudge", () => {
     });
   });
 
-  it("SKIPS when there is no reachable inquirer party (no guest session AND no client account)", () => {
+  it("SKIPS only when NOTHING is reachable — no guest session, no client account, no contact email", () => {
     assert.deepEqual(
-      decideGuestReplyNudge(base({ guestSessionId: null, clientUserId: null })),
+      decideGuestReplyNudge(
+        base({ guestSessionId: null, clientUserId: null, contactEmail: "" }),
+      ),
       { send: false, reason: "no_client_party" },
     );
     assert.deepEqual(
-      decideGuestReplyNudge(base({ guestSessionId: "  ", clientUserId: "  " })),
+      decideGuestReplyNudge(
+        base({ guestSessionId: "  ", clientUserId: "  ", contactEmail: "   " }),
+      ),
       { send: false, reason: "no_client_party" },
+    );
+  });
+
+  // REGRESSION (2026-09-04, found in production): a live agency_site inquiry
+  // carried a real contact address but neither a guest session nor a client
+  // account, because provisioning declined the address. The old gate required
+  // a "party" and skipped — stricter than `clientOrGuest`, the resolver behind
+  // it, which would have emailed the raw contact. A real person with a
+  // deliverable address got silence.
+  it("SENDS on a real contact email alone, with no guest session and no client account", () => {
+    assert.deepEqual(
+      decideGuestReplyNudge(
+        base({
+          guestSessionId: null,
+          clientUserId: null,
+          contactEmail: "someone@example.com",
+        }),
+      ),
+      { send: true },
+    );
+  });
+
+  it("still refuses the synthetic seed contact when it is the ONLY reachability", () => {
+    assert.deepEqual(
+      decideGuestReplyNudge(
+        base({
+          guestSessionId: null,
+          clientUserId: null,
+          contactName: "Guest",
+          contactEmail: "pending-gs-xyz@guest.impronta",
+        }),
+      ),
+      { send: false, reason: "seed_contact" },
     );
   });
 
