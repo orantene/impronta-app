@@ -69,7 +69,10 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
   // problems, which is the same cry-wolf failure as an over-eager alarm: the
   // list stops being read. Nothing is filtered out -- an admin must still see
   // every leg -- they are only told apart.
-  const nowMs = Date.now();
+  // Captured once at mount via a state initializer, not read during render:
+  // Date.now() in a render body is an impure call, and it would also let the
+  // scheduled/stuck split shift between renders of the same list.
+  const [nowMs] = useState(() => Date.now());
   const isScheduled = (r: HeldLedgerRow) =>
     Boolean(r.releaseAfter) && new Date(r.releaseAfter as string).getTime() > nowMs;
   const scheduledCount = rows.filter((r) => r.status === "held" && isScheduled(r)).length;
