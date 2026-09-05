@@ -191,7 +191,14 @@ export async function dispatchEventNotifications(
         const startedAt = Date.now();
         const recipientRef = recipient.userId ?? `guest:${recipient.email ?? ""}`;
         try {
-          const providerRef = await handler(enriched, entry, recipient, ctx);
+          const handlerResult = await handler(enriched, entry, recipient, ctx);
+          // A channel may return a bare provider ref (in_app) or an outcome
+          // object carrying the envelope (email). Normalise before use.
+          const outcome =
+            handlerResult != null && typeof handlerResult === "object"
+              ? handlerResult
+              : null;
+          const providerRef = outcome ? outcome.providerRef : handlerResult;
           if (providerRef == null) {
             await markDispatchLogSkipped(ctx.admin, logId);
             entryResult.skipped++;
@@ -207,7 +214,10 @@ export async function dispatchEventNotifications(
               skipped: true,
             });
           } else {
-            await markDispatchLogSent(ctx.admin, logId, providerRef);
+            await markDispatchLogSent(ctx.admin, logId, providerRef, {
+            basePayload: logEvent.payload ?? {},
+            envelope: outcome,
+          });
             entryResult.dispatched++;
             void improntaLog(`notif.send.${channel}`, {
               eventType: enriched.type,
@@ -306,7 +316,18 @@ type ChannelHandler = (
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-) => Promise<string | null>;
+) => Promise<string | null | ChannelSendOutcome>;
+
+/**
+ * A channel that can report the envelope it used (email). `providerRef` is the
+ * provider message id, exactly as a bare string return would have been; the
+ * rest is recorded on the dispatch_log row for later auditing.
+ */
+export type ChannelSendOutcome = {
+  providerRef: string | null;
+  from: string;
+  replyTo: string | null;
+};
 
 type DispatchLogInsertArgs = {
   event: NotificationEvent;
@@ -359,14 +380,32 @@ async function markDispatchLogSent(
   admin: SupabaseClient,
   id: string,
   providerRef: string,
+  opts?: {
+    basePayload: Record<string, unknown>;
+    envelope: ChannelSendOutcome | null;
+  },
 ): Promise<void> {
   const patch = dispatchLogPatchFromHandlerResult(providerRef);
+  // Record the envelope the channel actually used. Written as a MERGE onto the
+  // payload the row already carries, never a replacement — the hydrated event
+  // payload is what the digest sweep and the retry cron read.
+  const payloadPatch =
+    opts?.envelope != null
+      ? {
+          payload: {
+            ...opts.basePayload,
+            emailFrom: opts.envelope.from,
+            emailReplyTo: opts.envelope.replyTo,
+          },
+        }
+      : {};
   const { error } = await admin
     .from("notification_dispatch_log")
     .update({
       status: patch.status,
       sent_at: patch.sent_at,
       provider_reference: patch.provider_reference,
+      ...payloadPatch,
     })
     .eq("id", id);
   if (error) logServerError("notifications.dispatchLog.markSent", error);

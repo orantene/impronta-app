@@ -172,7 +172,16 @@ export async function sendEmailNotification(
   if (result.status === "failed") {
     throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
   }
-  return result.status === "sent" ? result.id : null;
+  if (result.status !== "sent") return null;
+  // Report the envelope we actually sent with. The dispatcher records it on
+  // the dispatch_log row, so a later "did that email carry a Reply-To?" is a
+  // SQL read rather than a request to open someone's inbox — the exact
+  // question we could not answer on 2026-09-05.
+  return {
+    providerRef: result.id,
+    from: result.from,
+    replyTo: result.replyTo ?? null,
+  };
 }
 
 /** String-only vars for subject interpolation: recipient/brand + flat payload. */

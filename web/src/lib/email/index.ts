@@ -118,7 +118,18 @@ export type SendEmailInput = {
  *  - `failed`  — Resend returned an error (already logged); the send did not land.
  */
 export type SendEmailResult =
-  | { status: "sent"; id: string | null }
+  | {
+      status: "sent";
+      id: string | null;
+      /**
+       * The envelope ACTUALLY used, returned so callers can record it. The
+       * notification dispatcher writes these into dispatch_log.payload, which
+       * is what makes "did that email carry a Reply-To?" a SQL question
+       * instead of a request for someone's inbox.
+       */
+      from: string;
+      replyTo?: string;
+    }
   | { status: "skipped" }
   | { status: "failed"; error: string };
 
@@ -157,7 +168,12 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
       error: String((error as { message?: unknown })?.message ?? error),
     };
   }
-  return { status: "sent", id: data?.id ?? null };
+  return {
+    status: "sent",
+    id: data?.id ?? null,
+    from,
+    replyTo: input.replyTo,
+  };
 }
 
 /**
