@@ -201,9 +201,17 @@ test("applyResendEvent suppresses a hard bounce for a GUEST with no account", as
   assert.equal(upserts[0].row.user_id, null);
   assert.equal(upserts[0].row.email_address, "guest.person@example.com");
   assert.equal(upserts[0].row.reason, "hard_bounce");
-  // NULLs compare as distinct, so the (user_id, email_address) constraint
-  // cannot dedupe a user-less row — Resend retries would insert duplicates.
-  assert.equal(upserts[0].opts.onConflict, "email_address");
+  // This used to assert `onConflict: "email_address"`, and the reasoning above
+  // it was right: NULLs compare as distinct, so (user_id, email_address) cannot
+  // dedupe a user-less row. The conclusion was wrong. No inferrable index served
+  // a bare `email_address`; the only candidate was
+  // `UNIQUE (lower(email_address)) WHERE user_id IS NULL`, an expression index
+  // AND partial, so this branch returned 42P10 and NEVER wrote. The test was
+  // green the whole time because a stub cannot fail at planning.
+  //
+  // `user_key` is `coalesce(user_id, zero uuid)`, which collapses every guest
+  // onto one key and makes the dedupe this comment wanted actually enforceable.
+  assert.equal(upserts[0].opts.onConflict, "user_key,email_key");
 });
 
 test("applyResendEvent still keys a known user's suppression on (user_id, email)", async () => {
@@ -217,7 +225,9 @@ test("applyResendEvent still keys a known user's suppression on (user_id, email)
 
   assert.equal(res.status, "suppressed");
   assert.equal(upserts[0].row.user_id, "user-1");
-  assert.equal(upserts[0].opts.onConflict, "user_id,email_address");
+  // One target for both kinds of recipient now. A conflict target chosen from
+  // the data is a branch only half of production ever runs.
+  assert.equal(upserts[0].opts.onConflict, "user_key,email_key");
 });
 
 test("applyResendEvent does not suppress a transient bounce", async () => {

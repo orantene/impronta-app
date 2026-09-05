@@ -238,9 +238,21 @@ export async function applyResendEvent(
     return { status: "unmatched", detail: `${event.type}:no-address` };
   }
 
-  // Two conflict targets: the (user_id, email_address) constraint cannot dedupe
-  // user-less rows because NULLs compare as distinct, so those go through the
-  // partial unique index on lower(email_address) WHERE user_id IS NULL.
+  // ONE conflict target, because the runtime-computed pair never worked.
+  //
+  // This used to choose between "user_id,email_address" for an account holder
+  // and "email_address" for a guest. Probed against production through this same
+  // client: the first returns 23503 (plans, then the FK objects) and the second
+  // returns 42P10 — it never planned at all, so no guest bounce has EVER been
+  // suppressed. The guest index was both an expression index and a partial one
+  // (lower(email_address) WHERE user_id IS NULL), and ON CONFLICT can infer
+  // neither from a bare column name.
+  //
+  // `user_key` and `email_key` are stored generated columns — coalesce(user_id,
+  // zero uuid) and lower(email_address) — so the uniqueness is expressible as
+  // plain columns, inferrable, and identical for both kinds of recipient. A
+  // conflict target that depends on the data is a branch that only one half of
+  // production ever exercises.
   const { error: supErr } = await admin.from("email_suppressions").upsert(
     {
       user_id: userId,
@@ -248,10 +260,7 @@ export async function applyResendEvent(
       reason,
       source: emailId,
     },
-    {
-      onConflict: userId ? "user_id,email_address" : "email_address",
-      ignoreDuplicates: true,
-    },
+    { onConflict: "user_key,email_key", ignoreDuplicates: true },
   );
   if (supErr) {
     logServerError("notifications.webhook.suppress", supErr);
