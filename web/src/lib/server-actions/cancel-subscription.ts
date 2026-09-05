@@ -5,6 +5,7 @@ import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
 import {
@@ -241,13 +242,25 @@ export async function reactivateSubscription(): Promise<
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
-    const { data: myMembership } = await supabase
-      .from("agency_memberships")
+    // tenantScopedQuery, not a raw .from(): the tenant filter cannot be
+    // forgotten here. The sibling cancel path predates the helper and is
+    // grandfathered in the suppressions baseline; new call sites use it.
+    const { data: myMembership, error: membershipErr } = await tenantScopedQuery(
+      supabase,
+      "agency_memberships",
+      tenantId,
+    )
       .select("role")
-      .eq("tenant_id", tenantId)
       .eq("profile_id", user.id)
       .eq("status", "active")
       .maybeSingle();
+    // Read the error, never just the data. A failed read returns data=null,
+    // which is indistinguishable from "no membership" -- and would deny an
+    // owner their own plan controls while looking like a permission decision.
+    if (membershipErr) {
+      logServerError("reactivate-subscription.membership", membershipErr);
+      return { ok: false, error: "Couldn't verify your access. Try again.", reason: "unexpected" };
+    }
     const myRole = (myMembership as { role?: string } | null)?.role;
     if (myRole !== "owner" && myRole !== "admin") {
       return { ok: false, error: "Only the owner or admin can change the plan.", reason: "forbidden" };
