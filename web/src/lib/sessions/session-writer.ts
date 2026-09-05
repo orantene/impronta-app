@@ -53,9 +53,20 @@ export type SessionRowInput = {
   title?: string | null;
 };
 
+/**
+ * ONE LITERAL REASON PER VARIANT, deliberately.
+ *
+ * This began as `{ ok: false; reason: "insert_failed" | "duplicate_occurrence" }`
+ * — one variant carrying two reasons — and that is not a discriminated union.
+ * TypeScript narrows the `reason` PROPERTY on such a check but will not split
+ * the object into two, so no sequence of `result.reason === ...` tests ever
+ * reaches the variant that has `poolsCreated`. The compiler was right and the
+ * type was wrong: a discriminant that is itself a union does not discriminate.
+ */
 export type CreateSessionResult =
   | { ok: true; sessionId: string; poolsCreated: number }
-  | { ok: false; reason: "insert_failed" | "duplicate_occurrence" }
+  | { ok: false; reason: "insert_failed" }
+  | { ok: false; reason: "duplicate_occurrence" }
   | { ok: false; reason: "pools_failed"; sessionId: string; poolsCreated: number };
 
 /**
