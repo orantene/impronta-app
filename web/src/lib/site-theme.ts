@@ -8,7 +8,16 @@ export function normalizeSiteTheme(value: unknown): SiteTheme {
   return value === "light" ? "light" : "dark";
 }
 
-export async function getSiteTheme(): Promise<SiteTheme> {
+/**
+ * The tenant's explicitly chosen site theme, or NULL when none is set.
+ *
+ * Null and "dark" are different facts: null means nobody has themed this
+ * workspace, and the caller should look at the tenant's own background mode
+ * rather than stamping the platform default over a light design. A failed READ
+ * still returns "dark" — an error is not an absent setting, and must not be
+ * reinterpreted as one.
+ */
+export async function getSiteTheme(): Promise<SiteTheme | null> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
     return "dark";
@@ -30,7 +39,12 @@ export async function getSiteTheme(): Promise<SiteTheme> {
       return "dark";
     }
 
-    return normalizeSiteTheme(data?.value);
+    // ABSENCE IS NOT "DARK". `normalizeSiteTheme(undefined)` returns "dark",
+    // which collapses "this tenant chose dark" and "nobody ever set a theme"
+    // into the same answer — and the second case is every tenant that has not
+    // been explicitly themed. The caller needs to tell them apart to fall back
+    // to the tenant's own background polarity instead of a platform default.
+    return data?.value == null ? null : normalizeSiteTheme(data.value);
   } catch (error) {
     logServerError("settings/getSiteTheme", error);
     return "dark";

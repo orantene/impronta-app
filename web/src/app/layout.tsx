@@ -12,6 +12,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
+import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import {
   designTokensToCssVars,
@@ -164,6 +165,27 @@ export default async function RootLayout({
   const tokenCssVars = designTokensToCssVars(designTokens);
   const tokenDataAttrs = designTokensToDataAttrs(designTokens);
 
+  // TWO GROUNDS — the body's theme class must agree with the canvas it sits on.
+  //
+  // `getSiteTheme()` reads a `settings` row keyed `site_theme` and returns
+  // "dark" whenever that row is ABSENT, which it is for every tenant nobody has
+  // explicitly themed. Meanwhile the canvas resolves `--token-color-background`
+  // and falls back to WHITE. So a tenant on the light `classic` preset shipped
+  // `<body class="site-theme-dark">` over a white page: dark-theme tokens on a
+  // light ground, which is how text and its background end up the same colour.
+  //
+  // The tenant's own background mode already says which ground it paints, and
+  // it is right here — `designTokens` is loaded a line above for the html
+  // data-attrs, so this costs no extra read.
+  //
+  // Only overrides the FALLBACK. An explicit `site_theme` row still wins: an
+  // operator who chose a theme keeps it. And an unknown mode returns undefined
+  // from the classifier rather than guessing, so we keep today's behaviour
+  // instead of inventing a polarity.
+  const tokenPolarity = backgroundModeToPolarity(designTokens["background.mode"]);
+  const resolvedSiteTheme =
+    siteTheme ?? (publicScope && tokenPolarity ? tokenPolarity : "dark");
+
   return (
     <html
       lang={hreflang}
@@ -176,7 +198,7 @@ export default async function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className={`site-theme-${siteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
+        className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
