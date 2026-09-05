@@ -226,15 +226,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       // switches therefore resolve to their `else` case on this fallback path;
       // name substitution is unaffected.
       const resolved = serviceSupabase
-        ? await resolvePlatformDefaultStorefrontTree(
-            serviceSupabase,
-            { businessName: identity?.public_name ?? null },
-            // The tenant id is what lets the resolver read THIS tenant's
-            // preset.designId instead of handing every page-less tenant the
-            // same agency tree. Without it a restaurant renders
-            // "Represented talent" with APPLY AS TALENT buttons.
-            tenantId,
-          )
+        ? await resolvePlatformDefaultStorefrontTree(serviceSupabase, {
+            businessName: identity?.public_name ?? null,
+          })
         : null;
       if (resolved && resolved.builderTree.length > 0) {
         defaultStorefrontSnapshot = {
