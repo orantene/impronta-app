@@ -39,10 +39,12 @@ function ymdFromInstant(iso: string): string {
  * error is invisible except at the edges of a day, which is exactly where a
  * late class or an early show lives.
  *
- * Sessions carry a venue zone, so they get the honest answer. The existing
- * booking and hold rows are left on the slice deliberately — changing how other
- * features' rows land on the calendar is not this slice's business, and it is
- * reported rather than fixed in passing.
+ * Every timed row goes through this now: sessions and bookings/orders carry a
+ * zone (venue for sessions, `agency_bookings.timezone` for bookings), so they
+ * get the honest local day; holds carry no zone and fall back to the UTC slice
+ * until they do. Inquiries are exempt — `inquiries.event_date` is a plain DATE
+ * column (a user-entered calendar date, no instant), so it has no zone to
+ * localize and its slice is a no-op, not a bug.
  */
 function localYmd(iso: string, timeZone: string | null): string {
   if (!timeZone) return ymdFromInstant(iso);
@@ -123,7 +125,9 @@ export async function loadCalendarEvents(
         id: row.source_inquiry_id ?? row.id,
         contact_name: row.title?.trim() || (isOrder ? "Order" : "Booking"),
         company: null,
-        event_date: ymdFromInstant(row.starts_at),
+        // The LOCAL day, not the UTC slice. A booking/order carries its own
+        // zone, so a 20:00 booking in Cancun (01:00Z next day) stays on today.
+        event_date: localYmd(row.starts_at, row.timezone),
         status: row.status || "booked",
         starts_at: row.starts_at,
         ends_at: row.ends_at,
@@ -145,7 +149,10 @@ export async function loadCalendarEvents(
         id: row.inquiry_id ?? row.id,
         contact_name: row.title?.trim() || "Hold",
         company: null,
-        event_date: ymdFromInstant(row.starts_at),
+        // Holds carry no zone of their own, so localYmd falls back to the UTC
+        // slice — routed through it anyway so every row uses one mechanism and
+        // a hold gains the local day for free if it ever carries a zone.
+        event_date: localYmd(row.starts_at, null),
         status: "submitted",
         starts_at: row.starts_at,
         ends_at: row.ends_at,
