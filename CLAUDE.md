@@ -34,7 +34,7 @@ The rule: **if your work includes a new migration, `npm run db:push` is part of 
 Per-agent workflow:
 1. Branch off `main`; write code + migration locally
 2. `npm run db:push` — apply the migration to remote Supabase
-3. `cd web && npx tsc --noEmit && npm run lint` — gate
+3. `cd web && npm run typecheck && npm run lint` — gate
 4. `git commit`, push the feature branch, open a PR to `main`
 5. Merge the PR → `main` auto-deploys to production
 
