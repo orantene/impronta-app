@@ -196,10 +196,13 @@ export async function GET(request: Request) {
     // `project-ledger` are the only writers of the books, so if either stops,
     // the books quietly stop and the first symptom is someone noticing, later,
     // that they end abruptly.
-    const { data: heartbeatRows } = await admin
+    const { data: heartbeatRows, error: heartbeatErr } = await admin
       .from("cron_heartbeats")
       .select("job, last_run_at, last_ok_at, last_status, consecutive_failures")
       .returns<HeartbeatRow[]>();
+    // An unread error here would present as "no heartbeats", i.e. every money
+    // cron reported as never_ran -- a false all-clear on the liveness signal.
+    if (heartbeatErr) throw heartbeatErr;
 
     const heartbeatVerdicts = classifyHeartbeats(heartbeatRows ?? [], now);
     const unhealthyHeartbeats = heartbeatVerdicts.filter((v) => v.state !== "ok");
@@ -224,10 +227,13 @@ export async function GET(request: Request) {
         const stripeByCurrency = sumStripeBalance(balance);
 
         // Our side: the sum of every balance transaction we have ingested.
-        const { data: ourRows } = await admin
+        const { data: ourRows, error: ourRowsErr } = await admin
           .from("provider_balance_transactions")
           .select("currency, net_cents")
           .returns<Array<{ currency: string; net_cents: number }>>();
+        // Unread, this would make our side look like ZERO and report the whole
+        // Stripe balance as a mismatch: a loud false alarm on a read failure.
+        if (ourRowsErr) throw ourRowsErr;
 
         const oursByCurrency: Record<string, number> = {};
         for (const r of ourRows ?? []) {
@@ -241,12 +247,13 @@ export async function GET(request: Request) {
           // The earliest ingested date is what distinguishes "we missed
           // transactions" from "we started counting late", so the alert carries
           // it rather than making an operator go and find it.
-          const { data: earliest } = await admin
+          const { data: earliest, error: earliestErr } = await admin
             .from("provider_balance_transactions")
             .select("stripe_created_at")
             .order("stripe_created_at", { ascending: true })
             .limit(1)
             .maybeSingle<{ stripe_created_at: string }>();
+          if (earliestErr) logServerError("cron/alert-money-failures.earliest", earliestErr);
           balanceMismatchSummary = describeMismatch(mismatches, earliest?.stripe_created_at ?? null);
         }
       }

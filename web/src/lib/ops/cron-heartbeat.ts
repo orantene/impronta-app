@@ -62,11 +62,18 @@ export async function recordCronHeartbeat(input: {
 
     // Read the current row only to carry the failure streak and the last good
     // run forward. A missing row is the first heartbeat, not an error.
-    const { data: existing } = await admin
+    const { data: existing, error: readErr } = await admin
       .from("cron_heartbeats")
       .select("last_ok_at, consecutive_failures")
       .eq("job", input.job)
       .maybeSingle<{ last_ok_at: string | null; consecutive_failures: number }>();
+    // Read the error. A failed read looks identical to "no prior heartbeat",
+    // which would silently reset the failure streak and lose last_ok_at --
+    // making a job that has been failing for hours look freshly healthy.
+    if (readErr) {
+      logServerError("ops.cron-heartbeat.read", readErr);
+      return;
+    }
 
     const { error } = await admin.from("cron_heartbeats").upsert(
       {
