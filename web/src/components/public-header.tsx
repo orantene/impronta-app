@@ -31,6 +31,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadTenantWords } from "@/lib/words/server";
+import { resolveHeaderVerbDestination } from "@/lib/words/verb-destination.server";
 import {
   loadRegistrationSettings,
   registrationIsLive,
@@ -310,7 +311,22 @@ export async function PublicHeader() {
       : "";
 
   const ctaLabel = explicitCtaLabel || (presetVerbLabel || null);
-  const ctaHref = explicitCtaHref || (presetVerbLabel ? "?inquiry=open" : null);
+  // THE VERB'S DESTINATION, not a hardcoded chat cue for every verb.
+  //
+  // This line used to be `presetVerbLabel ? "?inquiry=open" : null`, which took
+  // the LABEL from the preset and ignored the verb entirely — so a restaurant's
+  // button said "Reserve" and opened the talent inquiry, asking a diner to
+  // describe a casting call. Found by clicking it on a live tenant.
+  //
+  // `resolveHeaderVerbDestination` returns a tenant page only when that page
+  // genuinely carries the booking block, and `?inquiry=open` otherwise, so the
+  // "a new site can never point somewhere that 404s" property above is kept
+  // exactly. It only ever upgrades a destination when a real page exists.
+  const presetVerbHref =
+    presetVerb && presetVerbLabel && tenantIdForIdentity
+      ? await resolveHeaderVerbDestination(tenantIdForIdentity, presetVerb.preset.headerVerb)
+      : null;
+  const ctaHref = explicitCtaHref || presetVerbHref;
   const hasCta = Boolean(ctaLabel && ctaHref);
   // Tenant Registration Engine — auto "Join the team" CTA. Renders only on a
   // tenant storefront where registration is live AND the operator hasn't set
