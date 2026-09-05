@@ -369,6 +369,17 @@ html[data-public-font-preset="editorial"] {
     --background: var(--impronta-black);
     --foreground: var(--impronta-foreground);
     --primary: var(--impronta-gold);
+    /* The pair. `--primary` is re-pinned just above; without re-pinning its
+     * foreground too, the label kept the BASE class's value — #0a0a0a on the
+     * #111111 registry-default primary, about 1.05:1, an invisible button.
+     * `--token-color-primary-on` is projected server-side from the tenant's
+     * own primary (tokens/contrast-pair.ts) so it follows any brand colour.
+     * The literal fallback is white, matching the platform default primary,
+     * and is deliberately NOT `var(--primary-foreground)`: a fallback that
+     * references the property it defines is a cycle, which resolves EMPTY at
+     * computed-value time and paints nothing. That exact mistake already cost
+     * this file a silent outage. */
+    --primary-foreground: var(--token-color-primary-on, #ffffff);
     --ring: var(--impronta-gold-bright);
     --accent: color-mix(
       in oklab,
