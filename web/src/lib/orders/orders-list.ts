@@ -90,12 +90,27 @@ export function filterOrders(
   });
 }
 
+export type OrderListCurrencyTotal = {
+  currency: string;
+  settledCents: number;
+  outstandingCents: number;
+};
+
 export type OrderListTotals = {
   count: number;
   /** Gross of what was charged, settled orders only. */
   settledCents: number;
   /** What is still owed across the visible rows. */
   outstandingCents: number;
+  /**
+   * The currency the two figures above are denominated in, or `null` when the
+   * rows span MORE THAN ONE currency -- in which case those sums add different
+   * minor units together and mean nothing. Callers must check this before
+   * rendering them.
+   */
+  currency: string | null;
+  /** Per-currency breakdown. One entry in the ordinary case. */
+  byCurrency: OrderListCurrencyTotal[];
 };
 
 /**
@@ -107,13 +122,35 @@ export type OrderListTotals = {
  * separately.
  */
 export function totalsFor(rows: readonly OrderListRow[]): OrderListTotals {
-  let settled = 0;
-  let outstanding = 0;
+  // Totalled PER CURRENCY. `orders.currency` is per row, so a tenant that has
+  // ever changed its default currency can produce a mixed list -- and adding
+  // 100000 ARS to 50 USD yields a number that is plausibly shaped, confidently
+  // labelled, and wrong in a way nobody can see by looking at it.
+  const buckets = new Map<string, OrderListCurrencyTotal>();
   for (const row of rows) {
-    if (bucketOf(row.status) === "settled") settled += row.totalCents;
-    if (bucketOf(row.status) === "to_pay") outstanding += outstandingCents(row);
+    const currency = (row.currency || "USD").toUpperCase();
+    let b = buckets.get(currency);
+    if (!b) {
+      b = { currency, settledCents: 0, outstandingCents: 0 };
+      buckets.set(currency, b);
+    }
+    if (bucketOf(row.status) === "settled") b.settledCents += row.totalCents;
+    if (bucketOf(row.status) === "to_pay") b.outstandingCents += outstandingCents(row);
   }
-  return { count: rows.length, settledCents: settled, outstandingCents: outstanding };
+  const byCurrency = [...buckets.values()].sort((a, b) => a.currency.localeCompare(b.currency));
+
+  // The flat figures stay for the ordinary single-currency case, and are only
+  // meaningful when `currency` is non-null. Mixed lists get zeros here so a
+  // caller that ignores `currency` shows an obvious nothing rather than a
+  // convincing wrong number.
+  const single = byCurrency.length === 1 ? byCurrency[0] : null;
+  return {
+    count: rows.length,
+    settledCents: single?.settledCents ?? 0,
+    outstandingCents: single?.outstandingCents ?? 0,
+    currency: single?.currency ?? null,
+    byCurrency,
+  };
 }
 
 /**

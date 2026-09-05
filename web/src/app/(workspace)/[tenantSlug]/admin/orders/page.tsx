@@ -98,9 +98,6 @@ export default async function OrdersPage({
 
   const rows: OrderListRow[] = load.ok ? filterOrders(load.rows, { bucket, query }) : [];
   const totals = totalsFor(rows);
-  // Every row in a filtered view shares a currency in practice; the totals strip
-  // takes the first row's rather than assuming USD, and says nothing when empty.
-  const totalsCurrency = rows[0]?.currency ?? "USD";
 
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }}>
@@ -181,18 +178,30 @@ export default async function OrdersPage({
                   <strong>{totals.count}</strong>{" "}
                   <span style={{ color: C.inkMuted }}>{t("totalsCount")}</span>
                 </span>
-                <span style={{ fontSize: 14 }}>
-                  <span style={{ color: C.inkMuted }}>{t("totalsSettled")}: </span>
-                  <strong style={{ color: C.green }}>
-                    {formatOrderMoney(totals.settledCents, totalsCurrency)}
-                  </strong>
-                </span>
-                <span style={{ fontSize: 14 }}>
-                  <span style={{ color: C.inkMuted }}>{t("totalsOutstanding")}: </span>
-                  <strong style={{ color: C.amber }}>
-                    {formatOrderMoney(totals.outstandingCents, totalsCurrency)}
-                  </strong>
-                </span>
+                {/* One pair PER CURRENCY. Previously these summed every row and
+                    labelled the result with the FIRST row's currency, on the
+                    assumption that a filtered view is single-currency. Nothing
+                    enforced that: `orders.currency` is per row, so a tenant that
+                    changed its default currency would see ARS and USD added
+                    together under one symbol -- a plausible, confidently
+                    labelled, undetectably wrong number. In the ordinary
+                    single-currency case this renders exactly as before. */}
+                {totals.byCurrency.map((c) => (
+                  <span key={c.currency} style={{ display: "contents" }}>
+                    <span style={{ fontSize: 14 }}>
+                      <span style={{ color: C.inkMuted }}>{t("totalsSettled")}: </span>
+                      <strong style={{ color: C.green }}>
+                        {formatOrderMoney(c.settledCents, c.currency)}
+                      </strong>
+                    </span>
+                    <span style={{ fontSize: 14 }}>
+                      <span style={{ color: C.inkMuted }}>{t("totalsOutstanding")}: </span>
+                      <strong style={{ color: C.amber }}>
+                        {formatOrderMoney(c.outstandingCents, c.currency)}
+                      </strong>
+                    </span>
+                  </span>
+                ))}
                 {/* Named explicitly. A figure beside a filtered list that silently
                     describes something wider is how someone acts on the wrong number. */}
                 <span style={{ fontSize: 12, color: C.inkDim, flexBasis: "100%" }}>
