@@ -45,7 +45,11 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";
-import { resolveWords, wordsInputFromSettings, type WordLocale } from "@/lib/words";
+import {
+  resolveWords,
+  wordsInputFromSettings,
+  type WordLocale,
+} from "@/lib/words";
 
 export type SeededNavItem = {
   readonly label: string;
@@ -76,9 +80,28 @@ export function buildDefaultNav(inputs: NavSeedInputs): SeededNavItem[] {
     { label: es ? "Inicio" : "Home", href: "/" },
   ];
 
-  if (rosterEnabled(normalizeWorkspaceType(inputs.workspaceType))) {
-    // The label is the tenant's own word for the people it represents, so an
-    // agency reads "Talent" and a tour operator reads "Guides".
+  // THE DIRECTORY LINK NEEDS A WORD THIS WORKSPACE ACTUALLY OWNS.
+  //
+  // `rosterEnabled` alone was too wide as a condition on the LABEL. It is true
+  // for every workspace_type except "business", and signup writes "talent" for
+  // solo operators too — so a barber whose description matched no keyword
+  // resolved to the "custom" preset, which supplies no words, and got a nav item
+  // reading "Talent" pointing at a directory of one person. Measured before
+  // changing it:
+  //
+  //   preset unset (-> custom)  nav = ["Home", "Talent"]
+  //   preset salon_barber       nav = ["Home", "Team"]
+  //
+  // The owner's rule is that a business never meets talent-shaped copy, and
+  // "Talent" in a barber's own navigation is the plainest breach of it.
+  //
+  // So the gate is on the WORD being owned, not on representing people: a salon
+  // keeps "Team" and an agency keeps "Talent", because each preset supplies its
+  // own noun. Only "custom" — which by construction supplies no words and would
+  // fall through to the platform default — loses the item. Dropping it beats
+  // shipping the wrong noun, and an unclassified workspace can add its own link
+  // once it picks an industry.
+  if (rosterEnabled(normalizeWorkspaceType(inputs.workspaceType)) && words.preset.id !== "custom") {
     items.push({ label: words.word("workspace.people"), href: "/directory" });
   }
 

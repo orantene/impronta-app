@@ -30,7 +30,14 @@ test("a business workspace gets NO /directory item", () => {
 });
 
 test("a talent workspace gets /directory, labelled with its own word", () => {
-  assert.ok(buildDefaultNav(AGENCY).some((i) => i.href === "/directory"));
+  // NOTE: this used to assert that AGENCY (settings: null) gets /directory, and
+  // that assertion PINNED THE DEFECT — a workspace with no industry resolves to
+  // "custom", which supplies no words, so the label fell through to the
+  // platform's own noun and a solo barber's nav read "Talent". The link now
+  // requires an industry that owns a word for its people. See the two tests at
+  // the bottom of this file.
+  const withPreset = { ...AGENCY, settings: { industry_preset: "agency" } };
+  assert.ok(buildDefaultNav(withPreset).some((i) => i.href === "/directory"));
 
   // A tour operator represents guides, not "talent", and the words layer says
   // so. The label follows the preset rather than an English default.
@@ -109,4 +116,43 @@ test("Spanish labels are Spanish", () => {
   const nav = buildDefaultNav({ ...AGENCY, hasContactPage: true, locale: "es" });
   assert.equal(nav.find((i) => i.href === "/")?.label, "Inicio");
   assert.equal(nav.find((i) => i.href === "/contact")?.label, "Contacto");
+});
+
+test("a workspace with no industry never ships the platform's word for people", () => {
+  // The owner's definition of done for the Front Door is that a business never
+  // meets talent-shaped copy. This was the last reachable breach of it, and it
+  // was found by running the seeder rather than by reading it:
+  //
+  //   preset unset (-> custom)  nav = ["Home", "Talent"]
+  //   preset salon_barber       nav = ["Home", "Team"]
+  //
+  // Signup writes workspace_type "talent" for solo operators, so `rosterEnabled`
+  // is true for a barber; and a barber who wrote "I cut hair" matches no keyword
+  // and resolves to "custom", which supplies no words. The label fell through to
+  // the platform default and a barber's own navigation read "Talent".
+  const nav = buildDefaultNav(AGENCY); // settings: null -> the "custom" preset
+  assert.ok(
+    !nav.some((item) => item.href === "/directory"),
+    `an unclassified workspace shipped ${JSON.stringify(nav.map((i) => i.label))}`,
+  );
+  // Stated the other way, so this still fails if the noun changes but survives:
+  for (const item of nav) {
+    assert.notEqual(item.label, "Talent", "the platform's own noun reached a tenant's nav");
+  }
+});
+
+test("but a KNOWN industry still gets its own word, so this did not just delete a link", () => {
+  // The narrow version of the fix. The first attempt gated on
+  // `presetRepresentsPeople`, which is false for a salon — and silently took the
+  // salon's legitimate "Team" link away with the barber's wrong "Talent" one.
+  // The gate is on the word being OWNED, not on representing people.
+  const salon = buildDefaultNav({ ...AGENCY, settings: { industry_preset: "salon_barber" } });
+  assert.equal(salon.find((i) => i.href === "/directory")?.label, "Team");
+
+  const agency = buildDefaultNav({ ...AGENCY, settings: { industry_preset: "agency" } });
+  assert.equal(
+    agency.find((i) => i.href === "/directory")?.label,
+    "Talent",
+    "an agency genuinely represents talent and must keep the word",
+  );
 });
