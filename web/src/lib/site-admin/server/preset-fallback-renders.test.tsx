@@ -150,32 +150,44 @@ test("the BOOKING DOOR is pinned, so it cannot drop the way the menu did", () =>
   );
 });
 
-test("the restaurant fallback is templated on the TENANT: its name in, the fixture's fiction out", () => {
-  // Measured live on elpaisa.tulala.digital: the body read "CASA LUMBRE /
-  // MODERN MEXICAN KITCHEN · MEXICO CITY / Chef Andrés Moya built the Casa
-  // Lumbre kitchen…" on a tenant named El Paisa. The design's copy was literal
-  // fixture text and the personaliser had nothing to substitute.
-  const html = renderPresetHomepage("restaurant-orderable", {
-    businessName: "El Paisa",
-    businessTagline: null,
-    businessCity: null,
+for (const designId of ["restaurant-orderable", "restaurant"] as const) {
+  test(`${designId}: templated on the TENANT, its name in, the fixture's fiction out`, () => {
+    // Measured live on elpaisa.tulala.digital: the body read "CASA LUMBRE /
+    // MODERN MEXICAN KITCHEN · MEXICO CITY / Chef Andrés Moya built the Casa
+    // Lumbre kitchen…" on a tenant named El Paisa. The design's copy was literal
+    // fixture text and the personaliser had nothing to substitute. The
+    // display-only sibling carried the same fiction.
+    const html = renderPresetHomepage(designId, {
+      businessName: "El Paisa",
+      businessTagline: null,
+      businessCity: null,
+    });
+    assert.match(html, /El Paisa/, "the tenant's name must appear in the hero");
+    for (const fiction of ["Casa Lumbre", "CASA LUMBRE", "Mexico City", "Andrés Moya", "Roma Norte", "Modern Mexican", "Colonia"]) {
+      assert.doesNotMatch(html, new RegExp(fiction), `fixture fiction "${fiction}" reached a tenant page`);
+    }
   });
-  assert.match(html, /El Paisa/, "the tenant's name must appear in the hero");
-  for (const fiction of ["Casa Lumbre", "CASA LUMBRE", "Mexico City", "Andrés Moya", "Roma Norte", "Modern Mexican"]) {
-    assert.doesNotMatch(html, new RegExp(fiction), `fixture fiction "${fiction}" reached a tenant page`);
-  }
-});
 
-test("the restaurant fallback says NOTHING where the tenant has nothing, and the tenant's facts where it has them", () => {
-  const bare = renderPresetHomepage("restaurant-orderable", { businessName: "El Paisa" });
-  // No city and no tagline: no placeholder syntax survives, and no invented value fills the gap.
-  assert.doesNotMatch(bare, /\{\{/, "raw placeholder syntax on a live page");
-  const rich = renderPresetHomepage("restaurant-orderable", {
-    businessName: "El Paisa",
-    businessTagline: "Parrilla de familia en Glew, desde 2012.",
-    businessCity: "Glew",
+  test(`${designId}: ONE header and ONE footer, the platform chrome's, never a second row from the design`, () => {
+    // Measured live: the platform chrome ("EL PAISA", Reserve) sat directly
+    // above the design's own nav row ("CASA LUMBRE", MENU · STORY · ORDER), two
+    // stacked headers on one page. The design must not draw chrome: no nav row,
+    // no footer strip, and the tenant's name exactly once (the hero headline).
+    const html = renderPresetHomepage(designId, { businessName: "El Paisa" });
+    assert.doesNotMatch(html, /Menu · Story/, "the design still draws its own nav row");
+    const nameHits = html.match(/El Paisa/g) ?? [];
+    assert.equal(nameHits.length, 1, `tenant name appears ${nameHits.length} times inside the design; the platform chrome already shows it, so the design shows it once, in the hero`);
   });
-  assert.match(rich, /Parrilla de familia en Glew, desde 2012\./);
-  assert.match(rich, /Glew/);
-});
 
+  test(`${designId}: says NOTHING where the tenant has nothing, and the tenant's facts where it has them`, () => {
+    const bare = renderPresetHomepage(designId, { businessName: "El Paisa" });
+    assert.doesNotMatch(bare, /\{\{/, "raw placeholder syntax on a live page");
+    const rich = renderPresetHomepage(designId, {
+      businessName: "El Paisa",
+      businessTagline: "Parrilla de familia en Glew, desde 2012.",
+      businessCity: "Glew",
+    });
+    assert.match(rich, /Parrilla de familia en Glew, desde 2012\./);
+    assert.match(rich, /Glew/);
+  });
+}
