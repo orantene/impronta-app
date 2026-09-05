@@ -156,13 +156,6 @@ jobs:
           npm run check:types-fresh
           npm run check:untracked-imports
           npm run verify:seatbelt-executes
-          # Compare-table drift: SKIPS without Supabase credentials, which this
-          # workflow does not carry, so it is a no-op here rather than a gate.
-          # It runs for real wherever credentials exist (local, and any
-          # environment that adds them). Listed so `check:ci-lane-parity`
-          # sees the same lane set the `ci` script does — the gap it exists
-          # to catch, and which it caught on this PR.
-          npm run check:compare-table-drift
 
       # ── Gate 1b: Builder published-page weight budget ────────────────
       # `builder-fidelity.yml` already runs this on push to main, but

@@ -15,11 +15,21 @@
  * The comparison logic lives in `src/lib/pricing/enforced-plan-facts.ts` and is
  * unit-tested without a database; this script only supplies the live rows.
  *
- * SKIPPED, not failed, without Supabase credentials — the same posture as
- * check-capability-keys.mjs. A missing credential is not drift, and a guard
- * that fails on absent config gets disabled by the third person who hits it.
+ * FAILS HARD without credentials, and fails hard if it checked zero rows.
  *
- * Exit codes: 0 ok or skipped, 1 drift detected, 2 internal error.
+ * It did skip, on my reasoning that a missing credential is not drift and that
+ * the lane would start working once credentials existed. That was wrong twice.
+ * Service-role credentials never enter CI by standing rule, so it would never
+ * have started working — it was a permanently green lane measuring nothing,
+ * which is the exact failure this codebase has a documented history of. And a
+ * guard that cannot tell "nothing to check" from "could not check" reports the
+ * same green for both.
+ *
+ * So it is a MANUAL gate: run it deliberately, with credentials, and record the
+ * command, exit code and row count on the PR. A result someone had to produce
+ * and write down is worth more than a tick nobody can trace.
+ *
+ * Exit codes: 0 checked and clean, 1 drift or nothing checked, 2 internal error.
  */
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,8 +37,15 @@ const key =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
 
 if (!url || !key) {
-  console.log("compare-table drift: skipped (no Supabase credentials)");
-  process.exit(0);
+  console.error(
+    "FAIL: no Supabase credentials.\n\n" +
+      "This guard reads live product_features and cannot run without them. It\n" +
+      "does NOT skip: a green run that checked nothing is indistinguishable from\n" +
+      "a green run that checked everything, and that is how a guard rots.\n\n" +
+      "Run it with credentials:\n" +
+      "  npx tsx --env-file=.env.local scripts/check-compare-table-drift.mjs\n",
+  );
+  process.exit(1);
 }
 
 const { findCompareTableDrift } = await import(
@@ -46,8 +63,8 @@ try {
   );
 
   if (!res.ok) {
-    console.log(`compare-table drift: skipped (REST ${res.status})`);
-    process.exit(0);
+    console.error(`FAIL: could not read product_features (REST ${res.status}).`);
+    process.exit(1);
   }
 
   const raw = await res.json();
@@ -57,6 +74,17 @@ try {
     valueText: r.value_text ?? null,
     included: r.included === true,
   }));
+
+  // Zero rows is a FAILURE, not a pass. An empty result means the query,
+  // the filter or the table changed shape, and every one of those returns
+  // "no drift found" while checking nothing.
+  if (rows.length === 0) {
+    console.error(
+      "FAIL: zero rows returned. The query, its filter or the table shape " +
+        "changed; a guard that checked nothing must not report green.",
+    );
+    process.exit(1);
+  }
 
   const drift = findCompareTableDrift(rows);
 
@@ -107,7 +135,10 @@ try {
     }
     console.log(`ticket fee fallback: ${fallbackBps} bps, matches live config`);
   } else {
-    console.log(`ticket fee fallback: skipped (REST ${cfgRes.status})`);
+    console.error(
+      `FAIL: could not read platform_commission_config (REST ${cfgRes.status}).`,
+    );
+    process.exit(1);
   }
 
   console.log(`compare-table drift: ${rows.length} row(s) checked, none contradict enforcement`);
