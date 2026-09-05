@@ -35,12 +35,12 @@ export const TABLES_FEATURE: Feature = {
     name: "Tables & Seating",
     title: "Restaurant reservations on your own site",
     subtitle:
-      "Your floor plan online, reservations with party size and service windows, and deposits that put an end to no shows.",
+      "Reservations with party size and service windows, taken from your own site, with deposits that put an end to no shows.",
     promise: "Your dining room, bookable from your own page.",
 
     popup: [
       [
-        "Your floor plan, your service windows, your party sizes. Guests book a table from your own website instead of a marketplace that rents you your own customers.",
+        "Your service windows, your party sizes, your rules. Guests reserve from your own website instead of a marketplace that rents you your own customers.",
       ],
       [
         "Deposits end the no show problem, and the reservation lands on the same calendar and in the same inbox as everything else you run.",
@@ -83,9 +83,9 @@ export const TABLES_FEATURE: Feature = {
         heading: "The same engine that books a haircut",
         body: [
           [
-            "Underneath, this is ",
+            "Reservations share the POLICY layer with ",
             { f: "appointments", label: "appointments" },
-            " with a floor plan on top. Same deposits, same reminders, same inbox, same calendar. That is why it can arrive quickly and behave predictably rather than being a second system with its own bugs.",
+            ": the same deposits, the same reminders, the same inbox, the same calendar. They do not share the booking engine, which is built around one subject of capacity per offering. That is an honest limit rather than a missing feature, and it is why the policy behaves predictably from day one.",
           ],
         ],
       },
@@ -112,7 +112,7 @@ export const TABLES_FEATURE: Feature = {
     ],
 
     highlights: [
-      "Floor plan and table configuration",
+      "Party sizes and service windows you define",
       "Party size and service windows",
       "Deposits and no show protection",
       "Reservations on your own website and domain",
@@ -131,7 +131,7 @@ export const TABLES_FEATURE: Feature = {
       },
       {
         q: "What about walk ins?",
-        a: "A dining room is not only its bookings, so the floor has to reflect what is actually occupied. Handling walk ins alongside reservations is part of the design.",
+        a: "Reservations record what was booked rather than who is currently sitting down, so a walk in does not consume a slot. Keep counting walk ins the way you do today, and let the reservation list be the part that is already handled for you.",
       },
       {
         q: "Can I take a deposit only for large parties?",
@@ -144,12 +144,12 @@ export const TABLES_FEATURE: Feature = {
     name: "Mesas y reservaciones",
     title: "Reservaciones de restaurante en tu propio sitio",
     subtitle:
-      "Tu plano de mesas en línea, reservaciones con número de personas y horarios de servicio, y anticipos que acaban con las ausencias.",
+      "Reservaciones con número de personas y horarios de servicio, desde tu propio sitio, con anticipos que acaban con las ausencias.",
     promise: "Tu comedor, reservable desde tu propia página.",
 
     popup: [
       [
-        "Tu plano de mesas, tus horarios de servicio, tus tamaños de grupo. Los comensales reservan desde tu propio sitio en lugar de un marketplace que te renta a tus propios clientes.",
+        "Tus horarios de servicio, tus tamaños de grupo, tus reglas. Los comensales reservan desde tu propio sitio en lugar de un marketplace que te renta a tus propios clientes.",
       ],
       [
         "Los anticipos acaban con el problema de las ausencias, y la reservación llega al mismo calendario y a la misma bandeja que todo lo demás que operas.",
@@ -192,9 +192,9 @@ export const TABLES_FEATURE: Feature = {
         heading: "El mismo motor que agenda un corte de cabello",
         body: [
           [
-            "Por debajo, esto es ",
+            "Las reservaciones comparten la capa de REGLAS con ",
             { f: "appointments", label: "citas y reservas" },
-            " con un plano de mesas encima. Los mismos anticipos, los mismos recordatorios, la misma bandeja, el mismo calendario. Por eso puede llegar pronto y comportarse de forma predecible, en lugar de ser un segundo sistema con sus propios errores.",
+            ": los mismos anticipos, los mismos recordatorios, la misma bandeja, el mismo calendario. Lo que no comparten es el motor de reservas, que está construido alrededor de un solo sujeto de capacidad por servicio. Ese es un límite honesto y no una función que falte, y es la razón por la que las reglas se comportan de forma predecible desde el primer día.",
           ],
         ],
       },
@@ -221,7 +221,7 @@ export const TABLES_FEATURE: Feature = {
     ],
 
     highlights: [
-      "Plano y configuración de mesas",
+      "Tamaños de grupo y horarios de servicio que tú defines",
       "Tamaño de grupo y horarios de servicio",
       "Anticipos y protección contra ausencias",
       "Reservaciones en tu propio sitio y dominio",
@@ -240,7 +240,7 @@ export const TABLES_FEATURE: Feature = {
       },
       {
         q: "¿Y los que llegan sin reservación?",
-        a: "Un comedor no es solo sus reservas, así que el plano tiene que reflejar lo que de verdad está ocupado. Manejar a quien llega sin reservación junto con las reservas es parte del diseño.",
+        a: "Las reservaciones registran lo que se apartó, no quién está sentado en ese momento, así que quien llega sin reservación no ocupa un lugar del sistema. Sigue contándolos como hasta ahora, y deja que la lista de reservaciones sea la parte que ya está resuelta.",
       },
       {
         q: "¿Puedo pedir anticipo solo para grupos grandes?",
