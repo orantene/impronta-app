@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
+import { getAppUrl } from "@/lib/auth-flow";
 import { signToken, verifyToken } from "@/lib/crypto/signed-token";
 import {
   getConnectionOAuthProvider,
@@ -25,10 +26,49 @@ export type ConnectionOAuthState = {
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function normalizeReturnTo(value: string | null | undefined, fallback: string): string {
+/**
+ * Reduce a caller-supplied `returnTo` to a SAME-ORIGIN path, or fall back.
+ *
+ * The previous rule was `startsWith("/") && !startsWith("//")`, which reads as
+ * airtight and is not. `new URL()` follows the WHATWG parser, and that parser
+ * treats a backslash in a special-scheme URL as a slash and strips raw tabs and
+ * newlines BEFORE parsing. So every one of these passed the old check and then
+ * resolved to an external origin in the very next line of the callback:
+ *
+ *   "/\evil.com"    -> https://evil.com/
+ *   "/\\evil.com"  -> https://evil.com/
+ *   "/<TAB>/evil.com" -> https://evil.com/
+ *
+ * The exploit needs no secret: the operator's own authenticated session mints a
+ * VALIDLY SIGNED state carrying the hostile value, so the signature is not the
+ * defence people assume. A link on app.tulala.digital that lands on an attacker
+ * page after a real OAuth round-trip is a credible phishing primitive.
+ *
+ * The fix is to stop hand-parsing and use the SAME parser that will later
+ * resolve the value, then require the origin to match. A parser differential
+ * cannot survive when only one parser is involved. Only `pathname + search` is
+ * carried forward, so a fragment or embedded credentials cannot ride along.
+ */
+export function normalizeReturnTo(value: string | null | undefined, fallback: string): string {
   const raw = value?.trim();
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return fallback;
-  return raw.slice(0, 500);
+
+  let base: URL;
+  try {
+    base = new URL(getAppUrl());
+  } catch {
+    return fallback;
+  }
+
+  let resolved: URL;
+  try {
+    resolved = new URL(raw, base);
+  } catch {
+    return fallback;
+  }
+  if (resolved.origin !== base.origin) return fallback;
+
+  return `${resolved.pathname}${resolved.search}`.slice(0, 500);
 }
 
 export async function createConnectionOAuthState(input: {
