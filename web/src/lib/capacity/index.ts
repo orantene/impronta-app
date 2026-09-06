@@ -27,23 +27,27 @@ export {
   type SetOfferingStockResult,
 } from "./offering-stock-admin";
 /**
- * The engine's hold-TTL bounds, so nobody has to read the SQL to learn them.
+ * The hold-TTL bounds are DELIBERATELY NOT re-exported from this barrel. Import
+ * them from the module directly:
  *
- * The cap lives in TWO places in the database — the `capacity_pools.hold_ttl_seconds`
- * CHECK and the `v_ttl` guard inside `_capacity_reserve_locked` — and in neither
- * of them can a TypeScript caller see it. Orders wrote a 30-day ceiling for
- * pay-at-the-door holds against this engine's 7-day one; a door order eight days
- * out would have passed their clamp and died at reserve with `CP007
- * invalid_ttl`, AFTER the order, the customer and the capacity request had all
- * succeeded. That was not carelessness — the number was genuinely unreadable
- * from where they stood.
+ *   import { CAPACITY_HOLD_TTL_MAX_SECONDS } from "@/lib/capacity/hold-ttl-bounds";
  *
- * The module is Orders'; the re-export is here because `@/lib/capacity` is where
- * a caller looks for a capacity fact. Four TypeScript copies of `604800`
- * collapse onto it.
+ * WHY — and I shipped the re-export in #1891 before working this out:
+ * `hold-ttl-bounds.ts` has ZERO imports, deliberately, so anything at all can
+ * read the engine's cap. This barrel re-exports `reserve.ts` and
+ * `offering-stock-admin.ts`, both of which import `@/lib/supabase/admin`. Going
+ * through the barrel to reach two integers therefore pulls the Supabase SDK and
+ * the service-role factory into the importer's module graph.
+ *
+ * WHAT THAT IS AND IS NOT, because I first wrote this down as worse than it is:
+ * it is a needless dependency edge and bundle weight. It is NOT a secret leak —
+ * `SUPABASE_SERVICE_ROLE_KEY` has no `NEXT_PUBLIC_` prefix, so it is `undefined`
+ * in any browser bundle and the factory returns null. And `admin.ts` carries no
+ * `server-only` marker, so nothing would have failed loudly either; the cost
+ * would just have been paid quietly by whoever imported it.
+ *
+ * Every real consumer already uses the direct path — `lib/orders/door-hold.ts`,
+ * `lib/scheduling/reservation-hold.ts`, and Events' ticket purchase. The
+ * re-export had ZERO importers, so this removes a door nobody walked through
+ * that would have been the wrong one.
  */
-export {
-  CAPACITY_HOLD_TTL_MAX_SECONDS,
-  CAPACITY_HOLD_TTL_MIN_SECONDS,
-  clampToEngineHoldTtl,
-} from "./hold-ttl-bounds";
