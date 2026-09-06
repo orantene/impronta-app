@@ -6,6 +6,7 @@ import {
   auditCapabilityClaims,
   classifyCapabilityClaim,
   unknownMappedCapabilities,
+  findUnbuiltClaims,
 } from "./plan-claim-audit";
 import { entitlementKey } from "@/lib/access/plan-capabilities";
 import type { CompareRowClaim } from "./enforced-plan-facts";
@@ -118,4 +119,36 @@ test("the label map is lowercased, or lookups silently miss", () => {
   for (const label of Object.keys(LABEL_TO_CAPABILITY)) {
     assert.equal(label, label.toLowerCase(), `${label} must be lowercased`);
   }
+});
+
+test("an unbuilt feature is caught in a LABEL", () => {
+  const found = findUnbuiltClaims([row("hub", "SSO (SAML, Google, Okta)", true)]);
+  assert.equal(found.length, 1);
+  assert.match(found[0].why, /no SSO implementation/);
+});
+
+test("an unbuilt feature is caught in a VALUE, which is where it actually shipped", () => {
+  // "API access" was a value_text, not a label. A label-only guard misses it.
+  const found = findUnbuiltClaims([
+    { tierSlug: "hub", label: "Data export", valueText: "API access", included: true },
+  ]);
+  assert.equal(found.length, 1);
+  assert.match(found[0].why, /no public API surface/);
+});
+
+test("a real feature with no unbuilt claim passes", () => {
+  const found = findUnbuiltClaims([
+    { tierSlug: "hub", label: "Data export", valueText: null, included: true },
+    row("free", "Workspace media gallery", true),
+  ]);
+  assert.deepEqual(found, []);
+});
+
+test("the patterns do not fire on innocent words containing the letters", () => {
+  // "Bossom", "Sokta" etc. must not match: the patterns are word-bounded.
+  const found = findUnbuiltClaims([
+    row("free", "Cross-sell bundles", true),
+    { tierSlug: "free", label: "Analytics", valueText: "Basic", included: true },
+  ]);
+  assert.deepEqual(found, []);
 });
