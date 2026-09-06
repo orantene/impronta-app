@@ -318,11 +318,10 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       amountCents: Number(txn.gross_amount_cents),
       currency: String(order.currency ?? "USD"),
       payerEmail: (customer?.email as string | null) ?? null,
-      // TODO(Orders): `CheckoutSessionInput.inquiryId` is `string`; widen to
-      // `string | null` and omit the metadata key when null. Until then a
-      // ticket with no inquiry cannot be expressed honestly here, so the card
-      // hop refuses rather than sends "" (draft; the widening lands first).
-      inquiryId: inquiryId ?? (() => { throw new Error("ticket transaction has no inquiry; CheckoutSessionInput.inquiryId must accept null"); })(),
+      // A ticket transaction has no inquiry. `CheckoutSessionInput.inquiryId`
+      // accepts null since #1819 and omits the metadata key rather than
+      // sending "" (a sentinel that downstream reads as a value).
+      inquiryId: inquiryId ?? null,
       bookingId,
       successUrl: `${origin}/r/${order.receipt_code}?paid=1`,
       cancelUrl: `${origin}/events`,
