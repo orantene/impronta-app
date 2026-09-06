@@ -64,18 +64,18 @@ test("A RESERVATION IS NOT A DISH: a tenant whose only offering is the seeded re
       amount_cents: 0,
       price_display: "exact",
       visibility: "on_request",
-    } as Partial<TalentOfferingRow>),
+    }),
   ];
   assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "elpaisa"), []);
 });
 
 test("A RESERVATION IS NOT A DISH: dishes stay, the reservation and any $0 exact line go, quotes stay", () => {
   const rows: TalentOfferingRow[] = [
-    menuRow({ id: "dish", tenant_id: "t", kind: "product", title: "Choripán", amount_cents: 600000, visibility: "public" } as Partial<TalentOfferingRow>),
-    menuRow({ id: "course", tenant_id: "t", kind: "package", title: "Posing course", amount_cents: 12000 } as Partial<TalentOfferingRow>),
-    menuRow({ id: "reservation", tenant_id: "t", kind: "service", title: "Table reservation", amount_cents: 0, visibility: "on_request" } as Partial<TalentOfferingRow>),
-    menuRow({ id: "free-exact", tenant_id: "t", kind: "product", title: "Mystery", amount_cents: 0, price_display: "exact" } as Partial<TalentOfferingRow>),
-    menuRow({ id: "quote", tenant_id: "t", kind: "service", title: "Catering, ask us", amount_cents: 0, price_display: "quote" } as Partial<TalentOfferingRow>),
+    menuRow({ id: "dish", tenant_id: "t", kind: "product", title: "Choripán", amount_cents: 600000, visibility: "public" }),
+    menuRow({ id: "course", tenant_id: "t", kind: "package", title: "Posing course", amount_cents: 12000 }),
+    menuRow({ id: "reservation", tenant_id: "t", kind: "service", title: "Table reservation", amount_cents: 0, visibility: "on_request" }),
+    menuRow({ id: "free-exact", tenant_id: "t", kind: "product", title: "Mystery", amount_cents: 0, price_display: "exact" }),
+    menuRow({ id: "quote", tenant_id: "t", kind: "service", title: "Catering, ask us", amount_cents: 0, price_display: "quote" }),
   ];
   assert.deepEqual(
     deriveWorkspaceMenuOfferings(rows, "t").map((d) => d.id),

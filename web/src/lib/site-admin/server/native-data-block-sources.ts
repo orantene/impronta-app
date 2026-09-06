@@ -321,7 +321,7 @@ export function deriveWorkspaceMenuOfferings(
     if (typeof row.visibility === "string" && row.visibility !== "public") continue;
     const offering = rowToOffering(row as TalentOfferingRow, locale);
     const unpriced =
-      !(offering.amountCents > 0) &&
+      !((offering.amountCents ?? 0) > 0) &&
       offering.priceDisplay !== "quote" &&
       offering.priceType !== "custom";
     if (unpriced) continue;
