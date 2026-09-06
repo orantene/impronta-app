@@ -6,7 +6,8 @@ import { PublicHeader } from "@/components/public-header";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { readPublicEventContext } from "@/lib/events/public-event-context";
+import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
@@ -94,24 +95,6 @@ type Receipt = {
 // so it was the worst of the three places to disagree.
 const money = formatOrderMoney;
 
-function whenLabel(iso: string | null, timeZone: string): string {
-  if (!iso) return "Date to be announced";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Date to be announced";
-  try {
-    return d.toLocaleString(undefined, {
-      timeZone,
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return d.toISOString();
-  }
-}
-
 /**
  * The QR for ONE admission, or null.
  *
@@ -188,9 +171,11 @@ export default async function ReceiptPage({ params }: Params) {
   // so a host learns nothing about another workspace's sales.
   if (receipt.order.tenantId !== scope.tenantId) notFound();
 
-  // Venue timezone, through the ladder. Errors logged, never 404: an
-  // unreadable zone is not a reason to hide a receipt, and the ladder falls
-  // back knowingly.
+  // Venue + workspace zones. The anon client cannot read `venues` (staff-only
+  // SELECT) or `agencies` (no anon policy) — a read returns zero rows, not an
+  // error — so these are read server-side, by key, timezone only. And with NO
+  // zone the night is a sentence, never a date: a ticket that names the wrong
+  // night sends the guest to a shut door.
   const sessionIds = receipt.sessions.map((s) => s.id);
   const { data: venueRows, error: venueErr } = sessionIds.length
     ? await supabase.from("sessions").select("id, venue_id").in("id", sessionIds)
@@ -202,22 +187,8 @@ export default async function ReceiptPage({ params }: Params) {
       (venueRows ?? []).map((v) => v.venue_id as string | null).filter((v): v is string => Boolean(v)),
     ),
   ];
-  const { data: zoneRows, error: zoneErr } = venueIds.length
-    ? await supabase.from("venues").select("id, timezone").in("id", venueIds)
-    : { data: [] as Array<Record<string, unknown>>, error: null };
-  if (zoneErr) logServerError("receipt.read/venueZones", zoneErr);
-
-  const { data: agencyRow, error: agencyErr } = await supabase
-    .from("agencies")
-    .select("timezone")
-    .eq("id", scope.tenantId)
-    .maybeSingle();
-  if (agencyErr) logServerError("receipt.read/workspaceZone", agencyErr);
-
-  const zone = pickTimezone({
-    venue: (zoneRows?.[0]?.timezone as string | null) ?? null,
-    workspace: (agencyRow?.timezone as string | null) ?? null,
-  }).timezone;
+  const ctx = await readPublicEventContext({ tenantId: scope.tenantId, venueId: venueIds[0] ?? null });
+  const zone = resolvePublicZone({ venue: ctx.venueTimezone, workspace: ctx.workspaceTimezone });
 
   const sessionById = new Map(receipt.sessions.map((s) => [s.id, s]));
 
