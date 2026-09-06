@@ -150,12 +150,12 @@ export function MenuImportPanel({
       </div>
 
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-[#B0303A]">
+        <p role="alert" className="mt-3 text-sm text-[var(--color-admin-critical)]">
           {error}
         </p>
       ) : null}
       {summary ? (
-        <p role="status" className="mt-3 text-sm text-[#1F5D43]">
+        <p role="status" className="mt-3 text-sm text-[var(--color-admin-success-deep)]">
           {summary}
         </p>
       ) : null}
@@ -177,7 +177,7 @@ export function MenuImportPanel({
               an import needs to see what it will not do on the same screen. */}
           {plan.refused.length > 0 ? (
             <details className="mb-3" open>
-              <summary className="cursor-pointer text-sm font-medium text-[#B0303A]">
+              <summary className="cursor-pointer text-sm font-medium text-[var(--color-admin-critical)]">
                 {t("dashboard.adminMenu.import.refused").replace("{n}", String(plan.refused.length))}
               </summary>
               <ul className="mt-1 list-disc pl-5 text-sm text-black/70">
