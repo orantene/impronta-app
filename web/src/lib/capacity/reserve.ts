@@ -36,6 +36,18 @@ export type ReserveRequest = {
    * units to free — stamped wrong, refunding the GA line releases the VIP seats.
    */
   orderLineId?: string | null;
+  /**
+   * Seconds THIS LEG's hold should live, overriding the pool's own TTL.
+   *
+   * Per leg, because a cart's legs do not share a clock: a pay-at-the-door
+   * ticket holds until the session ends while the coffee beside it holds for
+   * the pool's fifteen minutes. One value for both either lapses the ticket
+   * before the doors open or holds the coffee for a week.
+   *
+   * NULL falls through to the batch-level `ttlSeconds`, then to the pool's own
+   * `hold_ttl_seconds` inside `_capacity_reserve_locked`.
+   */
+  ttlSeconds?: number | null;
 };
 
 type Rpc = Pick<SupabaseClient, "rpc">;
@@ -126,6 +138,13 @@ export async function reserveCapacityBatch(
       ends_at: r.endsAt ?? null,
       units: r.units ?? 1,
       order_line_id: r.orderLineId ?? null,
+      // The SQL has read this since #1855 —
+      // `COALESCE(NULLIF(r->>'ttl_seconds','')::int, p_ttl_seconds)` — but this
+      // mapper never sent it, so a per-leg TTL was reachable in the database and
+      // UNREACHABLE from TypeScript. `reserveCapacity` (singular, above) has
+      // always passed it; only the batch dropped it, and the batch is the one a
+      // cart goes through.
+      ttl_seconds: r.ttlSeconds ?? null,
     })),
     p_ttl_seconds: opts.ttlSeconds ?? null,
     p_order_line_id: opts.orderLineId ?? null,
