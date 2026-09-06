@@ -2,6 +2,15 @@
 /**
  * check-anon-function-grants.mjs — "is anything exposed to anon that should not be?"
  *
+ * TWO SURFACES, because on 2026-09-06 the second one was open and this file
+ * could not see it. Functions were guarded here since 2026-09-03; TABLE POLICIES
+ * were not, and three tables (analytics_events, search_queries, guest_sessions)
+ * carried `FOR INSERT TO anon WITH CHECK (TRUE)` — an unconditional write for
+ * anyone holding the public anon key, which ships in every browser bundle. It
+ * was proven by POSTing with an impossible foreign key and getting 23503, a
+ * POST-planning refusal, meaning RLS had already said yes. Closed in #1908.
+ * This half exists so the next one fails a build instead of a probe."
+ *
  *   cd web && npm run check:anon-grants
  *
  * ─── THE DIRECTION NOBODY WAS CHECKING ──────────────────────────────────────
@@ -53,6 +62,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { letsAnonWrite } from "./anon-write-policy-shape.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -214,16 +225,98 @@ for (const m of missing) {
   );
 }
 
+/* ─── SURFACE 2: TABLE POLICIES THAT LET ANON WRITE ────────────────────────
+ *
+ * A POLICY'S ROLE LIST IS NOT ITS PREDICATE, and this is the whole reason the
+ * check is narrow. Sweeping for write policies that name anon or PUBLIC returns
+ * ~201 tables here, which reads as an emergency and is not one: almost all gate
+ * on is_staff_of_tenant / is_agency_staff / is_talent_profile_owner, which
+ * resolve through auth.uid() and therefore refuse anon. Most name PUBLIC only
+ * because they were written with no explicit TO clause.
+ *
+ * The dangerous shape is a write policy whose expressions are TRIVIALLY TRUE
+ * *and* whose table anon actually holds the matching grant on. Both halves are
+ * required: a true policy with no grant is grant-without-reach, and a grant
+ * with no permissive policy is refused by RLS. Filtering on both cut 201 to 3.
+ *
+ * Zero is the correct number here. There is no allow-list on purpose: if a
+ * table ever genuinely needs anonymous writes, that is a decision worth making
+ * loudly in a PR, not by appending a name to a file.
+ */
+const POLICY_SQL = `
+  select c.relname            as table_name,
+         pol.polname          as policy_name,
+         case pol.polcmd when 'a' then 'INSERT' when 'w' then 'UPDATE'
+                         when 'd' then 'DELETE' when '*' then 'ALL' end as cmd,
+         coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') as using_expr,
+         coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') as check_expr,
+         true as reaches_anon,
+         case pol.polcmd
+           when 'a' then has_table_privilege('anon', c.oid, 'INSERT')
+           when 'w' then has_table_privilege('anon', c.oid, 'UPDATE')
+           when 'd' then has_table_privilege('anon', c.oid, 'DELETE')
+           else has_table_privilege('anon', c.oid, 'INSERT')
+             or has_table_privilege('anon', c.oid, 'UPDATE')
+             or has_table_privilege('anon', c.oid, 'DELETE')
+         end                 as anon_holds_grant
+    from pg_policy pol
+    join pg_class c on c.oid = pol.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and pol.polcmd in ('a','w','d','*')
+     -- reaches anon: either the policy names it, or it names PUBLIC ('{0}')
+     and (pol.polroles = '{0}' or 'anon'::regrole::oid = any(pol.polroles))
+   order by c.relname, pol.polname;
+`;
+
+const polRes = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ query: POLICY_SQL }),
+});
+if (!polRes.ok) {
+  console.error(
+    `[check-anon-grants] could not read table policies: ${polRes.status} ${await polRes.text()}`,
+  );
+  process.exit(1);
+}
+const policyCandidates = await polRes.json();
+if (!Array.isArray(policyCandidates)) {
+  console.error(
+    "[check-anon-grants] unexpected policy response shape. Refusing to report clean.",
+  );
+  process.exit(1);
+}
+const policyRows = policyCandidates.filter(letsAnonWrite);
+
+for (const p of policyRows) {
+  console.error(
+    `FAIL  ${p.table_name}.${p.policy_name} — ${p.cmd} reachable by anon with a ` +
+      `trivially-true predicate. Anyone with the public anon key can write this table.`,
+  );
+}
+
 const dangerous = unexpected.filter(isDangerous);
 const mutating = unexpected.filter((r) => r.mutates);
 console.log(
   `\n[check-anon-grants] ${rows.length} anon-executable function(s): ` +
     `${unexpected.length} off the allow-list, ${mutating.length} of them mutating, ` +
     `${dangerous.length} MUTATING WITH NO INTERNAL CHECK, ` +
-    `${missing.length} allow-listed but unreachable.`,
+    `${missing.length} allow-listed but unreachable. ` +
+    `${policyRows.length} table policy/policies let anon write.`,
 );
 
-if (dangerous.length > 0 || missing.length > 0) {
+if (policyRows.length > 0) {
+  console.error(
+    "\nA write policy whose predicate is TRUE is an open door with a lock hanging " +
+      "on it, and it reads identically to a real gate in the migration diff. Read " +
+      "the roles and BOTH expressions, never the policy name. Check the callers " +
+      "first: if the only writers are the service role or a SECURITY DEFINER RPC, " +
+      "both bypass RLS and nothing legitimate depends on the anon grant.",
+  );
+}
+
+if (dangerous.length > 0 || missing.length > 0 || policyRows.length > 0) {
   console.error(
     "\nA grant is not authorization, it is the outer door. Revoke with BOTH " +
       "`FROM PUBLIC` and `FROM <role>` — neither alone is sufficient — then " +
