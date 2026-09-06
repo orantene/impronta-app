@@ -64,16 +64,27 @@ label_for() {
 ME="$(label_for "$(pwd)")"
 HELD=""
 HB_PID=""
+TICKET=""
+SLEEP_PID=""
 
 cleanup() {
+  [ -n "$SLEEP_PID" ] && kill "$SLEEP_PID" 2>/dev/null
   [ -n "$HB_PID" ] && kill "$HB_PID" 2>/dev/null
+  [ -n "$TICKET" ] && rm -f "$TICKET"
+  # Only a HOLDER removes a slot lock. $HELD is set solely on acquire, so a
+  # waiter killed mid-wait cannot delete a live holder's slot — the bug the
+  # tsc-queue port introduced and its test caught.
   [ -n "$HELD" ] && rm -rf "$HELD"
   # Only clear the claim if it is still OURS. A newer waiter from this checkout
   # may have overwritten it while displacing us; deleting it then would strand
   # that newer job with no claim of its own.
   if [ -n "${CLAIM:-}" ] && [ "$(cat "$CLAIM" 2>/dev/null)" = "$$" ]; then rm -f "$CLAIM"; fi
 }
-trap cleanup EXIT INT TERM
+# EXIT cleans up; INT/TERM must also EXIT. A bash trap handler RESUMES the
+# script, so a displaced waiter would tidy up and then carry on to take a slot.
+# 143 = 128 + SIGTERM.
+trap cleanup EXIT
+trap 'cleanup; exit 143' INT TERM
 
 # ONE QUEUED JOB PER CHECKOUT — newer displaces older.
 #
@@ -87,20 +98,96 @@ trap cleanup EXIT INT TERM
 # would throw away real work and produce a signal exit that reads like neither
 # a pass nor a failure. The claim file is removed the instant we acquire, so a
 # holder is structurally unreachable from here.
+# Defined BEFORE the displacement block below, which reads it: an earlier
+# version declared it after, so displacement looked in an undefined directory
+# and inheritance silently never happened. The newcomer went to the back of the
+# queue while the code claimed it inherited — a fix that reported success and
+# did nothing, caught only because its test asserted the ORDER rather than the
+# absence of an error.
+TICKETS="${GATE_QUEUE_TICKETS:-/tmp/tulala-gate-${LANE}.tickets}"
+mkdir -p "$TICKETS"
+
 CKEY=$(pwd | shasum | cut -c1-8)
 CLAIM="/tmp/tulala-gate-${LANE}.waiting.${CKEY}"
 if [ -f "$CLAIM" ]; then
   PREV=$(cat "$CLAIM" 2>/dev/null)
   if [ -n "$PREV" ] && [ "$PREV" != "$$" ] && kill -0 "$PREV" 2>/dev/null; then
     echo "gate-queue[$LANE]: displacing this checkout's older waiter (pid $PREV) — newer job wins" >&2
+    # Decision 2: take over its queue position before killing it, so this
+    # checkout keeps the place it has already been waiting for. Read the seq
+    # from the ticket FILENAME rather than the claim, which carries only a pid.
+    for _t in "$TICKETS"/*.$PREV; do
+      [ -e "$_t" ] || continue
+      INHERIT_SEQ="$(basename "$_t")"; INHERIT_SEQ="${INHERIT_SEQ%.$PREV}"
+      rm -f "$_t"
+      break
+    done
     kill "$PREV" 2>/dev/null
   fi
 fi
 echo "$$" > "$CLAIM"
 
+# ── FAIRNESS: a ticket, generalised to CAP slots ──────────────────────────────
+#
+# Same defect tsc-queue.sh had (fixed in #1861) and the same fix, with one
+# change that matters. Acquire is a bare `mkdir` in a retry loop, so every
+# waiter races on each release and the winner is whichever woke closest to it; a
+# waiter that keeps losing waits for ever. Measured on tsc-queue: a checkout
+# queued at 22:26 watched the lock pass to two checkouts that arrived AFTER it
+# and was still waiting an hour later. Nothing fails — the machine just looks
+# busy while one session never gets a turn.
+#
+# DECISION 1 — CAP, not 1. A waiter may attempt while its ticket is among the
+# lowest CAP live tickets, NOT only when it is the single lowest. The
+# single-lowest rule is the obvious port and it is wrong here: it would let one
+# waiter at a time attempt a lane that is deliberately allowed CAP concurrent
+# runs, quietly serialising it. A fairness fix that halves throughput is not a
+# fix.
+#
+# DECISION 2 — a displaced waiter's successor INHERITS its ticket. When a newer
+# job from this checkout displaces an older waiter, the newcomer takes over that
+# waiter's ticket rather than joining the back of the queue. Displacement exists
+# precisely so a checkout does not lose its turn to its own newer job; a fresh
+# ticket would punish exactly the re-run the mechanism was built for, and a
+# checkout that re-runs often would be sent to the back every time.
+
+# Arrival order to microseconds. `date` on macOS has no sub-second format and
+# this repo's bash is 3.2 (no EPOCHREALTIME); two jobs starting in the same
+# second is the normal case, not the edge case.
+new_seq() { perl -MTime::HiRes -e 'printf "%019.6f", Time::HiRes::time()' 2>/dev/null || date +%s; }
+
+TICKET=""
+if [ -n "${INHERIT_SEQ:-}" ]; then
+  # Decision 2: step into the displaced waiter's place in the queue.
+  TICKET="$TICKETS/$INHERIT_SEQ.$$"
+  echo "gate-queue[$LANE]: inheriting the displaced waiter's queue position" >&2
+else
+  TICKET="$TICKETS/$(new_seq).$$"
+fi
+printf '%s\n' "$$" > "$TICKET"
+
+# Is our ticket among the lowest CAP still held by a live process? Reaps dead
+# tickets on the way past, on the same only-when-the-owner-is-dead rule the
+# slot locks use. Nothing is reaped for being old: a live run is never stale.
+holds_a_live_ticket() {
+  _ahead=0
+  for t in "$TICKETS"/*; do
+    [ -e "$t" ] || continue
+    [ "$t" = "$TICKET" ] && return 0
+    _tp=$(cat "$t" 2>/dev/null)
+    if [ -z "$_tp" ] || ! kill -0 "$_tp" 2>/dev/null; then rm -f "$t"; continue; fi
+    _ahead=$((_ahead + 1))
+    [ "$_ahead" -ge "$CAP" ] && return 1
+  done
+  return 0
+}
+
 WAITED=0
 while [ -z "$HELD" ]; do
   slot=1
+  # Fairness gate: do not even LOOK at the slots unless our ticket is among the
+  # lowest CAP live ones. Without this the loop below is the mkdir race.
+  holds_a_live_ticket || slot=$((CAP + 1))
   while [ "$slot" -le "$CAP" ]; do
     L="/tmp/tulala-gate-${LANE}.${slot}.lock"
     if mkdir "$L" 2>/dev/null; then
@@ -108,6 +195,7 @@ while [ -z "$HELD" ]; do
       printf '%s %s %s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(pwd)" > "$L/.owner.tmp"
       mv "$L/.owner.tmp" "$L/owner"
       HELD="$L"
+      rm -f "$TICKET"          # we hold a SLOT now; the ticket has done its job
       rm -f "$CLAIM"          # we are a HOLDER now, not a waiter: unreachable
       break
     fi
@@ -133,7 +221,14 @@ while [ -z "$HELD" ]; do
       echo "gate-queue[$LANE]: $ME is WAITING FOR${BLOCKERS:- (unknown)} — all $CAP slot(s) busy" >&2
       echo "gate-queue[$LANE]: a live run is never stale. If one is truly wedged: rm -rf /tmp/tulala-gate-${LANE}.*.lock" >&2
     fi
-    sleep 10
+    # `sleep 10 & wait $!`: on bash 3.2 a trap does not fire until the current
+    # FOREGROUND command finishes, so a bare sleep swallows SIGTERM for up to
+    # ten seconds — long enough for a displaced waiter to go on and take a slot
+    # it no longer wants.
+    sleep 10 &
+    SLEEP_PID=$!
+    wait "$SLEEP_PID" 2>/dev/null
+    SLEEP_PID=""
     WAITED=$((WAITED + 10))
   fi
 done

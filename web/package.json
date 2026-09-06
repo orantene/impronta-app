@@ -222,7 +222,8 @@
     "test:e2e:hydration": "bash scripts/gate-queue.sh test 2 -- playwright test e2e/hydration-error-boundary.spec.ts",
     "check:anon-grants": "node scripts/check-anon-function-grants.mjs",
     "manual:compare-table-drift": "tsx --env-file=.env.local scripts/check-compare-table-drift.mjs",
-    "manual:tsc-queue-fairness": "tsx --test src/lib/quality/tsc-queue-fairness.manual.test.ts"
+    "manual:tsc-queue-fairness": "tsx --test src/lib/quality/tsc-queue-fairness.manual.test.ts",
+    "manual:gate-queue-fairness": "tsx --test src/lib/quality/gate-queue-fairness.manual.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
