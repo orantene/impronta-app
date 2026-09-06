@@ -1538,3 +1538,44 @@ Orders' already-claimed `20261228000142` and `…143` stay where they are: they 
 | QR & Links | `20261229000280`–`20261229000283` (claimed) |
 
 Announce each exact number on the board before applying it, and verify the object exists in production rather than reading the `db:check` green line.
+
+## `CLIENT_WELCOME_EMAIL_ENABLED` — what must be true before anyone flips it
+
+Shipped **OFF** in #1720 on the CEO's ruling. The catalog entry, the template and
+the EN/ES copy are all live and tested; only the *sending* is held. Turning it
+on starts a **new recurring outbound path** — every client who completes
+onboarding gets an email that has never been sent to anyone.
+
+It is held for deliverability, not for doubt about the code. Both conditions
+below are about the sending domain's health, because new volume from an
+unhardened sender degrades the mail that already matters: sign-in links, reply
+mirrors, booking notices.
+
+**Flip it only when BOTH are true. Verify each; do not take them on report.**
+
+- [ ] **1. `tulala.digital` publishes SPF.** Today: absent. Verify with
+      `dig +short TXT tulala.digital @8.8.8.8 | grep spf` and expect a
+      `v=spf1 …` record that includes Resend. DKIM is already present and DMARC
+      is `p=none`; SPF is the missing leg. This is DNS, and DNS is the owner's.
+- [ ] **2. Support's bounce classifier is populating `email_suppressions`.**
+      Today: the table has **zero rows**, platform-wide, despite every bounce we
+      have ever received. Verify with a real count, not a code reading:
+      `select count(*) from email_suppressions;` must be non-zero, and the row
+      Support produces from the Resend **simulator** address must be present.
+      Until then the pre-send suppression check is a no-op and a bad address is
+      re-mailed forever.
+
+**How to flip it:** set `CLIENT_WELCOME_EMAIL_ENABLED=1` in Vercel production,
+then delete the gate in `src/app/onboarding/actions.ts` — the flag exists to be
+removed, not to become permanent configuration. Its comment names these same two
+conditions so the reason travels with the code.
+
+**How to know it worked:** #1785 records the envelope on every send, so after the
+first real client welcome, `notification_dispatch_log.payload` carries
+`emailFrom` and `emailReplyTo` for it. Confirm from that row rather than from
+anyone's inbox.
+
+**Related, and NOT a condition:** `noreply@tulala.digital` is unreachable because
+`tulala.digital` has no MX record. That breaks *replies* to every email we send,
+which #1751 routes around by setting `Reply-To` to the tenant's own contact
+address. It does not block this flag, and this flag does not fix it.
