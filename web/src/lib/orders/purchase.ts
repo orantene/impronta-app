@@ -85,25 +85,6 @@ import {
 
 const FALLBACK_HOLD_TTL_SECONDS = 15 * 60;
 
-/** A hold may not outlive this, whatever a caller asks for. 30 days. */
-const MAX_HOLD_TTL_SECONDS = 30 * 24 * 60 * 60;
-
-/**
- * The hold's lifetime: the pools' shortest TTL, unless the caller overrides it.
- *
- * The override exists for pay-at-the-door orders, where the hold must last
- * until the event rather than fifteen minutes. It is CLAMPED rather than
- * trusted: a non-finite, zero or negative value falls back rather than
- * producing a hold that expires immediately or never, and no caller can ask for
- * a hold longer than a month. An unbounded hold is the commit-with-no-TTL
- * problem wearing a different name.
- */
-export function resolveHoldTtl(poolShortest: number | null, override?: number | null): number {
-  const base = poolShortest ?? FALLBACK_HOLD_TTL_SECONDS;
-  if (override == null) return base;
-  if (!Number.isFinite(override) || override <= 0) return base;
-  return Math.min(Math.floor(override), MAX_HOLD_TTL_SECONDS);
-}
 
 export async function createPurchase(
   admin: SupabaseClient,

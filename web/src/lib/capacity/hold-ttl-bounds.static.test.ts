@@ -72,7 +72,31 @@ test("nothing outside this module restates the engine's bounds", () => {
       if (!/\.tsx?$/.test(e.name) || /\.test\.tsx?$/.test(e.name)) continue;
       if (p.endsWith("hold-ttl-bounds.ts")) continue;
       const body = blankComments(readFileSync(p, "utf8"));
-      if (/\b604800\b/.test(body)) offenders.push(p.split("/src/")[1] ?? p);
+      // The literal, in either spelling.
+      if (/\b604800\b/.test(body)) offenders.push(`${p.split("/src/")[1] ?? p} (604800)`);
+      // ...AND any locally-declared hold-TTL bound, however it is computed.
+      //
+      // THIS IS THE HALF I MISSED. My first version matched only `604800` — the
+      // CORRECT number's literal — so the 30-day ceiling that caused all of
+      // this sailed through as `30 * 24 * 60 * 60` and reached main. A guard
+      // that catches the right value but not the wrong one is measuring the
+      // spelling, not the invariant.
+      //
+      // The invariant is: a hold-TTL bound is IMPORTED, never declared here.
+      // A BOUND on the engine's TTL, not any TTL. `FALLBACK_HOLD_TTL_SECONDS`
+      // is a default and `SIGNED_URL_TTL_SECONDS` belongs to another subsystem;
+      // flagging those would make this cry wolf and get it muted, which is
+      // worse than not having it. MAX/MIN/CAP/LIMIT beside HOLD_TTL is the
+      // thing that must agree with the database.
+      for (const m of body.matchAll(
+        /\b(?:const|let|var)\s+((?:[A-Z0-9_]*(?:MAX|MIN|CAP|LIMIT)[A-Z0-9_]*HOLD_TTL[A-Z0-9_]*|[A-Z0-9_]*HOLD_TTL[A-Z0-9_]*(?:MAX|MIN|CAP|LIMIT)[A-Z0-9_]*))\s*=\s*([^;\n]+)/g,
+      )) {
+        const [, name, rhs] = m;
+        // A derived value is the point; only a locally-computed NUMBER is not.
+        if (/^[\d\s*+\-/()_]+$/.test(rhs!.trim())) {
+          offenders.push(`${p.split("/src/")[1] ?? p} (${name} = ${rhs!.trim()})`);
+        }
+      }
     }
   };
   for (const r of roots) walk(join(process.cwd(), r));
