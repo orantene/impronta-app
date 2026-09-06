@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { buildAnthropicParams } from "./anthropic-adapter";
 
@@ -47,8 +49,6 @@ test("older models never receive a thinking field at all", () => {
 test("the guest support route asks for no thinking", () => {
   // The budget this PR bought, pinned where it can be pinned: if somebody
   // removes the flag, the reply goes back to ~5s and nothing else would say so.
-  const { readFileSync } = require("node:fs") as typeof import("node:fs");
-  const { join } = require("node:path") as typeof import("node:path");
   const src = readFileSync(
     join(process.cwd(), "src", "app", "api", "ai", "guest-support-chat", "route.ts"),
     "utf8",
