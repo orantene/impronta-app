@@ -1,0 +1,670 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-galeria",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-galeria-head",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "24px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-galeria-head-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-galeria-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Galería",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Gallery"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Gallery"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-galeria-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "De la parrilla",
+                    "level": 1,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "From the grill"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "From the grill"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-galeria-grid",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "0px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-galeria-grid-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-galeria-masonry",
+                  "kind": "masonry",
+                  "props": {
+                    "columns": 3,
+                    "gap": "m",
+                    "style": {
+                      "width": "100%"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-galeria-1",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-03",
+                        "alt": "Picada Premium",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Picada Premium"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Picada Premium"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-2",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-02",
+                        "alt": "Empanadas de Carne cortadas a cuchillo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Empanadas de Carne cortadas a cuchillo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Empanadas de Carne cortadas a cuchillo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-3",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-04",
+                        "alt": "Empanadas de Cordero cortadas a cuchillo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Empanadas de Cordero cortadas a cuchillo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Empanadas de Cordero cortadas a cuchillo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-4",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-01",
+                        "alt": "Parrillada para 2 en Salón",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Parrillada para 2 en Salón"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Parrillada para 2 en Salón"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-5",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-08",
+                        "alt": "Sanguche de Jamón Cocido con queso",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Sanguche de Jamón Cocido con queso"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Sanguche de Jamón Cocido con queso"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-6",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-09",
+                        "alt": "Oreo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Oreo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Oreo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-7",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-07",
+                        "alt": "Chocotorta",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Chocotorta"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Chocotorta"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-8",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-10",
+                        "alt": "Flan casero",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Flan casero"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Flan casero"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-9",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-11",
+                        "alt": "Jabalí - Chivito",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Jabalí - Chivito"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Jabalí - Chivito"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-10",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-12",
+                        "alt": "Rellenas: Jamón crudo - Panceta - Almendras",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Rellenas: Jamón crudo - Panceta - Almendras"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Rellenas: Jamón crudo - Panceta - Almendras"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-11",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-06",
+                        "alt": "Tamales",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Tamales"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Tamales"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-12",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-13",
+                        "alt": "Rosado Dulce",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Rosado Dulce"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Rosado Dulce"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-13",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-14",
+                        "alt": "Berenjena",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Berenjena"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Berenjena"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-14",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-15",
+                        "alt": "Pickles",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Pickles"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Pickles"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-15",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-05",
+                        "alt": "Sanguche de Matambre a la Napolitana",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Sanguche de Matambre a la Napolitana"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Sanguche de Matambre a la Napolitana"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-16",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-16",
+                        "alt": "Sanguche milanesa completo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Sanguche milanesa completo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Sanguche milanesa completo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-17",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-17",
+                        "alt": "Cazuela de LENTEJAS O MONDONGO",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Cazuela de LENTEJAS O MONDONGO"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Cazuela de LENTEJAS O MONDONGO"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-18",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-18",
+                        "alt": "Pastas caseras con salsa FILETTO",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Pastas caseras con salsa FILETTO"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Pastas caseras con salsa FILETTO"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-19",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-19",
+                        "alt": "Pastas Caseras",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Pastas Caseras"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Pastas Caseras"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-20",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-20",
+                        "alt": "Pastas caseras con salsa FILETTO",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Pastas caseras con salsa FILETTO"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Pastas caseras con salsa FILETTO"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-galeria-21",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-21",
+                        "alt": "Pastas Caseras con salsa boloñesa",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Pastas Caseras con salsa boloñesa"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Pastas Caseras con salsa boloñesa"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

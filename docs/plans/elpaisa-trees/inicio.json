@@ -1,0 +1,1779 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-home",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-home-hero",
+          "kind": "carousel",
+          "props": {
+            "variant": "hero",
+            "autoplayMs": 6000,
+            "loop": true,
+            "heightMode": "viewport",
+            "minHeightPx": 560,
+            "overlay": {
+              "scrim": true,
+              "tone": "dark",
+              "vignette": true,
+              "opacity": 0.55
+            },
+            "transition": "crossfade",
+            "transitionMs": 900,
+            "kenBurns": true,
+            "kenBurnsAmount": 0.08,
+            "pauseOnHover": true,
+            "controls": {
+              "dots": true,
+              "arrows": false,
+              "progress": false,
+              "counter": false,
+              "scrollCue": true
+            },
+            "contentAlign": "bl",
+            "contentMode": "shared",
+            "sharedContent": {
+              "eyebrow": "Glew · desde 2012",
+              "headingLead": "Parrilla de familia,",
+              "headingAccent": "desde 2012.",
+              "sub": "Negocio familiar desde 2012, atendiendo como nos gustaría que nos atiendan y haciendo con amor y conciencia los productos de nuestra amada Argentina.",
+              "primaryCta": {
+                "label": "Reservar",
+                "href": "/reservas"
+              },
+              "secondaryCta": {
+                "label": "Pedir por WhatsApp",
+                "href": "https://wa.me/5491170825104?text=Hola%20El%20Paisa%2C%20quiero%20hacer%20un%20pedido."
+              }
+            },
+            "style": {
+              "width": "100%",
+              "maxWidthFree": "100%"
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-hero-1",
+              "kind": "image",
+              "props": {
+                "src": "tulala-media://elpaisa/photo-01",
+                "alt": "Parrillada para dos",
+                "style": {
+                  "objectFit": "cover",
+                  "aspectRatio": "16:9",
+                  "borderRadius": "14px",
+                  "width": "100%"
+                },
+                "i18n": {
+                  "en": {
+                    "alt": "Grill platter for two"
+                  }
+                }
+              },
+              "i18n": {
+                "en": {
+                  "alt": "Grill platter for two"
+                }
+              }
+            },
+            {
+              "id": "ep-home-hero-2",
+              "kind": "image",
+              "props": {
+                "src": "tulala-media://elpaisa/photo-02",
+                "alt": "Empanadas de carne cortadas a cuchillo",
+                "style": {
+                  "objectFit": "cover",
+                  "aspectRatio": "16:9",
+                  "borderRadius": "14px",
+                  "width": "100%"
+                },
+                "i18n": {
+                  "en": {
+                    "alt": "Hand-cut beef empanadas"
+                  }
+                }
+              },
+              "i18n": {
+                "en": {
+                  "alt": "Hand-cut beef empanadas"
+                }
+              }
+            },
+            {
+              "id": "ep-home-hero-3",
+              "kind": "image",
+              "props": {
+                "src": "tulala-media://elpaisa/photo-03",
+                "alt": "Picada premium",
+                "style": {
+                  "objectFit": "cover",
+                  "aspectRatio": "16:9",
+                  "borderRadius": "14px",
+                  "width": "100%"
+                },
+                "i18n": {
+                  "en": {
+                    "alt": "Premium charcuterie board"
+                  }
+                }
+              },
+              "i18n": {
+                "en": {
+                  "alt": "Premium charcuterie board"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ep-home-signature",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-signature-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-home-signature-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "De la parrilla",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "From the grill"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "From the grill"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-signature-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "Lo que más se pide",
+                    "level": 2,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "What people order most"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "What people order most"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-signature-grid",
+                  "kind": "container",
+                  "props": {
+                    "layout": "grid",
+                    "gap": "m",
+                    "columns": 3,
+                    "responsive": {
+                      "tablet": {
+                        "columns": 2
+                      },
+                      "mobile": {
+                        "columns": 1
+                      }
+                    },
+                    "style": {
+                      "width": "100%",
+                      "marginTopFree": "12px"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-dish-1",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-1-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-01",
+                            "alt": "Parrillada para 2",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Grill platter for two"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Grill platter for two"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-1-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Parrillada para 2",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Grill platter for two"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Grill platter for two"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-1-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "Desde $55.000",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "From $55,000 ARS"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "From $55,000 ARS"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ep-dish-2",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-2-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-04",
+                            "alt": "Empanadas de cordero",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Lamb empanadas"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Lamb empanadas"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-2-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Empanadas de cordero",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Lamb empanadas"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Lamb empanadas"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-2-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "$4.000 la unidad",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "$4,000 ARS each"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "$4,000 ARS each"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ep-dish-3",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-3-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-03",
+                            "alt": "Picada premium",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Premium board"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Premium board"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-3-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Picada premium",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Premium board"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Premium board"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-3-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "Desde $45.000",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "From $45,000 ARS"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "From $45,000 ARS"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ep-dish-4",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-4-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-05",
+                            "alt": "Matambre a la napolitana",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Matambre napolitana sandwich"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Matambre napolitana sandwich"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-4-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Matambre a la napolitana",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Matambre napolitana sandwich"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Matambre napolitana sandwich"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-4-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "$25.000",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "$25,000 ARS"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "$25,000 ARS"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ep-dish-5",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-5-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-06",
+                            "alt": "Tamales",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Tamales"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Tamales"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-5-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Tamales",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Tamales"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Tamales"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-5-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "$6.000",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "$6,000 ARS"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "$6,000 ARS"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ep-dish-6",
+                      "kind": "card",
+                      "props": {
+                        "variant": "ghost",
+                        "style": {
+                          "backgroundColor": "#ffffff",
+                          "borderRadius": "14px",
+                          "paddingTop": "0px",
+                          "paddingRight": "0px",
+                          "paddingBottom": "18px",
+                          "paddingLeft": "0px",
+                          "overflow": "hidden"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-dish-6-img",
+                          "kind": "image",
+                          "props": {
+                            "src": "tulala-media://elpaisa/photo-07",
+                            "alt": "Chocotorta",
+                            "style": {
+                              "objectFit": "cover",
+                              "aspectRatio": "4:3",
+                              "borderRadius": "14px",
+                              "width": "100%"
+                            },
+                            "i18n": {
+                              "en": {
+                                "alt": "Chocotorta"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "alt": "Chocotorta"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-6-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Chocotorta",
+                            "level": 3,
+                            "style": {
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "fontSize": "22px",
+                              "textColor": "#1a1512",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "14px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Chocotorta"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Chocotorta"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-dish-6-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "$7.000",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "14px",
+                              "textColor": "#928b84",
+                              "paddingRight": "18px",
+                              "paddingLeft": "18px",
+                              "marginTopFree": "4px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "$7,000 ARS"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "$7,000 ARS"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "ep-home-signature-cta",
+                  "kind": "cta_group",
+                  "props": {
+                    "layout": "row",
+                    "gap": "m",
+                    "align": "start",
+                    "style": {
+                      "marginTopFree": "12px"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-home-menu-btn",
+                      "kind": "button",
+                      "props": {
+                        "label": "Ver la carta",
+                        "href": "/menu",
+                        "tone": "secondary",
+                        "style": {
+                          "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                          "fontSize": "15px",
+                          "fontWeight": 600,
+                          "letterSpacing": "0.02em",
+                          "textColor": "#1a1512",
+                          "backgroundColor": "transparent",
+                          "borderColor": "#1a1512",
+                          "borderWidth": "1px",
+                          "borderRadius": "999px",
+                          "paddingTop": "14px",
+                          "paddingRight": "28px",
+                          "paddingBottom": "14px",
+                          "paddingLeft": "28px"
+                        },
+                        "i18n": {
+                          "en": {
+                            "label": "See the menu"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "label": "See the menu"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-home-story",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#1a1a1a",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-story-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-home-story-split",
+                  "kind": "split",
+                  "props": {
+                    "ratio": "50-50",
+                    "gap": "l",
+                    "collapseOnMobile": true,
+                    "style": {
+                      "width": "100%"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-home-story-img",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-01",
+                        "alt": "La parrilla de El Paisa",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "3:4",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "The grill at El Paisa"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "The grill at El Paisa"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-story-copy",
+                      "kind": "container",
+                      "props": {
+                        "layout": "stack",
+                        "style": {
+                          "gap": "20px",
+                          "alignSelf": "center"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "ep-home-story-k",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "Nosotros",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "12px",
+                              "fontWeight": 700,
+                              "letterSpacing": "0.24em",
+                              "textTransform": "uppercase",
+                              "textColor": "#f4ece1"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "About us"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "About us"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-home-story-h",
+                          "kind": "heading",
+                          "props": {
+                            "text": "Familia desde 2012",
+                            "level": 2,
+                            "style": {
+                              "size": "xl",
+                              "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                              "lineHeight": "1.04",
+                              "letterSpacing": "-0.01em",
+                              "textWrap": "balance",
+                              "textColor": "#f4ece1"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "Family since 2012"
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "Family since 2012"
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-home-story-p",
+                          "kind": "paragraph",
+                          "props": {
+                            "text": "Somos una parrilla de barrio en Glew. Carnes a las brasas, picadas artesanales, empanadas cortadas a cuchillo y escabeches de la casa. Todo hecho acá, como en casa.",
+                            "style": {
+                              "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                              "fontSize": "18px",
+                              "lineHeight": "1.65",
+                              "textColor": "rgba(244,236,225,0.78)",
+                              "maxWidthFree": "560px"
+                            },
+                            "i18n": {
+                              "en": {
+                                "text": "We are a neighbourhood grill in Glew. Meat over the coals, artisan boards, hand-cut empanadas and house pickles. All made here, the way it is made at home."
+                              }
+                            }
+                          },
+                          "i18n": {
+                            "en": {
+                              "text": "We are a neighbourhood grill in Glew. Meat over the coals, artisan boards, hand-cut empanadas and house pickles. All made here, the way it is made at home."
+                            }
+                          }
+                        },
+                        {
+                          "id": "ep-home-story-cta",
+                          "kind": "cta_group",
+                          "props": {
+                            "layout": "row",
+                            "gap": "m",
+                            "align": "start"
+                          },
+                          "children": [
+                            {
+                              "id": "ep-home-story-btn",
+                              "kind": "button",
+                              "props": {
+                                "label": "Conocenos",
+                                "href": "/nosotros",
+                                "tone": "secondary",
+                                "style": {
+                                  "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                                  "fontSize": "15px",
+                                  "fontWeight": 600,
+                                  "letterSpacing": "0.02em",
+                                  "textColor": "#f4ece1",
+                                  "backgroundColor": "transparent",
+                                  "borderColor": "#f4ece1",
+                                  "borderWidth": "1px",
+                                  "borderRadius": "999px",
+                                  "paddingTop": "14px",
+                                  "paddingRight": "28px",
+                                  "paddingBottom": "14px",
+                                  "paddingLeft": "28px"
+                                },
+                                "i18n": {
+                                  "en": {
+                                    "label": "Our story"
+                                  }
+                                }
+                              },
+                              "i18n": {
+                                "en": {
+                                  "label": "Our story"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-home-reserve",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-reserve-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-home-reserve-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Reservas",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Reservations"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Reservations"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-reserve-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "Reservá tu mesa",
+                    "level": 2,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Reserve your table"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Reserve your table"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-reserve-p",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Elegí día y hora. Hasta cuatro personas por reserva. Se paga en el salón.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "16px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Pick a day and a time. Up to four people per reservation. Pay at the restaurant."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Pick a day and a time. Up to four people per reservation. Pay at the restaurant."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-reserve-block",
+                  "kind": "reserve_table",
+                  "props": {
+                    "venueName": "El Paisa",
+                    "ctaVerb": "Reservar",
+                    "partyMin": 1,
+                    "partyMax": 4,
+                    "cardNotice": "Se paga en el salón. Sin anticipo.",
+                    "notesEnabled": true,
+                    "style": {
+                      "width": "100%",
+                      "maxWidthFree": "720px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "ctaVerb": "Reserve",
+                        "cardNotice": "Pay at the restaurant. No deposit."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "ctaVerb": "Reserve",
+                      "cardNotice": "Pay at the restaurant. No deposit."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-reserve-more",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Para más de cuatro, escribinos por WhatsApp.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "14px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "For more than four, message us on WhatsApp."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "For more than four, message us on WhatsApp."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-home-gallery",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#ffffff",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-gallery-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-home-gallery-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Galería",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Gallery"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Gallery"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-gallery-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "De la parrilla",
+                    "level": 2,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "From the grill"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "From the grill"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-home-gallery-rail",
+                  "kind": "carousel",
+                  "props": {
+                    "variant": "rail",
+                    "slidesPerView": 3,
+                    "loop": true,
+                    "showArrows": true,
+                    "showDots": false,
+                    "pauseOnHover": true,
+                    "style": {
+                      "width": "100%",
+                      "marginTopFree": "12px"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-home-gallery-1",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-03",
+                        "alt": "Picada Premium",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Picada Premium"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Picada Premium"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-2",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-02",
+                        "alt": "Empanadas de Carne cortadas a cuchillo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Empanadas de Carne cortadas a cuchillo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Empanadas de Carne cortadas a cuchillo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-3",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-04",
+                        "alt": "Empanadas de Cordero cortadas a cuchillo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Empanadas de Cordero cortadas a cuchillo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Empanadas de Cordero cortadas a cuchillo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-4",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-01",
+                        "alt": "Parrillada para 2 en Salón",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Parrillada para 2 en Salón"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Parrillada para 2 en Salón"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-5",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-08",
+                        "alt": "Sanguche de Jamón Cocido con queso",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Sanguche de Jamón Cocido con queso"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Sanguche de Jamón Cocido con queso"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-6",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-09",
+                        "alt": "Oreo",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Oreo"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Oreo"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-7",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-07",
+                        "alt": "Chocotorta",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Chocotorta"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Chocotorta"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-8",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-10",
+                        "alt": "Flan casero",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Flan casero"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Flan casero"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-9",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-11",
+                        "alt": "Jabalí - Chivito",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Jabalí - Chivito"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Jabalí - Chivito"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-10",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-12",
+                        "alt": "Rellenas: Jamón crudo - Panceta - Almendras",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Rellenas: Jamón crudo - Panceta - Almendras"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Rellenas: Jamón crudo - Panceta - Almendras"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-11",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-06",
+                        "alt": "Tamales",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Tamales"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Tamales"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-home-gallery-12",
+                      "kind": "image",
+                      "props": {
+                        "src": "tulala-media://elpaisa/photo-13",
+                        "alt": "Rosado Dulce",
+                        "style": {
+                          "objectFit": "cover",
+                          "aspectRatio": "1:1",
+                          "borderRadius": "14px",
+                          "width": "100%"
+                        },
+                        "i18n": {
+                          "en": {
+                            "alt": "Rosado Dulce"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "alt": "Rosado Dulce"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "ep-home-gallery-cta",
+                  "kind": "cta_group",
+                  "props": {
+                    "layout": "row",
+                    "gap": "m",
+                    "align": "start"
+                  },
+                  "children": [
+                    {
+                      "id": "ep-home-gallery-btn",
+                      "kind": "button",
+                      "props": {
+                        "label": "Ver la galería",
+                        "href": "/galeria",
+                        "tone": "secondary",
+                        "style": {
+                          "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                          "fontSize": "15px",
+                          "fontWeight": 600,
+                          "letterSpacing": "0.02em",
+                          "textColor": "#1a1512",
+                          "backgroundColor": "transparent",
+                          "borderColor": "#1a1512",
+                          "borderWidth": "1px",
+                          "borderRadius": "999px",
+                          "paddingTop": "14px",
+                          "paddingRight": "28px",
+                          "paddingBottom": "14px",
+                          "paddingLeft": "28px"
+                        },
+                        "i18n": {
+                          "en": {
+                            "label": "See the gallery"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "label": "See the gallery"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-home-where",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#1a1a1a",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-home-where-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-home-map",
+                  "kind": "location_map",
+                  "props": {
+                    "eyebrow": "Dónde estamos",
+                    "headline": "Glew, Buenos Aires",
+                    "subheadline": "Jueves a domingo de 10:00 a 01:00. Martes de 10:00 a 17:00. Lunes y miércoles cerrado.",
+                    "source": "manual",
+                    "items": [
+                      {
+                        "label": "Regionales el Paisa",
+                        "region": "Glew, Buenos Aires",
+                        "href": "https://www.google.com/maps/search/?api=1&query=Regionales+el+Paisa%2C+Glew",
+                        "featured": true,
+                        "status": "active"
+                      }
+                    ],
+                    "showMap": true,
+                    "mapStyle": "embed",
+                    "mapEmbedUrl": "https://www.google.com/maps?q=Regionales+el+Paisa%2C+Glew&output=embed",
+                    "overlayTitle": "Regionales el Paisa",
+                    "overlayAddress": "Av. Hipólito Yrigoyen 20355, Glew, Buenos Aires",
+                    "overlayHours": "Jue a dom 10:00 a 01:00 · Mar 10:00 a 17:00",
+                    "overlaySide": "card-left",
+                    "ratio": "16/9",
+                    "layout": "compact",
+                    "ctaLabel": "Cómo llegar",
+                    "ctaHref": "https://www.google.com/maps/search/?api=1&query=Regionales+el+Paisa%2C+Glew",
+                    "style": {
+                      "textColor": "#f4ece1",
+                      "width": "100%",
+                      "maxWidthFree": "1100px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "eyebrow": "Where we are",
+                        "subheadline": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday.",
+                        "ctaLabel": "Directions",
+                        "overlayHours": "Thu to Sun 10:00 to 01:00 · Tue 10:00 to 17:00"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "eyebrow": "Where we are",
+                      "subheadline": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday.",
+                      "ctaLabel": "Directions",
+                      "overlayHours": "Thu to Sun 10:00 to 01:00 · Tue 10:00 to 17:00"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
