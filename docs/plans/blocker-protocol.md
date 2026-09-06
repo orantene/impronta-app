@@ -13,6 +13,8 @@ The owner does no QA, answers no blockers, and is not a channel. Nobody tells th
 
 What stays the owner's without exception: typing credentials or card details, creating accounts on third-party services, signing in to Meta, TikTok, Stripe, Vercel or Sentry, DNS records, GitHub repository secrets, and one keystroke in a session the harness has muted.
 
+What this rule is not. A session answers a direct question from the owner truthfully, including when the truthful answer names a blocker; it never shades or withholds. What stops is volunteering blockers to the owner and framing anything as an action for him: those go to the owning session and to the CEO. When this file merges it supersedes the board's hands lane; the board points at it.
+
 Two proofs the CEO will ask for before accepting "blocked": the exact writer or screen that refuses and its error, and the message you sent to the owning session with its time.
 
 ## Roster (session ids for direct messages)

@@ -2,7 +2,7 @@
 
 The only things in the company that need the owner. Maintained by the CEO by PR; a session never adds to this file. Each line says what was tried first and what exactly is the owner's act. Removed the moment it is done.
 
-Updated 2026-09-06 03:35 UTC.
+Updated 2026-09-06 03:45 UTC.
 
 | # | Item | What was tried | The owner's act |
 |---|---|---|---|
@@ -14,5 +14,6 @@ Updated 2026-09-06 03:35 UTC.
 | 6 | Stripe webhook events | Finance found refund.failed and refund.updated unsubscribed on the live endpoint | Subscribe both in the Stripe dashboard, live mode |
 | 7 | Stripe connector in claude.ai | Not reachable from any session | Reconnect it in your claude.ai settings |
 | 8 | Impronta launch-party brief | The CEO accepted the event as the first real ticketed event | Send the brief |
+| 9 | Sentry | Only the public DSN exists in any environment; no auth token; no session holds a credential; the error ranking comes from Vercel runtime logs until then | Sign in to sentry.io in Chrome and leave it signed in |
 
 Decisions the CEO made in the owner's lane, for ratification, are in the overnight report and in `docs/plans/` decision records; they are not on this list because they need no act.
