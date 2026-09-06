@@ -364,6 +364,9 @@ export function EditProvider({
   // artboard (fixed physical size); the device toggle + ⌘1/2/3 gate on it.
   const canUseResponsiveBreakpoints =
     resolvedSurfaceConfig.capabilities.responsiveBreakpoints;
+  // Piece B slice 1c — the fixed print artboard (mm, bleed included). Read from
+  // the loaded composition (size is immutable per design in v1), null elsewhere.
+  const printArtboard = initialComposition?.printArtboard ?? null;
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
@@ -5740,6 +5743,7 @@ export function EditProvider({
       surfaceKind: resolvedSurfaceConfig.surface.kind,
       canEditTheme,
       canUseResponsiveBreakpoints,
+      printArtboard,
       publishViaSurfaceAdapter,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
@@ -6020,6 +6024,7 @@ export function EditProvider({
       // is derived from it + canEditSiteShell, both stable per mount.
       canEditTheme,
       canUseResponsiveBreakpoints,
+      printArtboard,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
       // galleryPolicy comes from the surface config object; resolvedSurfaceConfig
