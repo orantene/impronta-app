@@ -21,6 +21,7 @@ import {
   type IntegrationView,
 } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 
+import { isConnectionPopupMessage } from "@/lib/connection-oauth/popup";
 import { resolveIntegrationStatus } from "./integration-status";
 import { IntegrationStatusPill } from "./IntegrationStatusPill";
 
@@ -212,8 +213,56 @@ export function IntegrationConfigDrawer({
     url.searchParams.set("provider", integration.key);
     url.searchParams.set("tenantSlug", tenantSlug);
     url.searchParams.set("returnTo", window.location.pathname + window.location.search);
-    window.location.assign(url.toString());
+
+    // Open in a popup so the operator keeps their place in Settings. An IFRAME
+    // is not an option: Instagram and TikTok both refuse to be framed on their
+    // authorize screens, by design.
+    url.searchParams.set("popup", "1");
+    const child = window.open(
+      url.toString(),
+      "tulala-connection-oauth",
+      "popup,width=600,height=760,noopener=no",
+    );
+
+    // Blocked by the browser, or opened in a context that returns null. Fall
+    // back to the full-page flow, which still works and still returns here via
+    // the signed `returnTo`. Never leave the operator with a dead button.
+    if (!child) {
+      url.searchParams.delete("popup");
+      window.location.assign(url.toString());
+      return;
+    }
+    child.focus?.();
   };
+
+  /**
+   * Result of a popup connect. Two checks before trusting it: the message must
+   * come from OUR origin (any page may postMessage to an opener) and it must
+   * carry our own message type, which is deliberately distinct from the sign-in
+   * popup's so a connection can never navigate the operator away.
+   */
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (!isConnectionPopupMessage(event.data)) return;
+      if (event.data.success) {
+        setFeedback({
+          tone: "success",
+          message: t("dashboard.adminWorkspace.integrations.feedbackOauthConnected"),
+        });
+        onChanged();
+      } else {
+        setFeedback({
+          tone: "error",
+          message:
+            event.data.error ||
+            t("dashboard.adminWorkspace.integrations.feedbackConnectFailed"),
+        });
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onChanged, t]);
 
   const handleToggleYouTubePublic = async (next: boolean) => {
     setFeedback(null);
