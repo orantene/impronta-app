@@ -5,6 +5,7 @@ import { notifyWorkspaceSignupWelcome } from "./workspace-signup-welcome-notify"
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
+import { linkBriefObjects, loadBriefForSignupLead } from "@/lib/tulala/brief-store.server";
 import {
   SIGNUP_BUSINESS_DESCRIPTION_KEY,
   normalizeSignupBusinessDescription,
@@ -241,7 +242,28 @@ async function attachLeadToTenant(params: {
   }
 }
 
-function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
+function buildSignupSettings(
+  lead: MarketingLeadRow,
+  /**
+   * What the BRIEF says this business is, when the visitor used the
+   * conversational intake. Verified against El Paisa's real brief rows:
+   *
+   *   business.name        "Parrilla El Paisa"      ai_inference 0.45
+   *   work.industry        "food and restaurant"    ai_inference 0.40
+   *   presence.website_url the menu URL             url_import   0.90
+   *
+   * There is NO `business.description` fact — the intake stores what someone
+   * does under `work.industry`, and `pickSignupPreset` only ever read the
+   * description. Measured with those exact values:
+   *
+   *   businessDescription ""                     -> custom
+   *   businessDescription "food and restaurant"  -> restaurant
+   *
+   * So the industry was sitting in the brief, correctly extracted, one field
+   * away from the only reader that wanted it.
+   */
+  briefIndustry?: string | null,
+): Record<string, unknown> {
   const settings: Record<string, unknown> = {
     signup_audience: lead.audience,
     signup_roster_size: lead.roster_size,
@@ -268,7 +290,11 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
     // nouns, an absent one does not, and those are not symmetric.
     industry_preset: pickSignupPreset({
       audience: lead.audience,
-      businessDescription: lead.business_description,
+      // The lead's description first: it is what the person typed about
+      // themselves. The brief's industry is the fallback, not the override — a
+      // model's 0.40-confidence inference must not outrank a human sentence.
+      businessDescription:
+        lead.business_description?.trim() || briefIndustry?.trim() || null,
     }),
   };
   if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
@@ -614,6 +640,21 @@ export async function provisionWorkspaceFromLead(params: {
   const displayName = lead.business_name?.trim() || lead.name.trim() || "New Workspace";
   const now = new Date().toISOString();
 
+  // THE BRIEF IS READ BEFORE THE WORKSPACE IS CREATED, not after.
+  //
+  // Its industry has to be in hand when `buildSignupSettings` runs, because
+  // `industry_preset` is written INTO the agency row at insert and every seeded
+  // page and nav label is derived from it once, at scaffold time, and never
+  // re-derived. Loading the brief after the insert — which is where the link
+  // used to be — meant the facts arrived a step too late to decide anything.
+  const brief = await loadBriefForSignupLead(lead.id);
+  // `BriefFact.value` is `unknown` — a fact's value is whatever its key's type
+  // says, and this one is only useful if it really is a string. Anything else is
+  // treated as absent rather than stringified: `[object Object]` reaching a
+  // keyword matcher would resolve to `custom` anyway, but silently.
+  const industryFact = brief?.facts.find((f) => f.factKey === "work.industry")?.value;
+  const briefIndustry = typeof industryFact === "string" ? industryFact : null;
+
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
     .insert({
@@ -638,7 +679,7 @@ export async function provisionWorkspaceFromLead(params: {
       // hand out a paid plan nobody has paid for.
       plan_tier: "free",
       talent_seat_limit: PLAN_SEAT_CAPS.free,
-      settings: buildSignupSettings(lead),
+      settings: buildSignupSettings(lead, briefIndustry),
     })
     .select("id, slug, display_name")
     .single();
@@ -708,6 +749,35 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (profileError) {
     logServerError("workspace-signup.updateProfile", profileError);
+  }
+
+  // THE BRIEF GETS AN OWNER, AND IT HAPPENS BEFORE THE SCAFFOLD RUNS.
+  //
+  // The intake fetches someone's page, extracts facts, scores them and stores
+  // them in `tulala_brief_facts` with their source URL. Provisioning then read
+  // ONE string off the lead row — `business_description` — and walked past all
+  // of it. The facts were never missing; nothing ever looked.
+  //
+  // Stamping `tenant_id` is what makes them findable FROM the workspace
+  // afterwards, which is what "Regenerate from brief" needs on its second run:
+  // without it the only route back to the brief is the signup lead, and a
+  // workspace has no reason to remember which lead created it.
+  //
+  // ORDER IS LOAD-BEARING, hence its position above the scaffold rather than
+  // below. `ensureWorkspaceScaffold` seeds navigation and homepage copy ONCE
+  // from settings and never re-derives them. A fact that arrives after that
+  // produces a workspace whose settings and whose visible page disagree
+  // permanently — which is exactly how a restaurant ended up rendering a models
+  // agency. Non-fatal on failure: a workspace that exists without its brief
+  // linked is recoverable, a signup that dies at the last step is not.
+  if (brief) {
+    const linked = await linkBriefObjects(brief.id, { tenantId: agency.id });
+    if (!linked.ok) {
+      logServerError(
+        "workspace-signup.linkBrief",
+        new Error(`brief ${brief.id} not linked to tenant ${agency.id}`),
+      );
+    }
   }
 
   await ensureWorkspaceScaffold({
