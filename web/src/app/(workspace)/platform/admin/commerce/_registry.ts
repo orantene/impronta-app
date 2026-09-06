@@ -17,6 +17,7 @@ export const COMMERCE_TABS = [
   { id: "discounts", labelKey: "dashboard.platform.commerce.tabs.discounts" },
   { id: "revenue", labelKey: "dashboard.platform.commerce.tabs.revenue" },
   { id: "commission", labelKey: "dashboard.platform.commerce.tabs.commission" },
+  { id: "entitlements", labelKey: "dashboard.platform.commerce.tabs.entitlements" },
 ] as const;
 
 export type CommerceTab = (typeof COMMERCE_TABS)[number]["id"];
