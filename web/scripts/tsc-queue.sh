@@ -202,10 +202,19 @@ CODE=$?
 # pipeline's exit status is its LAST command, and everyone wraps tsc in
 # something. An exit above 128 is a signal (143 = SIGTERM, someone killed it),
 # which is neither a pass nor a type error and must never be read as either.
+#
+# 127 gets the same treatment for the same reason. It is "command not found" —
+# on this repo, almost always `tsx: No such file or directory` in a worktree
+# with no node_modules. Nothing was typechecked. In a CI log a red 127 reads
+# exactly like a failing gate, and the natural response is to go looking for the
+# type error that does not exist. Say what it is where the verdict is printed,
+# rather than leaving the reader to know it.
 if [ "$CODE" -eq 0 ]; then
   VERDICT="TSC PASS (exit 0)"
 elif [ "$CODE" -gt 128 ]; then
   VERDICT="TSC KILLED by signal $((CODE - 128)) (exit $CODE) - NOT A RESULT, run it again"
+elif [ "$CODE" -eq 127 ]; then
+  VERDICT="TSC DID NOT RUN (exit 127 = command not found; usually no node_modules in this checkout - try npm ci) - NOT A RESULT"
 else
   VERDICT="TSC FAIL (exit $CODE)"
 fi

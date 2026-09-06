@@ -104,3 +104,35 @@ test("a ticket does not outlive the process holding it", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("exit 127 is reported as DID NOT RUN, never as a failing gate", async () => {
+  // 127 is "command not found" — on this repo almost always `tsx: No such file
+  // or directory` in a worktree with no node_modules. Nothing was typechecked.
+  // A red 127 in a CI log reads exactly like a failing gate, and the natural
+  // response is to hunt for a type error that does not exist. It cost a real
+  // detour on 2026-09-05.
+  const dir = mkdtempSync(join(tmpdir(), "tscq-"));
+  try {
+    const out = await new Promise<string>((resolve) => {
+      const p = spawn("bash", [SCRIPT], {
+        cwd: WEB_ROOT,
+        env: {
+          ...process.env,
+          CI: "",
+          TSC_QUEUE_LOCK: join(dir, "lock"),
+          TSC_QUEUE_TICKETS: join(dir, "tickets"),
+          TSC_QUEUE_CMD: "exit 127",
+        },
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let buf = "";
+      p.stderr!.on("data", (d) => (buf += String(d)));
+      p.on("exit", () => resolve(buf));
+    });
+    assert.match(out, /DID NOT RUN/);
+    assert.match(out, /NOT A RESULT/);
+    assert.doesNotMatch(out, /TSC FAIL/, "127 must not be reported as a type failure");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
