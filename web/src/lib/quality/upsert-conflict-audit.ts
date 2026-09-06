@@ -540,6 +540,26 @@ export function toBaseline(findings: readonly Finding[]): Baseline {
 
 export type Drift = { key: string; expected?: string; actual?: string; detail?: string };
 
+/**
+ * A drift that must FAIL: a finding that is new, or whose verdict got worse.
+ *
+ * The other direction — a baselined key with no finding behind it any more — is
+ * NOT a failure. It is somebody else's fix landing after this baseline was
+ * taken, which in a fleet is the normal case, not the exception. Failing on it
+ * turns every other team's fix into a red main for everyone, and a red main
+ * blocks the promotion train; that cost is real and immediate, while the thing
+ * the strictness bought was small — a stale entry cannot hide a NEW defect,
+ * because a new one appears as a regression and still fails.
+ *
+ * Learned by turning main red with it: #1828 and #1831 fixed two findings that
+ * were in the baseline I had just taken, and the guard called their fixes a
+ * violation.
+ */
+export const isRegression = (d: Drift): boolean => d.actual !== undefined;
+
+/** Baselined keys whose finding is gone — worth removing, never worth failing. */
+export const isResolved = (d: Drift): boolean => d.actual === undefined;
+
 export function diffAgainstBaseline(findings: readonly Finding[], baseline: Baseline): Drift[] {
   const actual = toBaseline(findings);
   const detail = new Map(findings.map((f) => [`${f.file}:${f.line}`, f.detail]));
@@ -550,6 +570,17 @@ export function diffAgainstBaseline(findings: readonly Finding[], baseline: Base
     }
   }
   return drift.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export function explainResolved(drift: readonly Drift[]): string {
+  return drift
+    .map(
+      (d) =>
+        `  ${d.key} (was ${d.expected}) — FIXED, thank you. Remove it from the ` +
+        `baseline when you next touch this file:\n` +
+        `      npx tsx scripts/upsert-conflict-audit.mjs --baseline`,
+    )
+    .join("\n");
 }
 
 export function explainDrift(drift: readonly Drift[]): string {
