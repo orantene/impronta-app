@@ -22,20 +22,33 @@ nobody touches Impronta's live site to test it.
 
 Venue `b0a18aee-4d0f-4a65-90e8-da9a1b74f726`, **America/Argentina/Buenos_Aires** (Glew, Buenos
 Aires — corrected 2026-09-05 from a copied Cancún zone). Every time below is the **guest's** clock,
-which is the venue's, not the tester's. Derived from the seeded rows, not from intent: lunch 13:00
-+180min with a 75min turn for a party of 1–2 gives a last seating of 14:45; dinner 19:00 +240min
-gives 21:30. Pools hold **4** two-tops and **6** four-tops. Rules: parties 1–4, 60-day horizon,
-60-minute minimum notice.
+which is the venue's, not the tester's.
+
+**Hours are the venue's published ones as of 2026-09-05, and are UNVERIFIED — confirm with the
+restaurant before real go-live.** Source: the business's own Instagram, the post dated **2026-08-14**,
+the newest of three that state hours. Two windows:
+
+| Window | Days | Opens | Closes | Last seating (30-min grid) |
+|---|---|---|---|---|
+| `service` | Thu–Sun | 10:00 | 01:00 (next day) | 23:30 |
+| `martes` | Tue | 10:00 | 17:00 | 15:30 |
+
+**Monday and Wednesday are closed.** Pools hold **4** two-tops and **6** four-tops. Rules: parties
+1–4, 60-day horizon, 60-minute minimum notice. Turn is 75 minutes for a party of 1–2 and 90 for 3–4,
+which is what pulls the last seating back from the closing time.
 
 | Do this | Proves | Falsified by |
 |---|---|---|
-| Open the `reserve` page, party of **2**, pick today or any day in the next 60 | Lunch offers exactly **13:00, 13:30, 14:00, 14:30**; dinner offers **19:00 … 21:30** in 30-min steps | Any time after 14:30 at lunch or 21:30 at dinner — the last seating must leave a whole 75-minute turn inside the window. A 15:00 slot means the turn is being added to the wall clock instead of the instant |
-| Same, party of **4** | Same window bounds, but the turn is 90 minutes, so dinner's last seating is **21:30** and lunch's is **14:30** | A four-top offered a time a two-top is not, or vice versa, on a day with no bookings |
+| Open the `reserve` page, party of **2**, pick a **Thursday–Sunday** | Times run **10:00 to 23:30** in 30-min steps | Anything after 23:30. The window closes at 01:00 and a 75-minute turn must fit inside it, so 23:45 is the true last seating and 23:30 is the last one on the 30-minute grid. A 00:30 slot means the turn is being added to the wall clock instead of the instant |
+| Same, party of **4** | Also **10:00 to 23:30** — the turn is 90 minutes, so the true last seating is 23:30 and it lands exactly on the grid | A four-top offered a time a two-top is not, on a day with no bookings |
+| Party of 2, pick a **Tuesday** | Times run **10:00 to 15:30** only | Any Tuesday evening slot. Tuesday closes at **17:00**, not 01:00. An evening time here is the locked-door failure: the guest arrives seven hours after the kitchen shut |
+| Pick a **Monday** or a **Wednesday** | "We are closed that day" | Any time offered. Both are closed per the venue's 2026-08-14 post |
 | Ask for a party of **5** | Refusal reads "For a party that size, message us and we will sort it out" — a **real** refusal, `party_size_max` is 4 | A generic failure, an empty grid, or "fully booked". An empty list cannot say which of three things went wrong, and that is the bug this copy exists to prevent |
 | Ask for a time **inside 60 minutes** from now, Buenos Aires clock | Not offered at all | Offered. Min-notice is enforced against the instant, not the label |
 | Book **five** two-tops at the same time (party of 1 or 2 each) | The **fifth** is refused **sold out** — that pool holds 4 units | A fifth booking succeeding. That is oversell, and it is the one failure that costs a real table |
 | After that fifth refusal, ask for a party of **3** at the same time | Still offered — four-tops are a **separate pool** with 6 units | A four-top refused because the two-tops are full. The bands are parentless on purpose; a shared parent would double-count the room |
-| Pick **any** date in the next 60 days | Times are offered every weekday | **"We are closed that day" is a BUG, not a policy** — all seven weekdays are seeded active. This is the single most likely symptom of a window that failed to resolve |
+| Pick a date whose weekday IS in the window's `weekdays` array | Times are offered | **"We are closed that day" on a day the venue is open is a BUG**, and the single most likely symptom of a window that failed to resolve. **Read `weekdays` before running this row — do not assume seven.** As seeded it is `{1,2,3,4,5,6,7}` (ISO, 1=Monday), so today every day qualifies; once the real closed days land, only the remaining days do |
+| Pick a date whose weekday is NOT in `weekdays` | "We are closed that day" | Times being offered on a day the venue is shut. This is the OPPOSITE failure and the more expensive one: a guest arrives at a locked door. This row does not exist until closed days are set, and it becomes the important one the moment they are |
 | Ask for a date **61+ days** out | Refused as beyond the booking horizon | Offered. `horizon_days` is 60 |
 | **Set the testing machine's timezone to something far from Argentina** (e.g. Asia/Tokyo or America/Los_Angeles), reload, repeat row 1 | The **same** local times appear — 13:00 lunch, 19:00 dinner. The strip asks the venue what today is | Different times, or a date strip whose "Today" is the tester's today rather than the venue's. This is the regression #1696 fixed; before it, the strip was built from `new Date()` in the browser |
 | Load the page in **Spanish** | Every guest-facing sentence is Spanish — the refusals, the labels, the placeholders, the confirmation | Any English sentence. Before #1696 the whole block was English-only with no locale prop |
@@ -101,3 +114,61 @@ closes all three, and the only part a person must do is the part the QA row exis
 Constraints already ruled, unchanged: build on El Paisa, never on Impronta's live site; place the
 block **through the builder**, never by writing the row — writing it proves the block renders when
 the row exists, which is not the thing in doubt.
+
+## El Paisa's real listing, and why the seeded hours are not it (2026-09-05)
+
+Retrieved 2026-09-05 ~23:2xZ from the business's own Instagram,
+`https://www.instagram.com/regionales_el_paisa/`. **UNVERIFIED — a public listing
+read by a machine, not confirmed with the restaurant.** Recorded here rather than
+in the venue row because `address_line1`, `address_line2`, `city` and `region` are
+concatenated into the guest's confirmation email by `venueAddressLine()`, so an
+"(unverified)" marker in any of them would be printed to a diner.
+
+**Address, consistent across every post and therefore written to the venue:**
+
+> "Av. Hipólito Yrigoyen 20355" / "RUTA 210 AL 20355, GLEW"
+
+**Hours — THREE POSTS, THREE DIFFERENT SCHEDULES, quoted verbatim and NOT
+reconciled:**
+
+1. > "MARTES de 10 a 17 hs MORMALMENTE de MIÉRCOLES A DOMINGOS de 10 AM a 01 AM"
+2. > "Miércoles a Domingos de 10:00 am α 01:00 am"
+3. > "ABIERTO DE 10HS A 1 AM MARTES DE 10 A 17 HS Y MIÉRCOLES CERRADO DE JUEVES A DOMINGO NORMALMENTE DE 10HS A 01 AM"
+
+Read as closed days: (1) Monday only. (2) Monday and Tuesday. (3) Monday **and
+Wednesday**.
+
+**RESOLVED 2026-09-05 by post date**, on the CEO's ruling that the newest post
+wins. Dates, as shown on the posts:
+
+| Post date | Quote | Closed days it implies |
+|---|---|---|
+| **2026-08-14** | "…MARTES DE 10 A 17 HS Y **MIÉRCOLES CERRADO** DE JUEVES A DOMINGO…" | **Monday and Wednesday** ← newest, applied |
+| 2026-08-10 | "MARTES de 10 a 17 hs… MIÉRCOLES A DOMINGOS…" | Monday |
+| 2026-07-30 | "Miércoles a Domingos…" | Monday and Tuesday |
+
+The three are almost certainly a schedule that changed over the summer rather than
+a contradiction, which is why the newest is the right rule and why it is recorded
+with its date instead of silently applied.
+
+**One thing the ruling did not say and the posts do:** every one of them puts
+**Tuesday at 10:00–17:00**, not 10:00–01:00. A single uniform window would have
+accepted Tuesday-evening bookings for a kitchen shut seven hours earlier, so the
+venue carries **two** windows rather than one. The instruction was one continuous
+service; the posts say one continuous service *and a short Tuesday*, and the
+locked-door failure is the expensive direction.
+
+**THE LARGER MISMATCH, now fixed: the seeded windows were not this restaurant's
+hours at all.** Every quote says roughly **10:00 to 01:00
+continuous**. The seed carries lunch 13:00–16:00 and dinner 19:00–23:00, which I
+invented as a plausible two-service restaurant when I built the reference seed for
+a different tenant. So the QA contract in this file describes the SEEDED venue
+faithfully and describes the REAL El Paisa not at all. Whoever sets the real hours
+must re-derive the expected seating times in the rows above from the new windows —
+the times there are computed from `local_time` + `duration_minutes` − turn, not
+chosen.
+
+**One thing the listing does establish:** the business publishes a phone number
+"para reservas". It takes reservations today, by phone. That is a point in favour
+of the product fitting, and it is the only claim here I would repeat without a
+caveat.

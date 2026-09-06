@@ -6,7 +6,8 @@ import { PublicHeader } from "@/components/public-header";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { readPublicEventContext } from "@/lib/events/public-event-context";
+import { resolvePublicZone } from "@/lib/events/public-event-time";
 import { doorsAt } from "@/lib/events/event-policy";
 import { resolveLineupState } from "@/lib/events/lineup";
 import { EventPageView, type Locale } from "./event-page-view";
@@ -43,7 +44,13 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  return { title: slug.replace(/-/g, " ") };
+  // The event's own name, not the slug de-hyphenated and lowercased (#1874).
+  const scope = await getPublicTenantScope();
+  const supabase = scope ? await createClient() : null;
+  const { data } = supabase
+    ? await supabase.from("events").select("title").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
+    : { data: null };
+  return { title: (data?.title as string | undefined) ?? slug.replace(/-/g, " ") };
 }
 
 export default async function PublicEventPage({ params }: Params) {
@@ -60,28 +67,23 @@ export default async function PublicEventPage({ params }: Params) {
   if (eventErr) { logServerError("events.publicDetail", eventErr); notFound(); }
   if (!event) notFound();
 
-  const [{ data: sessionRows, error: sessionErr }, { data: venueRow, error: venueErr }, { data: agencyRow, error: agencyErr }, { data: cover, error: coverErr }] = await Promise.all([
+  const [{ data: sessionRows, error: sessionErr }, ctx, { data: cover, error: coverErr }] = await Promise.all([
     supabase.from("sessions").select("id, starts_at, ends_at, status").eq("event_id", event.id as string).eq("status", "scheduled").order("starts_at", { ascending: true }),
-    event.venue_id ? supabase.from("venues").select("timezone, name").eq("id", event.venue_id as string).maybeSingle() : Promise.resolve({ data: null, error: null }),
-    supabase.from("agencies").select("timezone, display_name, supported_locales").eq("id", scope.tenantId).maybeSingle(),
+    readPublicEventContext({ tenantId: scope.tenantId, venueId: (event.venue_id as string | null) ?? null }),
     event.cover_media_id ? supabase.from("media_assets").select("public_url, alt, width, height").eq("id", event.cover_media_id as string).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
   if (sessionErr) { logServerError("events.publicDetail/sessions", sessionErr); notFound(); }
-  if (venueErr) logServerError("events.publicDetail/venue", venueErr);
-  if (agencyErr) logServerError("events.publicDetail/workspace", agencyErr);
   if (coverErr) logServerError("events.publicDetail/cover", coverErr);
 
   // The tenant's first supported locale decides the page language. A venue
   // whose site is Spanish-first gets Spanish; the reader's browser does not
   // decide, the venue does.
-  const supported = (agencyRow?.supported_locales as string[] | null) ?? [];
+  const supported = (ctx.supportedLocales as string[] | null) ?? [];
   const locale: Locale = (supported[0] ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
 
-  const zone = pickTimezone({
-    venue: (venueRow?.timezone as string | null) ?? null,
-    workspace: (agencyRow?.timezone as string | null) ?? null,
-  }).timezone;
-  const venueName = (venueRow?.name as string | null) ?? (agencyRow?.display_name as string | null) ?? null;
+  // Venue → workspace, NEVER the platform rung: no zone, no date (#1874).
+  const zone = resolvePublicZone({ venue: ctx.venueTimezone, workspace: ctx.workspaceTimezone });
+  const venueName = ctx.venueName ?? ctx.workspaceDisplayName ?? null;
 
   const nowIso = new Date().toISOString();
   const sessions = sessionRows ?? [];

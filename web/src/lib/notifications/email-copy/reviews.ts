@@ -21,7 +21,7 @@ export const REVIEWS_EN = {
     subject: "{talent} would love your feedback",
     preview: "{talent} would love your feedback",
     fallbackName: "there",
-    fallbackTalent: "The talent you worked with",
+    fallbackTalent: "The person who took care of you",
     fallbackEvent: "your recent booking",
     heading: "Hi {name}, how did it go?",
     intro:
@@ -36,7 +36,7 @@ export const REVIEWS_EN = {
     subject: "A quick reminder from {talent}",
     preview: "A quick reminder from {talent}",
     fallbackName: "there",
-    fallbackTalent: "The talent you worked with",
+    fallbackTalent: "The person who took care of you",
     fallbackEvent: "your recent booking",
     heading: "Hi {name}, still have a moment?",
     intro:
@@ -66,7 +66,7 @@ export const REVIEWS_ES: typeof REVIEWS_EN = {
     subject: "A {talent} le encantaría tu opinión",
     preview: "A {talent} le encantaría tu opinión",
     fallbackName: "hola",
-    fallbackTalent: "El talento con quien trabajaste",
+    fallbackTalent: "La persona que te atendió",
     fallbackEvent: "tu reservación reciente",
     heading: "Hola {name}, ¿cómo te fue?",
     intro:
@@ -80,7 +80,7 @@ export const REVIEWS_ES: typeof REVIEWS_EN = {
     subject: "Un recordatorio rápido de {talent}",
     preview: "Un recordatorio rápido de {talent}",
     fallbackName: "hola",
-    fallbackTalent: "El talento con quien trabajaste",
+    fallbackTalent: "La persona que te atendió",
     fallbackEvent: "tu reservación reciente",
     heading: "Hola {name}, ¿tienes un momento?",
     intro:

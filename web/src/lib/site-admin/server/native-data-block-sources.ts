@@ -26,6 +26,7 @@
  * `dataSources`. A builder node holds no tenant id and issues no query, so a
  * cross-tenant leak is not reachable from the render path at all.
  */
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
@@ -302,6 +303,13 @@ export function deriveWorkspaceMenuOfferings(
   rows: ReadonlyArray<TalentOfferingRow>,
   tenantId: string,
   locale = "en",
+  /**
+   * Offerings that back an EVENT. A ticket is not a dish, any more than a
+   * reservation is: the offering row carries no event link (the link is
+   * `events.offering_id`, pointing the other way), so the ids are read once by
+   * the fetch and passed in, keeping this function pure and testable.
+   */
+  eventOfferingIds: ReadonlySet<string> = new Set(),
 ): WorkspaceMenuOffering[] {
   if (!tenantId) return [];
   const out: WorkspaceMenuOffering[] = [];
@@ -310,7 +318,25 @@ export function deriveWorkspaceMenuOfferings(
     if (row.owner_kind !== "workspace") continue;
     if (row.status !== "published") continue;
     if (row.moderation_state !== "approved") continue;
+    // A RESERVATION IS NOT A DISH. Measured live on a page-less restaurant:
+    // "Tonight's selection" listed exactly one line, "Table reservation $0",
+    // with a quantity stepper, because the seeded reservation offering is a
+    // published workspace offering like any dish. The board is the PUBLIC
+    // menu: an item held for request only (`visibility` other than public)
+    // is not on it, and a line with no price that is not a quote is not a
+    // dish either. Kind is deliberately not the gate (see the stock rule
+    // below: a pizza can be a `service`, a course is a `package`).
+    if (typeof row.visibility === "string" && row.visibility !== "public") continue;
+    // An event's own offering: its price lives on the ticket tiers, so it
+    // renders here as "Quote on request" beside the dishes and takes a
+    // quantity stepper that orders a night out as though it were an empanada.
+    if (eventOfferingIds.has(row.id)) continue;
     const offering = rowToOffering(row as TalentOfferingRow, locale);
+    const unpriced =
+      !((offering.amountCents ?? 0) > 0) &&
+      offering.priceDisplay !== "quote" &&
+      offering.priceType !== "custom";
+    if (unpriced) continue;
     out.push({
       id: offering.id,
       title: offering.title,
@@ -330,6 +356,43 @@ export function deriveWorkspaceMenuOfferings(
     });
   }
   return out;
+}
+
+/**
+ * The offering ids this tenant's events are sold through, so the menu board can
+ * leave them out.
+ *
+ * READ WITH THE SERVICE ROLE WHEN THERE IS ONE. The anon policy on `events` is
+ * `status = 'published'`, so an anon read cannot see a DRAFT event, and its
+ * offering would sail onto the menu while the event is still being written.
+ * Falls back to the public client when no service key is configured.
+ *
+ * FAILS OPEN, LOUDLY. If the read errors, the menu renders with the tickets
+ * still in it rather than going blank: an empty menu on a restaurant is worse
+ * than one wrong line, and the log says which happened. Never silent.
+ */
+async function fetchEventOfferingIds(tenantId: string): Promise<ReadonlySet<string>> {
+  const supabase = createServiceRoleClient() ?? createPublicSupabaseClient();
+  if (!supabase || !tenantId) return new Set();
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("offering_id")
+      .eq("tenant_id", tenantId)
+      .not("offering_id", "is", null);
+    if (error) {
+      logServerError("native-data-blocks/fetchEventOfferingIds", error);
+      return new Set();
+    }
+    return new Set(
+      (data ?? [])
+        .map((row) => (row as { offering_id?: unknown }).offering_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    );
+  } catch (error) {
+    logServerError("native-data-blocks/fetchEventOfferingIds", error);
+    return new Set();
+  }
 }
 
 export async function fetchWorkspaceMenuOfferings(
@@ -355,6 +418,7 @@ export async function fetchWorkspaceMenuOfferings(
       (data ?? []) as TalentOfferingRow[],
       tenantId,
       locale,
+      await fetchEventOfferingIds(tenantId),
     );
   } catch (error) {
     logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);

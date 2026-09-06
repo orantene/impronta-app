@@ -223,39 +223,38 @@ html[data-public-font-preset="editorial"] {
     --ring: #b3891d;
   }
 
-  /* Platform surface (auth, onboarding, platform admin routes) — Tulala
-   * forest / parchment palette. Not Impronta noir, not the warm-gold
-   * agency light. Applied by the (auth) and onboarding layout wrappers
-   * so they paint correctly regardless of the body site-theme class. */
+  /* Platform surface (auth, onboarding, the account brief, the get-started
+   * agent) — the MARKETING palette, by alias. J6 (Creative Direction, 2026-09-05,
+   * approved by the CEO with a mapping table): signing up is the marketing
+   * site's last screen, not the workspace's first, so it wears the marketing
+   * brand. Every value here reads the canonical `--tl-*` token, which the four
+   * wrappers bring into scope with `data-platform-surface="marketing"`; the
+   * literal fallback is the same marketing value, so an element that carries
+   * this class without the attribute still paints the marketing colour rather
+   * than nothing. The former `--impronta-*` rows (a green under a gold name,
+   * a paper under "black") are gone: nothing under the four wrappers read them.
+   * Guarded by src/lib/quality/platform-theme-alias.static.test.ts. */
   .site-theme-platform {
-    --impronta-black: #f1ede3;
-    --impronta-surface: #fffdf7;
-    --impronta-gold: #1f4a3a;
-    --impronta-gold-bright: #2d6b52;
-    --impronta-gold-dim: #4a7a66;
-    --impronta-gold-border: rgba(31, 74, 58, 0.15);
-    --impronta-foreground: #0f1714;
-    --impronta-muted: #6b766f;
-    --background: #f1ede3;
-    --foreground: #0f1714;
-    --card: #fffdf7;
-    --card-foreground: #0f1714;
-    --popover: #fffdf7;
-    --popover-foreground: #0f1714;
-    --primary: #1f4a3a;
-    --primary-foreground: #fffdf7;
-    --secondary: #e8e3d8;
-    --secondary-foreground: #0f1714;
-    --muted: #e8e3d8;
-    --muted-foreground: #6b766f;
-    --accent: rgba(31, 74, 58, 0.08);
-    --accent-solid: #1f4a3a;
-    --accent-foreground: #0f1714;
-    --destructive: #b42318;
-    --destructive-foreground: #fff5f5;
-    --border: rgba(15, 23, 20, 0.08);
-    --input: rgba(15, 23, 20, 0.08);
-    --ring: #1f4a3a;
+    --background: var(--tl-bone, #f4efe6);
+    --foreground: var(--tl-ink, #161a16);
+    --card: var(--tl-surface-raised, #ffffff);
+    --card-foreground: var(--tl-ink, #161a16);
+    --popover: var(--tl-surface-raised, #ffffff);
+    --popover-foreground: var(--tl-ink, #161a16);
+    --primary: var(--tl-forest, #1e3a2d);
+    --primary-foreground: var(--tl-forest-on, #f4efe6);
+    --secondary: var(--tl-surface-deep, #ebe4d5);
+    --secondary-foreground: var(--tl-ink, #161a16);
+    --muted: var(--tl-surface-deep, #ebe4d5);
+    --muted-foreground: var(--tl-muted, #6b7065);
+    --accent: var(--tl-forest-soft, rgba(30, 58, 45, 0.08));
+    --accent-solid: var(--tl-forest, #1e3a2d);
+    --accent-foreground: var(--tl-ink, #161a16);
+    --destructive: var(--tl-error, #8e3f2e);
+    --destructive-foreground: var(--tl-on-inverse, #f1ede3);
+    --border: var(--tl-hairline, #e0d8c8);
+    --input: var(--tl-hairline-strong, #c7beac);
+    --ring: var(--tl-forest, #1e3a2d);
     --radius: 0.75rem;
   }
 
