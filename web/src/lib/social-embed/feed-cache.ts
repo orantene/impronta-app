@@ -61,6 +61,38 @@ export async function readCachedFeedItems(
   }));
 }
 
+/**
+ * Resolve the `socialFeeds` data source for a render: one cache read per
+ * provider the tree needs, keyed the way `render.tsx` looks them up. A
+ * `"mixed"` block reads its own key, so it is populated as instagram first,
+ * then tiktok, when both were requested.
+ *
+ * Never throws and never touches a vendor API; a failed read is an empty list
+ * and the block falls back to its authored items.
+ */
+export async function resolveSocialFeedDataSources(
+  admin: SupabaseClient,
+  tenantId: string,
+  providers: ReadonlyArray<"instagram" | "tiktok">,
+  limit?: number,
+): Promise<Record<string, CachedFeedItem[]>> {
+  const distinct = [...new Set(providers)];
+  if (distinct.length === 0) return {};
+  const lists = await Promise.all(
+    distinct.map((provider) =>
+      readCachedFeedItems(admin, { tenantId, provider, limit }),
+    ),
+  );
+  const out: Record<string, CachedFeedItem[]> = {};
+  distinct.forEach((provider, i) => {
+    out[provider] = lists[i] ?? [];
+  });
+  if (distinct.length === 2) {
+    out.mixed = [...(out.instagram ?? []), ...(out.tiktok ?? [])];
+  }
+  return out;
+}
+
 type UpsertRow = {
   tenant_id: string;
   provider: string;
