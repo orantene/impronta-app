@@ -79,6 +79,7 @@ test("ROUND TRIP: accrue then settle leaves the talent owed exactly nothing", ()
     currency: "USD",
     occurredAt: AT,
     tenantId: "tn_1",
+    providerObjectId: "ch_1",
     lanes: [
       {
         participantId: "pt_1",
