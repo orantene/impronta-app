@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
+import { pickReceipt, receiptBelongsTo } from "@/lib/events/receipt-shape";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
@@ -162,14 +163,16 @@ export default async function ReceiptPage({ params }: Params) {
     logServerError("receipt.read", error);
     notFound();
   }
-  const raw: unknown = data ?? null;
-  const receipt = (Array.isArray(raw) ? ((raw[0] as Receipt | undefined) ?? null) : (raw as Receipt | null));
-  if (!receipt || typeof receipt !== "object" || !("order" in receipt) || !receipt.order) notFound();
-
+  // The shape decision is pure and pinned (`receipt-shape.test.ts`): `[]`,
+  // `[null]`, `null`, an object without an order — every one refuses, none
+  // throws. A guest holding a printed code gets a 404 page, never a 500.
+  const picked = pickReceipt(data);
+  if (!picked) notFound();
   // A receipt code is scoped to the tenant that issued it. A valid code from
   // another tenant presented on this host is treated exactly as an unknown one,
   // so a host learns nothing about another workspace's sales.
-  if (receipt.order.tenantId !== scope.tenantId) notFound();
+  if (!receiptBelongsTo(picked, scope.tenantId)) notFound();
+  const receipt = picked as unknown as Receipt;
 
   // Venue + workspace zones. The anon client cannot read `venues` (staff-only
   // SELECT) or `agencies` (no anon policy) — a read returns zero rows, not an
