@@ -37,7 +37,18 @@ export type PickerSession = {
   title: string;
   startsAt: string;
   endsAt: string;
-  timeZone: string | null;
+  /**
+   * REQUIRED, not nullable, and that is the fix rather than a tidy-up.
+   *
+   * A session whose zone cannot be resolved is not listed at all (see the
+   * ladder below), so no consumer can be handed one. While this was
+   * `string | null` the island rendered `Intl.DateTimeFormat` with the timeZone
+   * key omitted, which silently falls back to the READER'S zone: a Buenos Aires
+   * class at 21:00 Monday shows as Tuesday to somebody in Madrid, looking
+   * entirely normal. Making the field non-nullable means that state cannot be
+   * constructed, instead of being a rule the next caller has to remember.
+   */
+  timeZone: string;
   /** null = this session sells no seats of its own. Never rendered as "free". */
   seatsRemaining: number | null;
   soldOut: boolean;
@@ -147,20 +158,29 @@ export async function loadSessionPicker(input: unknown): Promise<PickerAvailabil
     }
 
     const seriesTitles = new Map<string, string>();
+    const seriesZones = new Map<string, string>();
     const seriesIds = [
       ...new Set(sessionRows.map((r) => r.series_id).filter((v): v is string => typeof v === "string")),
     ];
     if (seriesIds.length > 0) {
       const { data: series, error: seriesError } = await admin
         .from("session_series")
-        .select("id, title")
+        .select("id, title, timezone")
         .in("id", seriesIds);
       // Unlike the zones above, a failed title read is COSMETIC: the fallback
       // is the literal word "Session", which is vague rather than wrong. So it
       // is logged and the list still renders — refusing here would take a
       // sellable class off the page to avoid an imprecise heading.
       if (seriesError) logServerError("sessions.picker.seriesTitles", seriesError);
-      for (const row of series ?? []) seriesTitles.set(String(row.id), String(row.title));
+      for (const row of series ?? []) {
+        seriesTitles.set(String(row.id), String(row.title));
+        // The series zone is the fallback for a session with no venue. A series
+        // records the zone its wall clocks were written in, which is exactly
+        // the question here.
+        if (typeof row.timezone === "string" && row.timezone.trim()) {
+          seriesZones.set(String(row.id), row.timezone.trim());
+        }
+      }
     }
 
     const sessions: PickerSession[] = [];
@@ -176,6 +196,31 @@ export async function loadSessionPicker(input: unknown): Promise<PickerAvailabil
         if (remError) logServerError("sessions.picker.remaining", remError);
         else if (typeof rem === "number") remaining = rem;
       }
+      // THE ZONE LADDER, AND THE REFUSAL AT THE END OF IT.
+      //
+      // venue zone, then the series' own zone, then nothing. A session with no
+      // venue is legitimate and the scheduler permits it, so this is reachable
+      // by design rather than only by bad data.
+      //
+      // When neither answers, the session is DROPPED from the list rather than
+      // shown in a zone nobody chose. A class that names the wrong day sends
+      // somebody to a locked door, and a wrong time is worse than an absent
+      // one: the absent one gets reported, the wrong one gets believed. This is
+      // the same rule `buildSessionReminder` already follows by returning null
+      // without a zone, applied one layer out.
+      const zone =
+        (row.venue_id ? zones.get(String(row.venue_id)) : undefined) ??
+        (row.series_id ? seriesZones.get(String(row.series_id)) : undefined) ??
+        null;
+      if (!zone) {
+        logServerError("sessions.picker.noZone", {
+          sessionId: String(row.id),
+          venueId: row.venue_id ?? null,
+          seriesId: row.series_id ?? null,
+        });
+        continue;
+      }
+
       sessions.push({
         id: String(row.id),
         title:
@@ -183,7 +228,7 @@ export async function loadSessionPicker(input: unknown): Promise<PickerAvailabil
           (row.series_id ? seriesTitles.get(String(row.series_id)) ?? "Session" : "Session"),
         startsAt: String(row.starts_at),
         endsAt: String(row.ends_at),
-        timeZone: row.venue_id ? zones.get(String(row.venue_id)) ?? null : null,
+        timeZone: zone,
         seatsRemaining: remaining,
         // A session with NO pool is not "free seats" — it sells nothing yet, and
         // saying otherwise would take money for a seat that does not exist.
