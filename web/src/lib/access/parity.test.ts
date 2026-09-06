@@ -364,12 +364,43 @@ test("website sits between free and studio in the workspace rank ladder", () => 
   assert.ok(PLAN_CATALOG.studio.rank < PLAN_CATALOG.agency.rank);
   assert.ok(PLAN_CATALOG.agency.rank < PLAN_CATALOG.network.rank);
 
+  // Website is RANKED between Free and Studio (asserted above) but is not
+  // PURCHASABLE: no Stripe product is wired to it, so #1496 set isVisible and
+  // isSelfServe to false. An upgrade path must offer only what a customer can
+  // actually buy, so Website is absent from it *because* it is unbuyable.
+  //
+  // The linkage is what is asserted here, not a frozen list. The previous
+  // version of this test hardcoded ["website", "studio", "agency"], so it began
+  // failing the moment #1496 landed -- and nobody saw it for a day, because
+  // `test:access` was in no ci chain and no workflow. Deriving the expectation
+  // means this keeps passing when the tier flip lands, while still failing if a
+  // plan is offered that cannot be bought.
+  assert.equal(website.isVisible, false, "website is not purchasable yet");
+  assert.equal(website.isSelfServe, false, "website is not purchasable yet");
+
+  const buyableAbove = (rank: number) =>
+    Object.values(PLAN_CATALOG)
+      .filter(
+        (p) =>
+          p.audience === "workspace" &&
+          p.isVisible &&
+          p.isSelfServe &&
+          !p.isArchived &&
+          p.rank > rank,
+      )
+      .sort((a, b) => a.rank - b.rank)
+      .map((p) => p.key);
+
   assert.deepEqual(
     getUpgradePathFromPlan("free").map((p) => p.key),
-    ["website", "studio", "agency"],
+    buyableAbove(PLAN_CATALOG.free.rank),
   );
   assert.deepEqual(
     getUpgradePathFromPlan("website").map((p) => p.key),
-    ["studio", "agency"],
+    buyableAbove(website.rank),
+  );
+  assert.ok(
+    !getUpgradePathFromPlan("free").some((p) => p.key === "website"),
+    "an unbuyable plan must never be offered as an upgrade",
   );
 });
