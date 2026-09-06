@@ -766,7 +766,7 @@ const BUILDER_NODE_SOCIAL_FEED_CSS = `
 .sf-tile-provider{display:inline-flex;align-self:flex-end;opacity:0.9}
 .sf-tile-caption{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.4;text-align:left}
 .sf-rail-wrap{position:relative}
-.sf-rail{display:flex;gap:var(--sf-gap,6px);overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+.sf-rail{display:flex;gap:var(--sf-gap,6px);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
 .sf-rail::-webkit-scrollbar{display:none}
 .sf-rail-cell{flex:0 0 auto;width:calc((100% - (var(--sf-cols,3) - 1)*var(--sf-gap,6px))/var(--sf-cols,3));min-width:180px;scroll-snap-align:start}
 .sf-layout-stories .sf-rail-cell{min-width:150px}
@@ -1378,20 +1378,10 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.85rem 1.6rem;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .2s ease}
 .site-builder-node--button:hover{transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
-/* MENU CATEGORY NAV — sticky at phone width, where a 117-dish menu across 13
-   categories is unusable without one. Sticky only under 768px: on a desktop
-   the whole board is scannable and a pinned strip just eats vertical space.
-   overflow-x:auto with no wrap, because 13 categories do not fit a phone
-   width and a wrapped nav pushes the menu itself off the first screen.
-   scroll-margin-top on the group so an anchor jump does not land the heading
-   UNDER the sticky strip, which is the classic sticky-nav defect.
-   NOTE: no backticks in this comment — it lives inside a template literal, so
-   a backtick would terminate the stylesheet string mid-file. */
 .site-builder-node--menu-board-catnav{margin:0 0 16px}
 .site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.site-builder-node--menu-board-catnav ul::-webkit-scrollbar{display:none}
 .site-builder-node--menu-board-catnav li{flex:0 0 auto}
-.site-builder-node--menu-board-catnav a{display:inline-block;white-space:nowrap;padding:6px 12px;border-radius:999px;border:1px solid var(--token-color-line,rgba(0,0,0,0.12));color:inherit;text-decoration:none;font-size:14px}
+.site-builder-node--menu-board-catnav a{display:block;white-space:nowrap;padding:6px 12px;border-radius:999px;border:1px solid var(--token-color-line,rgba(0,0,0,0.12));color:inherit;text-decoration:none;font-size:14px}
 .site-builder-node--menu-board-group{scroll-margin-top:72px}
 .site-builder-node--menu-board-group-title{margin:24px 0 8px}
 @media (max-width:767px){.site-builder-node--menu-board-catnav{position:sticky;top:0;z-index:2;background:var(--token-color-background,#fff);padding-top:8px}}
@@ -5466,6 +5456,20 @@ function renderBuilderNodeElement(
       // opt-in and the strip additionally requires something to navigate — two
       // or more NAMED categories — so a board whose items are all ungrouped
       // (the common case today) renders exactly as it does now.
+      //
+      // The strip's CSS lives in the renderer stylesheet under
+      // `.site-builder-node--menu-board-catnav`; its reasoning lives HERE
+      // because that sheet carries no other comments. (The comments are NOT
+      // what the perf budget measures — the emitted sheet is comment-free, as
+      // scripts/fidelity/perf-budget.ts records. The budget was breached by the
+      // RULES, and they were trimmed, not the prose.)
+      // What that CSS does, and why:
+      //   • sticky only under 768px — on a desktop the whole board is scannable
+      //     and a pinned strip just eats vertical space;
+      //   • overflow-x:auto, no wrap — 15 categories do not fit a phone width,
+      //     and a wrapped nav pushes the menu itself off the first screen;
+      //   • scroll-margin-top on each group — otherwise an anchor jump lands the
+      //     heading UNDER the sticky strip, the classic sticky-nav defect.
       const menuGroups = groupMenuByCategory(offerings);
       const showCategoryNav =
         p.categoryNav === true && shouldShowCategoryNav(menuGroups);
