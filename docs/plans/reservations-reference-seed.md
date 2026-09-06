@@ -185,3 +185,43 @@ taken bookings, that is a migration with a decision in it, not an `UPDATE`.
 only the timezone; leaving `country_code='MX'` beside `region='Buenos Aires'`
 would have left a row that contradicts itself, and the next reader cannot tell
 which half is the stale one.
+
+## The hours in this seed are INVENTED, and El Paisa proved it (2026-09-05)
+
+Lunch 13:00/180 and dinner 19:00/240 are a plausible two-service restaurant that
+I made up when this document was first written. They are a fine SHAPE to seed and
+they are nobody's actual hours.
+
+El Paisa's own listing says roughly **10:00 to 01:00 continuous** — one long
+service, not two windows. So the seed reproduced its own defaults onto a third
+tenant and the contract derived from them described a restaurant that does not
+exist.
+
+**Same failure as the timezone one section above, one turn later.** There the
+lesson was that a value which is STATED is not a value that is CHECKED. Here the
+lesson is narrower and worse: **a REFERENCE seed is the most likely thing in a
+codebase to be copied without checking**, precisely because it is written down and
+looks authoritative. The document that exists to stop people inheriting defaults
+became the thing they inherit.
+
+So: **the windows are the FIRST thing to replace per venue, not the last.** Ask
+the restaurant. If nobody has asked yet, seed the venue and leave the windows
+inactive rather than seeding hours that will be demonstrated wrong — an inactive
+window refuses honestly, and invented hours accept a booking for a time the
+kitchen is shut.
+
+### The rule that follows: a seed's windows ship INACTIVE unless someone asked
+
+**If nobody has asked the restaurant its hours, seed `venue_service_windows` with
+`is_active = false`.**
+
+An inactive window refuses honestly — the page says the venue is not taking
+bookings, which is TRUE of a venue nobody has configured. Invented hours do the
+opposite: they accept a booking for a time the kitchen is shut, and the guest
+finds out at the door. Between a surface that refuses and a surface that lies,
+the refusal is always the safer default, and it is the one that gets fixed
+because somebody notices it.
+
+Active windows require a source. El Paisa's are active because its published
+hours were read from its own listing and recorded with the post date; they are
+still marked unverified until someone speaks to the restaurant.
