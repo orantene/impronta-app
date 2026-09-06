@@ -395,8 +395,8 @@ export function GetStartedForm({
             style={{ borderColor: "rgba(46,107,82,0.25)", background: "rgba(46,107,82,0.06)", color: "var(--plt-ink-soft)" }}
           >
             {tierPrices?.network
-              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready: SSO, custom domain, and dedicated onboarding unlock at checkout.`
-              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan: pricing, SSO, and a custom domain.</>}
+              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready: a custom domain and dedicated onboarding unlock at checkout.`
+              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan: pricing, a custom domain, and onboarding.</>}
           </p>
         )}
         <ul

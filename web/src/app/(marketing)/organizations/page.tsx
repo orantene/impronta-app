@@ -167,7 +167,7 @@ export default async function OrganizationsPage() {
       scaleHeadingA: "Built for teams,",
       scaleHeadingB: "not just owners.",
       scaleSubhead:
-        "SSO, advanced roles, API access, white-label options, and priority onboarding for operations that can\u2019t be run out of one person\u2019s phone.",
+        "Advanced roles, white-label options, and priority onboarding for operations that can\u2019t be run out of one person\u2019s phone.",
     },
     es: {
       heroEyebrow: "Para staffing, casting y colocaci\u00f3n",
@@ -185,7 +185,7 @@ export default async function OrganizationsPage() {
       scaleHeadingA: "Hecho para equipos,",
       scaleHeadingB: "no solo para due\u00f1os.",
       scaleSubhead:
-        "SSO, roles avanzados, acceso a API, opciones white-label y onboarding prioritario para operaciones que no se pueden llevar desde el celular de una sola persona.",
+        "Roles avanzados, opciones white-label y onboarding prioritario para operaciones que no se pueden llevar desde el celular de una sola persona.",
     },
   });
 
