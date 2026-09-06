@@ -223,6 +223,13 @@ export function coerceValue(factKey: string, raw: unknown): unknown | undefined 
       }
       return text;
     }
+    case "priced_items": {
+      // A menu arrives as JSON encoded in a string, because the extraction
+      // schema is `strict: true` with `value: { type: "string" }` and a model
+      // cannot return an array through it. `validateFactValue` owns the decode
+      // and every field check; coercing here would be a second, weaker parser.
+      return validateFactValue(factKey, text).ok ? text : undefined;
+    }
   }
 }
 
