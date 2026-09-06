@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
@@ -56,7 +57,26 @@ export default async function NotFound() {
       isLocale(locale) ? locale : "en",
     );
     if (notFoundSlug) {
-      return <CmsPublicPage params={Promise.resolve({ slug: [notFoundSlug] })} />;
+      // PROVIDER MOUNTED HERE ON PURPOSE — this file is the one place a
+      // `(public)` PAGE is rendered from outside its own route group.
+      //
+      // `not-found.tsx` lives at the ROOT, so it gets the root layout and
+      // nothing else. Importing `CmsPublicPage` pulls the component, NOT the
+      // layout chain that normally wraps it, so every provider that
+      // `(public)/layout.tsx` mounts is absent here. The CMS tree it renders
+      // reaches `useDirectoryInquiryModal`, which throws — that is the
+      // `/_not-found` route in the 61-occurrence production cluster
+      // (2026-09-03 to 2026-09-05), thrown during SERVER RENDER.
+      //
+      // A component imported across a route-group boundary inherits nothing.
+      // The hook consumers now degrade rather than throw, so this is no longer
+      // load-bearing against a crash; it is here so the inquiry modal actually
+      // WORKS on a tenant's custom 404 instead of silently doing nothing.
+      return (
+        <DirectoryInquiryModalProvider>
+          <CmsPublicPage params={Promise.resolve({ slug: [notFoundSlug] })} />
+        </DirectoryInquiryModalProvider>
+      );
     }
   }
 
