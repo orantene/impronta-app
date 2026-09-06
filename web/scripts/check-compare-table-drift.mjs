@@ -196,7 +196,74 @@ try {
   }
   console.log(`pricing ladder copy: free page count agrees with the enforced ${freePages}`);
 
-  console.log(`compare-table drift: ${rows.length} row(s) checked, none contradict enforcement`);
+  // CAPABILITY LAYER. The numeric checks above cover counts and the custom-
+  // domain set; this covers `plan_capabilities`, whose fail-open default makes
+  // exactly one direction checkable — a row that WITHHOLDS something no row
+  // withholds is selling an upgrade that buys nothing.
+  const { auditCapabilityClaims, unknownMappedCapabilities } = await import(
+    "../src/lib/pricing/plan-claim-audit.ts"
+  );
+
+  const unknownCaps = unknownMappedCapabilities();
+  if (unknownCaps.length > 0) {
+    console.error(
+      `\nFAIL: the claim map names ${unknownCaps.length} capability key(s) the registry does not have:\n` +
+        unknownCaps.map((k) => `  - ${k}`).join("\n") +
+        "\n\nA mapping onto a missing key resolves fail-open forever, so the\n" +
+        "guard would pass while checking nothing.\n",
+    );
+    process.exit(1);
+  }
+
+  const capRes = await fetch(
+    `${url}/rest/v1/plan_capabilities?select=plan_key,capability_key,included`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+  );
+  if (!capRes.ok) {
+    console.error(
+      `FAIL: could not read plan_capabilities (REST ${capRes.status}).\n` +
+        "A read that did not happen is not a pass.",
+    );
+    process.exit(1);
+  }
+  const { entitlementKey } = await import(
+    "../src/lib/access/plan-capabilities.ts"
+  );
+  const entitlements = new Map(
+    (await capRes.json()).map((r) => [
+      entitlementKey(r.plan_key, r.capability_key),
+      r.included === true,
+    ]),
+  );
+
+  const audit = auditCapabilityClaims(rows, entitlements);
+
+  if (audit.contradictions.length > 0) {
+    console.error(
+      `\nFAIL: ${audit.contradictions.length} compare-table row(s) contradict plan_capabilities:\n`,
+    );
+    for (const c of audit.contradictions) {
+      console.error(`  ${c.tierSlug.padEnd(8)} ${c.label.padEnd(28)} ${c.detail}`);
+    }
+    console.error("");
+    process.exit(1);
+  }
+
+  // Report CHECKED and UNBACKED separately. "134 rows checked, none contradict"
+  // was true and read as full coverage while roughly twenty rows were actually
+  // evaluated. A count of rows looked at is not a count of rows checked.
+  console.log(
+    `compare-table: ${rows.length} row(s) read, ` +
+      `${audit.agrees.length + audit.contradictions.length} decided by a capability, ` +
+      `${audit.unbacked.length} backed by no capability`,
+  );
+  console.log(
+    "compare-table drift: no row contradicts an enforced count, the custom-domain set, or plan_capabilities",
+  );
+  console.log(
+    `NOTE: ${audit.unbacked.length} row(s) are marketing copy no code decides. ` +
+      "That is an UNKNOWN, not a pass — see plan-claim-audit.ts.",
+  );
   process.exit(0);
 } catch (err) {
   console.error(
