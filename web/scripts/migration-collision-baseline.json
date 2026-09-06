@@ -1,0 +1,65 @@
+{
+  "_comment": "Collisions that already existed when this guard was written (2026-09-06). SHRINK this list; never grow it to make a build pass. Entries match on version AND local slug, so swapping in a different file at a baselined version still fails. `objects` records what was verified on production at baseline time, by querying for the object rather than trusting the ledger.",
+  "duplicateLocalVersions": [
+    {
+      "version": "20261226000011",
+      "localSlug": "dispatch_log_bounce_detail",
+      "note": "Renumbered to 20260906033515 in PR #1896; this entry goes away when that lands."
+    },
+    {
+      "version": "20261226000011",
+      "localSlug": "finance_p0_rpc_authorization",
+      "note": "The recorded one. Keeps its version."
+    }
+  ],
+  "versionsTakenByAnotherMigration": [
+    {
+      "version": "20260413120000",
+      "localSlug": "analytics_internal_tables",
+      "objects": "MISSING: analytics_funnel_steps and analytics_search_sessions do not exist",
+      "note": "Has never applied. Do NOT renumber before reading it: it carried an anon INSERT policy and an anon UPDATE policy with USING (TRUE), defused in PR #1908. Both tables are referenced nowhere in web/src; deleting the file is the likely right answer."
+    },
+    {
+      "version": "20260415140000",
+      "localSlug": "field_values_value_i18n",
+      "objects": "MISSING: field_definitions.translatable does not exist",
+      "note": "Has never applied. Field engine / taxonomy lane."
+    },
+    {
+      "version": "20260907130000",
+      "localSlug": "talent_identity_fields",
+      "objects": "PRESENT: talent_profiles.legal_name and .pronunciation both exist",
+      "note": "Objects exist by some other path, so this is a naming collision without consequence. Renumbering would be a no-op re-apply."
+    },
+    {
+      "version": "20260907140000",
+      "localSlug": "plan_tier_archive",
+      "objects": "PARTIAL: plan_tier_caps table exists, idx_agency_talent_roster_archive_event does NOT",
+      "note": "The nastiest shape: the feature works and one index silently does not exist. Product/Pricing lane."
+    },
+    {
+      "version": "20260928000000",
+      "localSlug": "user_origin_denorm",
+      "objects": "MISSING: talent_profiles_origin_kind_idx and profiles_origin_kind_idx do not exist",
+      "note": "Has never applied. Missing indexes are a silent performance cliff, not an error. Directory & Profile Engine lane."
+    },
+    {
+      "version": "20260929000000",
+      "localSlug": "profile_engine_mature_cleanup",
+      "objects": "NOT YET VERIFIED",
+      "note": "Found by this guard; its objects have not been checked against production. Do that before renumbering or deleting."
+    },
+    {
+      "version": "20261111000000",
+      "localSlug": "platform_default_talent_price",
+      "objects": "PRESENT: platform_settings.default_talent_price_from_cents exists",
+      "note": "Objects exist by some other path. Naming collision without consequence."
+    },
+    {
+      "version": "20261226000011",
+      "localSlug": "dispatch_log_bounce_detail",
+      "objects": "PRESENT: the three bounce columns on notification_dispatch_log exist",
+      "note": "Same file as the duplicate above, seen from the remote side. Renumbered in PR #1896."
+    }
+  ]
+}
