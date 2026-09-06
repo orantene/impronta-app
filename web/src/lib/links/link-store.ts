@@ -135,8 +135,160 @@ export async function listLinksForTenant(
   return (data ?? []) as LinkSummary[];
 }
 
+/**
+ * Look up a link by code REGARDLESS of status.
+ *
+ * The resolver needs this because a refusal is a scan (CEO ruling, 2026-09-05):
+ * a paused code must still record that someone scanned it, or an operator
+ * never learns a retired table tent is still on a table. `findActiveLinkByCode`
+ * cannot serve that — it returns null for a paused link, which is correct for
+ * deciding what the GUEST sees and useless for deciding what to RECORD.
+ *
+ * Two questions, two functions. Do not merge them: the guest-facing one must
+ * keep hiding paused links.
+ */
+export async function findLinkByCodeAnyStatus(
+  tenantId: string,
+  code: string,
+): Promise<LinkRow | null> {
+  if (!tenantId || !code) return null;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+
+  const { data, error } = await admin
+    .from("links")
+    .select("id, tenant_id, code, code_mode, name, kind, targets, context, status, printed_count")
+    .eq("tenant_id", tenantId)
+    .eq("code", code.trim().toLowerCase())
+    .maybeSingle();
+
+  if (error) {
+    logServerError("links/findLinkByCodeAnyStatus", error);
+    return null;
+  }
+  return (data as LinkRow | null) ?? null;
+}
+
+/** What the guest actually got. A refusal is a scan. */
+export type ScanOutcome = "resolved" | "paused";
+
+/** What a Share mount needs to render, or to decide there is nothing yet. */
+export type LinkForSubject = {
+  id: string;
+  code: string;
+  name: string;
+  kind: LinkKind;
+  status: "active" | "paused";
+  context: LinkContext;
+  /** The full `https://host/q/<code>` a QR encodes and a person types. */
+  url: string;
+  /** Resolved scans in the last 30 days — people who got somewhere. */
+  scans30d: number;
+  /** Paused refusals in the last 30 days: people who scanned a retired code. */
+  refusals30d: number;
+  /** Other links on this tenant matching the same subject, excluding this one. */
+  otherMatches: number;
+};
+
+export type SubjectQuery = {
+  tenantId: string;
+  /**
+   * The public origin, e.g. `https://casarizo.com`. **Passed in, never guessed.**
+   * The store has no request and must not infer a host: a URL composed against
+   * the wrong origin produces a QR that points at another domain, and on a
+   * printed card that is discovered by a guest, not by a test.
+   */
+  origin: string;
+  kind?: LinkKind;
+  talentProfileId?: string;
+  offeringId?: string;
+  spaceId?: string;
+  sessionId?: string;
+};
+
+/**
+ * The link for a thing, so a Share control can show it or offer to mint one.
+ *
+ * **This read never mints.** Per the CEO's ruling (2026-09-05) a thing gets a
+ * link ON FIRST SHARE, by the operator's deliberate action — never on publish
+ * and never as a side effect of a component mounting. A mount that minted
+ * would fill `links` with a row for every profile anyone ever looked at, and
+ * every one of those rows is a code somebody might print.
+ *
+ * Returns `null` when nothing matches. `null` means "offer to create one", and
+ * it is deliberately not an empty object: an absent link and a link with no
+ * scans are different states and a mount must render them differently.
+ *
+ * PAUSED LINKS ARE RETURNED, with `status`. Same reasoning as the picker: if a
+ * subject's only link is paused, the mount must say so rather than appear to
+ * have none and invite a duplicate — the operator would then have two codes for
+ * one thing, one of them printed and dead.
+ *
+ * WHEN SEVERAL MATCH, the ordering is: active before paused, then OLDEST first.
+ * Oldest because the first code made for a thing is the one most likely already
+ * printed and stuck to something; a newer one is likelier to be an experiment.
+ * `otherMatches` reports the rest rather than hiding them.
+ */
+export async function findLinkForSubject(q: SubjectQuery): Promise<LinkForSubject | null> {
+  if (!q.tenantId) return null;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+
+  let query = admin
+    .from("links")
+    .select("id, code, name, kind, status, context, created_at")
+    .eq("tenant_id", q.tenantId);
+
+  if (q.kind) query = query.eq("kind", q.kind);
+  // Context is JSONB; each filter narrows on one key rather than matching the
+  // whole object, so a link carrying extra context still matches its subject.
+  if (q.talentProfileId) query = query.eq("context->>talent_profile_id", q.talentProfileId);
+  if (q.offeringId) query = query.eq("context->>offering_id", q.offeringId);
+  if (q.spaceId) query = query.eq("context->>space_id", q.spaceId);
+  if (q.sessionId) query = query.eq("context->>session_id", q.sessionId);
+
+  const { data, error } = await query
+    .order("status", { ascending: true })   // 'active' sorts before 'paused'
+    .order("created_at", { ascending: true })
+    .limit(20);
+
+  // A failed read is not "no link". Returning null would make the mount offer
+  // to create a SECOND code for a thing that already has one — and the first is
+  // the one already printed.
+  if (error) {
+    logServerError("links/findLinkForSubject", error);
+    throw new Error("Could not check whether this already has a link.");
+  }
+
+  const rows = (data ?? []) as Array<
+    Pick<LinkRow, "id" | "code" | "name" | "kind" | "status" | "context">
+  >;
+  const best = rows[0];
+  if (!best) return null;
+
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const [resolved, refused] = await Promise.all([
+    admin.from("link_scans").select("id", { count: "exact", head: true })
+      .eq("link_id", best.id).eq("outcome", "resolved").gte("scanned_at", since),
+    admin.from("link_scans").select("id", { count: "exact", head: true })
+      .eq("link_id", best.id).eq("outcome", "paused").gte("scanned_at", since),
+  ]);
+  if (resolved.error) logServerError("links/findLinkForSubject.scans", resolved.error);
+  if (refused.error) logServerError("links/findLinkForSubject.refusals", refused.error);
+
+  return {
+    ...best,
+    url: `${q.origin.replace(/\/+$/, "")}/q/${best.code}`,
+    scans30d: resolved.count ?? 0,
+    refusals30d: refused.count ?? 0,
+    otherMatches: Math.max(0, rows.length - 1),
+  };
+}
+
 export type ScanRecord = {
   linkId: string;
+  /** Defaults to "resolved" so existing callers keep their meaning. */
+  outcome?: ScanOutcome;
   tenantId: string;
   deviceClass: DeviceClass;
   isNfc: boolean;
@@ -167,6 +319,7 @@ export async function recordScan(scan: ScanRecord): Promise<void> {
     country: scan.country,
     session_key: scan.sessionKey,
     resolved_to: scan.resolvedTo,
+    outcome: scan.outcome ?? "resolved",
   });
 
   if (error) logServerError("links/recordScan", error);

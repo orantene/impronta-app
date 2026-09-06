@@ -78,9 +78,47 @@ test("Instagram does not pretend to have a share URL", () => {
 });
 
 test("the QR is requested as SVG, so it stays sharp at any size", () => {
-  assert.match(component, /qrAssetHref\(code, "svg"\)/);
+  assert.match(component, /qrAssetHref\(active\.code, "svg"\)/);
 });
 
 test("the code image has an alt that names the link", () => {
   assert.match(component, /alt=\{copy\.t\("QR code for \{name\}"\)/);
+});
+
+// ── The unminted state (#1798) ──────────────────────────────────────────────
+//
+// A thing gets its link on FIRST SHARE. An earlier version of this component
+// required `code` and `url`, which deadlocked that: the popover could only open
+// for a subject that already had a link, and a link only existed after a first
+// share — so nothing could ever be shared for the first time.
+
+test("the popover accepts a subject with NO link yet", () => {
+  // `link: ... | null` rather than required code/url. Null is the normal first
+  // state of every subject in the product, not an error.
+  assert.match(component, /link:\s*\{[^}]*\}\s*\|\s*null/s, "link must be nullable");
+  assert.doesNotMatch(component, /^\s*code:\s*string;\s*$/m, "code must not be a required prop");
+  assert.doesNotMatch(component, /^\s*url:\s*string;\s*$/m, "url must not be a required prop");
+});
+
+test("the mint is asked for by THIS component, not performed by the mount", () => {
+  // Mounts write no `links` row; they hand over a bound action. Six areas each
+  // inventing a code policy is what that instruction prevents.
+  assert.match(component, /onMint\?:\s*\(\)\s*=>\s*Promise</);
+});
+
+test("a viewer with no mint action is told, not shown a button that would fail", () => {
+  assert.match(component, /Ask someone who can edit this workspace to create it/);
+});
+
+test("a failed mint says what happened", () => {
+  // A silent failure leaves the operator clicking a button that appears to do
+  // nothing, with the thing still unshared.
+  assert.match(component, /setMintError/);
+  assert.match(component, /role="alert"/);
+});
+
+test("the freshly minted link wins over the stale server value", () => {
+  // `link` is what the server knew when the popover opened; after a first share
+  // it is stale. Rendering it would show "not shared yet" next to a live code.
+  assert.match(component, /minted\s*\?\?\s*link/);
 });
