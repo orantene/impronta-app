@@ -218,6 +218,7 @@ export function filterAddGalleryItems(input: {
   categoryId?: string;
   query?: string;
   includeRoadmap?: boolean;
+  blockAllowList?: readonly BuilderNodeKind[];
 }): ReadonlyArray<AddGalleryItem> {
   return filterGalleryItemsFrom(ADD_GALLERY_ITEMS, input);
 }

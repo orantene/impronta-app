@@ -403,12 +403,16 @@ export function EditProvider({
   // so a Lab-hidden component (lab_enabled === false) drops from the Lab's own
   // gallery without touching any tenant surface.
   const galleryIsLab = resolvedSurfaceConfig.galleryPolicy.isLab ?? false;
+  // Piece B slice 1c — the print vocabulary allow-list (undefined off-print).
+  // Stable per mount (from the resolved surface config), so a safe memo dep.
+  const galleryBlockAllowList = resolvedSurfaceConfig.galleryPolicy.blockAllowList;
   const gallerySurface = useMemo<GallerySurfaceDescriptor>(
     () => ({
       allowedTabs: galleryTabsKey
         ? (galleryTabsKey.split(",") as GallerySurfaceDescriptor["allowedTabs"])
         : [],
       allowDbTemplates: galleryAllowDbTemplates,
+      blockAllowList: galleryBlockAllowList,
       surfaceTarget: gallerySurfaceTarget,
       surfaceKey: gallerySurfaceKey,
       isLab: galleryIsLab,
@@ -420,6 +424,7 @@ export function EditProvider({
     [
       galleryTabsKey,
       galleryAllowDbTemplates,
+      galleryBlockAllowList,
       gallerySurfaceTarget,
       gallerySurfaceKey,
       galleryIsLab,
