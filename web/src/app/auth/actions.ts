@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth-flow";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
 import {
   getCachedActorSession,
   getCachedServerSupabase,
@@ -88,6 +88,13 @@ function isRejectedCredentials(error: unknown): boolean {
   return typeof message === "string" && message.includes("Invalid login credentials");
 }
 
+/** Supabase's send-rate refusal (429, "you can only request this after N seconds"). */
+function isRateLimited(error: unknown): boolean {
+  const o = error as { code?: string; status?: number; message?: string } | null;
+  if (o?.code === "over_email_send_rate_limit" || o?.status === 429) return true;
+  return typeof o?.message === "string" && o.message.includes("you can only request this after");
+}
+
 /** Unauthenticated: request Supabase to email a password reset link. */
 export async function requestPasswordReset(
   _prev: AuthActionState,
@@ -139,7 +146,12 @@ export async function signInWithEmail(
   }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    logServerError("auth/signInWithPassword", error);
+    // A wrong password is the user's outcome, not ours: warn, audit, no Sentry.
+    if (isRejectedCredentials(error)) {
+      logServerExpected("auth/signInWithPassword", error);
+    } else {
+      logServerError("auth/signInWithPassword", error);
+    }
     if (isRejectedCredentials(error)) {
       const tenantId = await auditTenantId();
       if (tenantId) {
@@ -295,7 +307,13 @@ export async function signUpWithEmail(
     },
   });
   if (error) {
-    logServerError("auth/signUpWithEmail", error);
+    // Supabase's send-rate limit (status 429, "you can only request this
+    // after N seconds") is an expected refusal the form already explains.
+    if (isRateLimited(error)) {
+      logServerExpected("auth/signUpWithEmail", error);
+    } else {
+      logServerError("auth/signUpWithEmail", error);
+    }
     return { error: mapSignUpError(error, t) };
   }
 
