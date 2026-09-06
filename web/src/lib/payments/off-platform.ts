@@ -54,11 +54,26 @@ export type OffPlatformPaymentMethod = (typeof OFF_PLATFORM_PAYMENT_METHODS)[num
 /**
  * Did this money land somewhere other than the platform account?
  *
- * Deliberately NOT a default-true guess. A null/unknown method is treated as
- * on-platform, because the failure directions are not symmetric: wrongly
- * skipping a payout means a talent is not paid and someone complains, while
- * wrongly paying one means the platform sends money it never collected and
- * nobody notices. Only a method we recognise suppresses a payout.
+ * Deliberately NOT a default-true guess: a null/unknown method is treated as
+ * on-platform, and only a method we RECOGNISE suppresses a payout.
+ *
+ * The reason is that `payment_method` is null on an ordinary card booking,
+ * which is almost every booking. Defaulting the unknown case to "off-platform"
+ * would suppress every legitimate payout on the platform — a total, immediate
+ * outage — so this default is not a risk judgement, it is the only one that
+ * can run.
+ *
+ * That leaves the genuinely dangerous direction — paying a leg for money the
+ * platform never collected, which moves real money and raises no error —
+ * UNPROTECTED BY THIS FUNCTION. Do not read the default as covering it. What
+ * covers it is the list below being pinned to the persist RPC's `IN (...)` by
+ * `off-platform.test.ts`: any method that accrues a receivable is, by that
+ * test, also a method that suppresses its payout. If you ever weaken that
+ * test, this default becomes a live double-spend.
+ *
+ * (An earlier version of this comment argued the asymmetry the other way and
+ * then chose this default anyway. It read as a justification for defaulting to
+ * "pay", which is the direction that loses money. Stated plainly instead.)
  */
 export function isOffPlatformPaymentMethod(method: unknown): method is OffPlatformPaymentMethod {
   return (
