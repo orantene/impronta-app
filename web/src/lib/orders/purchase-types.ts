@@ -54,17 +54,6 @@ export type PurchaseInput = {
     perUnitDomainRow?: boolean;
   }>;
   /**
-   * Seconds the capacity hold should live, overriding the pools' own TTL.
-   *
-   * For a pay-at-the-door order the ruling is HOLD at creation, COMMIT at
-   * settlement, with the hold lasting until the event's door time. A commit has
-   * no TTL and nothing reclaims it, so committing early turns an abandoned
-   * click into a seat sold forever, indistinguishable from real demand.
-   *
-   * CLAMPED, never trusted. Absent means the pools' own shortest TTL.
-   */
-  holdTtlSecondsOverride?: number | null;
-  /**
    * A code the buyer typed. Optional, and when present it is HONOURED OR THE
    * PURCHASE REFUSES — never quietly dropped. Someone who entered a code and
    * was charged full price has been overcharged by silence.
@@ -128,6 +117,8 @@ export type PurchaseRefusalReason =
   | "slot_taken"
   /** A timed offering was booked with no slot. A caller bug OR a stale UI. */
   | "slot_required"
+  /** An online pay-at-the-door order for a session that is over. */
+  | "session_already_ended"
   /** Promo refusals. A code the buyer TYPED must never be silently ignored. */
   | "promo_unknown"
   | "promo_not_started"
