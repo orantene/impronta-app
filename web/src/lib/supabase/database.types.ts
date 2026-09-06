@@ -10604,9 +10604,11 @@ export type Database = {
           id: string
           included: boolean
           label: string
+          label_i18n: Json | null
           tier_id: string
           updated_at: string
           value_text: string | null
+          value_text_i18n: Json | null
         }
         Insert: {
           category?: string | null
@@ -10616,9 +10618,11 @@ export type Database = {
           id?: string
           included?: boolean
           label: string
+          label_i18n?: Json | null
           tier_id: string
           updated_at?: string
           value_text?: string | null
+          value_text_i18n?: Json | null
         }
         Update: {
           category?: string | null
@@ -10628,9 +10632,11 @@ export type Database = {
           id?: string
           included?: boolean
           label?: string
+          label_i18n?: Json | null
           tier_id?: string
           updated_at?: string
           value_text?: string | null
+          value_text_i18n?: Json | null
         }
         Relationships: [
           {
