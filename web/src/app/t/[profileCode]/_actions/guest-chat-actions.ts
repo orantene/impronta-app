@@ -918,11 +918,18 @@ export async function startGuestChatInquiry(
   // have existed since this module shipped and nothing ever passed them, so
   // every guest saw the generic body while the tenant's configured sentence
   // went out of order in a thread only the client and the workspace could read.
-  const { data: ackSettings } = await admin
+  const { data: ackSettings, error: ackSettingsError } = await admin
     .from("agencies")
     .select("auto_ack_enabled, auto_ack_message")
     .eq("id", tenantId)
     .maybeSingle();
+  if (ackSettingsError) {
+    // Fails OPEN, deliberately: a read failure leaves `ackSettings` null, which
+    // is read as enabled below, so the guest still gets acknowledged — with the
+    // generic body rather than the tenant's. Silence would make a tenant whose
+    // custom copy stopped appearing indistinguishable from one who never set it.
+    logServerError("guest-chat-actions.autoAckSettings", ackSettingsError);
+  }
   const emittedAutoAck = await emitGuestAutoAck({
     inquiryId,
     tenantId,
