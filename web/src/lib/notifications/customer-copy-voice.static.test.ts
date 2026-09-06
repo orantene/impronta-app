@@ -114,3 +114,33 @@ test("the guard strips placeholders — {talent} is a token, not a word anyone r
   assert.equal(AGENCY_WORDS.test(rendered), false);
   assert.equal(AGENCY_WORDS.test("El talento con quien trabajaste"), true);
 });
+
+/**
+ * Customer-facing copy that lives OUTSIDE email-copy, as literal strings in
+ * source. The guest acknowledgement is written into the visitor's own thread
+ * the moment they submit, so it is the FIRST thing a customer reads from a
+ * business — and it sat outside this guard entirely, which is how an em dash
+ * survived the 2026-09-05 audit and was caught by a human reading the panel.
+ */
+const LITERAL_COPY_FILES = ["src/lib/inquiry/guest-auto-ack.ts"];
+
+test("customer copy written as literal source strings obeys the same rules", () => {
+  const offenders: string[] = [];
+  for (const file of LITERAL_COPY_FILES) {
+    const src = readFileSync(file, "utf8");
+    src.split("\n").forEach((line, i) => {
+      // Only the strings we actually send: assignments to `body`, which is the
+      // acknowledgement text. Comments are checked too — an example carrying an
+      // em dash is what the next edit copies.
+      if (!/body\s*=|e\.g\./.test(line)) return;
+      if (line.includes("—")) offenders.push(`${file}:${i + 1} em dash: ${line.trim()}`);
+      if (AGENCY_WORDS.test(line.replace(PLACEHOLDER, "").replace(/\$\{[^}]*\}/g, "")))
+        offenders.push(`${file}:${i + 1} agency word: ${line.trim()}`);
+    });
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `Customer-facing copy in source must follow the same rules as email-copy.\n  ${offenders.join("\n  ")}`,
+  );
+});

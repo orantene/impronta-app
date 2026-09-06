@@ -90,11 +90,11 @@ export async function emitGuestAutoAck(
       });
 
       if (replyFragment) {
-        // e.g. "Got it — we've received your message. We typically reply in ~2 hours."
-        body = `Got it — we've received your message. We typically reply ${replyFragment}.`;
+        // e.g. "Got it, we've received your message. We typically reply in ~2 hours."
+        body = `Got it, we've received your message. We typically reply ${replyFragment}.`;
       } else {
         // Fallback: honest but no specific timeframe.
-        body = "Got it — we've received your message and will be in touch shortly.";
+        body = "Got it, we've received your message and will be in touch shortly.";
       }
     }
 
