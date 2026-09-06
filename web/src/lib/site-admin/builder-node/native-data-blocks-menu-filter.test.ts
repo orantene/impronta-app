@@ -98,3 +98,42 @@ test("A RESERVATION IS NOT A DISH: with nothing left the board renders its empty
   assert.match(html, /La carta se está cargando\./);
   assert.doesNotMatch(html, /Table reservation|\$0/);
 });
+
+test("A TICKET IS NOT A DISH: an event's own offering is excluded even when public and priced", () => {
+  // Measured live at 01:22Z: "Tonight's selection" listed "Noche de prueba,
+  // Quote on request" beside the reservation. That row is the real event's
+  // offering (events.offering_id → this id), kind package, visibility public.
+  // Its price lives on the ticket tiers, not on the offering, so it rendered
+  // as a quote with a quantity stepper: a night out ordered like an empanada.
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "dish", tenant_id: "t", kind: "product", title: "Choripán", amount_cents: 600000 }),
+    menuRow({ id: "event-offering", tenant_id: "t", kind: "package", title: "Noche de prueba", amount_cents: 250000 }),
+    menuRow({ id: "course", tenant_id: "t", kind: "package", title: "Posing course", amount_cents: 12000 }),
+  ];
+  const eventIds = new Set(["event-offering"]);
+  assert.deepEqual(
+    deriveWorkspaceMenuOfferings(rows, "t", "en", eventIds).map((d) => d.id),
+    ["dish", "course"],
+    "a package that backs an event must go; a package that is a course must stay",
+  );
+});
+
+test("A TICKET IS NOT A DISH: with no event ids the menu is unchanged, so the exclusion cannot fire by accident", () => {
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "dish", tenant_id: "t", kind: "product", amount_cents: 600000 }),
+  ];
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "t").map((d) => d.id), ["dish"]);
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "t", "en", new Set()).map((d) => d.id), ["dish"]);
+});
+
+test("THE NULL-AMOUNT DOOR: an offering with no price and an exact display is excluded, which is how tonight's event row read", () => {
+  // The live row had amount_cents NULL and price_display "exact"; the island
+  // renders "Quote on request" whenever amountCents is null, which is why it
+  // LOOKED like a quote. The unpriced rule keys on the data, not on the
+  // rendered string, so it catches this door as well as the event rule.
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "null-amount", tenant_id: "t", kind: "package", amount_cents: null as unknown as number, price_display: "exact" }),
+  ];
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "t"), []);
+});
+
