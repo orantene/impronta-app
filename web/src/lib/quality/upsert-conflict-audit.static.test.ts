@@ -29,7 +29,10 @@ import {
   collectSchema,
   diffAgainstBaseline,
   explainDrift,
+  explainResolved,
   extractUpserts,
+  isRegression,
+  isResolved,
   toBaseline,
 } from "./upsert-conflict-audit";
 
@@ -38,12 +41,21 @@ const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Baseline;
 
 test("no upsert has gained an uninferable onConflict target", () => {
   const drift = diffAgainstBaseline(audit(), baseline);
+  const regressions = drift.filter(isRegression);
+  const resolved = drift.filter(isResolved);
+
+  // A fix that landed after this baseline was taken is NOT a failure. Only a
+  // NEW or worsened finding is. See isRegression for why that asymmetry exists.
+  if (resolved.length > 0) {
+    console.log(`\nonConflict findings fixed since the baseline:\n${explainResolved(resolved)}\n`);
+  }
+
   assert.deepEqual(
-    drift,
+    regressions,
     [],
-    drift.length === 0
+    regressions.length === 0
       ? ""
-      : `\n\nonConflict targets drifted:\n\n${explainDrift(drift)}\n\n` +
+      : `\n\nonConflict targets drifted:\n\n${explainDrift(regressions)}\n\n` +
         `Re-record with:  npx tsx scripts/upsert-conflict-audit.mjs --baseline\n`,
   );
 });
@@ -129,10 +141,32 @@ test("a table separated by a statement boundary is not borrowed at all", () => {
   assert.equal(extractUpserts(src, "f.ts")[0].table, null);
 });
 
-test("every baselined key still corresponds to a real finding", () => {
+test("a baselined key whose finding is gone is a NOTE, not a failure", () => {
+  // This test used to fail on exactly this, and turned main red when #1828 and
+  // #1831 fixed two findings that were in the baseline I had just taken. In a
+  // fleet, a fix landing between taking a baseline and merging it is the normal
+  // case. The guard now reports it and passes.
   const live = new Set(audit().filter((f) => f.verdict !== "ok").map((f) => `${f.file}:${f.line}`));
   const stale = Object.keys(baseline).filter((k) => !live.has(k));
-  assert.deepEqual(stale, [], `\nBaseline names ${stale.length} finding(s) that are gone:\n  ${stale.join("\n  ")}\n`);
+  if (stale.length > 0) {
+    console.log(`\nBaseline names ${stale.length} finding(s) already fixed:\n  ${stale.join("\n  ")}\n`);
+  }
+  assert.ok(true);
+});
+
+test("BITES: a NEW finding is still a regression and still fails", () => {
+  const drift = diffAgainstBaseline(
+    [{ file: "new.ts", line: 1, table: "t", columns: ["a"], verdict: "partial", detail: "" }],
+    {},
+  );
+  assert.equal(drift.filter(isRegression).length, 1);
+});
+
+test("a FIXED finding is classified resolved, never a regression", () => {
+  const drift = diffAgainstBaseline([], { "gone.ts:9": "partial" });
+  assert.equal(drift.filter(isRegression).length, 0);
+  assert.equal(drift.filter(isResolved).length, 1);
+  assert.match(explainResolved(drift), /FIXED, thank you/);
 });
 
 test("BITES: an onConflict that is not a string literal is UNKNOWN, never skipped", () => {
