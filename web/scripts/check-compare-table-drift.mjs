@@ -200,9 +200,22 @@ try {
   // domain set; this covers `plan_capabilities`, whose fail-open default makes
   // exactly one direction checkable — a row that WITHHOLDS something no row
   // withholds is selling an upgrade that buys nothing.
-  const { auditCapabilityClaims, unknownMappedCapabilities } = await import(
-    "../src/lib/pricing/plan-claim-audit.ts"
-  );
+  const { auditCapabilityClaims, unknownMappedCapabilities, findUnbuiltClaims } =
+    await import("../src/lib/pricing/plan-claim-audit.ts");
+
+  // Nothing built is neither included nor roadmap. Checks labels AND values --
+  // "API access" shipped as a value_text, so a label-only read misses it.
+  const unbuilt = findUnbuiltClaims(rows);
+  if (unbuilt.length > 0) {
+    console.error(
+      `\nFAIL: the compare table names ${unbuilt.length} feature(s) that do not exist:\n`,
+    );
+    for (const u of unbuilt) {
+      console.error(`  ${u.tierSlug.padEnd(8)} ${u.label.padEnd(28)} "${u.text}" -- ${u.why}`);
+    }
+    console.error("");
+    process.exit(1);
+  }
 
   const unknownCaps = unknownMappedCapabilities();
   if (unknownCaps.length > 0) {

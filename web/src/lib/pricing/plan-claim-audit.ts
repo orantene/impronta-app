@@ -156,6 +156,59 @@ export function auditCapabilityClaims(
 }
 
 /**
+ * Features the product does not have, and must therefore never appear on the
+ * pricing page in any form.
+ *
+ * WHY THIS IS A DENY-LIST AND NOT A DERIVATION
+ * ---------------------------------------------
+ * The honest guard would be "every row names a capability key, and every key is
+ * in the registry". `product_features` rows cannot do that: a row carries a
+ * prose LABEL ("Bulk watermark apply"), not a key, so there is nothing to look
+ * up. Until a row carries a capability key, that derivation is unavailable, and
+ * writing one anyway would produce a guard that passes by construction.
+ *
+ * So this is the narrow thing that IS checkable: a short list of features known
+ * not to exist, matched against row labels AND values. It catches the exact
+ * regression that put "SSO ... unlock at checkout" in front of a paying
+ * customer, and it claims nothing beyond that.
+ *
+ * Remove an entry only once the feature is BUILT.
+ */
+export const UNBUILT_FEATURE_PATTERNS: { pattern: RegExp; why: string }[] = [
+  { pattern: /\bSSO\b|\bSAML\b|\bOkta\b/i, why: "no SSO implementation exists" },
+  { pattern: /\bAPI access\b|\bexport API\b/i, why: "there is no public API surface" },
+];
+
+export type UnbuiltClaim = {
+  tierSlug: string;
+  label: string;
+  text: string;
+  why: string;
+};
+
+/**
+ * Rows naming a feature that does not exist, in the label OR the value tier.
+ *
+ * Both are read because the claim that reached production was in a VALUE
+ * ("API access"), not a label. A guard reading only labels would have passed
+ * straight over it.
+ */
+export function findUnbuiltClaims(rows: CompareRowClaim[]): UnbuiltClaim[] {
+  const found: UnbuiltClaim[] = [];
+  for (const row of rows) {
+    for (const candidate of [row.label, row.valueText ?? ""]) {
+      if (!candidate) continue;
+      for (const { pattern, why } of UNBUILT_FEATURE_PATTERNS) {
+        if (pattern.test(candidate)) {
+          found.push({ tierSlug: row.tierSlug, label: row.label, text: candidate, why });
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/**
  * Every capability key named in the label map must exist in the registry.
  *
  * A mapping onto a key that does not exist would resolve fail-open forever and

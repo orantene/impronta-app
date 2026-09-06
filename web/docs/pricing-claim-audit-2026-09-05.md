@@ -105,8 +105,30 @@ the guard confidently wrong — worse than no guard. A mapping onto a key the re
 does not have would resolve fail-open forever and pass while checking nothing, so
 `unknownMappedCapabilities()` fails the run on exactly that.
 
-## Owed
+## Resolved after this audit (CEO ruling, 2026-09-05, applied to production)
 
-1. **Decide the 130 unbacked rows** — delete, qualify, or build. Mostly a commercial call.
-2. **The DB rows** need a data migration once (1) is decided.
-3. **SSO and API access** should come off the hedged lists too if they are not roadmap.
+- **The twelve ungated features moved to "included on every plan"** — 22 rows
+  (16 boolean flips, 6 value-tier clears). They exist and every plan has them, so
+  deleting would hide working features and "roadmap" would be false. Verified:
+  0 still withheld, 0 stale values, 22 rows touched.
+- **SSO deleted** (4 rows) — the feature exists nowhere.
+- **"API access" and "export API" values cleared** on Data export and Analytics.
+  Those two features are REAL; only the API suffix was false, so the rows stayed
+  and the claim went. Verified: 0 unbuilt claims remain.
+- **`findUnbuiltClaims`** now fails the guard on any row naming SSO/SAML/Okta or
+  API access, in a label **or** a value. The claim that reached production was a
+  value, so a label-only guard would have missed it.
+
+The compare table is now 130 rows: 4 decided by a capability, 126 decided by
+nothing.
+
+## Still owed
+
+1. **The 126 unbacked rows** remain unverifiable. They are not wrong; nothing
+   checks them. The guard prints the count every run so it cannot fade.
+2. **The Spanish pricing page renders 130 English labels.** `product_features`
+   has one `label` column and the table renders it raw. Needs a localized label
+   column — a schema change, tracked separately.
+3. **A `capability_key` column on `product_features`** would replace the
+   deny-list with a real derivation. Until then `findUnbuiltClaims` is a
+   deny-list and says so.
