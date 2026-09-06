@@ -17,6 +17,23 @@ export const STATIC_PATHS = [
   // social-share preview. Allowed on all kinds; the route decides what to render.
   "/opengraph-image",
   "/twitter-image",
+  // TikTok URL-prefix domain verification for the Tulala developer app
+  // (app id 7682273019905148948). TikTok fetches this exact path on
+  // app.tulala.digital and compares the body to the token in the filename;
+  // without an allow-list entry the proxy treats the single segment as a
+  // storefront slug and 404s it, and the app can never be submitted for
+  // review. The file itself is `web/public/<same name>`; the two are pinned
+  // together by `tiktok-domain-verification.static.test.ts`. Do not rename
+  // either half alone. The alternative TikTok offers is a DNS TXT record,
+  // which is the owner's to add; this route needs nobody.
+  //
+  // TWO files, one per URL prefix, because a TikTok property covers one host:
+  // the app host carries the OAuth redirect, and the apex carries the Terms
+  // and Privacy URLs the submission form also demands (`/legal/*` is a
+  // marketing-host group and 404s on the app host). Both are served from the
+  // same `public/` directory by the same deployment.
+  "/tiktok8WGzEiKg9pe0okRf7eDPP6rPghXjVCJH.txt",
+  "/tiktokOC3FhK8XbPutKlNiCH3nxdOjnMpxRLjN.txt",
 ] as const;
 
 /**
