@@ -4599,6 +4599,7 @@
         "feedbackRemovedReverted": "Removed. Reverted to the platform default.",
         "feedbackRemoved": "Removed.",
         "feedbackDisconnected": "Disconnected.",
+        "feedbackDisconnectedInstagram": "Disconnected. Tulala no longer holds a token. To finish, open Instagram, go to Settings, then Apps and websites, and remove Tulala there.",
         "feedbackYoutubeShown": "The verified channel now shows on your public site.",
         "feedbackYoutubeHidden": "Hidden from your public site. The connection stays verified.",
         "lastCheck": "Last check: {error}",

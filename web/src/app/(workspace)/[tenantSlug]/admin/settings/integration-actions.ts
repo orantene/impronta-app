@@ -19,6 +19,7 @@
 import { revalidatePath } from "next/cache";
 
 import { isConnectionOAuthConfigured } from "@/lib/connection-oauth/providers";
+import { revokeUpstreamGrant } from "@/lib/integrations/disconnect-upstream";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
@@ -729,6 +730,9 @@ export async function removeIntegration(
   if (!def) return { ok: false, error: "Unknown integration." };
 
   const existing = await getTenantIntegration(guard.tenantId, key);
+
+  // D4 — upstream revoke first (TikTok); the local delete below is the guarantee.
+  await revokeUpstreamGrant(guard.tenantId, key);
 
   await deleteIntegrationSecrets(guard.tenantId, key);
 

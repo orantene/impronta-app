@@ -199,7 +199,17 @@ export function IntegrationConfigDrawer({
       setFeedback({ tone: "error", message: res.error });
       throw new Error(res.error);
     }
-    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.feedbackDisconnected") });
+    // Instagram tokens cannot be revoked by API. The operator has to remove
+    // Tulala under Instagram > Settings > Apps and websites, or the grant stays
+    // live upstream with nobody holding it. TikTok is revoked server-side.
+    setFeedback({
+      tone: "success",
+      message: t(
+        integration.key === "instagram"
+          ? "dashboard.adminWorkspace.integrations.feedbackDisconnectedInstagram"
+          : "dashboard.adminWorkspace.integrations.feedbackDisconnected",
+      ),
+    });
     onChanged();
   };
 
