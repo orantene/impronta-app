@@ -198,9 +198,23 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     const publicName = identity?.public_name?.trim();
     if (publicName) agencyName = publicName;
   }
-  if (guestKey) {
-    await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
-  }
+  // NO `ensure_guest_session` HERE EITHER — this is the SECOND mint path, and
+  // it is a render path despite looking like an on-demand one.
+  //
+  // `DirectoryInquirySheet` calls `refreshPayload()` from a `useEffect` with NO
+  // `if (!open) return` guard, so the fetch fires on MOUNT wherever the sheet is
+  // mounted; the `if (!open) return null` that makes the sheet invisible sits
+  // BELOW that effect and skips only the render. So this loader runs for
+  // visitors who never open an inquiry, on every page carrying the sheet.
+  //
+  // I left this call in place in the first version of this fix, reasoning that
+  // it only ran when a guest opened the sheet. That was reasoning about the
+  // name of the function instead of reading the effect that calls it, and it
+  // would have left the leak running after the profile path stopped.
+  //
+  // Nothing below needs the row: the payload is a READ. Every path that writes
+  // as a guest — inquiry submit, contact, brief, detail chips, conversation
+  // scan, and now the save action — calls `ensure_guest_session` itself.
 
   const actor = await getCachedActorSession();
   const user = actor.user;
