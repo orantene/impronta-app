@@ -164,6 +164,7 @@ jobs:
           npm run check:types-fresh
           npm run check:untracked-imports
           npm run verify:seatbelt-executes
+          npm run check:migration-collisions
 
       # ── Gate 1b: Builder published-page weight budget ────────────────
       # `builder-fidelity.yml` already runs this on push to main, but
@@ -385,6 +386,13 @@ jobs:
       - name: tests — anon write policy shape
         if: ${{ !cancelled() }}
         run: npm run test:anon-write-policy
+
+      # The credential-free half of the migration-collision guard. The remote
+      # half needs the service role, which never enters CI, and lives behind
+      # `npm run manual:migration-collisions`.
+      - name: tests — migration collisions
+        if: ${{ !cancelled() }}
+        run: npm run test:migration-collisions
 
       - name: tests — notifications
         if: ${{ !cancelled() }}
