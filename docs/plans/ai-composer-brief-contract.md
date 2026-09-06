@@ -22,9 +22,49 @@ flag that drives redaction before any fact reaches a model prompt.
 
 Of the ten keys proposed for the composer:
 
-| Already defined | New — needs a vocabulary entry |
+| Proposed key | Verdict |
 |---|---|
-| `business.name`, `business.description` | `business.category`, `business.hours`, `business.socials`, `brand.logo_url`, `brand.palette`, `brand.fonts`, `menu.categories`, `menu.items` |
+| `business.name`, `business.description` | **already defined** |
+| `business.category` | **do not add** — `work.industry` already carries it, and it is what the one live brief actually uses (`"food and restaurant"`) |
+| `business.socials` | **overlaps** `presence.instagram_handle`. A general socials fact would sit beside a specific one for the same thing |
+| `brand.logo_url` | new — but note `presence.has_logo` (boolean) exists. "Do they have one" and "where is it" are different facts and both are wanted |
+| `brand.palette`, `brand.fonts` | new — **and misplaced, see below** |
+| `business.hours`, `menu.categories`, `menu.items` | genuinely new |
+
+So it is roughly **five or six new keys, not eight**, and two of the proposed ten
+would have duplicated facts that already exist under a different prefix.
+
+### `brand.*` is a positioning namespace, not an assets one
+
+Every `brand.` key today is about POSITIONING — `brand.audience`, `brand.tone`,
+`brand.differentiator`, `brand.price_position`. None is an asset. Dropping
+`logo_url`, `palette` and `fonts` in there mixes "who this business is for" with
+"what its logo file is", and the two have different lifetimes: positioning is
+inferred and revisable, an asset is uploaded and owned.
+
+Recommend `assets.logo_url` / `assets.palette` / `assets.fonts`, or extending
+`presence.*`, which already holds the has-logo / has-domain / handle facts. This
+is Front Door's call, but it should be a call rather than a default.
+
+### Verified against the one live brief
+
+`tulala_briefs` holds exactly one row today, and it is worth reading before
+designing against an imagined one:
+
+| | |
+|---|---|
+| `tenant_id` | **null** — not stamped, so a second run cannot find it from a workspace |
+| facts | 3, all `status: needs_approval` |
+| `business.name` | "Parrilla El Paisa" (confidence 0.45, `ai_inference`) |
+| `work.industry` | "food and restaurant" (0.40, `ai_inference`) |
+| `presence.website_url` | the menu URL (0.90, `url_import`) |
+
+Three things follow. The **unstamped `tenant_id` is not hypothetical** — it is
+the state of the only brief that exists. **Every fact is unapproved**, so the
+below-threshold question at the end of this document is the normal case, not an
+edge one. And the menu URL was imported at 0.90 confidence while **no menu facts
+were extracted from it** — the 117 dishes are not in the brief, which is the gap
+between "we captured a URL" and "we have a menu".
 
 So the work is **extending a versioned vocabulary**, not inventing keys. That file
 carries a version constant precisely because adding and re-meaning keys are different
