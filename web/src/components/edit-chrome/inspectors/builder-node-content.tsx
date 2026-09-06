@@ -1699,6 +1699,52 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  // ── ticket_picker (guest-facing ticket purchase block) ────────────────────
+  // Phase 1 panel: a title and the event this block sells. The event PICKER
+  // (a select over the tenant's published events) is phase 2; for now the id
+  // is entered directly. The island (Events & Ticketing) fetches nights and
+  // tiers and sells the ticket, and shows "not configured" while this is empty.
+  if (node.kind === "ticket_picker") {
+    const tp = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="title"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={tp.title ?? ""}
+              ariaLabel="Title"
+              className={KIT.input}
+              placeholder="Tickets"
+              onCommitBase={(next) =>
+                commitTextInput("title", tp.title ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Event">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Event ID</label>
+            <input
+              type="text"
+              className={KIT.input}
+              value={tp.eventId ?? ""}
+              placeholder="The event this block sells tickets for"
+              onChange={(event) => {
+                void commitPatch({ eventId: event.currentTarget.value });
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   if (node.kind === "session_picker") {
     const sp = node.props;
     return (
@@ -4997,6 +5043,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Reserve · books a real table";
     case "session_picker":
       return "Sessions · book a seat";
+    case "ticket_picker":
+      return "Tickets · buy for a night";
     case "qr_code":
       return "QR code · a scannable link";
     case "talent_type_grid":

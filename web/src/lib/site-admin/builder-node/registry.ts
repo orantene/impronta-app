@@ -1037,6 +1037,12 @@ const sessionPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const ticketPickerPropsSchema = z.object({
+  eventId: z.string().max(200),
+  title: z.string().max(120).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const qrCodePropsSchema = z.object({
   linkCode: z.string().max(200),
   foreground: z.string().max(9).optional(),
@@ -1932,6 +1938,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "A guest picks a seat in an upcoming session or class and books it, held as an order; the seat past capacity is refused.",
       children: { type: "none" },
       propsSchema: sessionPickerPropsSchema,
+    },
+    ticket_picker: {
+      kind: "ticket_picker",
+      label: "Buy tickets",
+      description:
+        "A guest picks a night and a ticket for one of your events and pays by card; a seat past capacity is refused. Shows only what can actually be bought.",
+      children: { type: "none" },
+      propsSchema: ticketPickerPropsSchema,
     },
     qr_code: {
       kind: "qr_code",

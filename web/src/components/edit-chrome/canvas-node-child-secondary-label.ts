@@ -87,6 +87,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "session_picker":
       return "Sessions · book a seat";
+    case "ticket_picker":
+      return "Tickets · buy for a night";
     case "qr_code":
       return "QR code · a scannable link";
     case "reserve_table":
