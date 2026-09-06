@@ -30,7 +30,7 @@ export {
   type PrintSize,
   type PrintSizeKey,
 } from "./print-sizes";
-import { PRINT_SIZES } from "./print-sizes";
+import { PRINT_SIZES, type PrintSizeKey } from "./print-sizes";
 
 /**
  * PNG at a given physical width and DPI.
