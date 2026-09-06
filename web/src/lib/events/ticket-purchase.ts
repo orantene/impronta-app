@@ -11,10 +11,15 @@
  *     fewer options silently.
  */
 
+import { CAPACITY_HOLD_TTL_MAX_SECONDS } from "@/lib/capacity/hold-ttl-bounds";
 import type { PurchaseInput } from "@/lib/orders/purchase-types";
 
-/** `CHECK (hold_ttl_seconds BETWEEN 30 AND 604800)` — a column constraint, not a preference. */
-export const HOLD_TTL_CAP_SECONDS = 604_800;
+/**
+ * The engine's hold-TTL ceiling, IMPORTED from the one bounds module (Orders,
+ * #1836) — never restated here. The guard in `hold-ttl-bounds.static.test.ts`
+ * fails any second source, and it pins the module to the migrations' CHECK.
+ */
+export const HOLD_TTL_CAP_SECONDS = CAPACITY_HOLD_TTL_MAX_SECONDS;
 
 export type DoorOfferState =
   | { offered: true }
