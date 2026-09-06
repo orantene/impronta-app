@@ -5,10 +5,12 @@ import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
 import {
   cancelWorkspaceSubscriptionAtPeriodEnd,
+  reactivateWorkspaceSubscription,
   pauseWorkspaceSubscriptionCollection,
   hasLiveWorkspaceSubscription,
 } from "@/lib/stripe/workspace-billing";
@@ -220,6 +222,69 @@ export async function cancelSubscription(
  * Phase 8; this action just records the intent so product can A/B the
  * win-back flow without waiting on billing infra.
  */
+/**
+ * Undo a pending cancellation, before the period ends.
+ *
+ * Cancelling schedules the end and leaves the plan running to the boundary, so
+ * until then the subscription is fully recoverable at Stripe with no new
+ * charge. Without this, an owner who cancelled by mistake had no way back
+ * except letting the plan lapse and buying it again, which costs them access
+ * and costs us the renewal.
+ *
+ * Same owner/admin gate as cancellation: reactivating resumes billing, so it
+ * is a money decision and not something any staff member should take.
+ */
+export async function reactivateSubscription(): Promise<
+  ServerActionResult<{ renewsAt: string | null }>
+> {
+  try {
+    const auth = await requireWorkspaceStaffAction();
+    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    const { tenantId, user, supabase } = auth;
+
+    // tenantScopedQuery, not a raw .from(): the tenant filter cannot be
+    // forgotten here. The sibling cancel path predates the helper and is
+    // grandfathered in the suppressions baseline; new call sites use it.
+    const { data: myMembership, error: membershipErr } = await tenantScopedQuery(
+      supabase,
+      "agency_memberships",
+      tenantId,
+    )
+      .select("role")
+      .eq("profile_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    // Read the error, never just the data. A failed read returns data=null,
+    // which is indistinguishable from "no membership" -- and would deny an
+    // owner their own plan controls while looking like a permission decision.
+    if (membershipErr) {
+      logServerError("reactivate-subscription.membership", membershipErr);
+      return { ok: false, error: "Couldn't verify your access. Try again.", reason: "unexpected" };
+    }
+    const myRole = (myMembership as { role?: string } | null)?.role;
+    if (myRole !== "owner" && myRole !== "admin") {
+      return { ok: false, error: "Only the owner or admin can change the plan.", reason: "forbidden" };
+    }
+
+    const restored = await reactivateWorkspaceSubscription(tenantId);
+    if (!restored.ok) return { ok: false, error: restored.error, reason: "unexpected" };
+
+    if (!restored.data.hadSubscription) {
+      return {
+        ok: false,
+        error: "There is no subscription to restore. Start a plan from the plans page.",
+        reason: "validation_failed",
+      };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { renewsAt: restored.data.renewsAt } };
+  } catch (err) {
+    logServerError("reactivate-subscription", err);
+    return { ok: false, error: "Couldn't restore the plan. Try again.", reason: "unexpected" };
+  }
+}
+
 export async function pauseSubscription(
   pauseUntilIso: string,
 ): Promise<ServerActionResult<{ pausedUntil: string }>> {
