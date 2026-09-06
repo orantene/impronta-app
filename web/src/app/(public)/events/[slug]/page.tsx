@@ -7,219 +7,125 @@ import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
-import { resolvePublicZone, timeLabel, whenLabel } from "@/lib/events/public-event-time";
-import { saleState, type Tier } from "@/lib/events/tiers";
+import { resolvePublicZone } from "@/lib/events/public-event-time";
 import { doorsAt } from "@/lib/events/event-policy";
+import { resolveLineupState } from "@/lib/events/lineup";
+import { EventPageView, type Locale } from "./event-page-view";
 
 /**
- * `/events/<slug>` — one event's public page.
+ * `/events/<slug>` — one event on a venue's own site (E5 step 4, the design half).
  *
- * NO PURCHASE PATH YET, deliberately. This page shows what is on, when doors
- * are, and what the tiers cost. Buying needs the ticket picker block, guest
- * checkout and the receipt, and shipping a "Get tickets" button that does
- * nothing would be a dead CTA on the one page where a dead CTA costs a sale.
- * The prices are shown because a visitor deciding whether to come needs them;
- * the button waits until it works.
+ * Grown from the Creative Director's `page-designs/festival.ts` under their
+ * ruling for a VENUE page (board: "Creative Director — /events/<slug> on a
+ * venue site"):
+ *   - DROPPED, always: the festival's own nav and footer (the venue's header
+ *     and footer own identity and navigation), the cinematic band, the stats
+ *     row (three nights / three stages are festival facts).
+ *   - SURVIVE, always: eyebrow (date · the venue's own name, never a city),
+ *     title, sub line, ONE call to action that scrolls to the picker and, at
+ *     375, sticks to the bottom edge because the picker is below the fold.
+ *   - The passes section is the TICKET section: the `ticket_picker` island
+ *     where the pass cards were, so the page always shows a working purchase
+ *     or the honest state that names why.
+ *   - The note survives as one optional description paragraph, no stats.
+ *   - CONDITIONAL: the lineup renders only with more than one act; one act
+ *     folds into the sub line; zero acts, no section — an empty grid never
+ *     renders.
+ *   - LOOK: the venue site's theme tokens; the festival's dark palette does not
+ *     travel; only the event's own cover image brings colour. Hero 60vh, not
+ *     full viewport. EN and ES on every string. No em dashes.
  *
- * REMAINING COUNTS ARE ALSO ABSENT, for the reason recorded in the admin
- * surface: availability is derived from `capacity_allocations` and the single
- * authority for that derivation answers one pool at a time. A "212 left" here
- * that disagrees with what the reserve RPC refuses is how a room gets oversold.
+ * PUBLISHED ONLY, enforced twice (the query and the RLS policy). Times in the
+ * VENUE'S zone, never the reader's. NO remaining counts anywhere on this page.
  */
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ slug: string }> };
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  // The event's own name, not the slug de-hyphenated and lowercased
-  // ("noche de prueba" for "Noche de prueba", measured live 2026-09-05).
-  // Published only, tenant-scoped, anon-readable — the same row the page shows.
+  // The event's own name, not the slug de-hyphenated and lowercased (#1874).
   const scope = await getPublicTenantScope();
   const supabase = scope ? await createClient() : null;
   const { data } = supabase
-    ? await supabase
-        .from("events")
-        .select("title")
-        .eq("tenant_id", scope!.tenantId)
-        .eq("status", "published")
-        .eq("slug", slug)
-        .maybeSingle()
+    ? await supabase.from("events").select("title").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
     : { data: null };
   return { title: (data?.title as string | undefined) ?? slug.replace(/-/g, " ") };
-}
-
-function money(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 export default async function PublicEventPage({ params }: Params) {
   const { slug } = await params;
   const scope = await getPublicTenantScope();
   if (!scope) notFound();
-
   const supabase = await createClient();
   if (!supabase) notFound();
 
-  // Published only, scoped to this tenant. Two venues can both own the slug
-  // `noche-de-salsa`, which is why the tenant is part of the lookup and not an
-  // afterthought — and why this path is agency/hub only in the allow-list.
   const { data: event, error: eventErr } = await supabase
     .from("events")
-    .select(
-      "id, slug, title, description, doors_offset_minutes, age_gate, refund_cutoff_hours, venue_id, offering_id",
-    )
-    .eq("tenant_id", scope.tenantId)
-    .eq("status", "published")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (eventErr) {
-    logServerError("events.publicDetail", eventErr);
-    notFound();
-  }
+    .select("id, slug, title, description, doors_offset_minutes, age_gate, refund_cutoff_hours, venue_id, offering_id, cover_media_id")
+    .eq("tenant_id", scope.tenantId).eq("status", "published").eq("slug", slug).maybeSingle();
+  if (eventErr) { logServerError("events.publicDetail", eventErr); notFound(); }
   if (!event) notFound();
 
-  const { data: sessionRows, error: sessionErr } = await supabase
-    .from("sessions")
-    .select("id, starts_at, ends_at, status")
-    .eq("event_id", event.id as string)
-    .eq("status", "scheduled")
-    .order("starts_at", { ascending: true });
+  const [{ data: sessionRows, error: sessionErr }, ctx, { data: cover, error: coverErr }] = await Promise.all([
+    supabase.from("sessions").select("id, starts_at, ends_at, status").eq("event_id", event.id as string).eq("status", "scheduled").order("starts_at", { ascending: true }),
+    readPublicEventContext({ tenantId: scope.tenantId, venueId: (event.venue_id as string | null) ?? null }),
+    event.cover_media_id ? supabase.from("media_assets").select("public_url, alt, width, height").eq("id", event.cover_media_id as string).maybeSingle() : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (sessionErr) { logServerError("events.publicDetail/sessions", sessionErr); notFound(); }
+  if (coverErr) logServerError("events.publicDetail/cover", coverErr);
 
-  if (sessionErr) {
-    logServerError("events.publicDetail/sessions", sessionErr);
-    notFound();
-  }
+  // The tenant's first supported locale decides the page language. A venue
+  // whose site is Spanish-first gets Spanish; the reader's browser does not
+  // decide, the venue does.
+  const supported = (ctx.supportedLocales as string[] | null) ?? [];
+  const locale: Locale = (supported[0] ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
 
-  // Venue + workspace facts the anon client cannot read (RLS); service role,
-  // four columns, by key. Without this every night rendered in UTC.
-  const ctx = await readPublicEventContext({ tenantId: scope.tenantId, venueId: (event.venue_id as string | null) ?? null });
-  const venueRow = ctx.venueName || ctx.venueTimezone ? { name: ctx.venueName, timezone: ctx.venueTimezone } : null;
-  const agencyRow = { timezone: ctx.workspaceTimezone };
-
-  const zone: string | null = resolvePublicZone({ venue: (venueRow?.timezone as string | null) ?? null, workspace: (agencyRow?.timezone as string | null) ?? null });
-
-  // Tiers are catalog variants. A variant with no `pool_key` is an ordinary
-  // product option rather than a ticket tier.
-  const { data: variantRows, error: variantErr } = event.offering_id
-    ? await supabase
-        .from("talent_offering_variants")
-        .select(
-          "id, label, amount_cents, pool_key, sales_from, sales_until, min_per_order, max_per_order, is_hidden, admits_per_unit, sort_order",
-        )
-        .eq("offering_id", event.offering_id as string)
-        .order("sort_order", { ascending: true })
-    : { data: [] as Array<Record<string, unknown>>, error: null };
-
-  if (variantErr) logServerError("events.publicDetail/tiers", variantErr);
+  // Venue → workspace, NEVER the platform rung: no zone, no date (#1874).
+  const zone = resolvePublicZone({ venue: ctx.venueTimezone, workspace: ctx.workspaceTimezone });
+  const venueName = ctx.venueName ?? ctx.workspaceDisplayName ?? null;
 
   const nowIso = new Date().toISOString();
   const sessions = sessionRows ?? [];
   const nextAt = (sessions.find((s) => (s.starts_at as string) >= nowIso)?.starts_at as string) ?? null;
   const doors = doorsAt(nextAt ?? "", (event.doors_offset_minutes as number | null) ?? 0);
 
-  const tiers = (variantRows ?? [])
-    .filter((v) => typeof v.pool_key === "string" && v.pool_key)
-    .map((v) => {
-      const tier: Tier = {
-        id: v.id as string,
-        label: v.label as string,
-        poolKey: v.pool_key as string,
-        amountCents: (v.amount_cents as number | null) ?? 0,
-        salesFrom: (v.sales_from as string | null) ?? null,
-        salesUntil: (v.sales_until as string | null) ?? null,
-        minPerOrder: (v.min_per_order as number | null) ?? 1,
-        maxPerOrder: (v.max_per_order as number | null) ?? null,
-        isHidden: Boolean(v.is_hidden),
-      };
-      return { tier, state: saleState(tier, nowIso) };
-    })
-    // A hidden tier is sold by link and must never be LISTED. `saleState`
-    // returns `hidden` for exactly that, which is why the public page asks it
-    // rather than `saleWindowState`.
-    .filter((t) => !(t.state.onSale === false && t.state.reason === "hidden"));
+  // THE LINEUP: only confirmed acts are public (engine rule), and the section
+  // only exists above one act. Read: inquiries carrying this event → the
+  // booked ones → their performer participants → display names.
+  let acts: string[] = [];
+  const { data: inqRows, error: inqErr } = await supabase.from("inquiries").select("id, status").eq("event_id", event.id as string);
+  if (inqErr) logServerError("events.publicDetail/lineup", inqErr);
+  const bookedIds = (inqRows ?? []).filter((i) => resolveLineupState({ inquiryStatus: i.status as string }) === "booked").map((i) => i.id as string);
+  if (bookedIds.length > 0) {
+    const { data: parts, error: pErr } = await supabase.from("inquiry_participants").select("inquiry_id, talent_profile_id, status").in("inquiry_id", bookedIds).not("talent_profile_id", "is", null);
+    if (pErr) logServerError("events.publicDetail/participants", pErr);
+    const ids = [...new Set((parts ?? []).filter((p) => p.status !== "declined" && p.status !== "removed").map((p) => p.talent_profile_id as string))];
+    if (ids.length > 0) {
+      const { data: profiles, error: prErr } = await supabase.from("talent_profiles").select("id, display_name, first_name").in("id", ids);
+      if (prErr) logServerError("events.publicDetail/profiles", prErr);
+      acts = (profiles ?? []).map((p) => ((p.display_name as string | null) ?? (p.first_name as string | null) ?? "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+    }
+  }
 
   return (
     <>
       <PublicHeader />
-      <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-        <div className="text-xs uppercase tracking-wide text-black/50">
-          {whenLabel(nextAt, zone)}
-          {doors ? ` · doors ${timeLabel(doors.toISOString(), zone)}` : null}
-        </div>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{event.title as string}</h1>
-        {venueRow?.name ? (
-          <p className="mt-1 text-sm text-black/60">{venueRow.name as string}</p>
-        ) : null}
-        {event.age_gate ? (
-          <p className="mt-1 text-sm text-black/60">{event.age_gate as number} and over</p>
-        ) : null}
-
-        {event.description ? (
-          <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed">
-            {event.description as string}
-          </p>
-        ) : null}
-
-        {sessions.length > 1 ? (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold">Dates</h2>
-            <ul className="mt-3 flex flex-col gap-2">
-              {sessions.map((s) => (
-                <li key={s.id as string} className="text-sm text-black/70">
-                  {whenLabel(s.starts_at as string, zone)}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Tickets</h2>
-          {tiers.length === 0 ? (
-            <p className="mt-2 text-sm text-black/60">Not on sale yet.</p>
-          ) : (
-            <ul className="mt-3 flex flex-col gap-3">
-              {tiers.map(({ tier, state }) => (
-                <li
-                  key={tier.id}
-                  className="flex items-baseline justify-between gap-4 rounded-lg border border-black/10 p-4"
-                >
-                  <div>
-                    <div className="font-medium">{tier.label}</div>
-                    {tier.maxPerOrder ? (
-                      <div className="text-xs text-black/50">
-                        up to {tier.maxPerOrder} per order
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{money(tier.amountCents)}</div>
-                    {!state.onSale ? (
-                      <div className="text-xs text-black/50">
-                        {state.reason === "scheduled" ? "Not yet on sale" : "Sales closed"}
-                      </div>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* No "Get tickets" button until it works. A dead CTA on the page a
-              visitor arrives at to buy is worse than an honest price list. */}
-          <p className="mt-4 text-sm text-black/60">
-            Online booking for this event opens soon. Contact the venue to reserve.
-          </p>
-        </section>
-
-        {event.refund_cutoff_hours != null ? (
-          <p className="mt-8 text-xs text-black/50">
-            Refundable up to {event.refund_cutoff_hours as number} hours before the event.
-          </p>
-        ) : null}
-      </main>
+      <EventPageView
+        tenantId={scope.tenantId}
+        eventId={event.id as string}
+        title={event.title as string}
+        description={((event.description as string | null) ?? "").trim()}
+        locale={locale}
+        zone={zone}
+        venueName={venueName}
+        nextAt={nextAt}
+        doorsAtIso={doors ? doors.toISOString() : null}
+        acts={acts}
+        coverUrl={(cover?.public_url as string | null) ?? null}
+        ageGate={(event.age_gate as number | null) ?? null}
+        refundCutoffHours={(event.refund_cutoff_hours as number | null) ?? null}
+      />
       <PublicFooter />
     </>
   );

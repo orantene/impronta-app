@@ -46,6 +46,7 @@ export type BuilderNodeKind =
   | "menu_board"
   | "reserve_table"
   | "session_picker"
+  | "ticket_picker"
   | "qr_code"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
@@ -1153,6 +1154,18 @@ export interface BuilderSessionPickerNode extends BuilderNodeBase {
   };
 }
 
+// ticket_picker — the guest buys a ticket for one night of an event (E5).
+// `eventId` binds the block to one event; the island fetches nights and tiers
+// itself (self-fetch class) and never shows a buy control it cannot complete.
+export interface BuilderTicketPickerNode extends BuilderNodeBase {
+  kind: "ticket_picker";
+  props: {
+    eventId: string;
+    title?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 // QR code block. FORK (b): a pure inline render (see qr-code-block.tsx). Stores
 // the link CODE; render composes <origin>/q/<code>. NO native-data-block-needs
 // entry.
@@ -2106,6 +2119,7 @@ export type BuilderNode =
   | BuilderMenuBoardNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
+  | BuilderTicketPickerNode
   | BuilderQrCodeNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode

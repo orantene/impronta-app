@@ -168,6 +168,12 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Shown only when your venue asks for a card":
     "Se muestra solo cuando tu local pide una tarjeta",
   "Your venue": "Tu local",
+  // EVENTS & TICKETING — the ticket_picker props panel.
+  "Event": "Evento",
+  "Event ID": "ID del evento",
+  "The event this block sells tickets for": "El evento del que este bloque vende entradas",
+  "Tickets": "Entradas",
+  "Buy tickets": "Comprar entradas",
   // SESSIONS & CLASSES — the session_picker props panel.
   "Session": "Sesión",
   "Sessions": "Sesiones",

@@ -128,6 +128,7 @@ import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
+import { TicketPickerIsland } from "./ticket-picker-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 
@@ -5550,6 +5551,33 @@ function renderBuilderNodeElement(
           <SessionPickerIsland
             tenantId={options.dataSources.tenantId ?? ""}
             offeringId={p.offeringId}
+            title={text("title", p.title) || undefined}
+            locale={options.contentLocale?.locale}
+          />
+        </div>
+      );
+    }
+    case "ticket_picker": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      // `tenantId ?? ""` is the wire; the island decides NOT CONFIGURED on an
+      // empty value and never calls an action with it.
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--ticket-picker"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <TicketPickerIsland
+            tenantId={options.dataSources.tenantId ?? ""}
+            eventId={p.eventId}
             title={text("title", p.title) || undefined}
             locale={options.contentLocale?.locale}
           />

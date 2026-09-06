@@ -146,6 +146,7 @@ const NATIVE_DATA_BLOCK_KINDS = [
   "talent_type_grid",
   "reserve_table",
   "session_picker",
+  "ticket_picker",
   "qr_code",
 ] as const;
 
