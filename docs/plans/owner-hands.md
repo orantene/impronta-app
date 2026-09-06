@@ -2,7 +2,7 @@
 
 The only things in the company that need the owner. Maintained by the CEO by PR; a session never adds to this file. Each line says what was tried first and what exactly is the owner's act. Removed the moment it is done.
 
-Updated 2026-09-06 03:45 UTC.
+Updated 2026-09-06 03:50 UTC.
 
 | # | Item | What was tried | The owner's act |
 |---|---|---|---|
@@ -13,7 +13,7 @@ Updated 2026-09-06 03:45 UTC.
 | 5 | Meta and TikTok developer sign-in | The Integration Director read the whole path, found three blockers and fixed the two in code (#1880, #1887); the apps need the owner's identity | Sign in to developers.facebook.com and TikTok for Developers in your Chrome and leave them signed in |
 | 6 | Stripe webhook events | Finance found refund.failed and refund.updated unsubscribed on the live endpoint | Subscribe both in the Stripe dashboard, live mode |
 | 7 | Stripe connector in claude.ai | Not reachable from any session | Reconnect it in your claude.ai settings |
-| 8 | Impronta launch-party brief | The CEO accepted the event as the first real ticketed event | Send the brief |
+| 8 | Impronta launch party: three facts from Alejandra | The brief arrived and Events is building the event unpublished on Impronta through the writers; the programme, tiers and table are modelled from it | Get from Alejandra the date, the venue address, and the capacity; the event publishes the moment they land |
 | 9 | Sentry | Only the public DSN exists in any environment; no auth token; no session holds a credential; the error ranking comes from Vercel runtime logs until then | Sign in to sentry.io in Chrome and leave it signed in |
 
 Decisions the CEO made in the owner's lane, for ratification, are in the overnight report and in `docs/plans/` decision records; they are not on this list because they need no act.
