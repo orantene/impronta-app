@@ -268,12 +268,23 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
     // 'transferred' legs: a 'held' leg has moved no money, and 'failed' /
     // 'reversed' either never left or came back, so projecting any of them
     // would write off a liability we still owe.
-    const { data: legs } = await sb
+    const { data: legs, error: legsErr } = await sb
       .from("booking_payouts")
       .select("stripe_transfer_id, party, amount_cents, currency, talent_profile_id, tenant_id, transferred_at, updated_at")
       .eq("status", "transferred")
       .not("stripe_transfer_id", "is", null)
       .limit(BATCH);
+
+    // A failed read is NOT "no transfers to settle". Swallowing it would report
+    // a successful run that projected nothing, leaving every payable overstated
+    // and nobody told -- the exact false all-clear this projection exists to end.
+    if (legsErr) {
+      result.ok = false;
+      result.transfers.refused += 1;
+      note(`transfers: read failed: ${legsErr.message ?? String(legsErr)}`);
+      logServerError("ledger.runProjection/transfers", legsErr);
+      return result;
+    }
 
     for (const raw of legs ?? []) {
       const l = raw as Record<string, unknown>;
