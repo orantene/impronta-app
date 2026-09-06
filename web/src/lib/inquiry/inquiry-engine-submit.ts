@@ -648,7 +648,27 @@ export async function submitInquiry(
             ? agencyRow.auto_ack_message
             : "Thanks — we'll get back to you within 4 hours.";
 
-        if (autoAckEnabled && (input.client_user_id || input.contact_email)) {
+        // NOT ON THE GUEST PATH, and this is an ordering fix rather than a
+        // feature removal.
+        //
+        // This whole block is a `void` fire-and-forget IIFE, so it races the
+        // caller. On the guest path the caller writes the guest's OWN first
+        // message after `submitInquiry` returns, behind another round-trip —
+        // so this ack reliably wins. Measured on a live inquiry:
+        //
+        //   02:40:55.091  "Thanks, we'll get back to you soon"   (this ack)
+        //   02:40:55.139  the guest's own first message           48 ms LATER
+        //   02:40:56.074  "Got it — we've received your message"  (the other ack)
+        //
+        // A client opened a transcript in which they were thanked before they
+        // had written anything, and thanked twice. `guest-chat-actions` emits
+        // its own ack AFTER the guest's message and now passes this tenant's
+        // `auto_ack_message` into it, so the tenant's own copy still appears —
+        // once, in the right order. The guest read-back already suppressed this
+        // row as a double, which is why nobody saw the ordering until a client
+        // read the thread from the other side.
+        const guestPathOwnsTheAck = Boolean(input.guest_session_id);
+        if (!guestPathOwnsTheAck && autoAckEnabled && (input.client_user_id || input.contact_email)) {
           await insertSystemMessage(supabase, {
             inquiryId,
             threadType: "private",

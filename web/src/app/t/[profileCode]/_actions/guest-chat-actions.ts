@@ -912,10 +912,26 @@ export async function startGuestChatInquiry(
   // Returns null when disabled or on insert failure — we then fall back to any
   // system bubble found in the read-back. Defaults (enabled, no custom copy);
   // a future enhancement can pass the tenant's auto_ack_message/enabled flag.
+  // The tenant's OWN auto-ack copy, emitted here — after the guest's message —
+  // rather than by the engine's fire-and-forget block, which raced it and won.
+  // This is the "future enhancement" the previous comment named: the arguments
+  // have existed since this module shipped and nothing ever passed them, so
+  // every guest saw the generic body while the tenant's configured sentence
+  // went out of order in a thread only the client and the workspace could read.
+  const { data: ackSettings } = await admin
+    .from("agencies")
+    .select("auto_ack_enabled, auto_ack_message")
+    .eq("id", tenantId)
+    .maybeSingle();
   const emittedAutoAck = await emitGuestAutoAck({
     inquiryId,
     tenantId,
     talentProfileId,
+    // A null row means enabled, matching the engine's own default — an agency
+    // that has never opened the setting still acknowledges its guests.
+    autoAckEnabled: ackSettings == null ? true : ackSettings.auto_ack_enabled !== false,
+    customAckMessage:
+      typeof ackSettings?.auto_ack_message === "string" ? ackSettings.auto_ack_message : null,
   });
 
   // GUEST → CLIENT CLAIM (best-effort): email the guest a magic-link so they can
