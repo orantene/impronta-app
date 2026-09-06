@@ -1,6 +1,7 @@
 import {
   EVENTBRITE_TERMS,
   ticketFeeRows,
+  TULALA_RATE_FALLBACK,
 } from "@/lib/marketing/ticket-fee-comparison";
 
 /**
@@ -26,7 +27,11 @@ export function TicketFeeTable({
   tulalaRate?: number;
 }) {
   const es = locale === "es";
-  const rows = ticketFeeRows(tulalaRate);
+  // Resolved ONCE, then used by both the table and the prose below. Letting
+  // each caller apply its own `?? FALLBACK` is how the sentence and the table
+  // drift apart again, which is the whole defect this component exists to fix.
+  const rate = tulalaRate ?? TULALA_RATE_FALLBACK;
+  const rows = ticketFeeRows(rate);
 
   // The TABLE reads the live rate; this sentence used to hardcode it. That is
   // the more dangerous half: a stale table is obvious at a glance, a stale
@@ -39,9 +44,9 @@ export function TicketFeeTable({
   // The buyer's share is HALF of the take by current config
   // (client_surcharge_bps 300 of default_take_bps 600). Derived rather than
   // typed, so the split cannot silently stop matching the engine.
-  const pctText = `${Math.round(tulalaRate * 1000) / 10}%`;
-  const tenTotal = (10 * tulalaRate).toFixed(2);
-  const tenHalf = (10 * (tulalaRate / 2)).toFixed(2);
+  const pctText = `${Math.round(rate * 1000) / 10}%`;
+  const tenTotal = (10 * rate).toFixed(2);
+  const tenHalf = (10 * (rate / 2)).toFixed(2);
 
   const t = es
     ? {
