@@ -70,3 +70,58 @@ test("every provider declares distinct credential env vars", () => {
     seen.add(p.clientIdEnv);
   }
 });
+
+// ─── The start route once built a GOOGLE authorization URL for every workspace
+// connect, regardless of provider, so an Instagram connect landed on Google's
+// consent screen. Every branch now goes through this one helper; pin what it
+// produces per provider so the route cannot drift again.
+import {
+  buildConnectionAuthorizationRedirect,
+  getConnectionOAuthRedirectUri,
+} from "./providers";
+
+test("redirect URI is per-VENDOR and never the google route for a social provider", () => {
+  const app = "https://app.tulala.digital/";
+  assert.equal(
+    getConnectionOAuthRedirectUri(CONNECTION_OAUTH_PROVIDERS.instagram, app),
+    "https://app.tulala.digital/api/connections/oauth/callback/instagram",
+  );
+  assert.equal(
+    getConnectionOAuthRedirectUri(CONNECTION_OAUTH_PROVIDERS.tiktok, app),
+    "https://app.tulala.digital/api/connections/oauth/callback/tiktok",
+  );
+  assert.equal(
+    getConnectionOAuthRedirectUri(CONNECTION_OAUTH_PROVIDERS.youtube, app),
+    "https://app.tulala.digital/api/connections/oauth/callback/google",
+  );
+});
+
+test("a workspace instagram connect authorizes at instagram.com with the instagram callback", () => {
+  for (const p of Object.values(CONNECTION_OAUTH_PROVIDERS)) {
+    process.env[p.clientIdEnv] = `${p.key}-id`;
+    process.env[p.clientSecretEnv] = `${p.key}-secret`;
+  }
+  const res = buildConnectionAuthorizationRedirect({
+    provider: CONNECTION_OAUTH_PROVIDERS.instagram,
+    state: "s",
+    appUrl: "https://app.tulala.digital",
+  });
+  assert.ok(res.ok);
+  const url = new URL(res.url);
+  assert.equal(url.host, "www.instagram.com");
+  assert.equal(url.searchParams.get("client_id"), "instagram-id");
+  assert.equal(
+    url.searchParams.get("redirect_uri"),
+    "https://app.tulala.digital/api/connections/oauth/callback/instagram",
+  );
+  assert.doesNotMatch(res.url, /google/);
+
+  const yt = buildConnectionAuthorizationRedirect({
+    provider: CONNECTION_OAUTH_PROVIDERS.youtube,
+    state: "s",
+    appUrl: "https://app.tulala.digital",
+  });
+  assert.ok(yt.ok);
+  assert.equal(new URL(yt.url).host, "accounts.google.com");
+  assert.equal(new URL(yt.url).searchParams.get("access_type"), "offline");
+});

@@ -4,11 +4,11 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { userHasCapability } from "@/lib/access";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
 import {
-  buildConnectionAuthorizationUrl,
+  buildConnectionAuthorizationRedirect,
   getConnectionOAuthProvider,
+  type ConnectionOAuthProvider,
 } from "@/lib/connection-oauth/providers";
 import { createConnectionOAuthState } from "@/lib/connection-oauth/state";
-import { buildGoogleConnectionAuthorizationUrl } from "@/lib/connection-oauth/youtube";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireClient, requireSession } from "@/lib/server/action-guards";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
@@ -24,6 +24,28 @@ function failureRedirect(returnTo: string, error: string) {
 function normalizeReturnTo(raw: string | null, fallback: string): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return fallback;
   return raw.slice(0, 500);
+}
+
+/**
+ * The one exit every owner branch takes: sign the state, then build the
+ * vendor's authorization URL with the vendor's own callback as redirect URI.
+ * The three branches used to build their URLs separately, and two of them
+ * hard-coded the Google route for every provider.
+ */
+async function redirectToVendor(input: {
+  provider: ConnectionOAuthProvider;
+  state: Parameters<typeof createConnectionOAuthState>[0];
+  returnTo: string;
+}) {
+  const state = await createConnectionOAuthState(input.state);
+  if (!state.ok) return failureRedirect(input.returnTo, "oauth_setup");
+  const auth = buildConnectionAuthorizationRedirect({
+    provider: input.provider,
+    state: state.token,
+    appUrl: getAppUrl(),
+  });
+  if (!auth.ok) return failureRedirect(input.returnTo, "oauth_setup");
+  return NextResponse.redirect(auth.url);
 }
 
 export async function GET(request: NextRequest) {
@@ -49,28 +71,19 @@ export async function GET(request: NextRequest) {
     if (!guard.ok) {
       return failureRedirect(returnTo, "not_authorized");
     }
-    const state = await createConnectionOAuthState({
-      owner,
-      provider: provider.key,
-      actorUserId: guard.session.user.id,
-      subjectId: guard.talentProfile.id,
-      tenantSlug: null,
-      returnTo,
-      fallbackReturnTo: "/talent/settings",
-    });
-    if (!state.ok) return failureRedirect(returnTo, "oauth_setup");
-
-    // Redirect URI is per-VENDOR (each has its own callback route), and the
-    // authorization URL is built by the vendor-generic builder so instagram /
-    // tiktok cannot drift from the proven YouTube shape.
-    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/${provider.oauthProvider}`;
-    const auth = buildConnectionAuthorizationUrl({
+    return redirectToVendor({
       provider,
-      state: state.token,
-      redirectUri,
+      returnTo,
+      state: {
+        owner,
+        provider: provider.key,
+        actorUserId: guard.session.user.id,
+        subjectId: guard.talentProfile.id,
+        tenantSlug: null,
+        returnTo,
+        fallbackReturnTo: "/talent/settings",
+      },
     });
-    if (!auth.ok) return failureRedirect(returnTo, "oauth_setup");
-    return NextResponse.redirect(auth.url);
   }
 
   if (owner === "client") {
@@ -87,24 +100,19 @@ export async function GET(request: NextRequest) {
     if (tenantSlug && !tenant) {
       return failureRedirect(returnTo, "not_authorized");
     }
-    const state = await createConnectionOAuthState({
-      owner,
-      provider: provider.key,
-      actorUserId: guard.user.id,
-      subjectId: guard.user.id,
-      tenantSlug: tenant?.tenantSlug ?? null,
+    return redirectToVendor({
+      provider,
       returnTo,
-      fallbackReturnTo: fallback,
+      state: {
+        owner,
+        provider: provider.key,
+        actorUserId: guard.user.id,
+        subjectId: guard.user.id,
+        tenantSlug: tenant?.tenantSlug ?? null,
+        returnTo,
+        fallbackReturnTo: fallback,
+      },
     });
-    if (!state.ok) return failureRedirect(returnTo, "oauth_setup");
-
-    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/google`;
-    const auth = buildGoogleConnectionAuthorizationUrl({
-      state: state.token,
-      redirectUri,
-    });
-    if (!auth.ok) return failureRedirect(returnTo, "oauth_setup");
-    return NextResponse.redirect(auth.url);
   }
 
   if (owner === "workspace") {
@@ -126,24 +134,19 @@ export async function GET(request: NextRequest) {
     if (!canManage) {
       return failureRedirect(returnTo, "not_authorized");
     }
-    const state = await createConnectionOAuthState({
-      owner,
-      provider: provider.key,
-      actorUserId: guard.user.id,
-      subjectId: scope.tenantId,
-      tenantSlug: slug,
+    return redirectToVendor({
+      provider,
       returnTo,
-      fallbackReturnTo: fallback,
+      state: {
+        owner,
+        provider: provider.key,
+        actorUserId: guard.user.id,
+        subjectId: scope.tenantId,
+        tenantSlug: slug,
+        returnTo,
+        fallbackReturnTo: fallback,
+      },
     });
-    if (!state.ok) return failureRedirect(returnTo, "oauth_setup");
-
-    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/google`;
-    const auth = buildGoogleConnectionAuthorizationUrl({
-      state: state.token,
-      redirectUri,
-    });
-    if (!auth.ok) return failureRedirect(returnTo, "oauth_setup");
-    return NextResponse.redirect(auth.url);
   }
 
   return failureRedirect("/", "invalid_owner");

@@ -154,6 +154,41 @@ export function buildConnectionAuthorizationUrl(input: {
   return { ok: true, url: url.toString() };
 }
 
+/**
+ * The redirect URI a provider's flow registers with its vendor. Per-VENDOR,
+ * because the callback route is per-vendor: `/callback/google` for YouTube,
+ * `/callback/instagram`, `/callback/tiktok`. Every owner branch of the start
+ * route and every callback must build the URI through this one function; the
+ * workspace branch once hard-coded the Google route for all providers, which
+ * sent an Instagram connect to Google's consent screen.
+ */
+export function getConnectionOAuthRedirectUri(
+  provider: ConnectionOAuthProvider,
+  appUrl: string,
+): string {
+  return `${appUrl.replace(/\/$/, "")}/api/connections/oauth/callback/${provider.oauthProvider}`;
+}
+
+/**
+ * The full authorization redirect for a provider: vendor redirect URI plus the
+ * vendor-generic authorization URL. One code path for every provider and every
+ * owner kind, so no branch can pick another vendor's route.
+ */
+export function buildConnectionAuthorizationRedirect(input: {
+  provider: ConnectionOAuthProvider;
+  state: string;
+  appUrl: string;
+}): { ok: true; url: string; redirectUri: string } | { ok: false; error: string } {
+  const redirectUri = getConnectionOAuthRedirectUri(input.provider, input.appUrl);
+  const auth = buildConnectionAuthorizationUrl({
+    provider: input.provider,
+    state: input.state,
+    redirectUri,
+  });
+  if (!auth.ok) return auth;
+  return { ok: true, url: auth.url, redirectUri };
+}
+
 export function getConnectionOAuthProvider(
   key: string,
 ): ConnectionOAuthProvider | null {
