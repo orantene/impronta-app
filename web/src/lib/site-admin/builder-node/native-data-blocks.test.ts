@@ -426,6 +426,11 @@ test("TENANT SCOPING: foreign-tenant menu rows never survive the fetch helper", 
       kind: "service",
       unitsLeft: null,
       allowPayInPerson: false,
+      // Added with the category strip. Kept inside the STRICT deepEqual rather
+      // than loosening this to a partial match: comparing the whole array is
+      // what proves the foreign-tenant row did not survive, and a partial
+      // match would quietly stop proving it.
+      category: null,
     },
   ]);
 });
