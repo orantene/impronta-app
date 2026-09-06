@@ -302,6 +302,13 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/api/talent/media-kit": ["./src/lib/talent/fonts/*.ttf"],
+    // The print export embeds the same Noto subset. The .ttf files are read at
+    // RUNTIME, so no bundler can see the dependency: without this entry the
+    // route builds clean, typechecks clean, renders correctly in `next dev`
+    // (the files are simply on disk locally) and 500s in production on the
+    // serverless bundle with the fonts missing. The key is the ROUTE path with
+    // the (workspace) group stripped, matching the entry above.
+    "/[tenantSlug]/admin/print/[id]/export": ["./src/lib/talent/fonts/*.ttf"],
   },
   /**
    * Opt into Next.js' integration with React's `<ViewTransition>` component
