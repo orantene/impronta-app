@@ -16,6 +16,7 @@
 
 import "server-only";
 import { cache } from "react";
+import { pickLabel } from "./compare-table-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -39,6 +40,9 @@ type RawFeature = {
   display_order: number;
   category: string | null;
   value_text: string | null;
+  /** jsonb {en, es}. Narrowed by `pickLabel`, never trusted as a shape. */
+  label_i18n: unknown;
+  value_text_i18n: unknown;
 };
 
 /**
@@ -49,7 +53,10 @@ type RawFeature = {
  * state rather than crash.
  */
 export const loadCompareTable = cache(
-  async (packageSlug: string = "workspace"): Promise<CompareTable | null> => {
+  async (
+    packageSlug: string = "workspace",
+    locale: string = "en",
+  ): Promise<CompareTable | null> => {
     const admin = createServiceRoleClient();
     if (!admin) {
       logServerError("get-compare-table.service-role", null);
@@ -91,7 +98,7 @@ export const loadCompareTable = cache(
     // 2. All compare-table features (NON-NULL category, NOT 'core').
     const featRes = await admin
       .from("product_features")
-      .select("tier_id, label, included, display_order, category, value_text")
+      .select("tier_id, label, included, display_order, category, value_text, label_i18n, value_text_i18n")
       .in("tier_id", tierIds)
       .not("category", "is", null)
       .neq("category", "core")
@@ -122,12 +129,15 @@ export const loadCompareTable = cache(
     const tierIdToSlug = new Map(tiers.map((t) => [t.id, t.slug]));
     for (const f of features) {
       if (!f.category) continue; // SQL filter already excluded null, defensive
+      // Key on the ENGLISH label. It is the stable identity: keying on the
+      // localised one would collapse different rows in one locale and not in
+      // another, so the table's shape would depend on who is reading it.
       const key = `${f.category}|${f.label}`;
       let row = pivot.get(key);
       if (!row) {
         row = {
           category: f.category,
-          label: f.label,
+          label: pickLabel(f.label_i18n, f.label, locale),
           displayOrder: f.display_order,
           byTier: new Map(),
         };
@@ -139,7 +149,10 @@ export const loadCompareTable = cache(
       if (slug) {
         row.byTier.set(slug, {
           included: f.included,
-          value: f.value_text,
+          value:
+            f.value_text === null
+              ? null
+              : pickLabel(f.value_text_i18n, f.value_text, locale),
         });
       }
     }
