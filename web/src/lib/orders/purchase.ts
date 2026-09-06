@@ -24,6 +24,7 @@ import {
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
+import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import type {
@@ -84,25 +85,6 @@ import {
 
 const FALLBACK_HOLD_TTL_SECONDS = 15 * 60;
 
-/** A hold may not outlive this, whatever a caller asks for. 30 days. */
-const MAX_HOLD_TTL_SECONDS = 30 * 24 * 60 * 60;
-
-/**
- * The hold's lifetime: the pools' shortest TTL, unless the caller overrides it.
- *
- * The override exists for pay-at-the-door orders, where the hold must last
- * until the event rather than fifteen minutes. It is CLAMPED rather than
- * trusted: a non-finite, zero or negative value falls back rather than
- * producing a hold that expires immediately or never, and no caller can ask for
- * a hold longer than a month. An unbounded hold is the commit-with-no-TTL
- * problem wearing a different name.
- */
-export function resolveHoldTtl(poolShortest: number | null, override?: number | null): number {
-  const base = poolShortest ?? FALLBACK_HOLD_TTL_SECONDS;
-  if (override == null) return base;
-  if (!Number.isFinite(override) || override <= 0) return base;
-  return Math.min(Math.floor(override), MAX_HOLD_TTL_SECONDS);
-}
 
 export async function createPurchase(
   admin: SupabaseClient,
@@ -414,6 +396,53 @@ export async function createPurchase(
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
 
+      // ── A DOOR HOLD LASTS UNTIL THE SESSION ENDS.
+      //
+      // Derived here rather than passed in: the caller already declares which
+      // session each line is for, so the pipeline reads when it ends. A caller
+      // handing over a duration would be computing `end - now` at request time,
+      // and a duration from a wall clock is where drift lives.
+      //
+      // Falls back to the pools' own TTL for everything else — a card order is
+      // bounded by Checkout, not by the event.
+      let holdTtlSeconds = shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS;
+      const sessionIds = input.lines
+        .map((l) => l.sessionId)
+        .filter((v): v is string => typeof v === "string" && v.length > 0);
+      if (input.paymentChoice === "in_person" && sessionIds.length > 0) {
+        const { data: sessionRows, error: sessionErr } = await admin
+          .from("sessions")
+          .select("id, ends_at")
+          .in("id", sessionIds);
+        if (sessionErr) {
+          // Logged, not fatal: a door order with an unreadable session still
+          // gets the pool TTL, which is the pre-existing behaviour rather than
+          // a refusal on a path that used to work.
+          logServerError("orders.createPurchase/doorHold", sessionErr);
+        } else {
+          const door = doorHoldSeconds({
+            paymentChoice: input.paymentChoice,
+            sessionEnds: (sessionRows ?? []).map(
+              (r) => (r as { ends_at: string | null }).ends_at,
+            ),
+          });
+          if (door.ok) {
+            holdTtlSeconds = door.seconds;
+          } else if (door.reason === "already_ended") {
+            // REFUSES. An online pay-at-the-door order for a session that is
+            // over is a mistake, not a late sale — the late sale is the door's
+            // own `sellAtDoor`, which commits immediately and holds nothing.
+            // Falling back would sell a pool-TTL hold on a seat nobody can use.
+            await unwind("door order for a session that has ended");
+            return {
+              ok: false,
+              reason: "session_already_ended",
+              error: "That session has already ended.",
+            };
+          }
+        }
+      }
+
       const built = buildCapacityRequests(needs, lineIdByOffering);
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
@@ -428,7 +457,7 @@ export async function createPurchase(
 
       const reserved = await reserveCapacityBatch(
         built.requests,
-        { ttlSeconds: resolveHoldTtl(shortestTtlSeconds, input.holdTtlSecondsOverride), createdBy: input.actorUserId },
+        { ttlSeconds: holdTtlSeconds, createdBy: input.actorUserId },
         admin,
       );
 

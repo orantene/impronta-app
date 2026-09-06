@@ -23,11 +23,14 @@ const PANEL = "#231409";
 const CREAM = "#f5ede0";
 const MUTED = "rgba(245,237,224,0.68)";
 const EMBER = "#c95e2a";
+// The primary button fill: EMBER darkened in hue until cream text clears the
+// 4.5:1 text floor (cream on EMBER is 3.53:1, large-text only). Kickers and
+// rules keep EMBER; a button carries text, so it carries this.
+const EMBER_BUTTON = "#ab5024";
 const AMBER = "#e0923a";
 
 const PHOTO = {
   hero: pageDesignPhoto("serviceProsScene"),
-  chef: pageDesignPhoto("directorPortrait"),
 };
 
 const restaurantOrderableTree: BuilderNode[] = [
@@ -64,6 +67,11 @@ const restaurantOrderableTree: BuilderNode[] = [
             kind: "image",
             props: {
               src: PHOTO.hero,
+              // PLACEHOLDER, by ruling (CEO, 2026-09-05): a stock kitchen scene stays
+              // until the owner clears their own photos, because a bare hero is
+              // worse than a placeholder kitchen and the swap is one image. The
+              // layer name says so to whoever opens the page in the builder.
+              layerLabel: "Placeholder photo: replace with the owner's own",
               alt: "Restaurant kitchen scene",
               style: {
                 position: "absolute",
@@ -182,7 +190,7 @@ const restaurantOrderableTree: BuilderNode[] = [
                     fontSize: "15px",
                     fontWeight: 600,
                     letterSpacing: "0.04em",
-                    backgroundColor: EMBER,
+                    backgroundColor: EMBER_BUTTON,
                     textColor: CREAM,
                     borderRadius: "2px",
                     paddingTop: "14px",
@@ -289,11 +297,19 @@ const restaurantOrderableTree: BuilderNode[] = [
                 ],
               },
               {
-                id: "restaurant-orderable-story-image",
-                kind: "image",
+                // THE TENANT'S OWN PHOTO SLOT, empty until the owner supplies one.
+                // This was a stock portrait from the design photo set, a chef nobody is,
+                // on every page-less restaurant. The brief's rule: no real photo, then the
+                // charcoal ground and type, never a placeholder and never a stranger's
+                // face on a family restaurant. The slot keeps the split's footprint so the
+                // layout does not flinch when the photo arrives; the operator drops an
+                // image node into it.
+                id: "restaurant-orderable-story-photo-slot",
+                kind: "container",
                 props: {
-                  src: PHOTO.chef,
-                  alt: "Chef in the kitchen",
+                  layout: "stack",
+                  align: "center",
+                  layerLabel: "Designed absence: the name in the display face until the owner's photo arrives",
                   style: {
                     width: "100%",
                     aspectRatioFree: "0.82",
@@ -301,8 +317,38 @@ const restaurantOrderableTree: BuilderNode[] = [
                     objectPosition: "center top",
                     borderRadius: "2px",
                     boxShadow: `0 40px 100px rgba(10,5,3,0.52)`,
+                    backgroundColor: PANEL,
+                    minHeight: "320px",
                   },
                 },
+                children: [
+                  {
+                    // The designed absence (CEO + Creative Director, 2026-09-05):
+                    // charcoal ground with the tenant's own name set in the display
+                    // face, never a label that says "photo" and never a stranger's
+                    // face. The personaliser writes the name; the owner's photo
+                    // replaces this node when it arrives.
+                    id: "restaurant-orderable-story-photo-slot-name",
+                    kind: "heading",
+                    props: {
+                      text: "{{business.name}}",
+                      level: 2,
+                      style: {
+                        align: "center",
+                        size: "lg",
+                        fontFamily: PLAYFAIR,
+                        lineHeight: "1.1",
+                        letterSpacing: "0.02em",
+                        textColor: CREAM,
+                        textWrap: "balance",
+                        paddingTop: "40px",
+                        paddingRight: "24px",
+                        paddingBottom: "40px",
+                        paddingLeft: "24px",
+                      },
+                    },
+                  },
+                ],
               },
             ],
           },

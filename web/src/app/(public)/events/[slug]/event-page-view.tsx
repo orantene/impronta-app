@@ -10,6 +10,7 @@
  * (1.35rem…2.25rem at 2vw). Creative Director's ruling, 2026-09-06.
  */
 
+import { timeLabel, whenLabel } from "@/lib/events/public-event-time";
 import { TicketPickerIsland } from "@/lib/site-admin/builder-node/ticket-picker-island";
 
 export type Locale = "en" | "es";
@@ -25,36 +26,14 @@ export const COPY: Record<Locale, Record<string, string>> = {
   },
 };
 
-export function whenLabel(iso: string | null, timeZone: string, locale: Locale, withTime = true): string {
-  if (!iso) return COPY[locale].dateTba;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return COPY[locale].dateTba;
-  try {
-    return d.toLocaleString(locale === "es" ? "es" : "en", {
-      timeZone, weekday: "long", day: "numeric", month: "long",
-      ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
-    });
-  } catch {
-    return d.toISOString(); // never silently the reader's zone
-  }
-}
-
-/** Time only, one formatter for both locales: "8:00 PM" / "20:00". */
-export function timeLabel(iso: string, timeZone: string, locale: Locale): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  try {
-    return d.toLocaleTimeString(locale === "es" ? "es" : "en", { timeZone, hour: "numeric", minute: "2-digit", hour12: locale !== "es" });
-  } catch { return ""; }
-}
-
 export type EventPageModel = {
   tenantId: string;
   eventId: string;
   title: string;
   description: string;
   locale: Locale;
-  zone: string;
+  /** Venue's zone, else the workspace's; null renders a sentence, never a date. */
+  zone: string | null;
   venueName: string | null;
   nextAt: string | null;
   doorsAtIso: string | null;
