@@ -33,6 +33,7 @@ import {
   getBuilderDataSourceDefinition,
 } from "@/lib/site-admin/builder-node/data-bindings";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { isStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -147,6 +148,58 @@ function summarizeIssues(
  * Pure: no I/O, no logging, no throwing. The caller turns `reasons` into the
  * action's `{ ok: false, error }` shape.
  */
+/**
+ * A token-backed background paired with a LITERAL text colour.
+ *
+ * The background follows the tenant's palette; a literal ink follows nothing.
+ * So the pair is only readable for whichever tenant it was authored against —
+ * two published templates carried `backgroundColor: "token:color.primary"` with
+ * `textColor: "#1a1407"`, ink authored for Impronta's gold, which measured
+ * 1.03:1 on the registry-default primary. `render.tsx` lets an explicit literal
+ * win over the paired-foreground role, correctly, so no amount of fixing the
+ * pairing token reaches it.
+ *
+ * Only the PAIRING is refused. A literal background with a literal ink is a
+ * deliberate fixed-colour block and stays publishable; token + token is the
+ * correct form. A check that refused every literal would be a check someone
+ * disables the first time they ship a fixed-colour block.
+ */
+const COLOUR_LITERAL = /^(#|rgb|hsl|color\()/i;
+
+function isColourLiteral(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  // Bind the trimmed string BEFORE the token guard. `isStyleTokenRef` is a
+  // `value is string` predicate, so its NEGATIVE branch narrows an
+  // already-string value to `never` — and `never.trim()` does not compile.
+  // A guard that narrows the wrong way in the branch you need is easy to write
+  // and reads as correct.
+  const text = value.trim();
+  if (text.length === 0) return false;
+  if (isStyleTokenRef(text)) return false;
+  return COLOUR_LITERAL.test(text);
+}
+
+function collectContrastBombs(
+  nodes: ReadonlyArray<BuilderNode>,
+): Array<{ nodeId: string; background: string; ink: string }> {
+  const out: Array<{ nodeId: string; background: string; ink: string }> = [];
+  const walk = (list: ReadonlyArray<BuilderNode>): void => {
+    for (const node of list) {
+      const style = (node.props as { style?: Record<string, unknown> } | undefined)
+        ?.style;
+      const bg = style?.backgroundColor;
+      const ink = style?.textColor;
+      if (typeof bg === "string" && isStyleTokenRef(bg) && isColourLiteral(ink)) {
+        out.push({ nodeId: node.id, background: bg, ink });
+      }
+      const kids = (node as { children?: ReadonlyArray<BuilderNode> }).children;
+      if (Array.isArray(kids)) walk(kids);
+    }
+  };
+  walk(nodes);
+  return out;
+}
+
 export function validateTemplateForPublish(
   tree: ReadonlyArray<BuilderNode> | null | undefined,
   opts?: ValidateTemplateForPublishOptions,
@@ -180,6 +233,26 @@ export function validateTemplateForPublish(
     const more = dangling.length > 5 ? ` (+${dangling.length - 5} more)` : "";
     reasons.push(
       `unknown data source${dangling.length > 1 ? "s" : ""}: ${detail}${more} — pick a supported source before publishing`,
+    );
+  }
+
+  // 3. No contrast bombs. A token ground with a literal ink publishes a button
+  //    whose label is readable only for the tenant it was authored against, and
+  //    it is invisible to every other check: the tree is structurally valid and
+  //    the bindings all resolve.
+  const bombs = collectContrastBombs(scanTree);
+  if (bombs.length > 0) {
+    const detail = bombs
+      .slice(0, 5)
+      .map((b) => `node ${b.nodeId} (${b.background} + ${b.ink})`)
+      .join(", ");
+    const more = bombs.length > 5 ? ` (+${bombs.length - 5} more)` : "";
+    reasons.push(
+      `token background with a hardcoded text colour: ${detail}${more} — the ` +
+        `background follows each tenant's palette and the ink does not, so the ` +
+        `label is only readable for the tenant this was authored against. Bind ` +
+        `the text colour to the pairing token (token:color.primary-on) or make ` +
+        `the background a literal too`,
     );
   }
 
