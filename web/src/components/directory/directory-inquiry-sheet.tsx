@@ -24,7 +24,7 @@ import Link from "next/link";
 
 import { getDirectoryInquirySheetData } from "@/app/(public)/directory/get-inquiry-sheet-data";
 import { DirectoryInquirySuccessPanel } from "@/components/directory/directory-inquiry-success-panel";
-import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
 import { InquiryDrawer, InquiryDrawerShell, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
@@ -40,7 +40,15 @@ type DirectoryInquirySheetProps = {
 
 export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
   const s = ui.inquirySheet;
-  const { open, setOpen, success, clearSuccess } = useDirectoryInquiryModal();
+  // OPTIONAL for the same reason as DirectoryInquiryUrlSync: this sheet is
+  // rendered by trees that can appear under the ROOT layout, which mounts no
+  // provider. With none above us there is no open-state to read, so the sheet
+  // renders nothing rather than throwing the page away.
+  const modal = useOptionalDirectoryInquiryModal();
+  const open = modal?.open ?? false;
+  const setOpen = modal?.setOpen;
+  const success = modal?.success ?? null;
+  const clearSuccess = modal?.clearSuccess;
   const { savedIds, searchContext } = usePublicDiscoveryState();
   const [payload, setPayload] = useState<DirectoryInquiryPayload | null>(null);
 
@@ -60,8 +68,11 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
   }, [open, success, refreshPayload]);
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (!next) clearSuccess();
+    // Unreachable without a provider — `open` is false and we return null
+    // below — but called optionally so the type reflects that rather than
+    // asserting a context we may not have.
+    setOpen?.(next);
+    if (!next) clearSuccess?.();
   };
 
   if (!open) return null;

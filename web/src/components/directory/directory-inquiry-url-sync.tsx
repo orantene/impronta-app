@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 
 /**
  * URL → inquiry-modal sync. Two triggers, both then strip their query params:
@@ -17,11 +17,22 @@ export function DirectoryInquiryUrlSync() {
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const { showSuccess, requestOpenChat } = useDirectoryInquiryModal();
+  // OPTIONAL, because this component rides along on arbitrary pages and the
+  // ROOT layout mounts no provider. The throwing hook here took down `/`,
+  // `/global-directory` and `/_not-found` 61 times during SERVER RENDER between
+  // 2026-09-03 and 2026-09-05. With no provider there is no modal to sync a URL
+  // to, so the correct behaviour is to do nothing — not to crash the page the
+  // component happens to be mounted on.
+  const modal = useOptionalDirectoryInquiryModal();
+  const showSuccess = modal?.showSuccess;
+  const requestOpenChat = modal?.requestOpenChat;
   const handled = useRef(false);
 
   useEffect(() => {
     if (handled.current) return;
+    // No provider: nothing to open, and the ?inquiry param is left alone rather
+    // than stripped, so a later render under a provider can still act on it.
+    if (!showSuccess || !requestOpenChat) return;
     const mode = params.get("inquiry");
     if (mode !== "submitted" && mode !== "open") return;
 
