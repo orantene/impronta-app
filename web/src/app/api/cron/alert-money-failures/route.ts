@@ -39,6 +39,14 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { classifyHeartbeats, type HeartbeatRow } from "@/lib/ops/cron-heartbeat";
+import {
+  computeBalanceDeltas,
+  describeMismatch,
+  mismatchedDeltas,
+  sumStripeBalance,
+} from "@/lib/ops/balance-reconcile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -181,8 +189,88 @@ export async function GET(request: Request) {
     const failedPayoutCount = (failedPayouts ?? []).length;
     const unattributedTenantCount = unattributedTenants.length;
     const unattributedTalentCount = unattributedTalents.length;
+    // ── 6. CRON LIVENESS ────────────────────────────────────────────────
+    // Every other signal here detects a job that RAN and produced something
+    // wrong. None detects a job that stopped running: silence looks identical
+    // to a healthy run with nothing to do. `ingest-balance-transactions` and
+    // `project-ledger` are the only writers of the books, so if either stops,
+    // the books quietly stop and the first symptom is someone noticing, later,
+    // that they end abruptly.
+    const { data: heartbeatRows, error: heartbeatErr } = await admin
+      .from("cron_heartbeats")
+      .select("job, last_run_at, last_ok_at, last_status, consecutive_failures")
+      .returns<HeartbeatRow[]>();
+    // An unread error here would present as "no heartbeats", i.e. every money
+    // cron reported as never_ran -- a false all-clear on the liveness signal.
+    if (heartbeatErr) throw heartbeatErr;
+
+    const heartbeatVerdicts = classifyHeartbeats(heartbeatRows ?? [], now);
+    const unhealthyHeartbeats = heartbeatVerdicts.filter((v) => v.state !== "ok");
+    // `never_ran` is excluded from the alert count on purpose: a missing row on
+    // a freshly deployed job is expected and self-resolves within one interval.
+    // It is still reported in the response so a deploy can be watched.
+    const stoppedOrFailingJobs = unhealthyHeartbeats.filter((v) => v.state !== "never_ran");
+
+    // ── 7. STRIPE BALANCE vs OURS ───────────────────────────────────────
+    // The only check here that asks an auditor's question: do our records and
+    // the provider's agree on the TOTAL? Records can diverge without any single
+    // operation failing -- a missed webhook, a truncated ingest window -- and
+    // every other signal stays green while the totals drift apart.
+    let balanceMismatchSummary: string | null = null;
+    let balanceCheckSkipped: string | null = null;
+    try {
+      if (!isStripeConfigured()) {
+        balanceCheckSkipped = "stripe not configured";
+      } else {
+        const stripe = getStripe()!;
+        const balance = await stripe.balance.retrieve();
+        const stripeByCurrency = sumStripeBalance(balance);
+
+        // Our side: the sum of every balance transaction we have ingested.
+        const { data: ourRows, error: ourRowsErr } = await admin
+          .from("provider_balance_transactions")
+          .select("currency, net_cents")
+          .returns<Array<{ currency: string; net_cents: number }>>();
+        // Unread, this would make our side look like ZERO and report the whole
+        // Stripe balance as a mismatch: a loud false alarm on a read failure.
+        if (ourRowsErr) throw ourRowsErr;
+
+        const oursByCurrency: Record<string, number> = {};
+        for (const r of ourRows ?? []) {
+          const c = (r.currency ?? "").toLowerCase();
+          if (!c) continue;
+          oursByCurrency[c] = (oursByCurrency[c] ?? 0) + (r.net_cents ?? 0);
+        }
+
+        const mismatches = mismatchedDeltas(computeBalanceDeltas(stripeByCurrency, oursByCurrency));
+        if (mismatches.length > 0) {
+          // The earliest ingested date is what distinguishes "we missed
+          // transactions" from "we started counting late", so the alert carries
+          // it rather than making an operator go and find it.
+          const { data: earliest, error: earliestErr } = await admin
+            .from("provider_balance_transactions")
+            .select("stripe_created_at")
+            .order("stripe_created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle<{ stripe_created_at: string }>();
+          if (earliestErr) logServerError("cron/alert-money-failures.earliest", earliestErr);
+          balanceMismatchSummary = describeMismatch(mismatches, earliest?.stripe_created_at ?? null);
+        }
+      }
+    } catch (err) {
+      // A Stripe outage must not fail the whole sweep -- the other six signals
+      // are still worth reporting.
+      balanceCheckSkipped = err instanceof Error ? err.message : "balance check failed";
+      logServerError("cron/alert-money-failures.balance", err);
+    }
+
     const totalAlerts =
-      staleFailedCount + staleHeldCount + recentFailedTxnCount + failedPayoutCount;
+      staleFailedCount +
+      staleHeldCount +
+      recentFailedTxnCount +
+      failedPayoutCount +
+      stoppedOrFailingJobs.length +
+      (balanceMismatchSummary ? 1 : 0);
 
     void improntaLog("money.cron.alert_sweep", {
       staleFailedEffects: staleFailedCount,
@@ -191,13 +279,16 @@ export async function GET(request: Request) {
       failedPayouts: failedPayoutCount,
       unattributedPaidTenants: unattributedTenantCount,
       unattributedPaidTalents: unattributedTalentCount,
+      // improntaLog payloads are scalars only; join rather than pass an array.
+      unhealthyCrons: unhealthyHeartbeats.map((v) => `${v.job}:${v.state}`).join(", ") || "none",
+      balanceMismatch: balanceMismatchSummary ?? "none",
     });
 
     if (totalAlerts > 0) {
       // Best-effort Sentry alert — must not throw.
       try {
         Sentry.captureMessage(
-          `[money-failures] ${totalAlerts} alert(s): ${staleFailedCount} stale engine effects, ${staleHeldCount} held payouts >24h, ${recentFailedTxnCount} failed transactions, ${failedPayoutCount} failed payouts`,
+          `[money-failures] ${totalAlerts} alert(s): ${staleFailedCount} stale engine effects, ${staleHeldCount} held payouts >24h, ${recentFailedTxnCount} failed transactions, ${failedPayoutCount} failed payouts, ${stoppedOrFailingJobs.length} money cron(s) stopped or failing${balanceMismatchSummary ? ", BALANCE MISMATCH" : ""}`,
           {
             level: "error",
             extra: {
@@ -211,9 +302,13 @@ export async function GET(request: Request) {
               failedPayoutReasons: (failedPayouts ?? []).map(
                 (r) => `${r.stripe_payout_id}: ${r.failure_code ?? "no code"} (${r.amount_cents} ${r.currency})`,
               ),
+              unhealthyCrons: unhealthyHeartbeats,
+              balanceMismatch: balanceMismatchSummary,
             },
             tags: {
               cron: "alert-money-failures",
+              hasStoppedMoneyCron: String(stoppedOrFailingJobs.length > 0),
+              hasBalanceMismatch: String(Boolean(balanceMismatchSummary)),
               hasStaleEngineEffects: String(staleFailedCount > 0),
               hasStaleHeldPayouts: String(staleHeldCount > 0),
               hasFailedTransactions: String(recentFailedTxnCount > 0),
@@ -235,6 +330,9 @@ export async function GET(request: Request) {
       unattributedPaidTenants: unattributedTenantCount,
       unattributedPaidTenantSlugs: unattributedTenants.map((t) => `${t.slug}:${t.plan}`),
       unattributedPaidTalents: unattributedTalentCount,
+      unhealthyCrons: unhealthyHeartbeats,
+      balanceMismatch: balanceMismatchSummary,
+      balanceCheckSkipped,
       alertsFired: totalAlerts > 0,
     });
   } catch (err) {
