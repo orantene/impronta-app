@@ -34,7 +34,7 @@ The rule: **if your work includes a new migration, `npm run db:push` is part of 
 Per-agent workflow:
 1. Branch off `main`; write code + migration locally
 2. `npm run db:push` — apply the migration to remote Supabase
-3. `cd web && npx tsc --noEmit && npm run lint` — gate
+3. `cd web && npm run typecheck && npm run lint` — gate
 4. `git commit`, push the feature branch, open a PR to `main`
 5. Merge the PR → `main` auto-deploys to production
 
@@ -61,5 +61,5 @@ Multi-agent essentials:
 1. **Branch off the latest `main`** — `git fetch origin && git switch -c <type>/<topic> origin/main`. Never commit directly to `main`.
 2. **One migration per agent** — never let two agents pick the same timestamp. Use `date -u +%Y%m%d%H%M%S` at the start of work.
 3. **Park-restore pattern for timestamp collisions**: if `db push` fails because two files share a timestamp, `mv` one to `.tmp-migrations-park/`, push, then restore. Document the park in your commit message.
-4. **TS + lint gate before every commit**: `cd web && npx tsc --noEmit && npm run lint`.
+4. **TS + lint gate before every commit**: `cd web && npm run typecheck && npm run lint`. These are the ONLY entry points: `npm run typecheck` routes through the machine-wide queue in `web/scripts/tsc-queue.sh`; an ad-hoc `npx tsc --noEmit` bypasses it and starves every queued run (three bypassing runs turned a 12-minute gate into 90 on 2026-09-05). Never invoke `tsc` or `eslint` directly. The queue is the fast path, not a courtesy: a queued run holds a protected slot the governor never pauses, while a bypassing run joins the group that gets starved. The queue script arrived on 2026-09-03 (`8ac303c0c`); in a worktree older than that, `npm run typecheck` is a bare `tsc` that never asks for a turn, so rebase the worktree onto current `main` before running any gate.
 5. **Never force-push `main`.**
