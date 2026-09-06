@@ -31,6 +31,25 @@
 # A ticket is reaped on exactly the same rule as a lock: only when its owner
 # process is dead. Nothing is reaped for being old, for the reasons below.
 #
+# THE PROPERTY, IN WORDS, because the test that proves it is NOT a merge gate.
+# `npm run manual:tsc-queue-fairness` exercises it by spawning real queues; it
+# passes on macOS and hangs on the Linux CI runner for a reason nobody has
+# pinned, so it was moved off the structural lane rather than left to redden
+# main for every team. A timing-dependent process test does not belong on a gate
+# every merge waits behind. What it checks, if you change this file:
+#
+#   1. Turns are granted in ARRIVAL order. Two waiters that arrive in a known
+#      order must acquire in that order — not whichever wakes closest to the
+#      release.
+#   2. A ticket does not outlive its process. A waiter killed mid-wait leaves no
+#      ticket, or later arrivals queue behind a position nobody stands in.
+#   3. A waiter never removes a lock it does not own. Cleanup runs on TERM for
+#      waiters too, so without the ownership check it deletes the LIVE HOLDER's
+#      lock.
+#   4. Exit 127 reports DID NOT RUN, never TSC FAIL.
+#
+# Run it by hand after touching the acquire loop, the trap, or cleanup.
+#
 # LOCK POLICY: a lock is reclaimed ONLY when its owner process is dead. There is
 # no age-based reclaim of any kind, on purpose. An earlier version also
 # reclaimed after 30 minutes, which inverted the tool exactly when it was
