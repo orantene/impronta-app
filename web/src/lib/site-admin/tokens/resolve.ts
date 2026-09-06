@@ -89,6 +89,10 @@ export function resolveDesignTokens(
  */
 export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "color.primary": "--token-color-primary",
+  // Derived pair for the above; see contrast-pair.ts. Present here so the
+  // bindable-token catalog (built from TOKEN_REGISTRY x COLOR_VAR_NAMES) offers
+  // `token:color.primary-on`. The VALUE is derived below, after this loop.
+  "color.primary-on": "--token-color-primary-on",
   "color.secondary": "--token-color-secondary",
   "color.accent": "--token-color-accent",
   "color.neutral": "--token-color-neutral",
