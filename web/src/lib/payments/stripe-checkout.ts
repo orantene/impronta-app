@@ -65,7 +65,20 @@ export type CheckoutSessionInput = {
   amountCents: number;
   currency: string;
   payerEmail: string | null;
-  inquiryId: string;
+  /**
+   * The inquiry this payment belongs to, or NULL when there is none.
+   *
+   * Widened from `string` because a ticket purchase genuinely has no inquiry,
+   * and the old type could not say so. A caller forced to satisfy `string`
+   * passes `""` — which is not absence: downstream, `metadata?.inquiry_id ??
+   * null` yields `""` rather than null, because `??` does not catch an empty
+   * string. That puts a third state into a field typed for two, and the only
+   * thing standing between it and a uuid comparison is a falsy check somewhere
+   * else in the file.
+   *
+   * NULL omits the metadata key entirely. Absent means absent.
+   */
+  inquiryId: string | null;
   bookingId: string;
   successUrl: string;
   cancelUrl: string;
@@ -143,7 +156,10 @@ export async function createCheckoutSessionForTransaction(
       cancel_url: input.cancelUrl,
       metadata: {
         transaction_id: input.transactionId,
-        inquiry_id: input.inquiryId,
+        // Omitted rather than sent empty. Stripe metadata is optional per key,
+        // and an absent key reads as absent everywhere downstream; `""` reads
+        // as an id that happens to be blank.
+        ...(input.inquiryId ? { inquiry_id: input.inquiryId } : {}),
         booking_id: input.bookingId,
       },
     };
