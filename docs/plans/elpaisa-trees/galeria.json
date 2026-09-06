@@ -158,7 +158,7 @@
                       "id": "ep-galeria-1",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779569730309_VID-20260523-WA0043.jpg",
+                        "src": "tulala-media://elpaisa/photo-03",
                         "alt": "Picada Premium",
                         "style": {
                           "objectFit": "cover",
@@ -182,7 +182,7 @@
                       "id": "ep-galeria-2",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567081601_IMG-20260523-WA0045(1).jpg",
+                        "src": "tulala-media://elpaisa/photo-02",
                         "alt": "Empanadas de Carne cortadas a cuchillo",
                         "style": {
                           "objectFit": "cover",
@@ -206,7 +206,7 @@
                       "id": "ep-galeria-3",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780532938100_a09e9cc2-f4c0-40e4-ad54-341b7aaa7b9e.jpeg",
+                        "src": "tulala-media://elpaisa/photo-04",
                         "alt": "Empanadas de Cordero cortadas a cuchillo",
                         "style": {
                           "objectFit": "cover",
@@ -230,7 +230,7 @@
                       "id": "ep-galeria-4",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567589347_IMG-20260523-WA0062.jpg",
+                        "src": "tulala-media://elpaisa/photo-01",
                         "alt": "Parrillada para 2 en Salón",
                         "style": {
                           "objectFit": "cover",
@@ -254,7 +254,7 @@
                       "id": "ep-galeria-5",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567544910_IMG-20260523-WA0056.jpg",
+                        "src": "tulala-media://elpaisa/photo-08",
                         "alt": "Sanguche de Jamón Cocido con queso",
                         "style": {
                           "objectFit": "cover",
@@ -278,7 +278,7 @@
                       "id": "ep-galeria-6",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567131175_20260523_163842.jpg",
+                        "src": "tulala-media://elpaisa/photo-09",
                         "alt": "Oreo",
                         "style": {
                           "objectFit": "cover",
@@ -302,7 +302,7 @@
                       "id": "ep-galeria-7",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567146435_20260523_163756.jpg",
+                        "src": "tulala-media://elpaisa/photo-07",
                         "alt": "Chocotorta",
                         "style": {
                           "objectFit": "cover",
@@ -326,7 +326,7 @@
                       "id": "ep-galeria-8",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567219505_20260510_151735.jpg",
+                        "src": "tulala-media://elpaisa/photo-10",
                         "alt": "Flan casero",
                         "style": {
                           "objectFit": "cover",
@@ -350,7 +350,7 @@
                       "id": "ep-galeria-9",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566776407_file_000000004928720e9bf76c8f572bd6ee.png",
+                        "src": "tulala-media://elpaisa/photo-11",
                         "alt": "Jabalí - Chivito",
                         "style": {
                           "objectFit": "cover",
@@ -374,7 +374,7 @@
                       "id": "ep-galeria-10",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566426351_file_00000000b0d471f79b64fd2ed149d984.png",
+                        "src": "tulala-media://elpaisa/photo-12",
                         "alt": "Rellenas: Jamón crudo - Panceta - Almendras",
                         "style": {
                           "objectFit": "cover",
@@ -398,7 +398,7 @@
                       "id": "ep-galeria-11",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779413921626_IMG_9396.jpeg",
+                        "src": "tulala-media://elpaisa/photo-06",
                         "alt": "Tamales",
                         "style": {
                           "objectFit": "cover",
@@ -422,7 +422,7 @@
                       "id": "ep-galeria-12",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567241449_20260523_164719_02.jpg",
+                        "src": "tulala-media://elpaisa/photo-13",
                         "alt": "Rosado Dulce",
                         "style": {
                           "objectFit": "cover",
@@ -446,7 +446,7 @@
                       "id": "ep-galeria-13",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779569696383_file_00000000922471f792c44ae99fa466d2.png",
+                        "src": "tulala-media://elpaisa/photo-14",
                         "alt": "Berenjena",
                         "style": {
                           "objectFit": "cover",
@@ -470,7 +470,7 @@
                       "id": "ep-galeria-14",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779566795908_file_00000000a8c071f7b2a788192fe25e6e.png",
+                        "src": "tulala-media://elpaisa/photo-15",
                         "alt": "Pickles",
                         "style": {
                           "objectFit": "cover",
@@ -494,7 +494,7 @@
                       "id": "ep-galeria-15",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567751757_IMG-20260523-WA0064.jpg",
+                        "src": "tulala-media://elpaisa/photo-05",
                         "alt": "Sanguche de Matambre a la Napolitana",
                         "style": {
                           "objectFit": "cover",
@@ -518,7 +518,7 @@
                       "id": "ep-galeria-16",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567807566_IMG-20260523-WA0065.jpg",
+                        "src": "tulala-media://elpaisa/photo-16",
                         "alt": "Sanguche milanesa completo",
                         "style": {
                           "objectFit": "cover",
@@ -542,7 +542,7 @@
                       "id": "ep-galeria-17",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780528450863_441dc373-c344-4ddd-b2d7-41d5431c1d63.jpeg",
+                        "src": "tulala-media://elpaisa/photo-17",
                         "alt": "Cazuela de LENTEJAS O MONDONGO",
                         "style": {
                           "objectFit": "cover",
@@ -566,7 +566,7 @@
                       "id": "ep-galeria-18",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780528688318_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png",
+                        "src": "tulala-media://elpaisa/photo-18",
                         "alt": "Pastas caseras con salsa FILETTO",
                         "style": {
                           "objectFit": "cover",
@@ -590,7 +590,7 @@
                       "id": "ep-galeria-19",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780531780367_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png",
+                        "src": "tulala-media://elpaisa/photo-19",
                         "alt": "Pastas Caseras",
                         "style": {
                           "objectFit": "cover",
@@ -614,7 +614,7 @@
                       "id": "ep-galeria-20",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780531914480_IMG_9604.jpeg",
+                        "src": "tulala-media://elpaisa/photo-20",
                         "alt": "Pastas caseras con salsa FILETTO",
                         "style": {
                           "objectFit": "cover",
@@ -638,7 +638,7 @@
                       "id": "ep-galeria-21",
                       "kind": "image",
                       "props": {
-                        "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1780532992505_E568C032-2CE6-4EC6-991C-F41CEC267D1A.png",
+                        "src": "tulala-media://elpaisa/photo-21",
                         "alt": "Pastas Caseras con salsa boloñesa",
                         "style": {
                           "objectFit": "cover",

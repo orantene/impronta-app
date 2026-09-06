@@ -171,7 +171,7 @@
                   "id": "ep-nosotros-img",
                   "kind": "image",
                   "props": {
-                    "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567589347_IMG-20260523-WA0062.jpg",
+                    "src": "tulala-media://elpaisa/photo-01",
                     "alt": "Parrillada para dos, servida en el salón",
                     "style": {
                       "objectFit": "cover",

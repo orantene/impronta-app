@@ -25,18 +25,24 @@ cannot carry, so its English is typed in the inspector after paste.
 | `contacto.json` | `/contacto` | 1 | WhatsApp, directions, socials, map, hours |
 | `galeria.json` | `/galeria` | 1 | masonry of the 21 dish photos |
 
-## Photo URLs carry no access token, deliberately
+## Photo URLs are placeholders, deliberately
 
-The image `src` values name the restaurant's own Firebase Storage objects, but
-the `?alt=media&token=…` query string is **stripped**. Those are download
-tokens for a client's storage bucket, and git history is permanent: a token
-committed here outlives any decision to rotate it. The path still says exactly
-which photo each node wants, which is what the record needs.
+Every image `src` is a placeholder of the form `tulala-media://elpaisa/photo-NN`,
+never a live URL. CEO rule, 2026-09-06: **a token-shaped string never enters
+git, bridge or not.** The restaurant's photos live in their own Firebase
+Storage bucket behind `?alt=media&token=…` download tokens; git history is
+permanent, so a token committed here would outlive any decision to rotate it,
+and the bucket path itself carries their account id.
 
-So these files are the structure of record, not a one-click paste: the photos
-are uploaded to the media library during the build anyway (an `image` node wants
-`mediaId`, and a hotlink dies the moment the restaurant rotates a token). The
-live URLs remain in the restaurant's own menu JSON, which is the source.
+The placeholder → live URL mapping lives in the build pack **outside this
+repository** (`elpaisa-trees/PHOTO-URL-MAP.json` in the session pack, sourced
+from the restaurant's own menu JSON), so the trees stay reconstructable without
+the repo ever holding a credential. Twenty-one distinct photos, referenced
+forty-four times.
+
+So these files are the structure of record, not a one-click paste: during the
+build each photo is uploaded to the media library anyway (an `image` node wants
+`mediaId`, and a hotlink dies the moment the restaurant rotates a token).
 
 ## Design rulings these carry
 
