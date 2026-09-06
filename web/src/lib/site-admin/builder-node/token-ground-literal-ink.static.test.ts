@@ -35,14 +35,22 @@ import type { BuilderNode } from "./types";
 
 const COLOUR_LITERAL = /^(#|rgb|hsl|color\()/i;
 
-/** A style value that paints a fixed colour regardless of the tenant. */
+/**
+ * A style value that paints a fixed colour regardless of the tenant.
+ *
+ * `isStyleTokenRef` is declared `value is string`, so NEGATING it inside a
+ * narrowed chain collapses `string` to `never` and the next `.trim()` does not
+ * typecheck. The predicate means "is a token reference"; its type signature says
+ * "is a string". Reading its result into a plain boolean discards the narrowing
+ * and keeps the intent — that is the fix, not a cast.
+ */
 function isColourLiteral(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    !isStyleTokenRef(value) &&
-    COLOUR_LITERAL.test(value.trim())
-  );
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return false;
+  const isTokenRef: boolean = isStyleTokenRef(trimmed);
+  if (isTokenRef) return false;
+  return COLOUR_LITERAL.test(trimmed);
 }
 
 function walk(nodes: readonly BuilderNode[], visit: (n: BuilderNode) => void): void {
