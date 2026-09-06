@@ -1,4 +1,32 @@
 -- Internal analytics: events, rollups, funnel steps, KPI snapshots, API response cache (GA4/GSC).
+--
+-- ============================================================================
+-- THIS FILE HAS NEVER APPLIED TO PRODUCTION AND CANNOT APPLY AS NUMBERED.
+-- Verified 2026-09-06 by query, not by reading a migration:
+--   supabase_migrations.schema_migrations has version 20260413120000 recorded
+--   under the name `multilingual_talent_bio`. A DIFFERENT migration took this
+--   version first, so `db push` treats this one as already applied and skips it
+--   forever. `db:check` reports green because it matches on the version prefix
+--   only. On production, `analytics_funnel_steps` and `analytics_search_sessions`
+--   DO NOT EXIST (only `analytics_events` does, created by
+--   20260625140000_saas_p56_m0_analytics_events_bootstrap.sql), and neither do
+--   any of the policies below.
+--
+-- WHY THAT MATTERED: as originally written, this file granted anonymous callers
+--   INSERT on both tables with WITH CHECK (TRUE), and -- worse -- UPDATE on
+--   analytics_search_sessions with USING (TRUE) WITH CHECK (TRUE), which would
+--   let any anonymous caller REWRITE rows that already existed. Dead as long as
+--   the file never runs, but it is a loaded gun: renumbering this file to "fix"
+--   the collision (exactly what was just done for another colliding file) would
+--   apply it and create the hole. The anon policies below have therefore been
+--   replaced with service-role-only writes, so that a future renumber is safe.
+--   The live equivalents on analytics_events, search_queries and guest_sessions
+--   were closed by 20260906145432_close_anon_insert_on_telemetry_tables.sql.
+--
+-- Neither table is referenced anywhere in web/src (zero hits, including the
+-- generated database.types.ts). If they are still unwanted, delete this file
+-- rather than renumbering it.
+-- ============================================================================
 
 BEGIN;
 
@@ -30,7 +58,7 @@ ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS analytics_events_insert_public ON public.analytics_events;
 CREATE POLICY analytics_events_insert_public ON public.analytics_events
   FOR INSERT
-  TO anon, authenticated
+  TO service_role
   WITH CHECK (TRUE);
 
 DROP POLICY IF EXISTS analytics_events_select_staff ON public.analytics_events;
@@ -89,7 +117,7 @@ ALTER TABLE public.analytics_funnel_steps ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS analytics_funnel_steps_insert_public ON public.analytics_funnel_steps;
 CREATE POLICY analytics_funnel_steps_insert_public ON public.analytics_funnel_steps
   FOR INSERT
-  TO anon, authenticated
+  TO service_role
   WITH CHECK (TRUE);
 
 DROP POLICY IF EXISTS analytics_funnel_steps_select_staff ON public.analytics_funnel_steps;
@@ -118,13 +146,13 @@ ALTER TABLE public.analytics_search_sessions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS analytics_search_sessions_insert_public ON public.analytics_search_sessions;
 CREATE POLICY analytics_search_sessions_insert_public ON public.analytics_search_sessions
   FOR INSERT
-  TO anon, authenticated
+  TO service_role
   WITH CHECK (TRUE);
 
 DROP POLICY IF EXISTS analytics_search_sessions_update_public ON public.analytics_search_sessions;
 CREATE POLICY analytics_search_sessions_update_public ON public.analytics_search_sessions
   FOR UPDATE
-  TO anon, authenticated
+  TO service_role
   USING (TRUE)
   WITH CHECK (TRUE);
 
