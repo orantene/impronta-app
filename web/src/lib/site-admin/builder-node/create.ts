@@ -246,6 +246,7 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
         kind: "qr_code",
         props: { linkCode: "" },
       };
+    case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
     case "session_picker":
       return {
         id: makeId("session_picker"),
@@ -774,7 +775,6 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return createBuilderSectionEmbed("directory");
   }
 }
-
 
 // Composition presets live in ./composition-presets (kept out of this file
 // to satisfy max-lines). Re-exported here so existing import sites that pull

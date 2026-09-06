@@ -529,6 +529,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-ticket-picker-native",
+    label: "Buy tickets",
+    description:
+      "A guest picks a night and a ticket for one of your events and pays by card; a seat past capacity is refused.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "ticket_picker",
+    sourceType: "native-freeform",
+    connectedSource: "Events",
+    searchTerms: [
+      "ticket",
+      "tickets",
+      "event",
+      "night",
+      "buy",
+      "checkout",
+      "door",
+    ],
+  }),
+  connected({
     id: "conn-qr-code-native",
     label: "QR code",
     description:
