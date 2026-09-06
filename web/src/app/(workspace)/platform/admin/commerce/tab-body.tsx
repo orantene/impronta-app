@@ -38,6 +38,8 @@ import { HealthView } from "./health/HealthView";
 import { RevenueView } from "./revenue/RevenueView";
 import { CommissionView } from "./commission/CommissionView";
 import { loadPlatformCommissionConfig } from "./commission/actions";
+import { loadEntitlementMatrix } from "./entitlements/load";
+import { EntitlementsView } from "./entitlements/EntitlementsView";
 
 export async function TabBody({
   tab,
@@ -128,6 +130,14 @@ export async function TabBody({
   }
 
   const commission = await loadPlatformCommissionConfig();
+  if (tab === "entitlements") {
+    // Read-only. The matrix is small (six rows today) and the read is cheap, so
+    // it loads inline rather than through the Suspense-per-tab dance the Stripe
+    // health checks need.
+    const matrix = await loadEntitlementMatrix();
+    return <EntitlementsView matrix={matrix} />;
+  }
+
   return <CommissionView result={commission} />;
 }
 

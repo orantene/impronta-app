@@ -7118,7 +7118,8 @@
           "catalog": "Catálogo",
           "discounts": "Descuentos",
           "revenue": "Ingresos",
-          "commission": "Comisión"
+          "commission": "Comisión",
+          "entitlements": "Permisos de plan"
         },
         "catalog": {
           "trialsSummary": "Pruebas gratuitas",
