@@ -7,8 +7,7 @@ import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
-import { timeLabel, whenLabel } from "@/lib/events/public-event-time";
-import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { resolvePublicZone, timeLabel, whenLabel } from "@/lib/events/public-event-time";
 import { saleState, type Tier } from "@/lib/events/tiers";
 import { doorsAt } from "@/lib/events/event-policy";
 
@@ -100,10 +99,7 @@ export default async function PublicEventPage({ params }: Params) {
   const venueRow = ctx.venueName || ctx.venueTimezone ? { name: ctx.venueName, timezone: ctx.venueTimezone } : null;
   const agencyRow = { timezone: ctx.workspaceTimezone };
 
-  const zone = pickTimezone({
-    venue: (venueRow?.timezone as string | null) ?? null,
-    workspace: (agencyRow?.timezone as string | null) ?? null,
-  }).timezone;
+  const zone: string | null = resolvePublicZone({ venue: (venueRow?.timezone as string | null) ?? null, workspace: (agencyRow?.timezone as string | null) ?? null });
 
   // Tiers are catalog variants. A variant with no `pool_key` is an ordinary
   // product option rather than a ticket tier.

@@ -7,8 +7,7 @@ import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
-import { whenLabel } from "@/lib/events/public-event-time";
-import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 
 /**
  * `/events` — the tenant's public list of what is on.
@@ -103,10 +102,7 @@ export default async function PublicEventsPage() {
         ) ?? null;
       // No sentinel key: an event with no venue has NO venue zone, not the zone
       // of the empty string.
-      const zone = pickTimezone({
-        venue: e.venue_id ? (venueZone.get(e.venue_id) ?? null) : null,
-        workspace: (agencyRow?.timezone as string | null) ?? null,
-      }).timezone;
+      const zone: string | null = resolvePublicZone({ venue: e.venue_id ? (venueZone.get(e.venue_id) ?? null) : null, workspace: (agencyRow?.timezone as string | null) ?? null });
       return { ...e, nextAt: (next?.starts_at as string | undefined) ?? null, zone };
     })
     // Soonest first; an event with no scheduled night sorts last rather than

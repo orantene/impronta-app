@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { timeLabel, whenLabel } from "./public-event-time";
+import { resolvePublicZone, timeLabel, whenLabel } from "./public-event-time";
 
 // The first real event: "Noche de prueba", El Paisa, session
 // 7c6ecaf8-20ac-4782-84b5-245f27a5e38a — 2026-09-07 21:00 to 23:59 in
@@ -42,4 +42,18 @@ test("date-only label carries no time and no zone", () => {
 test("absence is a sentence, never the reader's clock", () => {
   assert.equal(whenLabel(null, ZONE), "Date to be announced");
   assert.equal(whenLabel("not-a-date", ZONE, "es"), "Fecha a confirmar");
+});
+
+test("no zone produces a sentence, never a date in anyone's clock", () => {
+  assert.equal(whenLabel(STARTS, null, "en"), "Time to be confirmed by the venue");
+  assert.equal(whenLabel(STARTS, null, "es"), "Horario a confirmar por el local");
+  assert.equal(timeLabel(STARTS, null, "en"), "Time to be confirmed by the venue");
+});
+
+test("the platform rung is refused; venue and workspace rungs are not", () => {
+  assert.equal(resolvePublicZone({ venue: null, workspace: null }), null);
+  assert.equal(resolvePublicZone({ venue: null, workspace: ZONE }), ZONE);
+  assert.equal(resolvePublicZone({ venue: ZONE, workspace: "UTC" }), ZONE);
+  // The unreadable-row case: both null used to render "September 8, 12:00 AM".
+  assert.equal(whenLabel(STARTS, resolvePublicZone({ venue: null, workspace: null })), "Time to be confirmed by the venue");
 });

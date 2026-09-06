@@ -8,11 +8,28 @@
  * entirely normal in UTC.
  */
 
+import { pickTimezone } from "@/lib/spaces/venue-timezone";
+
 export type EventLabelLocale = "en" | "es";
+
+/**
+ * The zone a PUBLIC page may format a night in, or null. The venue's zone,
+ * else the workspace's; NEVER the platform's "UTC" last rung. Reservations'
+ * island already refuses without a zone; the events pages showed a date
+ * anyway. A missing zone must not produce a date.
+ */
+export function resolvePublicZone(candidates: { venue: string | null; workspace: string | null }): string | null {
+  const picked = pickTimezone(candidates);
+  return picked.source === "platform" ? null : picked.timezone;
+}
+
+function unknownTime(locale: EventLabelLocale): string {
+  return locale === "es" ? "Horario a confirmar por el local" : "Time to be confirmed by the venue";
+}
 
 export function whenLabel(
   iso: string | null,
-  timeZone: string,
+  timeZone: string | null,
   locale: EventLabelLocale = "en",
   withTime = true,
 ): string {
@@ -20,6 +37,8 @@ export function whenLabel(
   if (!iso) return tba;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return tba;
+  // No zone, no date: a day boundary is a zone fact too.
+  if (!timeZone) return unknownTime(locale);
   try {
     return d.toLocaleString(locale === "es" ? "es" : "en", {
       timeZone,
@@ -34,9 +53,10 @@ export function whenLabel(
   }
 }
 
-export function timeLabel(iso: string, timeZone: string, locale: EventLabelLocale = "en"): string {
+export function timeLabel(iso: string, timeZone: string | null, locale: EventLabelLocale = "en"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
+  if (!timeZone) return unknownTime(locale);
   try {
     return d.toLocaleTimeString(locale === "es" ? "es" : "en", {
       timeZone,
