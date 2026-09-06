@@ -6,7 +6,7 @@ import test from "node:test";
 /**
  * The mint's `upsert(..., { onConflict: "order_line_id" })` into
  * `ticket_refund_intents` can only be planned against a NON-partial unique
- * target. `…800` declares it as a table CONSTRAINT (never partial). Pinned
+ * target. `…807` (born `…800`; renumbered because print_designs already held that stamp on prod) declares it as a table CONSTRAINT (never partial). Pinned
  * here because the sibling target on `admissions` was partial and the mint
  * died at planning (42P10) on every settled order until `…803`.
  */
