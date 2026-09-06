@@ -46,3 +46,21 @@ Two proofs the CEO will ask for before accepting "blocked": the exact writer or 
 | QR and Links Engine Manager | local_eee689a6-f286-4761-87f4-6d117b29108c | Links, QR, print export, the machine's gate queues |
 
 Sessions not in the list tonight (Appointments Manager, Spaces & Seating Manager, the Talent Profile assistant) are addressed through the Directory or the engine Director until the owner reopens them.
+
+## Focus rule (owner's directive, 2026-09-06 14:3xZ)
+
+A small set of sessions is active at any time and everyone else is quiet. The CEO names the set. A quiet session finishes its open PRs, reports once in one line, and sends nothing else until called.
+
+Message rules for every session:
+
+- Message only the CEO, and only on a completion or a ruling you need.
+- The merge loop messages a session only to say "merged" or "red, your SHA".
+- The Board sends no messages to sessions; it reads GitHub and what the CEO sends it.
+- No status broadcasts, no peer chatter, no thinking out loud into another chat.
+
+Two meanings of "blocked", which route differently:
+
+- Undecided: nobody has ruled. Route to the CEO.
+- Cannot: this session physically cannot do the step. Route to the session that can.
+
+A PR that is red only because main was red needs a rebase, never a re-run; a re-run replays the frozen merge ref.
