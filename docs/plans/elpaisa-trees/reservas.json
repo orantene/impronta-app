@@ -106,7 +106,7 @@
                   "id": "ep-reservas-p",
                   "kind": "paragraph",
                   "props": {
-                    "text": "Almuerzo de 13:00 a 14:30, cena de 19:00 a 21:30, hora de Buenos Aires. Hasta cuatro personas por reserva. Se paga en el salón, sin anticipo.",
+                    "text": "Jueves a domingo de 10:00 a 01:00, martes de 10:00 a 17:00, hora de Buenos Aires. Lunes y miércoles cerrado. Hasta cuatro personas por reserva. Se paga en el salón, sin anticipo.",
                     "style": {
                       "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
                       "fontSize": "16px",
@@ -116,13 +116,13 @@
                     },
                     "i18n": {
                       "en": {
-                        "text": "Lunch 13:00 to 14:30, dinner 19:00 to 21:30, Buenos Aires time. Up to four people per reservation. Pay at the restaurant, no deposit."
+                        "text": "Thursday to Sunday 10:00 to 01:00, Tuesday 10:00 to 17:00, Buenos Aires time. Closed Monday and Wednesday. Up to four people per reservation. Pay at the restaurant, no deposit."
                       }
                     }
                   },
                   "i18n": {
                     "en": {
-                      "text": "Lunch 13:00 to 14:30, dinner 19:00 to 21:30, Buenos Aires time. Up to four people per reservation. Pay at the restaurant, no deposit."
+                      "text": "Thursday to Sunday 10:00 to 01:00, Tuesday 10:00 to 17:00, Buenos Aires time. Closed Monday and Wednesday. Up to four people per reservation. Pay at the restaurant, no deposit."
                     }
                   }
                 },

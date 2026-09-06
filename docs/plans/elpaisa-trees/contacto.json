@@ -285,7 +285,7 @@
                   "props": {
                     "eyebrow": "Dónde estamos",
                     "headline": "Glew, Buenos Aires",
-                    "subheadline": "Abierto de 10:00 a 01:00, cinco días a la semana.",
+                    "subheadline": "Jueves a domingo de 10:00 a 01:00. Martes de 10:00 a 17:00. Lunes y miércoles cerrado.",
                     "source": "manual",
                     "items": [
                       {
@@ -300,8 +300,8 @@
                     "mapStyle": "embed",
                     "mapEmbedUrl": "https://www.google.com/maps?q=Regionales+el+Paisa%2C+Glew&output=embed",
                     "overlayTitle": "Regionales el Paisa",
-                    "overlayAddress": "Glew, Buenos Aires",
-                    "overlayHours": "10:00 a 01:00",
+                    "overlayAddress": "Av. Hipólito Yrigoyen 20355, Glew, Buenos Aires",
+                    "overlayHours": "Jue a dom 10:00 a 01:00 · Mar 10:00 a 17:00",
                     "overlaySide": "card-left",
                     "ratio": "16/9",
                     "layout": "compact",
@@ -315,18 +315,18 @@
                     "i18n": {
                       "en": {
                         "eyebrow": "Where we are",
-                        "subheadline": "Open 10:00 to 01:00, five days a week.",
+                        "subheadline": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday.",
                         "ctaLabel": "Directions",
-                        "overlayHours": "10:00 to 01:00"
+                        "overlayHours": "Thu to Sun 10:00 to 01:00 · Tue 10:00 to 17:00"
                       }
                     }
                   },
                   "i18n": {
                     "en": {
                       "eyebrow": "Where we are",
-                      "subheadline": "Open 10:00 to 01:00, five days a week.",
+                      "subheadline": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday.",
                       "ctaLabel": "Directions",
-                      "overlayHours": "10:00 to 01:00"
+                      "overlayHours": "Thu to Sun 10:00 to 01:00 · Tue 10:00 to 17:00"
                     }
                   }
                 }
@@ -400,7 +400,7 @@
                   "id": "ep-contacto-hours-p",
                   "kind": "paragraph",
                   "props": {
-                    "text": "Abierto de 10:00 a 01:00, cinco días a la semana.",
+                    "text": "Jueves a domingo de 10:00 a 01:00. Martes de 10:00 a 17:00. Lunes y miércoles cerrado.",
                     "style": {
                       "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
                       "fontSize": "18px",
@@ -410,13 +410,13 @@
                     },
                     "i18n": {
                       "en": {
-                        "text": "Open 10:00 to 01:00, five days a week."
+                        "text": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday."
                       }
                     }
                   },
                   "i18n": {
                     "en": {
-                      "text": "Open 10:00 to 01:00, five days a week."
+                      "text": "Thursday to Sunday 10:00 to 01:00. Tuesday 10:00 to 17:00. Closed Monday and Wednesday."
                     }
                   }
                 }
