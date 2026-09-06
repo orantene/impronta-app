@@ -3,6 +3,7 @@ import {
   getAddGalleryCardShortDescription,
 } from "./card-display";
 import type { AddGalleryCategoryDef, AddGalleryItem } from "./types";
+import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 import {
   ADD_GALLERY_AVAILABLE_ITEMS,
   ADD_GALLERY_ROADMAP_ITEMS,
@@ -183,14 +184,27 @@ export function filterGalleryItemsFrom(
     categoryId?: string;
     query?: string;
     includeRoadmap?: boolean;
+    /**
+     * Piece B slice 1c — restrict the catalog to these native node kinds (the
+     * print vocabulary). Applies on WHATEVER tab is queried, because the print
+     * vocabulary spans tabs — the QR block is a connected node on the Data tab,
+     * the rest are on Blocks — so a blocks-only gate would drop the QR. A card
+     * with no nativeKind is dropped, since a restricted surface takes native
+     * blocks only. Undefined ⇒ no restriction (every web surface).
+     */
+    blockAllowList?: readonly BuilderNodeKind[];
   },
 ): ReadonlyArray<AddGalleryItem> {
   const q = input.query?.trim().toLowerCase() ?? "";
   const includeRoadmap = input.includeRoadmap ?? false;
+  const allow = input.blockAllowList ? new Set(input.blockAllowList) : null;
 
   return items.filter((item) => {
     if (item.tab !== input.tab) return false;
     if (!itemMatchesVisibility(item, { includeRoadmap })) return false;
+    if (allow && (item.nativeKind == null || !allow.has(item.nativeKind))) {
+      return false;
+    }
     if (!q && input.categoryId && item.category !== input.categoryId) {
       return false;
     }
