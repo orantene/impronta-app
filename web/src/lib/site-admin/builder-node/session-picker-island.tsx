@@ -109,19 +109,48 @@ export interface SessionPickerIslandProps {
 }
 
 /** The venue's clock, not the reader's — a class happens where it happens. */
-function formatWhen(iso: string, timeZone: string | null, locale: Locale): string {
+/**
+ * The venue's clock, with the zone NAMED, or nothing.
+ *
+ * `timeZone` is required rather than `string | null`, and the spread that used
+ * to omit it is gone. Omitting the key does not render "no zone" — it renders
+ * the READER'S zone, silently. That is how a 21:00 Monday class in Buenos
+ * Aires displays as Tuesday to somebody in Madrid, with nothing on the page
+ * suggesting anything is wrong. A wrong time is worse than an absent one: the
+ * absent one gets reported and the wrong one gets believed, and a class that
+ * names the wrong day sends somebody to a locked door.
+ *
+ * The zone is also SHOWN, because "18:00" alone is ambiguous to anyone reading
+ * it somewhere else, and a customer who has to work out which clock a time is
+ * in has already been failed. Same rule as the reminder email.
+ *
+ * Returns null on a bad instant or an unusable zone rather than falling back to
+ * the raw ISO string: an unformattable date is not a date a customer should be
+ * asked to choose between.
+ */
+function formatWhen(iso: string, timeZone: string, locale: Locale): string | null {
   try {
-    return new Intl.DateTimeFormat(locale === "es" ? "es" : "en", {
+    const at = new Date(iso);
+    if (Number.isNaN(at.getTime())) return null;
+    const when = new Intl.DateTimeFormat(locale === "es" ? "es" : "en", {
       weekday: "short",
       day: "numeric",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-      ...(timeZone ? { timeZone } : {}),
-    }).format(new Date(iso));
+      timeZone,
+    }).format(at);
+    const zoneLabel =
+      new Intl.DateTimeFormat(locale === "es" ? "es" : "en", {
+        timeZone,
+        timeZoneName: "short",
+      })
+        .formatToParts(at)
+        .find((part) => part.type === "timeZoneName")?.value ?? timeZone;
+    return `${when} (${zoneLabel})`;
   } catch {
-    return iso;
+    return null;
   }
 }
 
@@ -227,6 +256,13 @@ export function SessionPickerIsland({
       ) : (
         <div role="radiogroup" aria-label={t("heading")}>
           {sessions.map((s) => {
+            // A session whose instant cannot be rendered in its own zone is not
+            // offered at all. The server already drops sessions with no zone;
+            // this is the second half of the same rule, so an unformattable
+            // instant cannot become a radio button a customer picks blind.
+            const when = formatWhen(s.startsAt, s.timeZone, loc);
+            if (!when) return null;
+
             // Three states, not two: on sale, sold out, and NOT ON SALE — a
             // session with no pool sells nothing and must not read as available.
             const unavailable = s.soldOut || s.seatsRemaining === null;
@@ -249,7 +285,7 @@ export function SessionPickerIsland({
                   checked={chosen === s.id}
                   onChange={() => setChosen(s.id)}
                 />{" "}
-                {formatWhen(s.startsAt, s.timeZone, loc)} — {label}
+                {when} · {label}
               </label>
             );
           })}
