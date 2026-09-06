@@ -7064,7 +7064,10 @@
           "ageDays": "{days}d",
           "retry": "Retry",
           "retryResult": "Retry: {released} released, {stillHeld} still held, {failed} failed.",
-          "retryFailed": "Retry failed: {error}"
+          "retryFailed": "Retry failed: {error}",
+          "summaryWithScheduled": "{held} waiting on account · {scheduled} scheduled · {failed} failed",
+          "scheduledBadge": "Scheduled",
+          "scheduledHint": "Not due yet. Releases on {date}, not before."
         },
         "commission": {
           "title": "Commission config",

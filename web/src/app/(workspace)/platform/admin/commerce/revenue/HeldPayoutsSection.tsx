@@ -64,7 +64,19 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
   byCurrency.sort((a, b) => b[1] - a[1]);
   const totalLabel = byCurrency.map(([code, cents]) => fmt(cents, code)).join(" · ");
 
-  const heldCount = rows.filter((r) => r.status === "held").length;
+  // A leg gated to a future date is SCHEDULED, not stuck. Counting the two
+  // together would make twenty correctly-waiting ticket payouts read as twenty
+  // problems, which is the same cry-wolf failure as an over-eager alarm: the
+  // list stops being read. Nothing is filtered out -- an admin must still see
+  // every leg -- they are only told apart.
+  // Captured once at mount via a state initializer, not read during render:
+  // Date.now() in a render body is an impure call, and it would also let the
+  // scheduled/stuck split shift between renders of the same list.
+  const [nowMs] = useState(() => Date.now());
+  const isScheduled = (r: HeldLedgerRow) =>
+    Boolean(r.releaseAfter) && new Date(r.releaseAfter as string).getTime() > nowMs;
+  const scheduledCount = rows.filter((r) => r.status === "held" && isScheduled(r)).length;
+  const heldCount = rows.filter((r) => r.status === "held" && !isScheduled(r)).length;
   const failedCount = rows.filter((r) => r.status === "failed").length;
 
   const onRetry = (row: HeldLedgerRow) => {
@@ -101,10 +113,14 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
         <span style={{ fontSize: 12, color: HQ.inkMuted }}>
           {rows.length === 0
             ? t("dashboard.platform.billing.heldPayouts.allClear")
-            : interpolate(t("dashboard.platform.billing.heldPayouts.summary"), {
-                held: heldCount,
-                failed: failedCount,
-              })}
+            : interpolate(
+                t(
+                  scheduledCount > 0
+                    ? "dashboard.platform.billing.heldPayouts.summaryWithScheduled"
+                    : "dashboard.platform.billing.heldPayouts.summary",
+                ),
+                { held: heldCount, scheduled: scheduledCount, failed: failedCount },
+              )}
         </span>
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: HQ.inkMuted, lineHeight: 1.5 }}>
@@ -144,7 +160,23 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
                         : interpolate(t("dashboard.platform.billing.heldPayouts.workspacePayee"), { id: (row.tenantId ?? "").slice(0, 8) })}
                     </td>
                     <td style={{ padding: "8px", fontVariantNumeric: "tabular-nums" }}>{fmt(row.amountCents, row.currency)}</td>
-                    <td style={{ padding: "8px", color: row.status === "failed" ? HQ.red : HQ.amber }}>{row.status}</td>
+                    <td style={{ padding: "8px", color: row.status === "failed" ? HQ.red : isScheduled(row) ? HQ.green : HQ.amber }}>
+                      {isScheduled(row) ? (
+                        // Green, not amber: a scheduled leg is healthy. Amber
+                        // here would train an admin to ignore amber.
+                        <span
+                          title={interpolate(t("dashboard.platform.billing.heldPayouts.scheduledHint"), {
+                            date: new Date(row.releaseAfter as string).toLocaleString(),
+                          })}
+                        >
+                          {t("dashboard.platform.billing.heldPayouts.scheduledBadge")}
+                          {" · "}
+                          {new Date(row.releaseAfter as string).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        row.status
+                      )}
+                    </td>
                     <td style={{ padding: "8px", color: HQ.inkMuted }}>{interpolate(t("dashboard.platform.billing.heldPayouts.ageDays"), { days: ageDays(row.createdAt) })}</td>
                     <td style={{ padding: "8px", color: HQ.inkMuted }}>{row.attempts}</td>
                     <td style={{ padding: "8px", textAlign: "right" }}>

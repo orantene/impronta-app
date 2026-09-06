@@ -15,6 +15,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
+import { isDue, laterHold } from "./payout-release-gate";
 import { getTalentConnectedAccountSnapshot, canRouteTransfersToTalent } from "@/lib/payments/stripe-connect-talent";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -42,6 +43,9 @@ export type PayoutLeg = {
   /** Rail this leg was routed on (connect_transfer | global_payouts). NULL =
    *  legacy/Connect. releaseHeldPayouts uses it to never release a GP leg via Connect. */
   payoutRail: string | null;
+  /** Earliest transfer time; `null` = due now. REQUIRED so forgetting it is a
+   *  compile error, not an early payout. See payout-release-gate.ts. */
+  releaseAfter: string | null;
 };
 
 /** A payee predicate as data: equality filters + one-of filters, in order. */
@@ -88,6 +92,7 @@ export function payoutIdempotencyKey(bookingId: string, participantId: string, p
   return `transfer_${bookingId}_${participantId}_${party}`;
 }
 
+
 /**
  * Upsert a payout leg into the ledger. Idempotent on (booking, participant,
  * party). A leg that already reached 'transferred' is never downgraded.
@@ -96,7 +101,7 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
   try {
     const { data: existing } = await sb
       .from("booking_payouts")
-      .select("id, status, attempts")
+      .select("id, status, attempts, release_after")
       .eq("booking_id", leg.bookingId)
       .eq("participant_id", leg.participantId)
       .eq("party", leg.party)
@@ -125,12 +130,22 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
     };
 
     if (existing) {
+      // Extend a hold, never shorten it: a retry passing null must not wipe
+      // the gate this upsert rewrites wholesale. See laterHold().
+      const existingRelease = (existing.release_after as string | null) ?? null;
+      const nextRelease = laterHold(existingRelease, leg.releaseAfter);
       await sb
         .from("booking_payouts")
-        .update({ ...base, attempts: ((existing.attempts as number) ?? 0) + 1 })
+        .update({
+          ...base,
+          release_after: nextRelease,
+          attempts: ((existing.attempts as number) ?? 0) + 1,
+        })
         .eq("id", existing.id as string);
     } else {
-      await sb.from("booking_payouts").insert({ ...base, attempts: 1 });
+      await sb
+        .from("booking_payouts")
+        .insert({ ...base, release_after: leg.releaseAfter, attempts: 1 });
     }
   } catch (err) {
     // The ledger is best-effort bookkeeping — never let it break a real transfer.
@@ -241,10 +256,12 @@ export async function releaseHeldPayouts(
     const scope = payoutLegPayeeScope(target);
     if (!scope) return [];
 
+    // `status` = ACCOUNT, `release_after` = DATE. See payout-release-gate.ts.
     let query = sb
       .from("booking_payouts")
-      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail")
-      .in("status", ["held", "failed"]);
+      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail, release_after")
+      .in("status", ["held", "failed"])
+      .or(`release_after.is.null,release_after.lte.${new Date().toISOString()}`);
     for (const [col, val] of scope.eq) query = query.eq(col, val);
     for (const [col, vals] of scope.in) query = query.in(col, vals);
 
@@ -349,6 +366,12 @@ export type HeldLedgerRow = {
   attempts: number;
   lastError: string | null;
   createdAt: string;
+  /** When set and in the future, this leg is SCHEDULED (waiting for a date),
+   *  not STUCK (waiting for an account). The admin list shows both and filters
+   *  neither -- hiding scheduled legs from a reconciliation view is how money
+   *  goes missing quietly, but twenty scheduled legs must not read as twenty
+   *  problems either. */
+  releaseAfter: string | null;
 };
 
 /**
@@ -393,8 +416,9 @@ export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<Hel
   try {
     const { data, error } = await sb
       .from("booking_payouts")
+      // Unfiltered on purpose: an admin sees every leg; the gate is SELECTED.
       .select(
-        "id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, status, attempts, last_error, created_at",
+        "id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, status, attempts, last_error, created_at, release_after",
       )
       .in("status", ["held", "failed"])
       .order("created_at", { ascending: false })
@@ -413,6 +437,7 @@ export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<Hel
       attempts: (r.attempts as number) ?? 0,
       lastError: (r.last_error as string | null) ?? null,
       createdAt: r.created_at as string,
+      releaseAfter: (r.release_after as string | null) ?? null,
     }));
   } catch (err) {
     logServerError("booking-payouts.listHeld", err);
@@ -770,3 +795,5 @@ export async function reverseBookingPayouts(
   }
   return outcomes;
 }
+
+export { isDue, laterHold }; // re-exported: ledger callers keep one import
