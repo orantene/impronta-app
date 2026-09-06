@@ -80,7 +80,16 @@ test("ROUND TRIP: accrue then settle leaves the talent owed exactly nothing", ()
     occurredAt: AT,
     tenantId: "tn_1",
     lanes: [
-      { talentProfileId: "tp_1", talentNetCents: 10_000, workspaceFeeCents: 1_500, platformFeeCents: 500, owningPartyId: "tn_1" },
+      {
+        participantId: "pt_1",
+        talentProfileId: "tp_1",
+        owningPartyType: "agency",
+        owningPartyId: "tn_1",
+        talentNetCents: 10_000,
+        workspaceFeeCents: 1_500,
+        platformFeeCents: 500,
+        grossChargedCents: 12_000,
+      },
     ],
   });
   assert.ok(paid.ok, "the payment must project");
