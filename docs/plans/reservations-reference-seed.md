@@ -209,3 +209,19 @@ the restaurant. If nobody has asked yet, seed the venue and leave the windows
 inactive rather than seeding hours that will be demonstrated wrong — an inactive
 window refuses honestly, and invented hours accept a booking for a time the
 kitchen is shut.
+
+### The rule that follows: a seed's windows ship INACTIVE unless someone asked
+
+**If nobody has asked the restaurant its hours, seed `venue_service_windows` with
+`is_active = false`.**
+
+An inactive window refuses honestly — the page says the venue is not taking
+bookings, which is TRUE of a venue nobody has configured. Invented hours do the
+opposite: they accept a booking for a time the kitchen is shut, and the guest
+finds out at the door. Between a surface that refuses and a surface that lies,
+the refusal is always the safer default, and it is the one that gets fixed
+because somebody notices it.
+
+Active windows require a source. El Paisa's are active because its published
+hours were read from its own listing and recorded with the post date; they are
+still marked unverified until someone speaks to the restaurant.
