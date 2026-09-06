@@ -85,7 +85,7 @@ ReplyReady.PreviewProps = {
   agencyName: "Impronta Models",
   threadUrl: "https://tulala.digital/c/abc123",
   replyText:
-    "Hi Marco — thanks for reaching out! We'd love to work with you on the campaign. Could you share the shoot dates?",
+    "Hi Marco, thanks for reaching out! We have space that evening. Could you confirm how many people and what time?",
   signsIn: true,
   muteUrl: "https://tulala.digital/unsubscribe/conversation?token=demo",
 } satisfies Props;

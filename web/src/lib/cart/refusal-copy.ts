@@ -60,6 +60,7 @@ export type RefusalReason =
   | "promo_customer_limit"
   | "promo_not_applicable"
   | "promo_unavailable"
+  | "session_already_ended"
   | "capacity_unavailable"
   | "engine_error"
   // Capacity engine refusals, surfaced through the same path.
@@ -208,6 +209,13 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
     kind: "fault",
     en: "We could not check that code just now. Please try again.",
     es: "No pudimos verificar ese código. Inténtalo de nuevo.",
+  },
+  // Absence, not fault: the thing is genuinely over. Says WHICH thing ended so
+  // a buyer who picked the wrong date can pick another.
+  session_already_ended: {
+    kind: "absence",
+    en: "That session has already ended.",
+    es: "Esa sesión ya terminó.",
   },
   capacity_unavailable: {
     kind: "fault",
