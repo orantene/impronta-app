@@ -17,13 +17,26 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  CAPACITY_HOLD_TTL_MAX_SECONDS,
+  CAPACITY_HOLD_TTL_MIN_SECONDS,
+} from "@/lib/capacity/hold-ttl-bounds";
 
 /** Fallback when a caller has no pool to take a TTL from. */
 export const RESERVATION_HOLD_TTL_MS = 48 * 60 * 60 * 1000;
 
-/** Bounds match capacity_pools.hold_ttl_seconds, so the two cannot disagree. */
-const MIN_HOLD_TTL_SECONDS = 30;
-const MAX_HOLD_TTL_SECONDS = 604800;
+// Bounds come from the ENGINE, so the two cannot disagree.
+//
+// This comment used to make that claim over two local literals, and nothing
+// enforced it — the invariant held only while a human remembered. The same
+// number was restated in three files, and one of them (a 30-day ceiling in
+// Orders) had already drifted three-fold before a review caught it.
+//
+// `hold-ttl-bounds.static.test.ts` asserts these against the migration SQL, so
+// a change to `capacity_pools_hold_ttl_seconds_check` now fails a test rather
+// than one of its copies.
+const MIN_HOLD_TTL_SECONDS = CAPACITY_HOLD_TTL_MIN_SECONDS;
+const MAX_HOLD_TTL_SECONDS = CAPACITY_HOLD_TTL_MAX_SECONDS;
 
 /**
  * Milliseconds a hold should live. Out-of-range or unparseable values fall back

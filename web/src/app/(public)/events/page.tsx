@@ -6,7 +6,8 @@ import { PublicHeader } from "@/components/public-header";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { readPublicEventContext } from "@/lib/events/public-event-context";
+import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 
 /**
  * `/events` — the tenant's public list of what is on.
@@ -38,26 +39,6 @@ type Row = {
   doors_offset_minutes: number | null;
   venue_id: string | null;
 };
-
-function whenLabel(iso: string | null, timeZone: string): string {
-  if (!iso) return "Date to be announced";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Date to be announced";
-  try {
-    return d.toLocaleString(undefined, {
-      timeZone,
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    // Never silently answer in the reader's zone — that is how a Cancún venue
-    // tells a visitor in Madrid the wrong night.
-    return d.toISOString();
-  }
-}
 
 export default async function PublicEventsPage() {
   const scope = await getPublicTenantScope();
@@ -98,37 +79,19 @@ export default async function PublicEventsPage() {
     notFound();
   }
 
+  // Venue + workspace zones the anon client cannot read (RLS): `venues` is
+  // staff-only and `agencies` has no anon SELECT policy. Read server-side by
+  // key, timezone only. Before this every night listed here rendered in UTC
+  // while looking entirely normal.
   const venueIds = [...new Set(events.map((e) => e.venue_id).filter((v): v is string => Boolean(v)))];
-  const { data: venueRows, error: venueErr } = venueIds.length
-    ? await supabase.from("venues").select("id, timezone").in("id", venueIds)
-    : { data: [] as Array<Record<string, unknown>>, error: null };
-
-  if (venueErr) {
-    logServerError("events.publicList/venues", venueErr);
-    notFound();
-  }
-
-  // The workspace zone is the LADDER'S SECOND RUNG, so a swallowed error here
-  // is not cosmetic: `agencyRow` would be null, `pickTimezone` would fall
-  // through to the platform default, and every time on this page would render
-  // in UTC while looking entirely normal. That is the same wrong-zone bug as
-  // formatting in the reader's zone, arriving through a dropped error instead.
-  //
-  // It does NOT 404 the page — an unreadable workspace zone is not a reason to
-  // hide the events. It is logged, and the ladder then falls back KNOWINGLY.
-  const { data: agencyRow, error: agencyErr } = await supabase
-    .from("agencies")
-    .select("timezone")
-    .eq("id", scope.tenantId)
-    .maybeSingle();
-
-  if (agencyErr) {
-    logServerError("events.publicList/workspaceTimezone", agencyErr);
-  }
-
-  const venueZone = new Map<string, string | null>(
-    (venueRows ?? []).map((v) => [v.id as string, (v.timezone as string | null) ?? null]),
+  const contexts = await Promise.all(
+    venueIds.map(async (id) => [id, await readPublicEventContext({ tenantId: scope.tenantId, venueId: id })] as const),
   );
+  const workspaceCtx =
+    contexts[0]?.[1] ?? (await readPublicEventContext({ tenantId: scope.tenantId, venueId: null }));
+  const venueZone = new Map<string, string | null>(contexts.map(([id, c]) => [id, c.venueTimezone]));
+  const agencyRow = { timezone: workspaceCtx.workspaceTimezone };
+
   const nowIso = new Date().toISOString();
 
   const cards = events
@@ -139,10 +102,7 @@ export default async function PublicEventsPage() {
         ) ?? null;
       // No sentinel key: an event with no venue has NO venue zone, not the zone
       // of the empty string.
-      const zone = pickTimezone({
-        venue: e.venue_id ? (venueZone.get(e.venue_id) ?? null) : null,
-        workspace: (agencyRow?.timezone as string | null) ?? null,
-      }).timezone;
+      const zone: string | null = resolvePublicZone({ venue: e.venue_id ? (venueZone.get(e.venue_id) ?? null) : null, workspace: (agencyRow?.timezone as string | null) ?? null });
       return { ...e, nextAt: (next?.starts_at as string | undefined) ?? null, zone };
     })
     // Soonest first; an event with no scheduled night sorts last rather than
