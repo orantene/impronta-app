@@ -21,6 +21,7 @@
  * told, and a guest who reads the wrong one goes somewhere else.
  */
 
+import * as React from "react";
 import { useEffect, useState } from "react";
 import type { ReserveAvailability, ReserveSlot } from "@/app/(public)/_reserve/reserve-actions";
 
@@ -243,7 +244,15 @@ export function ReserveTableIsland({
   const [note, setNote] = useState("");
   const [orderKey, setOrderKey] = useState(newOrderKey);
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<{ label: string; collectCents: number } | null>(null);
+  const [done, setDone] = useState<{
+    label: string;
+    collectCents: number;
+    // The server's confirmation, word for word the one the email sends. Null
+    // when the venue's zone would not resolve, and the fallback below is
+    // deliberately thin rather than a second wording.
+    heading: string | null;
+    lines: string[];
+  } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
 
@@ -474,9 +483,31 @@ export function ReserveTableIsland({
             color: C.accent,
           }}
         >
-          <strong>{t.bookedFor} {done.label}.</strong>
-          <br />
-          {done.collectCents > 0 ? depositLine(locale, done.collectCents) : t.nothingToPay}
+          {/* THE SAME WORDS THE EMAIL SENDS. The page used to write its own two
+              sentences, so a guest read one hold and one deadline here and
+              possibly different ones in their inbox, from two surfaces that
+              both look official. `buildConfirmation` is the single author. */}
+          {done.lines.length > 0 ? (
+            <>
+              <strong>{done.heading ?? `${t.bookedFor} ${done.label}.`}</strong>
+              {done.lines.map((line) => (
+                <React.Fragment key={line}>
+                  <br />
+                  {line}
+                </React.Fragment>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* The venue's zone would not resolve, so the server refused to
+                  name an hour. Saying less is correct here: the booking IS
+                  taken, and the email is the record. Inventing a local time on
+                  the client is the exact bug the server just declined to make. */}
+              <strong>{t.bookedFor} {done.label}.</strong>
+              <br />
+              {done.collectCents > 0 ? depositLine(locale, done.collectCents) : t.nothingToPay}
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -511,11 +542,17 @@ export function ReserveTableIsland({
                     email: email.trim(),
                     note: note.trim() || undefined,
                     clientOrderKey: orderKey,
+                    locale,
                     sourcePage:
                       typeof window !== "undefined" ? window.location.pathname : null,
                   });
                   if (result.ok) {
-                    setDone({ label: slot.label, collectCents: result.collectCents });
+                    setDone({
+                      label: slot.label,
+                      collectCents: result.collectCents,
+                      heading: result.confirmation?.heading ?? null,
+                      lines: result.confirmation?.lines ?? [],
+                    });
                   } else {
                     setSubmitError(result.reason);
                     // A refused booking starts a NEW cart. Reusing the key would
