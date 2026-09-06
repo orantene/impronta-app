@@ -64,6 +64,23 @@ export function logServerError(context: string, err: unknown): void {
   }
 }
 
+/**
+ * An EXPECTED refusal the caller already handles: a wrong password, a signup
+ * rate limit, a rotted refresh cookie. Logged at warn with the same shape as
+ * logServerError so it stays greppable, but never sent to Sentry and never
+ * counted as a server_error: three of these were the fourth, sixth and
+ * eleventh largest "error" clusters in production for a week, burying the two
+ * real crashes beneath them.
+ */
+export function logServerExpected(context: string, err: unknown): void {
+  const { line } = formatUnknownError(err);
+  // eslint-disable-next-line no-console
+  console.warn(`[${context}]`, line);
+  if (process.env.NODE_ENV === "production") {
+    void improntaLog("server_expected", { context, message: line.slice(0, 500) });
+  }
+}
+
 /** True when PostgREST reports unknown columns/tables (migration not applied yet). */
 export function isPostgrestMissingColumnError(err: unknown): boolean {
   if (err !== null && typeof err === "object") {
