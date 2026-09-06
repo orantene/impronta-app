@@ -6,6 +6,8 @@ import { PublicHeader } from "@/components/public-header";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { readPublicEventContext } from "@/lib/events/public-event-context";
+import { timeLabel, whenLabel } from "@/lib/events/public-event-time";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import { saleState, type Tier } from "@/lib/events/tiers";
 import { doorsAt } from "@/lib/events/event-policy";
@@ -32,25 +34,21 @@ type Params = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  return { title: slug.replace(/-/g, " ") };
-}
-
-function whenLabel(iso: string | null, timeZone: string): string {
-  if (!iso) return "Date to be announced";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Date to be announced";
-  try {
-    return d.toLocaleString(undefined, {
-      timeZone,
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return d.toISOString();
-  }
+  // The event's own name, not the slug de-hyphenated and lowercased
+  // ("noche de prueba" for "Noche de prueba", measured live 2026-09-05).
+  // Published only, tenant-scoped, anon-readable — the same row the page shows.
+  const scope = await getPublicTenantScope();
+  const supabase = scope ? await createClient() : null;
+  const { data } = supabase
+    ? await supabase
+        .from("events")
+        .select("title")
+        .eq("tenant_id", scope!.tenantId)
+        .eq("status", "published")
+        .eq("slug", slug)
+        .maybeSingle()
+    : { data: null };
+  return { title: (data?.title as string | undefined) ?? slug.replace(/-/g, " ") };
 }
 
 function money(cents: number): string {
@@ -96,23 +94,11 @@ export default async function PublicEventPage({ params }: Params) {
     notFound();
   }
 
-  const { data: venueRow, error: venueErr } = event.venue_id
-    ? await supabase
-        .from("venues")
-        .select("timezone, name")
-        .eq("id", event.venue_id as string)
-        .maybeSingle()
-    : { data: null, error: null };
-
-  if (venueErr) logServerError("events.publicDetail/venue", venueErr);
-
-  const { data: agencyRow, error: agencyErr } = await supabase
-    .from("agencies")
-    .select("timezone")
-    .eq("id", scope.tenantId)
-    .maybeSingle();
-
-  if (agencyErr) logServerError("events.publicDetail/workspaceTimezone", agencyErr);
+  // Venue + workspace facts the anon client cannot read (RLS); service role,
+  // four columns, by key. Without this every night rendered in UTC.
+  const ctx = await readPublicEventContext({ tenantId: scope.tenantId, venueId: (event.venue_id as string | null) ?? null });
+  const venueRow = ctx.venueName || ctx.venueTimezone ? { name: ctx.venueName, timezone: ctx.venueTimezone } : null;
+  const agencyRow = { timezone: ctx.workspaceTimezone };
 
   const zone = pickTimezone({
     venue: (venueRow?.timezone as string | null) ?? null,
@@ -165,7 +151,7 @@ export default async function PublicEventPage({ params }: Params) {
       <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
         <div className="text-xs uppercase tracking-wide text-black/50">
           {whenLabel(nextAt, zone)}
-          {doors ? ` · doors ${whenLabel(doors.toISOString(), zone).split(", ").pop()}` : null}
+          {doors ? ` · doors ${timeLabel(doors.toISOString(), zone)}` : null}
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{event.title as string}</h1>
         {venueRow?.name ? (
