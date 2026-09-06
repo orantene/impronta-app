@@ -3,7 +3,7 @@ import {
   planGrantsCapability,
   type PlanEntitlementMap,
 } from "@/lib/access/plan-capabilities";
-import { CAPABILITY_KEYS } from "@/lib/access/capabilities";
+import { CAPABILITY_KEYS, type CapabilityKey } from "@/lib/access/capabilities";
 import { TIER_SLUG_TO_PLAN_KEY, type CompareRowClaim } from "./enforced-plan-facts";
 
 /**
@@ -45,7 +45,7 @@ import { TIER_SLUG_TO_PLAN_KEY, type CompareRowClaim } from "./enforced-plan-fac
  * Add an entry only when denying that capability is what actually stops the
  * customer doing the thing the label names.
  */
-export const LABEL_TO_CAPABILITY: Record<string, string> = {
+export const LABEL_TO_CAPABILITY: Record<string, CapabilityKey> = {
   "custom domain": "manage_agency_domains",
   "custom domain (your-name.com)": "manage_agency_domains",
 };
