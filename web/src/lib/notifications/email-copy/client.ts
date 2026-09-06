@@ -43,7 +43,7 @@ export const CLIENT_EN = {
     preview: "Your offer is ready",
     heading: "Your offer is ready",
     // {name} = client name, {event} = inquiry / contact label.
-    intro: "Hi {name}, the agency has prepared an offer for {event}.",
+    intro: "Hi {name}, we've prepared an offer for {event}.",
     note: "Review the offer and accept or decline from your dashboard.",
     button: "Review offer →",
     totalLabel: "Total",
@@ -54,7 +54,7 @@ export const CLIENT_EN = {
     heading: "Booking confirmed",
     // {name} = client name, {event} = booking / contact label.
     intro: "Hi {name}, {event} has been confirmed.",
-    note: "The agency will be in touch with next steps. You can view your booking from your dashboard.",
+    note: "We'll be in touch with next steps. You can view your booking any time from your dashboard.",
     button: "View booking →",
     dateLabel: "Date",
     locationLabel: "Location",
@@ -71,14 +71,14 @@ export const CLIENT_EN = {
     dateLabel: "Date",
   },
   "client.deposit_received": {
-    subject: "Deposit received — balance due",
-    preview: "Deposit received — balance due to confirm your booking",
+    subject: "Deposit received, balance due",
+    preview: "Deposit received. The balance confirms your booking",
     heading: "Deposit received",
     // {name} = client name, {event} = booking / contact label, {balanceClause}
     // = " of {amount}" when the balance is known, otherwise empty.
     intro:
       "Hi {name}, we've received your deposit for {event}. To confirm the booking, pay the remaining balance{balanceClause}.",
-    note: "Your booking is held — paying the balance locks it in.",
+    note: "Your booking is held. Paying the balance locks it in.",
     button: "Pay balance →",
     // {balance} = computed balance amount, used to fill {balanceClause}.
     balanceClause: " of {balance}",
@@ -142,7 +142,7 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     subject: "Tu propuesta está lista",
     preview: "Tu propuesta está lista",
     heading: "Tu propuesta está lista",
-    intro: "Hola {name}, la agencia preparó una propuesta para {event}.",
+    intro: "Hola {name}, te preparamos una propuesta para {event}.",
     note: "Revisa la propuesta y acéptala o recházala desde tu panel.",
     button: "Revisar propuesta →",
     totalLabel: "Total",
@@ -152,7 +152,7 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     preview: "Reserva confirmada",
     heading: "Reserva confirmada",
     intro: "Hola {name}, {event} ya quedó confirmada.",
-    note: "La agencia se pondrá en contacto contigo con los siguientes pasos. Puedes ver tu reserva desde tu panel.",
+    note: "Te escribimos con los siguientes pasos. Puedes ver tu reserva cuando quieras desde tu panel.",
     button: "Ver reserva →",
     dateLabel: "Fecha",
     locationLabel: "Ubicación",
@@ -168,12 +168,12 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     dateLabel: "Fecha",
   },
   "client.deposit_received": {
-    subject: "Anticipo recibido — saldo pendiente",
-    preview: "Anticipo recibido — saldo pendiente para confirmar tu reserva",
+    subject: "Anticipo recibido, saldo pendiente",
+    preview: "Anticipo recibido. Falta el saldo para confirmar tu reserva",
     heading: "Anticipo recibido",
     intro:
       "Hola {name}, recibimos tu anticipo para {event}. Para confirmar la reserva, paga el saldo restante{balanceClause}.",
-    note: "Tu reserva está apartada — al pagar el saldo queda confirmada.",
+    note: "Tu reserva está apartada. Al pagar el saldo queda confirmada.",
     button: "Pagar saldo →",
     balanceClause: " de {balance}",
     depositLabel: "Anticipo pagado",
