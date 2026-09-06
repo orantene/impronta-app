@@ -3,6 +3,20 @@
  * Server-safe: imports the registry, not the HelpPanel client island.
  */
 import { DRAWER_HELP, type HelpEntry } from "@/components/admin/shell/internal/help-registry";
+import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry-scheduling";
+
+/**
+ * What the in-product assistant is allowed to know.
+ *
+ * DRAWER_HELP is keyed by DRAWER ids, so the scheduling PAGES — events,
+ * sessions, reservations — had no entry and the assistant denied they existed.
+ * Merged here rather than in help-registry.ts, which sits exactly on its
+ * line-count budget.
+ */
+export const SUPPORT_HELP_REGISTRY: Partial<Record<string, HelpEntry>> = {
+  ...DRAWER_HELP,
+  ...SCHEDULING_HELP,
+};
 
 export type HelpCorpusEntry = {
   slug: string;
@@ -50,7 +64,7 @@ const STOP = new Set([
 ]);
 
 export function flattenHelpCorpus(
-  registry: Partial<Record<string, HelpEntry>> = DRAWER_HELP,
+  registry: Partial<Record<string, HelpEntry>> = SUPPORT_HELP_REGISTRY,
 ): HelpCorpusEntry[] {
   const out: HelpCorpusEntry[] = [];
   for (const [slug, entry] of Object.entries(registry)) {
