@@ -198,19 +198,7 @@ export interface CompositionData {
    * strict version-match rule.
    */
   lastWriterEditSessionId?: string | null;
-  /**
-   * Print surface only (Piece B slice 1c) — the fixed physical artboard for this
-   * design, in millimetres, derived from `print_designs.size`. Undefined for
-   * EVERY other surface, so the canvas keeps its responsive/fluid width exactly
-   * as before; present ⇒ `InEditorCanvasRegion` renders a fixed mm→px artboard
-   * with a persistent trim/safe-area guide (canvas is bleed-size; `bleedMm` is
-   * the artwork past the trim line, ruled model (2) in print-canvas-design.md).
-   */
-  printArtboard?: {
-    widthMm: number;
-    heightMm: number;
-    bleedMm: number;
-  };
+  printArtboard?: { widthMm: number; heightMm: number; bleedMm: number }; // slice 1c — fixed mm print artboard (bleed incl.) from print_designs.size; undefined off-print
 }
 
 export type CompositionLoadResult =

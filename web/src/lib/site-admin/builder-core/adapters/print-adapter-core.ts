@@ -27,7 +27,10 @@ import type {
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
-import { PRINT_SIZES, type PrintSizeKey } from "@/lib/links/qr/files";
+// The PURE size table — NOT `qr/files` (that is `import "server-only"` for the
+// PDF renderer). buildPrintComposition runs client-side via the bound adapter,
+// so it must not pull server-only code into the client bundle.
+import { PRINT_SIZES, type PrintSizeKey } from "@/lib/links/qr/print-sizes";
 
 /**
  * Bleed — 3 mm of artwork past the trim line so a guillotine 1 mm off-centre
