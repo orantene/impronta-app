@@ -80,8 +80,18 @@ export function buildAnthropicParams(
   if (!modelRejectsSamplingParams(model)) {
     params.temperature = input.temperature ?? 0.2;
   }
-  if (input.thinking && modelSupportsAdaptiveThinking(model)) {
-    (params as unknown as { thinking?: unknown }).thinking = { type: "adaptive" };
+  // Three states, not two. This model family thinks by DEFAULT, so a caller
+  // that never mentions thinking still pays for it: measured on the guest
+  // support call, 238 of 434 output tokens were thinking nobody asked for, and
+  // it was more than half the latency. `undefined` still leaves the default
+  // alone so no existing caller changes behaviour; only an explicit `false`
+  // turns it off.
+  if (modelSupportsAdaptiveThinking(model)) {
+    if (input.thinking === true) {
+      (params as unknown as { thinking?: unknown }).thinking = { type: "adaptive" };
+    } else if (input.thinking === false) {
+      (params as unknown as { thinking?: unknown }).thinking = { type: "disabled" };
+    }
   }
   if (input.effort && modelSupportsAdaptiveThinking(model)) {
     (params as unknown as { output_config?: { effort?: string } }).output_config = {
