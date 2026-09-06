@@ -33,14 +33,12 @@ const guest = readFileSync(
 );
 
 test("the engine's auto-ack does not fire on the guest path", () => {
+  // Asserted as the RULE, not the shape. The first version pinned a named
+  // const that was later inlined to keep the file under its 800-line cap — a
+  // correct change that reddened a test measuring how the rule was spelled.
   assert.match(
     engine,
-    /const guestPathOwnsTheAck = Boolean\(input\.guest_session_id\);/,
-    "the engine must know the guest path owns its own ack",
-  );
-  assert.match(
-    engine,
-    /if \(!guestPathOwnsTheAck && autoAckEnabled/,
+    /if \(!input\.guest_session_id && autoAckEnabled/,
     "the ack must be gated on the guest path, or it races the guest's message again",
   );
 });
