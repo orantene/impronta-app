@@ -34,6 +34,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
+import { buildGuestAckBody, normalizeAckLocale } from "./guest-ack-copy";
 import { sendEmail } from "@/lib/email";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
@@ -89,13 +90,14 @@ export async function emitGuestAutoAck(
         talentProfileId: args.talentProfileId,
       });
 
-      if (replyFragment) {
-        // e.g. "Got it, we've received your message. We typically reply in ~2 hours."
-        body = `Got it, we've received your message. We typically reply ${replyFragment}.`;
-      } else {
-        // Fallback: honest but no specific timeframe.
-        body = "Got it, we've received your message and will be in touch shortly.";
-      }
+      // Compose in the TENANT's language. This is the first thing a customer
+      // reads from a business, and it was English-only until 2026-09-06 — a
+      // Spanish-speaking customer of a Spanish-speaking tenant was answered in
+      // English. The latency fragment arrives in English and is translated
+      // inside buildGuestAckBody; an untranslatable fragment yields the
+      // no-latency sentence rather than English words inside a Spanish one.
+      const locale = normalizeAckLocale(await resolveTenantAckLocale(args.tenantId));
+      body = buildGuestAckBody({ locale, replyFragment });
     }
 
     // Insert into the PRIVATE (client) thread as a system_event so it persists
@@ -312,6 +314,50 @@ export async function generateGuestClaimUrl(args: {
     return data.properties.action_link;
   } catch (err) {
     logServerError("guest-auto-ack/generateGuestClaimUrl", err);
+    return null;
+  }
+}
+
+/**
+ * The tenant's default locale, from `agency_business_identity.default_locale` —
+ * the same row that supplies the public contact address used as Reply-To, so a
+ * tenant's language and its reply address cannot drift apart.
+ *
+ * Never throws and never blocks the acknowledgement: any failure returns null
+ * and the caller composes in English, which is the behaviour that shipped
+ * before this existed.
+ */
+export async function resolveTenantAckLocale(
+  tenantId: string,
+  deps?: { admin?: { from: (table: string) => unknown } | null },
+): Promise<string | null> {
+  if (!tenantId) return null;
+  try {
+    let admin = deps?.admin ?? null;
+    if (!admin) {
+      const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+      admin = createServiceRoleClient();
+    }
+    if (!admin) return null;
+    const { data, error } = await (admin as {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (k: string, v: string) => {
+            maybeSingle: () => Promise<{
+              data: { default_locale?: string | null } | null;
+              error: unknown;
+            }>;
+          };
+        };
+      };
+    })
+      .from("agency_business_identity")
+      .select("default_locale")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.default_locale ?? null;
+  } catch {
     return null;
   }
 }
