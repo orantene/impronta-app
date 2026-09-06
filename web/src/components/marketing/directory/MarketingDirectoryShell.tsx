@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { MarketingContainer } from "@/components/marketing/container";
+import Link from "next/link";
 import { loadMoreDirectoryTalents } from "@/app/(marketing)/global-directory/actions";
+import {
+  directoryPageHref,
+  type DirectoryPageWindow,
+} from "@/lib/directory/pagination";
 import {
   FOCUS_RING,
   type DirectoryActiveFilters,
@@ -38,6 +43,11 @@ type Props = {
   mapPoints: DiscoverMapPoint[];
   mapUnmappedCount: number;
   mapApiKey: string | null;
+  /**
+   * Addressable-page window for the current `?page=`. Server-computed so the
+   * off-by-one lives in one tested place rather than in JSX.
+   */
+  pageWindow: DirectoryPageWindow;
 };
 
 export function MarketingDirectoryShell({
@@ -52,6 +62,7 @@ export function MarketingDirectoryShell({
   mapPoints,
   mapUnmappedCount,
   mapApiKey,
+  pageWindow,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -142,7 +153,10 @@ export function MarketingDirectoryShell({
     try {
       const { items: more, total: freshTotal } = await loadMoreDirectoryTalents(
         { ...activeFilters, sort },
-        items.length,
+        // OFFSET IS ABSOLUTE, not "how many I am showing". On ?page=3 the grid
+        // starts at row 48, so passing items.length alone would re-fetch page 1
+        // and append duplicates under the page-3 heading.
+        pageWindow.offset + items.length,
       );
       setItems((prev) => {
         const seen = new Set(prev.map((t) => t.id));
@@ -169,7 +183,8 @@ export function MarketingDirectoryShell({
     />
   );
 
-  const hasMore = view !== "map" && items.length < total;
+  // Rows still unseen BELOW this page's starting offset.
+  const hasMore = view !== "map" && pageWindow.offset + items.length < total;
   const showEmpty = view !== "map" && !isPending && items.length === 0;
 
   return (
@@ -240,6 +255,66 @@ export function MarketingDirectoryShell({
                 ))}
               </div>
             )}
+
+            {/* Addressable pages. Real <a href> links, so a slice can be
+                refreshed, shared and reached with the back button — the thing
+                "page 1 plus N presses of Show more" could never do. This is a
+                UX affordance, NOT an SEO one: /global-directory canonicals to
+                /directory, so nothing here reaches the index. The crawl gap was
+                77 profiles advertised in no sitemap, fixed in #1814. */}
+            {view !== "map" && pageWindow.totalPages > 1 ? (
+              <nav
+                className="mt-10 flex flex-wrap items-center justify-center gap-1.5"
+                aria-label="Directory pages"
+              >
+                {pageWindow.prev ? (
+                  <Link
+                    href={directoryPageHref(pathname, searchParams, pageWindow.prev)}
+                    rel="prev"
+                    className="rounded-full px-3 py-2 text-[0.8125rem]"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
+                    Previous
+                  </Link>
+                ) : null}
+                {pageWindow.pages.map((p, i) =>
+                  p === null ? (
+                    <span
+                      key={`gap-${i}`}
+                      aria-hidden
+                      className="px-1 text-[0.8125rem]"
+                      style={{ color: "var(--plt-muted)" }}
+                    >
+                      &hellip;
+                    </span>
+                  ) : (
+                    <Link
+                      key={p}
+                      href={directoryPageHref(pathname, searchParams, p)}
+                      aria-current={p === pageWindow.page ? "page" : undefined}
+                      className="min-w-9 rounded-full px-3 py-2 text-center text-[0.8125rem]"
+                      style={
+                        p === pageWindow.page
+                          ? { background: "var(--plt-ink)", color: "var(--plt-bg)" }
+                          : { color: "var(--plt-ink)" }
+                      }
+                    >
+                      {p}
+                    </Link>
+                  ),
+                )}
+                {pageWindow.next ? (
+                  <Link
+                    href={directoryPageHref(pathname, searchParams, pageWindow.next)}
+                    rel="next"
+                    className="rounded-full px-3 py-2 text-[0.8125rem]"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
+                    Next
+                  </Link>
+                ) : null}
+              </nav>
+            ) : null}
 
             {hasMore && !isPending ? (
               <div className="mt-10 flex flex-col items-center gap-2.5">
