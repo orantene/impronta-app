@@ -173,6 +173,29 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
   );
 }
 
+/**
+ * The context when a provider is above us, or NULL when there is none.
+ *
+ * ─── WHY AN OPTIONAL READ EXISTS AT ALL ─────────────────────────────────────
+ *
+ * `useDirectoryInquiryModal` THROWS without a provider, and that throw took
+ * down public pages 61 times between 2026-09-03 and 2026-09-05 across `/`,
+ * `/global-directory` and `/_not-found`, thrown during SERVER RENDER.
+ *
+ * The structural reason is simple and was never going to be fixed by mounting
+ * one more provider: **the ROOT layout mounts none.** `(marketing)/layout.tsx`
+ * and `(public)/layout.tsx` each mount one, but anything rendering under the
+ * root layout — `/`, and `/_not-found`, which cannot be given a route group —
+ * has no provider by construction and no place to put one that a future route
+ * could not escape again.
+ *
+ * So the components that ride along on arbitrary pages read the context
+ * OPTIONALLY and degrade, while components that genuinely cannot work without
+ * it keep the throwing hook. Absence stays structurally distinct — `null`, not
+ * a fake context object whose setters quietly do nothing — because a no-op
+ * context is exactly the "one value, two meanings" defect that hides a broken
+ * modal behind a working-looking page.
+ */
 export function useDirectoryInquiryModal(): DirectoryInquiryModalContextValue {
   const ctx = useContext(DirectoryInquiryModalContext);
   if (!ctx) {

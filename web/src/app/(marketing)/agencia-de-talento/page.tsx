@@ -218,7 +218,7 @@ export default async function AgenciaDeTalentoPage() {
               <div key={step.title}>
                 <div
                   className="plt-mono text-[0.75rem] font-semibold tracking-[0.2em]"
-                  style={{ color: "var(--plt-accent, #2e6b52)" }}
+                  style={{ color: "var(--plt-accent, #ff8332)" }}
                 >
                   {String(i + 1).padStart(2, "0")}
                 </div>

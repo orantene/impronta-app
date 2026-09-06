@@ -36,8 +36,6 @@ import {
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
   collectPresentNodeKinds,
-  collectBuilderCollectionSourceKeys,
-  collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
@@ -64,10 +62,9 @@ import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads"
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
-import {
-  collectNavCollectionSourceKeys,
-  resolveNavCollectionDataSources,
-} from "@/lib/site-admin/server/nav-collection-sources";
+import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
+import { collectShellDataNeeds } from "./shell-data-needs";
+import { resolveNavCollectionDataSources } from "@/lib/site-admin/server/nav-collection-sources";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import {
   isSiteShellEnabledForTenant,
@@ -77,7 +74,6 @@ import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection
 import type { Locale } from "@/i18n/config";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 interface Props {
   tenantId: string;
@@ -327,21 +323,14 @@ async function renderShellSlot(
           nodeIdsByRole: roleBindings,
         }
       : undefined;
-  const mediaIds = collectBuilderImageMediaIds(builderSectionChildren);
-  const collectionSourceKeys = collectBuilderCollectionSourceKeys(builderSectionChildren);
-  // A4 follow-up — built-in collection NAV sources (cms_page / cms_posts) a nav
-  // node in this slot binds to. Resolved + injected into the same `collections`
-  // map so the nav render case auto-populates its links from them.
-  const navCollectionSourceKeys = collectNavCollectionSourceKeys(
-    builderSectionChildren,
-  );
-  const serviceSupabase =
-    mediaIds.length > 0 ||
-    collectionSourceKeys.length > 0 ||
-    navCollectionSourceKeys.length > 0
-      ? createServiceRoleClient()
-      : null;
-  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const {
+    mediaIds,
+    collectionSourceKeys,
+    navCollectionSourceKeys,
+    socialFeedProviders,
+    serviceSupabase,
+    mediaSupabase,
+  } = collectShellDataNeeds(builderSectionChildren);
   // BUILDER 2027 · P2B — the two SESSION-dependent header widgets. The walk is
   // free and the resolver short-circuits when the slot holds neither, so a
   // footer slot costs nothing.
@@ -357,6 +346,7 @@ async function renderShellSlot(
     componentStyleDefaults,
     navData,
     headerWidgets,
+    socialFeeds,
   ] =
     await Promise.all([
       treeHasInstances(builderSectionChildren)
@@ -381,6 +371,9 @@ async function renderShellSlot(
       loadPublicComponentStyleDefaults(tenantId),
       resolveShellNavData(tenantId, locale, publicPathPrefix),
       resolveNativeHeaderWidgets(nativeHeaderWidgetNeed),
+      serviceSupabase && socialFeedProviders.length > 0
+        ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
+        : Promise.resolve(undefined),
     ]);
   // Merge the user collections + the built-in nav collections into one map so
   // every binding (user `collection:<id>` repeaters AND nav cms_page/cms_posts)
@@ -475,6 +468,7 @@ async function renderShellSlot(
               mediaAssets,
               collections,
               socialLinks: navData.socialLinks,
+      ...(socialFeeds ? { socialFeeds } : {}),
               // P2B — visitor state for native `header_account`/`header_inquiry`.
               // Absent ⇒ each renders its signed-out affordance, a real link.
               ...(headerWidgets ? { headerWidgets } : {}),
@@ -552,16 +546,14 @@ async function renderFreeformShellSide({
   // The nodes the freeform renderer will actually paint: landmark children plus
   // non-landmark roots. Data sources are resolved over exactly this set.
   const freeformNodes = collectShellSideFreeformNodes(nodes);
-  const mediaIds = collectBuilderImageMediaIds(freeformNodes);
-  const collectionSourceKeys = collectBuilderCollectionSourceKeys(freeformNodes);
-  const navCollectionSourceKeys = collectNavCollectionSourceKeys(freeformNodes);
-  const serviceSupabase =
-    mediaIds.length > 0 ||
-    collectionSourceKeys.length > 0 ||
-    navCollectionSourceKeys.length > 0
-      ? createServiceRoleClient()
-      : null;
-  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const {
+    mediaIds,
+    collectionSourceKeys,
+    navCollectionSourceKeys,
+    socialFeedProviders,
+    serviceSupabase,
+    mediaSupabase,
+  } = collectShellDataNeeds(freeformNodes);
   const nativeHeaderWidgetNeed =
     collectNativeDataBlockNeeds(freeformNodes).headerWidgets;
   const [
@@ -574,6 +566,7 @@ async function renderFreeformShellSide({
     componentStyleDefaults,
     navData,
     headerWidgets,
+    socialFeeds,
   ] = await Promise.all([
     treeHasInstances(freeformNodes)
       ? loadBuilderComponentsForTenant(tenantId)
@@ -597,6 +590,9 @@ async function renderFreeformShellSide({
     loadPublicComponentStyleDefaults(tenantId),
     resolveShellNavData(tenantId, locale, publicPathPrefix),
     resolveNativeHeaderWidgets(nativeHeaderWidgetNeed),
+    serviceSupabase && socialFeedProviders.length > 0
+      ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
+      : Promise.resolve(undefined),
   ]);
   const collections =
     userCollections || navCollections
@@ -613,6 +609,7 @@ async function renderFreeformShellSide({
       mediaAssets,
       collections,
       socialLinks: navData.socialLinks,
+      ...(socialFeeds ? { socialFeeds } : {}),
       ...(headerWidgets ? { headerWidgets } : {}),
     },
     availableLocales: navData.availableLocales,

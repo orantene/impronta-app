@@ -198,6 +198,7 @@ export interface CompositionData {
    * strict version-match rule.
    */
   lastWriterEditSessionId?: string | null;
+  printArtboard?: { widthMm: number; heightMm: number; bleedMm: number }; // slice 1c — fixed mm print artboard (bleed incl.) from print_designs.size; undefined off-print
 }
 
 export type CompositionLoadResult =

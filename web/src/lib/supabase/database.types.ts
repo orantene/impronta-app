@@ -535,6 +535,8 @@ export type Database = {
           completed_at: string | null
           created_at: string
           customer_id: string | null
+          door_amount_cents: number | null
+          door_paid_via: string | null
           holder_email: string | null
           holder_name: string | null
           id: string
@@ -557,6 +559,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id?: string | null
+          door_amount_cents?: number | null
+          door_paid_via?: string | null
           holder_email?: string | null
           holder_name?: string | null
           id?: string
@@ -579,6 +583,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id?: string | null
+          door_amount_cents?: number | null
+          door_paid_via?: string | null
           holder_email?: string | null
           holder_name?: string | null
           id?: string
@@ -2885,6 +2891,7 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail: string | null
+          release_after: string | null
           status: string
           stripe_transfer_id: string | null
           talent_profile_id: string | null
@@ -2907,6 +2914,7 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail?: string | null
+          release_after?: string | null
           status: string
           stripe_transfer_id?: string | null
           talent_profile_id?: string | null
@@ -2929,6 +2937,7 @@ export type Database = {
           participant_id?: string
           party?: string
           payout_rail?: string | null
+          release_after?: string | null
           status?: string
           stripe_transfer_id?: string | null
           talent_profile_id?: string | null
@@ -5961,6 +5970,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_heartbeats: {
+        Row: {
+          consecutive_failures: number
+          job: string
+          last_detail: string | null
+          last_ok_at: string | null
+          last_run_at: string
+          last_status: string
+          updated_at: string
+        }
+        Insert: {
+          consecutive_failures?: number
+          job: string
+          last_detail?: string | null
+          last_ok_at?: string | null
+          last_run_at: string
+          last_status: string
+          updated_at?: string
+        }
+        Update: {
+          consecutive_failures?: number
+          job?: string
+          last_detail?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string
+          last_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_payment_methods: {
         Row: {
           brand: string | null
@@ -6261,29 +6300,35 @@ export type Database = {
         Row: {
           created_at: string
           email_address: string
+          email_key: string | null
           id: string
           notes: string | null
           reason: string
           source: string | null
           user_id: string | null
+          user_key: string | null
         }
         Insert: {
           created_at?: string
           email_address: string
+          email_key?: string | null
           id?: string
           notes?: string | null
           reason: string
           source?: string | null
           user_id?: string | null
+          user_key?: string | null
         }
         Update: {
           created_at?: string
           email_address?: string
+          email_key?: string | null
           id?: string
           notes?: string | null
           reason?: string
           source?: string | null
           user_id?: string | null
+          user_key?: string | null
         }
         Relationships: []
       }
@@ -8336,6 +8381,7 @@ export type Database = {
           id: number
           is_nfc: boolean
           link_id: string
+          outcome: string
           referrer: string | null
           resolved_to: string | null
           scanned_at: string
@@ -8348,6 +8394,7 @@ export type Database = {
           id?: number
           is_nfc?: boolean
           link_id: string
+          outcome?: string
           referrer?: string | null
           resolved_to?: string | null
           scanned_at?: string
@@ -8360,6 +8407,7 @@ export type Database = {
           id?: number
           is_nfc?: boolean
           link_id?: string
+          outcome?: string
           referrer?: string | null
           resolved_to?: string | null
           scanned_at?: string
@@ -8390,6 +8438,7 @@ export type Database = {
           context: Json
           created_at: string
           created_by: string | null
+          destination_unverified: boolean
           id: string
           kind: string
           name: string
@@ -8405,6 +8454,7 @@ export type Database = {
           context?: Json
           created_at?: string
           created_by?: string | null
+          destination_unverified?: boolean
           id?: string
           kind?: string
           name: string
@@ -8420,6 +8470,7 @@ export type Database = {
           context?: Json
           created_at?: string
           created_by?: string | null
+          destination_unverified?: boolean
           id?: string
           kind?: string
           name?: string
@@ -9277,6 +9328,7 @@ export type Database = {
           offering_id: string | null
           order_id: string
           owner_tenant_id: string | null
+          refunded_cents: number
           session_id: string | null
           sort_order: number
           talent_cost_cents: number
@@ -9296,6 +9348,7 @@ export type Database = {
           offering_id?: string | null
           order_id: string
           owner_tenant_id?: string | null
+          refunded_cents?: number
           session_id?: string | null
           sort_order?: number
           talent_cost_cents?: number
@@ -9315,6 +9368,7 @@ export type Database = {
           offering_id?: string | null
           order_id?: string
           owner_tenant_id?: string | null
+          refunded_cents?: number
           session_id?: string | null
           sort_order?: number
           talent_cost_cents?: number
@@ -9404,6 +9458,7 @@ export type Database = {
           id: string
           inquiry_id: string | null
           payout_release_rule: string
+          receipt_code: string | null
           session_id: string | null
           source_channel: string
           source_page: string | null
@@ -9427,6 +9482,7 @@ export type Database = {
           id?: string
           inquiry_id?: string | null
           payout_release_rule?: string
+          receipt_code?: string | null
           session_id?: string | null
           source_channel: string
           source_page?: string | null
@@ -9450,6 +9506,7 @@ export type Database = {
           id?: string
           inquiry_id?: string | null
           payout_release_rule?: string
+          receipt_code?: string | null
           session_id?: string | null
           source_channel?: string
           source_page?: string | null
@@ -10507,6 +10564,50 @@ export type Database = {
             columns: ["default_talent_template_id"]
             isOneToOne: false
             referencedRelation: "builder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      print_designs: {
+        Row: {
+          builder_tree: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          size: string
+          tenant_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          builder_tree?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          size?: string
+          tenant_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          builder_tree?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          size?: string
+          tenant_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_designs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -18094,6 +18195,84 @@ export type Database = {
           },
         ]
       }
+      ticket_refund_intents: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          executed_at: string | null
+          id: string
+          order_id: string
+          order_line_id: string
+          reason: string
+          result: string | null
+          result_detail: Json | null
+          tenant_id: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          order_id: string
+          order_line_id: string
+          reason: string
+          result?: string | null
+          result_detail?: Json | null
+          tenant_id: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          order_id?: string
+          order_line_id?: string
+          reason?: string
+          result?: string | null
+          result_detail?: Json | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_refund_intents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "ticket_refund_intents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_refund_intents_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: true
+            referencedRelation: "admissions_mint_shortfall"
+            referencedColumns: ["order_line_id"]
+          },
+          {
+            foreignKeyName: "ticket_refund_intents_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: true
+            referencedRelation: "order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_refund_intents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       translation_audit_events: {
         Row: {
           actor_id: string | null
@@ -19841,12 +20020,22 @@ export type Database = {
           tenant_count: number
         }[]
       }
+      capacity_pool_committed_peak: {
+        Args: { p_pool_id: string }
+        Returns: number
+      }
       capacity_remaining_public: {
         Args: { p_ends_at?: string; p_pool_id: string; p_starts_at?: string }
         Returns: number
       }
       check_in: {
-        Args: { p_actor?: string; p_admission_id: string; p_count?: number }
+        Args: {
+          p_actor?: string
+          p_admission_id: string
+          p_count?: number
+          p_mode: string
+          p_token_version?: number
+        }
         Returns: Json
       }
       claim_talent_profile: {
@@ -20486,6 +20675,10 @@ export type Database = {
         Returns: string
       }
       ensure_guest_session: { Args: { p_session_key: string }; Returns: string }
+      extend_capacity_hold: {
+        Args: { p_allocation_ids: string[]; p_ttl_seconds: number }
+        Returns: Json
+      }
       find_auth_user_identity_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -20719,6 +20912,7 @@ export type Database = {
         }[]
       }
       reap_capacity_allocations: { Args: { p_limit?: number }; Returns: number }
+      receipt_for_code: { Args: { p_code: string }; Returns: Json[] }
       recompute_customer_rollups: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -20785,6 +20979,7 @@ export type Database = {
         Returns: undefined
       }
       refresh_talent_skill_metrics_all: { Args: never; Returns: number }
+      refund_admission: { Args: { p_admission_id: string }; Returns: Json }
       release_capacity: { Args: { p_allocation_ids: string[] }; Returns: Json }
       replace_talent_languages: {
         Args: { p_rows: Json; p_talent_profile_id: string; p_tenant_id: string }

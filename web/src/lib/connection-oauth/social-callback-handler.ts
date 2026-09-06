@@ -4,6 +4,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getAppUrl } from "@/lib/auth-flow";
 import { userHasCapability } from "@/lib/access";
+import {
+  getConnectionOAuthProvider,
+  getConnectionOAuthRedirectUri,
+} from "./providers";
 import { verifyConnectionOAuthState } from "./state";
 import { connectWorkspaceSocialAccount } from "./social-connect";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -46,6 +50,9 @@ export async function handleSocialOAuthCallback(
     return redirectBack(returnTo, { connection_error: "provider_mismatch" });
   }
 
+  const providerDef = getConnectionOAuthProvider(provider);
+  if (!providerDef) return redirectBack(returnTo, { connection_error: "unsupported_provider" });
+
   const session = await requireSession();
   if (!session.ok || session.user.id !== stateResult.state.actorUserId) {
     return redirectBack(returnTo, { connection_error: "not_authorized" });
@@ -70,7 +77,7 @@ export async function handleSocialOAuthCallback(
       tenantId: scope.tenantId,
       actorUserId: session.user.id,
       code,
-      redirectUri: `${getAppUrl()}/api/connections/oauth/callback/${provider}`,
+      redirectUri: getConnectionOAuthRedirectUri(providerDef, getAppUrl()),
     });
     if (!result.ok) {
       // Surface the vendor's reason (e.g. "that account is personal") rather

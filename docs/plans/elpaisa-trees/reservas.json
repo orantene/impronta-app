@@ -1,0 +1,233 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-reservas",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-reservas-head",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-reservas-head-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-reservas-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Reservas",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Reservations"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Reservations"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-reservas-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "Reservá tu mesa",
+                    "level": 1,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Reserve your table"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Reserve your table"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-reservas-p",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Jueves a domingo de 10:00 a 01:00, martes de 10:00 a 17:00, hora de Buenos Aires. Lunes y miércoles cerrado. Hasta cuatro personas por reserva. Se paga en el salón, sin anticipo.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "16px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Thursday to Sunday 10:00 to 01:00, Tuesday 10:00 to 17:00, Buenos Aires time. Closed Monday and Wednesday. Up to four people per reservation. Pay at the restaurant, no deposit."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Thursday to Sunday 10:00 to 01:00, Tuesday 10:00 to 17:00, Buenos Aires time. Closed Monday and Wednesday. Up to four people per reservation. Pay at the restaurant, no deposit."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-reservas-block",
+                  "kind": "reserve_table",
+                  "props": {
+                    "venueName": "El Paisa",
+                    "ctaVerb": "Reservar",
+                    "partyMin": 1,
+                    "partyMax": 4,
+                    "cardNotice": "Se paga en el salón. Sin anticipo.",
+                    "notesEnabled": true,
+                    "style": {
+                      "width": "100%",
+                      "maxWidthFree": "720px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "ctaVerb": "Reserve",
+                        "cardNotice": "Pay at the restaurant. No deposit."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "ctaVerb": "Reserve",
+                      "cardNotice": "Pay at the restaurant. No deposit."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-reservas-more",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Para más de cuatro, escribinos por WhatsApp y te armamos la mesa.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "15px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "For more than four, message us on WhatsApp and we will set up the table."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "For more than four, message us on WhatsApp and we will set up the table."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-reservas-cta",
+                  "kind": "cta_group",
+                  "props": {
+                    "layout": "row",
+                    "gap": "m",
+                    "align": "start"
+                  },
+                  "children": [
+                    {
+                      "id": "ep-reservas-wa",
+                      "kind": "button",
+                      "props": {
+                        "label": "Escribir por WhatsApp",
+                        "href": "https://wa.me/5491170825104?text=Hola%20El%20Paisa%2C%20quiero%20hacer%20un%20pedido.",
+                        "tone": "secondary",
+                        "style": {
+                          "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                          "fontSize": "15px",
+                          "fontWeight": 600,
+                          "letterSpacing": "0.02em",
+                          "textColor": "#1a1512",
+                          "backgroundColor": "transparent",
+                          "borderColor": "#1a1512",
+                          "borderWidth": "1px",
+                          "borderRadius": "999px",
+                          "paddingTop": "14px",
+                          "paddingRight": "28px",
+                          "paddingBottom": "14px",
+                          "paddingLeft": "28px"
+                        },
+                        "i18n": {
+                          "en": {
+                            "label": "Message on WhatsApp"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "label": "Message on WhatsApp"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

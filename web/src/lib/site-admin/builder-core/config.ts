@@ -19,6 +19,7 @@
 
 import type { AddGalleryAllowTab } from "@/lib/site-admin/add-gallery/types";
 import type { BuilderDataSourceKey } from "@/lib/site-admin/builder-node/data-bindings";
+import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
 import type { BuilderSurfaceAdapter } from "./surface-adapter";
 import type { BuilderSurfaceKind } from "./surface-kind";
@@ -54,6 +55,15 @@ export interface BuilderGalleryPolicy {
   allowedTabs: readonly AddGalleryAllowTab[];
   /** When true the (WS2/WS4) DB-backed "Page Templates" tab is offered. */
   allowDbTemplates: boolean;
+  /**
+   * Piece B slice 1c — restrict the Blocks tab to these native node kinds.
+   * Undefined (the default for every web surface) ⇒ no restriction, the full
+   * catalog shows. Set for the PRINT surface to the ruled print vocabulary
+   * (background + QR + title + caption + logo) so the palette can only produce
+   * pieces the exporter's rules are enforceable against. A CAPABILITY-shaped
+   * gate — the gallery filters on this list, never on `surfaceKind`.
+   */
+  blockAllowList?: readonly BuilderNodeKind[];
   /**
    * Catalog audience for §E `target_context` gating + the Builder Lab's
    * per-surface overlay toggles (`talent_enabled` / `workspace_enabled`).
@@ -349,6 +359,20 @@ export function buildCmsPageBuilderConfig(
  * editor never branches on `surfaceKind` to decide it. Persists to `print_designs`
  * via the print adapter; never a `cms_pages` row. See docs/plans/print-canvas-design.md.
  */
+/**
+ * The ruled print vocabulary (slice 1c) as native node kinds — the ONLY blocks
+ * the print palette offers. Kept here beside buildPrintBuilderConfig so the
+ * palette curation and the config that carries it stay in one place; the
+ * extractor (builderTreeToPrintDesign) reads exactly this set.
+ */
+export const PRINT_BLOCK_KINDS: readonly BuilderNodeKind[] = [
+  "qr_code", // the QR symbol (native, #1755)
+  "heading", // title
+  "paragraph", // caption
+  "image", // logo / full-bleed background image
+  "container", // background fill / grouping box
+];
+
 export function buildPrintBuilderConfig(
   printSurfaceAdapter: BuilderSurfaceAdapter,
 ): BuilderContextConfig {
@@ -369,10 +393,18 @@ export function buildPrintBuilderConfig(
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
-      allowedTabs: ["blocks", "designs"],
+      // Blocks (title/caption/logo/background) + Data (the QR block is a
+      // connected node). No web page-template ("designs") layouts on a card.
+      allowedTabs: ["blocks", "data"],
       allowDbTemplates: false,
       surfaceTarget: "workspace",
       surfaceKey: "workspace_page",
+      // The ruled print vocabulary: background + QR + title + caption + logo.
+      // QR is the native qr_code block (#1755); title/caption are heading/
+      // paragraph; logo/background are image/container. The exporter's rules are
+      // only enforceable against this known set, so the palette produces nothing
+      // else.
+      blockAllowList: PRINT_BLOCK_KINDS,
     },
     dataSources: { allowed: [] },
     previewSubjectKind: null,

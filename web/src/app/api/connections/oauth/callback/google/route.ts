@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/auth-flow";
 import { userHasCapability } from "@/lib/access";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
-import { getConnectionOAuthProvider } from "@/lib/connection-oauth/providers";
+import {
+  getConnectionOAuthProvider,
+  getConnectionOAuthRedirectUri,
+} from "@/lib/connection-oauth/providers";
 import { verifyConnectionOAuthState } from "@/lib/connection-oauth/state";
 import {
   exchangeGoogleConnectionCode,
@@ -241,12 +244,20 @@ export async function GET(request: NextRequest) {
     return redirectBack(returnTo, { connection_error: "missing_code" });
   }
 
+  // A state minted for another vendor must not be redeemable here: the
+  // Instagram/TikTok callback already refuses a mismatched provider, and the
+  // confinement has to hold in both directions.
+  const stateProvider = getConnectionOAuthProvider(stateResult.state.provider);
+  if (!stateProvider || stateProvider.oauthProvider !== "google") {
+    return redirectBack(returnTo, { connection_error: "provider_mismatch" });
+  }
+
   const session = await requireSession();
   if (!session.ok || session.user.id !== stateResult.state.actorUserId) {
     return redirectBack(returnTo, { connection_error: "not_authorized" });
   }
 
-  const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/google`;
+  const redirectUri = getConnectionOAuthRedirectUri(stateProvider, getAppUrl());
   try {
     const tokenResult = await exchangeGoogleConnectionCode({ code, redirectUri });
     if (!tokenResult.ok) {

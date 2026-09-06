@@ -137,7 +137,7 @@ export function SupportThreadView({
   const muted = isHq ? "rgba(245,242,235,0.62)" : COLORS.inkDim;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px 8px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "16px 16px 12px" }}>
       {grouped.map((g) => (
         <div key={g.day}>
           <div
@@ -217,11 +217,19 @@ export function SupportThreadView({
                       ? ` · ${Math.round(confidence * 100)}%`
                       : ""}
                   </div>
-                  <div style={{ fontSize: 13.5, lineHeight: 1.5, color: COLORS.ink, whiteSpace: "pre-wrap" }}>
-                    {m.body}
-                  </div>
+                  <AnswerBody text={m.body} />
                   {!isHq ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, alignItems: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 14,
+                        paddingTop: 12,
+                        borderTop: `1px solid ${COLORS.royal}22`,
+                        alignItems: "center",
+                      }}
+                    >
                       {acked[m.id] ? null : confirmHelpful === m.id ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                           <span style={{ fontSize: 11, color: COLORS.royal }}>
@@ -542,14 +550,108 @@ export function SupportThreadView({
   );
 }
 
+/**
+ * An action a person can take, that looks like one.
+ *
+ * This was `border: none` on a transparent background, so "Yes", "No" and
+ * "Talk to a human" rendered as bare words sitting in the sentence beside them.
+ * The owner's words on seeing it: "links are just text not like call out". On a
+ * phone they were also a ~17px tall tap target inside a wall of prose.
+ *
+ * Now: a visible edge, a surface, and a 36px target, which is what separates a
+ * control from a caption.
+ */
+/**
+ * The assistant's answer, laid out so it can be read.
+ *
+ * The body was rendered as ONE pre-wrap block. That is fine for a sentence and
+ * wrong for the shape these answers actually take: the model returns numbered
+ * steps separated by blank lines, and they arrived as an undifferentiated wall
+ * with the steps welded to each other. The owner's words: "no spacing between
+ * messages, they stack on each other".
+ *
+ * Blank lines become real paragraph breaks, and a paragraph that opens with
+ * "1." or "2." gets its number set apart, so the eye can find the steps without
+ * reading the prose first. Line breaks INSIDE a paragraph are preserved,
+ * because the model uses them for sub-points.
+ *
+ * Deliberately not a markdown renderer: this text is model output, and pulling
+ * in a parser to interpret it invites every escaping bug that comes with
+ * rendering untrusted content as markup. Splitting on blank lines is the whole
+ * grammar, and it stays plain text.
+ */
+function AnswerBody({ text }: { text: string }) {
+  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {blocks.map((block, i) => {
+        const step = /^(\d{1,2})[.)]\s+([\s\S]*)$/.exec(block);
+        if (step) {
+          return (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span
+                aria-hidden
+                style={{
+                  flex: "0 0 auto",
+                  minWidth: 20,
+                  height: 20,
+                  borderRadius: 999,
+                  background: "#fff",
+                  color: COLORS.royal,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 1,
+                }}
+              >
+                {step[1]}
+              </span>
+              <span
+                style={{
+                  fontSize: 13.5,
+                  lineHeight: 1.55,
+                  color: COLORS.ink,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {step[2]}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <p
+            key={i}
+            style={{
+              margin: 0,
+              fontSize: 13.5,
+              lineHeight: 1.55,
+              color: COLORS.ink,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {block}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 const ghostBtn: CSSProperties = {
-  border: "none",
-  background: "transparent",
+  border: `1px solid ${COLORS.royal}33`,
+  background: "#fff",
   color: COLORS.royal,
-  fontSize: 12,
+  fontSize: 12.5,
   fontWeight: 600,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
+  justifyContent: "center",
   gap: 6,
+  minHeight: 36,
+  padding: "0 12px",
+  borderRadius: 999,
 };

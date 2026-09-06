@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./create";
 export * from "./data-bindings";
+export * from "./social-feed-source";
 export * from "./visibility";
 export * from "./experiment";
 export * from "./field-map";

@@ -1,7 +1,6 @@
 import "server-only";
 
 import {
-  buildConnectionAuthorizationUrl,
   getConnectionOAuthProvider,
   getGoogleConnectionOAuthConfig,
 } from "./providers";
@@ -45,21 +44,6 @@ function youtubeProvider() {
   return provider;
 }
 
-/**
- * Thin wrapper kept so existing callers do not change. The URL is now built by
- * the vendor-generic builder in `providers.ts` — one code path for every
- * provider, so Instagram/TikTok cannot drift from the proven YouTube shape.
- */
-export function buildGoogleConnectionAuthorizationUrl(input: {
-  state: string;
-  redirectUri: string;
-}): { ok: true; url: string } | { ok: false; error: string } {
-  return buildConnectionAuthorizationUrl({
-    provider: youtubeProvider(),
-    state: input.state,
-    redirectUri: input.redirectUri,
-  });
-}
 
 export async function exchangeGoogleConnectionCode(input: {
   code: string;

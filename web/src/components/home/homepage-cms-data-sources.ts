@@ -17,6 +17,8 @@ import {
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
+import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
+import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getHomepageData } from "@/lib/home-data";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
@@ -129,6 +131,10 @@ export async function loadBuilderNodeDataSources(
   const mediaIds = collectBuilderImageMediaIds(nodes);
   const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
   const needsSocialLinks = hasBoundSocialLinksNode(nodes);
+  // Phase 3 — connected `social_feed` blocks read the cron-filled cache. This
+  // is the injection `render.tsx` documents for `dataSources.socialFeeds`; the
+  // render path itself never fetches a vendor.
+  const socialFeedProviders = collectSocialFeedProviders(nodes);
   // WS7 Phase 0 — native data blocks.
   const nativeNeeds = collectNativeDataBlockNeeds(nodes);
   // BUILDER 2027 · P2B — a native `directory` node renders its category chips
@@ -155,13 +161,16 @@ export async function loadBuilderNodeDataSources(
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
-    collectionSourceKeys.length === 0
+    collectionSourceKeys.length === 0 &&
+    socialFeedProviders.length === 0
   ) {
     return { publicOrigin };
   }
   // The storefront read bypasses RLS (service role) for media + collections.
   const serviceSupabase =
-    mediaIds.length > 0 || collectionSourceKeys.length > 0
+    mediaIds.length > 0 ||
+    collectionSourceKeys.length > 0 ||
+    socialFeedProviders.length > 0
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
@@ -178,6 +187,7 @@ export async function loadBuilderNodeDataSources(
     menuWords,
     directoryProfilesByNodeId,
     featuredTalentProfilesByNodeId,
+    socialFeeds,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -267,6 +277,12 @@ export async function loadBuilderNodeDataSources(
           locale,
         })
       : Promise.resolve(undefined),
+    // Phase 3 — one cache read per connected provider, scoped to the tenant
+    // whose page this is (never the preview subject: the feed belongs to the
+    // workspace that connected the account).
+    serviceSupabase && socialFeedProviders.length > 0
+      ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -293,6 +309,7 @@ export async function loadBuilderNodeDataSources(
     mediaAssets,
     collections,
     ...(socialLinks ? { socialLinks } : {}),
+    ...(socialFeeds ? { socialFeeds } : {}),
     ...(tenantTalentCount === undefined ? {} : { tenantTalentCount }),
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
     ...(menuOfferings === undefined ? {} : { menuOfferings }),

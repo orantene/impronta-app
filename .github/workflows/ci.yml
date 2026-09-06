@@ -378,6 +378,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:fields
 
+      # The shape half of the anon-write-policy guard. The live half runs in
+      # auto-apply-migrations.yml, which holds the Management API token; this
+      # exercises the judgement without a database, so a new open policy fails a
+      # build rather than waiting to be found by a probe.
+      - name: tests — anon write policy shape
+        if: ${{ !cancelled() }}
+        run: npm run test:anon-write-policy
+
       - name: tests — notifications
         if: ${{ !cancelled() }}
         run: npm run test:notifications

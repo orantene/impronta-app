@@ -37,7 +37,10 @@ NOT "Basic Display" (shut down Dec 2024) and NOT "Instagram API with Facebook Lo
 5. **Business verification** — Meta will ask for business documents. Start this early; it
    is often slower than the review itself.
 6. **Privacy policy URL** — must be live at a real domain before submitting.
-   `https://tulala.digital/privacy` (confirm the route exists and is public).
+   `https://tulala.digital/legal/privacy` (verified 200 on 2026-09-06; the
+   `/privacy` path this checklist named until then is a **404** — `/legal/*` is a
+   marketing-host path group, so note it also 404s on `app.tulala.digital`).
+   Terms: `https://tulala.digital/legal/terms`.
 7. **App Review submission** needs a screencast showing:
    - an operator clicking Connect in Tulala's Settings → Integrations
    - the Instagram login + consent screen
@@ -55,8 +58,12 @@ the card *before* they click, not after a failed OAuth.
 
 ## B. TikTok
 
-1. https://developers.tiktok.com → Manage apps → Create app
-2. Add product → **Login Kit** + **Display API**
+1. https://developers.tiktok.com → Manage apps → Connect an app. Ownership asks
+   Individual or **Organization**; a TikTok organization name **cannot be changed
+   later**, nor can the app type. Done 2026-09-06: organization Tulala
+   `7682382660244685845`, app Tulala `7682273019905148948`, type "Other".
+2. Add product → **Login Kit**. There is no separate Display API product in the
+   current portal; `video.list` is a scope under Login Kit. Do **not** add Share Kit.
 3. **Scopes — request ONLY:**
    - `user.info.basic`
    - `video.list`
@@ -64,8 +71,15 @@ the card *before* they click, not after a failed OAuth.
    ```
    https://app.tulala.digital/api/connections/oauth/callback/tiktok
    ```
-5. **Production audit** needs: privacy policy URL, a demo video covering every requested
-   scope, and a data-handling description.
+5. **URL properties must be verified**, and one property covers one host, so **two** are
+   needed: `https://app.tulala.digital/` for the redirect and `https://tulala.digital/`
+   for the Terms and Privacy URLs. Either a DNS TXT record (the owner's) or a signature
+   file served from the prefix (ours). The files and their `STATIC_PATHS` entries went in
+   with PR #1907 — a root `.txt` 404s without an entry, because the proxy matcher excludes
+   images but not text files.
+6. **Production audit** needs: privacy policy URL, a demo video covering every requested
+   scope, a data-handling description, and an **app icon at exactly 1024x1024** (the repo
+   has no square vector mark, only a 512px raster).
 6. Same use-case framing: read-only display of the connecting user's own videos on their
    own website.
 
@@ -80,8 +94,10 @@ TIKTOK_OAUTH_CLIENT_KEY=
 TIKTOK_OAUTH_CLIENT_SECRET=
 ```
 
-`CONNECTION_OAUTH_STATE_SECRET` already exists (the YouTube flow uses it) — reuse it, do
-not mint a new one.
+`CONNECTION_OAUTH_STATE_SECRET` **does not exist**. This checklist claimed it did, on the
+assumption that the YouTube flow was live; `vercel env ls` on 2026-09-05 returned 67 names
+and none of the five OAuth names, so YouTube connect has never had credentials in
+production either. It must be minted (32+ chars) alongside the four values above.
 
 **Never paste secrets into chat.** Add them in the Vercel dashboard directly.
 

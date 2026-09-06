@@ -171,3 +171,60 @@ that already exists.
 Before trusting any `.upsert(..., { onConflict })`, confirm the unique index it names is **not**
 partial. There are 72 partial unique indexes in `public`. The failure is at planning time, it is
 total rather than intermittent, and every green test above it is measuring something else.
+
+## Probes 1 and 5 DISCHARGED, 2026-09-06 02:2xZ — run, not scheduled
+
+Both on `zero-test-studio`, a test tenant, using the sanctioned shape: **a real row created and
+deleted.** One setup served both proofs, as the ordering predicted.
+
+### Probe 1 — a successful reserve writes a correct allocation. PROVEN.
+
+```
+reserve_capacity(pool 33f0d81d…, units 1)
+  → {"ok": true, "units": 1, "allocation_id": "916ae3b3…",
+     "expires_at": "2026-09-06T02:37:33Z"}
+
+the row:  units 1 · state 'hold' · pool_id matches
+          ttl_left 14:50 against the pool's hold_ttl_seconds = 900   ← the TTL is the pool's, not a default
+          capacity_pool_committed_peak(pool) = 1                     ← the peak function sees the hold
+```
+
+**This is the first allocation ever created in production.** Execution was already proven by a
+refusal (`pool_not_found`, zero rows); this proves correctness — the row exists, holds the right
+number of units, and expires when the pool says it should.
+
+### Probe 5 — `CP015` actually fires. PROVEN.
+
+With that hold standing, `committed_peak = 1`, an attempt to shrink the pool to **0**:
+
+```
+upsert_capacity_pool(…, p_units_total => 0)   → CP015 raised
+units_total after:  4   (unchanged)
+```
+
+The probe was written to raise its own failure if the shrink were *accepted*, so a silent pass was
+not possible. **The oversell guard is no longer verified from its definition — it has been watched
+refusing.** That closes the honest limit recorded when #1769 shipped.
+
+### Cleanup, verified
+
+```
+probe row state:     released
+holds outstanding:   0
+pool units_total:    4      (unchanged)
+committed peak:      0
+```
+
+### What this leaves
+
+| Probe | Owner | State |
+|---|---|---|
+| 1 · reserve writes a correct allocation | Reservations | **DISCHARGED** |
+| 5 · `CP015` fires | Capacity | **DISCHARGED** |
+| 3 · `receipt_for_code` refuses a bad code | Events | **DISCHARGED** — structured miss, then ruled to zero rows and re-proven |
+| 4 · the materialise cron writes occurrences | Sessions | open |
+| 2 · `mint-on-paid` mints from a paid order | Events | open — it is E5's acceptance, not a separate task |
+| 6 · the DST collision refusal | Sessions | **not probeable** — refuses only into a log; needs an operator surface before it is a row |
+
+Three of six discharged. Of the rest, one is a task, one rides on the guest purchase, and one is a
+request for a surface rather than a test.
