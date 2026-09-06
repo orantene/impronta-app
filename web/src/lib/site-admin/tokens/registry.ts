@@ -89,6 +89,28 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "#111111",
     group: "Brand colors",
   },
+  // DERIVED — the readable foreground for `color.primary`, computed by
+  // `tokens/contrast-pair.ts` and projected as `--token-color-primary-on`.
+  //
+  // Registered so `token:color.primary-on` is a BINDABLE key. Without an entry
+  // here `isBindableTokenKey` refuses it, `registry.ts`'s style refinement
+  // rejects the node, and the resolver drops the WHOLE TREE — a blank page.
+  // That is not hypothetical: a template edit writing this exact token took El
+  // Paisa down and had to be reverted.
+  //
+  // `agencyConfigurable: false` on purpose. It is computed from the primary, so
+  // offering it as an editable swatch would let an operator break the pairing
+  // the token exists to guarantee. The projection derives it AFTER the
+  // registry loop in `designTokensToCssVars`, so a stored value cannot win.
+  "color.primary-on": {
+    key: "color.primary-on",
+    label: "On primary",
+    scope: "color",
+    agencyConfigurable: false,
+    validator: hexColor,
+    defaultValue: "#ffffff",
+    group: "Brand colors",
+  },
   "color.secondary": {
     key: "color.secondary",
     label: "Secondary",
