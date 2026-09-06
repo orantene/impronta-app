@@ -272,8 +272,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
+      // Piece B slice 1c — the print surface restricts the Blocks tab to the
+      // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
+      blockAllowList: gallerySurface.blockAllowList,
     });
-  }, [mergedItems, tab, activeCategoryId, query]);
+  }, [mergedItems, tab, activeCategoryId, query, gallerySurface]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────
   // A shell template rewrites a landmark's children. The normal gallery path

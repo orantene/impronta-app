@@ -27,6 +27,30 @@ import type {
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+// The PURE size table — NOT `qr/files` (that is `import "server-only"` for the
+// PDF renderer). buildPrintComposition runs client-side via the bound adapter,
+// so it must not pull server-only code into the client bundle.
+import { PRINT_SIZES, type PrintSizeKey } from "@/lib/links/qr/print-sizes";
+
+/**
+ * Bleed — 3 mm of artwork past the trim line so a guillotine 1 mm off-centre
+ * leaves no white sliver. A property of the PAGE, not the QR symbol (that's the
+ * quiet zone, which lives inside `qr.sizeMm`). Ruled model (2) in
+ * print-canvas-design.md: the canvas IS bleed-size and a trim guide sits on top.
+ */
+const PRINT_BLEED_MM = 3;
+
+/** Map a stored `print_designs.size` string to its fixed mm artboard, bleed
+ *  included. Unknown/legacy values fall back to `table_tent` (never throws). */
+function printArtboardForSize(size: string): {
+  widthMm: number;
+  heightMm: number;
+  bleedMm: number;
+} {
+  const key: PrintSizeKey = size in PRINT_SIZES ? (size as PrintSizeKey) : "table_tent";
+  const dims = PRINT_SIZES[key];
+  return { widthMm: dims.widthMm, heightMm: dims.heightMm, bleedMm: PRINT_BLEED_MM };
+}
 
 import type {
   BuilderSurfaceAdapter,
@@ -104,6 +128,7 @@ export function buildPrintComposition(
     styleClasses: coerceStyleClassRegistry(null),
     stylePresets: coerceStylePresetRegistry(null),
     availableLocales: [locale as CompositionData["locale"]],
+    printArtboard: printArtboardForSize(row.size),
   };
 }
 

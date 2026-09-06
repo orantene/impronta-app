@@ -32,6 +32,8 @@ import { useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
+import { useEditContext } from "./edit-context";
+import { PrintArtboard } from "./print-artboard";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { useBuilderTree } from "./builder-tree-bridge";
@@ -61,6 +63,9 @@ export function InEditorCanvasRegion({
 }: InEditorCanvasRegionProps): ReactNode {
   // The live tree the provider publishes (insert/edit/reorder repaint here).
   const tree = useBuilderTree();
+  // Piece B slice 1c — a print design renders on a fixed physical artboard with
+  // a persistent trim/safe guide, not a fluid page. Null for every other surface.
+  const { printArtboard } = useEditContext();
 
   // Wave-2 cms-page canvas — when the STOREFRONT BODY paints the tree at all
   // (the live `<StorefrontBodyCanvas>` in edit mode, OR — stale-body fix
@@ -125,6 +130,18 @@ export function InEditorCanvasRegion({
     minHeight: "100vh",
   };
 
+  const canvas = (
+    <ClientBuilderCanvas
+      initialTree={tree}
+      dataSources={canvasRenderData?.dataSources ?? {}}
+      sectionEmbedIslands={canvasRenderData?.sectionEmbedIslands ?? {}}
+      publicPathPrefix={canvasRenderData?.publicPathPrefix ?? ""}
+      components={{}}
+      componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
+      includeRendererStyles
+    />
+  );
+
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
     // drawer's live preview (ThemePreviewProjector → CSS-var channel). The
@@ -140,15 +157,17 @@ export function InEditorCanvasRegion({
     >
       {isEmpty ? <EmptyCanvasStarter /> : null}
       <BuilderProfilerBoundary id="builder-canvas">
-        <ClientBuilderCanvas
-          initialTree={tree}
-          dataSources={canvasRenderData?.dataSources ?? {}}
-          sectionEmbedIslands={canvasRenderData?.sectionEmbedIslands ?? {}}
-          publicPathPrefix={canvasRenderData?.publicPathPrefix ?? ""}
-          components={{}}
-          componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
-          includeRendererStyles
-        />
+        {printArtboard ? (
+          <PrintArtboard
+            widthMm={printArtboard.widthMm}
+            heightMm={printArtboard.heightMm}
+            bleedMm={printArtboard.bleedMm}
+          >
+            {canvas}
+          </PrintArtboard>
+        ) : (
+          canvas
+        )}
       </BuilderProfilerBoundary>
     </div>
   );

@@ -364,6 +364,7 @@ export function EditProvider({
   // artboard (fixed physical size); the device toggle + ⌘1/2/3 gate on it.
   const canUseResponsiveBreakpoints =
     resolvedSurfaceConfig.capabilities.responsiveBreakpoints;
+  const printArtboard = initialComposition?.printArtboard ?? null; // slice 1c; see EditContextValue
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
@@ -406,6 +407,8 @@ export function EditProvider({
         ? (galleryTabsKey.split(",") as GallerySurfaceDescriptor["allowedTabs"])
         : [],
       allowDbTemplates: galleryAllowDbTemplates,
+      // slice 1c — print vocabulary allow-list (undefined off-print); stable per mount.
+      blockAllowList: resolvedSurfaceConfig.galleryPolicy.blockAllowList,
       surfaceTarget: gallerySurfaceTarget,
       surfaceKey: gallerySurfaceKey,
       isLab: galleryIsLab,
@@ -417,6 +420,7 @@ export function EditProvider({
     [
       galleryTabsKey,
       galleryAllowDbTemplates,
+      resolvedSurfaceConfig.galleryPolicy.blockAllowList,
       gallerySurfaceTarget,
       gallerySurfaceKey,
       galleryIsLab,
@@ -5740,6 +5744,7 @@ export function EditProvider({
       surfaceKind: resolvedSurfaceConfig.surface.kind,
       canEditTheme,
       canUseResponsiveBreakpoints,
+      printArtboard,
       publishViaSurfaceAdapter,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
@@ -6020,6 +6025,7 @@ export function EditProvider({
       // is derived from it + canEditSiteShell, both stable per mount.
       canEditTheme,
       canUseResponsiveBreakpoints,
+      printArtboard,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
       // galleryPolicy comes from the surface config object; resolvedSurfaceConfig

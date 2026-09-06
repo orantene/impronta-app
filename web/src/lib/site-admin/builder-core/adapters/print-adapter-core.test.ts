@@ -40,6 +40,25 @@ test("buildPrintComposition maps a row to the editor envelope", () => {
   assert.equal(data.metadata.noindex, true);
 });
 
+test("buildPrintComposition derives the fixed mm artboard from size (bleed included)", () => {
+  // table_tent = 100×150 mm; bleed is 3 mm per the ruled model (2).
+  const data = buildPrintComposition(ROW, "en");
+  assert.deepEqual(data.printArtboard, {
+    widthMm: 100,
+    heightMm: 150,
+    bleedMm: 3,
+  });
+});
+
+test("buildPrintComposition falls back to table_tent for an unknown size (never throws)", () => {
+  const data = buildPrintComposition({ ...ROW, size: "bogus" }, "en");
+  assert.deepEqual(data.printArtboard, {
+    widthMm: 100,
+    heightMm: 150,
+    bleedMm: 3,
+  });
+});
+
 test("load returns the composition for the open design", async () => {
   const a = createPrintAdapter(spy());
   const res = await a.load(ctx);

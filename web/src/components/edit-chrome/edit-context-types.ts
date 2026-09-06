@@ -156,6 +156,11 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   /** Piece B slice 1 — per-breakpoint responsive editing (capability flag).
    *  False on the print artboard; the viewport switcher gates on it. */
   canUseResponsiveBreakpoints: boolean;
+  /** Piece B slice 1c — the fixed physical print artboard (mm, bleed included),
+   *  from `print_designs.size`. Null for every non-print surface; present ⇒ the
+   *  canvas renders a fixed mm→px artboard + trim/safe guide, not a fluid page.
+   *  Immutable per design in v1, so read from the loaded composition. */
+  printArtboard: { widthMm: number; heightMm: number; bleedMm: number } | null;
   /**
    * Phase 7A — governed nested builder nodes / element library affordances.
    * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.

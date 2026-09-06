@@ -212,6 +212,12 @@ export interface GallerySurfaceDescriptor {
   allowedTabs: ReadonlyArray<AddGalleryAllowTab>;
   /** Whether DB-backed templates are merged in (`galleryPolicy.allowDbTemplates`). */
   allowDbTemplates: boolean;
+  /**
+   * Piece B slice 1c — restrict the catalog to these native node kinds (the
+   * print vocabulary). Undefined ⇒ no restriction. Sourced from
+   * `galleryPolicy.blockAllowList`; the gallery filters on it, never on surfaceKind.
+   */
+  blockAllowList?: readonly BuilderNodeKind[];
   /** Surface subject target for `target_context` gating (talent | workspace | platform | null). */
   surfaceTarget: "talent" | "workspace" | "both" | "platform" | null;
   /**

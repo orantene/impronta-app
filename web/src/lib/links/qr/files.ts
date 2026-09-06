@@ -22,18 +22,15 @@ import type { Matrix } from "./matrix";
 /** 1 mm in PDF points. */
 const MM = 72 / 25.4;
 
-export type PrintSize = { label: string; widthMm: number; heightMm: number };
-
-/** The sizes the Share popover offers. Table tent first: it is the common case. */
-export const PRINT_SIZES = {
-  table_tent: { label: "Table tent", widthMm: 100, heightMm: 150 },
-  a5: { label: "A5 flyer", widthMm: 148, heightMm: 210 },
-  a4: { label: "A4 poster", widthMm: 210, heightMm: 297 },
-  sticker: { label: "Sticker", widthMm: 50, heightMm: 50 },
-  card: { label: "Business card", widthMm: 85, heightMm: 55 },
-} as const satisfies Record<string, PrintSize>;
-
-export type PrintSizeKey = keyof typeof PRINT_SIZES;
+// The size table moved to the pure, client-safe `./print-sizes` (this module is
+// `import "server-only"`). Re-exported here so every existing importer of
+// `qr/files` keeps working unchanged.
+export {
+  PRINT_SIZES,
+  type PrintSize,
+  type PrintSizeKey,
+} from "./print-sizes";
+import { PRINT_SIZES, type PrintSizeKey } from "./print-sizes";
 
 /**
  * PNG at a given physical width and DPI.
