@@ -1,0 +1,197 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-menu",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-menu-head",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "24px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-menu-head-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-menu-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "La carta",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "The menu"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "The menu"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-menu-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "La carta",
+                    "level": 1,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "The menu"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "The menu"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-menu-p",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Precios en pesos argentinos. Picadas por cantidad de personas, porciones por tamaño, carnes por kilo.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "16px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Prices in Argentine pesos. Boards by party size, portions by size, meats by the kilo."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Prices in Argentine pesos. Boards by party size, portions by size, meats by the kilo."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-menu-board",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "0px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-menu-board-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-menu-board-node",
+                  "kind": "menu_board",
+                  "props": {
+                    "emptyMessage": "La carta se está cargando. Escribinos por WhatsApp y te la mandamos.",
+                    "style": {
+                      "width": "100%"
+                    },
+                    "i18n": {
+                      "en": {
+                        "emptyMessage": "The menu is being loaded. Message us on WhatsApp and we will send it."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "emptyMessage": "The menu is being loaded. Message us on WhatsApp and we will send it."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

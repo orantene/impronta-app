@@ -1,0 +1,430 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-contacto",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-contacto-head",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-contacto-head-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-contacto-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Contacto",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Contact"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Contact"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-contacto-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "Escribinos",
+                    "level": 1,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Write to us"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Write to us"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-contacto-p",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Pedidos y consultas por WhatsApp. Te respondemos en el horario del local.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "16px",
+                      "lineHeight": "1.65",
+                      "textColor": "#928b84",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Orders and questions on WhatsApp. We answer during opening hours."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Orders and questions on WhatsApp. We answer during opening hours."
+                    }
+                  }
+                },
+                {
+                  "id": "ep-contacto-cta",
+                  "kind": "cta_group",
+                  "props": {
+                    "layout": "row",
+                    "gap": "m",
+                    "align": "start",
+                    "style": {
+                      "marginTopFree": "8px"
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "ep-contacto-wa",
+                      "kind": "button",
+                      "props": {
+                        "label": "Pedir por WhatsApp",
+                        "href": "https://wa.me/5491170825104?text=Hola%20El%20Paisa%2C%20quiero%20hacer%20un%20pedido.",
+                        "tone": "primary",
+                        "style": {
+                          "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                          "fontSize": "15px",
+                          "fontWeight": 600,
+                          "letterSpacing": "0.02em",
+                          "textColor": "#ffffff",
+                          "backgroundColor": "#d21a28",
+                          "borderRadius": "999px",
+                          "paddingTop": "14px",
+                          "paddingRight": "28px",
+                          "paddingBottom": "14px",
+                          "paddingLeft": "28px"
+                        },
+                        "i18n": {
+                          "en": {
+                            "label": "Order on WhatsApp"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "label": "Order on WhatsApp"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ep-contacto-maps",
+                      "kind": "button",
+                      "props": {
+                        "label": "Cómo llegar",
+                        "href": "https://www.google.com/maps/search/?api=1&query=Regionales+el+Paisa%2C+Glew",
+                        "tone": "secondary",
+                        "style": {
+                          "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                          "fontSize": "15px",
+                          "fontWeight": 600,
+                          "letterSpacing": "0.02em",
+                          "textColor": "#1a1512",
+                          "backgroundColor": "transparent",
+                          "borderColor": "#1a1512",
+                          "borderWidth": "1px",
+                          "borderRadius": "999px",
+                          "paddingTop": "14px",
+                          "paddingRight": "28px",
+                          "paddingBottom": "14px",
+                          "paddingLeft": "28px"
+                        },
+                        "i18n": {
+                          "en": {
+                            "label": "Directions"
+                          }
+                        }
+                      },
+                      "i18n": {
+                        "en": {
+                          "label": "Directions"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "ep-contacto-social",
+                  "kind": "social_links",
+                  "props": {
+                    "links": [
+                      {
+                        "id": "ep-wa",
+                        "platform": "whatsapp",
+                        "href": "https://wa.me/5491170825104?text=Hola%20El%20Paisa%2C%20quiero%20hacer%20un%20pedido.",
+                        "label": "WhatsApp"
+                      },
+                      {
+                        "id": "ep-ig",
+                        "platform": "instagram",
+                        "href": "https://www.instagram.com/Regionales_el-_paisa",
+                        "label": "Instagram"
+                      },
+                      {
+                        "id": "ep-fb",
+                        "platform": "facebook",
+                        "href": "https://www.facebook.com/search/top?q=Regionales%20el%20Paisa",
+                        "label": "Facebook"
+                      }
+                    ],
+                    "size": "md",
+                    "shape": "circle",
+                    "ariaLabel": "Redes de El Paisa",
+                    "style": {
+                      "marginTopFree": "24px"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-contacto-where",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#1a1a1a",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-contacto-where-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-contacto-map",
+                  "kind": "location_map",
+                  "props": {
+                    "eyebrow": "Dónde estamos",
+                    "headline": "Glew, Buenos Aires",
+                    "subheadline": "Abierto de 10:00 a 01:00, cinco días a la semana.",
+                    "source": "manual",
+                    "items": [
+                      {
+                        "label": "Regionales el Paisa",
+                        "region": "Glew, Buenos Aires",
+                        "href": "https://www.google.com/maps/search/?api=1&query=Regionales+el+Paisa%2C+Glew",
+                        "featured": true,
+                        "status": "active"
+                      }
+                    ],
+                    "showMap": true,
+                    "mapStyle": "embed",
+                    "mapEmbedUrl": "https://www.google.com/maps?q=Regionales+el+Paisa%2C+Glew&output=embed",
+                    "overlayTitle": "Regionales el Paisa",
+                    "overlayAddress": "Glew, Buenos Aires",
+                    "overlayHours": "10:00 a 01:00",
+                    "overlaySide": "card-left",
+                    "ratio": "16/9",
+                    "layout": "compact",
+                    "ctaLabel": "Cómo llegar",
+                    "ctaHref": "https://www.google.com/maps/search/?api=1&query=Regionales+el+Paisa%2C+Glew",
+                    "style": {
+                      "textColor": "#f4ece1",
+                      "width": "100%",
+                      "maxWidthFree": "1100px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "eyebrow": "Where we are",
+                        "subheadline": "Open 10:00 to 01:00, five days a week.",
+                        "ctaLabel": "Directions",
+                        "overlayHours": "10:00 to 01:00"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "eyebrow": "Where we are",
+                      "subheadline": "Open 10:00 to 01:00, five days a week.",
+                      "ctaLabel": "Directions",
+                      "overlayHours": "10:00 to 01:00"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-contacto-hours",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-contacto-hours-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-contacto-hours-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Horarios",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Hours"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Hours"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-contacto-hours-p",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Abierto de 10:00 a 01:00, cinco días a la semana.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "18px",
+                      "lineHeight": "1.65",
+                      "textColor": "#1a1512",
+                      "maxWidthFree": "560px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "Open 10:00 to 01:00, five days a week."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "Open 10:00 to 01:00, five days a week."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

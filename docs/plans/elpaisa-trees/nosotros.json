@@ -1,0 +1,273 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "ep-nosotros",
+      "kind": "container",
+      "props": {
+        "layout": "stack",
+        "style": {
+          "backgroundColor": "#f4ece1",
+          "width": "100%",
+          "maxWidthFree": "100%",
+          "gap": "0px"
+        }
+      },
+      "children": [
+        {
+          "id": "ep-nosotros-head",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-nosotros-head-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-nosotros-k",
+                  "kind": "paragraph",
+                  "props": {
+                    "text": "Nosotros",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "12px",
+                      "fontWeight": 700,
+                      "letterSpacing": "0.24em",
+                      "textTransform": "uppercase",
+                      "textColor": "#d21a28"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "About us"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "About us"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-nosotros-h",
+                  "kind": "heading",
+                  "props": {
+                    "text": "Negocio familiar desde 2012",
+                    "level": 1,
+                    "style": {
+                      "size": "xl",
+                      "fontFamily": "\"Playfair Display\", var(--font-playfair-display), Georgia, serif",
+                      "lineHeight": "1.04",
+                      "letterSpacing": "-0.01em",
+                      "textWrap": "balance",
+                      "textColor": "#1a1512"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "A family business since 2012"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "A family business since 2012"
+                    }
+                  }
+                },
+                {
+                  "id": "ep-nosotros-body",
+                  "kind": "rich_text",
+                  "props": {
+                    "text": "Negocio familiar desde 2012, atendiendo como nos gustaría que nos atiendan y haciendo con amor y conciencia los productos de nuestra amada Argentina.\n\nSomos una parrilla de barrio en Glew. Carnes a las brasas, picadas artesanales, empanadas cortadas a cuchillo y escabeches de la casa. Todo hecho acá, como en casa.",
+                    "style": {
+                      "fontFamily": "\"Inter\", var(--font-inter-body), system-ui, sans-serif",
+                      "fontSize": "18px",
+                      "lineHeight": "1.7",
+                      "textColor": "#1a1512",
+                      "maxWidthFree": "640px"
+                    },
+                    "i18n": {
+                      "en": {
+                        "text": "A family business since 2012, serving you the way we would like to be served, and making the products of our beloved Argentina with love and care.\n\nWe are a neighbourhood grill in Glew. Meat over the coals, artisan boards, hand-cut empanadas and house pickles. All made here, the way it is made at home."
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "text": "A family business since 2012, serving you the way we would like to be served, and making the products of our beloved Argentina with love and care.\n\nWe are a neighbourhood grill in Glew. Meat over the coals, artisan boards, hand-cut empanadas and house pickles. All made here, the way it is made at home."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-nosotros-photo",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#f4ece1",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "0px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-nosotros-photo-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-nosotros-img",
+                  "kind": "image",
+                  "props": {
+                    "src": "https://firebasestorage.googleapis.com/v0/b/restauradmin.appspot.com/o/menu_v2%2FyHutSL0wsOVNPjVBUlunKDPkZB42%2Fmenu-images%2Fproduct_1779567589347_IMG-20260523-WA0062.jpg",
+                    "alt": "Parrillada para dos, servida en el salón",
+                    "style": {
+                      "objectFit": "cover",
+                      "aspectRatio": "16:9",
+                      "borderRadius": "14px",
+                      "width": "100%"
+                    },
+                    "i18n": {
+                      "en": {
+                        "alt": "Grill platter for two, served in the dining room"
+                      }
+                    }
+                  },
+                  "i18n": {
+                    "en": {
+                      "alt": "Grill platter for two, served in the dining room"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ep-nosotros-facts",
+          "kind": "container",
+          "props": {
+            "layout": "stack",
+            "align": "center",
+            "style": {
+              "backgroundColor": "#1a1a1a",
+              "width": "100%",
+              "maxWidthFree": "100%",
+              "paddingTop": "96px",
+              "paddingRight": "44px",
+              "paddingBottom": "96px",
+              "paddingLeft": "44px",
+              "responsive": {
+                "mobile": {
+                  "paddingTop": "64px",
+                  "paddingRight": "24px",
+                  "paddingBottom": "64px",
+                  "paddingLeft": "24px"
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "id": "ep-nosotros-facts-inner",
+              "kind": "container",
+              "props": {
+                "layout": "stack",
+                "style": {
+                  "width": "100%",
+                  "maxWidthFree": "1100px",
+                  "gap": "20px"
+                }
+              },
+              "children": [
+                {
+                  "id": "ep-nosotros-stats",
+                  "kind": "stats",
+                  "props": {
+                    "items": [
+                      {
+                        "value": "2012",
+                        "label": "Desde",
+                        "caption": "Negocio familiar"
+                      },
+                      {
+                        "value": "117",
+                        "label": "Platos de la casa",
+                        "caption": "Trece categorías"
+                      },
+                      {
+                        "value": "Glew",
+                        "label": "Buenos Aires",
+                        "caption": "Provincia de Buenos Aires"
+                      }
+                    ],
+                    "variant": "row",
+                    "align": "start",
+                    "columns": 3,
+                    "animate": false,
+                    "style": {
+                      "textColor": "#f4ece1",
+                      "width": "100%"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
