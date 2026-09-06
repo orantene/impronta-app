@@ -1174,6 +1174,8 @@ export interface BuilderMenuBoardNode extends BuilderNodeBase {
     title?: string;
     subtitle?: string;
     emptyMessage?: string;
+    /** Sticky category strip above the board. See menuBoardPropsSchema. */
+    categoryNav?: boolean;
     style?: BuilderNodeStyle;
   };
 }

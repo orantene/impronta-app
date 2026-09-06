@@ -289,6 +289,16 @@ export type WorkspaceMenuOffering = {
   unitsLeft: number | null;
   /** Offering policy: may the customer settle in person? */
   allowPayInPerson: boolean;
+  /**
+   * The operator's own grouping for this item ("Tacos", "Postres"), or null.
+   *
+   * `talent_offerings.category` has existed all along and was never carried
+   * past this type, so the board could not group and a category nav was not
+   * buildable from what the renderer receives. NULL is the common case today —
+   * El Paisa's two published items both carry null — and the board must read
+   * that as "one ungrouped list", never as a category literally named "null".
+   */
+  category: string | null;
 };
 
 /**
@@ -353,6 +363,13 @@ export function deriveWorkspaceMenuOfferings(
           ? Math.max(0, Math.trunc(offering.inventoryQty))
           : null,
       allowPayInPerson: offering.allowPayInPerson === true,
+      // Trimmed to null: a whitespace-only category is an empty one, and an
+      // empty string would render a nameless tab in the strip.
+      category:
+        typeof (row as { category?: unknown }).category === "string" &&
+        (row as { category: string }).category.trim().length > 0
+          ? (row as { category: string }).category.trim()
+          : null,
     });
   }
   return out;
