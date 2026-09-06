@@ -1518,6 +1518,42 @@ Proposed by the Orders & Checkout Manager and adopted for everyone. The newest m
 
 Claim a number inside your band, announce it here through the Director before you apply it, and verify the object exists in production afterwards. **The apply command is `node web/scripts/apply-migration.mjs --apply-pending`, not `npm run db:push`.** `db:check` gives a false green on a collision, so never trust the green line alone.
 
+### Bands allocated since, and the one collision they did not prevent (2026-09-06)
+
+The table above stops at `…339`. Every band allocated after it lived in director-to-manager
+messages and in nothing a stranger could read — so **`20261229000800` was taken twice**: by
+`print_designs` from another area, and by Events & Ticketing, who had been allocated
+`…800`–`…819` in a chat. The second one had to be renumbered to `…807`–`…809` after the fact.
+
+**Nothing was lost, and only because someone looked.** `db:check` matches version *prefixes*, so an
+applied `…800` from one area hides an unapplied `…800` from another and reports green. The stacked
+PRs above the renumber still carried the old files for about twenty minutes, which is the same
+failure one level up: the base was fixed and the fix did not propagate.
+
+| Band | Owner | State |
+|---|---|---|
+| `20261229000340` to `…359` | Sessions & Classes | in use |
+| `20261229000360` to `…379` | Events & Ticketing | **exhausted** |
+| `20261229000380` to `…399` | Reservations | in use through `…386` |
+| `20261229000400`–`…799` | **unallocated, and NOT free** — one-offs from several areas already sit at `…400`, `…500`, `…600`, `…700`, `…701`. Do not treat a gap here as available. |
+| `20261229000800` | **`print_designs`** — taken; not part of any band |
+| `20261229000801` to `…819` | Events & Ticketing | in use through `…809` |
+
+**The rule that failed was not the band rule, it was where the claim lived.** A band agreed in a
+message is the merge queue that lived in conversation: correct, respected by everyone who heard it,
+and invisible to everyone who did not.
+
+**So: a band is not allocated until it is written HERE.** A director may agree one in a message, but
+it is provisional until it appears in this table, and a manager should ask for the registry line
+rather than start on the message alone.
+
+Two checks before claiming a number, neither of which is `db:check`:
+
+1. `select version from supabase_migrations.schema_migrations where version between '<band start>' and '<band end>'` — the applied ledger, which is the only record of what actually ran.
+2. `git ls-tree` the file list of **every open PR**, not just your own. A stacked PR lists its base's
+   files too, so a number can appear to be claimed twice by one branch, or be claimed by a sibling
+   you never looked at.
+
 Orders' already-claimed `20261228000142` and `…143` stay where they are: they sort above the applied head, so they were never part of the flaw. Everything else moves to the `20261229` bands.
 
 | Timestamp | Manager | Purpose | State |
