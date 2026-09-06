@@ -1341,9 +1341,19 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                the bottom nav). overflow-x: clip is preferred over
                hidden because clip doesn't establish a scroll container,
                so it doesn't accidentally enable horizontal scroll. */
+            /* MOBILE SCROLL FIX (candidate, pending hardware verification):
+               overflow-x on the ROOT (html/body) is subject to viewport
+               propagation, and clip on the root is a known iOS Safari
+               touch-scroll killer -- when one axis is clip and the other is
+               visible, the visible axis computes to auto, quietly making the
+               root a scroll container (the very thing the old comment thought
+               clip avoided). That does not reproduce in desktop devtools at
+               375px, which is why this was only ever seen on a real phone.
+               Cap width on the root without clip; keep clip on .tulala-shell
+               (a normal element, where it is safe and still stops the
+               right-edge bleed the width cap is here to prevent). */
             html, body {
               max-width: 100vw !important;
-              overflow-x: clip !important;
             }
             .tulala-shell {
               max-width: 100vw !important;
