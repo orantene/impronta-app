@@ -67,3 +67,52 @@ test("both languages, and no em dashes", () => {
     assert.ok(!blob.includes("—") && !blob.includes("–"), `${c.key}: dash in copy`);
   }
 });
+
+test("the photograph is an upgrade, not a requirement", () => {
+  // J9 (#1770) rebuilt the empty talent card on the ratified principle that
+  // the picture is an upgrade rather than a dependency. If this ever flips to
+  // "required", this checklist starts contradicting a card we shipped on
+  // purpose, and it does so in copy a talent reads. Pin it.
+  const photos = PROFILE_READINESS_CRITERIA.find((c) => c.key === "photos");
+  assert.ok(photos, "the photos criterion should exist");
+  assert.equal(photos.weight, "upgrade");
+  for (const locale of ["en", "es"] as const) {
+    assert.doesNotMatch(
+      photos[locale].stillNeeds,
+      /\brequired\b|\bobligatoria\b/i,
+      `${locale} copy must not present a photograph as required`,
+    );
+  }
+});
+
+test("every criterion declares a weight", () => {
+  for (const c of PROFILE_READINESS_CRITERIA) {
+    assert.ok(
+      c.weight === "required" || c.weight === "upgrade",
+      `${c.key} must declare a weight`,
+    );
+  }
+});
+
+test("Directory's thresholds are recorded verbatim on every criterion", () => {
+  // The thresholds are the publish gate's, not ours. If this file and
+  // buildCorePublishRequirements drift into two definitions of one criterion,
+  // both keep looking correct while disagreeing, which is how a checklist
+  // starts lying politely.
+  const expected: Record<string, string> = {
+    bio: "activeBioLength >= 30",
+    language: "languageCount > 0",
+    photos: "totalPhotos >= 3",
+    "home-base": "residence_city_id present",
+    "primary-type": "primaryType present",
+  };
+  assert.equal(PROFILE_READINESS_CRITERIA.length, 5);
+  for (const c of PROFILE_READINESS_CRITERIA) {
+    assert.equal(c.threshold, expected[c.key], `${c.key} threshold`);
+  }
+});
+
+test("criteria stay ordered by measured failure", () => {
+  const counts = PROFILE_READINESS_CRITERIA.map((c) => c.failingAtAudit);
+  assert.deepEqual(counts, [...counts].sort((a, b) => b - a));
+});
