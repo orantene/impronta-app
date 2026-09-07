@@ -29,7 +29,24 @@ import { INDUSTRY_FACT_KEYS } from "./industry-fact-keys";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type FactValueType = "string" | "number" | "boolean" | "string_list";
+export type FactValueType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "string_list"
+  /**
+   * A priced list: `[{ name, price?, category?, description? }]`.
+   *
+   * Added for the widened intake. A menu is the one thing a restaurant's page
+   * actually IS, and no scalar type can hold it — the intake read El Paisa's
+   * full menu and kept two facts, because there was nowhere to put the rest.
+   *
+   * Deliberately NOT a generic "json" type. This file exists because
+   * `fact_key` is an unconstrained TEXT column and `isKnownFactKey` is the only
+   * thing between a typo and the database; a free-blob type would extend that
+   * hole to values. Every field below is checked.
+   */
+  | "priced_items";
 
 /**
  * Where a fact shows up in the Settings surface. Mirrors the section list in
@@ -354,6 +371,60 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     evidence: { workspace: 2 },
   },
 
+  // ── What the widened intake keeps ──────────────────────────────────────────
+  //
+  // Every one of these was READ from El Paisa's menu page and thrown away,
+  // because the vocabulary had nowhere to put it. The intake said "2 things
+  // understood" of a complete menu. No evidence weights: none of this decides
+  // what KIND of workspace someone is, it is what their site is made of.
+  {
+    key: "business.hours",
+    type: "string_list",
+    category: "business",
+    label: "Opening hours",
+  },
+  {
+    key: "presence.facebook_url",
+    type: "string",
+    category: "presence",
+    label: "Facebook page",
+  },
+  {
+    key: "presence.whatsapp",
+    type: "string",
+    category: "presence",
+    label: "WhatsApp number",
+  },
+  {
+    key: "brand.logo_url",
+    type: "string",
+    category: "brand",
+    label: "Logo",
+  },
+  {
+    // Hexes, unlabelled. Roles are guessed by luminance downstream and a colour
+    // that fails contrast is demoted rather than refused, so this must NOT
+    // validate contrast — that mapping belongs to the brand-brief contract and
+    // duplicating it here would let a brief bounce on a colour the mapper would
+    // have accepted.
+    key: "brand.palette",
+    type: "string_list",
+    category: "brand",
+    label: "Brand colours",
+  },
+  {
+    key: "menu.categories",
+    type: "string_list",
+    category: "business",
+    label: "Menu sections",
+  },
+  {
+    key: "menu.items",
+    type: "priced_items",
+    category: "business",
+    label: "Menu items",
+  },
+
   // ── Operations ─────────────────────────────────────────────────────────────
   {
     key: "operations.takes_bookings",
@@ -538,6 +609,50 @@ export function validateFactValue(
         return { ok: false, error: `${key}: expected true or false` };
       }
       return { ok: true, value };
+    }
+    case "priced_items": {
+      // Accepts a real array OR a JSON-encoded one. The extraction schema is
+      // `strict: true` with `value: { type: "string" }`, so a model physically
+      // cannot return an array through it — the only way a structured fact
+      // crosses that boundary is encoded. Decoding here rather than at the call
+      // site means every writer gets the same validation afterwards.
+      let decoded: unknown = value;
+      if (typeof decoded === "string") {
+        try {
+          decoded = JSON.parse(decoded);
+        } catch {
+          return { ok: false, error: `${key}: expected a list of items or JSON for one` };
+        }
+      }
+      if (!Array.isArray(decoded)) {
+        return { ok: false, error: `${key}: expected a list of items` };
+      }
+      const items: Array<Record<string, unknown>> = [];
+      for (const raw of decoded) {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+          return { ok: false, error: `${key}: every item must be an object` };
+        }
+        const row = raw as Record<string, unknown>;
+        const name = typeof row.name === "string" ? row.name.trim() : "";
+        if (!name) return { ok: false, error: `${key}: every item needs a name` };
+        const item: Record<string, unknown> = { name };
+        // Price stays a NUMBER and is never coerced from text, for the same
+        // reason `number` refuses "3": a model that returns "12.50 MXN" has not
+        // parsed a price, and guessing which part is the amount is how a menu
+        // ships with wrong prices on it.
+        if (row.price !== undefined && row.price !== null) {
+          if (typeof row.price !== "number" || !Number.isFinite(row.price) || row.price < 0) {
+            return { ok: false, error: `${key}: "${name}" has a price that is not a positive number` };
+          }
+          item.price = row.price;
+        }
+        for (const field of ["category", "description", "currency"] as const) {
+          const v = row[field];
+          if (typeof v === "string" && v.trim()) item[field] = v.trim();
+        }
+        items.push(item);
+      }
+      return { ok: true, value: items };
     }
     case "string_list": {
       if (!Array.isArray(value)) {

@@ -175,6 +175,16 @@ export function buildImportPrompt(input: {
     "- City and country.",
     "- Their own description of themselves, verbatim where possible.",
     "- Starting prices, session lengths and service areas when stated plainly.",
+    "- Opening hours, exactly as written, one entry per line of the page.",
+    "- Social links and a WhatsApp number, if the page carries them.",
+    "- The logo image URL, and up to five brand colours as hex codes.",
+    "- THE MENU OR PRICE LIST, IF THERE IS ONE. This is usually the most useful",
+    "  thing on a restaurant or salon page and it is normally thrown away.",
+    "  Section names go in menu.categories. Every dish or service goes in",
+    "  menu.items as a JSON array, encoded as a string, each entry",
+    "  {\"name\", \"price\", \"category\", \"description\"}. `price` must be a",
+    "  NUMBER with no currency symbol; omit it entirely rather than guessing.",
+    "  Do not summarise or shorten the list: take every item you can read.",
     "",
     ...(input.pack
       ? [

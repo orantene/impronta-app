@@ -17,7 +17,12 @@ import {
   removeBriefFact,
 } from "./actions";
 
-type ValueType = "string" | "number" | "boolean" | "string_list";
+// Mirrors `FactValueType` from the vocabulary. It is a hand-written copy rather
+// than an import because this is a client component and the vocabulary module
+// reaches server code — so it MUST be widened whenever a value type is added.
+// Adding `priced_items` without this produced two TS2322s: the classic
+// three-layers-of-four, caught by CI rather than by me.
+type ValueType = "string" | "number" | "boolean" | "string_list" | "priced_items";
 
 export function BriefFactRow({
   factKey,
@@ -61,6 +66,19 @@ export function BriefFactRow({
     // is the real gate; doing it here means the user gets told "that isn't a
     // number" while looking at the field rather than after a round-trip.
     let parsed: unknown = draft.trim();
+    if (valueType === "priced_items") {
+      // A menu is not editable as a line of text. It arrives as JSON and the
+      // server re-validates every item, so the raw string is handed through
+      // untouched.
+      //
+      // Without this branch it would fall past every `else if` and be sent as a
+      // trimmed string, which happens to be right today — so this is guarding
+      // the FUTURE: the next value type added to that chain would silently
+      // capture menus too, and a comma split would turn one menu into fragments
+      // at the first comma in a dish description.
+      run(() => editBriefFact(factKey, draft.trim()));
+      return;
+    }
     if (valueType === "number") {
       const n = Number(draft.trim());
       if (!Number.isFinite(n)) {
