@@ -107,7 +107,7 @@ export function WorkspaceShell() {
 const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
   { label: "Operate", pages: ["messages", "calendar", "sessions", "reservations", "clients"] },
-  { label: "Sell and grow", pages: ["menu", "roster", "pitches", "reviews", "analytics"] },
+  { label: "Sell and grow", pages: ["menu", "events", "roster", "pitches", "reviews", "analytics"] },
   { label: "Site", pages: ["website", "media"] },
 ];
 
@@ -137,6 +137,7 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   roster: "team",
   clients: "briefcase",
   reservations: "calendar",
+  events: "map-pin", // a night at a venue; calendar and layers are taken by their own pages
   pitches: "send",
   reviews: "star",
   analytics: "chart",

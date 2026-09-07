@@ -26,6 +26,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "sessions",
   "reservations", // host stand; context.tsx filters it out when takes_reservations is false
   "menu",
+  "events",   // context.tsx hides it when runs_events is false
   "roster",
   "clients",
   "pitches",   // Phase 9 — pitch history surface.

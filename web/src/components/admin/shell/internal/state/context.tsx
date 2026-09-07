@@ -1101,6 +1101,8 @@ export function AdminShellProvider({
   // nothing for this on any page load, which is the whole reason it is a column
   // and not a join.
   const takesReservations = initialBridgeData?.tenantIdentity?.takesReservations === true;
+  // `agencies.runs_events`, same contract: the rail LINK only, never a route gate.
+  const runsEvents = initialBridgeData?.tenantIdentity?.runsEvents === true;
   const visiblePages = useMemo(
     () => {
       const pages = visibleWorkspacePages(workspaceType, WORKSPACE_PAGES);
@@ -1112,9 +1114,9 @@ export function AdminShellProvider({
       // different things, and a cached boolean is only ever safe for the first
       // — it can be stale, and a stale one must not 403 a workspace on a page
       // it owns.
-      return takesReservations ? pages : pages.filter((p) => p !== "reservations");
+      return pages.filter((p) => (p !== "reservations" || takesReservations) && (p !== "events" || runsEvents));
     },
-    [workspaceType, takesReservations],
+    [workspaceType, takesReservations, runsEvents],
   );
 
   // Direct-URL clamp, layer 1 (SPA). The layout already clamps the page it
