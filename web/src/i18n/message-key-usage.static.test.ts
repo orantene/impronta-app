@@ -104,6 +104,18 @@ const RUNTIME_COMPOSED: ReadonlyMap<string, string> = new Map([
    * status on purpose: a status added to the enum without copy should fail
    * this guard rather than hide behind a prefix skip.
    */
+  /*
+   * BillingPage.tsx and WorkspacePageView.tsx compose the plan name as
+   *   t(`dashboard.adminWorkspace.planName${plan[0].toUpperCase()}${plan.slice(1)}`)
+   * over the workspace-audience keys of PLAN_CATALOG. Only the two keys added
+   * with this note are listed: `website` and `legacy` were live catalog keys
+   * with NO message in any locale, so the two pages a customer opens to look
+   * at their own plan would have rendered a raw i18n key. Coverage for every
+   * workspace plan is asserted in plan-name-keys.static.test.ts, which fails
+   * on the next plan added rather than waiting for a customer to be on it.
+   */
+  ["dashboard.adminWorkspace.planNameWebsite", "BillingPage/WorkspacePageView compose `planName${Plan}` over PLAN_CATALOG workspace plans."],
+  ["dashboard.adminWorkspace.planNameLegacy", "BillingPage/WorkspacePageView compose `planName${Plan}` over PLAN_CATALOG workspace plans."],
   ["dashboard.platform.support.ideasStatus_new", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
   ["dashboard.platform.support.ideasStatus_under_review", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
   ["dashboard.platform.support.ideasStatus_planned", "SupportIdeasView composes `ideasStatus_${status}` over FEATURE_REQUEST_STATUSES."],
