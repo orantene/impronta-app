@@ -20,13 +20,23 @@ import { fileURLToPath } from "node:url";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const signup = readFileSync(join(SRC, "lib/saas/workspace-signup.server.ts"), "utf8");
+// Brief link/stamp helpers live here after the 800-line extract — the wiring
+// under test spans both files.
+const briefHelpers = readFileSync(
+  join(SRC, "lib/saas/workspace-signup-brief.server.ts"),
+  "utf8",
+);
 
 test("provisioning looks the brief up and stamps the tenant on it", () => {
   assert.match(signup, /loadBriefForSignupLead\(/, "provisioning never reads the brief");
-  assert.match(signup, /linkBriefObjects\(/, "the brief is never linked to the workspace");
   assert.match(
     signup,
-    /linkBriefObjects\([\s\S]{0,80}tenantId:/,
+    /linkBriefToProvisionedTenant\(/,
+    "the brief is never linked to the workspace",
+  );
+  assert.match(
+    briefHelpers,
+    /linkBriefObjects\([\s\S]{0,80}tenantId\b/,
     "the brief is looked up but the tenant is not stamped, so a workspace cannot find its own brief",
   );
 });
@@ -54,13 +64,13 @@ test("a missing brief does not take the signup down", () => {
   // a correct change. A test that fails on layout is one people edit rather
   // than believe.
   assert.match(
-    signup,
+    briefHelpers,
     /brief\?\.facts/,
     "the brief must be read optionally: no brief is the common case",
   );
   assert.match(
     signup,
-    /if \(brief\) \{[\s\S]{0,200}linkBriefObjects\(/,
+    /if \(brief\) \{[\s\S]{0,200}linkBriefToProvisionedTenant\(/,
     "the link must be guarded, or a signup with no brief throws at the last step",
   );
 });
