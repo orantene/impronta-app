@@ -71,6 +71,7 @@ the card *before* they click, not after a failed OAuth.
    ```
    https://app.tulala.digital/api/connections/oauth/callback/tiktok
    ```
+5a. **The Web/Desktop URL must match the verified property EXACTLY, trailing slash included.** `https://app.tulala.digital` reads "not verified" while `https://app.tulala.digital/` is verified. And the verification dialog reports failure even when it succeeded, so check the properties list rather than the dialog.
 5. **URL properties must be verified**, and one property covers one host, so **two** are
    needed: `https://app.tulala.digital/` for the redirect and `https://tulala.digital/`
    for the Terms and Privacy URLs. Either a DNS TXT record (the owner's) or a signature
