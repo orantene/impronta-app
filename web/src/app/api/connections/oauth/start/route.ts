@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const providerKey = searchParams.get("provider") ?? "";
   const owner = searchParams.get("owner");
+  // Popup mode is a request from the opener, carried into the SIGNED state so
+  // the callback cannot be told to answer as a popup by anyone but us.
+  const popup = searchParams.get("popup") === "1";
   const tenantSlug = searchParams.get("tenantSlug");
   const provider = getConnectionOAuthProvider(providerKey);
   // Only vendors with a built `/callback/{vendor}` route may start a flow, so a
@@ -82,6 +85,7 @@ export async function GET(request: NextRequest) {
         tenantSlug: null,
         returnTo,
         fallbackReturnTo: "/talent/settings",
+        popup,
       },
     });
   }
@@ -111,6 +115,7 @@ export async function GET(request: NextRequest) {
         tenantSlug: tenant?.tenantSlug ?? null,
         returnTo,
         fallbackReturnTo: fallback,
+        popup,
       },
     });
   }
@@ -145,6 +150,7 @@ export async function GET(request: NextRequest) {
         tenantSlug: slug,
         returnTo,
         fallbackReturnTo: fallback,
+        popup,
       },
     });
   }
