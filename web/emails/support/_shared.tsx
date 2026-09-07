@@ -123,7 +123,7 @@ export function SupportMail({
           </tbody>
         </table>
       ) : null}
-      <Button href={ctaUrl}>{ctaLabel}</Button>
+      <Button brand={brand} href={ctaUrl}>{ctaLabel}</Button>
       <Text style={note}>{REPLY_NOTE[brand?.locale ?? "en"] ?? REPLY_NOTE.en}</Text>
       {footnote ? <Text style={note}>{footnote}</Text> : null}
     </Layout>

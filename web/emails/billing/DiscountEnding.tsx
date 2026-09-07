@@ -56,7 +56,7 @@ export default function DiscountEnding({
       <Text style={body}>{intro}</Text>
       <FieldTable fields={fields} />
       <Text style={note}>{t.note}</Text>
-      <Button href={billingUrl}>{t.button}</Button>
+      <Button brand={brand} href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

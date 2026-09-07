@@ -34,7 +34,7 @@ export default function SubscriptionCanceled({
         {interpolate(t.intro, { brand: agencyName, fromPlan, toPlan, effective: effectiveLabel })}
       </Text>
       <Text style={body}>{isFullCancel ? t.bodyCancel : t.bodyChange}</Text>
-      <Button href={billingUrl}>{t.button}</Button>
+      <Button brand={brand} href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

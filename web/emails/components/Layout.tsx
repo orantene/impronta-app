@@ -3,12 +3,19 @@ import {
   Container,
   Head,
   Html,
+  Img,
   Link,
   Preview,
   Section,
   Text,
 } from "@react-email/components";
 import * as React from "react";
+
+import {
+  TULALA_EMAIL_ACCENT,
+  TULALA_EMAIL_ACCENT_ON,
+} from "@/lib/brand/email-palette";
+
 import { UnsubscribeFooter } from "./UnsubscribeFooter";
 
 export interface EmailBrand {
@@ -34,6 +41,12 @@ export interface EmailBrand {
    * than silently telling account holders they are strangers.
    */
   recipientHasAccount?: boolean;
+  /** Absolute https logo URL; replaces the text wordmark when present. */
+  logoUrl?: string | null;
+  /** Brand colour for the CTA button. Validated hex, resolver-supplied. */
+  accent?: string;
+  /** Readable foreground for `accent`. */
+  accentOn?: string;
 }
 
 const DEFAULTS = {
@@ -43,6 +56,9 @@ const DEFAULTS = {
   homeHref: "https://tulala.digital",
   locale: "en",
   recipientHasAccount: true,
+  logoUrl: null,
+  accent: TULALA_EMAIL_ACCENT,
+  accentOn: TULALA_EMAIL_ACCENT_ON,
 };
 
 /**
@@ -83,10 +99,17 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children
       <Preview>{preview}</Preview>
       <Body style={body}>
         <Container style={container}>
-          {/* Wordmark */}
+          {/* Brand mark — the tenant's logo when they have one, their
+              wordmark when they do not. `alt` carries the brand name so a
+              reader with images off (Gmail's default for an unknown sender)
+              still sees who this is from rather than a blank box. */}
           <Section style={header}>
             <Link href={b.homeHref} style={wordmark}>
-              {b.wordmark}
+              {b.logoUrl ? (
+                <Img src={b.logoUrl} alt={b.accountName} height="36" style={logo} />
+              ) : (
+                b.wordmark
+              )}
             </Link>
           </Section>
 
@@ -139,6 +162,13 @@ const wordmark: React.CSSProperties = {
   color: "#1a1a1a",
   textDecoration: "none",
   fontWeight: 600,
+};
+
+const logo: React.CSSProperties = {
+  height: "36px",
+  width: "auto",
+  maxWidth: "220px",
+  display: "inline-block",
 };
 
 const card: React.CSSProperties = {

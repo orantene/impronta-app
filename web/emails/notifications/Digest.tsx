@@ -64,7 +64,7 @@ export default function Digest({
           </Text>
         ))}
       </Section>
-      <Button href={ctaUrl}>{ctaLabel}</Button>
+      <Button brand={brand} href={ctaUrl}>{ctaLabel}</Button>
     </Layout>
   );
 }

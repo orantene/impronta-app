@@ -43,7 +43,7 @@ export default function PayoutSettled({
       <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={payoutsUrl}>{t.button}</Button>
+      <Button brand={brand} href={payoutsUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -30,7 +30,7 @@ export default function TeamInvite({
         {interpolate(t.intro, { inviter: inviterName, role: roleLabel })}
       </Text>
       <Text style={note}>{interpolate(t.note, { expires: expiresLabel })}</Text>
-      <Button href={redeemUrl}>{t.button}</Button>
+      <Button brand={brand} href={redeemUrl}>{t.button}</Button>
     </Layout>
   );
 }

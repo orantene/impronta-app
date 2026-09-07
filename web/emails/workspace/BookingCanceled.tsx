@@ -43,7 +43,7 @@ export default function BookingCanceled({
       <Text style={body}>{interpolate(t.intro, { event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={inquiryUrl}>{t.button}</Button>
+      <Button brand={brand} href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -47,7 +47,7 @@ export default function CoordinatorAssigned({
         })}
       </Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={inquiryUrl}>{t.button}</Button>
+      <Button brand={brand} href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -19,7 +19,7 @@ export default function Welcome({ clientName, dashboardUrl, brand }: Props) {
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name })}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={dashboardUrl}>{t.button}</Button>
+      <Button brand={brand} href={dashboardUrl}>{t.button}</Button>
     </Layout>
   );
 }

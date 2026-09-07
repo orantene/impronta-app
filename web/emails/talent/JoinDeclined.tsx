@@ -34,7 +34,7 @@ export default function JoinDeclined({
     >
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name, team })}</Text>
-      <Button href={exploreUrl}>{t.button}</Button>
+      <Button brand={brand} href={exploreUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -57,7 +57,7 @@ export default function SeatLimitReached({
       <Text style={body}>{interpolate(t.intro, { name, workspace, plan })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={accountUrl}>{t.button}</Button>
+      <Button brand={brand} href={accountUrl}>{t.button}</Button>
     </Layout>
   );
 }

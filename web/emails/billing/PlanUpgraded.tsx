@@ -18,7 +18,7 @@ export default function PlanUpgraded({ agencyName, toPlan, billingUrl, brand }: 
       <Heading style={h2}>{interpolate(t.heading, { plan: toPlan })}</Heading>
       <Text style={body}>{interpolate(t.intro, { brand: agencyName, plan: toPlan })}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={billingUrl}>{t.button}</Button>
+      <Button brand={brand} href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

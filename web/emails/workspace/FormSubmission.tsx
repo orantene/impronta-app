@@ -84,7 +84,7 @@ export default function FormSubmission({
         </>
       )}
 
-      <Button href={inboxUrl}>{t.button}</Button>
+      <Button brand={brand} href={inboxUrl}>{t.button}</Button>
 
       <Text style={note}>{t.note}</Text>
     </Layout>

@@ -4,6 +4,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
+import {
+  TULALA_EMAIL_ACCENT,
+  TULALA_EMAIL_ACCENT_ON,
+  httpsLogoUrl,
+  normalizeBrandHex,
+  readableOn,
+} from "@/lib/brand/email-palette";
 
 /**
  * Tenant-aware email brand resolution.
@@ -34,6 +41,22 @@ export type EmailBrand = {
    * line, which used to claim an account for guests who have none.
    */
   recipientHasAccount?: boolean;
+  /**
+   * Absolute URL of the tenant's brand logo, rendered in the email header in
+   * place of the text wordmark. Sourced from `agency_branding.theme_json
+   * .logo_url` — the same public projection the storefront shell and the
+   * workspace identity bar already read, so there is no new logo store and no
+   * second source of truth. Null keeps the text wordmark.
+   *
+   * Deliberately NOT `logo_media_asset_id` (needs a media-URL resolver) or
+   * `brand_mark_svg` (inline SVG; Gmail strips it, and an email cannot render
+   * markup the way `PublicHeader` does).
+   */
+  logoUrl?: string | null;
+  /** Brand colour for buttons and links. Validated hex; never operator text. */
+  accent?: string;
+  /** Readable foreground for `accent`, contrast-picked, not assumed white. */
+  accentOn?: string;
 };
 
 function siteUrl(): string {
@@ -49,6 +72,9 @@ export function platformBrand(): EmailBrand {
     footerDomain: PLATFORM_BRAND.domain,
     homeHref: siteUrl(),
     locale: "en",
+    logoUrl: null,
+    accent: TULALA_EMAIL_ACCENT,
+    accentOn: TULALA_EMAIL_ACCENT_ON,
   };
 }
 
@@ -72,7 +98,7 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
 
   let brand = platformBrand();
   try {
-    const [agencyRes, domainRes, identityRes] = await Promise.all([
+    const [agencyRes, domainRes, identityRes, brandingRes] = await Promise.all([
       admin.from("agencies").select("display_name, slug, plan_tier").eq("id", tenantId).maybeSingle(),
       admin
         .from("agency_domains")
@@ -83,6 +109,11 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
       admin
         .from("agency_business_identity")
         .select("default_locale")
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
+      admin
+        .from("agency_branding")
+        .select("accent_color, primary_color, theme_json")
         .eq("tenant_id", tenantId)
         .maybeSingle(),
     ]);
@@ -97,6 +128,23 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
       (identityRes.data as { default_locale?: string | null } | null)?.default_locale,
     );
 
+    const brandingRow = brandingRes.data as {
+      accent_color?: string | null;
+      primary_color?: string | null;
+      theme_json?: Record<string, unknown> | null;
+    } | null;
+    const themeJson = brandingRow?.theme_json ?? {};
+    // Same precedence the auth shell already uses: the whitelabel accent column
+    // first, then the storefront theme-cascade token, then the primary colour.
+    // The middle one matters — it is the entry actually populated for the live
+    // whitelabel tenant, so skipping it ships a "branded" email that is never
+    // branded.
+    const tenantAccent =
+      normalizeBrandHex(brandingRow?.accent_color) ??
+      normalizeBrandHex(themeJson["color.accent"]) ??
+      normalizeBrandHex(brandingRow?.primary_color);
+    const tenantLogo = httpsLogoUrl(themeJson["logo_url"]);
+
     // Agency-branded email only on a whitelabel tier (Agency / Network);
     // otherwise the email stays Tulala-branded (platform default), keeping the
     // resolved locale so the template still renders in the tenant's language.
@@ -107,6 +155,13 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
         footerDomain: primaryHost ?? PLATFORM_BRAND.domain,
         homeHref: primaryHost ? `https://${primaryHost}` : siteUrl(),
         locale,
+        logoUrl: tenantLogo,
+        // No accent set is not a reason to fall back to the old hardcoded
+        // gold: that gold belongs to one specific tenant. An unbranded
+        // whitelabel workspace gets the platform forest until it picks a
+        // colour of its own.
+        accent: tenantAccent ?? TULALA_EMAIL_ACCENT,
+        accentOn: tenantAccent ? readableOn(tenantAccent) : TULALA_EMAIL_ACCENT_ON,
       };
     } else {
       brand = { ...brand, locale };

@@ -53,7 +53,7 @@ export default function ReviewReceived({
       <Text style={body}>{interpolate(t.intro, { name })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={reviewsUrl}>{t.button}</Button>
+      <Button brand={brand} href={reviewsUrl}>{t.button}</Button>
     </Layout>
   );
 }

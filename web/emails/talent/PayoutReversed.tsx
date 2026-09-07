@@ -47,7 +47,7 @@ export default function PayoutReversed({
       <Text style={body}>{interpolate(t.intro, { name, reason })}</Text>
       <FieldTable fields={[{ label: t.labelAmountReversed, value: amountReversed }]} />
       <Text style={note}>{t.note}</Text>
-      <Button href={payoutsUrl}>{t.button}</Button>
+      <Button brand={brand} href={payoutsUrl}>{t.button}</Button>
     </Layout>
   );
 }

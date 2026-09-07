@@ -46,7 +46,7 @@ export default function PaymentReceipt({
       <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={receiptUrl}>{t.button}</Button>
+      <Button brand={brand} href={receiptUrl}>{t.button}</Button>
     </Layout>
   );
 }

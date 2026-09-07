@@ -17,7 +17,7 @@ export default function EmailChange({ confirmUrl, newEmail, brand }: Props) {
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { email: newEmail })}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={confirmUrl}>{t.button}</Button>
+      <Button brand={brand} href={confirmUrl}>{t.button}</Button>
     </Layout>
   );
 }

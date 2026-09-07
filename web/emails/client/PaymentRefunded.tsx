@@ -42,7 +42,7 @@ export default function PaymentRefunded({
       <Heading style={h2}>{heading}</Heading>
       <Text style={body}>{interpolate(t.greeting, { name, message })}</Text>
       {amount && <FieldTable fields={[{ label: t.refundedLabel, value: amount }]} />}
-      <Button href={bookingUrl}>{t.button}</Button>
+      <Button brand={brand} href={bookingUrl}>{t.button}</Button>
     </Layout>
   );
 }

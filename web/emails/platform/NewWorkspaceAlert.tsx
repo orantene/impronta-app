@@ -32,7 +32,7 @@ export default function NewWorkspaceAlert({
       <Text style={body}>{interpolate(t.body, { workspaceName })}</Text>
       <FieldTable fields={fields} />
       <Text style={note}>{t.note}</Text>
-      <Button href={adminUrl}>{t.button}</Button>
+      <Button brand={brand} href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }

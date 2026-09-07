@@ -30,7 +30,7 @@ export default function SignupFailedAlert({
       <Text style={body}>{t.body}</Text>
       <FieldTable fields={fields} />
       <Text style={note}>{t.note}</Text>
-      <Button href={adminUrl}>{t.button}</Button>
+      <Button brand={brand} href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }
