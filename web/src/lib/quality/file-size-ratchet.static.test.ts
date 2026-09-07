@@ -504,7 +504,9 @@ const BUDGETS: Record<string, number> = {
   // _guards/agency-roster-visibility.ts so only the call sites are here.
   // +6 — b9 CTA precedence call site (math lives in profile-cta-precedence.ts).
   // +2 — P2 SlotPicker instant branch (tenantId + bookingMode).
-  "src/app/t/[profileCode]/profile-view.tsx": 2654,
+  // +37 — option labels keep their English key AND their unit; without this
+  // the public profile discarded both (TS also needs unit on NewDefEmbed).
+  "src/app/t/[profileCode]/profile-view.tsx": 2691,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:
