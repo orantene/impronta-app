@@ -1380,7 +1380,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--button:hover{transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
 .site-builder-node--menu-board-catnav{margin:0 0 16px}
-.site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto}
 .site-builder-node--menu-board-catnav li{flex:0 0 auto}
 .site-builder-node--menu-board-catnav a{display:block;white-space:nowrap;padding:6px 12px;border-radius:999px;border:1px solid var(--token-color-line,rgba(0,0,0,0.12));color:inherit;text-decoration:none;font-size:14px}
 .site-builder-node--menu-board-group{scroll-margin-top:72px}
