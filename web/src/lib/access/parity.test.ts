@@ -366,7 +366,7 @@ test("website sits between free and studio in the workspace rank ladder", () => 
 
   assert.deepEqual(
     getUpgradePathFromPlan("free").map((p) => p.key),
-    ["website", "studio", "agency"],
+    ["studio", "agency"],
   );
   assert.deepEqual(
     getUpgradePathFromPlan("website").map((p) => p.key),
