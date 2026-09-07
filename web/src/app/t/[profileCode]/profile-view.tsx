@@ -510,6 +510,8 @@ async function fetchPublicFieldValues(
     kind: string;
     /** universal | global | type-specific (Gap 2b — orphan check). */
     tier: string | null;
+    /** Measurement unit ("hrs", "guests", …); selected and projected to the flat embed. */
+    unit: string | null;
     options: string[] | null;
     /** Per-option per-locale label map { "<value>": { "en": …, "es": … } }. */
     option_labels_i18n: unknown;
