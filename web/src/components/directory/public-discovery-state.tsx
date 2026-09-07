@@ -98,6 +98,22 @@ type PublicDiscoveryStateValue = {
   setSearchContext: (context: DiscoverySearchContext | null) => void;
   flash: PublicFlashMessage | null;
   setFlash: (flash: PublicFlashMessage | null) => void;
+  // — What this storefront can actually shortlist ————————————————
+  /**
+   * Does this tenant have talent to shortlist?
+   *
+   * FALSE for a `business` workspace. A parrilla has no roster, so the
+   * bookmark, the paper plane and the "your list" pill are surfaces for objects
+   * that do not exist there — and worse, the lists behind them are keyed on
+   * `client_user_id` ALONE with no tenant column, so a signed-in visitor saw
+   * their saved talent from an agency following them onto a restaurant's site.
+   *
+   * Decided ONCE on the server and read here, rather than branched at each
+   * mount point. The widget has four mounts today — the public layout, two
+   * headers and a builder section — and a fix applied at three of them is the
+   * bug still shipping. A new mount inherits this automatically.
+   */
+  talentDiscoveryEnabled: boolean;
 };
 
 const PublicDiscoveryStateContext =
@@ -152,12 +168,23 @@ export function PublicDiscoveryStateProvider({
   children,
   initialSavedIds = [],
   initialFavoriteIds = [],
+  talentDiscoveryEnabled = true,
 }: {
   children: React.ReactNode;
   /** SSR-seeded inquiry cart — matches `getSavedTalentIds()` on first paint. */
   initialSavedIds?: string[];
   /** SSR-seeded favorites — matches `getFavoriteTalentIds()` on first paint. */
   initialFavoriteIds?: string[];
+  /**
+   * Does this storefront have talent to shortlist? Defaults TRUE.
+   *
+   * Fails toward showing, deliberately: an unreadable or unknown workspace type
+   * must not silently strip an agency's shortlist. `normalizeWorkspaceType`
+   * defaults to `talent` for the same reason, and a missing surface on an
+   * agency is a regression while an extra one on a business is the bug we are
+   * fixing — visible, and already caught once.
+   */
+  talentDiscoveryEnabled?: boolean;
 }) {
   const [savedIds, setSavedIds] = useState<string[]>(() =>
     Array.from(new Set(initialSavedIds)),
@@ -305,8 +332,10 @@ export function PublicDiscoveryStateProvider({
       setSearchContext,
       flash,
       setFlash,
+      talentDiscoveryEnabled,
     }),
     [
+      talentDiscoveryEnabled,
       flash,
       hydrateSavedIds,
       hydrateFavoriteIds,
