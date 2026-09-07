@@ -53,8 +53,17 @@ const inputSchema = z.object({
   onDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-/** How many days forward the date strip offers, including the venue's today. */
+/** How many OPEN days the date strip offers, including the venue's today. */
 const DATE_STRIP_DAYS = 5;
+
+/**
+ * How far forward to look for those open days before giving up.
+ *
+ * A venue closed two days a week needs about seven; one closed five needs more.
+ * Thirty is generous without being unbounded, and the bound is the point: a
+ * venue with every window inactive must return fewer days rather than spin.
+ */
+const DATE_STRIP_SCAN_DAYS = 30;
 
 export type ReserveSlot = {
   windowKey: string;
@@ -137,28 +146,61 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
     const todayInZone = utcToZonedYmd(now, timezone);
     if (!todayInZone) return { ok: false, ...NO_DATES, reason: "unavailable" };
 
-    const dates: string[] = [];
-    for (let i = 0; i < DATE_STRIP_DAYS; i += 1) {
-      const ymd = i === 0 ? todayInZone : addUtcDays(todayInZone, i);
-      if (ymd) dates.push(ymd);
-    }
-
-    // An absent `onDate` means "the venue decides". A supplied one is honoured
-    // only if it is a date we actually offer, so a stale strip left open in a
-    // tab cannot ask for a day that has since passed.
-    const requested = parsed.data.onDate;
-    const onDate = requested && dates.includes(requested) ? requested : todayInZone;
-    const ctx: ReserveDateContext = { timezone, onDate, dates };
-
+    // THE STRIP OFFERS OPEN DAYS, NOT THE NEXT FIVE DAYS ON THE CALENDAR.
+    //
+    // El Paisa closes Monday and Wednesday, and the first screen a guest saw
+    // offered "lun 7" and "mié 9" among five chips. Clicking either answered
+    // "Ese día cerramos", which is honest and still wastes two of the five
+    // choices on the one screen that has to work.
+    //
+    // Which days are open is NOT re-derived from `weekdays` here. A window can
+    // also be closed by an exception or opened by an override, and a second
+    // implementation of that rule would drift from the first. `resolveWindowOnDate`
+    // is the authority; this asks it, once per candidate day.
+    const scanTo = addUtcDays(todayInZone, DATE_STRIP_SCAN_DAYS) ?? todayInZone;
     const config = await loadVenueServiceConfig(tenantId, venue.id, {
-      fromDate: onDate,
-      toDate: onDate,
+      fromDate: todayInZone,
+      toDate: scanTo,
     });
     // A failed read is NOT an open venue. Falling through to "no times" would be
     // indistinguishable from a full house, and a guest would be told the
     // restaurant is booked when we simply could not look.
-    if (!config) return { ok: false, ...ctx, reason: "unavailable" };
-    if (!config.rules.isActive) return { ok: false, ...ctx, reason: "reservations_off" };
+    if (!config) return { ok: false, ...NO_DATES, reason: "unavailable" };
+    if (!config.rules.isActive) return { ok: false, ...NO_DATES, reason: "reservations_off" };
+
+    const dates: string[] = [];
+    // BOUNDED. A venue with every day closed must not spin: the scan stops at a
+    // fixed horizon and simply returns fewer days, which the page then reports
+    // as closed rather than as an empty strip with no explanation.
+    for (let i = 0; i <= DATE_STRIP_SCAN_DAYS && dates.length < DATE_STRIP_DAYS; i += 1) {
+      const ymd = i === 0 ? todayInZone : addUtcDays(todayInZone, i);
+      if (!ymd) continue;
+      const open = config.windows.some(
+        (window) =>
+          resolveWindowOnDate({
+            window,
+            exceptions: config.exceptions,
+            onDate: ymd,
+            timeZone: timezone,
+            defaultTurnMinutes: config.rules.defaultTurnMinutes,
+          }).ok,
+      );
+      if (open) dates.push(ymd);
+    }
+
+    // Every day in range is closed. That is a real answer, not a failure, and it
+    // is a different sentence from "we could not look".
+    if (dates.length === 0) return { ok: false, ...NO_DATES, timezone, reason: "closed" };
+
+    // An absent `onDate` means "the venue decides". A supplied one is honoured
+    // only if it is a date we actually offer, so a stale strip left open in a
+    // tab cannot ask for a day that has since passed OR a day the venue is shut.
+    const requested = parsed.data.onDate;
+    const onDate = requested && dates.includes(requested) ? requested : dates[0]!;
+    const ctx: ReserveDateContext = { timezone, onDate, dates };
+    // `config` was already read and both refusals already taken above, before
+    // the strip was built — the strip needs the windows to know which days are
+    // open, so the read moved earlier rather than happening twice.
 
     const windows: Array<{ key: string; slots: ReserveSlot[] }> = [];
     let lastRefusal: AvailabilityRefusal | null = null;
