@@ -22,6 +22,8 @@
 
 /** A catalog row, as loaded from the database. Never built from request input. */
 export type PricedOffering = {
+  /** The offering's own currency. The TRUTH for what an order is priced in. */
+  currency?: string | null;
   offeringId: string;
   label: string;
   /** Base price in cents. Null when the offering has no fixed price. */

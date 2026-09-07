@@ -37,7 +37,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
   const { data: offeringRows, error: offeringErr } = await admin
     .from("talent_offerings")
     .select(
-      "id, tenant_id, title, status, price_type, amount_cents, talent_profile_id, " +
+      "id, tenant_id, title, status, price_type, amount_cents, currency, talent_profile_id, " +
         "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
         "kind, duration_minutes",
     )
@@ -75,6 +75,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     status: string | null;
     price_type: string | null;
     amount_cents: number | null;
+    currency: string | null;
     talent_profile_id: string | null;
     reserve_mode: string | null;
     deposit_pct: number | null;
@@ -116,6 +117,10 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       offeringId: row.id,
       label: row.title ?? "Item",
       amountCents: row.amount_cents,
+      // The offering IS the truth for currency. The tenant key is only the
+      // default applied when an offering is created, never a second source
+      // consulted at purchase time.
+      currency: row.currency,
       priceType: row.price_type ?? "fixed",
       talentProfileId: row.talent_profile_id,
       ownerTenantId: row.talent_profile_id ? null : row.tenant_id,

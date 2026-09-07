@@ -25,6 +25,7 @@ import {
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { doorHoldSeconds } from "@/lib/orders/door-hold";
+import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import type {
@@ -165,6 +166,22 @@ export async function createPurchase(
     // `priced.lines[i]` ↔ `input.lines[i]`: pricing pushes one per request in
     // order. The session binding rides that index; a KEYED join would be wrong
     // because two lines may share an offering with different sessions.
+    // THE ORDER'S CURRENCY, resolved from the offerings rather than hardcoded.
+    // A cart mixing currencies is REFUSED rather than picked between: summing
+    // ARS and USD under one symbol is the mixed-total bug the desk already had,
+    // and an order is a worse place for it because someone is charged.
+    const ccy = resolveOrderCurrency(
+      input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null),
+    );
+    if (!ccy.ok) {
+      return {
+        ok: false,
+        reason: "invalid_units",
+        error: "This order mixes currencies, which cannot be charged as one payment.",
+      };
+    }
+    const orderCurrency = ccy.currency;
+
     const priced = pricePurchase(input.lines, {
       offerings: catalog.offerings,
       variants: catalog.variants,
@@ -251,7 +268,7 @@ export async function createPurchase(
         tenant_id: input.tenantId,
         customer_id: customer.customerId,
         status: "draft",
-        currency: "USD",
+        currency: orderCurrency,
         subtotal_cents: priced.subtotalCents,
         discount_cents: promoDiscountCents,
         tax_cents: 0,
@@ -602,7 +619,7 @@ export async function createPurchase(
           platform_fee_basis_points: 0,
           platform_fee_cents: 0,
           net_amount_cents: collectCents,
-          currency: "USD",
+          currency: orderCurrency,
           provider: "stripe",
           // MUST be 'draft'. A trigger on booking_transactions enforces the
           // initial status, and the pipeline discovered it by being refused on
