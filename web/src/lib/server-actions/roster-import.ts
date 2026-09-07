@@ -1,7 +1,10 @@
 "use server";
 
+/* eslint-disable ratchet/no-untenanted-from -- talent_profiles and profile_field_definitions are global identity/catalog tables with no tenant_id; tenanted tables below go through tenantScopedQuery. */
+
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { auditFailure } from "@/lib/audit/emit";
@@ -63,10 +66,8 @@ export async function enqueueRosterImportJob(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
 
-    const { data: myMembership } = await admin
-      .from("agency_memberships")
+    const { data: myMembership } = await tenantScopedQuery(admin, "agency_memberships", tenantId)
       .select("role")
-      .eq("tenant_id", tenantId)
       .eq("profile_id", user.id)
       .eq("status", "active")
       .maybeSingle();
@@ -81,10 +82,8 @@ export async function enqueueRosterImportJob(
       return { ok: false, error: "Provide a file or paste rows to import.", reason: "validation_failed" };
     }
 
-    const { data: job, error: insertErr } = await admin
-      .from("roster_import_jobs")
+    const { data: job, error: insertErr } = await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
       .insert({
-        tenant_id: tenantId,
         initiated_by_user_id: user.id,
         source_file_name: input.sourceFileName ?? null,
         source_file_size_bytes: input.sourceFileSizeBytes ?? null,
@@ -128,8 +127,7 @@ async function processInlineRows(
 ): Promise<void> {
   if (!admin) return;
 
-  await admin
-    .from("roster_import_jobs")
+  await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
     .update({ status: "running", started_at: new Date().toISOString() })
     .eq("id", jobId);
 
@@ -153,8 +151,7 @@ async function processInlineRows(
     }
   }
 
-  await admin
-    .from("roster_import_jobs")
+  await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
     .update({
       status: failures.length === rows.length ? "failed" : "completed",
       processed_rows: processed,
@@ -278,8 +275,7 @@ export async function processRosterImportRow(
     } else if (defRow) {
       const definitionId = (defRow as { id: string }).id;
       if (incomingHeightCm === null) {
-        const { error: delErr } = await admin
-          .from("talent_profile_field_values")
+        const { error: delErr } = await tenantScopedQuery(admin, "talent_profile_field_values", tenantId)
           .delete()
           .eq("talent_profile_id", talentProfileId)
           .eq("field_definition_id", definitionId);
@@ -287,11 +283,9 @@ export async function processRosterImportRow(
           logServerError("roster-import.canonicalHeightDelete", delErr);
         }
       } else {
-        const { error: upsertErr } = await admin
-          .from("talent_profile_field_values")
+        const { error: upsertErr } = await tenantScopedQuery(admin, "talent_profile_field_values", tenantId)
           .upsert(
             {
-              tenant_id: tenantId,
               talent_profile_id: talentProfileId,
               field_definition_id: definitionId,
               value: incomingHeightCm,
@@ -348,10 +342,8 @@ export async function processRosterImportRow(
   //
   // So the code changes instead. Find the LIVE row for this pair (the same
   // three statuses the index covers), update it if present, insert if not.
-  const { data: existingRoster, error: findErr } = await admin
-    .from("agency_talent_roster")
+  const { data: existingRoster, error: findErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
     .select("id")
-    .eq("tenant_id", tenantId)
     .eq("talent_profile_id", talentProfileId)
     .in("status", ["pending", "active", "inactive"])
     .maybeSingle();
@@ -361,18 +353,15 @@ export async function processRosterImportRow(
     // Re-import of a talent already on the roster. is_primary is deliberately
     // NOT touched: it may have been adjusted by hand since the first import,
     // and the old upsert's comment promised the same thing.
-    const { error: updErr } = await admin
-      .from("agency_talent_roster")
+    const { error: updErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
       .update({ status: "active" })
       .eq("id", existingRoster.id);
     if (updErr) return { ok: false, error: updErr.message };
     return { ok: true, talentProfileId };
   }
 
-  const { error: rosterErr } = await admin
-    .from("agency_talent_roster")
+  const { error: rosterErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
     .insert({
-      tenant_id: tenantId,
       talent_profile_id: talentProfileId,
       status: "active",
       is_primary: exclusivity.shouldBeExclusive,
@@ -410,12 +399,10 @@ export async function listRosterImportJobs(): Promise<RosterImportJobSummary[]> 
     if (!auth.ok) return [];
     const { tenantId, supabase } = auth;
 
-    const { data, error } = await supabase
-      .from("roster_import_jobs")
+    const { data, error } = await tenantScopedQuery(supabase, "roster_import_jobs", tenantId)
       .select(
         "id, status, total_rows, processed_rows, succeeded_rows, failed_rows, source_file_name, started_at, completed_at, created_at",
       )
-      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(50);
 
