@@ -18,6 +18,7 @@ import {
 } from "@/lib/public-discovery";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { storefrontShowsTalentDiscovery } from "@/lib/saas/storefront-discovery";
 
 /**
  * Per-tenant title template. The ROOT layout sets `%s · Tulala`; on a tenant
@@ -75,12 +76,21 @@ export default async function PublicLayout({
   const tenantId =
     ctx.kind === "agency" || ctx.kind === "hub" ? ctx.tenantId : null;
 
-  const [savedIds, favoriteIds, actor, publicBranding] = await Promise.all([
-    getSavedTalentIds(),
-    getFavoriteTalentIds(),
-    getCachedActorSession(),
-    tenantId ? loadPublicBranding(tenantId) : Promise.resolve(null),
-  ]);
+  const [rawSavedIds, rawFavoriteIds, actor, publicBranding, talentDiscoveryEnabled] =
+    await Promise.all([
+      getSavedTalentIds(),
+      getFavoriteTalentIds(),
+      getCachedActorSession(),
+      tenantId ? loadPublicBranding(tenantId) : Promise.resolve(null),
+      storefrontShowsTalentDiscovery(tenantId),
+    ]);
+
+  // A `business` storefront seeds NOTHING. These lists are keyed on
+  // `client_user_id` with no tenant column, so seeding them here is what put a
+  // visitor's saved talent from an agency onto a restaurant's page with a live
+  // count. Empty is not cosmetic: the counts are what made it look real.
+  const savedIds = talentDiscoveryEnabled ? rawSavedIds : [];
+  const favoriteIds = talentDiscoveryEnabled ? rawFavoriteIds : [];
 
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
 
@@ -89,6 +99,7 @@ export default async function PublicLayout({
       <PublicDiscoveryStateProvider
         initialSavedIds={savedIds}
         initialFavoriteIds={favoriteIds}
+        talentDiscoveryEnabled={talentDiscoveryEnabled}
       >
         <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} favoriteIcon={favoriteIcon} />
         {/* Runs once per session for authed visitors — sweeps any guest-mode
@@ -98,13 +109,19 @@ export default async function PublicLayout({
           <FavoritesDrawerProvider>
             <PublicFlashHost dismissAria={dismissFlashAria} />
             {children}
-            <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-            <FavoritesModal
-              signupHref="/login"
-              locale={locale}
-              initialFavoriteIdsCount={favoriteIds.length}
-              isAuthenticated={Boolean(actor.user)}
-            />
+            {/* Talent-only surfaces. The providers stay mounted so any child
+                hook keeps working; only the talent UI goes. */}
+            {talentDiscoveryEnabled ? (
+              <>
+                <DirectoryInquirySheet ui={directoryUi} locale={locale} />
+                <FavoritesModal
+                  signupHref="/login"
+                  locale={locale}
+                  initialFavoriteIdsCount={favoriteIds.length}
+                  isAuthenticated={Boolean(actor.user)}
+                />
+              </>
+            ) : null}
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>

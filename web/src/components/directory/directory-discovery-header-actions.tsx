@@ -58,6 +58,11 @@ export function DirectoryDiscoveryHeaderActions({
   // + zero defaults so the favorites/inquiry icons render harmlessly there
   // instead of throwing and tripping the page error boundary.
   const discovery = usePublicDiscoveryStateOptional();
+  // A `business` workspace has no roster, so the bookmark and the plane point at
+  // objects that do not exist. Absent provider means SHOW, matching the freeform
+  // case above: a talent page without the provider still wants its icons, and
+  // defaulting the other way would strip them from every freeform page.
+  const talentDiscoveryEnabled = discovery?.talentDiscoveryEnabled ?? true;
   const savedCount = discovery?.savedCount ?? 0;
   const favoritesCount = discovery?.favoritesCount ?? 0;
   const inquiryModal = useOptionalDirectoryInquiryModal();
@@ -78,10 +83,17 @@ export function DirectoryDiscoveryHeaderActions({
     return () => window.clearTimeout(t);
   }, [saveCue]);
 
+  // AFTER every hook, never before: an early return above a hook changes hook
+  // order between renders and React throws.
   const favCount = mounted ? favoritesCount : initialFavoritesCount;
   const cartCount = mounted ? savedCount : initialCartCount;
   const hasFavorites = favCount > 0;
   const hasCart = cartCount > 0;
+
+  // Nothing to shortlist on this storefront: render no icons at all rather than
+  // icons showing zero. A bookmark with a 0 on a restaurant is still an offer to
+  // save a talent.
+  if (!talentDiscoveryEnabled) return null;
 
   return (
     <TooltipProvider delayDuration={280}>
