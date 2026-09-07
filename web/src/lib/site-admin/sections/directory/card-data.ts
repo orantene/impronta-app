@@ -8,6 +8,8 @@
  * Live exports here MUST stay pure / framework-free.
  */
 
+import type { VerifiedLine } from "@/lib/trust/verified-mark";
+
 /** One localized fit chip (taxonomy / discipline overlap label). */
 export type DirectoryCardFitLabel = {
   slug: string;
@@ -70,6 +72,13 @@ export type DirectoryCardData = {
   priceFromLabel?: string | null;
   /** Timed request/instant offering on this tenant. Drives the card badge/CTA. */
   bookable?: boolean;
+  /**
+   * Public "Verified" mark — same rule as `DirectoryCardDTO.verified`, so the
+   * canonical card can render the mark beside the name. Absent/false = hide.
+   */
+  verified?: boolean;
+  /** Hover lines for the Verified mark. Empty unless `verified`. */
+  verifiedLines?: VerifiedLine[];
 };
 
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */

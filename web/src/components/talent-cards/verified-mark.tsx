@@ -21,7 +21,7 @@ export function VerifiedMark({
   locale = "en",
   compact = false,
 }: {
-  lines: VerifiedLine[];
+  lines: readonly VerifiedLine[];
   locale?: string;
   compact?: boolean;
 }) {
