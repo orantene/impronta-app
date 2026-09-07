@@ -26,6 +26,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isProductPayoutDeferred } from "@/lib/bookings/fulfillment";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { isOffPlatformPaymentMethod } from "@/lib/payments/off-platform";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import {
   getTalentConnectedAccountSnapshot,
@@ -202,6 +203,28 @@ export async function executeBookingTransfers(
 
     const settledCurrency = String((txn.currency as string) || "usd").toLowerCase();
     for (const snap of snapshots) {
+      // OFF-PLATFORM MONEY HAS NO PAYOUT LEG.
+      //
+      // This function fans out money the platform ALREADY COLLECTED on its own
+      // account (see the header). A cash/wire/venue-paid sale was collected by
+      // the TENANT, so there is nothing here to fan out — and the snapshot's
+      // persist RPC has already accrued the platform fee as a receivable into
+      // platform_commission_movements. Paying a leg as well would wire real
+      // money for a charge that never existed, while still billing the tenant
+      // the fee: the split funded by the wrong party, and no error anywhere.
+      //
+      // Skipped per-leg, not per-booking, so a mixed booking still pays its
+      // card participants; and placed INSIDE the loop, after the no-snapshot
+      // alarm, so a genuinely missing snapshot still shouts.
+      if (isOffPlatformPaymentMethod(snap.payment_method)) {
+        void improntaLog("transfers.off_platform_no_payout", {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          paymentMethod: snap.payment_method,
+        });
+        continue;
+      }
       const currency = (snap.currency_code || settledCurrency || "usd").toLowerCase();
       const talentProfileId = await resolveTalentProfileId(sb, snap);
       const isWorkspaceOwned =
