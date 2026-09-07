@@ -15,16 +15,16 @@ import { HQ, F, FD } from "../_tokens";
  */
 
 const STATE_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  withheld: { label: "withheld", color: "#F85149", bg: "rgba(248,81,73,0.10)" },
-  granted: { label: "granted", color: "#3FB950", bg: "rgba(63,185,80,0.10)" },
-  default: { label: "default", color: "rgba(245,242,235,0.45)", bg: "transparent" },
+  withheld: { label: "withheld", color: HQ.red, bg: "rgba(243,103,114,0.10)" },
+  granted: { label: "granted", color: HQ.green, bg: "rgba(93,211,160,0.10)" },
+  default: { label: "default", color: HQ.inkDim, bg: "transparent" },
 };
 
 export function EntitlementsView({ matrix }: { matrix: EntitlementMatrix | null }) {
   if (!matrix) {
     return (
       <div style={{ fontFamily: F, color: HQ.ink, maxWidth: 900 }}>
-        <p style={{ color: "#F85149", fontSize: 13 }}>
+        <p style={{ color: HQ.red, fontSize: 13 }}>
           The entitlement table could not be read. This is not the same as
           &ldquo;nothing is packaged&rdquo; &mdash; the decisions may exist and
           be unreadable, so nothing is shown rather than an empty grid that
