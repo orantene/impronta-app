@@ -21,7 +21,8 @@ import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import {
   clampPublicSlotDays,
-  computePublicSlotStarts,
+  computePublicSlots,
+  type NoSlotsReason,
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
@@ -36,13 +37,33 @@ const SLOTS_CACHE = "public, s-maxage=30, stale-while-revalidate=60";
 
 const SLOTS_VARY = "Host, x-impronta-host-name, x-impronta-host-context";
 
+/**
+ * Why this endpoint returned nothing.
+ *
+ * Every branch below used to return the same `{"slots":[]}`, so "this talent
+ * has never set hours", "this surface only takes inquiries" and "the day is
+ * full" were one answer. An operator cannot act on that, and nobody can even
+ * tell it is broken.
+ */
+type SlotsReason =
+  | NoSlotsReason
+  | "not_bookable_here"
+  | "inquiry_only"
+  | "hours_unreadable";
+
 function slotsJson(
   slots: string[],
   status = 200,
-  extra?: { timezone?: string },
+  extra?: { timezone?: string; reason?: SlotsReason | null },
 ): NextResponse {
   return NextResponse.json(
-    { slots, ...(extra?.timezone ? { timezone: extra.timezone } : {}) },
+    {
+      slots,
+      ...(extra?.timezone ? { timezone: extra.timezone } : {}),
+      // Only when empty: a caller with slots does not need a reason, and
+      // sending one anyway invites a client to branch on it.
+      ...(slots.length === 0 && extra?.reason ? { reason: extra.reason } : {}),
+    },
     {
       status,
       headers: {
@@ -155,7 +176,7 @@ export async function GET(request: Request) {
     }
 
     if (!offeringTenantId) {
-      return slotsJson([]);
+      return slotsJson([], 200, { reason: "not_bookable_here" });
     }
 
     const mode = await resolveTalentBookingMode(admin, {
@@ -166,7 +187,7 @@ export async function GET(request: Request) {
         tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
       },
     });
-    if (mode === "inquire") return slotsJson([]);
+    if (mode === "inquire") return slotsJson([], 200, { reason: "inquiry_only" });
 
     const { data: hoursRow } = await admin
       .from("talent_booking_hours")
@@ -177,7 +198,15 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     const hours = parseBookingHours(hoursRow);
-    if (!hours) return slotsJson([]);
+    if (!hours) {
+      // Two different failures. No row means nobody has configured hours -
+      // today that is EVERY bookable offering in production. A row that will
+      // not parse is a data defect, and it fails closed to zero slots exactly
+      // like an unconfigured talent, which is how it stays invisible.
+      return slotsJson([], 200, {
+        reason: hoursRow ? "hours_unreadable" : "no_booking_hours",
+      });
+    }
 
     const now = new Date();
     const from = parsePublicSlotFrom(url.searchParams.get("from"), now);
@@ -195,7 +224,7 @@ export async function GET(request: Request) {
       now,
     });
 
-    const slots = computePublicSlotStarts({
+    const { starts: slots, reason } = computePublicSlots({
       hours,
       durationMinutes:
         typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
@@ -205,7 +234,7 @@ export async function GET(request: Request) {
       days: horizon,
       busy,
     });
-    return slotsJson(slots, 200, { timezone: hours.timezone });
+    return slotsJson(slots, 200, { timezone: hours.timezone, reason });
   } catch (err) {
     logServerError("api.public.booking.slots", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });

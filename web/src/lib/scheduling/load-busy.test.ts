@@ -205,7 +205,10 @@ test("public slots route returns starts only and does not re-add the hold reaper
   );
   assert.match(route, /s-maxage=30/);
   assert.match(route, /checkBookingSlots/);
-  assert.match(route, /computePublicSlotStarts/);
+  // The intent is that the route DELEGATES the projection to the pure helper,
+  // not that it calls one particular name. Either export satisfies that;
+  // pinning the name is what made this fail when the reason channel was added.
+  assert.match(route, /computePublicSlots(Starts)?\(/);
   assert.doesNotMatch(route, /\.from\("talent_holds"\)/);
   assert.doesNotMatch(route, /\.from\("talent_bookings"\)/);
   assert.match(route, /loadBusyIntervals/);
