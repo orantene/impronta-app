@@ -1003,6 +1003,19 @@ const menuBoardPropsSchema = z.object({
   title: z.string().max(120).optional(),
   subtitle: z.string().max(240).optional(),
   emptyMessage: z.string().max(240).optional(),
+  /**
+   * Show a category strip above the board that jumps to each group.
+   *
+   * A 117-dish menu across 13 categories is unusable on a phone without one —
+   * the operator's own categories become the navigation. Opt-in rather than
+   * automatic: a short board is better without a strip, and turning it on for
+   * everyone would put a one-tab nav above a five-line menu.
+   *
+   * The strip renders only when the board actually has something to navigate
+   * (two or more categories). A menu whose items all carry `category: null` —
+   * the common case today — shows no strip at all rather than an empty one.
+   */
+  categoryNav: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
 
