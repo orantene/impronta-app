@@ -18,7 +18,7 @@ export function BookPageClient({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
-  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant" }>;
+  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null }>;
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
 }) {
@@ -57,6 +57,13 @@ export function BookPageClient({
             ))}
           </select>
         </label>
+      ) : null}
+      {/* The cohort count. Server-worded, because the sentence is decided by
+          `seats-left.ts` and a page that re-words it becomes a second opinion
+          about how many seats are left. Absent when nothing is known: an
+          offering with no pool is unlimited, not full. */}
+      {selected.seatsLabel ? (
+        <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
       <BookableComposer
         tenantSlug={tenantSlug}
