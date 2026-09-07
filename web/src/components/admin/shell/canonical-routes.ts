@@ -64,6 +64,10 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // like `financials`, not a prototype SPA tab: it reads `orders` directly and
   // has no shell data-bridge projection to hang off.
   (s) => s[0] === "admin" && s[1] === "orders",
+  // /<tenant>/admin/events/door — live check-in desk. The Events SPA owns
+  // /admin/events (list + tabs); the door is a real server page and must not
+  // stack under EventsPage.
+  (s) => s[0] === "admin" && s[1] === "events" && s[2] === "door",
   // /<tenant>/admin/reservations/** — R3 host stand. Canonical server route
   // like `orders`, not a prototype SPA tab: it reads `lib/reservations/book.ts`
   // directly. Matching on s[1] alone covers /reservations, /reservations/[date]

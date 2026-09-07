@@ -11,9 +11,11 @@
  * the click, shown as a state — never a dead button.
  *
  * Self-fetch class like `session_picker` (CEO ruling): tenant and event from
- * props, data through dynamically imported server actions. Empty props render
+ * props, data through server actions (statically imported). Empty props render
  * `not_configured` and never call an action — the schema would refuse them
  * anyway; the point is that the AUTHOR sees "not configured", not an outage.
+ * The dedicated `/events/<slug>` page also server-seeds `preload` so first
+ * paint is not a client round-trip.
  *
  * NO REMAINING COUNTS on purpose (Capacity ruling): availability is the
  * pool's answer at reserve time.
@@ -25,7 +27,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { PickerNight, PickerTier } from "@/app/(public)/_events/ticket-picker-actions";
+import {
+  loadTicketPicker,
+  startTicketCardPayment,
+  startTicketPurchase,
+  type PickerNight,
+  type PickerTier,
+} from "@/app/(public)/_events/ticket-picker-actions";
 
 type Locale = "en" | "es";
 function pickLocale(raw?: string): Locale { return raw?.toLowerCase().startsWith("es") ? "es" : "en"; }
@@ -165,7 +173,9 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const load = useCallback(async () => {
     if (!configured || preload) return;
     try {
-      const { loadTicketPicker } = await import("@/app/(public)/_events/ticket-picker-actions");
+      // Static import of the server action (above) — dynamic `import()` of a
+      // `"use server"` module has been returning `unavailable` on the live
+      // LUMINA page even when the underlying reads succeed.
       const res = await loadTicketPicker({ tenantId, eventId });
       if (res.ok) { setData({ eventTitle: res.eventTitle, currency: res.currency, timeZone: res.timeZone, tiers: res.tiers, nights: res.nights }); setLoadRefusal(null); }
       else { setData(null); setLoadRefusal(t(res.reason)); }
@@ -188,7 +198,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
     if (!email.trim()) { setRefusal(t("emailRequired")); return; }
     setBusy("holding"); setRefusal(null);
     try {
-      const { startTicketPurchase, startTicketCardPayment } = await import("@/app/(public)/_events/ticket-picker-actions");
+      // Same module as load — keep the wire shape identical; do not re-dynamic-import.
       const choice = chosenNight.door.offered ? payHow : "full";
       const res = await startTicketPurchase({
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,

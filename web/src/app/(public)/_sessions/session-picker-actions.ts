@@ -29,6 +29,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
+import { uuidWire } from "@/lib/events/uuid-wire";
 
 const HORIZON_DAYS = 90;
 
@@ -59,8 +60,8 @@ export type PickerAvailability =
   | { ok: false; reason: "unavailable" | "not_sellable" };
 
 const listSchema = z.object({
-  tenantId: z.string().uuid(),
-  offeringId: z.string().uuid(),
+  tenantId: uuidWire,
+  offeringId: uuidWire,
 });
 
 /**
@@ -263,12 +264,12 @@ export type BookSeatResult =
     };
 
 const bookSchema = z.object({
-  tenantId: z.string().uuid(),
-  offeringId: z.string().uuid(),
-  sessionId: z.string().uuid(),
+  tenantId: uuidWire,
+  offeringId: uuidWire,
+  sessionId: uuidWire,
   units: z.number().int().min(1).max(20),
   /** Per CART, not per click — a double-tapped button must make ONE order. */
-  clientOrderKey: z.string().uuid(),
+  clientOrderKey: uuidWire,
   email: z.string().email().max(200),
   displayName: z.string().max(120).optional(),
   locale: z.string().max(12).optional(),
