@@ -95,7 +95,11 @@ test("the queue this guard defends still exists and still runs tsc", () => {
   // no longer there. The guard would be green and measuring nothing.
   const queue = readFileSync(join(WEB_ROOT, THE_QUEUE), "utf8");
   assert.match(queue, INVOCATION, `${THE_QUEUE} no longer invokes tsc --noEmit`);
-  assert.match(queue, /LOCK="\/tmp\//, `${THE_QUEUE} no longer takes a machine-wide lock`);
+  assert.match(
+    queue,
+    /LOCK="\$\{TSC_QUEUE_LOCK:-\/tmp\//,
+    `${THE_QUEUE} no longer takes a machine-wide lock`,
+  );
 });
 
 test("the repo does not INSTRUCT the bypass in its own onboarding script", () => {
