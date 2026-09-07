@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { seatLimitMessage } from "@/lib/saas/seat-limit-copy";
 import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 
 type AgencySeatRow = {
@@ -30,6 +31,8 @@ export function evaluateRosterSeatAvailability(input: {
   limit: number | null;
   current: number;
   additionalSeats?: number;
+  /** Operator's dashboard locale. Defaults to English. */
+  locale?: string;
 }): RosterSeatAvailability {
   const additionalSeats = Math.max(
     1,
@@ -80,10 +83,16 @@ export function evaluateRosterSeatAvailability(input: {
     limit,
     current,
     after,
-    message:
-      input.planTier === "free"
-        ? `This workspace has reached the Free plan limit (${limit} profiles). Upgrade to Studio to add more.`
-        : `This workspace reached its plan limit (${limit} profiles). Upgrade to add more.`,
+    // Derived, not typed. "Upgrade to Studio" was correct for this cap and
+    // still wrong to hardcode: Website is ranked between Free and Studio and
+    // seats NOBODY, so any cheapest-paid-plan rule would offer a roster paywall
+    // a tier with fewer seats than the caller already has.
+    message: seatLimitMessage({
+      kind: "roster",
+      planTier: input.planTier,
+      limit,
+      locale: input.locale,
+    }),
   };
 }
 

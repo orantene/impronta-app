@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { PLAN_LIMITS } from "@/lib/access/plan-limits";
+import { seatLimitMessage } from "@/lib/saas/seat-limit-copy";
 import type { PlanKey } from "@/lib/access/plan-catalog";
 
 /**
@@ -70,6 +71,8 @@ export function evaluateTeamSeatAvailability(input: {
   limit: number | null;
   current: number;
   additionalSeats?: number;
+  /** Operator\'s dashboard locale. Defaults to English. */
+  locale?: string;
 }): TeamSeatAvailability {
   const additionalSeats = Math.max(0, Math.trunc(input.additionalSeats ?? 1));
   const current = Math.max(0, Math.trunc(input.current));
@@ -102,10 +105,15 @@ export function evaluateTeamSeatAvailability(input: {
     limit,
     current,
     after,
-    message:
-      input.planTier === "free"
-        ? `This workspace has reached the Free plan limit (${limit} team seats, including pending invites). Upgrade to Studio to add more.`
-        : `This workspace reached its plan limit (${limit} team seats, including pending invites). Upgrade to add more.`,
+    // Same derived helper as the roster wall. See seat-limit-copy.ts for why a
+    // seat paywall must offer a plan that RAISES the cap rather than the next
+    // one up the ladder.
+    message: seatLimitMessage({
+      kind: "team",
+      planTier: input.planTier,
+      limit,
+      locale: input.locale,
+    }),
   };
 }
 
