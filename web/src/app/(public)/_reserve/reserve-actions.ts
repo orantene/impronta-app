@@ -106,7 +106,20 @@ const NO_DATES: ReserveDateContext = { timezone: null, onDate: null, dates: [] }
  */
 export async function loadReserveAvailability(input: unknown): Promise<ReserveAvailability> {
   const parsed = inputSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, ...NO_DATES, reason: "unavailable" };
+  if (!parsed.success) {
+    // LOUD, because the silent version cost a live restaurant its booking page.
+    // A malformed input here is almost never a guest doing something odd: it is
+    // the block being handed a tenantId it never got. On 2026-09-06 El Paisa's
+    // page rendered with `tenantId: ""` because the data-sources early return
+    // dropped it, this branch answered `unavailable`, and the guest read "try
+    // again in a moment" forever on a 200 with no console error. The refusal is
+    // still generic to the guest — they cannot act on the real reason — but it
+    // now leaves a trace someone can find.
+    logServerError("reserve-actions.loadReserveAvailability/input", {
+      issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.code}`),
+    });
+    return { ok: false, ...NO_DATES, reason: "unavailable" };
+  }
   const { tenantId, partySize } = parsed.data;
 
   try {

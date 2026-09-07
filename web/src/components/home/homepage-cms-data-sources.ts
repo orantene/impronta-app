@@ -164,7 +164,25 @@ export async function loadBuilderNodeDataSources(
     collectionSourceKeys.length === 0 &&
     socialFeedProviders.length === 0
   ) {
-    return { publicOrigin };
+    // TENANT ID RIDES THE EARLY RETURN. This branch is a cost optimisation —
+    // no block on the page needs a server read, so skip the queries — and it
+    // used to drop `tenantId` along with them. But the id is not a query
+    // result: it is an ARGUMENT already in hand, and it costs nothing to
+    // return.
+    //
+    // Dropping it broke every page whose only dynamic block declares no data
+    // need. `reserve_table` is exactly that: it deliberately has no
+    // native-data-block-needs entry because the island loads availability
+    // through its own server action — but it still reads
+    // `dataSources.tenantId`, and the renderer's `?? ""` turned the absence
+    // into an EMPTY STRING. The action's schema then rejected "" as a
+    // non-uuid and answered `unavailable`, which the guest read as "we could
+    // not load the times, try again in a moment" — forever, on a live
+    // restaurant's booking page, with a 200 and no console error.
+    //
+    // An identity that every block may read must not be conditional on
+    // whether some OTHER block needed a query.
+    return { tenantId: dataTenantId, publicOrigin };
   }
   // The storefront read bypasses RLS (service role) for media + collections.
   const serviceSupabase =
