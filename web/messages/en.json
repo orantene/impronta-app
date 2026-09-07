@@ -2335,8 +2335,8 @@
         "relNonExclusive": "Non-exclusive",
         "relDescription": "{relationship} relationship · joined {date}",
         "planFree": "Free plan",
-        "planStudio": "Studio plan",
-        "planAgency": "Agency plan",
+        "planStudio": "Team plan",
+        "planAgency": "Business plan",
         "commissionNone": "This agency takes no cut of your bookings",
         "commissionOnBookings": "{pct}% on bookings {name} brings",
         "planCommissionSummary": "{plan} · {commission}",
@@ -4652,8 +4652,8 @@
         "providerNotConfigured": "This provider is not set up on this deployment yet."
       },
       "planNameFree": "Free",
-      "planNameStudio": "Studio",
-      "planNameAgency": "Agency",
+      "planNameStudio": "Team",
+      "planNameAgency": "Business",
       "planNameNetwork": "Network",
       "planThemeFree": "Join the ecosystem",
       "planThemeStudio": "Gain control",
@@ -4743,7 +4743,7 @@
         "groupsTitle": "Table groups",
         "partiesOf": "parties of"
       },
-      "planNameWebsite": "Website",
+      "planNameWebsite": "Site",
       "planNameLegacy": "Legacy"
     },
     "adminBilling": {
@@ -6570,8 +6570,8 @@
           "originClaimInvite": "Claim invite",
           "planAny": "Any plan",
           "planFree": "Free",
-          "planStudio": "Studio",
-          "planAgencyNetwork": "Agency / Network"
+          "planStudio": "Team",
+          "planAgencyNetwork": "Business / Network"
         },
         "table": {
           "countOne": "{filtered} of {total} user",
@@ -9140,8 +9140,8 @@
       "pageIntro": "Tulala Discover is the power tool for clients: cross-tenant catalog, shortlists, compare view, and direct inquiries. Your talent appears here when they opt in, and when your plan supports the enrollment shape below.",
       "currentPlan": "Current plan",
       "planFree": "Free plan",
-      "planStudio": "Studio plan",
-      "planAgency": "Agency plan",
+      "planStudio": "Team plan",
+      "planAgency": "Business plan",
       "planNetwork": "Network plan",
       "enrolledTalent": "Enrolled talent",
       "enrolledOfTotal": "of {total} ({percent}%)",

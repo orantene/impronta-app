@@ -85,7 +85,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   website: {
     key: "website",
     audience: "workspace",
-    displayName: "Website",
+    displayName: "Site",
     tagline: "For local businesses",
     description:
       "A full site builder on your own domain, in two languages, with a forms inbox and payments. No talent roster.",
@@ -116,7 +116,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   studio: {
     key: "studio",
     audience: "workspace",
-    displayName: "Studio",
+    displayName: "Team",
     tagline: "For small teams",
     // CORRECTED 2026-09-02. This read "Embed your roster anywhere. Studio adds
     // widgets and API access." — a description of AGENCY's capability set, sold
@@ -140,7 +140,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   agency: {
     key: "agency",
     audience: "workspace",
-    displayName: "Agency",
+    displayName: "Business",
     tagline: "For full agencies",
     // CORRECTED 2026-09-02. This read "Your domain. Your pages. Your brand.
     // Pages, posts, navigation, theme." — the WEBSITE tier's pitch, on the

@@ -28,10 +28,19 @@ export const TIER_DOT: Record<string, string> = {
   network: "#146b3a",
 };
 
+/**
+ * English fallback names. The plan KEYS never move; these are what a human
+ * reads. Renamed 2026-09-06: "Studio" and "Agency" named a customer type, so a
+ * parrilla in Glew was told it was on the Agency plan on its own dashboard.
+ * The ladder is now how many people you list and whether you get your own
+ * domain, which is true for a restaurant, a photo studio and a modelling
+ * agency alike. UI surfaces should render the i18n key, not this map.
+ */
 export const TIER_LABEL: Record<string, string> = {
   free: "Free",
-  studio: "Studio",
-  agency: "Agency",
+  website: "Site",
+  studio: "Team",
+  agency: "Business",
   network: "Network",
 };
 

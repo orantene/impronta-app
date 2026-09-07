@@ -2334,9 +2334,9 @@
         "relExclusive": "Exclusiva",
         "relNonExclusive": "No exclusiva",
         "relDescription": "Relación {relationship} · desde {date}",
-        "planFree": "Plan Free",
-        "planStudio": "Plan Studio",
-        "planAgency": "Plan Agency",
+        "planFree": "Plan Gratis",
+        "planStudio": "Plan Equipo",
+        "planAgency": "Plan Negocio",
         "commissionNone": "Esta agencia no se lleva comisión de tus reservas",
         "commissionOnBookings": "{pct}% sobre las reservas que trae {name}",
         "planCommissionSummary": "{plan} · {commission}",
@@ -4652,8 +4652,8 @@
         "providerNotConfigured": "Este proveedor aún no está configurado en esta instalación."
       },
       "planNameFree": "Gratis",
-      "planNameStudio": "Estudio",
-      "planNameAgency": "Agencia",
+      "planNameStudio": "Equipo",
+      "planNameAgency": "Negocio",
       "planNameNetwork": "Red",
       "planThemeFree": "Únete al ecosistema",
       "planThemeStudio": "Toma el control",
@@ -4743,7 +4743,7 @@
         "groupsTitle": "Grupos de mesas",
         "partiesOf": "grupos de"
       },
-      "planNameWebsite": "Website",
+      "planNameWebsite": "Sitio",
       "planNameLegacy": "Heredado"
     },
     "adminBilling": {
@@ -6569,9 +6569,9 @@
           "originSelf": "Registro propio",
           "originClaimInvite": "Invitación de reclamo",
           "planAny": "Cualquier plan",
-          "planFree": "Free",
-          "planStudio": "Studio",
-          "planAgencyNetwork": "Agency / Network"
+          "planFree": "Gratis",
+          "planStudio": "Equipo",
+          "planAgencyNetwork": "Negocio / Red"
         },
         "table": {
           "countOne": "{filtered} de {total} usuario",
@@ -9139,10 +9139,10 @@
       "pageTitle": "Ajustes de Discover",
       "pageIntro": "Tulala Discover es la herramienta avanzada para los clientes: catálogo entre espacios, preselecciones, vista comparativa y consultas directas. Tu talento aparece aquí cuando opta por participar y cuando tu plan admite el tipo de inscripción que ves abajo.",
       "currentPlan": "Plan actual",
-      "planFree": "Plan Free",
-      "planStudio": "Plan Studio",
-      "planAgency": "Plan Agency",
-      "planNetwork": "Plan Network",
+      "planFree": "Plan Gratis",
+      "planStudio": "Plan Equipo",
+      "planAgency": "Plan Negocio",
+      "planNetwork": "Plan Red",
       "enrolledTalent": "Talento inscrito",
       "enrolledOfTotal": "de {total} ({percent}%)",
       "benefitsTitle": "Tus beneficios en Discover",
