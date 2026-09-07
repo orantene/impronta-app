@@ -69,12 +69,40 @@ export interface PrintDesignLogo {
   hMm: number;
 }
 
+/**
+ * A full-bleed background PHOTOGRAPH, drawn across the whole bleed page beneath
+ * everything else.
+ *
+ * ADDED because the ruled palette and this type disagreed. `PRINT_BLOCK_KINDS`
+ * (builder-core/config.ts) offers `image` for "logo / full-bleed background
+ * image", but `background` here is a hex fill — a photograph had nowhere to go.
+ * The extractor would have had two choices, and both are silent wrongs: drop it,
+ * so the card prints without the background someone placed; or map it to `logo`,
+ * where it covers the entire card, trips the logo-over-code refusal, and tells
+ * the operator to "move the logo off the code" about their own background.
+ *
+ * It is a distinct field rather than a widened `background` because the two are
+ * different things to the exporter: a fill is safe under a code, a photograph is
+ * not, which is why the QR draws its own opaque backing regardless.
+ */
+export interface PrintDesignBackgroundImage {
+  png: Uint8Array;
+  /**
+   * How the image fills the bleed page. "cover" crops to fill and is what a
+   * full-bleed photo means; "stretch" distorts and exists only because some
+   * designs are laid out against an exact aspect already.
+   */
+  fit?: "cover" | "stretch";
+}
+
 export interface PrintDesign {
   size: PrintSizeKey;
   /** Artwork past the trim line; validated 0–10, 3 is the norm. */
   bleedMm: number;
   /** Page fill hex. The QR's own backing sits on top of this behind the code. */
   background?: string;
+  /** A full-bleed photograph under everything. Drawn beneath `background`'s fill. */
+  backgroundImage?: PrintDesignBackgroundImage;
   qr: PrintDesignQr;
   /** POSITION + STYLE only; the words come from each SheetItem. */
   title?: PrintDesignText;

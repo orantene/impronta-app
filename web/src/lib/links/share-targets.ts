@@ -70,9 +70,18 @@ export type QrFormat = "svg" | "png" | "pdf";
  * recognises, the URL is one they can paste to a designer, and the id leaks
  * nothing useful anyway. Tenant scope comes from the host, as everywhere else.
  */
-export function qrAssetHref(code: string, format: QrFormat, opts: { widthMm?: number } = {}): string {
+export function qrAssetHref(
+  code: string,
+  format: QrFormat,
+  opts: { widthMm?: number; size?: string } = {},
+): string {
   const params = new URLSearchParams();
   if (opts.widthMm) params.set("mm", String(opts.widthMm));
+  // `size` names a PRINT_SIZES key and applies to the PDF only. Before this the
+  // endpoint hardcoded a table tent, so four of the five sizes the library can
+  // produce — A5 flyer, A4 poster, sticker, business card — were unreachable
+  // from the product. A door needs a poster and a window needs a sticker.
+  if (opts.size) params.set("size", opts.size);
   const query = params.toString();
   return `/api/links/${encodeURIComponent(code)}/qr.${format}${query ? `?${query}` : ""}`;
 }
@@ -86,3 +95,23 @@ export function qrAssetHref(code: string, format: QrFormat, opts: { widthMm?: nu
 export function displayShortLink(fullUrl: string): string {
   return fullUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
+
+/**
+ * The print sizes offered in the Share popover, for the CLIENT.
+ *
+ * Duplicated from `PRINT_SIZES` on purpose rather than imported: `qr/files.ts`
+ * begins with `import "server-only"`, so importing it from a "use client"
+ * component pulls server code into the client bundle and fails the build. The
+ * two lists are kept honest by a test that compares them, which is the right
+ * trade — a silent divergence would offer a size the endpoint then refuses.
+ *
+ * Dimensions are in the label because "A5" means nothing to someone holding a
+ * door and a tape measure.
+ */
+export const PRINT_SIZE_OPTIONS: readonly { key: string; label: string; dims: string }[] = [
+  { key: "table_tent", label: "Table tent", dims: "100 × 150 mm" },
+  { key: "a5", label: "A5 flyer", dims: "148 × 210 mm" },
+  { key: "a4", label: "A4 poster", dims: "210 × 297 mm" },
+  { key: "sticker", label: "Sticker", dims: "50 × 50 mm" },
+  { key: "card", label: "Business card", dims: "85 × 55 mm" },
+];
