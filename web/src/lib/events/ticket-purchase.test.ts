@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTicketPurchase, doorOfferState, seatLostLines, seatLostMessage } from "./ticket-purchase";
+import { afterTicketPurchaseSuccess, buildTicketPurchase, doorOfferState, seatLostLines, seatLostMessage } from "./ticket-purchase";
 
 const now = new Date("2026-09-06T12:00:00Z");
 const day = 86_400_000;
@@ -67,4 +67,23 @@ test("a pay-at-the-door purchase passes in_person and NO hold TTL: the pipeline 
   assert.equal(input.paymentChoice, "in_person");
   assert.equal(input.lines[0]?.sessionId, "s");
   assert.ok(!("holdTtlSeconds" in input) && !("holdTtlSecondsOverride" in input));
+});
+
+test("a complimentary purchase with a receipt goes to the receipt, not the card hop", () => {
+  assert.equal(
+    afterTicketPurchaseSuccess({ payAtDoor: false, transactionId: null, receiptCode: "ABC12" }),
+    "receipt",
+  );
+  assert.equal(
+    afterTicketPurchaseSuccess({ payAtDoor: false, transactionId: null, receiptCode: null }),
+    "engine_error",
+  );
+  assert.equal(
+    afterTicketPurchaseSuccess({ payAtDoor: true, transactionId: null, receiptCode: "ABC12" }),
+    "held",
+  );
+  assert.equal(
+    afterTicketPurchaseSuccess({ payAtDoor: false, transactionId: "txn_1", receiptCode: "ABC12" }),
+    "card",
+  );
 });

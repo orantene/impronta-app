@@ -26,9 +26,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { commitCapacity } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
 import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/events/ticket-purchase";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { uuidWire } from "@/lib/events/uuid-wire";
 
 const HORIZON_DAYS = 180;
@@ -271,6 +273,39 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
 
     const { data: orderRow, error: oErr } = await admin.from("orders").select("receipt_code").eq("id", result.orderId).maybeSingle();
     if (oErr) logServerError("events.buy.receipt", oErr);
+
+    // A zero-collect order is already `paid` and never hits the webhook mint
+    // seam. Commit the hold and mint here, or the receipt is a line item with
+    // no door code and the seat expires with the hold TTL.
+    if (result.collectCents === 0 && !result.payInPerson) {
+      if (result.allocationIds.length > 0) {
+        const committed = await commitCapacity(result.allocationIds, null, admin);
+        if (!committed.ok) logServerError("events.buy.compCommit", committed.reason);
+      }
+      const { data: lineRows, error: lineErr } = await admin
+        .from("order_lines")
+        .select("id, units, session_id, variant_id")
+        .eq("order_id", result.orderId);
+      if (lineErr) {
+        logServerError("events.buy.compLines", lineErr);
+      } else {
+        try {
+          await mintAdmissionsForPaidOrder(admin, {
+            orderId: result.orderId,
+            tenantId: d.tenantId,
+            lines: (lineRows ?? []).map((l) => ({
+              id: l.id as string,
+              units: Number(l.units),
+              sessionId: (l.session_id as string | null) ?? null,
+              variantId: (l.variant_id as string | null) ?? null,
+            })),
+          });
+        } catch (mintErr) {
+          logServerError("events.buy.compMint", mintErr);
+        }
+      }
+    }
+
     return { ok: true, orderId: result.orderId, transactionId: result.transactionId ?? null, receiptCode: (orderRow?.receipt_code as string | null) ?? null, payAtDoor: result.payInPerson === true };
   } catch (err) {
     logServerError("events.buy", err);

@@ -118,6 +118,29 @@ export function seatLostLines(
     .map((l) => l.id);
 }
 
+/**
+ * What the picker does after `createPurchase` succeeds.
+ *
+ * A zero-collect order writes NO transaction (the order is already `paid`).
+ * Treating a missing `transactionId` as an engine error made complimentary
+ * tickets look like a charge failure after they had already been issued.
+ */
+export type TicketPurchaseNext =
+  | "held"
+  | "receipt"
+  | "card"
+  | "engine_error";
+
+export function afterTicketPurchaseSuccess(res: {
+  payAtDoor: boolean;
+  transactionId: string | null;
+  receiptCode: string | null;
+}): TicketPurchaseNext {
+  if (res.payAtDoor) return "held";
+  if (!res.transactionId) return res.receiptCode ? "receipt" : "engine_error";
+  return "card";
+}
+
 /** The buyer's message that travels WITH the refund (design decision 10). */
 export function seatLostMessage(args: { eventTitle: string | null; amountLabel: string }): string {
   const what = args.eventTitle ? `your ticket for ${args.eventTitle}` : "your ticket";
