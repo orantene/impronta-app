@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
 import { useWebsiteSubnav } from "./website-nav";
 import { useDashboardText } from "../dashboard-i18n";
@@ -225,6 +225,7 @@ function WorkspaceSidebarShell() {
   const copy = useDashboardText();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Website sub-nav — single source of truth shared with the hover dropdown
   // and the mobile pill strip (website-nav.ts). Gating (Redirects/Forms/
@@ -256,6 +257,7 @@ function WorkspaceSidebarShell() {
   const subItemsFor = (
     p: WorkspacePage,
   ): Array<{
+    id?: string;
     label: string;
     href: string;
     exact?: boolean;
@@ -267,6 +269,7 @@ function WorkspaceSidebarShell() {
       // Single source of truth — see website-nav.ts. Order + gating are
       // computed there; the sidebar just maps to its own render shape.
       return websiteSubnav.map((item) => ({
+        id: item.id,
         label: item.label,
         href: item.href,
         exact: item.id === "overview",
@@ -277,24 +280,61 @@ function WorkspaceSidebarShell() {
     if (p === "roster") {
       return [
         {
+          id: "roster-all",
           label: copy.isSpanish ? "Todos" : "All",
           href: rosterBase,
           exact: true,
         },
         {
+          id: "roster-applications",
           label: copy.isSpanish ? "Solicitudes" : "Applications",
           href: `${rosterBase}/applications`,
           count: pendingApplications,
         },
         {
+          id: "roster-registration",
           label: copy.isSpanish ? "Registro" : "Registration",
           href: `${rosterBase}/registration`,
         },
         {
           // Per-talent day rates — roster DATA, so it belongs beside the
           // roster. The tenant-wide fallback stays in Settings (a policy).
+          id: "roster-rates",
           label: copy.isSpanish ? "Tarifas" : "Rates",
           href: `${rosterBase}/rates`,
+        },
+      ];
+    }
+    if (p === "events") {
+      const eventsBase = `${adminBase}/events`;
+      return [
+        {
+          id: "events-all",
+          label: copy.isSpanish ? "Todos" : "All events",
+          href: eventsBase,
+          exact: true,
+        },
+        {
+          id: "events-new",
+          label: copy.isSpanish ? "Nuevo evento" : "Add new event",
+          href: `${eventsBase}?compose=new`,
+        },
+        {
+          // Ticket tiers live on each event. Land on the list with the
+          // Tickets tab selected for the current/first event.
+          id: "events-tickets",
+          label: copy.isSpanish ? "Entradas" : "Tickets",
+          href: `${eventsBase}?tab=tickets`,
+        },
+        {
+          id: "events-orders",
+          label: copy.isSpanish ? "Pedidos" : "Orders",
+          href: `${adminBase}/orders`,
+        },
+        {
+          id: "events-door",
+          label: copy.isSpanish ? "Puerta" : "Live check-in",
+          href: `${eventsBase}/door`,
         },
       ];
     }
@@ -314,7 +354,10 @@ function WorkspaceSidebarShell() {
       (p === "settings" && state.page === "workspace") ||
       (p === "messages" && state.page === "inbox") ||
       (p === "website" && state.page === "site") ||
-      (p === "roster" && state.page === "talent");
+      (p === "roster" && state.page === "talent") ||
+      (p === "events" &&
+        ((pathname ?? "").startsWith(`${adminBase}/orders`) ||
+          (pathname ?? "").startsWith(`${adminBase}/events/door`)));
     const badge = p === "messages" ? totalUnread : p === "roster" ? rosterPending : 0;
     const badgeTitle =
       p === "messages"
@@ -343,14 +386,30 @@ function WorkspaceSidebarShell() {
         {active && subItemsFor(p) && (
           <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
             {(subItemsFor(p) ?? []).map((sub) => {
-              const subActive = sub.external
-                ? false
-                : sub.exact
-                  ? pathname === sub.href
-                  : (pathname ?? "").startsWith(sub.href);
+              const [subPath, subQuery = ""] = sub.href.split("?");
+              const pathOk = sub.exact
+                ? pathname === subPath
+                : (pathname ?? "").startsWith(subPath);
+              let subActive = false;
+              if (!sub.external && pathOk) {
+                if (subQuery) {
+                  const wanted = new URLSearchParams(subQuery);
+                  subActive = [...wanted.entries()].every(
+                    ([k, v]) => searchParams.get(k) === v,
+                  );
+                } else if (sub.exact) {
+                  // Sibling links may add ?compose / ?tab — keep "All" quiet
+                  // when those are present so only one child looks current.
+                  subActive =
+                    searchParams.get("compose") == null &&
+                    searchParams.get("tab") == null;
+                } else {
+                  subActive = true;
+                }
+              }
               return (
                 <button
-                  key={sub.href}
+                  key={sub.id ?? sub.href}
                   type="button"
                   onClick={() =>
                     sub.external

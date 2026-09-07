@@ -10,6 +10,7 @@ import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone } from "@/lib/events/public-event-time";
 import { doorsAt } from "@/lib/events/event-policy";
 import { resolveLineupState } from "@/lib/events/lineup";
+import { loadTicketPicker } from "@/app/(public)/_events/ticket-picker-actions";
 import { EventPageView, type Locale } from "./event-page-view";
 
 /**
@@ -108,6 +109,24 @@ export default async function PublicEventPage({ params }: Params) {
     }
   }
 
+  // Seed the island on the server so the guest sees nights/tiers on first
+  // paint. The client action path stays as a refresh after a refused buy; it
+  // is not what first paints the picker.
+  const picker = await loadTicketPicker({
+    tenantId: scope.tenantId,
+    eventId: event.id as string,
+  });
+  const islandPreload =
+    picker.ok
+      ? {
+          eventTitle: picker.eventTitle,
+          currency: picker.currency,
+          timeZone: picker.timeZone,
+          tiers: picker.tiers,
+          nights: picker.nights,
+        }
+      : null;
+
   return (
     <>
       <PublicHeader />
@@ -125,6 +144,7 @@ export default async function PublicEventPage({ params }: Params) {
         coverUrl={(cover?.public_url as string | null) ?? null}
         ageGate={(event.age_gate as number | null) ?? null}
         refundCutoffHours={(event.refund_cutoff_hours as number | null) ?? null}
+        islandPreload={islandPreload}
       />
       <PublicFooter />
     </>

@@ -14,6 +14,10 @@
  * props, data through dynamically imported server actions. Empty props render
  * `not_configured` and never call an action — the schema would refuse them
  * anyway; the point is that the AUTHOR sees "not configured", not an outage.
+ * Dynamic import is required so fidelity/perf (which import this island via
+ * `render.tsx`) do not pull `server-only` purchase modules into Node.
+ * The dedicated `/events/<slug>` page also server-seeds `preload` so first
+ * paint is not a client round-trip.
  *
  * NO REMAINING COUNTS on purpose (Capacity ruling): availability is the
  * pool's answer at reserve time.

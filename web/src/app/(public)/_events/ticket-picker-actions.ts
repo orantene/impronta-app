@@ -29,6 +29,7 @@ import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-check
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
 import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/events/ticket-purchase";
+import { uuidWire } from "@/lib/events/uuid-wire";
 
 const HORIZON_DAYS = 180;
 
@@ -57,15 +58,23 @@ export type TicketPicker =
   | { ok: true; eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] }
   | { ok: false; reason: "unavailable" | "not_sellable" };
 
-const loadSchema = z.object({ tenantId: z.string().uuid(), eventId: z.string().uuid() });
+const loadSchema = z.object({ tenantId: uuidWire, eventId: uuidWire });
 
 export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
   const parsed = loadSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, reason: "unavailable" };
+  if (!parsed.success) {
+    logServerError("events.picker.input", {
+      issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.code}`),
+    });
+    return { ok: false, reason: "unavailable" };
+  }
   const { tenantId, eventId } = parsed.data;
   try {
     const admin = createServiceRoleClient();
-    if (!admin) return { ok: false, reason: "unavailable" };
+    if (!admin) {
+      logServerError("events.picker.admin", "createServiceRoleClient returned null");
+      return { ok: false, reason: "unavailable" };
+    }
 
     const { data: ev, error: evErr } = await admin
       .from("events")
@@ -148,10 +157,10 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
 }
 
 const buySchema = z.object({
-  tenantId: z.string().uuid(),
-  eventId: z.string().uuid(),
-  sessionId: z.string().uuid(),
-  variantId: z.string().uuid(),
+  tenantId: uuidWire,
+  eventId: uuidWire,
+  sessionId: uuidWire,
+  variantId: uuidWire,
   units: z.number().int().min(1).max(50),
   email: z.string().trim().email().max(254),
   displayName: z.string().trim().max(120).optional(),
@@ -269,7 +278,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
   }
 }
 
-const paySchema = z.object({ tenantId: z.string().uuid(), orderId: z.string().uuid(), transactionId: z.string().uuid(), locale: z.string().max(10).optional() });
+const paySchema = z.object({ tenantId: uuidWire, orderId: uuidWire, transactionId: uuidWire, locale: z.string().max(10).optional() });
 
 export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; reason: "invalid_request" | "not_found" | "engine_error"; detail?: string };
 

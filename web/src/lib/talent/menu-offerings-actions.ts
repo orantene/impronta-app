@@ -42,6 +42,27 @@ function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleCl
   return admin.from("talent_offerings");
 }
 
+/** True when this offering is the catalog row behind a ticketed event. */
+async function isEventOfferingId(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  offeringId: string,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("events")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("offering_id", offeringId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logServerError("menu.offerings.isEventOffering", error);
+    // Fail closed: refuse the Menu write rather than mutate an event's row.
+    return true;
+  }
+  return Boolean(data?.id);
+}
+
 type LoadResult =
   | { ok: true; items: TalentOffering[]; defaultCurrency: string }
   | { ok: false; error: string };
@@ -53,17 +74,38 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
-    const { data, error } = await offeringsTable(admin)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("owner_kind", "workspace")
-      .neq("status", "archived")
-      .order("sort_order", { ascending: true });
+    // Event offerings live on the same table (`owner_kind=workspace`) but
+    // belong to Events, not Menu. Exclude any id that an `events.offering_id`
+    // points at so a ticketed night never shows up as a sellable menu package.
+    const [{ data, error }, { data: eventRows, error: evErr }] = await Promise.all([
+      offeringsTable(admin)
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("owner_kind", "workspace")
+        .neq("status", "archived")
+        .order("sort_order", { ascending: true }),
+      admin
+        .from("events")
+        .select("offering_id")
+        .eq("tenant_id", tenantId)
+        .not("offering_id", "is", null),
+    ]);
     if (error) {
       logServerError("menu.offerings.load", error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const rows = (data ?? []) as TalentOfferingRow[];
+    if (evErr) {
+      // Fail closed in the editor: better to refuse the load than list a
+      // ticketed event as a menu dish (public board fails open on purpose).
+      logServerError("menu.offerings.eventIds", evErr);
+      return { ok: false, error: "Could not load the menu." };
+    }
+    const eventOfferingIds = new Set(
+      (eventRows ?? [])
+        .map((r) => (r as { offering_id?: unknown }).offering_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    );
+    const rows = ((data ?? []) as TalentOfferingRow[]).filter((r) => !eventOfferingIds.has(r.id));
     const items = rows.map((r) => rowToOffering(r, "en", []));
     return { ok: true, items, defaultCurrency: auth.defaultCurrency };
   } catch (err) {
@@ -86,6 +128,10 @@ export async function upsertWorkspaceMenuItem(
 
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
+
+    if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
+      return { ok: false, error: "This item belongs to an event. Edit it under Events." };
+    }
 
     const patch = {
       ...offeringToRowPatch({
@@ -139,6 +185,9 @@ export async function deleteWorkspaceMenuItem(
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+  if (await isEventOfferingId(admin, tenantId, offeringId)) {
+    return { ok: false, error: "This item belongs to an event. Remove it under Events." };
+  }
   const { error } = await offeringsTable(admin)
     .delete()
     .eq("id", offeringId)

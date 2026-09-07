@@ -41,7 +41,7 @@ export type EventPageModel = {
   coverUrl: string | null;
   ageGate: number | null;
   refundCutoffHours: number | null;
-  /** Test-only: seed the island with a loaded state so a static render shows it. */
+  /** Server-seeded picker state so first paint is not a client round-trip. */
   islandPreload?: Parameters<typeof TicketPickerIsland>[0]["preload"];
 };
 

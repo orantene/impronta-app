@@ -24,7 +24,8 @@
  * oversells a room and finds out at a door.
  */
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 
 import {
   addTier,
@@ -145,11 +146,23 @@ function TierRow({ tier }: { tier: EventTierRow }) {
 }
 
 /** Create a DRAFT event. The only caller of `createEvent`. */
-function NewEventForm({ onCreated }: { onCreated: (eventId: string) => void }) {
+function NewEventForm({
+  onCreated,
+  autoFocus,
+}: {
+  onCreated: (eventId: string) => void;
+  autoFocus?: boolean;
+}) {
   const [title, setTitle] = useState("");
   const [doors, setDoors] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!autoFocus) return;
+    titleRef.current?.focus();
+    titleRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [autoFocus]);
   return (
     <form
       className="flex max-w-[560px] flex-col gap-[8px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px]"
@@ -170,8 +183,16 @@ function NewEventForm({ onCreated }: { onCreated: (eventId: string) => void }) {
     >
       <div className="text-[13.5px] font-semibold text-admin-ink">New event</div>
       <label className="text-[12px] text-admin-ink-muted" htmlFor="ev-title">Title</label>
-      <input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} maxLength={200}
-        className="rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] text-[13.5px] text-admin-ink" placeholder="Noche de salsa" />
+      <input
+        id="ev-title"
+        ref={titleRef}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        disabled={busy}
+        maxLength={200}
+        className="rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] text-[13.5px] text-admin-ink"
+        placeholder="Noche de salsa"
+      />
       <label className="text-[12px] text-admin-ink-muted" htmlFor="ev-doors">Doors open (minutes before the session)</label>
       <input id="ev-doors" inputMode="numeric" value={doors} onChange={(e) => setDoors(e.target.value)} disabled={busy}
         className="w-[120px] rounded-admin-md border border-admin-border bg-admin-surface px-[10px] py-[8px] font-mono text-[13px] text-admin-ink" />
@@ -387,6 +408,9 @@ function tenantSlugFromPath(): string {
 }
 
 export function EventsPage() {
+  const searchParams = useSearchParams();
+  const composeNew = searchParams.get("compose") === "new";
+  const tabFromUrl = searchParams.get("tab");
   const [state, setState] = useState<
     | { kind: "loading" }
     | { kind: "error"; message: string }
@@ -412,6 +436,12 @@ export function EventsPage() {
   }, []);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    if (tabFromUrl && (TABS as readonly string[]).includes(tabFromUrl)) {
+      setTab(tabFromUrl as TabKey);
+    }
+  }, [tabFromUrl]);
 
   const header = (
     <PageHeader title="Events" subtitle="Ticketed events: tiers, lineup, sales, and the door." />
@@ -449,7 +479,7 @@ export function EventsPage() {
         <div className="mb-[12px] max-w-[560px] text-[13.5px] leading-[1.5] text-admin-ink-muted">
           An event is a night you sell: one or more sessions, ticket tiers, and a lineup. Start with a title.
         </div>
-        <NewEventForm onCreated={(id) => { setSelectedId(id); load(); }} />
+        <NewEventForm autoFocus={composeNew} onCreated={(id) => { setSelectedId(id); load(); }} />
       </>
     );
   }
@@ -462,7 +492,7 @@ export function EventsPage() {
       <div className="flex flex-col gap-[16px] lg:flex-row">
         {/* The list */}
         <div className="lg:w-[280px] lg:shrink-0">
-          <NewEventForm onCreated={(id) => { setSelectedId(id); setTab("tickets"); load(); }} />
+          <NewEventForm autoFocus={composeNew} onCreated={(id) => { setSelectedId(id); setTab("tickets"); load(); }} />
         <nav className="w-full shrink-0 lg:w-[280px]" aria-label="Events">
           <ul className="flex flex-col gap-[4px]">
             {events.map((e) => {
