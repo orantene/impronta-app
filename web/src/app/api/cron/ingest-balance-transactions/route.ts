@@ -23,6 +23,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { recordCronHeartbeat } from "@/lib/ops/cron-heartbeat";
 import * as Sentry from "@sentry/nextjs";
 import { ingestBalanceTransactions } from "@/lib/payments/balance-transactions";
 import { logServerError } from "@/lib/server/safe-error";
@@ -51,6 +52,15 @@ export async function GET(request: Request) {
     written: result.written,
     truncated: result.truncated,
     windowStart: result.windowStart,
+  });
+
+  // Heartbeat on BOTH paths -- see the note in project-ledger's route.
+  await recordCronHeartbeat({
+    job: "ingest-balance-transactions",
+    ok: result.ok,
+    detail: result.ok
+      ? `fetched=${result.fetched} written=${result.written} pages=${result.pages}`
+      : `failed: ${result.error ?? "unknown"}`,
   });
 
   if (!result.ok) {
