@@ -33,6 +33,15 @@ export type ChatCompletionInput = {
    * tokens count toward `maxTokens`, so give headroom. The response's text block
    * is still extracted normally (thinking blocks are skipped).
    */
+  /**
+   * `true` opts into adaptive thinking. `false` explicitly DISABLES it.
+   * `undefined` leaves the provider default alone.
+   *
+   * The three states matter because Sonnet 5 thinks by DEFAULT, so "did not ask
+   * for thinking" and "asked for no thinking" are different requests. Measured
+   * on the guest support call: 238 of 434 output tokens were thinking the
+   * caller never requested, and disabling it halved the call.
+   */
   thinking?: boolean;
   /**
    * Reasoning effort for the adaptive-thinking model family (AIQ-14). Only the
