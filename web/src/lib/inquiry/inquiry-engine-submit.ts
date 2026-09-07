@@ -639,8 +639,8 @@ export async function submitInquiry(
         // sendInquirySubmittedNotifications() call used to live.
 
         // d — workspace auto-ack: system message into client (private) thread.
-        // Only fires when: auto_ack_enabled=true (default) AND there is a
-        // client identity (authenticated user_id or contact_email provided).
+        // Fires when auto_ack_enabled (default) AND a client identity exists,
+        // and NEVER on the guest path: it won a 48 ms race. See PR #1883.
         const autoAckEnabled =
           agencyRow == null ? true : agencyRow.auto_ack_enabled !== false;
         const autoAckMessage: string =
@@ -648,7 +648,7 @@ export async function submitInquiry(
             ? agencyRow.auto_ack_message
             : "Thanks — we'll get back to you within 4 hours.";
 
-        if (autoAckEnabled && (input.client_user_id || input.contact_email)) {
+        if (!input.guest_session_id && autoAckEnabled && (input.client_user_id || input.contact_email)) {
           await insertSystemMessage(supabase, {
             inquiryId,
             threadType: "private",

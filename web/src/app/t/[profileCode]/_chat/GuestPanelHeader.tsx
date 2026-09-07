@@ -42,7 +42,12 @@ import { FONT, FONT_DISPLAY, type Palette, type SurfaceMode } from "./mini-chat-
  * imply "sent": a guest who has opened the panel but not started an inquiry has
  * no thread at all, and telling them it is awaiting a reply is a lie.
  */
-export type GuestHeaderThreadState = "new" | "draft" | "sent";
+// Defined in `guest-thread-state.ts`, which owns the predicate that produces
+// it. Imported for local use AND re-exported so every existing import path
+// still works: `export type { X } from "./y"` alone creates no local binding,
+// and this file uses the type twice below.
+import type { GuestHeaderThreadState } from "./guest-thread-state";
+export type { GuestHeaderThreadState };
 
 export type GuestPanelHeaderProps = {
   brand: MiniChatBrand;

@@ -48,6 +48,7 @@ import { GuestDockNav } from "./GuestDockNav";
 import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
+import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
 import { GuestPanelHeader, type GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
@@ -366,12 +367,18 @@ export function MiniChatPanelColumn({
   // Jon 360 Phase 1: the inquiry is a private draft while its early row exists but
   // the contact is not yet promoted (nothing has reached the agency). Hidden at the
   // gate (the gate is its own moment) and once the airlock plays.
-  const isPrivateDraft =
-    extrasEnabled &&
-    inquiryRecordExists &&
-    !contactPromoted &&
-    !showGate &&
-    !showSentAirlock;
+  // Moved into `guest-thread-state.ts` so it can be tested. Inline here, the
+  // only way to exercise it was to render this whole component — so it never
+  // was, and a submitted inquiry rendered "Not sent yet" above its own receipt.
+  const threadStateInput = {
+    extrasEnabled,
+    inquiryRecordExists: Boolean(inquiryRecordExists),
+    contactPromoted,
+    hasReceipt: receipt != null,
+    showGate,
+    showSentAirlock,
+  };
+  const isPrivateDraft = isPrivateDraftThread(threadStateInput);
 
   // DOCK v2: the "Add details" affordance replaces the always-visible chip row.
   // It renders on the unified path once an intent exists.
@@ -408,11 +415,7 @@ export function MiniChatPanelColumn({
   // The header's status line has THREE states, not two. A guest who has opened
   // the panel without starting anything has no thread at all; reporting that as
   // "Sent, awaiting reply" would be a flat lie about what the agency has.
-  const headerThreadState: GuestHeaderThreadState = isPrivateDraft
-    ? "draft"
-    : inquiryRecordExists && contactPromoted
-      ? "sent"
-      : "new";
+  const headerThreadState: GuestHeaderThreadState = guestHeaderThreadState(threadStateInput);
 
   const detailsProgress =
     detailsEnabled && inquiryIntent
