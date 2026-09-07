@@ -139,6 +139,41 @@ export async function refreshTikTokToken(
   };
 }
 
+/**
+ * Revoke a TikTok access token upstream (Login Kit `/v2/oauth/revoke/`).
+ *
+ * Called by workspace disconnect BEFORE the local secrets are deleted, so the
+ * grant dies at the vendor and not only in our table. Best effort by design:
+ * the local delete is the guarantee, this is the courtesy. `status` follows
+ * `postTokenRequest`: absent for transport failure, the HTTP status otherwise.
+ */
+export async function revokeTikTokToken(
+  accessToken: string,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const provider = getConnectionOAuthProvider("tiktok");
+  if (!provider) return { ok: false, error: "TikTok provider missing." };
+  const creds = getConnectionOAuthClientConfig(provider);
+  if (!creds.ok) return { ok: false, error: creds.error };
+  try {
+    const res = await fetch(`${OPEN_API}/v2/oauth/revoke/`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_key: creds.clientId,
+        client_secret: creds.clientSecret,
+        token: accessToken,
+      }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { ok: false, error: `TikTok revoke failed (${res.status}).`, status: res.status };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach TikTok." };
+  }
+}
+
 export type TikTokProfile = {
   openId: string;
   displayName: string | null;
