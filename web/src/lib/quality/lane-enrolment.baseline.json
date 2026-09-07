@@ -1,0 +1,28 @@
+{
+  "note": "Lanes defined in package.json that are in NEITHER the ci chain, NOR ci.yml, NOR manual:-prefixed, NOR structurally exempt. They exist and gate nothing. The guard fails when this list GROWS; a shrink prints the delta and asks for a re-record.",
+  "count": 22,
+  "lanes": [
+    "check:anon-grants",
+    "check:capability-keys",
+    "check:dead-facets",
+    "check:price-drift",
+    "check:schema-drift",
+    "check:taxonomy",
+    "test:access",
+    "test:commission-pipeline",
+    "test:csv-parser",
+    "test:hreflang",
+    "test:voice",
+    "test:webhook",
+    "verify:builder-ownership",
+    "verify:dashboard-users",
+    "verify:deploy-env",
+    "verify:google-maps-env",
+    "verify:no-embed-bridges",
+    "verify:profile-anon-smoke",
+    "verify:profile-remediation",
+    "verify:published-page-snapshots",
+    "verify:talent-nav-groups",
+    "verify:talent-submission-reads"
+  ]
+}
