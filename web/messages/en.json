@@ -4742,7 +4742,9 @@
         "addTables": "Add them",
         "groupsTitle": "Table groups",
         "partiesOf": "parties of"
-      }
+      },
+      "planNameWebsite": "Website",
+      "planNameLegacy": "Legacy"
     },
     "adminBilling": {
       "affordanceOpen": "Open"
