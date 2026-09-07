@@ -35,7 +35,7 @@ test("WorkspacePage union dropped operations/production and gained reviews/analy
 
 test("WORKSPACE_PAGES nav list matches the union change", () => {
   const src = read(FIXTURES);
-  const list = src.slice(src.indexOf("export const WORKSPACE_PAGES"), src.indexOf("export const WORKSPACE_PAGES") + 400);
+  const list = src.slice(src.indexOf("export const WORKSPACE_PAGES"), src.indexOf("export const WORKSPACE_PAGES") + 800); // the list carries per-entry comments; 400 no longer reaches its tail
   assert.ok(!list.includes('"operations"'), "operations still in WORKSPACE_PAGES");
   assert.ok(!list.includes('"production"'), "production still in WORKSPACE_PAGES");
   assert.ok(list.includes('"reviews"') && list.includes('"analytics"'), "reviews/analytics missing from WORKSPACE_PAGES");
