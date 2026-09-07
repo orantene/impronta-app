@@ -122,7 +122,6 @@ test("an exception closing an open day removes it, without touching weekdays", (
   // holiday closure is invisible to the array.
   const holiday: ServiceWindowException[] = [
     {
-      id: "x1",
       venueId: "v-elpaisa",
       windowId: null,
       onDate: "2026-09-10",
@@ -130,7 +129,6 @@ test("an exception closing an open day removes it, without touching weekdays", (
       localTimeMin: null,
       durationMinutes: null,
       lastSeatingOffsetMin: null,
-      note: "feriado",
     },
   ];
   assert.equal(isOpen("2026-09-10"), true, "Thursday is open by weekday");
