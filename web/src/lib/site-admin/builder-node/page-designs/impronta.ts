@@ -250,7 +250,7 @@ const goldButton = (id: string, label: string, href: string): BuilderNode => ({
       fontWeight: 700,
       letterSpacing: "0.04em",
       backgroundColor: GOLD,
-      textColor: "#1a1407",
+      textColor: "token:color.primary-on",
       borderColor: GOLD,
       borderWidth: "1px",
       borderStyle: "solid",
