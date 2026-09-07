@@ -9,6 +9,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { loadTenantWords } from "@/lib/words/server";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 export type DirectoryInquiryOrderedTalent = {
@@ -43,6 +44,14 @@ export type DirectoryInquiryPayload =
        */
       tenantSlug: string;
       agencyName: string;
+      /**
+       * Does this workspace represent people? Resolved from the industry
+       * preset. False for a restaurant, a salon, a clinic — and the inquiry
+       * drawer then omits its Talent and per-talent Budget sections entirely
+       * rather than showing a diner a casting brief. Defaults to TRUE when the
+       * tenant has no preset, so nothing changes for an unclassified workspace.
+       */
+      representsPeople: boolean;
       /**
        * The event fields this visitor already gave the guest chat, so opening
        * the drawer does not show them an empty form. See `loadCarriedDraft`.
@@ -179,6 +188,7 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   let tenantSlug = "";
   let brandTenantId: string | null = null;
   let agencyName = "the agency";
+  let representsPeople = true;
   if (hostCtx.kind === "agency") {
     tenantSlug = hostCtx.tenantSlug ?? "";
     brandTenantId = hostCtx.tenantId;
@@ -197,6 +207,13 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     const identity = await loadPublicIdentity(brandTenantId);
     const publicName = identity?.public_name?.trim();
     if (publicName) agencyName = publicName;
+    // Does this workspace represent people? One source: the industry preset.
+    // A restaurant, salon or clinic gets `false`, and the drawer then omits its
+    // Talent and per-talent Budget sections rather than asking a diner how many
+    // talent they need. Fails toward TRUE, which is today's behaviour, so an
+    // unclassified workspace is unchanged.
+    const words = await loadTenantWords(brandTenantId, "en");
+    representsPeople = words.preset.representsPeople;
   }
   if (guestKey) {
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
@@ -328,5 +345,6 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     eventTypes: eventTypes ?? [],
     tenantSlug,
     agencyName,
+    representsPeople,
   };
 }

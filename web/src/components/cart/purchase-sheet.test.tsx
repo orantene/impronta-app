@@ -224,10 +224,36 @@ test("the panel speaks Spanish, and formats money for es-MX", () => {
   assert.match(ui.text(), /Tu pedido/);
   assert.match(ui.text(), /Paso 1 de 3/);
   assert.doesNotMatch(ui.text(), /Your order/);
-  // es-MX renders USD as "USD 275.00" rather than "$275.00". Asserted so that a
-  // later switch to a bare "$" is a failing test and not a silent ambiguity in
-  // a country whose own currency also uses that sign.
-  assert.match(ui.text(), /USD\s?275\.00/);
+  // MONEY IS NOT TRANSLATED, and that is now the invariant rather than a
+  // literal. This used to pin "USD 275.00", which was `Intl` with a locale —
+  // and #1791 removed that precisely because it INVERTS the symbols: es-MX+MXN
+  // rendered pesos wearing a dollar sign while es-MX+USD rendered dollars
+  // wearing a code, on the one panel a customer touches before paying.
+  //
+  // So the assertion is the guarantee: the amount reads IDENTICALLY in both
+  // languages. That survives any future change to the shared formatter and
+  // still fails if money becomes locale-dependent again.
+  const money = /275\.00/.exec(ui.text());
+  assert.ok(money, `no total rendered: ${ui.text()}`);
+  const spanish = ui.text().slice(Math.max(0, money.index - 4), money.index + 6);
+  ui.unmount();
+  const english = mount(
+    <PurchaseSheet
+      locale="en"
+      policy={UNTIMED}
+      lines={LINES}
+      currency="USD"
+      nouns={NOUNS}
+      signedIn={false}
+      onSubmit={async () => null}
+    />,
+  );
+  assert.ok(
+    english.text().includes(spanish.trim()),
+    `money differs by language: es rendered "${spanish.trim()}"`,
+  );
+  english.unmount();
+  return;
   ui.unmount();
 });
 

@@ -1387,7 +1387,10 @@
       "relativeMinuteOne": "hace 1 minuto",
       "relativeMinuteOther": "hace {count} minutos",
       "relativeHourOne": "hace 1 hora",
-      "relativeHourOther": "hace {count} horas"
+      "relativeHourOther": "hace {count} horas",
+      "titleComposeGeneric": "Envía una solicitud",
+      "leadComposeGeneric": "Cuéntale a {agency} qué necesitas y te responderán.",
+      "clientSubtitleGeneric": "Para quién es esta solicitud."
     },
     "slotPicker": {
       "title": "Elige un horario",

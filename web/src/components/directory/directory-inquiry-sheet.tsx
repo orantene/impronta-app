@@ -95,6 +95,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
         source="agency_site"
         tenantSlug={ready.tenantSlug}
         agencyName={ready.agencyName}
+        representsPeople={ready.representsPeople}
         client={
           isClient
             ? {

@@ -1387,7 +1387,10 @@
       "relativeMinuteOne": "1 minute ago",
       "relativeMinuteOther": "{count} minutes ago",
       "relativeHourOne": "1 hour ago",
-      "relativeHourOther": "{count} hours ago"
+      "relativeHourOther": "{count} hours ago",
+      "titleComposeGeneric": "Send a request",
+      "leadComposeGeneric": "Tell {agency} what you need and they'll reply.",
+      "clientSubtitleGeneric": "Who this request is for."
     },
     "slotPicker": {
       "title": "Choose a time",

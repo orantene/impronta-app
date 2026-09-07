@@ -101,6 +101,17 @@ export type InquiryDrawerProps = {
   tenantSlug: string;
   /** Agency display name for header copy. */
   agencyName: string;
+  /**
+   * Does this workspace represent people? From `preset.representsPeople`.
+   *
+   * False for a restaurant or salon, and then the Talent and per-talent Budget
+   * sections and the "Job name" field are NOT RENDERED — a diner does not need
+   * "how many talent" worded better, they need it absent. 38 of this drawer's
+   * 194 strings are casting-shaped; see PR #1781.
+   *
+   * Defaults to true, so every mount predating this prop is unchanged.
+   */
+  representsPeople?: boolean;
   /** Logged-in client profile (if any). NULL = guest. */
   client: {
     user_id?: string | null;
@@ -150,6 +161,7 @@ export function InquiryDrawer({
   enableDraftAutosave,
   bindToInquiryCart = false,
   talentToolsSlot,
+  representsPeople,
   bookableOffering = null,
   onClose,
 }: InquiryDrawerProps) {
@@ -417,8 +429,8 @@ export function InquiryDrawer({
               {submitted
                 ? t("public.inquiryDrawer.titleSent")
                 : step === "compose"
-                  ? t(bookableOffering
-                    ? "public.inquiryDrawer.titleComposeAppointment"
+                  ? t(bookableOffering ? "public.inquiryDrawer.titleComposeAppointment"
+                    : representsPeople === false ? "public.inquiryDrawer.titleComposeGeneric"
                     : "public.inquiryDrawer.titleCompose")
                   : t("public.inquiryDrawer.titleReview")}
             </h2>
@@ -427,8 +439,8 @@ export function InquiryDrawer({
                 ? interpolate(t("public.inquiryDrawer.leadSent"), { agency: agencyName })
                 : step === "compose"
                   ? interpolate(
-                      t(bookableOffering
-                        ? "public.inquiryDrawer.leadComposeAppointment"
+                      t(bookableOffering ? "public.inquiryDrawer.leadComposeAppointment"
+                        : representsPeople === false ? "public.inquiryDrawer.leadComposeGeneric"
                         : "public.inquiryDrawer.leadCompose"),
                       { agency: agencyName },
                     )
@@ -489,6 +501,7 @@ export function InquiryDrawer({
               onStagedFiles={setStagedFiles}
               roster={roster}
               client={client}
+              representsPeople={representsPeople}
               talentToolsSlot={talentToolsSlot}
               boundToCart={bindToInquiryCart}
               onRemoveTalent={removeTalentFromCart}
@@ -586,8 +599,12 @@ function Compose(props: {
   onRemoveTalent?: (id: string) => void;
   bookableOffering?: BookableOffering | null;
   onSlotChange?: (value: SlotPickerValue | null) => void;
+  /** See `InquiryDrawerProps.representsPeople`. Defaults to true. */
+  representsPeople?: boolean;
 }) {
   const { intent, bookableOffering } = props;
+  // Defaulted here, not at each call site: silence means today's behaviour.
+  const representsPeople = props.representsPeople !== false;
   const reservation = intent.source_context?.reservation as
     | { starts_at?: string; ends_at?: string; timezone?: string }
     | undefined;
@@ -607,6 +624,7 @@ function Compose(props: {
         client={props.client}
       />
       <ClientSection
+        representsPeople={representsPeople}
         requester={intent.requester}
         value={intent.client ?? {}}
         onChange={props.setClient}
@@ -625,21 +643,27 @@ function Compose(props: {
           <DateSection value={intent.date ?? {}} onChange={props.setDate} />
         </>
       )}
-      <TalentSection
-        value={intent.talent ?? {}}
-        onChange={props.setTalent}
-        roster={props.roster}
-        boundToCart={props.boundToCart}
-        onRemoveTalent={props.onRemoveTalent}
-        toolsSlot={props.talentToolsSlot}
-      />
+      {/* No roster to pick from and no per-talent rate to quote: absent, not
+          reworded. */}
+      {representsPeople && (
+        <TalentSection
+          value={intent.talent ?? {}}
+          onChange={props.setTalent}
+          roster={props.roster}
+          boundToCart={props.boundToCart}
+          onRemoveTalent={props.onRemoveTalent}
+          toolsSlot={props.talentToolsSlot}
+        />
+      )}
       {bookableOffering ? null : (
         <>
-      <BudgetSection
-        value={intent.budget ?? {}}
-        onChange={props.setBudget}
-        talentCount={intent.talent?.selected_ids?.length ?? 0}
-      />
+      {representsPeople && (
+        <BudgetSection
+          value={intent.budget ?? {}}
+          onChange={props.setBudget}
+          talentCount={intent.talent?.selected_ids?.length ?? 0}
+        />
+      )}
       <BriefSection
         value={intent.brief ?? {}}
         onChange={props.setBrief}
@@ -743,16 +767,19 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ClientSection({
-  requester, value, onChange,
+  requester, value, onChange, representsPeople = true,
 }: {
   requester: InquiryRequester;
   value: InquiryClient;
   onChange: (v: InquiryClient) => void;
+  /** See `InquiryDrawerProps.representsPeople`. */
+  representsPeople?: boolean;
 }) {
   const t = useT();
   const sameAsRequester = value.same_as_requester !== false; // default checked
   return (
-    <Section title={t("public.inquiryDrawer.clientTitle")} subtitle={t("public.inquiryDrawer.clientSubtitle")}>
+    <Section title={t("public.inquiryDrawer.clientTitle")} subtitle={t(representsPeople
+      ? "public.inquiryDrawer.clientSubtitle" : "public.inquiryDrawer.clientSubtitleGeneric")}>
       <label style={checkboxRow}>
         <input
           type="checkbox"
@@ -796,17 +823,20 @@ export function ClientSection({
         </>
       )}
 
-      <FieldRow>
-        <Field label={t("public.inquiryDrawer.clientJobNameLabel")} hint={t("public.inquiryDrawer.clientJobNameHint")}>
-          <Input
-            value={value.job_name ?? ""}
-            onChange={(v) => onChange({ ...value, job_name: v })}
-            placeholder={interpolate(t("public.inquiryDrawer.clientJobNamePlaceholder"), {
-              name: requester.name?.split(" ")[0] ?? t("public.inquiryDrawer.clientJobNameFallback"),
-            })}
-          />
-        </Field>
-      </FieldRow>
+      {/* A diner booking a table has no "job name". Same rule as above. */}
+      {representsPeople ? (
+        <FieldRow>
+          <Field label={t("public.inquiryDrawer.clientJobNameLabel")} hint={t("public.inquiryDrawer.clientJobNameHint")}>
+            <Input
+              value={value.job_name ?? ""}
+              onChange={(v) => onChange({ ...value, job_name: v })}
+              placeholder={interpolate(t("public.inquiryDrawer.clientJobNamePlaceholder"), {
+                name: requester.name?.split(" ")[0] ?? t("public.inquiryDrawer.clientJobNameFallback"),
+              })}
+            />
+          </Field>
+        </FieldRow>
+      ) : null}
     </Section>
   );
 }
