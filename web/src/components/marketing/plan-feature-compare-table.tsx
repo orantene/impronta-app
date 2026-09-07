@@ -17,6 +17,8 @@
  */
 
 import { loadCompareTable } from "@/lib/pricing/get-compare-table";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
   COMPARE_CATEGORY_LABEL,
   type CompareTableRow,
@@ -34,7 +36,10 @@ export async function PlanFeatureCompareTable({
    *  per surface. */
   tierCaptions?: Record<string, string>;
 }) {
-  const table = await loadCompareTable(packageSlug);
+  // The reader's locale, not the default. Until this existed the table
+  // rendered English labels on /es/pricing for every row.
+  const locale = await getRequestLocale();
+  const table = await loadCompareTable(packageSlug, pickLocale(locale, { en: "en", es: "es" }));
   if (!table || table.tierSlugs.length === 0) {
     return (
       <div

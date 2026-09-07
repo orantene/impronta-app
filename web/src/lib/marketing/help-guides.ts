@@ -1,5 +1,7 @@
 import { RESTAURANTS, SALONS, SHOPS } from "./help-guides-businesses";
 import type { HelpGuideRoleContent } from "./help-guides-types";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
+import { PLAN_LIMITS } from "@/lib/access/plan-limits";
 
 export type { HelpGuide, HelpGuideRoleContent, HelpGuideTranslation } from "./help-guides-types";
 
@@ -58,7 +60,7 @@ const AGENCY_ROLE_LABELS: Record<
       {
         heading: "When to upgrade to Studio ($29/mo)",
         body:
-          "Studio adds WhatsApp inquiry notifications (so you never miss a fresh DM-to-inquiry conversion), up to 50 profiles, up to 3 seats, and priority email routing. Worth it once you've hit ~10 inquiries/month or want to bring on a coordinator.",
+          `Studio raises your roster to ${PLAN_SEAT_CAPS.studio} profiles and your team to ${PLAN_LIMITS.studio.max_team_seats} seats. Worth it once you've hit ~10 inquiries/month or want to bring on a coordinator.`,
       },
     ],
     ctaPrimary: { label: "Start free", href: "/get-started?audience=operator" },

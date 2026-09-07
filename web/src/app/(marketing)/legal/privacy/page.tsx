@@ -82,7 +82,7 @@ export default function PrivacyPage() {
             <>
               <p>
                 Account and content data is retained while your account is active. Full
-                export is available on every paid plan (CSV + JSON; API access on Network).
+                export is available on every paid plan (CSV + JSON).
                 Account deletion removes your content within 30 days; backups age out within
                 90 days.
               </p>
