@@ -140,7 +140,15 @@ export async function recordCommerceAudit(
       target_kind: entry.targetType,
       target_id: entry.targetId,
       tenant_id: entry.tenantId ?? null,
-      severity: entry.severity ?? "warn",
+      // Routine commerce writes are `info`. `warn` is for the notable ones and
+      // the caller says so explicitly, the way the Stripe import already does
+      // (warn when rows actually moved, info when nothing did).
+      //
+      // This defaulted to "warn", which would have routed all 26 write actions
+      // into the tier that is currently the only useful filter on this table:
+      // 1189 rows are info across 40 actions, 6 are warn across 4. Defaulting
+      // to warn does not raise the alarm, it retires it.
+      severity: entry.severity ?? "info",
       reason: entry.reason ?? null,
       before_jsonb: (entry.before ?? null) as never,
       after_jsonb: (entry.after ?? null) as never,

@@ -128,3 +128,37 @@ test("the audit helper never throws out of its own failure path", () => {
     "recordCommerceAudit must not throw — see the module header",
   );
 });
+
+test("routine commerce writes default to info, not warn", () => {
+  // platform_audit_log is 1189 info rows across 40 actions and 6 warn rows
+  // across 4. `warn` is the only useful filter on this table, and routing all
+  // 26 commerce write actions into it does not raise the alarm, it retires it.
+  //
+  // Asserted against the source because recordCommerceAudit builds its own
+  // service client and cannot be called without one. A static read is weaker
+  // than an injected fake, and it is what this module currently allows.
+  const src = readFileSync(
+    new URL("./commerce-audit.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    src,
+    /severity:\s*entry\.severity\s*\?\?\s*"info"/,
+    "the default severity must be info",
+  );
+  assert.doesNotMatch(
+    src,
+    /severity:\s*entry\.severity\s*\?\?\s*"warn"/,
+    "defaulting to warn floods the only tier anyone filters on",
+  );
+});
+
+test("an explicit severity from the caller still wins", () => {
+  // The Stripe import already distinguishes them: warn when rows actually
+  // moved, info when nothing did. The default must not override that.
+  const src = readFileSync(
+    new URL("./commerce-audit.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /severity:\s*args\.imported > 0/);
+});
