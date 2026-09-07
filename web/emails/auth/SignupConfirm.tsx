@@ -22,7 +22,7 @@ export default function SignupConfirm({ confirmUrl, code, brand }: Props) {
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{t.intro}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={confirmUrl}>{t.button}</Button>
+      <Button brand={brand} href={confirmUrl}>{t.button}</Button>
       {code ? (
         <>
           <Text style={codeLabel}>{t.codeLabel}</Text>

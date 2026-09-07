@@ -68,7 +68,7 @@ export default function ReplyReady({
         </Section>
       ) : null}
       <Text style={note}>{signsIn ? t.loginNote : t.note}</Text>
-      <Button href={threadUrl}>{signsIn ? t.loginButton : t.button}</Button>
+      <Button brand={brand} href={threadUrl}>{signsIn ? t.loginButton : t.button}</Button>
       {muteUrl ? (
         <Text style={muteLine}>
           <Link href={muteUrl} style={muteLink}>

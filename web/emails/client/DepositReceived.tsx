@@ -51,7 +51,7 @@ export default function DepositReceived({
       <Text style={body}>{interpolate(t.intro, { name, event, balanceClause })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={payBalanceUrl}>{t.button}</Button>
+      <Button brand={brand} href={payBalanceUrl}>{t.button}</Button>
     </Layout>
   );
 }

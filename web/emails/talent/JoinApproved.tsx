@@ -34,7 +34,7 @@ export default function JoinApproved({
     >
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name, team })}</Text>
-      <Button href={dashboardUrl}>{t.button}</Button>
+      <Button brand={brand} href={dashboardUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -34,7 +34,7 @@ export default function ClaimInvite({
       {expiresLabel ? (
         <Text style={note}>{interpolate(t.expires, { expiresLabel })}</Text>
       ) : null}
-      <Button href={redeemUrl}>{t.button}</Button>
+      <Button brand={brand} href={redeemUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -16,7 +16,7 @@ export default function PasswordReset({ resetUrl, brand }: Props) {
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{t.intro}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={resetUrl}>{t.button}</Button>
+      <Button brand={brand} href={resetUrl}>{t.button}</Button>
     </Layout>
   );
 }

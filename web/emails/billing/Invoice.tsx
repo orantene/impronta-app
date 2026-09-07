@@ -40,7 +40,7 @@ export default function Invoice({
       <Text style={body}>{interpolate(t.intro, { brand: agencyName })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={invoiceUrl}>{t.button}</Button>
+      <Button brand={brand} href={invoiceUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -32,7 +32,7 @@ export default function ProfileApproved({
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name })}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={profileUrl}>{t.button}</Button>
+      <Button brand={brand} href={profileUrl}>{t.button}</Button>
     </Layout>
   );
 }

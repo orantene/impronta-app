@@ -44,7 +44,7 @@ export default function AssignmentTimedOut({
       <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={inquiryUrl}>{t.button}</Button>
+      <Button brand={brand} href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

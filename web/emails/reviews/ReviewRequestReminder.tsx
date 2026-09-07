@@ -58,7 +58,7 @@ export default function ReviewRequestReminder({
       <Text style={body}>{interpolate(t.intro, { talent, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
-      <Button href={reviewUrl}>{t.button}</Button>
+      <Button brand={brand} href={reviewUrl}>{t.button}</Button>
     </Layout>
   );
 }

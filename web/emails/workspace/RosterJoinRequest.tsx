@@ -33,7 +33,7 @@ export default function RosterJoinRequest({
     >
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { who })}</Text>
-      <Button href={reviewUrl}>{t.button}</Button>
+      <Button brand={brand} href={reviewUrl}>{t.button}</Button>
     </Layout>
   );
 }

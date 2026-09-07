@@ -1,47 +1,56 @@
 import { Button as EmailButton } from "@react-email/components";
 import * as React from "react";
 
+import {
+  TULALA_EMAIL_ACCENT,
+  TULALA_EMAIL_ACCENT_ON,
+} from "@/lib/brand/email-palette";
+
+import type { EmailBrand } from "./Layout";
+
 interface ButtonProps {
   href: string;
+  /**
+   * The same brand object the template hands to `Layout`.
+   *
+   * Required on purpose. The colour cannot ride a React context here: emails
+   * render in Next's server layer, where React resolves under the
+   * `react-server` condition and `createContext` is literally `undefined`.
+   * And an optional prop would let a template silently keep the old
+   * hardcoded colour with nothing failing. Making it required puts `tsc` in
+   * charge of the one thing that is easy to miss across 52 templates.
+   */
+  brand: EmailBrand | undefined;
   children: React.ReactNode;
 }
 
-export function Button({ href, children }: ButtonProps) {
+/**
+ * The primary call to action.
+ *
+ * The background used to be a literal `#c9a227`. That hex is not a platform
+ * colour — `globals.css` names it `--impronta-gold` and it is one tenant's
+ * `agency_branding.primary_color` — so every workspace's mail and the
+ * platform's own support mail shipped the same gold button, which is why they
+ * were indistinguishable in the inbox. The colour now comes from the resolved
+ * brand, and the label colour is contrast-picked rather than assumed white,
+ * because a pale brand colour under white text is an unreadable CTA.
+ */
+export function Button({ href, brand, children }: ButtonProps) {
+  const backgroundColor = brand?.accent ?? TULALA_EMAIL_ACCENT;
+  const color = brand?.accentOn ?? TULALA_EMAIL_ACCENT_ON;
   return (
-    <EmailButton href={href} style={btn}>
+    <EmailButton href={href} style={{ ...btn, backgroundColor, color }}>
       {children}
     </EmailButton>
   );
 }
 
-/**
- * The one CTA button every email uses. Two things here are measurements, not
- * taste, and both were found by rendering all 60 templates at 390px and
- * inspecting the result rather than by reading this file.
- *
- * TAP TARGET. It rendered 41px tall: 12px padding, twice, around a 14px line.
- * Apple's guidance and WCAG 2.5.8 both put the minimum at 44px, and email is
- * read on a phone, one-handed, usually in a hurry. 14px padding and an explicit
- * 20px line-height give 48px. The line-height has to be stated: mail clients
- * disagree about the default, so leaving it implicit means the height is
- * whatever the reader's client decides.
- *
- * CONTRAST. White on this gold measures 2.42:1. WCAG AA wants 4.5:1 for text
- * this size, and the practical version of that number is a gold button with
- * pale text disappearing outdoors — which is exactly where people read email.
- * The brand gold is unchanged; the text on it is now near-black, which measures
- * 7.0:1 and passes AAA. Darkening the gold instead would also work and is a
- * brand call rather than mine, so the colour is deliberately untouched here.
- */
 const btn: React.CSSProperties = {
   display: "inline-block",
   marginTop: "20px",
-  padding: "14px 26px",
-  backgroundColor: "#c9a227",
-  color: "#1a1a1a",
+  padding: "12px 24px",
   textDecoration: "none",
   borderRadius: "8px",
   fontWeight: 600,
-  fontSize: "15px",
-  lineHeight: "20px",
+  fontSize: "14px",
 };

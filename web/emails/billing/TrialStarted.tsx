@@ -41,7 +41,7 @@ export default function TrialStarted({
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{intro}</Text>
       <FieldTable fields={fields} />
-      <Button href={billingUrl}>{t.button}</Button>
+      <Button brand={brand} href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

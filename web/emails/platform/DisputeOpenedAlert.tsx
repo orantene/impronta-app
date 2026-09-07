@@ -53,7 +53,7 @@ export default function DisputeOpenedAlert({
       <Text style={body}>{interpolate(t.body, { amount, reason })}</Text>
       <FieldTable fields={fields} />
       <Text style={note}>{t.note}</Text>
-      <Button href={stripeUrl}>{t.button}</Button>
+      <Button brand={brand} href={stripeUrl}>{t.button}</Button>
     </Layout>
   );
 }

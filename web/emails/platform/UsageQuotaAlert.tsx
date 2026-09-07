@@ -29,7 +29,7 @@ export default function UsageQuotaAlert({
       <Text style={body}>{interpolate(t.body, { workspaceName, metricLabel })}</Text>
       <FieldTable fields={fields} />
       <Text style={note}>{t.note}</Text>
-      <Button href={adminUrl}>{t.button}</Button>
+      <Button brand={brand} href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -22,7 +22,7 @@ export default function MagicLink({ magicUrl, code, brand }: Props) {
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{t.intro}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={magicUrl}>{t.button}</Button>
+      <Button brand={brand} href={magicUrl}>{t.button}</Button>
       {code ? (
         <>
           <Text style={codeLabel}>{t.codeLabel}</Text>

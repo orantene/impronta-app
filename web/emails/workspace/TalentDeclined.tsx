@@ -39,7 +39,7 @@ export default function TalentDeclined({
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name, talent, event })}</Text>
       <Text style={note}>{t.note}</Text>
-      <Button href={inquiryUrl}>{t.button}</Button>
+      <Button brand={brand} href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

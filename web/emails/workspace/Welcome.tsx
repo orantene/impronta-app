@@ -33,7 +33,7 @@ export default function Welcome({
         {interpolate(t.intro, { name: firstName, plan: planLabel, workspace: workspaceName })}
       </Text>
       <Text style={note}>{interpolate(t.note, { publicUrl })}</Text>
-      <Button href={adminUrl}>{t.button}</Button>
+      <Button brand={brand} href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }
