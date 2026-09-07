@@ -7129,7 +7129,8 @@
           "catalog": "Catalog",
           "discounts": "Discounts",
           "revenue": "Revenue",
-          "commission": "Commission"
+          "commission": "Commission",
+          "entitlements": "Entitlements"
         },
         "catalog": {
           "trialsSummary": "Free trials",
