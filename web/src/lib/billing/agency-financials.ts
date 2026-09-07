@@ -91,6 +91,7 @@ const EMPTY_BY_CURRENCY: AgencyFinancialsByCurrency = {
   defaultCurrency: "USD",
   byCurrency: [],
   currencies: [],
+  excludedNoCurrency: { count: 0, bookingIds: [] },
 };
 
 /**

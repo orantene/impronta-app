@@ -165,3 +165,72 @@ describe("buildAgencyFinancialsByCurrency — no cross-currency bleed", () => {
     assert.equal(eurBundle.rows.length, 1);
   });
 });
+
+describe("a row with no currency is a BROKEN row, not a dollar row", () => {
+  // The defect: `(r.currencyCode ?? "USD")` relabelled a currency-less row as
+  // USD and summed it next to real dollars. Per-currency aggregation cannot
+  // undo that -- by the time the bundles exist the peso is already a dollar.
+  // `currencyCode` is typed non-nullable, so any blank arriving here is
+  // untyped data that got past the boundary: precisely the case that must be
+  // refused rather than given a value.
+
+  it("does NOT fold a null currency into USD", () => {
+    const out = buildAgencyFinancialsByCurrency(
+      [
+        row({ bookingId: "good", currencyCode: "USD", grossCents: 100_00 }),
+        row({ bookingId: "broken", currencyCode: null as unknown as string, grossCents: 999_00 }),
+      ],
+      "USD",
+    );
+    const usd = out.byCurrency.find((b) => b.totals.currency === "USD");
+    assert.ok(usd, "the real USD bundle must still exist");
+    assert.equal(
+      usd.totals.ytdGrossCents,
+      100_00,
+      "the broken row's 999.00 must NOT be inside the dollar total",
+    );
+    assert.equal(usd.rows.length, 1, "and it must not be among the dollar rows either");
+  });
+
+  it("reports the excluded rows instead of swallowing them", () => {
+    // Silently dropping is only marginally better than silently relabelling:
+    // both leave money unaccounted with nobody told. The count is the signal.
+    const out = buildAgencyFinancialsByCurrency(
+      [
+        row({ bookingId: "b-null", currencyCode: null as unknown as string }),
+        row({ bookingId: "b-blank", currencyCode: "   " }),
+        row({ bookingId: "b-empty", currencyCode: "" }),
+        row({ bookingId: "ok", currencyCode: "MXN" }),
+      ],
+      "USD",
+    );
+    assert.equal(out.excludedNoCurrency.count, 3);
+    assert.deepEqual(out.excludedNoCurrency.bookingIds.sort(), ["b-blank", "b-empty", "b-null"]);
+    assert.deepEqual(out.currencies, ["MXN"], "only the real currency makes a bundle");
+  });
+
+  it("a clean set reports zero excluded, so the signal means something", () => {
+    // An always-non-zero counter is noise; an always-zero one is unread. This
+    // pins the quiet case so a non-zero reading is actionable.
+    const out = buildAgencyFinancialsByCurrency(
+      [row({ currencyCode: "MXN" }), row({ bookingId: "b2", currencyCode: "USD" })],
+      "USD",
+    );
+    assert.equal(out.excludedNoCurrency.count, 0);
+    assert.deepEqual(out.excludedNoCurrency.bookingIds, []);
+  });
+
+  it("a peso row keeps its own bucket and never joins the dollars", () => {
+    const out = buildAgencyFinancialsByCurrency(
+      [
+        row({ bookingId: "mx", currencyCode: "mxn", grossCents: 20_000_00 }),
+        row({ bookingId: "us", currencyCode: "USD", grossCents: 50_00 }),
+      ],
+      "USD",
+    );
+    const mxn = out.byCurrency.find((b) => b.totals.currency === "MXN");
+    const usd = out.byCurrency.find((b) => b.totals.currency === "USD");
+    assert.equal(mxn?.totals.ytdGrossCents, 20_000_00, "lowercase mxn normalises, stays separate");
+    assert.equal(usd?.totals.ytdGrossCents, 50_00);
+  });
+});

@@ -106,6 +106,16 @@ export type AgencyFinancialsByCurrency = {
   byCurrency: AgencyFinancials[];
   /** All non-empty currency codes for tab labels. */
   currencies: string[];
+  /**
+   * Rows carrying no usable currency code, EXCLUDED from every bundle above.
+   *
+   * A row with no currency is a broken row, not a dollar row. This field
+   * exists so that fact is visible instead of being absorbed: previously such
+   * a row was relabelled `USD` and summed next to real dollars, where no
+   * amount of per-currency aggregation could separate it again. Non-zero here
+   * means someone must go and fix the source rows.
+   */
+  excludedNoCurrency: { count: number; bookingIds: string[] };
 };
 
 /**
@@ -122,12 +132,21 @@ export function buildAgencyFinancialsByCurrency(
   const dc = defaultCurrency.toUpperCase();
 
   if (rows.length === 0) {
-    return { defaultCurrency: dc, byCurrency: [], currencies: [] };
+    return { defaultCurrency: dc, byCurrency: [], currencies: [], excludedNoCurrency: { count: 0, bookingIds: [] } };
   }
 
   const byCurrencyRows = new Map<string, AgencyFinancialsRow[]>();
+  const excludedNoCurrency: string[] = [];
   for (const r of rows) {
-    const code = (r.currencyCode ?? "USD").toUpperCase();
+    // A row with no currency is BROKEN, not USD. `currencyCode` is typed
+    // non-nullable, so reaching here with a blank one means untyped data got
+    // past the boundary -- exactly the case that must not be given a value.
+    const raw = typeof r.currencyCode === "string" ? r.currencyCode.trim() : "";
+    if (raw.length === 0) {
+      excludedNoCurrency.push(r.bookingId);
+      continue;
+    }
+    const code = raw.toUpperCase();
     const list = byCurrencyRows.get(code) ?? [];
     list.push(r);
     byCurrencyRows.set(code, list);
@@ -147,6 +166,7 @@ export function buildAgencyFinancialsByCurrency(
     defaultCurrency: dc,
     byCurrency: bundles,
     currencies: bundles.map((b) => b.totals.currency),
+    excludedNoCurrency: { count: excludedNoCurrency.length, bookingIds: excludedNoCurrency },
   };
 }
 
