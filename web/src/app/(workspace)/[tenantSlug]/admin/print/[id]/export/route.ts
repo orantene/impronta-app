@@ -50,7 +50,7 @@ export async function GET(
   }
 
   const size = (row.size in PRINT_SIZES ? row.size : "table_tent") as PrintSizeKey;
-  const design = extract(row.builder_tree, size);
+  const design = extract(row.builder_tree ?? [], size);
 
   // One SheetItem per bound link. Until the design->link-set binding ships, a
   // design with no links is the only reachable case, and an empty print run is
