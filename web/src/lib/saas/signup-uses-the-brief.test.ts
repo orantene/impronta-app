@@ -26,6 +26,10 @@ const EL_PAISA_FACTS = [
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const signup = readFileSync(join(SRC, "lib/saas/workspace-signup.server.ts"), "utf8");
+const briefHelpers = readFileSync(
+  join(SRC, "lib/saas/workspace-signup-brief.server.ts"),
+  "utf8",
+);
 
 test("El Paisa's real brief yields the restaurant preset", () => {
   const industry = EL_PAISA_FACTS.find((f) => f.factKey === "work.industry")?.value;
@@ -41,7 +45,10 @@ test("and without it, the same signup derives nothing — this is what was broke
 test("a typed description still outranks the model's inference", () => {
   // `work.industry` here is a 0.40-confidence inference. A sentence the person
   // actually typed must win: the brief is the fallback, never the override.
-  assert.match(signup, /lead\.business_description\?\.trim\(\)\s*\|\|\s*briefIndustry/);
+  assert.match(
+    briefHelpers,
+    /leadBusinessDescription\?\.trim\(\)\s*\|\|\s*briefIndustry/,
+  );
 });
 
 test("the brief is read BEFORE the workspace row is inserted", () => {
@@ -58,5 +65,5 @@ test("a non-string fact value is treated as absent, not stringified", () => {
   // `BriefFact.value` is `unknown`. `[object Object]` reaching a keyword matcher
   // resolves to `custom` anyway — but silently, which is the failure mode this
   // whole lane exists to remove.
-  assert.match(signup, /typeof industryFact === "string" \? industryFact : null/);
+  assert.match(briefHelpers, /typeof industryFact === "string" \? industryFact : null/);
 });
