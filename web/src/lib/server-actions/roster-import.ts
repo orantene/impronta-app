@@ -349,13 +349,14 @@ export async function processRosterImportRow(
     .maybeSingle();
   if (findErr) return { ok: false, error: findErr.message };
 
-  if (existingRoster?.id) {
+  const existingRosterId = (existingRoster as { id: string } | null)?.id;
+  if (existingRosterId) {
     // Re-import of a talent already on the roster. is_primary is deliberately
     // NOT touched: it may have been adjusted by hand since the first import,
     // and the old upsert's comment promised the same thing.
     const { error: updErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
       .update({ status: "active" })
-      .eq("id", existingRoster.id);
+      .eq("id", existingRosterId);
     if (updErr) return { ok: false, error: updErr.message };
     return { ok: true, talentProfileId };
   }
