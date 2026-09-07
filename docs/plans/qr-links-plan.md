@@ -412,6 +412,37 @@ colour picked. Every customer-facing string in en and es.
   reason — shipping the helper or the mount now would be code that cannot execute, which is the
   inert-guard shape this repo already has an incident file about.
 
+
+### The first-share ruling needs a state the popover cannot express (found 2026-09-05)
+
+**Ruled:** a thing gets a link on **first share**, minted by the operator's action, never on
+publish. That answers the question above and unblocks every mount. It also creates a deadlock in
+the component as merged, and the read being written now is the right moment to fix it.
+
+`ShareLinkPopoverProps` requires **both** `code: string` and `url: string`, and the component
+contains no mint affordance — no `createLink`, no `onCreate`, no unminted branch. So the popover can
+only open for a subject that **already has a link**. Under the ruling a link exists only **after** a
+first share. Nothing can ever be shared for the first time.
+
+It also sits against the instruction given to mounts — *you write no `links` row and mint no code*.
+Both cannot hold: if the operator's action mints, something must call `createLink`. The consistent
+reading is that **QR owns the mint inside its own component**, so a mount still writes no row and
+the instruction stands. That needs saying out loud, because the alternative — every mount minting —
+is six areas each inventing a code policy.
+
+**What this implies for the read, while it is being written:**
+
+- `findLinkForSubject(...) → null` is a **normal, expected** state, not an error and not "no
+  workspace". Every subject is null until its first share, which today is every subject there is.
+- The popover needs to accept the unminted case: `code`/`url` optional, plus something like
+  `onMint: () => Promise<{ code, url }>`, or a sibling first-share view. Either shape is fine;
+  what does not work is requiring a code that cannot exist yet.
+- A mount should therefore render the Share control for subjects with **no** link. Rendering only
+  when a link exists — which is what Appointments planned before this ruling — would hide the
+  control exactly when it is needed and make first share unreachable.
+
+Appointments is standing by on this and will mount as soon as the read and the unminted state land.
+
 ## 5. Migration timestamps claimed (band `20261229000280`–`299`)
 
 | Stamp | Purpose | State |
