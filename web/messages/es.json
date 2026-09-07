@@ -4595,6 +4595,8 @@
         "usePlatformDefaultDesc": "Deja de usar tu propia clave y vuelve a la credencial compartida de Tulala.",
         "switchToDefault": "Cambiar",
         "feedbackConnected": "Conectado. La comprobación de formato pasó.",
+        "feedbackConnectFailed": "No se pudo conectar. Inténtalo de nuevo.",
+        "feedbackOauthConnected": "Conectado.",
         "feedbackUsingDefault": "Ahora usas el valor predeterminado de la plataforma.",
         "feedbackRemovedReverted": "Eliminada. Volviste al valor predeterminado de la plataforma.",
         "feedbackRemoved": "Eliminada.",

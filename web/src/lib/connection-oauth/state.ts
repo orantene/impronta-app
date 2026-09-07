@@ -20,6 +20,13 @@ export type ConnectionOAuthState = {
   subjectId: string;
   tenantSlug: string | null;
   returnTo: string;
+  /**
+   * The flow was started from a popup, so the callback must answer with a
+   * postMessage-and-close document instead of redirecting. Carried INSIDE the
+   * signed state rather than as a callback query param: the callback URL is
+   * fixed at the vendor, and anything outside the signature is attacker-set.
+   */
+  popup?: boolean;
   nonce: string;
   exp: number;
 };
@@ -78,6 +85,7 @@ export async function createConnectionOAuthState(input: {
   subjectId: string;
   tenantSlug?: string | null;
   returnTo?: string | null;
+  popup?: boolean;
   fallbackReturnTo: string;
 }): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   const stateSecret = getConnectionOAuthStateSecret();
@@ -91,6 +99,7 @@ export async function createConnectionOAuthState(input: {
     subjectId: input.subjectId,
     tenantSlug: input.tenantSlug ?? null,
     returnTo: normalizeReturnTo(input.returnTo, input.fallbackReturnTo),
+    popup: input.popup === true,
     nonce: randomBytes(16).toString("base64url"),
     exp: Date.now() + STATE_TTL_MS,
   };
