@@ -8,6 +8,7 @@ import {
   getConnectionOAuthProvider,
   getConnectionOAuthRedirectUri,
 } from "./providers";
+import { connectionPopupResponse } from "./popup-response";
 import { verifyConnectionOAuthState } from "./state";
 import { connectWorkspaceSocialAccount } from "./social-connect";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -29,7 +30,13 @@ export async function handleSocialOAuthCallback(
   request: NextRequest,
   provider: "instagram" | "tiktok",
 ): Promise<NextResponse> {
+  // Set once the state is verified: popup mode is carried INSIDE the signature,
+  // so an unsigned callback cannot ask for a postMessage response. Declared with
+  // `let` because every exit below goes through `redirectBack`, and the closure
+  // reads it at call time rather than at definition time.
+  let popup = false;
   const redirectBack = (returnTo: string, params: Record<string, string>) => {
+    if (popup) return connectionPopupResponse(getAppUrl(), params);
     const url = new URL(returnTo, getAppUrl());
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     return NextResponse.redirect(url);
@@ -40,6 +47,7 @@ export async function handleSocialOAuthCallback(
   const rawState = request.nextUrl.searchParams.get("state");
   const stateResult = await verifyConnectionOAuthState(rawState);
   const returnTo = stateResult.ok ? stateResult.state.returnTo : stateResult.returnTo;
+  popup = stateResult.ok && stateResult.state.popup === true;
 
   if (error) return redirectBack(returnTo, { connection_error: error });
   if (!stateResult.ok) return redirectBack(returnTo, { connection_error: "invalid_state" });
