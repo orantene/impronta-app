@@ -242,6 +242,30 @@ export async function setTalentSaved(
   }
 
   if (saved) {
+    // ENSURE THE SESSION HERE, because the read path no longer does.
+    //
+    // `guest_add_saved_talent` does NOT create the session — it raises
+    // 'Unknown guest session' when the row is missing:
+    //
+    //     IF gid IS NULL THEN RAISE EXCEPTION 'Unknown guest session'; END IF;
+    //
+    // Until now this action worked only as a SIDE EFFECT of rendering: the
+    // profile page called `ensure_guest_session` on every view, so by the time
+    // anyone clicked save the row happened to exist. Removing that mint without
+    // adding this call would have broken guest saving entirely — a silent
+    // "couldn't save" on the one action we most want a guest to take.
+    //
+    // So the ensure MOVED to the moment a guest actually acts. It is idempotent
+    // and SECURITY DEFINER, and this is the first write of the interaction.
+    const { error: ensureError } = await pub.rpc("ensure_guest_session", {
+      p_session_key: guestKey,
+    });
+    if (ensureError) {
+      logServerError("directory/setTalentSaved/guest-ensure", ensureError);
+      const t = createTranslator(await getRequestLocale());
+      return { ok: false, error: t("public.errors.saveTalent") };
+    }
+
     const { error } = await pub.rpc("guest_add_saved_talent", {
       p_session_key: guestKey,
       p_talent_profile_id: talentProfileId,
