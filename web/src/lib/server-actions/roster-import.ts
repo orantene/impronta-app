@@ -1,7 +1,10 @@
 "use server";
 
+/* eslint-disable ratchet/no-untenanted-from -- talent_profiles and profile_field_definitions are global identity/catalog tables with no tenant_id; tenanted tables below go through tenantScopedQuery. */
+
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { auditFailure } from "@/lib/audit/emit";
@@ -63,10 +66,8 @@ export async function enqueueRosterImportJob(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
 
-    const { data: myMembership } = await admin
-      .from("agency_memberships")
+    const { data: myMembership } = await tenantScopedQuery(admin, "agency_memberships", tenantId)
       .select("role")
-      .eq("tenant_id", tenantId)
       .eq("profile_id", user.id)
       .eq("status", "active")
       .maybeSingle();
@@ -81,10 +82,8 @@ export async function enqueueRosterImportJob(
       return { ok: false, error: "Provide a file or paste rows to import.", reason: "validation_failed" };
     }
 
-    const { data: job, error: insertErr } = await admin
-      .from("roster_import_jobs")
+    const { data: job, error: insertErr } = await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
       .insert({
-        tenant_id: tenantId,
         initiated_by_user_id: user.id,
         source_file_name: input.sourceFileName ?? null,
         source_file_size_bytes: input.sourceFileSizeBytes ?? null,
@@ -128,8 +127,7 @@ async function processInlineRows(
 ): Promise<void> {
   if (!admin) return;
 
-  await admin
-    .from("roster_import_jobs")
+  await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
     .update({ status: "running", started_at: new Date().toISOString() })
     .eq("id", jobId);
 
@@ -153,8 +151,7 @@ async function processInlineRows(
     }
   }
 
-  await admin
-    .from("roster_import_jobs")
+  await tenantScopedQuery(admin, "roster_import_jobs", tenantId)
     .update({
       status: failures.length === rows.length ? "failed" : "completed",
       processed_rows: processed,
@@ -278,8 +275,7 @@ export async function processRosterImportRow(
     } else if (defRow) {
       const definitionId = (defRow as { id: string }).id;
       if (incomingHeightCm === null) {
-        const { error: delErr } = await admin
-          .from("talent_profile_field_values")
+        const { error: delErr } = await tenantScopedQuery(admin, "talent_profile_field_values", tenantId)
           .delete()
           .eq("talent_profile_id", talentProfileId)
           .eq("field_definition_id", definitionId);
@@ -287,11 +283,9 @@ export async function processRosterImportRow(
           logServerError("roster-import.canonicalHeightDelete", delErr);
         }
       } else {
-        const { error: upsertErr } = await admin
-          .from("talent_profile_field_values")
+        const { error: upsertErr } = await tenantScopedQuery(admin, "talent_profile_field_values", tenantId)
           .upsert(
             {
-              tenant_id: tenantId,
               talent_profile_id: talentProfileId,
               field_definition_id: definitionId,
               value: incomingHeightCm,
@@ -321,22 +315,65 @@ export async function processRosterImportRow(
     talentProfileId,
   );
 
-  // Upsert the agency_talent_roster row (idempotent on tenant + talent).
-  // is_primary is set on first insert; ignored on conflict.
-  const { error: rosterErr } = await admin
-    .from("agency_talent_roster")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        talent_profile_id: talentProfileId,
-        status: "active",
-        is_primary: exclusivity.shouldBeExclusive,
-        exclusivity_status: exclusivity.exclusivityStatus,
-        exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
-      },
-      { onConflict: "tenant_id,talent_profile_id", ignoreDuplicates: false },
-    );
-  if (rosterErr) return { ok: false, error: rosterErr.message };
+  // ─── FIND-THEN-WRITE, because the unique index is PARTIAL ─────────────────
+  //
+  // This was `.upsert(..., { onConflict: "tenant_id,talent_profile_id" })` and
+  // it had NEVER SUCCEEDED. PostgREST turns that option into a bare
+  // `ON CONFLICT (tenant_id, talent_profile_id)`, and the only unique index on
+  // that pair is partial:
+  //
+  //   agency_talent_roster_tenant_talent_live_uniq
+  //     UNIQUE (tenant_id, talent_profile_id)
+  //     WHERE status = ANY (ARRAY['pending','active','inactive'])
+  //
+  // Postgres cannot infer a partial index from a predicate-less ON CONFLICT, so
+  // every row returned 42P10 "there is no unique or exclusion constraint
+  // matching the ON CONFLICT specification". Probed through the real PostgREST
+  // client before changing anything, and again after.
+  //
+  // WHY THE INDEX IS NOT THE THING THAT CHANGED. Dropping the predicate would
+  // make the bare ON CONFLICT legal and would BREAK RE-ADD. Removal is soft
+  // (`status = "removed"`), and every re-add path does a plain `.insert()` with
+  // no check for an existing removed row — the partial index is precisely what
+  // lets that second row exist. Simulated it on a scratch copy of the table
+  // before ruling it out: with a non-partial unique index the second insert
+  // fails 23505. That trade would fix an import nobody has used by breaking a
+  // path that works.
+  //
+  // So the code changes instead. Find the LIVE row for this pair (the same
+  // three statuses the index covers), update it if present, insert if not.
+  const { data: existingRoster, error: findErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
+    .select("id")
+    .eq("talent_profile_id", talentProfileId)
+    .in("status", ["pending", "active", "inactive"])
+    .maybeSingle();
+  if (findErr) return { ok: false, error: findErr.message };
+
+  const existingRosterId = (existingRoster as { id: string } | null)?.id;
+  if (existingRosterId) {
+    // Re-import of a talent already on the roster. is_primary is deliberately
+    // NOT touched: it may have been adjusted by hand since the first import,
+    // and the old upsert's comment promised the same thing.
+    const { error: updErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
+      .update({ status: "active" })
+      .eq("id", existingRosterId);
+    if (updErr) return { ok: false, error: updErr.message };
+    return { ok: true, talentProfileId };
+  }
+
+  const { error: rosterErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
+    .insert({
+      talent_profile_id: talentProfileId,
+      status: "active",
+      is_primary: exclusivity.shouldBeExclusive,
+      exclusivity_status: exclusivity.exclusivityStatus,
+      exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
+    });
+  // 23505 = another import inserted the same pair between our SELECT and this
+  // INSERT. The row we wanted now exists, which is the outcome we asked for.
+  if (rosterErr && rosterErr.code !== "23505") {
+    return { ok: false, error: rosterErr.message };
+  }
 
   return { ok: true, talentProfileId };
 }
@@ -363,12 +400,10 @@ export async function listRosterImportJobs(): Promise<RosterImportJobSummary[]> 
     if (!auth.ok) return [];
     const { tenantId, supabase } = auth;
 
-    const { data, error } = await supabase
-      .from("roster_import_jobs")
+    const { data, error } = await tenantScopedQuery(supabase, "roster_import_jobs", tenantId)
       .select(
         "id, status, total_rows, processed_rows, succeeded_rows, failed_rows, source_file_name, started_at, completed_at, created_at",
       )
-      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(50);
 

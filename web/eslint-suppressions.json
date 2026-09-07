@@ -1725,11 +1725,6 @@
       "count": 2
     }
   },
-  "src/lib/server-actions/roster-import.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 12
-    }
-  },
   "src/lib/server-actions/search-talent.ts": {
     "ratchet/no-untenanted-from": {
       "count": 3
