@@ -160,6 +160,11 @@ jobs:
       - name: structural guards (field engine, imports, seatbelt) + types-drift (INERT, no creds)
         if: ${{ !cancelled() }}
         run: |
+          # Capability registry: every key roles.ts references exists in
+          # CAPABILITIES. Credential-free, so it does real work here. Added
+          # 2026-09-05 — its header claimed "Runs in npm run ci" and it was in
+          # no workflow and no ci chain, so it had never run automatically.
+          npm run check:capability-keys
           npm run check:field-engine-integrity
           npm run check:types-fresh
           npm run check:untracked-imports
