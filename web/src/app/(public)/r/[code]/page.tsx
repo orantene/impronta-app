@@ -13,6 +13,8 @@ import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { COPY, ReceiptPageView, type ReceiptLocale } from "./receipt-page-view";
 
 /**
  * `/r/<code>` — the public receipt. THIS PATH IS PERMANENT.
@@ -211,121 +213,55 @@ export default async function ReceiptPage({ params }: Params) {
   });
 
   const isRefunded = receipt.order.status === "refunded";
+  const rawLocale = await getRequestLocale();
+  const locale: ReceiptLocale = rawLocale.toLowerCase().startsWith("es") ? "es" : "en";
+  const t = (k: string) => COPY[locale][k] ?? COPY.en[k] ?? k;
+  const moneyLabel = (cents: number) =>
+    cents === 0 ? t("free") : money(cents, receipt.order.currency);
+
+  const eventIds = [...new Set(receipt.sessions.map((s) => s.eventId).filter((id): id is string => Boolean(id)))];
+  const { data: eventRows, error: eventErr } = eventIds.length
+    ? await supabase.from("events").select("id, slug, title").eq("tenant_id", scope.tenantId).in("id", eventIds)
+    : { data: [] as Array<{ id: string; slug: string | null; title: string | null }>, error: null };
+  if (eventErr) logServerError("receipt.read/events", eventErr);
+  const eventHref = eventRows?.[0]?.slug ? `/events/${eventRows[0].slug as string}` : null;
 
   return (
     <>
       <PublicHeader />
-      <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
-        <div className="text-xs uppercase tracking-wide text-black/50">Receipt</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {isRefunded ? "Refunded" : "Your tickets"}
-        </h1>
-        <p className="mt-1 text-sm text-black/60">
-          {whenLabel(receipt.order.createdAt, zone)} · {money(receipt.order.totalCents, receipt.order.currency)}
-        </p>
-
-        {/* Lines */}
-        <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-black/50">What you bought</h2>
-          <ul className="mt-3 divide-y divide-black/10 rounded-lg border border-black/10">
-            {receipt.lines.map((l) => (
-              <li key={l.id} className="flex items-baseline justify-between gap-4 p-4">
-                <div>
-                  <div className="font-medium">{l.label}</div>
-                  <div className="text-xs text-black/50">
-                    {Number(l.units)} × {money(l.unitCents, receipt.order.currency)}
-                  </div>
-                </div>
-                <div className="font-semibold">{money(l.totalCents, receipt.order.currency)}</div>
-              </li>
-            ))}
-          </ul>
-          {receipt.order.discountCents > 0 ? (
-            <p className="mt-2 text-right text-sm text-black/60">
-              Discount −{money(receipt.order.discountCents, receipt.order.currency)}
-            </p>
-          ) : null}
-        </section>
-
-        {/* Admissions — one per person or party, each with its own token */}
-        {admissions.length > 0 ? (
-          <section className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-black/50">
-              Show at the door
-            </h2>
-            <p className="mt-1 text-sm text-black/60">
-              One code per {admissions.some((a) => a.partySize > 1) ? "party" : "ticket"}. Each is
-              scanned once.
-            </p>
-            <ul className="mt-3 flex flex-col gap-3">
-              {admissions.map((a) => (
-                <li
-                  key={a.id}
-                  className={`rounded-xl border p-4 ${
-                    a.status === "valid" ? "border-black/10" : "border-black/10 opacity-60"
-                  }`}
-                >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <div>
-                      <div className="font-medium">
-                        {a.holderName ?? (a.partySize > 1 ? `Party of ${a.partySize}` : "Ticket")}
-                      </div>
-                      <div className="text-xs text-black/50">
-                        {a.session ? whenLabel(a.session.startsAt, zone) : "Date to be announced"}
-                        {a.partySize > 1 ? ` · admits ${a.partySize}` : null}
-                      </div>
-                    </div>
-                    {a.status !== "valid" ? (
-                      <span className="text-xs font-semibold uppercase text-black/50">{a.status}</span>
-                    ) : a.admittedCount >= a.partySize ? (
-                      <span className="text-xs font-semibold uppercase text-black/50">Used</span>
-                    ) : null}
-                  </div>
-
-                  {a.status === "valid" ? (
-                    a.token ? (
-                      <div className="mt-3">
-                        {a.qrSvg ? (
-                          // The SVG is produced by our own encoder from our own
-                          // signed token — no user-authored markup reaches it.
-                          // Its viewBox INCLUDES the four-module quiet zone; do
-                          // not crop or pad it away with CSS — a code flush
-                          // against a dark panel is the commonest door failure.
-                          <div
-                            className="mx-auto w-[240px] max-w-full rounded-md bg-white p-2"
-                            aria-label="Ticket QR code"
-                            role="img"
-                            dangerouslySetInnerHTML={{ __html: a.qrSvg }}
-                          />
-                        ) : null}
-                        {/* The typed code is always shown: it is what the door
-                            reads when a camera cannot, and the only thing shown
-                            when the code could not be drawn. */}
-                        <code className="mt-2 block break-all rounded-md bg-black/[0.04] px-3 py-2 font-mono text-[12px] leading-relaxed">
-                          {a.token}
-                        </code>
-                        <p className="mt-1 text-[11px] text-black/40">
-                          {a.qrSvg
-                            ? "Scan at the door, or show this code."
-                            : "Show this code at the door. It can be typed in."}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-black/60">
-                        This ticket cannot be shown yet. Please contact the venue.
-                      </p>
-                    )
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <p className="mt-10 text-xs text-black/40">
-          Keep this link private. Anyone with it can see this receipt.
-        </p>
-      </main>
+      <div className="flex-1" style={{ background: "var(--token-color-background)" }}>
+      <ReceiptPageView
+        locale={locale}
+        isRefunded={isRefunded}
+        createdAtLabel={whenLabel(receipt.order.createdAt, zone, locale)}
+        totalLabel={moneyLabel(receipt.order.totalCents)}
+        eventHref={eventHref}
+        discountLabel={
+          receipt.order.discountCents > 0
+            ? t("discount").replace("{amount}", money(receipt.order.discountCents, receipt.order.currency))
+            : null
+        }
+        lines={receipt.lines.map((l) => ({
+          id: l.id,
+          label: l.label,
+          qtyLabel: `${Number(l.units)} × ${moneyLabel(l.unitCents)}`,
+          totalLabel: moneyLabel(l.totalCents),
+        }))}
+        admissions={admissions.map((a) => {
+          const used = a.status === "valid" && a.admittedCount >= a.partySize;
+          return {
+            id: a.id,
+            holder: a.holderName ?? (a.partySize > 1 ? t("party").replace("{n}", String(a.partySize)) : t("ticket")),
+            when: a.session ? whenLabel(a.session.startsAt, zone, locale) : t("tba"),
+            admits: a.partySize > 1 ? t("admits").replace("{n}", String(a.partySize)) : null,
+            badge: a.status !== "valid" ? a.status : used ? t("used") : null,
+            token: a.token,
+            qrSvg: a.qrSvg,
+            canShow: a.status === "valid" && !used,
+          };
+        })}
+      />
+      </div>
       <PublicFooter />
     </>
   );

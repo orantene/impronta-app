@@ -104,7 +104,13 @@ export function EventPageView(m: EventPageModel) {
       <section id="tickets" className="mt-10 scroll-mt-24">
         <div className="text-xs uppercase tracking-wide" style={{ color: "var(--token-color-ink)", opacity: 0.5 }}>{t("tickets")}</div>
         <h2 className="mt-1 text-[clamp(1.35rem,2vw,2.25rem)] font-semibold tracking-tight" style={{ color: "var(--token-color-ink)" }}>{t("pickTicket")}</h2>
-        <div className="mt-4 rounded-2xl border" style={{ borderColor: "var(--token-color-line)" }}>
+        <div
+          className="mt-4 overflow-hidden rounded-2xl border"
+          style={{
+            borderColor: "var(--token-color-line)",
+            background: "var(--token-color-surface-raised)",
+          }}
+        >
           <TicketPickerIsland tenantId={m.tenantId} eventId={m.eventId} locale={m.locale} preload={m.islandPreload} />
         </div>
       </section>

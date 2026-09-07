@@ -19,6 +19,9 @@
  * The dedicated `/events/<slug>` page also server-seeds `preload` so first
  * paint is not a client round-trip.
  *
+ * Chrome uses the tenant's projected `--token-color-*` roles (primary, ink,
+ * line, surface-raised, muted, primary-on). No parallel palette.
+ *
  * NO REMAINING COUNTS on purpose (Capacity ruling): availability is the
  * pool's answer at reserve time.
  *
@@ -27,9 +30,10 @@
  * open"), but it is not offered as a choice here.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { PickerNight, PickerTier } from "@/app/(public)/_events/ticket-picker-actions";
+import { afterTicketPurchaseSuccess } from "@/lib/events/ticket-purchase";
 
 type Locale = "en" | "es";
 function pickLocale(raw?: string): Locale { return raw?.toLowerCase().startsWith("es") ? "es" : "en"; }
@@ -50,10 +54,17 @@ const COPY: Record<Locale, Record<string, string>> = {
     noNights: "No night is on sale yet.",
     noTiers: "No ticket is on sale for that night yet.",
     quantity: "How many",
+    decrease: "Fewer",
+    increase: "More",
     email: "Email",
     emailHelp: "Your ticket goes here. If you cannot open it, we will find you by name at the door.",
+    emailPlaceholder: "you@email.com",
     name: "Name",
+    namePlaceholder: "Your name",
     buy: "Buy with card",
+    buyFree: "Get your ticket",
+    free: "Free",
+    admits: "admits {n}",
     payHow: "How will you pay",
     payCard: "Card now",
     payDoor: "At the door",
@@ -87,10 +98,17 @@ const COPY: Record<Locale, Record<string, string>> = {
     noNights: "Todavía no hay ninguna noche a la venta.",
     noTiers: "Todavía no hay entradas a la venta para esa noche.",
     quantity: "Cuántas",
+    decrease: "Menos",
+    increase: "Más",
     email: "Correo",
     emailHelp: "Tu entrada llega acá. Si no podés abrirla, te buscamos por tu nombre en la puerta.",
+    emailPlaceholder: "tu@correo.com",
     name: "Nombre",
+    namePlaceholder: "Tu nombre",
     buy: "Pagar con tarjeta",
+    buyFree: "Conseguir entrada",
+    free: "Gratis",
+    admits: "admite {n}",
     payHow: "Como vas a pagar",
     payCard: "Tarjeta ahora",
     payDoor: "En la puerta",
@@ -117,6 +135,45 @@ const COPY: Record<Locale, Record<string, string>> = {
   },
 };
 
+const TP_CSS = `
+[data-ticket-picker]{color:var(--token-color-ink);font:inherit}
+[data-ticket-picker="root"],[data-ticket-picker="held"],[data-ticket-picker="not_configured"]{padding:1.25rem 1.35rem}
+[data-ticket-picker] .tp-title{margin:0 0 1rem;font-size:1.05rem;font-weight:600;letter-spacing:-0.01em}
+[data-ticket-picker] .tp-status{margin:0;color:var(--token-color-muted,inherit)}
+[data-ticket-picker] .tp-section{margin:0 0 1.15rem}
+[data-ticket-picker] .tp-section:last-of-type{margin-bottom:0}
+[data-ticket-picker] .tp-label{display:block;margin:0 0 0.55rem;font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
+[data-ticket-picker] .tp-choices{display:flex;flex-direction:column;gap:0.5rem}
+[data-ticket-picker] .tp-choice{display:grid;grid-template-columns:1.15rem 1fr auto;gap:0.75rem;align-items:center;margin:0;padding:0.85rem 1rem;border:1px solid var(--token-color-line);border-radius:14px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent));cursor:pointer;transition:border-color 160ms ease,box-shadow 160ms ease,background-color 160ms ease}
+[data-ticket-picker] .tp-choice:hover{border-color:color-mix(in srgb,var(--token-color-primary) 45%,transparent)}
+[data-ticket-picker] .tp-choice[data-on="1"]{border-color:var(--token-color-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary) 22%,transparent);background:color-mix(in srgb,var(--token-color-primary) 10%,var(--token-color-surface-raised,transparent))}
+[data-ticket-picker] .tp-choice[data-off="1"]{opacity:0.55;cursor:not-allowed}
+[data-ticket-picker] .tp-radio{appearance:none;-webkit-appearance:none;width:1.15rem;height:1.15rem;margin:0;border:1.5px solid color-mix(in srgb,var(--token-color-ink) 35%,transparent);border-radius:50%;background:transparent;accent-color:var(--token-color-primary)}
+[data-ticket-picker] .tp-choice[data-on="1"] .tp-radio{border-color:var(--token-color-primary);box-shadow:inset 0 0 0 3.5px var(--token-color-primary)}
+[data-ticket-picker] .tp-choice-copy{min-width:0}
+[data-ticket-picker] .tp-choice-title{display:block;font-weight:600;line-height:1.3}
+[data-ticket-picker] .tp-choice-meta{display:block;margin-top:0.2rem;font-size:0.82rem;line-height:1.35;color:var(--token-color-muted)}
+[data-ticket-picker] .tp-price{font-size:0.92rem;font-weight:600;white-space:nowrap;color:var(--token-color-ink)}
+[data-ticket-picker] .tp-price[data-free="1"]{color:var(--token-color-primary)}
+[data-ticket-picker] .tp-fields{display:flex;flex-direction:column;gap:0.85rem;margin-top:0.25rem}
+[data-ticket-picker] .tp-field-label{display:block;margin:0 0 0.4rem;font-size:0.82rem;font-weight:600}
+[data-ticket-picker] .tp-help{display:block;margin-top:0.4rem;font-size:0.8rem;line-height:1.4;color:var(--token-color-muted)}
+[data-ticket-picker] .tp-field{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;color:var(--token-color-ink);background:color-mix(in srgb,var(--token-color-ink) 8%,var(--token-color-surface-raised,transparent));border:1px solid color-mix(in srgb,var(--token-color-ink) 28%,transparent);border-radius:12px;padding:0.8rem 0.95rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease}
+[data-ticket-picker] .tp-field::placeholder{color:var(--token-color-muted);opacity:1}
+[data-ticket-picker] .tp-field:hover{border-color:color-mix(in srgb,var(--token-color-primary) 45%,transparent)}
+[data-ticket-picker] .tp-field:focus,[data-ticket-picker] .tp-field:focus-visible{border-color:var(--token-color-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary) 26%,transparent)}
+[data-ticket-picker] .tp-stepper{display:inline-flex;align-items:center;gap:0.35rem;border:1px solid var(--token-color-line);border-radius:999px;padding:0.2rem;background:color-mix(in srgb,var(--token-color-ink) 5%,var(--token-color-surface-raised,transparent))}
+[data-ticket-picker] .tp-step{width:2.1rem;height:2.1rem;border:0;border-radius:999px;background:transparent;color:var(--token-color-ink);font:inherit;font-size:1.15rem;line-height:1;cursor:pointer}
+[data-ticket-picker] .tp-step:disabled{opacity:0.35;cursor:not-allowed}
+[data-ticket-picker] .tp-step:not(:disabled):hover{background:color-mix(in srgb,var(--token-color-primary) 16%,transparent)}
+[data-ticket-picker] .tp-qty{min-width:1.6rem;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+[data-ticket-picker] .tp-cta{display:block;width:100%;margin-top:0.35rem;border:0;border-radius:999px;padding:0.9rem 1.6rem;font:inherit;font-size:0.95rem;font-weight:600;letter-spacing:0.02em;background:var(--token-color-primary);color:var(--token-color-primary-on,var(--primary-foreground));cursor:pointer}
+[data-ticket-picker] .tp-cta:disabled{opacity:0.55;cursor:not-allowed}
+[data-ticket-picker] .tp-cta:not(:disabled):hover{filter:brightness(1.06)}
+[data-ticket-picker] .tp-alert{margin-top:1rem;padding:0.75rem 0.9rem;border-radius:12px;background:color-mix(in srgb,var(--token-color-primary) 12%,transparent);color:var(--token-color-ink);font-size:0.9rem;line-height:1.4}
+[data-ticket-picker="held"] a{color:var(--token-color-primary);font-weight:600}
+`;
+
 export interface TicketPickerIslandProps {
   tenantId: string;
   eventId: string;
@@ -138,7 +195,8 @@ function formatWhen(iso: string, timeZone: string | null, locale: Locale): strin
     }).format(new Date(iso));
   } catch { return iso; }
 }
-function money(cents: number, currency: string, locale: Locale): string {
+function money(cents: number, currency: string, locale: Locale, freeLabel: string): string {
+  if (cents === 0) return freeLabel;
   try { return new Intl.NumberFormat(locale === "es" ? "es" : "en", { style: "currency", currency }).format(cents / 100); }
   catch { return `${(cents / 100).toFixed(2)} ${currency}`; }
 }
@@ -186,6 +244,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   );
   const chosenTier = offeredTiers.find((x) => x.variantId === tier) ?? null;
   const canBuy = Boolean(chosenNight && chosenTier) && busy === "idle";
+  const showQty = Boolean(chosenTier && (chosenTier.minPerOrder !== 1 || chosenTier.maxPerOrder !== 1));
 
   async function buy() {
     if (!chosenNight || !chosenTier || busy !== "idle") return;
@@ -205,14 +264,24 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
         setBusy("idle");
         return;
       }
-      if (res.payAtDoor) {
+      const next = afterTicketPurchaseSuccess(res);
+      if (next === "held") {
         // Seats held until the night ends; no card, no transaction. The receipt
         // shows the amount due and no QR until it is settled at the door.
         setHeld({ receiptCode: res.receiptCode });
         setBusy("idle");
         return;
       }
-      if (!res.transactionId) { setRefusal(t("engine_error")); setOrderKey(newOrderKey()); setBusy("idle"); return; }
+      if (next === "receipt" && res.receiptCode) {
+        window.location.assign(`/r/${res.receiptCode}`);
+        return;
+      }
+      if (next !== "card" || !res.transactionId) {
+        setRefusal(t("engine_error"));
+        setOrderKey(newOrderKey());
+        setBusy("idle");
+        return;
+      }
       setBusy("redirecting");
       const pay = await startTicketCardPayment({ tenantId, orderId: res.orderId, transactionId: res.transactionId, locale: loc });
       if (!pay.ok) { setRefusal(t(pay.reason)); setBusy("idle"); return; }
@@ -228,101 +297,186 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
     : n.door.reason === "doors_open" ? t("door_doors_open")
     : null;
 
-  if (!configured) return <div data-ticket-picker="not_configured" style={{ padding: 16 }}>{t("not_configured")}</div>;
+  const chrome = (state: string, children: ReactNode) => (
+    <div data-ticket-picker={state}>
+      <style>{TP_CSS}</style>
+      {children}
+    </div>
+  );
+
+  if (!configured) return chrome("not_configured", <p className="tp-status">{t("not_configured")}</p>);
   if (held) {
-    return (
-      <div data-ticket-picker="held" style={{ padding: 16 }}>
+    return chrome("held", (
+      <p className="tp-status">
         {t("heldDoor")}{" "}
         {held.receiptCode ? <a href={`/r/${held.receiptCode}`}>/r/{held.receiptCode}</a> : null}
-      </div>
-    );
+      </p>
+    ));
   }
 
-  return (
-    <div data-ticket-picker="root" style={{ padding: 16 }}>
-      {title ? <h3 style={{ margin: "0 0 4px" }}>{title}</h3> : null}
-      <div style={{ margin: "0 0 12px", fontWeight: 600 }}>{data?.eventTitle ?? t("heading")}</div>
+  const ctaLabel = busy === "holding"
+    ? (chosenNight?.door.offered && payHow === "in_person" ? t("holdDoor") : t("buying"))
+    : busy === "redirecting"
+      ? t("redirecting")
+      : (chosenNight?.door.offered && payHow === "in_person"
+        ? t("payDoor")
+        : (chosenTier && chosenTier.amountCents === 0 ? t("buyFree") : t("buy")));
+
+  return chrome("root", (
+    <>
+      {title ? <h3 className="tp-title">{title}</h3> : null}
 
       {loadRefusal ? (
-        <div data-ticket-picker="refused">{loadRefusal}</div>
+        <p className="tp-status" data-ticket-picker="refused">{loadRefusal}</p>
       ) : data === null ? (
-        <div>{t("loading")}</div>
+        <p className="tp-status">{t("loading")}</p>
       ) : data.nights.length === 0 ? (
-        <div data-ticket-picker="no_nights">{t("noNights")}</div>
+        <p className="tp-status" data-ticket-picker="no_nights">{t("noNights")}</p>
       ) : (
         <>
-          <div role="radiogroup" aria-label={t("night")}>
-            <div style={{ margin: "0 0 6px" }}>{t("night")}</div>
-            {data.nights.map((n) => {
-              const sellable = n.sellableVariantIds.some((id) => data.tiers.find((x) => x.variantId === id)?.onSale);
-              const ds = doorSentence(n);
-              return (
-                <label key={n.sessionId} style={{ display: "block", margin: "0 0 8px", opacity: sellable ? 1 : 0.55 }}>
-                  <input type="radio" name="night" value={n.sessionId} disabled={!sellable} checked={night === n.sessionId}
-                    onChange={() => { setNight(n.sessionId); setTier(null); setRefusal(null); }} />{" "}
-                  {formatWhen(n.startsAt, data.timeZone, loc)}
-                  {!sellable ? <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{t("noTiers")}</span> : null}
-                  {ds ? <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{ds}</span> : null}
-                </label>
-              );
-            })}
+          <div className="tp-section" role="radiogroup" aria-label={t("night")}>
+            <div className="tp-label">{t("night")}</div>
+            <div className="tp-choices">
+              {data.nights.map((n) => {
+                const sellable = n.sellableVariantIds.some((id) => data.tiers.find((x) => x.variantId === id)?.onSale);
+                const ds = doorSentence(n);
+                const on = night === n.sessionId;
+                return (
+                  <label key={n.sessionId} className="tp-choice" data-on={on ? "1" : undefined} data-off={sellable ? undefined : "1"}>
+                    <input
+                      className="tp-radio"
+                      type="radio"
+                      name="night"
+                      value={n.sessionId}
+                      disabled={!sellable}
+                      checked={on}
+                      onChange={() => { setNight(n.sessionId); setTier(null); setRefusal(null); }}
+                    />
+                    <span className="tp-choice-copy">
+                      <span className="tp-choice-title">{formatWhen(n.startsAt, data.timeZone, loc)}</span>
+                      {!sellable ? <span className="tp-choice-meta">{t("noTiers")}</span> : null}
+                      {ds ? <span className="tp-choice-meta">{ds}</span> : null}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {chosenNight ? (
             offeredTiers.length === 0 ? (
-              <div data-ticket-picker="no_tiers">{t("noTiers")}</div>
+              <p className="tp-status" data-ticket-picker="no_tiers">{t("noTiers")}</p>
             ) : (
-              <div role="radiogroup" aria-label={t("tier")} style={{ marginTop: 12 }}>
-                <div style={{ margin: "0 0 6px" }}>{t("tier")}</div>
-                {offeredTiers.map((x) => (
-                  <label key={x.variantId} style={{ display: "block", margin: "0 0 8px" }}>
-                    <input type="radio" name="tier" value={x.variantId} checked={tier === x.variantId}
-                      onChange={() => { setTier(x.variantId); setQty(Math.max(1, x.minPerOrder)); setRefusal(null); }} />{" "}
-                    {x.label} — {money(x.amountCents, data.currency, loc)}{x.admitsPerUnit > 1 ? ` (${x.admitsPerUnit})` : ""}
-                  </label>
-                ))}
+              <div className="tp-section" role="radiogroup" aria-label={t("tier")}>
+                <div className="tp-label">{t("tier")}</div>
+                <div className="tp-choices">
+                  {offeredTiers.map((x) => {
+                    const on = tier === x.variantId;
+                    const price = money(x.amountCents, data.currency, loc, t("free"));
+                    return (
+                      <label key={x.variantId} className="tp-choice" data-on={on ? "1" : undefined}>
+                        <input
+                          className="tp-radio"
+                          type="radio"
+                          name="tier"
+                          value={x.variantId}
+                          checked={on}
+                          onChange={() => { setTier(x.variantId); setQty(Math.max(1, x.minPerOrder)); setRefusal(null); }}
+                        />
+                        <span className="tp-choice-copy">
+                          <span className="tp-choice-title">{x.label}</span>
+                          {x.admitsPerUnit > 1 ? <span className="tp-choice-meta">{t("admits").replace("{n}", String(x.admitsPerUnit))}</span> : null}
+                        </span>
+                        <span className="tp-price" data-free={x.amountCents === 0 ? "1" : undefined}>{price}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             )
           ) : null}
 
           {chosenTier ? (
-            <div style={{ marginTop: 12 }}>
-              <label style={{ display: "block" }}>
-                {t("quantity")}
-                <input type="number" min={chosenTier.minPerOrder} max={chosenTier.maxPerOrder ?? 50} value={qty}
-                  onChange={(e) => setQty(Math.max(chosenTier.minPerOrder, Math.min(chosenTier.maxPerOrder ?? 50, Number(e.target.value) || 1)))}
-                  style={{ display: "block", width: 80 }} disabled={busy !== "idle"} />
-              </label>
-              <label style={{ display: "block", marginTop: 8 }}>
-                {t("email")}
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: "block", width: "100%" }} disabled={busy !== "idle"} autoComplete="email" />
-                <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{t("emailHelp")}</span>
-              </label>
-              <label style={{ display: "block", marginTop: 8 }}>
-                {t("name")}
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ display: "block", width: "100%" }} disabled={busy !== "idle"} autoComplete="name" />
-              </label>
-              {chosenNight?.door.offered ? (
-                <div role="radiogroup" aria-label={t("payHow")} style={{ marginTop: 8 }}>
-                  <div>{t("payHow")}</div>
-                  <label style={{ display: "block" }}>
-                    <input type="radio" name="payHow" checked={payHow === "full"} onChange={() => setPayHow("full")} disabled={busy !== "idle"} /> {t("payCard")}
-                  </label>
-                  <label style={{ display: "block" }}>
-                    <input type="radio" name="payHow" checked={payHow === "in_person"} onChange={() => setPayHow("in_person")} disabled={busy !== "idle"} /> {t("payDoor")}
-                    <span style={{ display: "block", fontSize: "0.85em", opacity: 0.75 }}>{t("payDoorHelp")}</span>
-                  </label>
+            <div className="tp-fields">
+              {showQty ? (
+                <div>
+                  <div className="tp-field-label">{t("quantity")}</div>
+                  <div className="tp-stepper">
+                    <button
+                      type="button"
+                      className="tp-step"
+                      aria-label={t("decrease")}
+                      disabled={busy !== "idle" || qty <= chosenTier.minPerOrder}
+                      onClick={() => setQty((n) => Math.max(chosenTier.minPerOrder, n - 1))}
+                    >
+                      −
+                    </button>
+                    <span className="tp-qty">{qty}</span>
+                    <button
+                      type="button"
+                      className="tp-step"
+                      aria-label={t("increase")}
+                      disabled={busy !== "idle" || qty >= (chosenTier.maxPerOrder ?? 50)}
+                      onClick={() => setQty((n) => Math.min(chosenTier.maxPerOrder ?? 50, n + 1))}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               ) : null}
-              <button type="button" onClick={() => void buy()} disabled={!canBuy} style={{ marginTop: 12 }}>
-                {busy === "holding" ? (chosenNight?.door.offered && payHow === "in_person" ? t("holdDoor") : t("buying")) : busy === "redirecting" ? t("redirecting") : (chosenNight?.door.offered && payHow === "in_person" ? t("payDoor") : t("buy"))}
+              <label>
+                <span className="tp-field-label">{t("email")}</span>
+                <input
+                  className="tp-field"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={busy !== "idle"}
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder={t("emailPlaceholder")}
+                />
+                <span className="tp-help">{t("emailHelp")}</span>
+              </label>
+              <label>
+                <span className="tp-field-label">{t("name")}</span>
+                <input
+                  className="tp-field"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={busy !== "idle"}
+                  autoComplete="name"
+                  placeholder={t("namePlaceholder")}
+                />
+              </label>
+              {chosenNight?.door.offered ? (
+                <div role="radiogroup" aria-label={t("payHow")}>
+                  <div className="tp-label">{t("payHow")}</div>
+                  <div className="tp-choices">
+                    <label className="tp-choice" data-on={payHow === "full" ? "1" : undefined}>
+                      <input className="tp-radio" type="radio" name="payHow" checked={payHow === "full"} onChange={() => setPayHow("full")} disabled={busy !== "idle"} />
+                      <span className="tp-choice-copy"><span className="tp-choice-title">{t("payCard")}</span></span>
+                    </label>
+                    <label className="tp-choice" data-on={payHow === "in_person" ? "1" : undefined}>
+                      <input className="tp-radio" type="radio" name="payHow" checked={payHow === "in_person"} onChange={() => setPayHow("in_person")} disabled={busy !== "idle"} />
+                      <span className="tp-choice-copy">
+                        <span className="tp-choice-title">{t("payDoor")}</span>
+                        <span className="tp-choice-meta">{t("payDoorHelp")}</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+              <button type="button" className="tp-cta" onClick={() => void buy()} disabled={!canBuy}>
+                {ctaLabel}
               </button>
             </div>
           ) : null}
         </>
       )}
 
-      {refusal ? <div data-ticket-picker="refusal" role="alert" style={{ marginTop: 12 }}>{refusal}</div> : null}
-    </div>
-  );
+      {refusal ? <div className="tp-alert" data-ticket-picker="refusal" role="alert">{refusal}</div> : null}
+    </>
+  ));
 }
