@@ -18,6 +18,37 @@ nobody touches Impronta's live site to test it.
 
 ## New rows
 
+### STOP — FIVE OF THESE ROWS HOLD A REAL TABLE AT A REAL RESTAURANT
+
+Written 2026-09-05, when El Paisa's page did not exist and every row below was
+hypothetical. **The page is live now.** El Paisa is a family parrilla in Glew
+taking real bookings, and its book is not a fixture.
+
+**READ-ONLY rows — safe on the live page, run them freely.** Times offered,
+every refusal (party of 5, inside the notice, beyond the horizon, a closed day),
+the Spanish pass, the clock check, the date strip. None of them writes.
+
+**WRITE rows — these create bookings and MUST NOT be run against El Paisa
+without the owner's explicit word:**
+
+| Row | What it actually does to the restaurant |
+|---|---|
+| Book five two-tops at one time | Holds **every two-top the venue has** for that slot. A real guest booking that night is then refused, correctly, because we took the tables |
+| Complete a booking end to end | Holds a real table on a real night, in their book |
+| Double-tap Reserve | A second booking if idempotency fails, which is the thing under test |
+| Look at the host stand after booking | Only meaningful after one of the above |
+
+**Where to run the write rows instead:** a tenant that is not somebody's
+business. `zero-test-studio` is seeded with the same venue shape for exactly
+this, and holding all four of its two-tops costs nobody a table. Run the write
+rows there and the read-only rows on El Paisa, which is the only tenant whose
+page is hand-composed and therefore the only place the render is worth checking.
+
+**Why this is written down rather than assumed:** the oversell row is the most
+valuable test in this file and the most destructive one. It is the single row
+that proves the pool cannot be oversold, and running it on a live restaurant to
+prove that is the same instinct as testing a fire alarm by starting a fire.
+
 ### El Paisa guest booking — run these the hour the slug exists
 
 Venue `b0a18aee-4d0f-4a65-90e8-da9a1b74f726`, **America/Argentina/Buenos_Aires** (Glew, Buenos
