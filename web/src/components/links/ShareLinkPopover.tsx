@@ -21,6 +21,7 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import {
   displayShortLink,
   mailToHref,
+  PRINT_SIZE_OPTIONS,
   qrAssetHref,
   whatsAppHref,
 } from "@/lib/links/share-targets";
@@ -68,9 +69,14 @@ export function ShareLinkPopover({
 }: ShareLinkPopoverProps) {
   const copy = useDashboardText();
   const [copied, setCopied] = useState(false);
-  const [minted, setMinted] = useState<{ code: string; url: string } | null>(null);
+  // Typed as ShareLinkPopoverProps["link"], NOT as a narrower {code,url}: the
+  // union `minted ?? link` collapses to whichever side is narrower, so a
+  // narrower minted type silently strips `scans30d` off the ACTIVE value and
+  // the scan count disappears the moment a link is minted in-session.
+  const [minted, setMinted] = useState<ShareLinkPopoverProps["link"]>(null);
   const [minting, setMinting] = useState(false);
   const [mintError, setMintError] = useState<string | null>(null);
+  const [printSize, setPrintSize] = useState<string>("table_tent");
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   // `minted` is this session's result; `link` is what the server knew when the
@@ -214,12 +220,32 @@ export function ShareLinkPopover({
         >
           {copy.t("PNG")}
         </a>
-        <a
-          href={qrAssetHref(active.code, "pdf")}
-          className="rounded-lg border border-admin-line px-2 py-2 text-center text-xs"
-        >
-          {copy.t("Print PDF")}
-        </a>
+        {/* A print SIZE, not just "Print PDF". The library has produced five
+            sizes since Q2, but the endpoint hardcoded a table tent, so a door
+            poster, a window sticker, a flyer and a business card were all
+            unreachable from the product. A restaurant needs the tent AND the
+            door. Rendered as a <select> + one link rather than five buttons:
+            five buttons is the whole row, and the operator prints one. */}
+        <label className="col-span-2 flex items-center gap-2 rounded-lg border border-admin-line px-2 py-2 text-xs">
+          <span className="sr-only">{copy.t("Print size")}</span>
+          <select
+            value={printSize}
+            onChange={(e) => setPrintSize(e.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+          >
+            {PRINT_SIZE_OPTIONS.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {copy.t(opt.label)} · {opt.dims}
+              </option>
+            ))}
+          </select>
+          <a
+            href={qrAssetHref(active.code, "pdf", { size: printSize })}
+            className="shrink-0 rounded-md border border-admin-line px-2 py-1 text-center"
+          >
+            {copy.t("Print PDF")}
+          </a>
+        </label>
         {/* Instagram has no prefilled share URL — see share-targets.ts. Rather
             than a button that opens Instagram to nothing, the honest control is
             Copy, which is what a Story sticker needs anyway. */}

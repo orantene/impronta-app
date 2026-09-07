@@ -95,7 +95,7 @@ test("the code image has an alt that names the link", () => {
 test("the popover accepts a subject with NO link yet", () => {
   // `link: ... | null` rather than required code/url. Null is the normal first
   // state of every subject in the product, not an error.
-  assert.match(component, /link:\s*\{[^}]*\}\s*\|\s*null/s, "link must be nullable");
+  assert.match(component, /link:\s*\{[\s\S]*?\}\s*\|\s*null/, "link must be nullable");
   assert.doesNotMatch(component, /^\s*code:\s*string;\s*$/m, "code must not be a required prop");
   assert.doesNotMatch(component, /^\s*url:\s*string;\s*$/m, "url must not be a required prop");
 });

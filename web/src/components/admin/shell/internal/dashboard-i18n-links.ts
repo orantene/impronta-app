@@ -28,4 +28,8 @@ export const LINKS_ES_TEXT: Record<string, string> = {
   "Create a link": "Crear un enlace",
   "Creating…": "Creando...",
   "Ask someone who can edit this workspace to create it.": "Pide a alguien que pueda editar este espacio que lo cree.",
+  "Print size": "Tamaño de impresión",
+  "A5 flyer": "Volante A5",
+  "A4 poster": "Póster A4",
+  "Business card": "Tarjeta de presentación",
 };
