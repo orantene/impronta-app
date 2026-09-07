@@ -55,6 +55,18 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
     "secondaryCtaLabel",
     "statCountLabel",
   ],
+  // The reserve block's two authored strings. WITHOUT THIS LINE the renderer
+  // resolves both through `resolveNodeLocalizedText`, `isLocalizableProp`
+  // returns false, and the overlay is DISCARDED — an operator translates
+  // "Reserve" to "Reservar", the Content panel stores it, and the Spanish page
+  // still says Reserve. A stored translation that never appears, which is the
+  // exact failure the comment above this map warns about.
+  //
+  // The block's own sentences (refusals, labels, the confirmation) are NOT here
+  // and must not be: they ship as en/es inside the island, because a tenant
+  // renaming a table must not be able to rewrite the sentence that explains why
+  // a booking was refused.
+  reserve_table: ["venueName", "ctaVerb"],
   talent_type_grid: [
     "eyebrow",
     "headline",
