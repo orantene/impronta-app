@@ -116,3 +116,32 @@ export async function addTierRow(admin: SupabaseClient, tenantId: string, eventI
     return { ok: false, error: "Could not add the tier." };
   }
 }
+
+export type SetOfferingCurrencyResult = { ok: true; currency: string; previous: string | null } | { ok: false; error: string };
+
+/**
+ * The catalog currency of an event's offering — the ONE row that says what
+ * the tickets settle in. Nothing on the platform converts currency: the
+ * commission engine's tests run in MXN, financials aggregate per currency,
+ * so pesos settle as pesos and this row is the only thing that must say so
+ * (CEO ruling, 2026-09-06). Refused once anything has been sold against the
+ * offering: a line already carries the old currency and would misreport.
+ */
+export async function setOfferingCurrencyRow(admin: SupabaseClient, tenantId: string, offeringId: string, currency: string): Promise<SetOfferingCurrencyResult> {
+  const code = currency.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return { ok: false, error: "Currency must be a three-letter ISO code (USD, MXN, ARS)." };
+  try {
+    const { data: row, error: rErr } = await admin.from("talent_offerings").select("id, currency").eq("id", offeringId).eq("tenant_id", tenantId).maybeSingle();
+    if (rErr) { logServerError("events.writers.currency/read", rErr); return { ok: false, error: "Could not read the offering." }; }
+    if (!row) return { ok: false, error: "That offering is not in this workspace." };
+    const { count, error: lErr } = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId);
+    if (lErr) { logServerError("events.writers.currency/lines", lErr); return { ok: false, error: "Could not check for sales." }; }
+    if ((count ?? 0) > 0) return { ok: false, error: "Tickets have already been sold in the current currency; the currency cannot change now." };
+    const { error: uErr } = await admin.from("talent_offerings").update({ currency: code }).eq("id", offeringId).eq("tenant_id", tenantId);
+    if (uErr) { logServerError("events.writers.currency/update", uErr); return { ok: false, error: "Could not change the currency." }; }
+    return { ok: true, currency: code, previous: (row.currency as string | null) ?? null };
+  } catch (err) {
+    logServerError("events.writers.currency", err);
+    return { ok: false, error: "Could not change the currency." };
+  }
+}
