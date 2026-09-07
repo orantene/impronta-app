@@ -2,6 +2,8 @@
  * Directory discovery — API contract for infinite scroll + SSR first page.
  */
 
+import type { VerifiedLine } from "@/lib/trust/verified-mark";
+
 export const DIRECTORY_PAGE_SIZE_DEFAULT = 24;
 export const DIRECTORY_PAGE_SIZE_MAX = 48;
 export const DIRECTORY_SORT_VALUES = [
@@ -91,6 +93,14 @@ export type DirectoryCardDTO = {
    * `wouldBookAgainPct`: 0-100 (or null when no signal exists).
    */
   trustTier?: string | null;
+  /**
+   * The public "Verified" mark, derived from the profile's badge rows rather
+   * than from `trustTier` — the matview's tier is stale until refresh, and a
+   * profile that loses a badge must lose the mark the same minute.
+   */
+  verified?: boolean;
+  /** What was verified and when, for the hover. Empty unless `verified`. */
+  verifiedLines?: VerifiedLine[];
   agencyName?: string | null;
   isExclusive?: boolean;
   nextAvailableDate?: string | null;

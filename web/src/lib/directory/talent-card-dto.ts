@@ -2,6 +2,10 @@
  * Maps directory card row shape (SSR query + optional `api_directory_cards` RPC) to `DirectoryCardDTO`.
  */
 
+import {
+  buildVerifiedMark,
+  type TrustBadgeRow,
+} from "@/lib/trust/verified-mark";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { DirectoryCardDTO } from "@/lib/directory/types";
@@ -50,6 +54,14 @@ export type ApiDirectoryCardRpcRow = {
    * All null when the matview row is missing (e.g. talent not in the index).
    */
   trust_tier?: string | null;
+  /**
+   * Raw badge rows for this profile, when the page enrichment joined them.
+   *
+   * The public mark is derived from THESE, not from `trust_tier`. `trust_tier`
+   * lives in a materialized view and is stale until the next refresh, and the
+   * spec requires that losing a badge loses the mark the same minute.
+   */
+  trust_badges?: TrustBadgeRow[] | null;
   agency_name?: string | null;
   is_exclusive?: boolean | null;
   next_available_date?: string | null;
@@ -208,6 +220,15 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     // joined the matview row; otherwise left undefined so the card falls
     // back to its legacy treatment.
     trustTier: row.trust_tier ?? null,
+    // Derived here so the card, the profile and any future "Verified only"
+    // filter read ONE rule rather than three that drift.
+    ...(() => {
+      // One evaluation of the rule, spread into the DTO. Inlined rather than
+      // hoisted because this object literal is built inside a `.map()` and a
+      // stray statement above it is a parse error waiting to happen.
+      const mark = buildVerifiedMark(row.trust_badges);
+      return { verified: mark.verified, verifiedLines: mark.lines };
+    })(),
     agencyName: row.agency_name ?? null,
     isExclusive: row.is_exclusive ?? false,
     nextAvailableDate: row.next_available_date ?? null,
