@@ -9,6 +9,12 @@ import {
   SIGNUP_BUSINESS_DESCRIPTION_KEY,
   normalizeSignupBusinessDescription,
 } from "@/lib/site-admin/server/onboard-signup-description";
+import {
+  industryFromBrief,
+  linkBriefToProvisionedTenant,
+  loadBriefForSignupLead,
+  resolveSignupBusinessDescription,
+} from "./workspace-signup-brief.server";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -241,7 +247,11 @@ async function attachLeadToTenant(params: {
   }
 }
 
-function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
+function buildSignupSettings(
+  lead: MarketingLeadRow,
+  /** What the brief says this business is — see workspace-signup-brief.server. */
+  briefIndustry?: string | null,
+): Record<string, unknown> {
   const settings: Record<string, unknown> = {
     signup_audience: lead.audience,
     signup_roster_size: lead.roster_size,
@@ -268,7 +278,10 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
     // nouns, an absent one does not, and those are not symmetric.
     industry_preset: pickSignupPreset({
       audience: lead.audience,
-      businessDescription: lead.business_description,
+      businessDescription: resolveSignupBusinessDescription(
+        lead.business_description,
+        briefIndustry,
+      ),
     }),
   };
   if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
@@ -614,6 +627,10 @@ export async function provisionWorkspaceFromLead(params: {
   const displayName = lead.business_name?.trim() || lead.name.trim() || "New Workspace";
   const now = new Date().toISOString();
 
+  // Brief before insert — industry must be in hand for industry_preset at create.
+  const brief = await loadBriefForSignupLead(lead.id);
+  const briefIndustry = industryFromBrief(brief);
+
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
     .insert({
@@ -638,7 +655,7 @@ export async function provisionWorkspaceFromLead(params: {
       // hand out a paid plan nobody has paid for.
       plan_tier: "free",
       talent_seat_limit: PLAN_SEAT_CAPS.free,
-      settings: buildSignupSettings(lead),
+      settings: buildSignupSettings(lead, briefIndustry),
     })
     .select("id, slug, display_name")
     .single();
@@ -708,6 +725,11 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (profileError) {
     logServerError("workspace-signup.updateProfile", profileError);
+  }
+
+  // Stamp tenant onto the brief before scaffold seeds from settings.
+  if (brief) {
+    await linkBriefToProvisionedTenant(brief, agency.id);
   }
 
   await ensureWorkspaceScaffold({
