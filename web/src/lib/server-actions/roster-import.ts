@@ -348,7 +348,7 @@ export async function processRosterImportRow(
   //
   // So the code changes instead. Find the LIVE row for this pair (the same
   // three statuses the index covers), update it if present, insert if not.
-  const { data: existing, error: findErr } = await admin
+  const { data: existingRoster, error: findErr } = await admin
     .from("agency_talent_roster")
     .select("id")
     .eq("tenant_id", tenantId)
@@ -357,14 +357,14 @@ export async function processRosterImportRow(
     .maybeSingle();
   if (findErr) return { ok: false, error: findErr.message };
 
-  if (existing?.id) {
+  if (existingRoster?.id) {
     // Re-import of a talent already on the roster. is_primary is deliberately
     // NOT touched: it may have been adjusted by hand since the first import,
     // and the old upsert's comment promised the same thing.
     const { error: updErr } = await admin
       .from("agency_talent_roster")
       .update({ status: "active" })
-      .eq("id", existing.id);
+      .eq("id", existingRoster.id);
     if (updErr) return { ok: false, error: updErr.message };
     return { ok: true, talentProfileId };
   }
