@@ -16,7 +16,7 @@ import { requireTenantScope } from "@/lib/saas/scope";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
-import { toPng, toPrintPdf } from "@/lib/links/qr/files";
+import { PRINT_SIZES, toPng, toPrintPdf, type PrintSizeKey } from "@/lib/links/qr/files";
 import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
@@ -95,16 +95,31 @@ export async function GET(
       });
     }
 
+    // The requested print size, defaulting to the table tent. An UNKNOWN size
+    // is refused rather than silently falling back: a request for "a4" that
+    // quietly returns a 100x150mm tent is a wrong artefact that looks right
+    // until it is held against a door, and the operator has no way to tell.
+    const sizeParam = request.nextUrl.searchParams.get("size");
+    if (sizeParam && !(sizeParam in PRINT_SIZES)) {
+      return NextResponse.json(
+        {
+          error: `Unknown print size "${sizeParam}". Available: ${Object.keys(PRINT_SIZES).join(", ")}.`,
+        },
+        { status: 400 },
+      );
+    }
+    const size = (sizeParam ?? "table_tent") as PrintSizeKey;
+
     const pdf = await toPrintPdf(
       [{ url: target, title: link.name, caption: target.replace(/^https?:\/\//, "") }],
-      { size: "table_tent" },
+      { size },
     );
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "content-type": "application/pdf",
         "cache-control": "private, max-age=300",
         // `attachment` for the PDF: its purpose is the printer, not the tab.
-        "content-disposition": `attachment; filename="${link.code}.pdf"`,
+        "content-disposition": `attachment; filename="${link.code}-${size}.pdf"`,
       },
     });
   } catch (err) {
