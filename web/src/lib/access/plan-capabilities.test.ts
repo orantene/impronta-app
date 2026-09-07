@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -90,4 +91,24 @@ test("packagedCapabilitiesForPlan does not leak a plan whose name is a prefix", 
   assert.deepEqual(packagedCapabilitiesForPlan("free", m), [
     { capability: "view_dashboard", included: false },
   ]);
+});
+
+test("the entitlement loader fails OPEN when the cache wrapper throws", () => {
+  // `unstable_cache` throws from the WRAPPER, not the body:
+  //   Invariant: incrementalCache missing in unstable_cache
+  // so the loader body's own try/catch never sees it. `authorize()` has no
+  // try/catch, and fail-open is this layer's whole contract: a missing row
+  // means GRANTED. Without a catch on the exported loader, an entitlement
+  // check outside a request context denies every gated action instead.
+  //
+  // Read statically because the store imports `server-only` and cannot be
+  // loaded in this lane. Weaker than injecting a throwing loader, and it is
+  // what the module currently allows.
+  const src = readFileSync(
+    new URL("./plan-entitlements-store.ts", import.meta.url),
+    "utf8",
+  );
+  const exported = src.slice(src.indexOf("export const loadPlanEntitlements"));
+  assert.match(exported, /try \{/, "the exported loader must catch");
+  assert.match(exported, /return new Map\(\)/, "and fail open, not rethrow");
 });
