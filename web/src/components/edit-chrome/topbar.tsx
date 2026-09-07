@@ -1306,11 +1306,9 @@ function ViewportSwitcher({
   setPreviewFrameWidth?: (widthPx: number | null) => void;
   togglePreviewRotated?: () => void;
   /**
-   * Wave 6C (job #35) — when present, the Mobile tier becomes a real EDITING
-   * mode (not just a preview frame): picking Mobile enters `mobileEditMode`
-   * (which pins the canvas to mobile + opens the mobile HUD), and picking
-   * Desktop/Tablet exits it first. Optional → no EditProvider falls back to the
-   * plain `setDevice` behaviour.
+   * Wave 6C (job #35) — when present, Mobile becomes a real EDITING mode: it
+   * enters `mobileEditMode` (pins canvas to mobile + opens the mobile HUD) and
+   * Desktop/Tablet exit it first. Optional → no EditProvider = plain setDevice.
    */
   mobileEditMode?: boolean;
   setMobileEditMode?: (next: boolean) => void;
@@ -1320,8 +1318,7 @@ function ViewportSwitcher({
   const { advanced } = useAdvancedMode();
   // Piece B slice 1 — gate the switcher on the capability (not surfaceKind).
   const { canUseResponsiveBreakpoints } = useEditContext();
-  // Picking a tier: Mobile enters the editing mode; the others exit it. When no
-  // mode plumbing is present, this is exactly the old `setDevice`.
+  // Picking a tier: Mobile enters editing mode, others exit it; no plumbing = old setDevice.
   const selectTier = (key: EditDevice) => {
     if (mobileEditAvailable && setMobileEditMode) {
       if (key === "mobile") {
@@ -1332,9 +1329,8 @@ function ViewportSwitcher({
     }
     setDevice(key);
   };
-  // The frame tools (#17) — custom width + landscape — are a power-user surface:
-  // available only on a non-desktop frame, only with the context setters, AND
-  // only when Advanced is ON (W2-C4). The core per-breakpoint editing stays.
+  // Frame tools (#17, custom width + landscape) are power-user: non-desktop
+  // frame + context setters + Advanced ON (W2-C4). Per-breakpoint editing stays.
   const frameToolsAvailable =
     advanced &&
     device !== "desktop" &&
@@ -1342,8 +1338,7 @@ function ViewportSwitcher({
     typeof setPreviewFrameWidth === "function" &&
     typeof togglePreviewRotated === "function";
 
-  // W2-C4 — default (Advanced OFF) shows Desktop · Tablet · Mobile; Advanced ON
-  // adds Wide + Compact. Order follows the canonical VIEWPORT_OPTS list.
+  // W2-C4 — Advanced OFF: Desktop·Tablet·Mobile; ON adds Wide+Compact (VIEWPORT_OPTS order).
   const visibleTierKeys = new Set(visibleViewportTiers(advanced));
   const visibleOpts = VIEWPORT_OPTS.filter((opt) => visibleTierKeys.has(opt.key));
 
