@@ -1,3 +1,4 @@
+import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   decodeDirectoryCursor,
@@ -1029,6 +1030,42 @@ export async function fetchDirectoryPage(
     }
   }
 
+  // Trust badges for the public "Verified" mark, batched the same way.
+  //
+  // READ FROM THE BADGE ROWS, NOT FROM `trust_tier`. The matview's tier is a
+  // COUNT of any platform badge and is stale until the next refresh; the spec
+  // requires that a profile losing a badge loses the mark the same minute, and
+  // that only identity, phone and social count. `buildVerifiedMark` owns that
+  // rule so the card, the profile and a future "Verified only" filter cannot
+  // disagree. Non-fatal like the enrichment above: no badges means no mark,
+  // which is the correct degradation for a trust signal.
+  const badgesByProfile = new Map<string, TrustBadgeRow[]>();
+  {
+    const { data: badgeRows, error: badgeErr } = await auditTime(
+      audit,
+      timings,
+      "trustBadgeEnrichmentMs",
+      () =>
+        supabase
+          .from("talent_profile_trust_badges")
+          .select("talent_profile_id, badge_kind, status, scope, verified_at, expires_at")
+          .in("talent_profile_id", profileIds)
+          .eq("status", "verified")
+          .eq("scope", "platform"),
+    );
+    if (badgeErr) {
+      logServerError("directory/trust-badge-enrichment", badgeErr);
+    } else {
+      for (const row of (badgeRows ?? []) as (TrustBadgeRow & {
+        talent_profile_id: string;
+      })[]) {
+        const list = badgesByProfile.get(row.talent_profile_id) ?? [];
+        list.push(row);
+        badgesByProfile.set(row.talent_profile_id, list);
+      }
+    }
+  }
+
   // Tenant category overrides — strip terms the tenant disabled BEFORE the card
   // DTO is built, so a disabled category cannot surface as the card's role line,
   // a fit label, or a taxonomy card attribute. A card whose every term is hidden
@@ -1292,6 +1329,7 @@ export async function fetchDirectoryPage(
         matchLabels.length > 0 ? matchLabels : undefined,
       // §10-rich projection from `talent_discover_index` (Lane 5).
       trust_tier: indexByProfile.get(profile.id)?.trust_tier ?? null,
+      trust_badges: badgesByProfile.get(profile.id) ?? null,
       agency_name: indexByProfile.get(profile.id)?.agency_name ?? null,
       is_exclusive: indexByProfile.get(profile.id)?.is_exclusive ?? false,
       next_available_date:

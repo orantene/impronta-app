@@ -1,3 +1,4 @@
+import { VerifiedMark } from "@/components/talent-cards/verified-mark";
 import type { CSSProperties, ElementType, KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -368,6 +369,12 @@ export function TalentCard({
               >
                 {displayName}
               </h3>
+            ) : null}
+            {/* The mark sits beside the name, where a visitor reads WHO this is
+                — not in a corner with the save and share affordances, which is
+                where a decoration would go. */}
+            {data.verified && data.verifiedLines?.length ? (
+              <VerifiedMark lines={data.verifiedLines} compact={compact} />
             ) : null}
           </div>
           {show.showTalentType && data.primaryType ? (
