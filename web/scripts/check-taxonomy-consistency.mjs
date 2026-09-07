@@ -206,11 +206,33 @@ if (SELFTEST) {
 const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// ─── REFUSE, NEVER SKIP ──────────────────────────────────────────────────────
+//
+// This branch used to `process.exit(0)` with a "skipping" line, which means
+// "I could not look" and "I looked and found nothing" shared an exit code. A
+// caller downstream cannot tell them apart, so a missing secret silently
+// becomes a pass — the exact defect this repo has recorded more than once, and
+// the one `check-anon-function-grants.mjs` was hardened against in #1707.
+//
+// THE TRAP, worth stating because it is easy to half-fix: a URL *is* present in
+// CI (`ci.yml` sets NEXT_PUBLIC_SUPABASE_URL to https://placeholder.supabase.co)
+// and a service key never is. Testing `!URL_` alone would therefore pass in CI
+// and prove nothing. Both are required, and the message names which one is
+// missing so the failure is actionable rather than mysterious.
 if (!URL_ || !KEY) {
-  console.log(
-    "[check:taxonomy] NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — skipping (exit 0).",
+  const missing = [
+    !URL_ ? "NEXT_PUBLIC_SUPABASE_URL" : null,
+    !KEY ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+  ].filter(Boolean);
+  console.error(
+    `[check:taxonomy] REFUSING TO RUN: ${missing.join(" and ")} missing, so ` +
+      "nothing can be measured.\n" +
+      "  A data guard that cannot read must not report clean.\n" +
+      "  Run it as an operator check: npm run manual:taxonomy-guard\n" +
+      "  (service-role credentials never enter CI, which is why this lane is\n" +
+      "   deliberately outside the `ci` chain.)",
   );
-  process.exit(0);
+  process.exit(1);
 }
 
 /** Paged PostgREST select. Keeps every table read under the 1000-row default. */
@@ -276,6 +298,33 @@ const [terms, settings, roster, assigns, profiles, agencies] = await Promise.all
   selectAll("talent_profiles", "id,profile_code,deleted_at,is_publicly_hidden,is_publicly_listed"),
   selectAll("agencies", "id,slug,plan_tier"),
 ]);
+
+// ─── ZERO ROWS IS A FAILED MEASUREMENT, NOT A CLEAN ONE ──────────────────────
+//
+// Every check below is of the form "for each row, assert X". On an empty table
+// each one passes vacuously and the script prints "all checks passed" — a
+// perfect green produced by reading nothing. The credentials being wrong, the
+// project being the wrong one, or RLS refusing the anon key all land here, and
+// all of them look identical to a healthy database.
+//
+// These three tables can never legitimately be empty on a live project: there
+// are always taxonomy terms, always roster rows and always profiles. So an empty
+// read is a broken probe and must say so.
+for (const [label, rows] of [
+  ["taxonomy_terms", terms],
+  ["agency_talent_roster", roster],
+  ["talent_profiles", profiles],
+]) {
+  if (rows.length === 0) {
+    console.error(
+      `[check:taxonomy] REFUSING TO REPORT: read 0 rows from ${label}.\n` +
+        "  Every check here passes vacuously on an empty table, so this would\n" +
+        "  have printed a clean bill of health having measured nothing.\n" +
+        "  Check the project ref and that the key is a SERVICE-ROLE key.",
+    );
+    process.exit(1);
+  }
+}
 
 const termsById = new Map(terms.map((t) => [t.id, t]));
 const termBySlug = new Map(terms.map((t) => [t.id, t.slug]));
