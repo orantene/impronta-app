@@ -4595,6 +4595,8 @@
         "usePlatformDefaultDesc": "Stop using your own key and fall back to Tulala's shared credential.",
         "switchToDefault": "Switch",
         "feedbackConnected": "Connected. Format check passed.",
+        "feedbackConnectFailed": "Could not connect. Please try again.",
+        "feedbackOauthConnected": "Connected.",
         "feedbackUsingDefault": "Now using the platform default.",
         "feedbackRemovedReverted": "Removed. Reverted to the platform default.",
         "feedbackRemoved": "Removed.",
