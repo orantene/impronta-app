@@ -23,5 +23,5 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Isolated SQL fixture is applied on `qa-journeys`; rows stay `BLOCKED:` until a login on that isolated target (not production) and `JOURNEYS_FIXTURE_READY=1`. Honest count: **0 of 16 human rows executed**.
 
-Checkpoint 2026-09-08T17:15Z: `qa-journeys` has agencies, orders schema, 12-place pool, catalog, and five auth users. Sequential capacity smoke is not P1-01. Do not record passes from skipped Playwright.
+Checkpoint 2026-09-08T17:20Z: `qa-journeys` has agencies, catalog, 12-place pool, and five auth users. P1-01 HTTP concurrency passed (see `qa-evidence/P1-01/`). That is not a browser case. Do not record passes from skipped Playwright.
 

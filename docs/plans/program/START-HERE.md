@@ -13,7 +13,7 @@
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema + SQL fixture on `qa-journeys` | **Yes** — 763 recorded versions through `20261230000700`; five gate tables exist; seed applied. `JOURNEYS_FIXTURE_READY` remains unset. |
-| P1-01 200 concurrent HTTP reserves | **Not run** — needs gitignored `service_role` + real `DATABASE_URL` password. Sequential SQL smoke (13 calls vs 12 units) is supporting evidence only. |
+| P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`, 12 live units, 0 remaining. Evidence: `docs/plans/qa-evidence/P1-01/capacity-concurrency.md`. Not a browser case. |
 
 Skipped Playwright specs are not passes. Green unit tests and RPC helpers are supporting evidence only.
 
@@ -29,7 +29,7 @@ Isolated preview `qa-journeys` (`fxlankepwnvelxjrahwk`) answers SQL. Historical 
 
 SQL fixture is applied: two workspaces (`3333…3333` / `3333…3334`), hosts `qa-journeys.local` / `qa-journeys-b.local`, venue + table/room, three offerings, morning session, 12-place `session_tier` pool (remaining 12). Five auth users + owner/viewer/B-owner memberships + talent profile + customer row exist on that branch.
 
-Password and `service_role` for the branch still belong in gitignored `web/.env.capacity-isolated.local` — never git. Anon key is present there; `service_role` and the database password are still placeholders. Without `service_role`, PostgREST cannot call the service-role-only RPCs, and P1-01 cannot fire 200 concurrent HTTP reserves.
+Password and `service_role` for the branch belong in gitignored `web/.env.capacity-isolated.local` — never git. P1-01 used those isolated credentials against qa-journeys only.
 
 Product sources are in [`docs/product/`](../../product/).
 
@@ -42,9 +42,9 @@ Product sources are in [`docs/product/`](../../product/).
 | P0-03 48 case files | Implemented, awaiting focused verification — sampled against Journeys-POS. Browser still not started |
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
 | P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700` RPCs are on this branch and on qa-journeys, not production |
-| P0-06 fixture harness | SQL + auth users applied on qa-journeys. `JOURNEYS_FIXTURE_READY` unset until P1-01 HTTP proof and a login that is not a placeholder key. Guards refuse production / Impronta |
+| P0-06 fixture harness | SQL + auth users applied on qa-journeys. `JOURNEYS_FIXTURE_READY` unset until a verified isolated-app login. Guards refuse production / Impronta |
 | P0-07 Playwright tablet/mobile + case scaffold | Smoke specs renamed honestly; harness asserts identity so a login page cannot pass. Still skip until `JOURNEYS_FIXTURE_READY=1` |
-| P1-01 isolated capacity proof | Engine RPCs exist on qa-journeys. Sequential 12-seat smoke passed and was released. Concurrent HTTP script still blocked on `service_role` |
+| P1-01 isolated capacity proof | Verified in test environment: 200 HTTP callers, exactly 12 wins, zero oversell. See `qa-evidence/P1-01/` |
 | P2-01 type catalog | ~120 searchable types; `custom` outside; accent-fold search; handyman ES `mantenimiento del hogar` |
 | P2-04 Sales | Combined read: orders + bookings/reservations/registrations without manufacturing orders |
 | P3 POS | F01 expectedVersion on mutate/cancel; F03 cancel RPC; F04 zero-total completion; F07 contact only when `total_cents > 0`; F09 `booking.payment.request`; live POS on `pos-client.tsx`; pickup destination + promised window |
@@ -58,11 +58,9 @@ Product sources are in [`docs/product/`](../../product/).
 
 ## Task order (this cycle)
 
-1. Copy qa-journeys database password + `service_role` into `web/.env.capacity-isolated.local`. Never production.  
-2. P1-01: `CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/verify-capacity-concurrency.mjs` — 200×1 vs 12. Preserve results before cleanup. Sequential SQL is not this proof.  
-3. Point a local app at qa-journeys (`qa-journeys.local` is in `agency_domains` **on that branch**, not on production). Then browser journeys: C06, C01, C12, C02, then ten representatives, then 38 deltas.  
-4. Set `JOURNEYS_FIXTURE_READY=1` only after step 2 plus a verified login on the isolated target.  
-5. P9 stays parked.
+1. Point a local app at qa-journeys (`qa-journeys.local` is in `agency_domains` **on that branch**, not on production). Then browser journeys: C06, C01, C12, C02, then ten representatives, then 38 deltas.  
+2. Set `JOURNEYS_FIXTURE_READY=1` only after a verified login on the isolated target.  
+3. P9 stays parked.
 
 ## Test commands
 
@@ -78,14 +76,13 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Blockers
 
-- qa-journeys `service_role` and database password still placeholders, so P1-01 HTTP concurrency and PostgREST login are blocked.  
 - Browser journeys need the Next app on the isolated URL + host `qa-journeys.local` (production `agency_domains` does not include that host; a `*.vercel.app` preview still 404s).  
 - Mercado Pago live charges wait on merchant credentials.  
 - Live Stripe `refund.failed` / `refund.updated` endpoint change is ops, not this PR.
 
 ## Next action
 
-Fill isolated `service_role` + DB password, run P1-01 over HTTP, then C06/C01/C12/C02 on the real UI against qa-journeys. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+Run C06/C01/C12/C02 on the real UI against qa-journeys. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 
