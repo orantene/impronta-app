@@ -20,7 +20,7 @@ P5-01, P5-04, P7-05, P1-04
 - **Basic:** Sells drinks as counter sales.
 - **Complete:** Tab stays open; booth and gig ticket are separate; performer fee distinct.
 
-Overall status: implementing — C07-OP tab collect-at-close proven. Guest tab, booth vs ticket, and performer fee not run. Case not verified.
+Overall status: implementing — C07-OP collect-at-close and C07-CUS guest check proven. Guest cannot open a tab; booth vs ticket and performer fee not run. Case not verified.
 
 ## Scenarios
 
@@ -35,11 +35,11 @@ Overall status: implementing — C07-OP tab collect-at-close proven. Guest tab, 
 | Expected visible | Journey completes without a dead end. |
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | Promo on drinks does not apply to tickets unless scoped. |
-| Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C07-CUS/` |
+| Automated or manual | Playwright on qa-journeys `/visit/<token>` after staff Open tab |
+| Evidence | `qa-evidence/C07-CUS/guest-check.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — guest reads staff-opened check; cannot open a tab from the website |
 
 ### C07-OP — Operator journey
 
