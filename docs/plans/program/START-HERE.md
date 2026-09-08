@@ -40,7 +40,7 @@ This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
 | P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
 | P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
-| P8 hybrids | Implementing. `cancelHybridComponents` refunds one package line and releases only that line's capacity (L55 effect 5). Cafe/room pools stay independent. |
+| P8 hybrids | Implementing. Component cancel + supervised service + tournament courts (cafe omitted) + breakout rooms + live recording. Remaining: kitchen/pop-up, gallery triple-use of one room, retreat per-day add-ons. |
 | W-AUDIT | Standing — continues with every project |
 
 ## Task order (this cycle)
