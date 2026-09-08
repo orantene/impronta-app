@@ -663,6 +663,14 @@ test("/visit does NOT resolve on app or marketing", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/visit/opaque-token-here"), false);
 });
 
+test("POS, tables and preparation desks resolve on agency and app, not marketing", () => {
+  for (const path of ["/admin/pos", "/admin/tables", "/admin/preparation"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("app", path), true, `app ${path}`);
+    assert.equal(isPathAllowedForHostKind("marketing", path), false, `marketing ${path}`);
+  }
+});
+
 test('a tenant cannot claim the slug "visit" and shadow occupancy tokens', () => {
   assert.equal(isPathAllowedForHostKind("app", "/visit/admin"), false);
   assert.equal(resolvePathBasedTenantPublicPath("/visit/opaque-token-here"), null);

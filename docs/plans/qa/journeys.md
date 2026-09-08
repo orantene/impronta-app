@@ -12,5 +12,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Open `/admin/pos`, start a New Sale, add a catalog item, try Collect cash with no email/phone. | P3 walk-in draft + no_contact at collect. | Draft missing; collect succeeds without a named buyer; `createPurchase` per add. |
 | Same sale: enter email, Collect cash. | Cash recorded as a method on the existing order. | Second order created; Stripe session opened for cash. |
 | Collect card on a named sale. | Online Checkout at the existing Stripe boundary. | Direct Charge on a connected account; Terminal used. |
+| On a paid hybrid package, cancel catering only (`refund_hybrid_component`). | P8 L55 effect 5: that line's allocations release; other lines stand. | Whole order refunded; other allocations released; second order created. `BLOCKED:` until fixture. |
+| Staff desk `/admin/pos`, `/admin/tables`, `/admin/preparation` on an agency host. | P3/P5 surfaces are on the allow-list, not marketing. | 404 Host not registered; marketing host serves the desk. |
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the seed is applied, those rows stay `BLOCKED: fixture harness not applied`.

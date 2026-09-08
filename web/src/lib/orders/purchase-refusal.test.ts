@@ -79,6 +79,8 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}
       if (table === "talent_offerings") return resolve({ data: [offeringRow], error: null });
       if (table === "order_lines")
         return resolve({ data: [{ id: "line_1", offering_id: OFFERING, sort_order: 0 }], error: null });
+      if (table === "capacity_pools")
+        return resolve({ data: [{ id: POOL, tenant_id: TENANT }], error: null });
       return resolve({ data: [], error: null });
     };
     void thenable;

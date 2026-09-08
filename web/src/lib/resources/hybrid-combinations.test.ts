@@ -15,7 +15,37 @@ import {
 
 const START = "2026-09-08T18:00:00.000Z";
 const END = "2026-09-08T20:00:00.000Z";
-const ADMIN = { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never;
+
+function adminForTenant(tenantId = "t1") {
+  return {
+    rpc: async () => ({ data: null, error: null }),
+    from: (table: string) => {
+      let ids: string[] = [];
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        in: (_col: string, values: string[]) => {
+          ids = values;
+          return api;
+        },
+        then: (
+          resolve: (v: { data: unknown; error: null }) => unknown,
+          reject?: (e: unknown) => unknown,
+        ) =>
+          Promise.resolve({
+            data:
+              table === "capacity_pools"
+                ? ids.map((id) => ({ id, tenant_id: tenantId }))
+                : [],
+            error: null,
+          }).then(resolve, reject),
+      };
+      return api;
+    },
+  } as never;
+}
+
+const ADMIN = adminForTenant();
 
 const passCapacity = async (reqs: readonly { poolId: string }[]) => ({
   ok: true as const,
@@ -375,5 +405,48 @@ test("an adoption event in hall A does not consume the grooming room", () => {
     expiresAt: null,
   };
   assert.equal(remainingUnits(grooming, [event], { startsAt: START, endsAt: END }), 1);
+});
+
+test("exclusive hire of another workspace's kitchen writes nothing", async () => {
+  let reserved = 0;
+  const foreign = {
+    rpc: async () => ({ data: null, error: null }),
+    from: (table: string) => {
+      const api: Record<string, unknown> = {
+        select: () => api,
+        in: () => api,
+        then: (
+          resolve: (v: { data: unknown; error: null }) => unknown,
+          reject?: (e: unknown) => unknown,
+        ) =>
+          Promise.resolve({
+            data:
+              table === "capacity_pools"
+                ? [{ id: "kitchen-other", tenant_id: "t-other" }]
+                : [],
+            error: null,
+          }).then(resolve, reject),
+      };
+      return api;
+    },
+  } as never;
+  const r = await reserveExclusiveSpace(
+    foreign,
+    { tenantId: "t1", spacePoolId: "kitchen-other", startsAt: START, endsAt: END },
+    {
+      ...noopRelease,
+      reserveCapacityBatch: async () => {
+        reserved += 1;
+        return { ok: true, allocationIds: ["x"], expiresAt: null };
+      },
+      placeHold: async () => {
+        reserved += 1;
+        return { ok: true, holdId: "x", expiresAt: null };
+      },
+    },
+  );
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "wrong_tenant");
+  assert.equal(reserved, 0);
 });
 

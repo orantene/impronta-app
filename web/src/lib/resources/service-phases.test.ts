@@ -5,11 +5,42 @@ import { reserveServicePhases } from "./service-phases";
 const COLOUR = { startsAt: "2026-09-08T15:00:00.000Z", endsAt: "2026-09-08T15:45:00.000Z" };
 const RINSE = { startsAt: "2026-09-08T16:15:00.000Z", endsAt: "2026-09-08T16:30:00.000Z" };
 
+function adminForTenant(tenantId = "t1") {
+  return {
+    rpc: async () => ({ data: null, error: null }),
+    from: (table: string) => {
+      let ids: string[] = [];
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        in: (_col: string, values: string[]) => {
+          ids = values;
+          return api;
+        },
+        then: (
+          resolve: (v: { data: unknown; error: null }) => unknown,
+          reject?: (e: unknown) => unknown,
+        ) =>
+          Promise.resolve({
+            data:
+              table === "capacity_pools"
+                ? ids.map((id) => ({ id, tenant_id: tenantId }))
+                : [],
+            error: null,
+          }).then(resolve, reject),
+      };
+      return api;
+    },
+  } as never;
+}
+
+const ADMIN = adminForTenant();
+
 test("a colour service holds the chair and the wash station as one set", async () => {
   const placed: string[] = [];
   const pools: string[] = [];
   const r = await reserveServicePhases(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       phases: [
@@ -45,7 +76,7 @@ test("a colour service holds the chair and the wash station as one set", async (
 test("a taken wash station releases the chair already held for colour", async () => {
   const released: string[] = [];
   const r = await reserveServicePhases(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       phases: [

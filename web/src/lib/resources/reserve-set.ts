@@ -69,7 +69,8 @@ export type ReserveResourceSetReason =
   | CapacityRefusalReason
   | "slot_taken"
   | "invalid"
-  | "deadlock";
+  | "deadlock"
+  | "wrong_tenant";
 
 export type ReserveResourceSetResult =
   | { ok: true; holdIds: string[]; allocationIds: string[]; expiresAt: string | null }
@@ -116,6 +117,63 @@ function sortHolds(holds: readonly ResourceHoldRequest[]): ResourceHoldRequest[]
     if (talent !== 0) return talent;
     return a.startsAt.localeCompare(b.startsAt);
   });
+}
+
+/**
+ * `_capacity_reserve_locked` is service-role SECURITY DEFINER and keys only
+ * on `pool_id`. A UUID from another workspace would otherwise allocate.
+ */
+export async function assertCapacityPoolsForTenant(
+  admin: Pick<SupabaseClient, "from">,
+  tenantId: string,
+  poolIds: readonly string[],
+): Promise<
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "wrong_tenant" | "pool_not_found" | "unavailable";
+      error: string;
+      failedPoolId: string | null;
+    }
+> {
+  const unique = [...new Set(poolIds.filter((id) => id))];
+  if (unique.length === 0) return { ok: true };
+  const { data, error } = await admin
+    .from("capacity_pools")
+    .select("id, tenant_id")
+    .in("id", unique);
+  if (error) {
+    logServerError("resources.reserveSet.pools", error);
+    return {
+      ok: false,
+      reason: "unavailable",
+      error: "Could not hold those resources.",
+      failedPoolId: null,
+    };
+  }
+  const byId = new Map(
+    ((data ?? []) as Array<{ id: string; tenant_id: string }>).map((row) => [row.id, row]),
+  );
+  for (const id of unique) {
+    const row = byId.get(id);
+    if (!row) {
+      return {
+        ok: false,
+        reason: "pool_not_found",
+        error: "That resource is not in the capacity engine.",
+        failedPoolId: id,
+      };
+    }
+    if (row.tenant_id !== tenantId) {
+      return {
+        ok: false,
+        reason: "wrong_tenant",
+        error: "That resource is not on this workspace.",
+        failedPoolId: id,
+      };
+    }
+  }
+  return { ok: true };
 }
 
 async function unwindSet(
@@ -232,6 +290,21 @@ export async function reserveResourceSet(
       reason: "empty_batch",
       error: "Nothing to reserve.",
       failedPoolId: null,
+      failedTalentId: null,
+    };
+  }
+
+  const owned = await assertCapacityPoolsForTenant(
+    admin,
+    input.tenantId,
+    capacity.map((c) => c.poolId),
+  );
+  if (!owned.ok) {
+    return {
+      ok: false,
+      reason: owned.reason,
+      error: owned.error,
+      failedPoolId: owned.failedPoolId,
       failedTalentId: null,
     };
   }

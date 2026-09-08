@@ -5,6 +5,46 @@ import { expandedHoldWindow, reserveResourceSet, spaceCapacityPool } from "./res
 const START = "2026-09-08T15:00:00.000Z";
 const END = "2026-09-08T16:00:00.000Z";
 
+/** Synthesizes `capacity_pools` rows for this tenant unless `pools` is set. */
+function adminWithPools(
+  tenantId = "t1",
+  pools?: ReadonlyArray<{ id: string; tenant_id: string }>,
+) {
+  const known = pools ? new Map(pools.map((p) => [p.id, p])) : null;
+  return {
+    rpc: async () => ({ data: null, error: null }),
+    from: (table: string) => {
+      let ids: string[] = [];
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        in: (_col: string, values: string[]) => {
+          ids = values;
+          return api;
+        },
+        then: (
+          resolve: (v: { data: unknown; error: null }) => unknown,
+          reject?: (e: unknown) => unknown,
+        ) => {
+          const data =
+            table === "capacity_pools"
+              ? ids.flatMap((id) => {
+                  const hit = known?.get(id);
+                  if (hit) return [hit];
+                  if (known) return [];
+                  return [{ id, tenant_id: tenantId }];
+                })
+              : [];
+          return Promise.resolve({ data, error: null }).then(resolve, reject);
+        },
+      };
+      return api;
+    },
+  } as never;
+}
+
+const ADMIN = adminWithPools();
+
 test("travel buffers extend the hold window, not a second booking", () => {
   const w = expandedHoldWindow({
     talentProfileId: "tech-1",
@@ -24,7 +64,7 @@ test("a bridal set of four technicians and four stations is all-or-nothing", asy
   const reservedPools: string[] = [];
   const released: string[] = [];
   const r = await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       actorUserId: "u1",
@@ -69,7 +109,7 @@ test("a bridal set of four technicians and four stations is all-or-nothing", asy
 test("when a later technician is taken, stations already held are released", async () => {
   const released: string[] = [];
   const r = await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       holds: [
@@ -107,7 +147,7 @@ test("when a later technician is taken, stations already held are released", asy
 test("a sold-out station writes no calendar holds", async () => {
   let holds = 0;
   const r = await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       holds: [{ talentProfileId: "tech-1", startsAt: START, endsAt: END }],
@@ -131,7 +171,7 @@ test("a sold-out station writes no calendar holds", async () => {
 
 test("five workers sharing three stations refuse the fourth for the station, not the technician", async () => {
   const r = await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       holds: [{ talentProfileId: "tech-4", startsAt: START, endsAt: END }],
@@ -155,7 +195,7 @@ test("deadlock retries then refuses without leaking a hold", async () => {
   let attempts = 0;
   const released: string[] = [];
   const r = await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       holds: [{ talentProfileId: "tech-1", startsAt: START, endsAt: END }],
@@ -184,7 +224,7 @@ test("deadlock retries then refuses without leaking a hold", async () => {
 test("holds are placed in talent-id order", async () => {
   const order: string[] = [];
   await reserveResourceSet(
-    { rpc: async () => ({ data: null, error: null }), from: () => ({}) } as never,
+    ADMIN,
     {
       tenantId: "t1",
       holds: [
@@ -233,4 +273,59 @@ test("spaceCapacityPool reads a space subject, never a person", async () => {
     ["subject_id", "space-wash"],
     ["pool_key", "default"],
   ]);
+});
+
+test("a pool from another workspace writes nothing", async () => {
+  let reserved = 0;
+  const r = await reserveResourceSet(
+    adminWithPools("t1", [{ id: "kitchen-other", tenant_id: "t-other" }]),
+    {
+      tenantId: "t1",
+      capacity: [{ poolId: "kitchen-other", units: 1, startsAt: START, endsAt: END }],
+    },
+    {
+      reserveCapacityBatch: async () => {
+        reserved += 1;
+        return { ok: true, allocationIds: ["x"], expiresAt: null };
+      },
+      releaseCapacity: async () => ({ ok: true, released: 0, alreadyReleased: 0 }),
+      placeHold: async () => {
+        reserved += 1;
+        return { ok: true, holdId: "x", expiresAt: null };
+      },
+      releaseHold: async () => ({ ok: true }),
+    },
+  );
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason, "wrong_tenant");
+    assert.equal(r.failedPoolId, "kitchen-other");
+  }
+  assert.equal(reserved, 0);
+});
+
+test("an unknown pool id writes nothing", async () => {
+  let reserved = 0;
+  const r = await reserveResourceSet(
+    adminWithPools("t1", []),
+    {
+      tenantId: "t1",
+      capacity: [{ poolId: "missing-pool", units: 1, startsAt: START, endsAt: END }],
+    },
+    {
+      reserveCapacityBatch: async () => {
+        reserved += 1;
+        return { ok: true, allocationIds: ["x"], expiresAt: null };
+      },
+      releaseCapacity: async () => ({ ok: true, released: 0, alreadyReleased: 0 }),
+      placeHold: async () => ({ ok: true, holdId: "x", expiresAt: null }),
+      releaseHold: async () => ({ ok: true }),
+    },
+  );
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason, "pool_not_found");
+    assert.equal(r.failedPoolId, "missing-pool");
+  }
+  assert.equal(reserved, 0);
 });
