@@ -104,7 +104,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   }
   const search = page.getByPlaceholder(/search clients, briefs/i);
   if (await search.isVisible().catch(() => false)) {
-    await search.fill("Cora");
+    await search.fill(seed!.contactEmail ?? "Cora");
   }
   await page.keyboard.press("Escape");
   const row = page.getByRole("button", { name: /cora cuevas/i }).first();
@@ -126,8 +126,10 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   await expect(page.getByText(/qa journeys talent/i).first()).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("tab", { name: /^offer$/i }).click();
-  await page.getByRole("button", { name: /start drafting offer/i }).click();
-  await expect(page.getByText(/offer draft created|draft/i).first()).toBeVisible({
+  const startOffer = page.getByRole("button", { name: /start drafting offer/i });
+  await expect(startOffer).toBeVisible({ timeout: 20_000 });
+  await startOffer.click();
+  await expect(page.getByText(/offer draft created/i)).toBeVisible({
     timeout: 20_000,
   });
 
