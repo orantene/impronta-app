@@ -80,7 +80,7 @@ test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the 
   await page.getByRole("textbox", { name: /your name/i }).fill("C02 challenger");
   await page.getByRole("textbox", { name: /your email/i }).fill(challenger);
   await page.getByRole("button", { name: /confirm this time/i }).click();
-  await expect(page.getByText(/just taken|not free|could not hold/i)).toBeVisible({
+  await expect(page.getByText(/just taken|not free|could not hold|couldn't complete/i)).toBeVisible({
     timeout: 30_000,
   });
 

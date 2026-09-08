@@ -389,6 +389,7 @@ async function latestSpaOrder(email: string, lineNeedle: string): Promise<SpaIns
     .eq("tenant_id", JOURNEYS_TENANT_ID)
     .eq("customer_id", customer.id)
     .eq("source_channel", "instant_book")
+    .neq("status", "cancelled")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
