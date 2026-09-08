@@ -45,7 +45,8 @@ test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the 
   await page.goto("/book");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
-  await page.getByLabel(/^service$/i).selectOption({ label: "Massage" });
+  // Wrapping <label> also contains the option texts, so getByLabel(/^service$/) never matches.
+  await page.locator("select").selectOption({ label: "Massage" });
   await expect(page.getByText(/no open times/i)).toHaveCount(0);
 
   const slot = page.locator("[data-testid=slot-picker] button").first();
@@ -72,7 +73,7 @@ test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the 
   expect(t2Hold, "therapist B hold must exist").not.toBeNull();
 
   await page.goto("/book");
-  await page.getByLabel(/^service$/i).selectOption({ label: "Couples massage" });
+  await page.locator("select").selectOption({ label: "Couples massage" });
   const couplesSlot = page.locator("[data-testid=slot-picker] button", { hasText: slotLabel }).first();
   await expect(couplesSlot).toBeVisible({ timeout: 30_000 });
   await couplesSlot.click();
