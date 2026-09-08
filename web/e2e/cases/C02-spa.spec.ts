@@ -1,6 +1,7 @@
 /**
- * C02 [delta] — spa. Smoke stays honest. C02-CUS last-resource and the
- * successful couples set are real journeys on qa-journeys.
+ * C02 [delta] — spa. Smoke stays honest. C02-CUS last-resource, the
+ * successful couples set, and C02-DIFF (couples then competitor refuses)
+ * are real journeys on qa-journeys.
  */
 import {
   test,
@@ -18,6 +19,7 @@ import {
   latestSpaMassage,
   latestTherapistHold,
   overlappingTherapistHoldCount,
+  THERAPIST_A_ID,
   THERAPIST_B_ID,
 } from "./_isolated-db";
 
@@ -143,6 +145,77 @@ test("C02-CUS couples set: two therapists and Room A held together", async ({
 
   await page.screenshot({
     path: testInfo.outputPath("c02-cus-couples-sales.png"),
+    fullPage: true,
+  });
+});
+
+test("C02-DIFF: couples set booked, competing Massage on that window refuses", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const couplesGuest = `c02-diff-a-${Date.now()}@impronta.test`;
+  const massageGuest = `c02-diff-b-${Date.now()}@impronta.test`;
+
+  await page.goto("/book");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  await page.locator("select").selectOption({ label: "Couples massage" });
+  await expect(page.getByText(/no open times/i)).toHaveCount(0);
+
+  // Last listed slot: leftover first-slot Massage / second-slot Couples holds
+  // from C02-CUS must not collide with this DIFF.
+  const slot = page.locator("[data-testid=slot-picker] button").last();
+  await expect(slot).toBeVisible({ timeout: 30_000 });
+  const slotLabel = ((await slot.innerText()) ?? "").trim();
+  expect(slotLabel.length).toBeGreaterThan(0);
+  await slot.click();
+
+  await page.getByRole("textbox", { name: /your name/i }).fill("C02 DIFF couples");
+  await page.getByRole("textbox", { name: /your email/i }).fill(couplesGuest);
+  await page.getByRole("button", { name: /confirm this time/i }).click();
+  await expect(page).toHaveURL(/instant_booked=1|\/c\//, { timeout: 45_000 });
+
+  const booked = await latestCouplesSet(couplesGuest);
+  expect(booked, "couples set must persist before the competitor").not.toBeNull();
+  expect(booked?.order.status).toBe("paid");
+  expect(booked?.primaryHoldId).toBeTruthy();
+  expect(booked?.companionHoldId).toBeTruthy();
+  expect(booked?.order.roomAllocationId).toBeTruthy();
+
+  await page.goto("/book");
+  await page.locator("select").selectOption({ label: "Massage" });
+  const massageSlot = page.locator("[data-testid=slot-picker] button", { hasText: slotLabel }).first();
+  if ((await massageSlot.count()) > 0) {
+    await massageSlot.click();
+    await page.getByRole("textbox", { name: /your name/i }).fill("C02 DIFF massage");
+    await page.getByRole("textbox", { name: /your email/i }).fill(massageGuest);
+    await page.getByRole("button", { name: /confirm this time/i }).click();
+    await expect(page.getByText(/just taken|not free|could not hold|couldn't complete/i)).toBeVisible({
+      timeout: 30_000,
+    });
+  } else {
+    await expect(page.locator("[data-testid=slot-picker] button", { hasText: slotLabel })).toHaveCount(0);
+  }
+
+  expect(await latestSpaMassage(massageGuest)).toBeNull();
+  expect(await overlappingTherapistHoldCount(THERAPIST_A_ID, booked!.startsAt)).toBe(1);
+  expect(await overlappingTherapistHoldCount(THERAPIST_B_ID, booked!.startsAt)).toBe(1);
+
+  const stillHeld = await latestCouplesSet(couplesGuest);
+  expect(stillHeld, "couples set must still be held after the competitor").not.toBeNull();
+  expect(stillHeld?.primaryHoldId).toBe(booked!.primaryHoldId);
+  expect(stillHeld?.companionHoldId).toBe(booked!.companionHoldId);
+  expect(stillHeld?.order.roomAllocationId).toBe(booked!.order.roomAllocationId);
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("instant_book").first()).toBeVisible();
+  await expect(page.getByText(/overdue/i)).toHaveCount(0);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c02-diff-sales.png"),
     fullPage: true,
   });
 });
