@@ -505,6 +505,91 @@ export async function latestTherapistHold(talentProfileId: string): Promise<{
   return { id: String(data.id), startsAt: String(data.starts_at) };
 }
 
+export const QA_NIGHT_SESSION_ID = "33330013-0000-4000-8000-000000000002";
+export const QA_NIGHT_POOL_ID = "33330020-0000-4000-8000-000000000004";
+export const QA_NIGHT_SLUG = "qa-night";
+
+export type TicketPickerNight = {
+  orderId: string;
+  status: string;
+  totalCents: number;
+  sourceChannel: string;
+  customerEmail: string | null;
+  lineLabel: string | null;
+  sessionId: string | null;
+  receiptCode: string | null;
+  admissionId: string | null;
+  allocationId: string | null;
+  allocationState: string | null;
+};
+
+export async function latestTicketPickerNight(email: string): Promise<TicketPickerNight | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, source_channel, receipt_code")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "ticket_picker")
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("id, label, session_id")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+
+  const { data: admission, error: admissionErr } = line
+    ? await admin
+        .from("admissions")
+        .select("id, allocation_id")
+        .eq("tenant_id", JOURNEYS_TENANT_ID)
+        .eq("order_line_id", line.id)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (admissionErr) throw new Error(admissionErr.message);
+
+  const { data: alloc, error: allocErr } = line
+    ? await admin
+        .from("capacity_allocations")
+        .select("id, state")
+        .eq("tenant_id", JOURNEYS_TENANT_ID)
+        .eq("order_line_id", line.id)
+        .eq("pool_id", QA_NIGHT_POOL_ID)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (allocErr) throw new Error(allocErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    totalCents: Number(order.total_cents),
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    lineLabel: (line?.label as string | null) ?? null,
+    sessionId: (line?.session_id as string | null) ?? null,
+    receiptCode: (order.receipt_code as string | null) ?? null,
+    admissionId: (admission?.id as string | null) ?? null,
+    allocationId: (alloc?.id as string | null) ?? null,
+    allocationState: (alloc?.state as string | null) ?? null,
+  };
+}
+
 export async function overlappingTherapistHoldCount(
   talentProfileId: string,
   startsAt: string,

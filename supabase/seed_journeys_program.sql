@@ -11,8 +11,9 @@
 --   Not the business action under test. Fixtures prepare state; Playwright
 --   books, settles, and refunds through the real UI.
 --   This file creates two workspaces, hosts, venue, table+room, catalog
---   offerings (including two therapists + a couples set), a session, and
---   a 12-place session_tier pool.
+--   offerings (including two therapists + a couples set), a class session,
+--   a 12-place session_tier pool, and a published $0 event night
+--   (`/events/qa-night`) with a General admission tier + session_tier pool.
 --   Staff/customer/talent auth users are provisioned by
 --   `web/scripts/seed-journeys-program.mjs` once isolated credentials exist.
 --   Do not set JOURNEYS_FIXTURE_READY=1 from a seed log line alone.
@@ -480,6 +481,110 @@ ON CONFLICT (venue_id) DO UPDATE SET
   is_active = TRUE,
   min_notice_minutes = 0,
   reservation_offering_id = EXCLUDED.reservation_offering_id,
+  updated_at = now();
+
+-- C12 — published $0 night. Public surface is /events/qa-night, not a
+-- hardcoded event id in a page design.
+INSERT INTO public.talent_offerings (
+  id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
+  booking_mode, allow_pay_in_person, reserve_mode, status, visibility, moderation_state, sort_order
+)
+VALUES (
+  '33330012-0000-4000-8000-000000000007'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  NULL, 'workspace', 'service', 'QA Night ticket', 0, 'USD',
+  'instant', TRUE, 'free', 'published', 'public', 'approved', 40
+)
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  amount_cents = EXCLUDED.amount_cents,
+  allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  reserve_mode = EXCLUDED.reserve_mode,
+  sort_order = EXCLUDED.sort_order,
+  updated_at = now();
+
+INSERT INTO public.talent_offering_variants (
+  id, offering_id, label, amount_cents, sort_order, pool_key, admits_per_unit, min_per_order, is_hidden
+)
+VALUES (
+  '33330021-0000-4000-8000-000000000001'::UUID,
+  '33330012-0000-4000-8000-000000000007'::UUID,
+  'General admission', 0, 10, 'ga', 1, 1, FALSE
+)
+ON CONFLICT (id) DO UPDATE SET
+  label = EXCLUDED.label,
+  amount_cents = EXCLUDED.amount_cents,
+  pool_key = EXCLUDED.pool_key,
+  admits_per_unit = EXCLUDED.admits_per_unit,
+  updated_at = now();
+
+INSERT INTO public.events (
+  id, tenant_id, venue_id, offering_id, slug, title, description,
+  status, admission_kind, published_at
+)
+VALUES (
+  '33330022-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  '33330012-0000-4000-8000-000000000007'::UUID,
+  'qa-night',
+  'QA Night',
+  'Complimentary night for the journeys fixture.',
+  'published',
+  'ticket',
+  now()
+)
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  offering_id = EXCLUDED.offering_id,
+  venue_id = EXCLUDED.venue_id,
+  status = 'published',
+  published_at = COALESCE(public.events.published_at, now()),
+  updated_at = now();
+
+INSERT INTO public.sessions (
+  id, tenant_id, offering_id, venue_id, event_id, title, starts_at, ends_at, status
+)
+VALUES (
+  '33330013-0000-4000-8000-000000000002'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330012-0000-4000-8000-000000000007'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  '33330022-0000-4000-8000-000000000001'::UUID,
+  'QA Night',
+  now() + interval '2 days',
+  now() + interval '2 days 3 hours',
+  'scheduled'
+)
+ON CONFLICT (id) DO UPDATE SET
+  event_id = EXCLUDED.event_id,
+  offering_id = EXCLUDED.offering_id,
+  venue_id = EXCLUDED.venue_id,
+  title = EXCLUDED.title,
+  starts_at = EXCLUDED.starts_at,
+  ends_at = EXCLUDED.ends_at,
+  status = 'scheduled',
+  updated_at = now();
+
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-000000000004'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'session_tier',
+  '33330013-0000-4000-8000-000000000002'::UUID,
+  'ga',
+  ARRAY['33330020-0000-4000-8000-000000000004'::UUID],
+  12,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  subject_id = EXCLUDED.subject_id,
+  pool_key = EXCLUDED.pool_key,
+  units_total = EXCLUDED.units_total,
+  is_active = TRUE,
   updated_at = now();
 
 COMMIT;
