@@ -133,10 +133,8 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   if (await allChip.isVisible().catch(() => false)) {
     await allChip.click();
   }
-  const search = page.getByPlaceholder(/search clients, briefs/i);
-  await expect(search).toBeVisible({ timeout: 20_000 });
-  await search.fill("catalog shoot");
-  const row = page.getByRole("button", { name: /shortlist empty/i }).first();
+  const inbox = page.locator("[data-tulala-inbox-scroll]");
+  const row = inbox.getByRole("button", { name: /cora cuevas/i }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
 
