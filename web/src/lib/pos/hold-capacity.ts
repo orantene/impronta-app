@@ -4,8 +4,9 @@ import "server-only";
  * P3-05 — capacity attaches at collection, not line edits (L53).
  *
  * POS never calls `createPurchase`. The draft already exists; this command
- * holds the offering's pool (and a session window when the line names one)
- * before money moves. A later split allocation must not hold again.
+ * holds the session's `session_tier` pool (the same pool the guest picker
+ * buys) or the offering's stock pool when there is no session, before money
+ * moves. A later split allocation must not hold again.
  */
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -16,6 +17,7 @@ import {
   type ReserveResourceSetResult,
   type ResourceHoldRequest,
 } from "@/lib/resources/reserve-set";
+import { DEFAULT_TIER_KEY, tierReserveRequest } from "@/lib/sessions/tier-pools";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,12 +123,14 @@ export async function holdDraftOrderCapacity(
     } | null;
     if (!off) continue;
 
+    const units = Math.max(1, Math.trunc(num(line.units)));
     let startsAt: string | null = null;
     let endsAt: string | null = null;
+    let heldSessionPool = false;
     if (line.session_id) {
       const { data: session, error: sessionErr } = await admin
         .from("sessions")
-        .select("id, tenant_id, starts_at, ends_at")
+        .select("id, tenant_id, offering_id, starts_at, ends_at")
         .eq("id", line.session_id)
         .maybeSingle();
       if (sessionErr) {
@@ -135,19 +139,49 @@ export async function holdDraftOrderCapacity(
       }
       if (!session) return { ok: false, reason: "not_found", error: "That class is not here." };
       const sess = session as {
+        id: string;
         tenant_id: string;
+        offering_id: string | null;
         starts_at: string;
         ends_at: string;
       };
       if (sess.tenant_id !== input.tenantId) {
         return { ok: false, reason: "wrong_tenant", error: "That class is not here." };
       }
+      if (sess.offering_id && sess.offering_id !== line.offering_id) {
+        return { ok: false, reason: "not_found", error: "That class is not this item." };
+      }
       startsAt = sess.starts_at;
       endsAt = sess.ends_at;
+      const { data: pool, error: poolErr } = await admin
+        .from("capacity_pools")
+        .select("id")
+        .eq("tenant_id", input.tenantId)
+        .eq("subject_kind", "session_tier")
+        .eq("subject_id", sess.id)
+        .eq("pool_key", DEFAULT_TIER_KEY)
+        .maybeSingle();
+      if (poolErr) {
+        logServerError("pos.holdCapacity.sessionPool", poolErr);
+        return { ok: false, reason: "unavailable", error: "Could not hold those places." };
+      }
+      if (!pool) {
+        return { ok: false, reason: "unavailable", error: "That class is not selling places." };
+      }
+      const req = tierReserveRequest(
+        { id: sess.id, startsAt: sess.starts_at, endsAt: sess.ends_at },
+        String((pool as { id: string }).id),
+        units,
+        line.id,
+      );
+      if (!req) {
+        return { ok: false, reason: "unavailable", error: "Could not hold those places." };
+      }
+      capacity.push(req);
+      heldSessionPool = true;
     }
 
-    const units = Math.max(1, Math.trunc(num(line.units)));
-    if (off.capacity_pool_id) {
+    if (!heldSessionPool && off.capacity_pool_id) {
       capacity.push({
         poolId: off.capacity_pool_id,
         units,

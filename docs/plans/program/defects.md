@@ -13,5 +13,6 @@ One log. Blocking / high-risk also get a GitHub issue. Normal and cosmetic stay 
 | D-007 | cosmetic | logged | events | Ticket picker file header still says CARD ONLY; pay-at-door is implemented. | `ticket-picker-island.tsx` |
 | D-008 | high-risk | implementing — W-AUDIT | capacity | `reserve_capacity*` is service-role SECURITY DEFINER and keys on `pool_id` only. `reserveResourceSet` now refuses `wrong_tenant` / `pool_not_found` before the RPC. | `reserve-set.ts` |
 | D-009 | high-risk | implementing — W-AUDIT | pos | Collect holds class places; cancel now releases this tenant's live allocations for the sale's lines. | `collection.ts` finalizeOrCancel |
+| D-010 | high-risk | implementing — W-AUDIT | pos | Walk-in collect was holding `talent_offerings.capacity_pool_id`. It now holds the session `session_tier` / `default` pool via `tierReserveRequest`, same as the guest picker. | `hold-capacity.ts` |
 
 Classification: blocking / high-risk / normal / cosmetic. Fix blocking and high-risk in the active workstream. Do not stop unrelated work for cosmetic issues.

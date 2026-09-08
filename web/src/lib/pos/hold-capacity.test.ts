@@ -154,3 +154,56 @@ test("a class on another workspace's session writes nothing", async () => {
   assert.equal(r.reason, "wrong_tenant");
   assert.equal(reserved, 0);
 });
+
+test("a walk-in holds the session tier pool, not the offering stock pool", async () => {
+  const store = makeStore();
+  seedSale(store, { poolId: "offering-pool", sessionId: "ses-1" });
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    starts_at: "2026-09-08T18:00:00.000Z",
+    ends_at: "2026-09-08T19:00:00.000Z",
+  });
+  store.capacity_pools.push({
+    id: "session-pool",
+    tenant_id: "t1",
+    subject_kind: "session_tier",
+    subject_id: "ses-1",
+    pool_key: "default",
+  });
+  const pools: string[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
+    reserveCapacityBatch: async (reqs) => {
+      pools.push(...reqs.map((req) => req.poolId));
+      return { ok: true, allocationIds: ["x"], expiresAt: null };
+    },
+  });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.skipped, false);
+  assert.deepEqual(pools, ["session-pool"]);
+});
+
+test("a class with no session tier pool does not fall back to offering stock", async () => {
+  const store = makeStore();
+  seedSale(store, { poolId: "offering-pool", sessionId: "ses-1" });
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    starts_at: "2026-09-08T18:00:00.000Z",
+    ends_at: "2026-09-08T19:00:00.000Z",
+  });
+  let reserved = 0;
+  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
+    reserveCapacityBatch: async () => {
+      reserved += 1;
+      return { ok: true, allocationIds: ["x"], expiresAt: null };
+    },
+  });
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "unavailable");
+  assert.equal(reserved, 0);
+});
