@@ -20,7 +20,7 @@ P2-04, P7-01
 - **Basic:** Inquiry to booking with commission.
 - **Complete:** Three-model shoot books all three atomically; fees and margin separate.
 
-Overall status: not started — engine: combined Sales read + multi-talent reserveResourceSet. Browser journey not run.
+Overall status: implementing — C08-CUS directory inquiry submitted. Offer not accepted; models not assigned. Case not verified.
 
 ## Scenarios
 
@@ -35,11 +35,11 @@ Overall status: not started — engine: combined Sales read + multi-talent reser
 | Expected visible | Journey completes without a dead end. |
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | Quoted act is not public. |
-| Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C08-CUS/` |
+| Automated or manual | Playwright on qa-journeys `/directory?inquiry=open` |
+| Evidence | `qa-evidence/C08-CUS/directory-inquiry.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — inquiry submitted from directory chat; not offer-accepted |
 
 ### C08-OP — Operator journey
 
