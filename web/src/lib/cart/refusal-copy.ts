@@ -1,10 +1,10 @@
 /**
  * refusal-copy.ts — what a person reads when a purchase is refused.
  *
- * `createPurchase` returns eighteen machine reasons and the capacity engine
- * returns eight more. NONE of them may reach a customer. "sold_out" is nearly
- * readable and "ancestor_full" is not English at all; a person meeting either
- * on a checkout screen has been shown the inside of the machine.
+ * `createPurchase` returns machine reasons and the capacity engine returns
+ * more. NONE of them may reach a customer. "sold_out" is nearly readable and
+ * "ancestor_full" is not English at all; a person meeting either on a checkout
+ * screen has been shown the inside of the machine.
  *
  * THE RULE THIS ENCODES
  * ─────────────────────
@@ -69,7 +69,9 @@ export type RefusalReason =
   | "pool_inactive"
   | "invalid_window"
   | "invalid_ttl"
-  | "empty_batch";
+  | "empty_batch"
+  /** C34: a provisional listing cannot take money until someone claims it. */
+  | "unclaimed_seller";
 
 /** Can the person fix this by trying again, or must they change something? */
 export type RefusalKind = "absence" | "fault" | "input";
@@ -124,6 +126,14 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
     kind: "absence",
     en: "That is no longer available.",
     es: "Eso ya no está disponible.",
+  },
+  // C34. The engine knows the talent profile is unclaimed. The customer does
+  // not need that word. This is gone-for-now, not "try again" — retrying will
+  // not claim the listing for them.
+  unclaimed_seller: {
+    kind: "absence",
+    en: "This listing is not taking bookings yet.",
+    es: "Este anuncio aún no acepta reservas.",
   },
 
   // ── Input: the person can change something and continue. ────────────────
