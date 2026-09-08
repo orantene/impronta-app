@@ -79,7 +79,7 @@ export function LiveLineupPanel({
     loadInquiryLineup(effectiveTenant.slug, inquiryId)
       .then((r) => {
         if (r.ok) setLineup(r.data ?? []);
-        else toast(interpolate(tRef.current("dashboard.adminTabs.lineup.loadFailed"), { error: r.error }));
+        else { toast(interpolate(tRef.current("dashboard.adminTabs.lineup.loadFailed"), { error: r.error })); setLineup([]); }
       })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid, effectiveTenant.slug, toast]);

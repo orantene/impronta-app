@@ -106,11 +106,19 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   if (await search.isVisible().catch(() => false)) {
     await search.fill("Cora");
   }
-  const row = page.getByText(/cora cuevas|catalog shoot/i).first();
+  await page.keyboard.press("Escape");
+  const row = page.getByRole("button", { name: /cora cuevas/i }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
 
   await page.getByRole("tab", { name: /^lineup$/i }).click();
+  await expect(page.locator("[data-live-lineup-loading]")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  const manage = page.getByRole("button", { name: /^manage$/i });
+  if (await manage.isVisible().catch(() => false)) {
+    await manage.click();
+  }
   const addTalent = page.getByRole("button", { name: /^add talent$/i });
   await expect(addTalent).toBeVisible({ timeout: 20_000 });
   await addTalent.click();
