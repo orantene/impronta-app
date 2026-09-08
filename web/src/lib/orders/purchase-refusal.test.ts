@@ -29,7 +29,12 @@ type Call = { table: string; op: string; payload?: unknown };
  * actually calls, so a new call site shows up as a crash rather than a silent
  * pass.
  */
-function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string; poolTenantId?: string } = {}) {
+function fakeAdmin(opts: {
+  capacityRefusal?: string;
+  reserveMode?: string;
+  poolTenantId?: string;
+  allowPayInPerson?: boolean;
+} = {}) {
   const calls: Call[] = [];
 
   const offeringRow = {
@@ -42,7 +47,7 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string; poolT
     talent_profile_id: null,
     reserve_mode: opts.reserveMode ?? "full",
     deposit_pct: null,
-    allow_pay_in_person: false,
+    allow_pay_in_person: opts.allowPayInPerson ?? false,
     require_account_to_book: false,
     cancellation_hours: null,
   };
@@ -274,6 +279,37 @@ test("a free reserve writes NO booking and NO transaction", async () => {
   const inserts = calls.filter((c) => c.op === "insert").map((c) => c.table);
   // No money to collect, so no payment anchor is invented.
   assert.deepEqual(inserts, ["customers", "orders", "order_lines"], JSON.stringify(inserts));
+});
+
+test("pay-at-door stays pending_payment with no invented charge", async () => {
+  const { calls, admin } = fakeAdmin({ allowPayInPerson: true });
+  const r = await createPurchase(
+    admin,
+    input({
+      paymentChoice: "in_person",
+      sourceChannel: "ticket_picker",
+      lines: [{ offeringId: OFFERING, units: 1, sessionId: "44444444-4444-4444-4444-444444444444" }],
+    }),
+  );
+
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.collectCents, 0);
+  assert.equal(r.ok && r.payInPerson, true);
+  assert.equal(r.ok && r.transactionId, null);
+
+  const status = calls.find(
+    (c) =>
+      c.table === "orders"
+      && c.op === "update"
+      && typeof c.payload === "object"
+      && (c.payload as { status?: string }).status === "pending_payment",
+  );
+  assert.ok(status, "door hold must stay pending_payment so settleAtDoor can see it");
+  assert.equal(
+    calls.some((c) => c.table === "booking_transactions" && c.op === "insert"),
+    false,
+    "door hold must not open a Stripe transaction",
+  );
 });
 
 // ── Absence is not a value ───────────────────────────────────────────────────

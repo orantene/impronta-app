@@ -507,6 +507,7 @@ export async function latestTherapistHold(talentProfileId: string): Promise<{
 
 export const QA_NIGHT_SESSION_ID = "33330013-0000-4000-8000-000000000002";
 export const QA_NIGHT_POOL_ID = "33330020-0000-4000-8000-000000000004";
+export const QA_NIGHT_DOOR_POOL_ID = "33330020-0000-4000-8000-000000000005";
 export const QA_NIGHT_SLUG = "qa-night";
 
 export type TicketPickerNight = {
@@ -524,6 +525,10 @@ export type TicketPickerNight = {
   admittedCount: number | null;
   seatedAt: string | null;
   holderName: string | null;
+  poolId: string | null;
+  transactionProvider: string | null;
+  transactionStatus: string | null;
+  transactionCents: number | null;
 };
 
 export async function latestTicketPickerNight(email: string): Promise<TicketPickerNight | null> {
@@ -570,13 +575,21 @@ export async function latestTicketPickerNight(email: string): Promise<TicketPick
   const { data: alloc, error: allocErr } = line
     ? await admin
         .from("capacity_allocations")
-        .select("id, state")
+        .select("id, state, pool_id")
         .eq("tenant_id", JOURNEYS_TENANT_ID)
         .eq("order_line_id", line.id)
-        .eq("pool_id", QA_NIGHT_POOL_ID)
         .maybeSingle()
     : { data: null, error: null };
   if (allocErr) throw new Error(allocErr.message);
+
+  const { data: txn, error: txnErr } = await admin
+    .from("booking_transactions")
+    .select("provider, status, gross_amount_cents")
+    .eq("order_id", order.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (txnErr) throw new Error(txnErr.message);
 
   return {
     orderId: order.id,
@@ -593,6 +606,10 @@ export async function latestTicketPickerNight(email: string): Promise<TicketPick
     admittedCount: admission ? Number(admission.admitted_count) : null,
     seatedAt: (admission?.seated_at as string | null) ?? null,
     holderName: (admission?.holder_name as string | null) ?? null,
+    poolId: (alloc?.pool_id as string | null) ?? null,
+    transactionProvider: (txn?.provider as string | null) ?? null,
+    transactionStatus: (txn?.status as string | null) ?? null,
+    transactionCents: txn ? Number(txn.gross_amount_cents) : null,
   };
 }
 

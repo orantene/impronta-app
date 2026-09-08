@@ -644,9 +644,11 @@ export async function createPurchase(
     // `paid` is reachable ONLY from a webhook or an explicit staff
     // pay-in-person action. Nothing in this function writes it — which is the
     // single rule the menu engine breaks when it force-writes state to get past
-    // a gate. A zero-collect order is `paid` because there is nothing to
-    // collect, not because a charge succeeded.
-    const nextStatus = collectCents > 0 ? "pending_payment" : "paid";
+    // a gate. A zero-collect card/free order is `paid` because there is
+    // nothing to collect. A door hold is the opposite: collect is "none"
+    // until someone is standing there, so it MUST stay pending_payment or
+    // `loadHeldDoorOrders` cannot see it and `settleAtDoor` refuses `not_held`.
+    const nextStatus = policy.payInPerson || collectCents > 0 ? "pending_payment" : "paid";
 
     const { error: statusErr } = await admin
       .from("orders")
@@ -654,9 +656,10 @@ export async function createPurchase(
         status: nextStatus,
         // The SHORTEST hold across the lines. The order expires when its first
         // allocation does — anything later would leave the order claiming a
-        // hold it no longer has.
+        // hold it no longer has. Door holds use the session-end TTL already
+        // resolved above.
         hold_expires_at:
-          collectCents > 0 && heldAllocationIds.length > 0
+          (policy.payInPerson || collectCents > 0) && heldAllocationIds.length > 0
             ? new Date(
                 Date.now() + (shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS) * 1000,
               ).toISOString()

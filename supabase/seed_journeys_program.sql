@@ -518,6 +518,23 @@ ON CONFLICT (id) DO UPDATE SET
   admits_per_unit = EXCLUDED.admits_per_unit,
   updated_at = now();
 
+-- C12-DIFF — one priced door seat. Same night, own 1-unit pool so a hold
+-- blocks a competitor without shrinking the $0 GA pool.
+INSERT INTO public.talent_offering_variants (
+  id, offering_id, label, amount_cents, sort_order, pool_key, admits_per_unit, min_per_order, is_hidden
+)
+VALUES (
+  '33330021-0000-4000-8000-000000000002'::UUID,
+  '33330012-0000-4000-8000-000000000007'::UUID,
+  'Paid admission', 2000, 20, 'door', 1, 1, FALSE
+)
+ON CONFLICT (id) DO UPDATE SET
+  label = EXCLUDED.label,
+  amount_cents = EXCLUDED.amount_cents,
+  pool_key = EXCLUDED.pool_key,
+  admits_per_unit = EXCLUDED.admits_per_unit,
+  updated_at = now();
+
 INSERT INTO public.events (
   id, tenant_id, venue_id, offering_id, slug, title, description,
   status, admission_kind, published_at
@@ -577,6 +594,27 @@ VALUES (
   'ga',
   ARRAY['33330020-0000-4000-8000-000000000004'::UUID],
   12,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  subject_id = EXCLUDED.subject_id,
+  pool_key = EXCLUDED.pool_key,
+  units_total = EXCLUDED.units_total,
+  is_active = TRUE,
+  updated_at = now();
+
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-000000000005'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'session_tier',
+  '33330013-0000-4000-8000-000000000002'::UUID,
+  'door',
+  ARRAY['33330020-0000-4000-8000-000000000005'::UUID],
+  1,
   900,
   TRUE
 )
