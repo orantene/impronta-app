@@ -88,25 +88,9 @@ export function idsToCancel(
 }
 
 type SweepClient = {
-  from: (table: string) => {
-    select: (cols: string) => {
-      in: (col: string, vals: readonly string[]) => Promise<{
-        data: Array<{
-          id: string;
-          status: string;
-          hold_expires_at: string | null;
-          created_at: string;
-          updated_at: string | null;
-        }> | null;
-        error: { message: string } | null;
-      }>;
-    };
-    update: (payload: Record<string, unknown>) => {
-      in: (col: string, vals: readonly string[]) => {
-        in: (col: string, vals: readonly string[]) => Promise<{ error: { message: string } | null }>;
-      };
-    };
-  };
+  // The real client is a deeply generic PostgREST builder. Tests pass a fake.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
 };
 
 /** Move expired draft / pending_payment orders to cancelled. */
@@ -120,7 +104,13 @@ export async function sweepExpiredOrders(
     .in("status", ["draft", "pending_payment"]);
   if (error) throw new Error(error.message);
 
-  const rows = (data ?? []).map((row) => ({
+  const rows = ((data ?? []) as Array<{
+    id: string;
+    status: string;
+    hold_expires_at: string | null;
+    created_at: string;
+    updated_at: string | null;
+  }>).map((row) => ({
     id: row.id,
     status: row.status,
     holdExpiresAt: row.hold_expires_at,

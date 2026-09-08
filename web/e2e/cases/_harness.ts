@@ -8,25 +8,22 @@
  * Device: tablet-pos and mobile-checkout projects in playwright.config.ts.
  */
 
-import { test as base, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+export { test, expect };
 
 export const JOURNEYS_SLUG = process.env.JOURNEYS_TENANT_SLUG ?? "qa-journeys";
 export const FIXTURE_READY = process.env.JOURNEYS_FIXTURE_READY === "1";
 
-export const test = base.extend<{ journeysPage: Page }>({
-  journeysPage: async ({ page }, use) => {
-    await page.addInitScript(() => {
-      try {
-        window.localStorage.setItem("impronta_analytics_consent", "denied");
-      } catch {
-        /* ignore */
-      }
-    });
-    await use(page);
-  },
-});
-
-export { expect };
+export async function prepareJourneysPage(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("impronta_analytics_consent", "denied");
+    } catch {
+      /* ignore */
+    }
+  });
+}
 
 export async function openWorkspace(page: Page, segment: string): Promise<void> {
   await page.goto(`/${JOURNEYS_SLUG}/admin/${segment}`);

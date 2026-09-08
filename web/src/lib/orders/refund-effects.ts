@@ -62,7 +62,7 @@ export function isRefundEffect(raw: string): raw is RefundEffect {
 /** `refundOrderLines` voids tickets when the line is a ticket. Map effects onto that. */
 export function refundReasonForEffect(
   effect: RefundEffect,
-): "service_not_delivered" | "goodwill" | "duplicate" {
+): "service_not_delivered" | "goodwill" {
   if (effect === "keep_entitlement" || effect === "adjustment_after_service") return "goodwill";
   return "service_not_delivered";
 }
