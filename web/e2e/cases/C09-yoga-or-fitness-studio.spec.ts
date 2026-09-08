@@ -166,7 +166,9 @@ test("C09-DIFF door: website last seat blocks POS walk-in on the same pool", asy
   await expect(page.locator("aside").getByText(/complimentary class/i)).toBeVisible();
   await page.locator("aside").getByLabel(/^email$/i).fill(walkInMarker);
   await page.getByTitle("Collect cash").click();
-  await expect(page.getByRole("alert")).toHaveText(/no longer free/i, { timeout: 30_000 });
+  await expect(page.locator("aside").getByRole("alert")).toHaveText(/no longer free/i, {
+    timeout: 30_000,
+  });
   await expect(page.getByText(/payment:\s*paid/i)).toHaveCount(0);
 
   const refused = await latestClassWalkIn(walkInMarker);
