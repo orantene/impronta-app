@@ -10,7 +10,7 @@
 
 Every documented case study functions end to end: customer, operator, applicable talent, difficult combination, money/capacity/fulfilment consistency, recovery. QA is a standing workstream (W-AUDIT), not a gate.
 
-This file tracks P0–P7. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4**, then **P5**, then **P6 ∥ P7** (this checkpoint), then P8.
+This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4**, then **P5**, then **P6 ∥ P7**, then **P8** (this checkpoint). P9 outstanding.
 
 ## Missing dependency
 
@@ -38,15 +38,16 @@ This file tracks P0–P7. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. `submitToPreparation` writes tickets (P5). |
 | P4 collection interface + Stripe adapter + MP discovery | Implemented, awaiting focused verification. Terminal unavailable until Point. |
 | P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
-| P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. |
+| P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
 | P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
+| P8 hybrids | Implementing. `cancelHybridComponents` refunds one package line and releases only that line's capacity (L55 effect 5). Cafe/room pools stay independent. |
 | W-AUDIT | Standing — continues with every project |
 
 ## Task order (this cycle)
 
 1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md).  
 2. P0-01 / P1-01 / `db:check` stay awaiting external. Never mark them passed.  
-3. Next unblocked after this checkpoint: **P8**. P6/P7 resource set, deliverables, recurring skip, quote versions, departures, and phases exist. Do not start P8 until this checkpoint is committed.
+3. Next: finish **P8** hybrid packages (partial component cancel is in; remaining combinations still to wire). Do not write a new plan.
 
 ## Test commands
 
@@ -69,10 +70,11 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`. Echo the real exit code
 - No isolated database for concurrency proof (P1-01) — awaiting owner. Do not run against production.  
 - `db:check` / `db:push` need credentials (P0-05 remote half).  
 - Fixture apply needs `DATABASE_URL` (P0-06).  
+- Vercel preview is red until `npm run db:push`: `prebuild` runs `check-migrations-applied`, and GitHub admin-boot skips that script (`npx next build`). First fail was `6d43677cb` (visits migration). Do not set `SKIP_MIGRATION_DRIFT_CHECK`. 
 
 ## Next action
 
-Take the next unblocked task in [`ledger.md`](ledger.md): **P8**. Do not write a new plan.
+Take the next unblocked task in [`ledger.md`](ledger.md): **P8-01** remaining combinations. Do not write a new plan.
 
 ## Owner claim
 

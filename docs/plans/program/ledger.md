@@ -51,6 +51,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P7-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Agreed change inserts a new `inquiry_offers` version. Accepted quote is not rewritten. |
 | P7-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Departure = session + admissions manifest. Vehicle cap via capacity remaining. Performer fee ≠ admission. |
 | P7-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Appointment phases flatten into one `reserveResourceSet`. Sold-out later phase writes no earlier hold. |
+| P8-01 | cloud-safe | implementing | cloud-agent | 2026-09-08T08:30Z | cursor/journeys-program-c4d3 | Hybrid component cancel: refund + release only that line's allocations. Cafe vs room pools independent. Remaining combinations (supervised set, tournament-all-courts, breakout rooms) still open. |
 
 ## Case matrix (overall)
 

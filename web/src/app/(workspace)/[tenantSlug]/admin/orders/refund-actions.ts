@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
+import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
 import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
 
 export type DeskOrderLine = {
@@ -78,6 +79,18 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>) {
   if (orderErr) return { ok: false as const, error: "unavailable" };
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
     return { ok: false as const, error: "not_found" };
+  }
+
+  if (parsed.data.effect === "refund_hybrid_component") {
+    const hybrid = await cancelHybridComponents(admin, {
+      tenantId: guard.tenantId,
+      orderId: parsed.data.orderId,
+      lineIds: parsed.data.lineIds,
+      actorUserId: guard.user.id,
+      note: `desk:${parsed.data.effect}`,
+    });
+    if (!hybrid.ok) return { ok: false as const, error: hybrid.reason };
+    return { ok: true as const, refundedCents: hybrid.refundedCents };
   }
 
   const result = await refundOrderLines(admin, {
