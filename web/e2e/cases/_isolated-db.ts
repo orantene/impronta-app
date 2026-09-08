@@ -209,6 +209,59 @@ export async function latestReserveThenOrder(email: string): Promise<{
   };
 }
 
+export const MORNING_CLASS_SESSION_ID = "33330013-0000-4000-8000-000000000001";
+
+export type ClassWalkIn = {
+  orderId: string;
+  status: string;
+  totalCents: number;
+  sourceChannel: string;
+  customerEmail: string | null;
+  lineLabel: string | null;
+  sessionId: string | null;
+};
+
+export async function latestClassWalkIn(email: string): Promise<ClassWalkIn | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, source_channel")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "pos")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("label, session_id, total_cents")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    totalCents: Number(order.total_cents),
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    lineLabel: (line?.label as string | null) ?? null,
+    sessionId: (line?.session_id as string | null) ?? null,
+  };
+}
+
 export type GelManicureDeposit = {
   orderId: string;
   status: string;
