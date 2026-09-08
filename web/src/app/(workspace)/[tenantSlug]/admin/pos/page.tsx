@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
+import { currentShift } from "@/lib/pos/shift";
 import { PosClient } from "./pos-client";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function PosPage({
 
   const q = await searchParams;
   const orderId = typeof q.order === "string" ? q.order : null;
-  const [open, saleLoad, catalog] = await Promise.all([
+  const [open, saleLoad, catalog, shiftLoad] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
@@ -44,6 +45,7 @@ export default async function PosPage({
       .eq("owner_kind", "workspace")
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
+    currentShift(admin, { tenantId: scope.tenantId }),
   ]);
 
   const sale = saleLoad && saleLoad.ok ? saleLoad.sale : null;
@@ -93,7 +95,29 @@ export default async function PosPage({
           sendToPrep: tr("dashboard.pos.sendToPrep"),
           emptyCatalog: tr("dashboard.pos.emptyCatalog"),
           emptyOpen: tr("dashboard.pos.emptyOpen"),
+          amount: tr("dashboard.pos.amount"),
+          tendered: tr("dashboard.pos.tendered"),
+          change: tr("dashboard.pos.change"),
+          shiftTitle: tr("dashboard.pos.shiftTitle"),
+          shiftOpen: tr("dashboard.pos.shiftOpen"),
+          shiftClose: tr("dashboard.pos.shiftClose"),
+          shiftOpening: tr("dashboard.pos.shiftOpening"),
+          shiftCounted: tr("dashboard.pos.shiftCounted"),
+          shiftExpected: tr("dashboard.pos.shiftExpected"),
+          shiftVariance: tr("dashboard.pos.shiftVariance"),
+          shiftNone: tr("dashboard.pos.shiftNone"),
+          shiftOpenHint: tr("dashboard.pos.shiftOpenHint"),
         }}
+        shift={
+          shiftLoad.ok && shiftLoad.shift
+            ? {
+                id: shiftLoad.shift.id,
+                version: shiftLoad.shift.version,
+                openingCashCents: shiftLoad.shift.openingCashCents,
+                openedAt: shiftLoad.shift.openedAt,
+              }
+            : null
+        }
       />
     </main>
   );

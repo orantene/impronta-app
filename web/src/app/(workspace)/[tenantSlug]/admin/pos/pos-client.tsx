@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   posAddLine,
   posCancelSale,
+  posCloseShift,
   posCreateDraft,
+  posOpenShift,
   posReprice,
   posRemoveLine,
   posStartCollection,
@@ -21,11 +23,27 @@ export type PosCatalogItem = {
   kind: string | null;
 };
 
+export type PosShiftView = {
+  id: string;
+  version: number;
+  openingCashCents: number;
+  openedAt: string | null;
+};
+
+function parseCents(raw: string, fallback: number): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return fallback;
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return n;
+}
+
 export function PosClient(props: {
   tenantSlug: string;
   sale: PosSaleView | null;
   openSales: Array<{ id: string; totalCents: number }>;
   catalog: PosCatalogItem[];
+  shift: PosShiftView | null;
   copy: {
     newSale: string;
     openSales: string;
@@ -47,6 +65,18 @@ export function PosClient(props: {
     sendToPrep: string;
     emptyCatalog: string;
     emptyOpen: string;
+    amount: string;
+    tendered: string;
+    change: string;
+    shiftTitle: string;
+    shiftOpen: string;
+    shiftClose: string;
+    shiftOpening: string;
+    shiftCounted: string;
+    shiftExpected: string;
+    shiftVariance: string;
+    shiftNone: string;
+    shiftOpenHint: string;
   };
 }) {
   const router = useRouter();
@@ -55,6 +85,10 @@ export function PosClient(props: {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [promo, setPromo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [tendered, setTendered] = useState("");
+  const [openingCash, setOpeningCash] = useState("0");
+  const [countedCash, setCountedCash] = useState("");
   const sale = props.sale;
 
   function go(orderId: string) {
@@ -72,8 +106,102 @@ export function PosClient(props: {
     return r;
   }
 
+  async function collect(method: "cash" | "online_card") {
+    if (!sale) return { ok: false as const, error: "unavailable" };
+    const amountCents = parseCents(amount, sale.outstandingCents);
+    if (amountCents == null || amountCents <= 0) {
+      return { ok: false as const, error: "amount" };
+    }
+    const tenderedCents = parseCents(tendered, amountCents);
+    if (tenderedCents == null) {
+      return { ok: false as const, error: "tendered" };
+    }
+    const r = await posStartCollection({
+      orderId: sale.orderId,
+      method,
+      email: email || undefined,
+      phone: phone || undefined,
+      amountCents,
+      tenderedCents: method === "cash" ? tenderedCents : undefined,
+      idempotencyKey: crypto.randomUUID(),
+    });
+    if (r.ok && method === "online_card" && "checkoutUrl" in r && r.checkoutUrl) {
+      window.location.href = r.checkoutUrl;
+    }
+    return r;
+  }
+
   return (
-    <div style={{ display: "grid", gap: 28, gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 360px)" }}>
+    <div>
+      <section style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
+        <h2 style={{ fontSize: 16, margin: "0 0 8px" }}>{props.copy.shiftTitle}</h2>
+        <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 0 }}>{props.copy.shiftOpenHint}</p>
+        {props.shift ? (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+            <p style={{ margin: 0 }}>
+              {props.copy.shiftOpening}: {props.shift.openingCashCents}
+            </p>
+            <label>
+              {props.copy.shiftCounted}
+              <input
+                value={countedCash}
+                onChange={(e) => setCountedCash(e.target.value)}
+                inputMode="numeric"
+                style={{ display: "block", minHeight: 44, width: 140 }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={busy}
+              style={{ minHeight: 44 }}
+              onClick={() => {
+                const closingCashCents = parseCents(countedCash, -1);
+                if (closingCashCents == null || closingCashCents < 0) {
+                  setMsg("amount");
+                  return;
+                }
+                void run(() =>
+                  posCloseShift({
+                    closingCashCents,
+                    expectedVersion: props.shift?.version,
+                  }),
+                );
+              }}
+            >
+              {props.copy.shiftClose}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+            <p style={{ margin: 0 }}>{props.copy.shiftNone}</p>
+            <label>
+              {props.copy.shiftOpening}
+              <input
+                value={openingCash}
+                onChange={(e) => setOpeningCash(e.target.value)}
+                inputMode="numeric"
+                style={{ display: "block", minHeight: 44, width: 140 }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={busy}
+              style={{ minHeight: 44 }}
+              onClick={() => {
+                const openingCashCents = parseCents(openingCash, 0);
+                if (openingCashCents == null) {
+                  setMsg("amount");
+                  return;
+                }
+                void run(() => posOpenShift(openingCashCents));
+              }}
+            >
+              {props.copy.shiftOpen}
+            </button>
+          </div>
+        )}
+      </section>
+      <div style={{ display: "grid", gap: 28, gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 360px)" }}>
       <section>
         <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
           <button
@@ -189,22 +317,31 @@ export function PosClient(props: {
               {props.copy.phone}
               <input value={phone} onChange={(e) => setPhone(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%" }} />
             </label>
+            <label>
+              {props.copy.amount}
+              <input
+                value={amount}
+                placeholder={String(sale.outstandingCents)}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="numeric"
+                style={{ display: "block", minHeight: 44, width: "100%" }}
+              />
+            </label>
+            <label>
+              {props.copy.tendered}
+              <input
+                value={tendered}
+                onChange={(e) => setTendered(e.target.value)}
+                inputMode="numeric"
+                style={{ display: "block", minHeight: 44, width: "100%" }}
+              />
+            </label>
             <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
               <button
                 type="button"
                 disabled={busy || sale.paymentState === "paid"}
                 style={{ minHeight: 44 }}
-                onClick={() =>
-                  void run(async () => {
-                    const r = await posStartCollection({
-                      orderId: sale.orderId,
-                      method: "cash",
-                      email: email || undefined,
-                      phone: phone || undefined,
-                    });
-                    return r;
-                  })
-                }
+                onClick={() => void run(() => collect("cash"))}
               >
                 {props.copy.collectCash}
               </button>
@@ -212,20 +349,7 @@ export function PosClient(props: {
                 type="button"
                 disabled={busy || sale.paymentState === "paid"}
                 style={{ minHeight: 44 }}
-                onClick={() =>
-                  void run(async () => {
-                    const r = await posStartCollection({
-                      orderId: sale.orderId,
-                      method: "online_card",
-                      email: email || undefined,
-                      phone: phone || undefined,
-                    });
-                    if (r.ok && "checkoutUrl" in r && r.checkoutUrl) {
-                      window.location.href = r.checkoutUrl;
-                    }
-                    return r;
-                  })
-                }
+                onClick={() => void run(() => collect("online_card"))}
               >
                 {props.copy.collectCard}
               </button>
@@ -262,6 +386,7 @@ export function PosClient(props: {
           </>
         )}
       </aside>
+      </div>
     </div>
   );
 }

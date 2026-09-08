@@ -16,6 +16,8 @@ The existing `orders` row is the commercial record. No parallel "check" entity.
 
 A multi-order visit record arrives only if a case proves one visit needs several orders (bill-splitting). Deferred until built.
 
+**P5-06 (2026-09-08):** three-way split is several `booking_transactions` allocations on the existing order. It does not require a second order or a parallel check. L52 already allowed several allocations on one order.
+
 **L52 column clarification (2026-09-08):** occupancy is `orders.visit_id`. `orders.space_id` remains `spaces.id`. Stuffing visit UUIDs into `space_id` would collide with the physical table identity that column was reserved for.
 
 ## L53 — POS command contract

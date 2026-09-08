@@ -12036,7 +12036,19 @@
       "applyCode": "Apply code",
       "sendToPrep": "Send to preparation",
       "emptyCatalog": "No published workspace items yet.",
-      "emptyOpen": "No open sales."
+      "emptyOpen": "No open sales.",
+      "amount": "This allocation",
+      "tendered": "Tendered",
+      "change": "Change",
+      "shiftTitle": "Shift",
+      "shiftOpen": "Open shift",
+      "shiftClose": "Close shift",
+      "shiftOpening": "Opening cash",
+      "shiftCounted": "Counted cash",
+      "shiftExpected": "Expected cash",
+      "shiftVariance": "Variance",
+      "shiftNone": "No open shift. Cash still collects.",
+      "shiftOpenHint": "Leaving this page does not close the shift."
     },
     "tables": {
       "pageTitle": "Tables",

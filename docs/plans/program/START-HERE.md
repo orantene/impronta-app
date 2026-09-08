@@ -37,14 +37,14 @@ This file tracks P0–P5. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P2-01…P2-05 type / layers / nav / Sales / Discounts | Implemented on authorized types (~50 of 120). Remaining IDs wait on product docs |
 | P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. `submitToPreparation` writes tickets (P5). |
 | P4 collection interface + Stripe adapter + MP discovery | Implemented, awaiting focused verification. Terminal unavailable until Point. |
-| P5 restaurant engine | Implementing: visits, prep tickets, table QR visit identity, `/admin/tables`, `/admin/preparation`. Split settlement and shift cash-up not built. Apply awaiting credentials. |
+| P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
 | W-AUDIT | Standing — continues with every project |
 
 ## Task order (this cycle)
 
 1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md).  
 2. P0-01 / P1-01 / `db:check` stay awaiting external. Never mark them passed.  
-3. Next unblocked after this checkpoint: **P6 ∥ P7** only after P5's visit/prep command boundary exists (it does). Split settlement (P5-06) and shift cash-up stay open inside P5. Do not start P6/P7 until this checkpoint is committed.
+3. Next unblocked after this checkpoint: **P6 ∥ P7**. P5 visit/prep/split/shift command boundary exists. Do not start P6/P7 until this checkpoint is committed.
 
 ## Test commands
 
@@ -70,11 +70,11 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`. Echo the real exit code
 
 ## Next action
 
-Take the next unblocked task in [`ledger.md`](ledger.md): finish remaining P5 (split settlement, shift) or **P6 ∥ P7**. Do not write a new plan.
+Take the next unblocked task in [`ledger.md`](ledger.md): **P6 ∥ P7**. Do not write a new plan.
 
 ## Owner claim
 
 One owner at a time. Stale-claim recovery: if the claim is older than 6 hours and the session is gone, the next session takes the next unblocked task and records the takeover.
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T06:49Z
+**Claimed:** 2026-09-08T07:05Z

@@ -9,7 +9,7 @@ Have: catalog, orders, capacity, reservations, public menu.
 
 ## Missing business behavior
 
-Missing: open checks, table QR visit identity, kitchen, cash/shift, split.
+Missing: browser proof of the restaurant complete path (QR, courses, move, three-way split, shift cash-up) against a fixture.
 
 ## Tasks required
 
@@ -20,7 +20,7 @@ P5-01–P5-06, P3-01, P3-02
 - **Basic:** Takes a reservation and a public menu order.
 - **Complete:** Guest scans table QR; staff fire courses; check moves; bill splits.
 
-Overall status: implementing (open check, visit QR, kitchen). Split settlement not built.
+Overall status: implementing (open check, visit QR, kitchen, split allocations, shift on POS). Case not verified.
 
 ## Scenarios
 

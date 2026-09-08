@@ -19,6 +19,10 @@ export type DoorSettleInput = {
   amountCents: number;
   currency: string;
   idempotencyKey: string;
+  /** Open POS shift this tender belongs to. Absent when no shift is open. */
+  shiftId?: string | null;
+  /** What the operator counted into the drawer. Defaults to amountCents. */
+  tenderedCents?: number;
 };
 
 export type DoorSettleResult =
@@ -91,7 +95,14 @@ export async function settleAtDoor(
       provider_reference: input.idempotencyKey,
       status: "paid",
       paid_at: new Date().toISOString(),
-      metadata: { paid_via: input.paidVia, settled_at: "door", actor: input.actorUserId },
+      metadata: {
+        paid_via: input.paidVia,
+        settled_at: "door",
+        actor: input.actorUserId,
+        ...(input.shiftId ? { shift_id: input.shiftId } : {}),
+        tendered_cents: input.tenderedCents ?? input.amountCents,
+        change_cents: (input.tenderedCents ?? input.amountCents) - input.amountCents,
+      },
     })
     .select("id")
     .single();

@@ -12036,7 +12036,19 @@
       "applyCode": "Aplicar código",
       "sendToPrep": "Enviar a preparación",
       "emptyCatalog": "Aún no hay artículos publicados del espacio.",
-      "emptyOpen": "No hay ventas abiertas."
+      "emptyOpen": "No hay ventas abiertas.",
+      "amount": "Esta parte",
+      "tendered": "Entregado",
+      "change": "Cambio",
+      "shiftTitle": "Turno",
+      "shiftOpen": "Abrir turno",
+      "shiftClose": "Cerrar turno",
+      "shiftOpening": "Efectivo de apertura",
+      "shiftCounted": "Efectivo contado",
+      "shiftExpected": "Efectivo esperado",
+      "shiftVariance": "Diferencia",
+      "shiftNone": "No hay turno abierto. El efectivo se cobra igual.",
+      "shiftOpenHint": "Salir de esta página no cierra el turno."
     },
     "tables": {
       "pageTitle": "Mesas",

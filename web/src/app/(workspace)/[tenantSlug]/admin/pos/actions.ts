@@ -9,6 +9,7 @@ import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { addLine, createDraftOrder, listOpenPosSales, loadPosSale, removeLine, repriceAndValidate, updateLine } from "@/lib/pos/draft";
 import { finalizeOrCancel, startCollection, submitToPreparation } from "@/lib/pos/collection";
+import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
 
 const uuid = z.string().uuid();
 
@@ -102,6 +103,9 @@ export async function posStartCollection(input: {
   email?: string;
   phone?: string;
   displayName?: string;
+  amountCents?: number;
+  tenderedCents?: number;
+  idempotencyKey?: string;
 }) {
   const g = await staff();
   if (!g.ok) return g;
@@ -111,6 +115,9 @@ export async function posStartCollection(input: {
     email: z.string().email().optional(),
     phone: z.string().optional(),
     displayName: z.string().optional(),
+    amountCents: z.number().int().positive().optional(),
+    tenderedCents: z.number().int().nonnegative().optional(),
+    idempotencyKey: z.string().min(8).max(80).optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   const hdrs = await headers();
@@ -132,6 +139,9 @@ export async function posStartCollection(input: {
       },
       successUrl: `${base}${path}?order=${parsed.data.orderId}&collected=1`,
       cancelUrl: `${base}${path}?order=${parsed.data.orderId}`,
+      amountCents: parsed.data.amountCents,
+      tenderedCents: parsed.data.tenderedCents,
+      idempotencyKey: parsed.data.idempotencyKey,
     },
     { ensureCustomer: (c) => ensureCustomer(c, { admin: g.admin }) },
   );
@@ -162,4 +172,38 @@ export async function posLoadSale(orderId: string) {
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return loadPosSale(g.admin, { tenantId: g.tenantId, orderId });
+}
+
+export async function posCurrentShift() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return currentShift(g.admin, { tenantId: g.tenantId });
+}
+
+export async function posOpenShift(openingCashCents: number) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  return openShift(g.admin, {
+    tenantId: g.tenantId,
+    actorUserId: g.userId,
+    openingCashCents: parsed.data,
+  });
+}
+
+export async function posCloseShift(input: { closingCashCents: number; expectedVersion?: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({
+    closingCashCents: z.number().int().nonnegative(),
+    expectedVersion: z.number().int().positive().optional(),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  return closeShift(g.admin, {
+    tenantId: g.tenantId,
+    actorUserId: g.userId,
+    closingCashCents: parsed.data.closingCashCents,
+    expectedVersion: parsed.data.expectedVersion,
+  });
 }

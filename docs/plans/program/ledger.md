@@ -36,8 +36,8 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P5-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Pickup destination and `promised_at` on the same prep ticket. Per-window caps stay on `offering_stock`. |
 | P5-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Ready state on the ticket. Guest/staff notification not built. |
 | P5-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Preparation tickets + revisions. Amendment bumps revision; not a second ticket. `/admin/preparation`. |
-| P5-05 | cloud-safe | not started | — | — | cursor/journeys-program-c4d3 | Cash collection exists (P4). Shift cash-up is not built. |
-| P5-06 | cloud-safe | not started | — | — | cursor/journeys-program-c4d3 | Split settlement deferred with L52 multi-order visit. |
+| P5-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:05Z | cursor/journeys-program-c4d3 | Shift open/close on `/admin/pos`. One open per tenant. Expected = opening + cash allocations. Navigating away does not close. Apply `20261230000300` awaiting credentials. |
+| P5-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:05Z | cursor/journeys-program-c4d3 | One order, several cash allocations. Unique idempotency per allocation. No second order / no check entity. |
 | P5-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Remaining minimum displayed from `spaces.min_spend_cents`. Not a charge. |
 | P5-08 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Handoff on a ready ticket. Sellable limits remain `offering_stock`. |
 

@@ -18,6 +18,7 @@ import {
   type PrepDestination,
   type SubmitPrepResult,
 } from "@/lib/preparation/tickets";
+import { currentShift } from "./shift";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 
 type Admin = {
@@ -25,6 +26,32 @@ type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
 };
+
+const COLLECTABLE = new Set(["draft", "pending_payment"]);
+
+async function collectedPaidCents(
+  admin: Admin,
+  orderId: string,
+): Promise<{ ok: true; cents: number } | { ok: false }> {
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("gross_amount_cents")
+    .eq("order_id", orderId)
+    .eq("status", "paid");
+  if (error) return { ok: false };
+  const cents = (data ?? []).reduce(
+    (sum: number, r: { gross_amount_cents?: number | string }) =>
+      sum + Number(r.gross_amount_cents ?? 0),
+    0,
+  );
+  return { ok: true, cents };
+}
+
+async function openShiftId(admin: Admin, tenantId: string): Promise<string | null> {
+  const found = await currentShift(admin, { tenantId });
+  if (!found.ok) return null;
+  return found.shift?.id ?? null;
+}
 
 export type SubmitToPreparationResult = SubmitPrepResult;
 
@@ -42,7 +69,17 @@ export async function submitToPreparation(
 }
 
 export type StartCollectionResult =
-  | { ok: true; method: "cash"; orderId: string; transactionId: string; alreadySettled: boolean }
+  | {
+      ok: true;
+      method: "cash";
+      orderId: string;
+      transactionId: string;
+      alreadySettled: boolean;
+      amountCents: number;
+      tenderedCents: number;
+      changeCents: number;
+      outstandingAfterCents: number;
+    }
   | { ok: true; method: "online_card"; orderId: string; transactionId: string; checkoutUrl: string; mock?: boolean }
   | {
       ok: false;
@@ -51,6 +88,8 @@ export type StartCollectionResult =
         | "not_found"
         | "wrong_tenant"
         | "not_draft"
+        | "amount"
+        | "tendered"
         | "empty"
         | "unavailable"
         | "terminal_unavailable"
@@ -80,6 +119,12 @@ export async function startCollection(
     successUrl: string;
     cancelUrl: string;
     locale?: string | null;
+    /** This allocation. Defaults to remaining outstanding. */
+    amountCents?: number;
+    /** Cash counted from the customer. Defaults to amountCents. */
+    tenderedCents?: number;
+    /** Unique per allocation so equal splits do not collide. */
+    idempotencyKey?: string;
   },
   deps: StartCollectionDeps = {},
 ): Promise<StartCollectionResult> {
@@ -104,11 +149,40 @@ export async function startCollection(
   if (row.tenant_id !== input.tenantId) {
     return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
   }
-  if (row.status !== "draft") {
+  if (!COLLECTABLE.has(row.status)) {
     return { ok: false, reason: "not_draft", error: "This sale is no longer open." };
   }
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
+  }
+
+  const paid = await collectedPaidCents(admin, row.id);
+  if (!paid.ok) {
+    return { ok: false, reason: "unavailable", error: "Could not read what is already paid." };
+  }
+  const outstanding = Math.max(0, row.total_cents - paid.cents);
+  if (row.total_cents > 0 && outstanding <= 0) {
+    return { ok: false, reason: "not_draft", error: "This sale is already collected." };
+  }
+
+  let amountCents = 0;
+  let tenderedCents = 0;
+  let changeCents = 0;
+  let outstandingAfterCents = 0;
+  if (row.total_cents > 0) {
+    amountCents = input.amountCents ?? outstanding;
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return { ok: false, reason: "amount", error: "This allocation must be more than zero." };
+    }
+    if (amountCents > outstanding) {
+      return { ok: false, reason: "amount", error: "This allocation is more than what is outstanding." };
+    }
+    tenderedCents = input.tenderedCents ?? amountCents;
+    if (!Number.isInteger(tenderedCents) || tenderedCents < amountCents) {
+      return { ok: false, reason: "tendered", error: "Tendered cash is less than this allocation." };
+    }
+    changeCents = tenderedCents - amountCents;
+    outstandingAfterCents = outstanding - amountCents;
   }
 
   let customerId = row.customer_id;
@@ -139,7 +213,7 @@ export async function startCollection(
       .from("orders")
       .update({ customer_id: customerId })
       .eq("id", row.id)
-      .eq("status", "draft");
+      .in("status", ["draft", "pending_payment"]);
     if (attErr) {
       logServerError("pos.startCollection.attach", attErr);
       return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
@@ -151,7 +225,7 @@ export async function startCollection(
       .from("orders")
       .update({ status: "paid" })
       .eq("id", row.id)
-      .eq("status", "draft");
+      .in("status", ["draft", "pending_payment"]);
     if (paidErr) {
       logServerError("pos.startCollection.zero", paidErr);
       return { ok: false, reason: "unavailable", error: "Could not close a free sale." };
@@ -162,19 +236,26 @@ export async function startCollection(
       orderId: row.id,
       transactionId: "zero-collect",
       alreadySettled: false,
+      amountCents: 0,
+      tenderedCents: 0,
+      changeCents: 0,
+      outstandingAfterCents: 0,
     };
   }
 
   if (input.method === "cash") {
     const settle = deps.settle ?? settleAtDoor;
+    const shiftId = await openShiftId(admin, input.tenantId);
     const settled = await settle(admin as never, {
       tenantId: input.tenantId,
       orderId: row.id,
       actorUserId: input.actorUserId,
       paidVia: "cash",
-      amountCents: row.total_cents,
+      amountCents,
       currency: row.currency,
-      idempotencyKey: `pos-cash:${row.id}`,
+      idempotencyKey: input.idempotencyKey ?? `pos-cash:${row.id}:${crypto.randomUUID()}`,
+      shiftId,
+      tenderedCents,
     });
     if (!settled.ok) {
       return { ok: false, reason: "unavailable", error: "Could not record the cash." };
@@ -185,6 +266,10 @@ export async function startCollection(
       orderId: settled.orderId,
       transactionId: settled.transactionId,
       alreadySettled: settled.alreadySettled,
+      amountCents,
+      tenderedCents,
+      changeCents,
+      outstandingAfterCents: settled.alreadySettled ? outstanding : outstandingAfterCents,
     };
   }
 
@@ -200,7 +285,7 @@ export async function startCollection(
       contact_email: input.contact?.email ?? null,
       contact_phone: input.contact?.phone ?? null,
       contact_name: input.contact?.displayName ?? null,
-      total_client_revenue: row.total_cents / 100,
+      total_client_revenue: amountCents / 100,
       currency_code: row.currency,
     })
     .select("id")
@@ -219,10 +304,10 @@ export async function startCollection(
       source_tenant_id: input.tenantId,
       payer_user_id: input.actorUserId,
       payer_email: input.contact?.email ?? null,
-      gross_amount_cents: row.total_cents,
+      gross_amount_cents: amountCents,
       platform_fee_basis_points: 0,
       platform_fee_cents: 0,
-      net_amount_cents: row.total_cents,
+      net_amount_cents: amountCents,
       currency: row.currency,
       provider: "stripe",
       status: "draft",
@@ -241,7 +326,7 @@ export async function startCollection(
     deps.createPaymentRequest ?? stripeCollectionAdapter().createPaymentRequest;
   const request = await create({
     transactionId,
-    amountCents: row.total_cents,
+    amountCents,
     currency: row.currency,
     payerEmail: input.contact?.email ?? null,
     inquiryId: null,
@@ -266,7 +351,7 @@ export async function startCollection(
     .from("orders")
     .update({ status: "pending_payment" })
     .eq("id", row.id)
-    .eq("status", "draft");
+    .in("status", ["draft", "pending_payment"]);
   if (statusErr) {
     logServerError("pos.startCollection.status", statusErr);
     return { ok: false, reason: "unavailable", error: "Could not hold the sale for payment." };

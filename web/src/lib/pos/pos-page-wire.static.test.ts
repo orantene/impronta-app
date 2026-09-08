@@ -26,3 +26,13 @@ test("layer 4 — the nav registry routes New Sale to pos", () => {
   const src = read("src/lib/workspace/navigation-registry.ts");
   assert.match(src, /pos: \{ id: "pos", path: "pos"/);
 });
+
+test("shift cash-up lives on POS, not a new destination", () => {
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  assert.match(page, /currentShift/);
+  const client = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  assert.match(client, /posOpenShift/);
+  assert.match(client, /posCloseShift/);
+  assert.match(client, /amountCents/);
+  assert.doesNotMatch(client, /useEffect/);
+});
