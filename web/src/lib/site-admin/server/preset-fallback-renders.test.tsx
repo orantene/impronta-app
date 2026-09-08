@@ -132,23 +132,11 @@ test("the BOOKING DOOR is pinned, so it cannot drop the way the menu did", () =>
   // instrument — and this test is written to be honest about today rather than
   // green about nothing.
   //
-  // TODAY: `restaurant-orderable` does NOT carry `reserve_table`. The block is
-  // registered (all twelve points) and the design has no instance of it. So the
-  // assertion below pins ABSENCE, which fails the moment someone adds it —
-  // deliberately. Whoever places the block flips this to the presence assertion
-  // beneath it in the same commit, and the door is covered from its first day
-  // instead of inheriting the menu's failure mode.
   const html = renderPresetHomepage("restaurant-orderable");
-  const hasReserve = /data-builder-node-kind="reserve_table"/.test(html);
-
-  assert.equal(
-    hasReserve,
-    false,
-    "`reserve_table` now renders in restaurant-orderable. That is the intended " +
-      "end state — so REPLACE this assertion with its opposite:\n" +
-      '  assert.match(html, /data-builder-node-kind="reserve_table"/)\n' +
-      "which is what stops the booking door silently vanishing the way the " +
-      "menu board did.",
+  assert.match(
+    html,
+    /data-builder-node-kind="reserve_table"/,
+    "the restaurant booking door vanished the way the menu board once did",
   );
 
   // Whichever way the block goes, the page must not be empty around it.

@@ -354,6 +354,70 @@ const restaurantOrderableTree: BuilderNode[] = [
           },
         ],
       },
+      // ── Table booking (reserve_table) ───────────────────────────────────────
+      {
+        id: "restaurant-orderable-reserve",
+        kind: "container",
+        anchorId: "reserve",
+        props: {
+          layout: "stack",
+          align: "center",
+          style: {
+            width: "100%",
+            maxWidthFree: "100%",
+            paddingTop: "96px",
+            paddingRight: "44px",
+            paddingBottom: "48px",
+            paddingLeft: "44px",
+            backgroundColor: PANEL,
+            responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px" } },
+          },
+        },
+        children: [
+          {
+            id: "restaurant-orderable-reserve-inner",
+            kind: "container",
+            props: {
+              layout: "stack",
+              style: { width: "100%", maxWidthFree: "800px", gap: "24px" },
+            },
+            children: [
+              {
+                id: "restaurant-orderable-reserve-kicker",
+                kind: "paragraph",
+                props: {
+                  text: "Reserve a table",
+                  style: {
+                    fontFamily: INTER,
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    letterSpacing: "0.26em",
+                    textTransform: "uppercase",
+                    textColor: EMBER,
+                  },
+                },
+              },
+              {
+                id: "restaurant-orderable-reserve-board",
+                kind: "reserve_table",
+                props: {
+                  venueName: "{{business.name}}",
+                  ctaVerb: "Reserve",
+                  partyMin: 1,
+                  partyMax: 4,
+                  notesEnabled: true,
+                  style: {
+                    width: "100%",
+                    maxWidthFree: "100%",
+                    fontFamily: INTER,
+                    textColor: CREAM,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
       // ── Orderable menu (menu_board) ─────────────────────────────────────────
       {
         id: "restaurant-orderable-menu",

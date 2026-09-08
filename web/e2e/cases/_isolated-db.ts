@@ -122,3 +122,62 @@ export async function latestMenuPizza(email: string): Promise<MenuPizzaOrder | n
     bookingId: (booking?.id as string | null) ?? null,
   };
 }
+
+export type TableReservation = {
+  orderId: string;
+  status: string;
+  sourceChannel: string;
+  customerEmail: string | null;
+  admissionId: string | null;
+  partySize: number | null;
+};
+
+export async function latestTableReservation(email: string): Promise<TableReservation | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, source_channel")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "reservation")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("id")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+
+  const { data: admission, error: admissionErr } = line
+    ? await admin
+        .from("admissions")
+        .select("id, party_size")
+        .eq("tenant_id", JOURNEYS_TENANT_ID)
+        .eq("order_line_id", line.id)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (admissionErr) throw new Error(admissionErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    admissionId: (admission?.id as string | null) ?? null,
+    partySize: admission ? Number(admission.party_size) : null,
+  };
+}

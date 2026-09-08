@@ -156,6 +156,37 @@ VALUES (
 )
 ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, updated_at = now();
 
+INSERT INTO public.talent_offerings (
+  id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
+  booking_mode, allow_pay_in_person, reserve_mode, status, visibility, moderation_state
+)
+VALUES (
+  '33330012-0000-4000-8000-000000000004'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  NULL, 'workspace', 'service', 'Table reservation', 0, 'USD',
+  'instant', TRUE, 'free', 'published', 'unlisted', 'approved'
+)
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  reserve_mode = EXCLUDED.reserve_mode,
+  allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  updated_at = now();
+
+INSERT INTO public.space_groups (
+  id, tenant_id, venue_id, name, kind, party_min, party_max, sell_mode
+)
+VALUES (
+  '33330014-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  'Two-to-four tops',
+  'party_band',
+  1,
+  4,
+  'band'
+)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now();
+
 INSERT INTO public.capacity_pools (
   id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
 )
@@ -171,5 +202,65 @@ VALUES (
   TRUE
 )
 ON CONFLICT (id) DO UPDATE SET units_total = EXCLUDED.units_total, updated_at = now();
+
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-000000000002'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'space_group',
+  '33330014-0000-4000-8000-000000000001'::UUID,
+  'default',
+  ARRAY['33330020-0000-4000-8000-000000000002'::UUID],
+  4,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET units_total = EXCLUDED.units_total, updated_at = now();
+
+INSERT INTO public.venue_service_windows (
+  id, tenant_id, venue_id, key, label, local_time, duration_minutes, weekdays,
+  seating_step_minutes, last_seating_offset_min, is_active, starts_on
+)
+VALUES (
+  '33330015-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  'dinner',
+  '{"en":"Dinner","es":"Cena"}'::jsonb,
+  TIME '12:00',
+  600,
+  ARRAY[1,2,3,4,5,6,7],
+  30,
+  90,
+  TRUE,
+  CURRENT_DATE - 1
+)
+ON CONFLICT (id) DO UPDATE SET is_active = TRUE, updated_at = now();
+
+INSERT INTO public.venue_service_rules (
+  venue_id, tenant_id, is_active, party_size_min, party_size_max,
+  horizon_days, min_notice_minutes, default_turn_minutes,
+  reservation_offering_id, notes_enabled, walkins_enabled
+)
+VALUES (
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  TRUE,
+  1,
+  4,
+  14,
+  0,
+  90,
+  '33330012-0000-4000-8000-000000000004'::UUID,
+  TRUE,
+  TRUE
+)
+ON CONFLICT (venue_id) DO UPDATE SET
+  is_active = TRUE,
+  min_notice_minutes = 0,
+  reservation_offering_id = EXCLUDED.reservation_offering_id,
+  updated_at = now();
 
 COMMIT;

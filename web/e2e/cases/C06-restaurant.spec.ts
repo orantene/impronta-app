@@ -12,7 +12,7 @@ import {
   signInJourneysStaff,
   assertWorkspaceIdentity,
 } from "./_harness";
-import { latestMenuPizza, latestPaidPosPizza } from "./_isolated-db";
+import { latestMenuPizza, latestPaidPosPizza, latestTableReservation } from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -69,6 +69,51 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
 
   await page.screenshot({
     path: testInfo.outputPath("c06-cus-sales.png"),
+    fullPage: true,
+  });
+});
+
+test("C06-CUS reservation: storefront reserve_table → hold → Sales and DB agree", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const marker = `c06-cus-rsv-${Date.now()}@impronta.test`;
+
+  await openStorefront(page);
+  const board = page.locator("[data-builder-node-kind='reserve_table']");
+  await expect(page.getByText("Reserve a table").first()).toBeVisible();
+  await expect(board.getByText(/this restaurant is not taking bookings/i)).toHaveCount(0);
+  await expect(board.getByText(/checking the book/i)).toHaveCount(0, { timeout: 20_000 });
+
+  const slotButtons = board.getByRole("button").filter({
+    hasNotText: /fewer people|more people|today|pick a time|reserve|ask first/i,
+  });
+  await expect(slotButtons.first()).toBeVisible({ timeout: 20_000 });
+  await slotButtons.first().click();
+
+  await board.getByLabel(/^name$/i).fill("C06 diner");
+  await board.getByLabel(/^email$/i).fill(marker);
+  await board.getByRole("button", { name: /^reserve at /i }).click();
+  await expect(board.getByRole("status")).toContainText(/you are booked|nothing to pay/i, {
+    timeout: 30_000,
+  });
+
+  await page.reload();
+  await expect(page.getByText("Reserve a table").first()).toBeVisible();
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByText("reservation").first()).toBeVisible();
+
+  const persisted = await latestTableReservation(marker);
+  expect(persisted, "reservation order must exist on qa-journeys").not.toBeNull();
+  expect(persisted?.sourceChannel).toBe("reservation");
+  expect(persisted?.customerEmail).toBe(marker);
+  expect(persisted?.admissionId, "reservation must write an admission").toBeTruthy();
+  expect(persisted?.partySize).toBe(2);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c06-cus-reservation.png"),
     fullPage: true,
   });
 });
