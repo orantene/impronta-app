@@ -376,11 +376,15 @@ export async function repriceAndValidate(
     if (!offering) continue;
     let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null }).amount_cents)));
     if (line.variant_id) {
-      const { data: variant } = await admin
+      const { data: variant, error: variantError } = await admin
         .from("talent_offering_variants")
         .select("id, amount_cents")
         .eq("id", line.variant_id)
         .maybeSingle();
+      if (variantError) {
+        logServerError("pos.reprice.variant", variantError);
+        return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
+      }
       const amount = (variant as { amount_cents?: number | null } | null)?.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
@@ -462,10 +466,14 @@ export async function loadPosSale(
     return { ok: false, reason: "unavailable" };
   }
 
-  const { data: paid } = await admin
+  const { data: paid, error: paidError } = await admin
     .from("booking_transactions")
     .select("gross_amount_cents, status")
     .eq("order_id", input.orderId);
+  if (paidError) {
+    logServerError("pos.loadSale.paid", paidError);
+    return { ok: false, reason: "unavailable" };
+  }
 
   let depositPaidCents = 0;
   for (const txn of (paid ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
@@ -484,7 +492,9 @@ export async function loadPosSale(
           ? "pending"
           : "unpaid";
 
-  const ticket = await loadActiveTicketForOrder(admin, { tenantId: input.tenantId, orderId: input.orderId });
+  const ticketRes = await loadActiveTicketForOrder(admin, { tenantId: input.tenantId, orderId: input.orderId });
+  if (!ticketRes.ok) return { ok: false, reason: "unavailable" };
+  const ticket = ticketRes.ticket;
   const prepState: PosSaleView["prepState"] = !ticket
     ? "not_submitted"
     : ticket.revision > 1 && ticket.status === "queued"

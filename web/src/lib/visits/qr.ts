@@ -90,12 +90,16 @@ export async function loadOpenVisitByToken(
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status !== "open") return { ok: false, reason: "ended" };
 
-  const { data: order } = await admin
+  const { data: order, error: orderError } = await admin
     .from("orders")
     .select("id, currency, total_cents")
     .eq("visit_id", row.id)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
+  if (orderError) {
+    logServerError("visits.qr.guest.order", orderError);
+    return { ok: false, reason: "unavailable" };
+  }
   const orderRow = order as { id: string; currency: string; total_cents: number | string } | null;
   if (!orderRow) {
     return {
@@ -107,11 +111,15 @@ export async function loadOpenVisitByToken(
       currency: "USD",
     };
   }
-  const { data: lineRows } = await admin
+  const { data: lineRows, error: linesError } = await admin
     .from("order_lines")
     .select("id, label, units, total_cents")
     .eq("order_id", orderRow.id)
     .order("sort_order", { ascending: true });
+  if (linesError) {
+    logServerError("visits.qr.guest.lines", linesError);
+    return { ok: false, reason: "unavailable" };
+  }
   return {
     ok: true,
     visitId: row.id,

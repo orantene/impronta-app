@@ -187,11 +187,15 @@ export async function closeVisit(
     return { ok: false, reason: "version_conflict", error: "The table changed. Reload and try again." };
   }
 
-  const { data: order } = await admin
+  const { data: order, error: orderError } = await admin
     .from("orders")
     .select("id, status, total_cents")
     .eq("visit_id", input.visitId)
     .maybeSingle();
+  if (orderError) {
+    logServerError("visits.closeVisit.order", orderError);
+    return { ok: false, reason: "unavailable", error: "Could not close the table." };
+  }
   if (order) {
     const o = order as { status: string; total_cents: number | string };
     const unpaid = o.status === "draft" || o.status === "quoted" || o.status === "pending_payment";
@@ -274,12 +278,16 @@ export async function moveVisitToSpace(
     return { ok: false, reason: "not_found", error: "That table is not on this floor." };
   }
 
-  const { data: occupying } = await admin
+  const { data: occupying, error: occupyingError } = await admin
     .from("visits")
     .select("id")
     .eq("space_id", input.spaceId)
     .eq("status", "open")
     .maybeSingle();
+  if (occupyingError) {
+    logServerError("visits.move.occupying", occupyingError);
+    return { ok: false, reason: "unavailable", error: "Could not move the check." };
+  }
   if (occupying) {
     return { ok: false, reason: "already_open", error: "The destination table already has an open visit." };
   }

@@ -23,11 +23,12 @@ export async function loadOrderLinesForDesk(orderId: string): Promise<
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "unavailable" };
 
-  const { data: order } = await admin
+  const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, tenant_id")
     .eq("id", orderId)
     .maybeSingle();
+  if (orderErr) return { ok: false, error: "unavailable" };
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
     return { ok: false, error: "not_found" };
   }
@@ -69,11 +70,12 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>) {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
 
-  const { data: order } = await admin
+  const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, tenant_id")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
+  if (orderErr) return { ok: false as const, error: "unavailable" };
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
     return { ok: false as const, error: "not_found" };
   }

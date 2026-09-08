@@ -53,12 +53,16 @@ export async function settleAtDoor(
   };
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
   if (row.status === "paid" || row.status === "fulfilled") {
-    const { data: existing } = await admin
+    const { data: existing, error: existingErr } = await admin
       .from("booking_transactions")
       .select("id")
       .eq("order_id", row.id)
       .eq("provider_reference", input.idempotencyKey)
       .maybeSingle();
+    if (existingErr) {
+      logServerError("orders.settleAtDoor/existing", existingErr);
+      return { ok: false, reason: "unavailable" };
+    }
     return {
       ok: true,
       orderId: row.id,
@@ -70,12 +74,16 @@ export async function settleAtDoor(
     return { ok: false, reason: "not_held" };
   }
 
-  const { data: prior } = await admin
+  const { data: prior, error: priorErr } = await admin
     .from("booking_transactions")
     .select("id")
     .eq("order_id", row.id)
     .eq("provider_reference", input.idempotencyKey)
     .maybeSingle();
+  if (priorErr) {
+    logServerError("orders.settleAtDoor/prior", priorErr);
+    return { ok: false, reason: "unavailable" };
+  }
   if (prior?.id) {
     const done = await completeOrderForTransaction(admin, prior.id as string, deps);
     if (!done.ok) return { ok: false, reason: "unavailable" };

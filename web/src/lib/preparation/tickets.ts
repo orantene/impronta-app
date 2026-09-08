@@ -38,6 +38,27 @@ function snapLines(rows: LineSnap[]): Array<{ id: string; label: string; units: 
   return rows.map((l) => ({ id: l.id, label: l.label, units: Number(l.units) || 0 }));
 }
 
+type SnapshotLines = PrepTicketView["snapshotLines"];
+
+async function loadSnapshotLines(
+  admin: Admin,
+  ticketId: string,
+  revision: number,
+): Promise<{ ok: true; lines: SnapshotLines } | { ok: false }> {
+  const { data: rev, error } = await admin
+    .from("preparation_ticket_revisions")
+    .select("snapshot")
+    .eq("ticket_id", ticketId)
+    .eq("revision", revision)
+    .maybeSingle();
+  if (error) {
+    logServerError("prep.revision", error);
+    return { ok: false };
+  }
+  const snapshot = (rev as { snapshot?: { lines?: SnapshotLines } } | null)?.snapshot;
+  return { ok: true, lines: snapshot?.lines ?? [] };
+}
+
 export type SubmitPrepResult =
   | { ok: true; ticketId: string; revision: number; amended: boolean }
   | {
@@ -283,7 +304,7 @@ export async function cancelTicket(
 export async function loadActiveTicketForOrder(
   admin: Admin,
   input: { tenantId: string; orderId: string },
-): Promise<PrepTicketView | null> {
+): Promise<{ ok: true; ticket: PrepTicketView | null } | { ok: false; reason: "unavailable" }> {
   const { data, error } = await admin
     .from("preparation_tickets")
     .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at")
@@ -291,7 +312,11 @@ export async function loadActiveTicketForOrder(
     .eq("tenant_id", input.tenantId)
     .neq("status", "cancelled")
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) {
+    logServerError("prep.activeTicket", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!data) return { ok: true, ticket: null };
   const row = data as {
     id: string;
     order_id: string;
@@ -303,24 +328,22 @@ export async function loadActiveTicketForOrder(
     promised_at: string | null;
     handed_off_at: string | null;
   };
-  const { data: rev } = await admin
-    .from("preparation_ticket_revisions")
-    .select("snapshot")
-    .eq("ticket_id", row.id)
-    .eq("revision", row.revision)
-    .maybeSingle();
-  const snapshot = (rev as { snapshot?: { lines?: Array<{ id: string; label: string; units: number }> } } | null)?.snapshot;
+  const snap = await loadSnapshotLines(admin, row.id, row.revision);
+  if (!snap.ok) return { ok: false, reason: "unavailable" };
   return {
-    id: row.id,
-    orderId: row.order_id,
-    visitId: row.visit_id,
-    station: row.station,
-    destination: row.destination,
-    status: row.status,
-    revision: row.revision,
-    promisedAt: row.promised_at,
-    handedOffAt: row.handed_off_at,
-    snapshotLines: snapshot?.lines ?? [],
+    ok: true,
+    ticket: {
+      id: row.id,
+      orderId: row.order_id,
+      visitId: row.visit_id,
+      station: row.station,
+      destination: row.destination,
+      status: row.status,
+      revision: row.revision,
+      promisedAt: row.promised_at,
+      handedOffAt: row.handed_off_at,
+      snapshotLines: snap.lines,
+    },
   };
 }
 
@@ -350,13 +373,8 @@ export async function listBoard(
     promised_at: string | null;
     handed_off_at: string | null;
   }>) {
-    const { data: rev } = await admin
-      .from("preparation_ticket_revisions")
-      .select("snapshot")
-      .eq("ticket_id", row.id)
-      .eq("revision", row.revision)
-      .maybeSingle();
-    const snapshot = (rev as { snapshot?: { lines?: Array<{ id: string; label: string; units: number }> } } | null)?.snapshot;
+    const snap = await loadSnapshotLines(admin, row.id, row.revision);
+    if (!snap.ok) return { ok: false, reason: "unavailable" };
     tickets.push({
       id: row.id,
       orderId: row.order_id,
@@ -367,7 +385,7 @@ export async function listBoard(
       revision: row.revision,
       promisedAt: row.promised_at,
       handedOffAt: row.handed_off_at,
-      snapshotLines: snapshot?.lines ?? [],
+      snapshotLines: snap.lines,
     });
   }
   return { ok: true, tickets };
