@@ -163,8 +163,8 @@ test("C12-DIFF door: pay-at-door hold blocks competitor then cash settle", async
   await picker.locator("input[type=email]").fill(marker);
   await picker.locator("input[autocomplete=name]").fill(guestName);
   await expect(picker.getByRole("radiogroup", { name: /how will you pay/i })).toBeVisible();
-  await picker.getByRole("radio", { name: /at the door/i }).check();
-  await picker.getByRole("button", { name: /at the door/i }).click();
+  await picker.locator("input[name=payHow]").last().check();
+  await picker.getByRole("button", { name: /^at the door$/i }).click();
   await expect(page.locator("[data-ticket-picker=held]")).toBeVisible({ timeout: 45_000 });
 
   const held = await latestTicketPickerNight(marker);
@@ -186,8 +186,8 @@ test("C12-DIFF door: pay-at-door hold blocks competitor then cash settle", async
   await pickerB.locator("label").filter({ hasText: /paid admission/i }).locator("input[name=tier]").check();
   await pickerB.locator("input[type=email]").fill(`c12-diff-b-${Date.now()}@impronta.test`);
   await pickerB.locator("input[autocomplete=name]").fill("C12 competitor");
-  await pickerB.getByRole("radio", { name: /at the door/i }).check();
-  await pickerB.getByRole("button", { name: /at the door/i }).click();
+  await pickerB.locator("input[name=payHow]").last().check();
+  await pickerB.getByRole("button", { name: /^at the door$/i }).click();
   await expect(pickerB.locator("[data-ticket-picker=refusal]")).toContainText(/sold out/i, {
     timeout: 30_000,
   });
