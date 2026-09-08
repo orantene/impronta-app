@@ -23,7 +23,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P1-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SessionsPage already lists collisions; static test enrolled. |
 | P2-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Authorized types from 48 cases + 20 presets. Target remains 120. |
 | P2-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | theme-layers.ts. Roster not hidden because solo. |
-| P2-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Nine destinations. `pos` built in P3; tables/preparation still unbuilt. |
+| P2-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Nine destinations. `pos` built in P3; `tables` / `preparation` built in P5. |
 | P2-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Sales reads existing orders. |
 | P2-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Discounts over `tenant_promo_codes`. |
 | P3-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Command module. Line mutation does not purchase; promo only on reprice. |
@@ -32,6 +32,14 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P3-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | `sessionId` on addLine for walk-in class places. Capacity reserve still on reprice/collection of the purchase engine, not line edits. |
 | P4-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Collection interface + Stripe adapter at Checkout boundary. Cash via settle. Terminal unavailable. |
 | P4-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Mercado Pago discovery from live MX docs. No credentials. Adapter not implemented. |
+| P5-01 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Visits + open checks. `orders.visit_id` occupancy; `space_id` stays the table. Apply awaiting credentials. |
+| P5-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Pickup destination and `promised_at` on the same prep ticket. Per-window caps stay on `offering_stock`. |
+| P5-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Ready state on the ticket. Guest/staff notification not built. |
+| P5-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Preparation tickets + revisions. Amendment bumps revision; not a second ticket. `/admin/preparation`. |
+| P5-05 | cloud-safe | not started | — | — | cursor/journeys-program-c4d3 | Cash collection exists (P4). Shift cash-up is not built. |
+| P5-06 | cloud-safe | not started | — | — | cursor/journeys-program-c4d3 | Split settlement deferred with L52 multi-order visit. |
+| P5-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Remaining minimum displayed from `spaces.min_spend_cents`. Not a charge. |
+| P5-08 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Handoff on a ready ticket. Sellable limits remain `offering_stock`. |
 
 ## Case matrix (overall)
 

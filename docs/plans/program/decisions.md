@@ -8,13 +8,15 @@ The existing `orders` row is the commercial record. No parallel "check" entity.
 
 | Concept | Responsibility |
 |---|---|
-| Visit / occupancy | Who is being served, where, during which visit. New lightweight record keyed to a space. Owns table state and reset. |
-| Order | Items, adjustments, commercial balance. Existing `orders` row. `orders.space_id` becomes the visit link. |
+| Visit / occupancy | Who is being served, where, during which visit. New lightweight record keyed to a space. Owns table state and reset. QR identity is `visits.public_token`. |
+| Order | Items, adjustments, commercial balance. Existing `orders` row. `orders.visit_id` is the occupancy link. `orders.space_id` stays the physical table. |
 | Payment attempt | One attempt to collect money. Can be pending, declined, or unknown without the order changing. |
 | Payment allocation | How confirmed money applies to an order. One order may have several; one payment may span orders. |
 | Preparation ticket | What a station was instructed to prepare. Separate lifecycle, never derived from payment state. |
 
 A multi-order visit record arrives only if a case proves one visit needs several orders (bill-splitting). Deferred until built.
+
+**L52 column clarification (2026-09-08):** occupancy is `orders.visit_id`. `orders.space_id` remains `spaces.id`. Stuffing visit UUIDs into `space_id` would collide with the physical table identity that column was reserved for.
 
 ## L53 — POS command contract
 

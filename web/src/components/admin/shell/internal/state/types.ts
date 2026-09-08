@@ -45,6 +45,8 @@ export type WorkspacePage =
   | "sales"      // View over bookings, orders, appointments, registrations. Not a new financial object.
   | "discounts"  // Seller promo codes (`tenant_promo_codes`).
   | "pos"        // P3 — New Sale / open POS drafts. Canonical server route.
+  | "tables"     // P5 — floor: spaces + open visits. Canonical server route.
+  | "preparation" // P5 — kitchen / pickup board. Canonical server route.
   | "reservations" // R3 — the host stand (reservations book). Canonical server route like orders; NOT a SPA nav tab. Rail entry + is_active visibility gate are a follow-up (see docs/plans/reservations-rail-slot-contract.md).
   | "sessions"   // Sessions — the Schedule tab (series, occurrences, series editor). SPA tab in the menu shape; rail entry under Operate. See docs/plans/sessions-rail-slot-contract.md.
   | "events"     // Events & Ticketing — the Events tab (list + Details/Sessions/Tickets/Seating/Lineup/Sales/Door). SPA tab in the menu shape. Rail entry + events-on visibility gate are a follow-up (needs the events-enabled flag; not shipped as a blind layout fetch). See docs/plans/events-rail-slot-contract.md.

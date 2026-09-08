@@ -4,9 +4,8 @@ import "server-only";
  * POS collection and close commands (L53).
  *
  * Card collection uses the small Stripe adapter at the existing Checkout
- * boundary. Cash is recorded via `settleAtDoor`. Preparation is named here
- * and owned by P5 — this command returns not-built rather than inventing
- * kitchen routing.
+ * boundary. Cash is recorded via `settleAtDoor`. Preparation tickets are
+ * owned by `lib/preparation/tickets.ts`.
  */
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -14,6 +13,11 @@ import { settleAtDoor } from "@/lib/orders/settle-at-door";
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
+import {
+  submitOrderToPreparation,
+  type PrepDestination,
+  type SubmitPrepResult,
+} from "@/lib/preparation/tickets";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 
 type Admin = {
@@ -22,15 +26,19 @@ type Admin = {
   from: (table: string) => any;
 };
 
-export type SubmitToPreparationResult =
-  | { ok: false; reason: "not_built"; error: string };
+export type SubmitToPreparationResult = SubmitPrepResult;
 
-export async function submitToPreparation(): Promise<SubmitToPreparationResult> {
-  return {
-    ok: false,
-    reason: "not_built",
-    error: "Preparation tickets are not built yet. Kitchen routing lands in P5.",
-  };
+export async function submitToPreparation(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    orderId: string;
+    destination?: PrepDestination;
+    station?: string;
+    promisedAt?: string | null;
+  },
+): Promise<SubmitToPreparationResult> {
+  return submitOrderToPreparation(admin, input);
 }
 
 export type StartCollectionResult =

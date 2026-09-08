@@ -20,7 +20,7 @@ P5-01–P5-06, P3-01, P3-02
 - **Basic:** Takes a reservation and a public menu order.
 - **Complete:** Guest scans table QR; staff fire courses; check moves; bill splits.
 
-Overall status: not started
+Overall status: implementing (open check, visit QR, kitchen). Split settlement not built.
 
 ## Scenarios
 

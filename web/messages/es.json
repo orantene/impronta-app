@@ -12034,9 +12034,42 @@
       "email": "Correo",
       "phone": "Teléfono",
       "applyCode": "Aplicar código",
-      "prepNotBuilt": "Enviar a preparación (aún no existe)",
+      "sendToPrep": "Enviar a preparación",
       "emptyCatalog": "Aún no hay artículos publicados del espacio.",
       "emptyOpen": "No hay ventas abiertas."
+    },
+    "tables": {
+      "pageTitle": "Mesas",
+      "pageIntro": "Abre una visita en una mesa. El QR impreso sigue esta visita, no la cuenta de anoche.",
+      "unavailable": "No pudimos cargar el salón.",
+      "empty": "Aún no hay mesas, cabinas ni cabanas.",
+      "open": "Abrir visita",
+      "close": "Cerrar visita",
+      "sale": "Abrir cuenta",
+      "occupied": "Ocupada",
+      "free": "Libre",
+      "minSpend": "Mínimo restante",
+      "move": "Mover cuenta"
+    },
+    "preparation": {
+      "pageTitle": "Preparación",
+      "pageIntro": "Tickets que ven cocina y recolección. Una enmienda sube la revisión; no es un segundo ticket.",
+      "unavailable": "No pudimos cargar el tablero.",
+      "empty": "Aún no hay tickets.",
+      "acknowledge": "Reconocer",
+      "ready": "Marcar listo",
+      "handoff": "Confirmar entrega",
+      "revision": "Revisión",
+      "destination": "Destino"
+    },
+    "visit": {
+      "title": "Tu mesa",
+      "empty": "Aún no hay nada en esta cuenta.",
+      "total": "Total",
+      "inactive": "Este código no está activo",
+      "ended": "Esta visita ya terminó",
+      "askStaff": "Pregunta al personal.",
+      "identityNote": "Esta vista es de esta visita, no de la mesa."
     },
     "adminSessions": {
       "title": "Horario",

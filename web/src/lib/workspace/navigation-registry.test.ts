@@ -13,7 +13,8 @@ test("built destinations resolve a tenant path; unbuilt ones do not", () => {
   assert.equal(navPath("sales", "acme"), "/acme/admin/sales");
   assert.equal(navPath("catalog", "acme"), "/acme/admin/menu");
   assert.equal(navPath("pos", "acme"), "/acme/admin/pos");
-  assert.equal(navPath("tables", "acme"), null);
+  assert.equal(navPath("tables", "acme"), "/acme/admin/tables");
+  assert.equal(navPath("preparation", "acme"), "/acme/admin/preparation");
 });
 
 test("POS nav is the few relevant destinations, not the superset", () => {

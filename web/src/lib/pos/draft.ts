@@ -10,6 +10,7 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals";
+import { loadActiveTicketForOrder } from "@/lib/preparation/tickets";
 import { posGuestSessionId, type PosLineInput, type PosSaleView } from "./commands";
 
 type Admin = {
@@ -35,6 +36,9 @@ type OrderRow = {
   customer_id: string | null;
   guest_session_id: string | null;
   source_page: string | null;
+  visit_id: string | null;
+  space_id: string | null;
+  version: number;
   subtotal_cents: number | string;
   discount_cents: number | string;
   tax_cents: number | string;
@@ -58,6 +62,8 @@ export type CreateDraftOrderInput = {
   currency?: string;
   context?: string | null;
   customerId?: string | null;
+  visitId?: string | null;
+  spaceId?: string | null;
 };
 
 export type CreateDraftOrderResult =
@@ -79,6 +85,7 @@ export async function createDraftOrder(
         customer_id: input.customerId ?? null,
         status: "draft",
         currency,
+        version: 1,
         subtotal_cents: 0,
         discount_cents: 0,
         tax_cents: 0,
@@ -86,6 +93,8 @@ export async function createDraftOrder(
         receipt_code: generateOpaqueCode(),
         source_channel: "pos",
         source_page: input.context ?? "pos",
+        visit_id: input.visitId ?? null,
+        space_id: input.spaceId ?? null,
         payout_release_rule: "immediate",
         guest_session_id: input.customerId ? null : guestSessionId,
         created_by: input.actorUserId,
@@ -111,7 +120,7 @@ async function loadDraft(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, subtotal_cents, discount_cents, tax_cents, total_cents",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -140,6 +149,7 @@ async function writeTotals(
   orderId: string,
   lines: readonly { unitCents: number; units: number }[],
   discountCents: number,
+  version: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const totals = cartTotals(lines, discountCents);
   if (!totalsAreWritable(totals)) return { ok: false, error: "CART_TOTALS_NOT_WRITABLE" };
@@ -150,9 +160,11 @@ async function writeTotals(
       discount_cents: totals.discountCents,
       tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
+      version: version + 1,
     })
     .eq("id", orderId)
-    .eq("status", "draft");
+    .eq("status", "draft")
+    .eq("version", version);
   if (error) {
     logServerError("pos.writeTotals", error);
     return { ok: false, error: error.message };
@@ -248,7 +260,13 @@ export async function addLine(
     ...loaded.lines.map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) })),
     { unitCents, units },
   ];
-  const written = await writeTotals(admin, input.orderId, nextLines, num(loaded.order.discount_cents));
+  const written = await writeTotals(
+    admin,
+    input.orderId,
+    nextLines,
+    num(loaded.order.discount_cents),
+    Number(loaded.order.version) || 1,
+  );
   if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
   return { ok: true, orderId: input.orderId };
 }
@@ -280,7 +298,13 @@ export async function updateLine(
       ? { unitCents, units }
       : { unitCents: num(l.unit_cents), units: num(l.units) },
   );
-  const written = await writeTotals(admin, input.orderId, nextLines, num(loaded.order.discount_cents));
+  const written = await writeTotals(
+    admin,
+    input.orderId,
+    nextLines,
+    num(loaded.order.discount_cents),
+    Number(loaded.order.version) || 1,
+  );
   if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
   return { ok: true, orderId: input.orderId };
 }
@@ -303,7 +327,13 @@ export async function removeLine(
   const nextLines = loaded.lines
     .filter((l) => l.id !== input.lineId)
     .map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
-  const written = await writeTotals(admin, input.orderId, nextLines, num(loaded.order.discount_cents));
+  const written = await writeTotals(
+    admin,
+    input.orderId,
+    nextLines,
+    num(loaded.order.discount_cents),
+    Number(loaded.order.version) || 1,
+  );
   if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
   return { ok: true, orderId: input.orderId };
 }
@@ -392,7 +422,13 @@ export async function repriceAndValidate(
   }
 
   const nextLines = loaded.lines.map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
-  const written = await writeTotals(admin, input.orderId, nextLines, discountCents);
+  const written = await writeTotals(
+    admin,
+    input.orderId,
+    nextLines,
+    discountCents,
+    Number(loaded.order.version) || 1,
+  );
   if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
   return { ok: true, orderId: input.orderId, discountCents };
 }
@@ -404,7 +440,7 @@ export async function loadPosSale(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, subtotal_cents, discount_cents, tax_cents, total_cents",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents",
     )
     .eq("id", input.orderId)
     .maybeSingle();
@@ -448,6 +484,13 @@ export async function loadPosSale(
           ? "pending"
           : "unpaid";
 
+  const ticket = await loadActiveTicketForOrder(admin, { tenantId: input.tenantId, orderId: input.orderId });
+  const prepState: PosSaleView["prepState"] = !ticket
+    ? "not_submitted"
+    : ticket.revision > 1 && ticket.status === "queued"
+      ? "amended"
+      : ticket.status;
+
   return {
     ok: true,
     sale: {
@@ -458,13 +501,16 @@ export async function loadPosSale(
       customerId: row.customer_id,
       guestSessionId: row.guest_session_id,
       context: row.source_page,
+      visitId: row.visit_id,
+      spaceId: row.space_id,
+      version: Number(row.version) || 1,
       subtotalCents: num(row.subtotal_cents),
       discountCents: num(row.discount_cents),
       taxCents: num(row.tax_cents),
       totalCents,
       depositPaidCents,
       outstandingCents,
-      prepState: "not_submitted",
+      prepState,
       paymentState,
       lines: ((lineRows ?? []) as LineRow[]).map((l) => ({
         id: l.id,

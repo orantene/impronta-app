@@ -651,6 +651,23 @@ test("/q is not confused with a tenant slug that merely starts with q", () => {
   assert.equal(isPathAllowedForHostKind("app", "/quinta-real/admin"), true);
 });
 
+test("/visit resolves on the two host kinds that carry a tenant", () => {
+  for (const path of ["/visit/opaque-token-here", "/visit/abcdefghijkmnpqr"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+  }
+});
+
+test("/visit does NOT resolve on app or marketing", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/visit/opaque-token-here"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/visit/opaque-token-here"), false);
+});
+
+test('a tenant cannot claim the slug "visit" and shadow occupancy tokens', () => {
+  assert.equal(isPathAllowedForHostKind("app", "/visit/admin"), false);
+  assert.equal(resolvePathBasedTenantPublicPath("/visit/opaque-token-here"), null);
+});
+
 test("the QR asset endpoint is reachable on the surfaces the workspace runs on", () => {
   // Staff reach it from the dashboard, which lives on the agency host AND on
   // the app host. Gating it on the host's tenant would have 404'd it on

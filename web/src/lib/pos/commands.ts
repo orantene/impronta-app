@@ -43,13 +43,16 @@ export type PosSaleView = {
   customerId: string | null;
   guestSessionId: string | null;
   context: string | null;
+  visitId: string | null;
+  spaceId: string | null;
+  version: number;
   subtotalCents: number;
   discountCents: number;
   taxCents: number;
   totalCents: number;
   depositPaidCents: number;
   outstandingCents: number;
-  prepState: "not_submitted" | "not_built";
+  prepState: "not_submitted" | "queued" | "acknowledged" | "ready" | "cancelled" | "amended";
   paymentState: "unpaid" | "pending" | "paid" | "cancelled";
   lines: Array<{
     id: string;

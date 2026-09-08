@@ -44,7 +44,7 @@ export function PosClient(props: {
     email: string;
     phone: string;
     applyCode: string;
-    prepNotBuilt: string;
+    sendToPrep: string;
     emptyCatalog: string;
     emptyOpen: string;
   };
@@ -235,13 +235,13 @@ export function PosClient(props: {
                 style={{ minHeight: 44 }}
                 onClick={() =>
                   void run(async () => {
-                    const r = await posSubmitPrep();
-                    setMsg(r.error);
-                    return { ok: true };
+                    const r = await posSubmitPrep(sale.orderId);
+                    if (!r.ok) setMsg("error" in r && r.error ? r.error : "unavailable");
+                    return r;
                   })
                 }
               >
-                {props.copy.prepNotBuilt}
+                {props.copy.sendToPrep}
               </button>
               <button
                 type="button"

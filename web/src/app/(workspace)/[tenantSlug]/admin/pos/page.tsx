@@ -90,7 +90,7 @@ export default async function PosPage({
           email: tr("dashboard.pos.email"),
           phone: tr("dashboard.pos.phone"),
           applyCode: tr("dashboard.pos.applyCode"),
-          prepNotBuilt: tr("dashboard.pos.prepNotBuilt"),
+          sendToPrep: tr("dashboard.pos.sendToPrep"),
           emptyCatalog: tr("dashboard.pos.emptyCatalog"),
           emptyOpen: tr("dashboard.pos.emptyOpen"),
         }}

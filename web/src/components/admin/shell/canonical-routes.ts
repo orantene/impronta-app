@@ -67,6 +67,8 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   (s) => s[0] === "admin" && s[1] === "sales",
   (s) => s[0] === "admin" && s[1] === "discounts",
   (s) => s[0] === "admin" && s[1] === "pos",
+  (s) => s[0] === "admin" && s[1] === "tables",
+  (s) => s[0] === "admin" && s[1] === "preparation",
   // /<tenant>/admin/events/door — live check-in desk. The Events SPA owns
   // /admin/events (list + tabs); the door is a real server page and must not
   // stack under EventsPage.

@@ -144,8 +144,11 @@ export async function posCancelSale(orderId: string) {
   return finalizeOrCancel(g.admin, { tenantId: g.tenantId, orderId });
 }
 
-export async function posSubmitPrep() {
-  return submitToPreparation();
+export async function posSubmitPrep(orderId: string) {
+  const g = await staff();
+  if (!g.ok) return g;
+  if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
+  return submitToPreparation(g.admin, { tenantId: g.tenantId, orderId });
 }
 
 export async function posLoadOpen() {

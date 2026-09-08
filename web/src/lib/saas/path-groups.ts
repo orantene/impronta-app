@@ -346,6 +346,13 @@ export const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
 export const CANONICAL_LINK_PREFIX = "/q" as const;
 
 /**
+ * P5 — guest visit view (`/visit/<public_token>`). Agency and hub only: the
+ * token is tenant-scoped occupancy identity. The printed table tent stays
+ * `/q/<code>` and redirects here only while a visit is open.
+ */
+export const CANONICAL_VISIT_PREFIX = "/visit" as const;
+
+/**
  * Events & Ticketing E4 — the public event pages (`/events`, `/events/<slug>`).
  * Agency and hub only, for the same reason `/q` is: an event slug means nothing
  * without a tenant to look it up under, and `casarizo.com/events/noche-de-salsa`

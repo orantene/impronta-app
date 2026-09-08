@@ -16,6 +16,10 @@ function makeStore() {
     talent_offering_variants: [] as Row[],
     booking_transactions: [] as Row[],
     agency_bookings: [] as Row[],
+    preparation_tickets: [] as Row[],
+    preparation_ticket_revisions: [] as Row[],
+    visits: [] as Row[],
+    spaces: [] as Row[],
   };
 }
 
@@ -26,7 +30,18 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
     let inserted: Row[] = [];
     let patch: Row = {};
     const eqs: Array<[string, unknown]> = [];
-    const match = () => (tables[table] ?? []).filter((row) => eqs.every(([k, v]) => row[k] === v));
+    const match = () =>
+      (tables[table] ?? []).filter((row) =>
+        eqs.every(([k, v]) => {
+          if (v && typeof v === "object" && v !== null && "__neq" in v) {
+            return row[k] !== (v as { __neq: unknown }).__neq;
+          }
+          if (v && typeof v === "object" && v !== null && "__in" in v) {
+            return (v as { __in: unknown[] }).__in.includes(row[k]);
+          }
+          return row[k] === v;
+        }),
+      );
     const apply = () => {
       if (mode === "insert") {
         for (const r of inserted) {
@@ -65,6 +80,14 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
       },
       eq: (k: string, v: unknown) => {
         eqs.push([k, v]);
+        return api;
+      },
+      neq: (k: string, v: unknown) => {
+        eqs.push([k, { __neq: v }]);
+        return api;
+      },
+      in: (k: string, vals: unknown[]) => {
+        eqs.push([k, { __in: vals }]);
         return api;
       },
       order: () => api,
@@ -249,10 +272,22 @@ test("collect refuses without contact when the draft has no customer", async () 
   assert.equal(store.booking_transactions.length, 0);
 });
 
-test("submitToPreparation is named and not built", async () => {
-  const r = await submitToPreparation();
-  assert.equal(r.ok, false);
-  assert.equal(r.reason, "not_built");
+test("submitToPreparation writes a ticket instead of returning not_built", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const r = await submitToPreparation(fakeAdmin(store), { tenantId: "t1", orderId: created.orderId });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.revision, 1);
+  assert.equal(store.preparation_tickets.length, 1);
 });
 
 test("POS actions do not call createPurchase", () => {
