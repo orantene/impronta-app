@@ -40,7 +40,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C07 | C07-DIFF | Bar | not started | `qa-evidence/C07-DIFF/` |
 | C07 | C07-REC | Bar | not started | `qa-evidence/C07-REC/` |
 | C08 | C08-CUS | Modelling or talent agency | implementing — directory inquiry submitted | `qa-evidence/C08-CUS/directory-inquiry.md` |
-| C08 | C08-OP | Modelling or talent agency | not started | `qa-evidence/C08-OP/` |
+| C08 | C08-OP | Modelling or talent agency | implementing — assign + draft offer | `qa-evidence/C08-OP/assign-and-draft-offer.md` |
 | C08 | C08-TAL | Modelling or talent agency | not started | `qa-evidence/C08-TAL/` |
 | C08 | C08-DIFF | Modelling or talent agency | not started | `qa-evidence/C08-DIFF/` |
 | C08 | C08-REC | Modelling or talent agency | not started | `qa-evidence/C08-REC/` |

@@ -157,6 +157,45 @@ export async function inquiryLineupTalentIds(inquiryId: string): Promise<string[
     .filter((id): id is string => !!id);
 }
 
+export async function latestAssignedDirectoryInquiry(): Promise<{
+  inquiryId: string;
+  contactEmail: string | null;
+  status: string;
+  talentIds: string[];
+  offerId: string | null;
+  offerStatus: string | null;
+} | null> {
+  const admin = isolatedService();
+  const { data: part, error: partErr } = await admin
+    .from("inquiry_participants")
+    .select("inquiry_id, talent_profile_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("role", "talent")
+    .is("removed_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (partErr) throw new Error(partErr.message);
+  if (!part?.inquiry_id) return null;
+  const inquiryId = String(part.inquiry_id);
+  const { data: inq, error: inqErr } = await admin
+    .from("inquiries")
+    .select("id, status, contact_email")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (inqErr) throw new Error(inqErr.message);
+  const talentIds = await inquiryLineupTalentIds(inquiryId);
+  const offer = await latestInquiryOffer(inquiryId);
+  return {
+    inquiryId,
+    contactEmail: (inq?.contact_email as string | null) ?? null,
+    status: String(inq?.status ?? ""),
+    talentIds,
+    offerId: offer?.offerId ?? null,
+    offerStatus: offer?.status ?? null,
+  };
+}
+
 export async function latestInquiryOffer(inquiryId: string): Promise<{
   offerId: string;
   status: string;

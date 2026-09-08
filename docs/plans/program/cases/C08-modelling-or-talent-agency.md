@@ -20,7 +20,7 @@ P2-04, P7-01
 - **Basic:** Inquiry to booking with commission.
 - **Complete:** Three-model shoot books all three atomically; fees and margin separate.
 
-Overall status: implementing — C08-CUS directory inquiry submitted. Offer not accepted; models not assigned. Case not verified.
+Overall status: implementing — C08-CUS inquiry submitted; C08-OP talent assigned + draft offer. Offer not sent; not accepted. Case not verified.
 
 ## Scenarios
 
@@ -51,10 +51,10 @@ Overall status: implementing — C08-CUS directory inquiry submitted. Offer not 
 | Expected visible | Sales/Calendar/Payments show the same record. |
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
-| Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C08-OP/` |
+| Automated or manual | Playwright on qa-journeys `/admin/messages` |
+| Evidence | `qa-evidence/C08-OP/assign-and-draft-offer.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — talent invited + draft offer; not sent |
 
 ### C08-TAL — Talent workflow
 
