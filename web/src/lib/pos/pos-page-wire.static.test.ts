@@ -42,3 +42,13 @@ test("shift cash-up lives on POS, not a new destination", () => {
   assert.match(client, /amountCents/);
   assert.doesNotMatch(client, /useEffect/);
 });
+
+test("walk-in class places pick a tenant-scoped session", () => {
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  assert.match(page, /from\("sessions"\)/);
+  assert.match(page, /from\("sessions"\)[\s\S]{0,280}eq\("tenant_id", scope.tenantId\)/);
+  assert.match(page, /eq\("status", "scheduled"\)/);
+  const client = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  assert.match(client, /sessionId/);
+  assert.match(client, /posAddLine/);
+});

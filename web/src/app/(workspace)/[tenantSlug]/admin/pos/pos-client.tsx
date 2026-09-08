@@ -16,11 +16,18 @@ import {
 } from "./actions";
 import type { PosSaleView } from "@/lib/pos/commands";
 
+export type PosCatalogSession = {
+  id: string;
+  title: string;
+  startsAt: string;
+};
+
 export type PosCatalogItem = {
   id: string;
   title: string;
   amountCents: number;
   kind: string | null;
+  sessions: PosCatalogSession[];
 };
 
 export type PosShiftView = {
@@ -89,6 +96,7 @@ export function PosClient(props: {
   const [tendered, setTendered] = useState("");
   const [openingCash, setOpeningCash] = useState("0");
   const [countedCash, setCountedCash] = useState("");
+  const [classByOffering, setClassByOffering] = useState<Record<string, string>>({});
   const sale = props.sale;
 
   function go(orderId: string) {
@@ -230,16 +238,44 @@ export function PosClient(props: {
                   {item.title}
                   <span style={{ color: "rgba(11,11,13,0.55)", marginLeft: 8 }}>{item.amountCents}</span>
                 </span>
-                <button
-                  type="button"
-                  disabled={busy || !sale}
-                  onClick={() => {
-                    if (!sale) return;
-                    void run(() => posAddLine({ orderId: sale.orderId, offeringId: item.id, units: 1 }));
-                  }}
-                >
-                  +
-                </button>
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {item.sessions.length > 0 ? (
+                    <select
+                      value={classByOffering[item.id] ?? item.sessions[0]?.id ?? ""}
+                      onChange={(e) =>
+                        setClassByOffering((cur) => ({ ...cur, [item.id]: e.target.value }))
+                      }
+                      style={{ minHeight: 44, maxWidth: 180 }}
+                    >
+                      {item.sessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {session.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={busy || !sale}
+                    onClick={() => {
+                      if (!sale) return;
+                      const sessionId =
+                        item.sessions.length > 0
+                          ? (classByOffering[item.id] ?? item.sessions[0]?.id ?? null)
+                          : null;
+                      void run(() =>
+                        posAddLine({
+                          orderId: sale.orderId,
+                          offeringId: item.id,
+                          units: 1,
+                          sessionId,
+                        }),
+                      );
+                    }}
+                  >
+                    +
+                  </button>
+                </span>
               </li>
             ))}
           </ul>

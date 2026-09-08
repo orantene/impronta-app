@@ -20,6 +20,7 @@ function makeStore() {
     preparation_ticket_revisions: [] as Row[],
     visits: [] as Row[],
     spaces: [] as Row[],
+    sessions: [] as Row[],
   };
 }
 
@@ -313,6 +314,53 @@ test("adding a line on another workspace's draft writes nothing", async () => {
   if (added.ok) return;
   assert.equal(added.reason, "wrong_tenant");
   assert.equal(store.order_lines.length, 0);
+});
+
+test("a class on another workspace is not added to this sale", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  store.sessions.push({
+    id: "ses-foreign",
+    tenant_id: "t2",
+    offering_id: "off-1",
+    status: "scheduled",
+    title: "Dawn",
+  });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1, sessionId: "ses-foreign" },
+  });
+  assert.equal(added.ok, false);
+  if (added.ok) return;
+  assert.equal(added.reason, "wrong_tenant");
+  assert.equal(store.order_lines.length, 0);
+});
+
+test("a walk-in class place stores the session on the line", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    status: "scheduled",
+    title: "Dawn flow",
+  });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1, sessionId: "ses-1" },
+  });
+  assert.equal(added.ok, true);
+  assert.equal(store.order_lines[0].session_id, "ses-1");
+  assert.match(String(store.order_lines[0].label), /Dawn flow/);
 });
 
 test("another workspace's catalog item is not added to this sale", async () => {

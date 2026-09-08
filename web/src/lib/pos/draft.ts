@@ -212,8 +212,39 @@ export async function addLine(
     return { ok: false, reason: "invalid", error: "That item is not for sale." };
   }
 
+  let sessionTitle: string | null = null;
+  if (input.line.sessionId) {
+    const { data: session, error: sessErr } = await admin
+      .from("sessions")
+      .select("id, tenant_id, offering_id, status, title")
+      .eq("id", input.line.sessionId)
+      .maybeSingle();
+    if (sessErr) {
+      logServerError("pos.addLine.session", sessErr);
+      return { ok: false, reason: "unavailable", error: "Could not read that class." };
+    }
+    if (!session) return { ok: false, reason: "invalid", error: "That class is not here." };
+    const sess = session as {
+      tenant_id: string;
+      offering_id: string | null;
+      status: string;
+      title: string | null;
+    };
+    if (sess.tenant_id !== input.tenantId) {
+      return { ok: false, reason: "wrong_tenant", error: "That class is not here." };
+    }
+    if (sess.offering_id && sess.offering_id !== off.id) {
+      return { ok: false, reason: "invalid", error: "That class is not this item." };
+    }
+    if (sess.status !== "scheduled") {
+      return { ok: false, reason: "invalid", error: "That class is not open." };
+    }
+    sessionTitle = sess.title?.trim() || null;
+  }
+
   let unitCents = Math.max(0, Math.trunc(num(off.amount_cents)));
   let label = off.title?.trim() || "Item";
+  if (sessionTitle) label = `${label} · ${sessionTitle}`;
   if (input.line.variantId) {
     const { data: variant, error: vErr } = await admin
       .from("talent_offering_variants")

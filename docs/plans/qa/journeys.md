@@ -16,6 +16,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | On a paid hybrid package, cancel catering only (`refund_hybrid_component`). | P8 L55 effect 5: that line's allocations release; other lines stand. | Whole order refunded; other allocations released; second order created. `BLOCKED:` until fixture. |
 | Staff desk `/admin/pos`, `/admin/tables`, `/admin/preparation` on an agency host. | P3/P5 surfaces are on the allow-list, not marketing. | 404 Host not registered; marketing host serves the desk. |
 | From workspace A, add a line from workspace B's catalog, or open B's table. | Isolation: sale/visit writes nothing. | Line or visit created; `wrong_tenant` missing. |
+| On POS, add a class place for a session belonging to another workspace. | Walk-in session is tenant-scoped. | Line created; foreign `session_id` stored. |
 | Paste workspace A's table token on workspace B's host. | Guest visit / QR / floor stay tenant-scoped. | B sees A's check; floor lists B's tables on A. |
 | Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
 

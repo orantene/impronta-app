@@ -4,6 +4,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { logServerError } from "@/lib/server/safe-error";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
 import { currentShift } from "@/lib/pos/shift";
 import { PosClient } from "./pos-client";
@@ -33,7 +34,8 @@ export default async function PosPage({
 
   const q = await searchParams;
   const orderId = typeof q.order === "string" ? q.order : null;
-  const [open, saleLoad, catalog, shiftLoad] = await Promise.all([
+  const now = new Date().toISOString();
+  const [open, saleLoad, catalog, shiftLoad, upcoming] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
@@ -46,9 +48,36 @@ export default async function PosPage({
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
     currentShift(admin, { tenantId: scope.tenantId }),
+    admin
+      .from("sessions")
+      .select("id, offering_id, title, starts_at")
+      .eq("tenant_id", scope.tenantId)
+      .eq("status", "scheduled")
+      .gte("starts_at", now)
+      .order("starts_at", { ascending: true })
+      .limit(80),
   ]);
+  if (catalog.error) logServerError("pos.page.catalog", catalog.error);
+  if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
 
   const sale = saleLoad && saleLoad.ok ? saleLoad.sale : null;
+  const sessionsByOffering = new Map<string, Array<{ id: string; title: string; startsAt: string }>>();
+  for (const row of (upcoming.data ?? []) as Array<{
+    id: string;
+    offering_id: string | null;
+    title: string | null;
+    starts_at: string;
+  }>) {
+    if (!row.offering_id) continue;
+    const list = sessionsByOffering.get(row.offering_id) ?? [];
+    if (list.length >= 8) continue;
+    list.push({
+      id: row.id,
+      title: row.title?.trim() || row.starts_at,
+      startsAt: row.starts_at,
+    });
+    sessionsByOffering.set(row.offering_id, list);
+  }
   const items = ((catalog.data ?? []) as Array<{
     id: string;
     title: string | null;
@@ -59,6 +88,7 @@ export default async function PosPage({
     title: row.title ?? row.id.slice(0, 8),
     amountCents: row.amount_cents ?? 0,
     kind: row.kind,
+    sessions: sessionsByOffering.get(row.id) ?? [],
   }));
 
   return (
