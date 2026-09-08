@@ -24,4 +24,4 @@ qa-journeys-only (not git, not production): `admissions.seated_at` / `no_show_at
 
 ## Not claimed
 
-Not QR / camera scan. Not pay-at-door settle (C12-DIFF). Not a card ticket. Not promo, sold-out, private-hire, performer, or layout. Not C12 complete. Case count stays **0 / 48**.
+Not QR / camera scan. Pay-at-door settle is a separate record (`qa-evidence/C12-DIFF/pay-at-door.md`). Not a card ticket. Not promo, sold-out, private-hire, performer, or layout. Not C12 complete. Case count stays **0 / 48**.

@@ -18,7 +18,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P1-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Coordinating: order engine. Compensation via `ticket_refund_intents`. |
 | P1-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Runner + cron + heartbeat. Update also filters status. |
 | P1-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Guest picker promo field. Independent of P1-05. |
-| P1-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Door settle wired. Browser proof awaits fixture. |
+| P1-05 | cloud-safe | verified in test environment | cloud-agent | 2026-09-08T21:40Z | cursor/journeys-program-c4d3 | Cash settle of $20 pay-at-door hold on qa-journeys. Card settle not run. `qa-evidence/C12-DIFF/pay-at-door.md`. |
 | P1-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Five effects + Orders desk form. |
 | P1-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SessionsPage already lists collisions; static test enrolled. |
 | P2-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | ≥120 catalog types excluding `custom`. Accent-fold search. Settings search-to-select. |
@@ -55,7 +55,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 
 ## Case matrix (overall)
 
-See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. C09-OP walk-in class is in `qa-evidence/C09-OP/walk-in-class.md`. C09-CUS website register is in `qa-evidence/C09-CUS/class-register.md`. C02-CUS last-resource and couples set are in `qa-evidence/C02-CUS/`. C02-DIFF competitor-after-couples is in `qa-evidence/C02-DIFF/competitor-after-couples.md`. C12-CUS $0 night ticket is in `qa-evidence/C12-CUS/ticket.md`. C12-OP door Admit is in `qa-evidence/C12-OP/door.md`. No case is complete.
+See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. C09-OP walk-in class is in `qa-evidence/C09-OP/walk-in-class.md`. C09-CUS website register is in `qa-evidence/C09-CUS/class-register.md`. C02-CUS last-resource and couples set are in `qa-evidence/C02-CUS/`. C02-DIFF competitor-after-couples is in `qa-evidence/C02-DIFF/competitor-after-couples.md`. C12-CUS $0 night ticket is in `qa-evidence/C12-CUS/ticket.md`. C12-OP door Admit is in `qa-evidence/C12-OP/door.md`. C12-DIFF pay-at-door cash settle is in `qa-evidence/C12-DIFF/pay-at-door.md`. No case is complete.
 
 ## Defects
 

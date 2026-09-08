@@ -20,7 +20,7 @@ P1-04, P1-05, P6-02, P7-05, P2-04
 - **Basic:** Sells tickets to a public event.
 - **Complete:** Private hire invoiced to organiser; performer paid; second layout cannot invent capacity.
 
-Overall status: implementing — C12-CUS $0 night ticket and C12-OP door Admit on `/admin/events/door` proven. Card ticket, QR scan, pay-at-door, promo, sold-out, private-hire not run. Case not verified.
+Overall status: implementing — C12-CUS $0 night ticket, C12-OP door Admit, and C12-DIFF pay-at-door cash settle proven. Card ticket, QR scan, promo, private-hire not run. Case not verified.
 
 ## Scenarios
 
@@ -54,7 +54,7 @@ Overall status: implementing — C12-CUS $0 night ticket and C12-OP door Admit o
 | Automated or manual | Playwright operator project (desktop or tablet POS) |
 | Evidence | `qa-evidence/C12-OP/door.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | implementing — walk-up Admit on QA Night; QR scan and pay-at-door not run |
+| Disposition | implementing — walk-up Admit on QA Night; QR scan not run |
 
 ### C12-TAL — Talent workflow
 
@@ -72,7 +72,9 @@ Overall status: implementing — C12-CUS $0 night ticket and C12-OP door Admit o
 | Steps | Pay-at-door hold settled at the door. |
 | Expected persisted | All committed resources held together; competing request cannot take any. |
 | Blocks completion | Partial reserve, leaked hold, oversell |
-| Disposition | not started |
+| Automated or manual | Playwright on qa-journeys `/events/qa-night` then `/admin/events/door` |
+| Evidence | `qa-evidence/C12-DIFF/pay-at-door.md` |
+| Disposition | implementing — $20 hold blocks competitor; Cash settle commits seat + mints admission; card settle not run |
 
 ### C12-REC — Recovery
 

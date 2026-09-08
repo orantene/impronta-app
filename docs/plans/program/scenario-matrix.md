@@ -62,7 +62,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C12 | C12-CUS | Event venue | implementing — $0 ticket + admission | `qa-evidence/C12-CUS/ticket.md` |
 | C12 | C12-OP | Event venue | implementing — walk-up Admit | `qa-evidence/C12-OP/door.md` |
 | C12 | C12-TAL | Event venue | not started | `qa-evidence/C12-TAL/` |
-| C12 | C12-DIFF | Event venue | not started | `qa-evidence/C12-DIFF/` |
+| C12 | C12-DIFF | Event venue | implementing — pay-at-door cash settle | `qa-evidence/C12-DIFF/pay-at-door.md` |
 | C12 | C12-REC | Event venue | not started | `qa-evidence/C12-REC/` |
 | C13 | C13-CUS | Coworking space with cafe, rooms and workshops | not started | `qa-evidence/C13-CUS/` |
 | C13 | C13-OP | Coworking space with cafe, rooms and workshops | not started | `qa-evidence/C13-OP/` |
