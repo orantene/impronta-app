@@ -33,6 +33,15 @@ test("layer 4 — nav registry routes restaurant destinations to built pages", (
   assert.match(src, /preparation: \{ id: "preparation", path: "preparation"/);
 });
 
+test("tables and preparation actions require workspace staff and view_dashboard", () => {
+  const tables = read("src/app/(workspace)/[tenantSlug]/admin/tables/actions.ts");
+  const prep = read("src/app/(workspace)/[tenantSlug]/admin/preparation/actions.ts");
+  for (const src of [tables, prep]) {
+    assert.match(src, /requireWorkspaceStaffAction/);
+    assert.match(src, /userHasCapability\("view_dashboard"/);
+  }
+});
+
 test("table QR handler redirects through visit identity", () => {
   const src = read("src/app/q/[code]/route.ts");
   assert.match(src, /resolveOpenVisitForSpace/);

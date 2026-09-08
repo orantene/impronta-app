@@ -41,7 +41,7 @@ This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
 | P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
 | P8 hybrids | Implemented, awaiting focused verification. Package component cancel, supervised set, tournament courts (cafe omitted), breakouts, live recording, exclusive kitchen/hire, retreat days + add-on, grooming vs event rooms. |
-| W-AUDIT | Standing — tenant check on capacity pool IDs in `reserveResourceSet` (SQL RPC is service-role and keys on pool_id only). POS/tables/prep allow-list covered. Continues. |
+| W-AUDIT | Standing — tenant check on capacity pool IDs in `reserveResourceSet`. Isolation proofs on POS draft/catalog, visit open, hybrid cancel, prep ticket. Continues. |
 
 ## Task order (this cycle)
 
@@ -81,4 +81,4 @@ Take the next unblocked task in [`ledger.md`](ledger.md): **W-AUDIT** / **P9**. 
 One owner at a time. Stale-claim recovery: if the claim is older than 6 hours and the session is gone, the next session takes the next unblocked task and records the takeover.
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T10:10Z
+**Claimed:** 2026-09-08T10:40Z

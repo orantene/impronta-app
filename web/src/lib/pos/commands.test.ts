@@ -295,6 +295,41 @@ test("POS actions do not call createPurchase", () => {
   assert.doesNotMatch(src, /createPurchase/);
 });
 
+test("adding a line on another workspace's draft writes nothing", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t2", actorUserId: "u2" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(added.ok, false);
+  if (added.ok) return;
+  assert.equal(added.reason, "wrong_tenant");
+  assert.equal(store.order_lines.length, 0);
+});
+
+test("another workspace's catalog item is not added to this sale", async () => {
+  const store = makeStore();
+  seedOffering(store, { tenant_id: "t2" });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(added.ok, false);
+  if (added.ok) return;
+  assert.equal(added.reason, "invalid");
+  assert.equal(store.order_lines.length, 0);
+  assert.equal(store.orders[0].total_cents, 0);
+});
+
 test("cash collection with contact records a settle, not a purchase", async () => {
   const store = makeStore();
   seedOffering(store);

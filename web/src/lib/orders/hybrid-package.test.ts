@@ -84,6 +84,47 @@ test("cancelling catering releases only that line's capacity; the game stays hel
   assert.equal(store.orders[0].status, "paid");
 });
 
+test("cancelling a package on another workspace writes nothing", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "ord", tenant_id: "t-other", status: "paid" });
+  store.order_lines.push(
+    { id: "game", order_id: "ord", total_cents: 8000, refunded_cents: 0 },
+    { id: "catering", order_id: "ord", total_cents: 2000, refunded_cents: 0 },
+  );
+  store.capacity_allocations.push(
+    { id: "a-game", tenant_id: "t-other", order_line_id: "game", released_at: null },
+    { id: "a-cater", tenant_id: "t-other", order_line_id: "catering", released_at: null },
+  );
+  let refunded = 0;
+  let released = 0;
+  const result = await cancelHybridComponents(
+    fakeAdmin(store),
+    { tenantId: "ten", orderId: "ord", lineIds: ["catering"] },
+    {
+      refundLines: async () => {
+        refunded += 1;
+        return {
+          ok: true,
+          refundedCents: 2000,
+          refundIds: ["r1"],
+          admissionsStamped: 0,
+          admissionsIncomplete: false,
+          releasedPromoRedemption: false,
+        };
+      },
+      release: async (ids) => {
+        released += ids.length;
+        return { ok: true, released: ids.length, alreadyReleased: 0 };
+      },
+    },
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "wrong_tenant");
+  assert.equal(refunded, 0);
+  assert.equal(released, 0);
+});
+
 test("a hybrid cancel refuses a single-line order", async () => {
   const store = makeStore();
   store.orders.push({ id: "ord", tenant_id: "ten", status: "paid" });

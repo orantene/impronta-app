@@ -177,6 +177,19 @@ test("kitchen acknowledge, ready and takeaway handoff do not consult payment sta
   assert.equal(store.orders[0].status, "draft");
 });
 
+test("kitchen actions on another workspace's ticket write nothing", async () => {
+  const store = makeStore();
+  const orderId = await draftWithTaco(store);
+  const sent = await submitOrderToPreparation(fakeAdmin(store), { tenantId: "t1", orderId });
+  assert.equal(sent.ok, true);
+  if (!sent.ok) return;
+  const ready = await markTicketReady(fakeAdmin(store), { tenantId: "t-other", ticketId: sent.ticketId });
+  assert.equal(ready.ok, false);
+  if (ready.ok) return;
+  assert.equal(ready.reason, "wrong_tenant");
+  assert.equal(store.preparation_tickets[0].status, "queued");
+});
+
 test("empty order cannot be sent to preparation", async () => {
   const store = makeStore();
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });

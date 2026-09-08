@@ -27,6 +27,12 @@ test("layer 4 — the nav registry routes New Sale to pos", () => {
   assert.match(src, /pos: \{ id: "pos", path: "pos"/);
 });
 
+test("POS actions require workspace staff and view_dashboard", () => {
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  assert.match(src, /requireWorkspaceStaffAction/);
+  assert.match(src, /userHasCapability\("view_dashboard"/);
+});
+
 test("shift cash-up lives on POS, not a new destination", () => {
   const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
   assert.match(page, /currentShift/);

@@ -267,6 +267,21 @@ test("floor remaining minimum is policy, not a charge", async () => {
   assert.equal(cab?.remainingMinSpendCents, 38000);
 });
 
+test("opening a visit on another workspace's table writes nothing", async () => {
+  const store = makeStore();
+  seedSpace(store, { tenant_id: "t2" });
+  const opened = await openVisit(fakeAdmin(store), {
+    tenantId: "t1",
+    spaceId: "space-t7",
+    actorUserId: "u1",
+  });
+  assert.equal(opened.ok, false);
+  if (opened.ok) return;
+  assert.equal(opened.reason, "wrong_tenant");
+  assert.equal(store.visits.length, 0);
+  assert.equal(store.orders.length, 0);
+});
+
 test("guest visit page looks up public_token, not space_id", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/visits/qr.ts"), "utf8");
   assert.match(src, /public_token/);
