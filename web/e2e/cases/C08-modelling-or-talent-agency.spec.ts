@@ -15,7 +15,6 @@ import {
 } from "./_harness";
 import {
   latestGuestDirectoryInquiry,
-  latestC08DirectoryInquiry,
   inquiryLineupTalentIds,
   latestInquiryOffer,
   QA_JOURNEYS_TALENT_ID,
@@ -136,8 +135,8 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   }
   const search = page.getByPlaceholder(/search clients, briefs/i);
   await expect(search).toBeVisible({ timeout: 20_000 });
-  await search.fill(marker);
-  const row = page.getByRole("button", { name: /cora cuevas/i }).first();
+  await search.fill("catalog shoot");
+  const row = page.getByRole("button", { name: /shortlist empty/i }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
 
