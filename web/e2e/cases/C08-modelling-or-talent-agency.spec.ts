@@ -10,8 +10,16 @@ import {
   prepareJourneysPage,
   skipUnlessFixture,
   assertNotAuthWall,
+  signInJourneysStaff,
+  assertWorkspaceIdentity,
 } from "./_harness";
-import { latestGuestDirectoryInquiry } from "./_isolated-db";
+import {
+  latestGuestDirectoryInquiry,
+  latestC08DirectoryInquiry,
+  inquiryLineupTalentIds,
+  latestInquiryOffer,
+  QA_JOURNEYS_TALENT_ID,
+} from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -77,6 +85,52 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
 
   await page.screenshot({
     path: testInfo.outputPath("c08-cus-inquiry.png"),
+    fullPage: true,
+  });
+});
+
+test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const seed = await latestC08DirectoryInquiry();
+  expect(seed, "C08-CUS submitted inquiry must exist before C08-OP").not.toBeNull();
+  const inquiryId = seed!.inquiryId;
+
+  await signInJourneysStaff(page, "/admin/messages");
+  await assertWorkspaceIdentity(page);
+
+  const allChip = page.getByRole("button", { name: /^all$/i });
+  if (await allChip.isVisible().catch(() => false)) {
+    await allChip.click();
+  }
+  const search = page.getByPlaceholder(/search clients, briefs/i);
+  if (await search.isVisible().catch(() => false)) {
+    await search.fill("Cora");
+  }
+  const row = page.getByText(/cora cuevas|catalog shoot/i).first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.click();
+
+  await page.getByRole("tab", { name: /^lineup$/i }).click();
+  const addTalent = page.getByRole("button", { name: /^add talent$/i });
+  await expect(addTalent).toBeVisible({ timeout: 20_000 });
+  await addTalent.click();
+  await page.getByRole("button", { name: /qa journeys talent/i }).click();
+  await expect(page.getByText(/qa journeys talent/i).first()).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("tab", { name: /^offer$/i }).click();
+  await page.getByRole("button", { name: /start drafting offer/i }).click();
+  await expect(page.getByText(/offer draft created|draft/i).first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  const lineup = await inquiryLineupTalentIds(inquiryId);
+  expect(lineup).toContain(QA_JOURNEYS_TALENT_ID);
+  const offer = await latestInquiryOffer(inquiryId);
+  expect(offer, "draft offer must exist on qa-journeys").not.toBeNull();
+  expect(offer?.status).toMatch(/draft|pending|sent/);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c08-op-assign.png"),
     fullPage: true,
   });
 });

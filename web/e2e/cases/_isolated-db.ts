@@ -117,6 +117,63 @@ export async function latestGuestDirectoryInquiry(
   };
 }
 
+export const QA_JOURNEYS_TALENT_ID = "33330003-0000-4000-8000-000000000001";
+
+export async function latestC08DirectoryInquiry(): Promise<GuestDirectoryInquiry | null> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("inquiries")
+    .select("id, status, contact_email, contact_name, message, source_channel, source_page")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .like("contact_email", "c08-cus-%@impronta.test")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    inquiryId: String(data.id),
+    status: String(data.status),
+    contactEmail: (data.contact_email as string | null) ?? null,
+    contactName: (data.contact_name as string | null) ?? null,
+    message: (data.message as string | null) ?? null,
+    sourceChannel: (data.source_channel as string | null) ?? null,
+    sourcePage: (data.source_page as string | null) ?? null,
+  };
+}
+
+export async function inquiryLineupTalentIds(inquiryId: string): Promise<string[]> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("inquiry_participants")
+    .select("talent_profile_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("inquiry_id", inquiryId)
+    .eq("role", "talent")
+    .is("removed_at", null);
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((row) => row.talent_profile_id as string | null)
+    .filter((id): id is string => !!id);
+}
+
+export async function latestInquiryOffer(inquiryId: string): Promise<{
+  offerId: string;
+  status: string;
+} | null> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("inquiry_offers")
+    .select("id, status")
+    .eq("inquiry_id", inquiryId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return { offerId: String(data.id), status: String(data.status) };
+}
+
 export const TABLE_1_SPACE_ID = "33330011-0000-4000-8000-000000000001";
 
 export type TabCollectAtClose = PaidPosPizza & {
