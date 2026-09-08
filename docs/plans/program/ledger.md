@@ -55,7 +55,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 
 ## Case matrix (overall)
 
-See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. That is C06-CUS basic, not C06 complete.
+See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. C09-OP walk-in class is in `qa-evidence/C09-OP/walk-in-class.md`. Neither case is complete.
 
 ## Defects
 

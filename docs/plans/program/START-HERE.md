@@ -10,7 +10,7 @@
 | Metric | Value |
 |---|---|
 | Cases verified on the actual platform | **0 / 48** |
-| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs (including one guest reserve-then-order) and C01-CUS *deposit requested*; no complete case. |
+| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09-OP walk-in class; no complete case. |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema + SQL fixture on `qa-journeys` | **Yes** — seed applied; staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
@@ -19,6 +19,7 @@
 | C06-CUS table reservation | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/reservation.md`. |
 | C06-CUS reserve-then-order | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/reserve-then-order.md`. C06-CUS basic, not C06 complete. |
 | C01-CUS technician deposit | **Pass** as deposit *requested* on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C01-CUS/deposit.md`. Charge not collected — isolated Next has no Stripe secret. |
+| C09-OP walk-in class | **Pass** on qa-journeys POS + DB. Evidence: `docs/plans/qa-evidence/C09-OP/walk-in-class.md`. Not website register, not attendance. |
 
 Skipped Playwright specs are not passes. Green unit tests and RPC helpers are supporting evidence only.
 
@@ -58,7 +59,7 @@ Product sources are in [`docs/product/`](../../product/).
 | P6 multi-resource | `reserve_resource_set` RPC preferred; TS unwind remains fallback |
 | P7 C39 | `drawdown_lesson_package` RPC; attendance hop admission → order → booking → package |
 | P8 hybrids | Unchanged. Production reserve stays `createPurchase` holds/capacity |
-| W-AUDIT | Isolation unit coverage in. Browser paths: C06-OP walk-in cash; C06-CUS public menu; C06-CUS table reservation; C06-CUS reserve-then-order; C01-CUS deposit requested (not collected). |
+| W-AUDIT | Isolation unit coverage in. Browser paths: C06 restaurant paths; C01-CUS deposit requested (not collected); C09-OP walk-in class. |
 | P9 | Parked. Do not start |
 
 ## Task order (this cycle)
@@ -87,7 +88,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06-CUS reserve-then-order and C01-CUS deposit-requested are recorded. Next: Stripe test deposit collect, C12, C02, or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+C06-CUS reserve-then-order, C01-CUS deposit-requested, and C09-OP walk-in class are recorded. Next: Stripe test deposit collect, C12, C02, C09-CUS website register, or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 

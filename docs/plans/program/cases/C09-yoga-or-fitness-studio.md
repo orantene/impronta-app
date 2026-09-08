@@ -20,7 +20,7 @@ P2-04, P3-05, P6-04
 - **Basic:** Publishes a recurring class and sells places.
 - **Complete:** Walk-in buys at the door against the same pool; free place is not overdue.
 
-Overall status: not started — engine: `markAttendance` does not write a payment; `$0` places are not overdue (P6-04). Browser journey not run.
+Overall status: implementing — C09-OP walk-in complimentary place proven on POS ($0 paid, not overdue). Guest website register and attendance not run. Case not verified.
 
 ## Scenarios
 
@@ -52,9 +52,9 @@ Overall status: not started — engine: `markAttendance` does not write a paymen
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
 | Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C09-OP/` |
+| Evidence | `qa-evidence/C09-OP/walk-in-class.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — POS walk-in complimentary Morning class proven; attendance not run |
 
 ### C09-TAL — Talent workflow
 
