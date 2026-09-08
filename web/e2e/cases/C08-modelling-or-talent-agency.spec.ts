@@ -224,6 +224,9 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   expect(seed, "C08-OP send guest inquiry must exist before staff send").not.toBeNull();
 
   await signInJourneysStaff(page, "/admin/messages");
+  await expect(page).toHaveURL(/\/admin\/messages/, { timeout: 30_000 });
+  const inbox = page.locator("[data-tulala-inbox-scroll]");
+  await expect(inbox).toBeVisible({ timeout: 40_000 });
   await assertWorkspaceIdentity(page);
   await page.keyboard.press("Escape");
 
@@ -231,7 +234,6 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   if (await allChip.isVisible().catch(() => false)) {
     await allChip.click();
   }
-  const inbox = page.locator("[data-tulala-inbox-scroll]");
   const row = inbox.getByRole("button", { name: /cora cuevas/i }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
