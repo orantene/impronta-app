@@ -45,7 +45,7 @@ export async function assertWorkspaceIdentity(page: Page): Promise<void> {
 }
 
 export async function openWorkspace(page: Page, segment: string): Promise<void> {
-  await page.goto(`/${JOURNEYS_SLUG}/admin/${segment}`);
+  await signInJourneysStaff(page, `/admin/${segment}`);
   await assertWorkspaceIdentity(page);
 }
 
@@ -53,6 +53,28 @@ export async function openStorefront(page: Page): Promise<void> {
   await page.goto("/");
   await assertNotAuthWall(page);
   await expect(page.locator("body")).toBeVisible();
+}
+
+export const JOURNEYS_OWNER_EMAIL =
+  process.env.JOURNEYS_OWNER_EMAIL ?? "qa-journeys-owner@impronta.test";
+
+/**
+ * Passwordless fixture sign-in. Reads cookies from the 307 and then opens
+ * `nextPath` on PLAYWRIGHT_BASE_URL so a Location that dropped the proxy
+ * port cannot bounce the browser onto :80.
+ */
+export async function signInJourneysStaff(
+  page: Page,
+  nextPath = "/admin/pos",
+  email = JOURNEYS_OWNER_EMAIL,
+): Promise<void> {
+  const params = new URLSearchParams({ email, next: nextPath });
+  const res = await page.request.get(`/api/dev/signin?${params.toString()}`, {
+    maxRedirects: 0,
+  });
+  expect(res.status(), "dev sign-in must mint a session").toBe(307);
+  await page.goto(nextPath);
+  await assertNotAuthWall(page);
 }
 
 export function skipUnlessFixture(): void {
