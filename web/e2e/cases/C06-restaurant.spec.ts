@@ -37,18 +37,18 @@ test("C06-OP walk-in cash: New sale → House pizza → collect → Sales and DB
 
   await signInJourneysStaff(page, "/admin/pos");
   await assertWorkspaceIdentity(page);
-  await expect(page.getByRole("button", { name: /house pizza/i })).toBeVisible();
+  await expect(page.getByTitle("House pizza")).toBeVisible();
 
-  await page.getByRole("button", { name: /new sale/i }).click();
+  await page.getByRole("button", { name: "⊕ New sale" }).click();
   await expect(page).toHaveURL(/order=/);
-  await expect(page.getByRole("button", { name: /house pizza/i })).toBeEnabled();
+  await expect(page.getByTitle("House pizza")).toBeEnabled();
 
-  await page.getByRole("button", { name: /house pizza/i }).click();
-  await expect(page.getByText(/house pizza/i).first()).toBeVisible();
+  await page.getByTitle("House pizza").click();
+  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
   await expect(page.getByText(/outstanding/i)).toBeVisible();
 
-  await page.getByLabel(/^email$/i).fill(marker);
-  await page.getByRole("button", { name: /collect cash/i }).click();
+  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
+  await page.getByTitle("Collect cash").click();
   await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
 
   await page.goto("/admin/sales");
