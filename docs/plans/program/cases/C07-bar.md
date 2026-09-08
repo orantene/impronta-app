@@ -20,7 +20,7 @@ P5-01, P5-04, P7-05, P1-04
 - **Basic:** Sells drinks as counter sales.
 - **Complete:** Tab stays open; booth and gig ticket are separate; performer fee distinct.
 
-Overall status: not started — engine: visits.service_kind table vs tab. Browser journey not run.
+Overall status: implementing — C07-OP tab collect-at-close proven. Guest tab, booth vs ticket, and performer fee not run. Case not verified.
 
 ## Scenarios
 
@@ -51,10 +51,10 @@ Overall status: not started — engine: visits.service_kind table vs tab. Browse
 | Expected visible | Sales/Calendar/Payments show the same record. |
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
-| Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C07-OP/` |
+| Automated or manual | Playwright on qa-journeys `/admin/tables` then POS collect |
+| Evidence | `qa-evidence/C07-OP/collect-at-close.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — Open tab, unpaid Close refused, cash pizza, Close visit; guest tab / booth not run |
 
 ### C07-TAL — Talent workflow
 

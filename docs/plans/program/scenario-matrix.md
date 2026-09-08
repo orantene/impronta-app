@@ -35,7 +35,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C06 | C06-DIFF | Restaurant | not started | `qa-evidence/C06-DIFF/` |
 | C06 | C06-REC | Restaurant | not started | `qa-evidence/C06-REC/` |
 | C07 | C07-CUS | Bar | not started | `qa-evidence/C07-CUS/` |
-| C07 | C07-OP | Bar | not started | `qa-evidence/C07-OP/` |
+| C07 | C07-OP | Bar | implementing — collect at close | `qa-evidence/C07-OP/collect-at-close.md` |
 | C07 | C07-TAL | Bar | not started | `qa-evidence/C07-TAL/` |
 | C07 | C07-DIFF | Bar | not started | `qa-evidence/C07-DIFF/` |
 | C07 | C07-REC | Bar | not started | `qa-evidence/C07-REC/` |
