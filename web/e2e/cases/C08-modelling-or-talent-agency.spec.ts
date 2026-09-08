@@ -269,19 +269,27 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     });
   }
 
-  const editDraft = page.getByRole("button", { name: /^edit$/i });
+  await page.keyboard.press("Escape");
+  const draftLabel = page.getByText(/^draft editor$/i);
+  await expect(draftLabel).toBeVisible({ timeout: 20_000 });
+  const editDraft = page
+    .locator("div")
+    .filter({ has: draftLabel })
+    .filter({ has: page.getByRole("button", { name: /^edit$/i }) })
+    .getByRole("button", { name: /^edit$/i })
+    .first();
   if (await editDraft.isVisible().catch(() => false)) {
     await editDraft.click();
   }
-  await expect(page.getByRole("button", { name: /\+ add line item/i })).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByRole("button", { name: /\+ add line item/i }).click();
-
+  const addLine = page.getByRole("button", { name: /\+ add line item/i });
+  await expect(addLine).toBeVisible({ timeout: 20_000 });
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) })
     .first();
+  if ((await talentSelect.count()) === 0) {
+    await addLine.click();
+  }
   await expect(talentSelect).toBeVisible({ timeout: 10_000 });
   await talentSelect.selectOption({ label: "QA Journeys Talent" });
   await page.getByPlaceholder(/^rate$/i).fill("800");
