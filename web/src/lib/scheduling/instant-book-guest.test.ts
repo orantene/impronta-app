@@ -121,6 +121,25 @@ describe("runResolvedInstantBook", () => {
     assert.deepEqual(notified, ["ada@example.com"]);
   });
 
+  it("redirects to checkout when the engine returns a checkout URL", async () => {
+    const res = await runResolvedInstantBook({
+      actor: guestActor,
+      payload,
+      currencyCode: "USD",
+      createBooking: async () => ({
+        ok: true,
+        inquiryId: "inq-pay",
+        bookingId: "bk-pay",
+        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test",
+      }),
+      notifyGuest: async () => {},
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) {
+      assert.equal(res.redirectPath, "https://checkout.stripe.com/c/pay/cs_test");
+    }
+  });
+
   it("signed-in path does not notify as a guest", async () => {
     let notified = false;
     const res = await runResolvedInstantBook({

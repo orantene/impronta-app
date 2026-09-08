@@ -198,6 +198,76 @@ try {
     console.log("[repair-order-id] talent_offerings_public_read on qa-journeys only");
   }
 
+  if (!(await hasColumn("talent_profiles", "profile_kind"))) {
+    await client.query(`
+      ALTER TABLE public.talent_profiles
+        ADD COLUMN IF NOT EXISTS profile_kind text NOT NULL DEFAULT 'person'
+    `);
+    await client.query(`
+      ALTER TABLE public.talent_profiles DROP CONSTRAINT IF EXISTS talent_profiles_profile_kind_check;
+      ALTER TABLE public.talent_profiles ADD CONSTRAINT talent_profiles_profile_kind_check
+        CHECK (profile_kind IN ('person', 'resource'))
+    `);
+    console.log("[repair-order-id] talent_profiles.profile_kind on qa-journeys only");
+  }
+  if (!(await hasColumn("talent_profiles", "booking_terms"))) {
+    await client.query(`ALTER TABLE public.talent_profiles ADD COLUMN booking_terms jsonb`);
+    console.log("[repair-order-id] talent_profiles.booking_terms on qa-journeys only");
+  }
+  if (!(await hasColumn("agencies", "plan_tier"))) {
+    await client.query(`ALTER TABLE public.agencies ADD COLUMN plan_tier text`);
+    console.log("[repair-order-id] agencies.plan_tier on qa-journeys only");
+  }
+  if (!(await hasColumn("agencies", "discover_exposure_enabled"))) {
+    await client.query(`ALTER TABLE public.agencies ADD COLUMN discover_exposure_enabled boolean`);
+    console.log("[repair-order-id] agencies.discover_exposure_enabled on qa-journeys only");
+  }
+  if (!(await hasColumn("agencies", "hub_exposure_tenant_ids"))) {
+    await client.query(`ALTER TABLE public.agencies ADD COLUMN hub_exposure_tenant_ids uuid[]`);
+    console.log("[repair-order-id] agencies.hub_exposure_tenant_ids on qa-journeys only");
+  }
+  if (!(await hasColumn("agency_talent_roster", "direct_booking_enabled"))) {
+    await client.query(`
+      ALTER TABLE public.agency_talent_roster
+        ADD COLUMN IF NOT EXISTS exclusivity_status text,
+        ADD COLUMN IF NOT EXISTS direct_booking_enabled boolean,
+        ADD COLUMN IF NOT EXISTS external_booking_released boolean
+    `);
+    console.log("[repair-order-id] agency_talent_roster booking gates on qa-journeys only");
+  }
+  if (!(await hasColumn("inquiries", "source_workspace_id"))) {
+    await client.query(`ALTER TABLE public.inquiries ADD COLUMN source_workspace_id uuid`);
+    console.log("[repair-order-id] inquiries.source_workspace_id on qa-journeys only");
+  }
+  if (!(await hasColumn("orders", "inquiry_id"))) {
+    await client.query(`ALTER TABLE public.orders ADD COLUMN inquiry_id uuid`);
+    console.log("[repair-order-id] orders.inquiry_id on qa-journeys only");
+  }
+  if (!(await hasColumn("inquiry_messages", "card_payload"))) {
+    await client.query(`ALTER TABLE public.inquiry_messages ADD COLUMN card_payload jsonb`);
+    console.log("[repair-order-id] inquiry_messages.card_payload on qa-journeys only");
+  }
+  if (!(await hasTable("talent_booking_hours"))) {
+    await client.query(`
+      CREATE TABLE public.talent_booking_hours (
+        talent_profile_id UUID PRIMARY KEY REFERENCES public.talent_profiles(id) ON DELETE CASCADE,
+        tenant_id UUID NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+        timezone TEXT NOT NULL DEFAULT 'UTC',
+        weekly JSONB NOT NULL DEFAULT '{}'::jsonb,
+        exceptions JSONB NOT NULL DEFAULT '[]'::jsonb,
+        slot_minutes INTEGER NOT NULL DEFAULT 30,
+        buffer_before_min INTEGER NOT NULL DEFAULT 0,
+        buffer_after_min INTEGER NOT NULL DEFAULT 0,
+        min_notice_min INTEGER NOT NULL DEFAULT 120,
+        horizon_days INTEGER NOT NULL DEFAULT 60,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await client.query(`GRANT ALL ON TABLE public.talent_booking_hours TO service_role`);
+    console.log("[repair-order-id] talent_booking_hours on qa-journeys only");
+  }
+
   await client.query(`NOTIFY pgrst, 'reload schema'`);
 } finally {
   await client.end();

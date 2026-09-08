@@ -90,8 +90,15 @@ UPDATE public.agencies
   SET settings = jsonb_build_object(
     'business_type_id', 'restaurant',
     'industry_preset', 'restaurant',
-    'notify_sink', 'test'
-  )
+    'notify_sink', 'test',
+    'appointments', jsonb_build_object(
+      'enabled', true,
+      'allowTalentDirectBooking', true,
+      'terminology', 'appointments',
+      'timezone', 'America/Mexico_City'
+    )
+  ),
+  plan_tier = 'agency'
   WHERE id = '33333333-3333-4333-8333-333333333333'::UUID;
 
 INSERT INTO public.agency_domains (
@@ -130,18 +137,98 @@ VALUES
   ('33330011-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'room', 'Room A', 'R1', 1, 2, 'active')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now();
 
+INSERT INTO public.talent_profiles (
+  id, profile_code, display_name, created_by_agency_id,
+  profile_kind, booking_terms, visibility, workflow_status, is_test_account
+)
+VALUES (
+  '33330003-0000-4000-8000-000000000001'::UUID,
+  'QA-JNY-T1',
+  'QA Journeys Talent',
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'person',
+  '{"directBookingOptIn": true}'::jsonb,
+  'public',
+  'published',
+  TRUE)
+)
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  booking_terms = EXCLUDED.booking_terms,
+  profile_kind = EXCLUDED.profile_kind,
+  updated_at = now();
+
+INSERT INTO public.agency_talent_roster (
+  id, tenant_id, talent_profile_id, status, agency_visibility, is_primary,
+  source_type, hub_visibility_status, direct_booking_enabled
+)
+VALUES (
+  '33330004-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330003-0000-4000-8000-000000000001'::UUID,
+  'active',
+  'site_visible',
+  TRUE,
+  'agency_created',
+  'not_submitted',
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  agency_visibility = EXCLUDED.agency_visibility,
+  is_primary = EXCLUDED.is_primary,
+  direct_booking_enabled = EXCLUDED.direct_booking_enabled,
+  updated_at = now();
+
+INSERT INTO public.talent_booking_hours (
+  talent_profile_id, tenant_id, timezone, weekly, exceptions,
+  slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days
+)
+VALUES (
+  '33330003-0000-4000-8000-000000000001'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'America/Mexico_City',
+  '{"0":[{"startMin":540,"endMin":1080}],"1":[{"startMin":540,"endMin":1080}],"2":[{"startMin":540,"endMin":1080}],"3":[{"startMin":540,"endMin":1080}],"4":[{"startMin":540,"endMin":1080}],"5":[{"startMin":540,"endMin":1080}],"6":[{"startMin":540,"endMin":1080}]}'::jsonb,
+  '[]'::jsonb,
+  45,
+  0,
+  0,
+  0,
+  14
+)
+ON CONFLICT (talent_profile_id) DO UPDATE SET
+  timezone = EXCLUDED.timezone,
+  weekly = EXCLUDED.weekly,
+  min_notice_min = EXCLUDED.min_notice_min,
+  horizon_days = EXCLUDED.horizon_days,
+  slot_minutes = EXCLUDED.slot_minutes,
+  updated_at = now();
+
 INSERT INTO public.talent_offerings (
   id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
-  booking_mode, allow_pay_in_person, status, visibility, moderation_state
+  booking_mode, allow_pay_in_person, reserve_mode, deposit_pct, duration_minutes,
+  status, visibility, moderation_state
 )
 VALUES
-  ('33330012-0000-4000-8000-000000000001'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Gel manicure', 5000, 'USD', 'instant', TRUE, 'published', 'public', 'approved'),
-  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', TRUE, 'published', 'public', 'approved'),
-  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', TRUE, 'published', 'public', 'approved')
+  (
+    '33330012-0000-4000-8000-000000000001'::UUID,
+    '33333333-3333-4333-8333-333333333333'::UUID,
+    '33330003-0000-4000-8000-000000000001'::UUID,
+    'talent', 'service', 'Gel manicure', 5000, 'USD',
+    'instant', TRUE, 'deposit', 50, 45,
+    'published', 'public', 'approved'
+  ),
+  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved'),
+  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved')
 ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   amount_cents = EXCLUDED.amount_cents,
   allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  owner_kind = EXCLUDED.owner_kind,
+  talent_profile_id = EXCLUDED.talent_profile_id,
+  reserve_mode = EXCLUDED.reserve_mode,
+  deposit_pct = EXCLUDED.deposit_pct,
+  duration_minutes = EXCLUDED.duration_minutes,
   updated_at = now();
 
 INSERT INTO public.sessions (id, tenant_id, offering_id, title, starts_at, ends_at, status)

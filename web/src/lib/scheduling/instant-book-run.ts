@@ -44,7 +44,7 @@ export type InstantBookRunResult =
     };
 
 export type InstantEngineResult =
-  | { ok: true; inquiryId: string; bookingId: string }
+  | { ok: true; inquiryId: string; bookingId: string; checkoutUrl?: string | null }
   | {
       ok: false;
       reason: string;
@@ -110,7 +110,10 @@ export async function runResolvedInstantBook(input: {
     ok: true,
     inquiryId: res.inquiryId,
     bookingId: res.bookingId,
-    redirectPath: `/c/${res.inquiryId}?instant_booked=1`,
+    redirectPath:
+      res.checkoutUrl && res.checkoutUrl.trim()
+        ? res.checkoutUrl
+        : `/c/${res.inquiryId}?instant_booked=1`,
     guest: actor.kind === "guest",
   };
 }

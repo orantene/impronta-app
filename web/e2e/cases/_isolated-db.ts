@@ -181,3 +181,91 @@ export async function latestTableReservation(email: string): Promise<TableReserv
     partySize: admission ? Number(admission.party_size) : null,
   };
 }
+
+export type GelManicureDeposit = {
+  orderId: string;
+  status: string;
+  totalCents: number;
+  collectCents: number | null;
+  sourceChannel: string;
+  customerEmail: string | null;
+  lineLabel: string | null;
+  bookingId: string | null;
+  transactionId: string | null;
+  checkoutType: string | null;
+  transactionStatus: string | null;
+  holdId: string | null;
+};
+
+export async function latestGelManicureDeposit(email: string): Promise<GelManicureDeposit | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, source_channel, customer_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "instant_book")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("label, total_cents")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+
+  const { data: booking, error: bookingErr } = await admin
+    .from("agency_bookings")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (bookingErr) throw new Error(bookingErr.message);
+
+  const { data: txn, error: txnErr } = await admin
+    .from("booking_transactions")
+    .select("id, checkout_type, status, gross_amount_cents")
+    .eq("order_id", order.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (txnErr) throw new Error(txnErr.message);
+
+  const { data: hold, error: holdErr } = await admin
+    .from("talent_holds")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("talent_profile_id", "33330003-0000-4000-8000-000000000001")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (holdErr) throw new Error(holdErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    totalCents: Number(order.total_cents),
+    collectCents: txn ? Number(txn.gross_amount_cents) : null,
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    lineLabel: (line?.label as string | null) ?? null,
+    bookingId: (booking?.id as string | null) ?? null,
+    transactionId: (txn?.id as string | null) ?? null,
+    checkoutType: (txn?.checkout_type as string | null) ?? null,
+    transactionStatus: (txn?.status as string | null) ?? null,
+    holdId: (hold?.id as string | null) ?? null,
+  };
+}
