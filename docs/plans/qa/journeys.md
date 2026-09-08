@@ -4,7 +4,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 
 | what to do | proves | falsified by |
 |---|---|---|
-| After `seed:journeys-program` on an isolated DB, open `qa-journeys.local` as staff and reach Sales, Orders, Discounts, Door. | Fixture tenant is reachable and the new destinations render. | Host not registered; 404; blank page. `BLOCKED:` until seed is applied. |
+| After `seed:journeys-program` on an isolated DB, open `qa-journeys.local` as staff and reach Sales, Orders, Discounts, Door. | Fixture tenant is reachable and the new destinations render. | Host not registered; 404; blank page. `BLOCKED:` isolated SQL is applied; Next app still needs qa-journeys env + that host. |
 | Buy a ticket with a promo code on the guest picker, refresh, reopen the order. | P1-04 promo input is connected; order and redemption persist. | Promo field missing; refusal not shown; redemption not recorded. |
 | Pay-at-door hold, then settle cash on the Door screen. | P1-05 collection, allocation and admission stay separate. | Settle missing; paid with no admission; duplicate collection. |
 | On a paid order, pick effect "cancel one ticket" and confirm. | P1-06 states the effect before money moves. | Refund with no named effect; seat not released; duplicate refund. |
@@ -21,7 +21,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
 | Cancel a POS draft that already held a class place. | P3-05: cancel releases that allocation; foreign allocations stay. | Place stays held; B's allocation released. |
 
-Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the isolated schema exists and the seed is applied, those rows stay `BLOCKED: fixture harness not applied`. Honest count: **0 of 16 human rows executed**.
+Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Isolated SQL fixture is applied on `qa-journeys`; rows stay `BLOCKED:` until a login on that isolated target (not production) and `JOURNEYS_FIXTURE_READY=1`. Honest count: **0 of 16 human rows executed**.
 
-Checkpoint 2026-09-08: `qa-journeys` still has no `agencies`/`orders` schema. Do not record passes from skipped Playwright.
+Checkpoint 2026-09-08T17:15Z: `qa-journeys` has agencies, orders schema, 12-place pool, catalog, and five auth users. Sequential capacity smoke is not P1-01. Do not record passes from skipped Playwright.
 
