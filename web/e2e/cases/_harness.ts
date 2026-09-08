@@ -29,12 +29,19 @@ export async function prepareJourneysPage(page: Page): Promise<void> {
 }
 
 export async function assertNotAuthWall(page: Page): Promise<void> {
-  const body = ((await page.locator("body").textContent()) ?? "").toLowerCase();
-  expect(body, "login/error page cannot pass a journey").not.toMatch(
-    /sign in|log in|iniciar sesión|host not registered|not registered/,
-  );
   const url = page.url().toLowerCase();
-  expect(url).not.toMatch(/\/login|\/signin|\/auth\//);
+  expect(url, "login URL cannot pass a journey").not.toMatch(/\/login|\/signin|\/auth\//);
+  await expect(
+    page.getByText(/host not registered/i),
+    "unregistered host page cannot pass a journey",
+  ).toHaveCount(0);
+  // A public header "Sign in" link is not an auth wall. The wall is a
+  // sign-in heading as the page itself — scanning the whole body also
+  // matched builder CSS and failed every storefront journey.
+  await expect(
+    page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i }),
+    "login heading cannot pass a journey",
+  ).toHaveCount(0);
 }
 
 export async function assertWorkspaceIdentity(page: Page): Promise<void> {

@@ -20,7 +20,7 @@ P5-01–P5-06, P3-01, P3-02
 - **Basic:** Takes a reservation and a public menu order.
 - **Complete:** Guest scans table QR; staff fire courses; check moves; bill splits.
 
-Overall status: implementing (walk-in cash proven; open check, visit QR, kitchen, split allocations, shift on POS still open). Case not verified.
+Overall status: implementing (walk-in cash and public menu proven; reservation, visit QR, kitchen, split allocations, shift on POS still open). Case not verified.
 
 ## Scenarios
 
@@ -36,10 +36,10 @@ Overall status: implementing (walk-in cash proven; open check, visit QR, kitchen
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | Two operators cannot silently overwrite. |
 | Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C06-CUS/` |
+| Evidence | `qa-evidence/C06-CUS/public-menu.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — public menu order verified in test environment; reservation not started |
 
 ### C06-OP — Operator journey
 

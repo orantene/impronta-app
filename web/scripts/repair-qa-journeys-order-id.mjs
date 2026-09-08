@@ -143,6 +143,49 @@ try {
       WHERE polrelid = 'public.talent_offerings'::regclass
         AND polname = 'talent_offerings_public_read'`,
   );
+  if (!(await hasColumn("talent_offerings", "reserve_mode"))) {
+    await client.query(`
+      ALTER TABLE public.talent_offerings
+        ADD COLUMN IF NOT EXISTS reserve_mode text NOT NULL DEFAULT 'full',
+        ADD COLUMN IF NOT EXISTS deposit_pct int,
+        ADD COLUMN IF NOT EXISTS require_account_to_book boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS cancellation_hours int
+    `);
+    console.log("[repair-order-id] talent_offerings catalog policy columns on qa-journeys only");
+  }
+
+  if (!(await hasTable("talent_offering_variants"))) {
+    await client.query(`
+      CREATE TABLE public.talent_offering_variants (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        offering_id uuid NOT NULL REFERENCES public.talent_offerings(id) ON DELETE CASCADE,
+        label text NOT NULL,
+        amount_cents int,
+        sort_order int NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await client.query(`GRANT ALL ON TABLE public.talent_offering_variants TO service_role`);
+    console.log("[repair-order-id] talent_offering_variants on qa-journeys only");
+  }
+
+  if (!(await hasTable("talent_offering_addons"))) {
+    await client.query(`
+      CREATE TABLE public.talent_offering_addons (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        offering_id uuid NOT NULL REFERENCES public.talent_offerings(id) ON DELETE CASCADE,
+        label text NOT NULL,
+        amount_cents int NOT NULL DEFAULT 0,
+        sort_order int NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await client.query(`GRANT ALL ON TABLE public.talent_offering_addons TO service_role`);
+    console.log("[repair-order-id] talent_offering_addons on qa-journeys only");
+  }
+
   if (offeringPolicies.length === 0) {
     await client.query(`
       CREATE POLICY talent_offerings_public_read ON public.talent_offerings

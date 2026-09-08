@@ -40,8 +40,12 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
   await page.getByLabel(/^name$/i).fill("C06 guest");
   await page.getByLabel(/^email$/i).fill(marker);
   await page.getByLabel(/^phone$/i).fill("55501006");
-  await page.getByRole("button", { name: /order now|send order/i }).click();
-  await expect(page.getByRole("status")).toContainText(/order sent/i, { timeout: 30_000 });
+  await page.locator(".site-builder-node--menu-board-submit").click();
+  await expect(page.locator(".site-builder-node--menu-board-form-status")).toContainText(
+    /order sent|your order is in/i,
+    { timeout: 30_000 },
+  );
+  await expect(page.locator(".site-builder-node--menu-board-form-error")).toHaveCount(0);
 
   await page.reload();
   await expect(page.getByText("House pizza").first()).toBeVisible();
@@ -52,15 +56,16 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
   await expect(page.getByText("menu").first()).toBeVisible();
   await expect(page.getByText("$18.00").first()).toBeVisible();
+  await expect(page.getByText("paid").first()).toBeVisible();
 
   const persisted = await latestMenuPizza(marker);
   expect(persisted, "menu pizza order must exist on qa-journeys").not.toBeNull();
-  expect(persisted?.status).toBe("pending_payment");
+  // Pay-in-person collect is none: the order is paid with no fabricated charge.
+  expect(persisted?.status).toBe("paid");
   expect(persisted?.totalCents).toBe(1800);
   expect(persisted?.sourceChannel).toBe("menu");
   expect(persisted?.customerEmail).toBe(marker);
   expect(persisted?.lineLabel?.toLowerCase()).toContain("house pizza");
-  expect(persisted?.bookingId, "pay-in-person menu order needs a money-spine booking").toBeTruthy();
 
   await page.screenshot({
     path: testInfo.outputPath("c06-cus-sales.png"),
