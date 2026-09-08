@@ -106,9 +106,11 @@ export function WorkspaceShell() {
 // the agency plan at the rail (the in-page gate stays as the backstop).
 const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "sessions", "reservations", "clients"] },
-  { label: "Sell and grow", pages: ["menu", "events", "roster", "pitches", "reviews", "analytics"] },
-  { label: "Site", pages: ["website", "media"] },
+  { label: "Operate", pages: ["messages", "calendar", "sales", "clients"] },
+  { label: "Sell", pages: ["menu", "sessions", "reservations", "events", "discounts"] },
+  { label: "People & Spaces", pages: ["roster", "tables"] },
+  { label: "Grow", pages: ["website", "media", "reviews"] },
+  { label: "Manage", pages: ["analytics", "preparation"] },
 ];
 
 function buildSidebarGroups(
@@ -144,6 +146,11 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   website: "globe",
   media: "image",
   settings: "settings",
+  sales: "credit",
+  pos: "credit",
+  discounts: "bolt",
+  tables: "layers",
+  preparation: "layers",
 };
 
 function SidebarNavButton({
@@ -338,6 +345,41 @@ function WorkspaceSidebarShell() {
         },
       ];
     }
+    if (p === "pos") {
+      return [
+        {
+          id: "pos-new",
+          label: copy.isSpanish ? "Nueva venta" : "New Sale",
+          href: `${adminBase}/pos`,
+          exact: true,
+        },
+        {
+          id: "pos-catalog",
+          label: copy.isSpanish ? "Catálogo" : "Catalog",
+          href: `${adminBase}/menu`,
+        },
+        {
+          id: "pos-tables",
+          label: copy.isSpanish ? "Mesas y espacios" : "Tables & Spaces",
+          href: `${adminBase}/tables`,
+        },
+        {
+          id: "pos-prep",
+          label: copy.isSpanish ? "Preparación" : "Preparation",
+          href: `${adminBase}/preparation`,
+        },
+        {
+          id: "pos-discounts",
+          label: copy.isSpanish ? "Descuentos" : "Discounts",
+          href: `${adminBase}/discounts`,
+        },
+        {
+          id: "pos-sales",
+          label: copy.isSpanish ? "Ventas" : "Sales",
+          href: `${adminBase}/sales`,
+        },
+      ];
+    }
     return null;
   };
 
@@ -510,6 +552,7 @@ function WorkspaceSidebarShell() {
             + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
             would be duplication, not convenience. */}
         <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
+          {state.visiblePages.includes("pos") ? renderItem("pos") : null}
           {renderItem("settings")}
         </div>
       </aside>

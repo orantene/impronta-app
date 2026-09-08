@@ -17,6 +17,9 @@ export function TablesClient(props: {
     free: string;
     minSpend: string;
     move: string;
+    openTab: string;
+    tab: string;
+    table: string;
   };
 }) {
   const router = useRouter();
@@ -54,7 +57,9 @@ export function TablesClient(props: {
               <div>
                 <strong>{table.code ?? table.name}</strong>
                 <span style={{ color: "rgba(11,11,13,0.55)", marginLeft: 8 }}>
-                  {table.visitId ? props.copy.occupied : props.copy.free}
+                  {table.visitId
+                    ? `${table.serviceKind === "tab" ? props.copy.tab : props.copy.table} · ${props.copy.occupied}`
+                    : props.copy.free}
                 </span>
                 {table.minSpendCents > 0 ? (
                   <p style={{ margin: "6px 0 0", fontSize: 13 }}>
@@ -64,14 +69,25 @@ export function TablesClient(props: {
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {!table.visitId ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    style={{ minHeight: 44 }}
-                    onClick={() => void run(() => tablesOpenVisit(table.spaceId))}
-                  >
-                    {props.copy.open}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      style={{ minHeight: 44 }}
+                      onClick={() => void run(() => tablesOpenVisit(table.spaceId, "table"))}
+                    >
+                      {props.copy.open}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      title={props.copy.openTab}
+                      style={{ minHeight: 44 }}
+                      onClick={() => void run(() => tablesOpenVisit(table.spaceId, "tab"))}
+                    >
+                      {props.copy.openTab}
+                    </button>
+                  </>
                 ) : (
                   <>
                     {table.orderId ? (

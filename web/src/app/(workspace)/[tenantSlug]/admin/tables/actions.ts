@@ -18,11 +18,16 @@ async function staff() {
   return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, admin };
 }
 
-export async function tablesOpenVisit(spaceId: string) {
+export async function tablesOpenVisit(spaceId: string, serviceKind?: "table" | "tab") {
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, error: "invalid" };
-  return openVisit(g.admin, { tenantId: g.tenantId, spaceId, actorUserId: g.userId });
+  return openVisit(g.admin, {
+    tenantId: g.tenantId,
+    spaceId,
+    actorUserId: g.userId,
+    serviceKind: serviceKind === "tab" ? "tab" : "table",
+  });
 }
 
 export async function tablesCloseVisit(input: { visitId: string; expectedVersion?: number }) {

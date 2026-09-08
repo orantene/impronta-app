@@ -48,6 +48,9 @@ export default async function TablesPage({ params }: { params: PageParams }) {
             free: tr("dashboard.tables.free"),
             minSpend: tr("dashboard.tables.minSpend"),
             move: tr("dashboard.tables.move"),
+            openTab: locale === "es" ? "Abrir cuenta" : "Open tab",
+            tab: locale === "es" ? "Cuenta" : "Tab",
+            table: locale === "es" ? "Mesa" : "Table",
           }}
         />
       )}

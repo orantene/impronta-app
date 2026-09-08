@@ -10,13 +10,19 @@ import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { addLine, createDraftOrder, listOpenPosSales, loadPosSale, removeLine, repriceAndValidate, updateLine } from "@/lib/pos/draft";
 import { finalizeOrCancel, startCollection, submitToPreparation } from "@/lib/pos/collection";
 import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 
 const uuid = z.string().uuid();
 
-async function staff() {
+type PosStaffCapability =
+  | "booking.payment.request"
+  | "booking.payment.refund"
+  | "booking.payment.mark_received";
+
+async function staff(capability: PosStaffCapability = "booking.payment.request") {
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, error: guard.error };
-  const allowed = await userHasCapability("view_dashboard", guard.tenantId);
+  const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, error: "not_allowed" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
@@ -33,7 +39,13 @@ export async function posCreateDraft(context?: string) {
   });
 }
 
-export async function posAddLine(input: { orderId: string; offeringId: string; units: number; sessionId?: string | null }) {
+export async function posAddLine(input: {
+  orderId: string;
+  offeringId: string;
+  units: number;
+  sessionId?: string | null;
+  expectedVersion?: number;
+}) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -41,11 +53,13 @@ export async function posAddLine(input: { orderId: string; offeringId: string; u
     offeringId: uuid,
     units: z.number().int().positive(),
     sessionId: z.string().uuid().nullable().optional(),
+    expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   return addLine(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
+    expectedVersion: parsed.data.expectedVersion,
     line: {
       offeringId: parsed.data.offeringId,
       units: parsed.data.units,
@@ -54,34 +68,53 @@ export async function posAddLine(input: { orderId: string; offeringId: string; u
   });
 }
 
-export async function posUpdateLine(input: { orderId: string; lineId: string; units: number }) {
+export async function posUpdateLine(input: {
+  orderId: string;
+  lineId: string;
+  units: number;
+  expectedVersion?: number;
+}) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
     lineId: uuid,
     units: z.number().int().positive(),
+    expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   return updateLine(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
-export async function posRemoveLine(input: { orderId: string; lineId: string }) {
+export async function posRemoveLine(input: { orderId: string; lineId: string; expectedVersion?: number }) {
   const g = await staff();
   if (!g.ok) return g;
-  const parsed = z.object({ orderId: uuid, lineId: uuid }).safeParse(input);
+  const parsed = z.object({
+    orderId: uuid,
+    lineId: uuid,
+    expectedVersion: z.number().int().positive().optional(),
+  }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   return removeLine(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
-export async function posReprice(input: { orderId: string; promoCode?: string }) {
+export async function posReprice(input: { orderId: string; promoCode?: string; expectedVersion?: number }) {
   const g = await staff();
   if (!g.ok) return g;
-  const parsed = z.object({ orderId: uuid, promoCode: z.string().trim().max(40).optional() }).safeParse(input);
+  const parsed = z.object({
+    orderId: uuid,
+    promoCode: z.string().trim().max(40).optional(),
+    expectedVersion: z.number().int().positive().optional(),
+  }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   return repriceAndValidate(
     g.admin,
-    { tenantId: g.tenantId, orderId: parsed.data.orderId, promoCode: parsed.data.promoCode },
+    {
+      tenantId: g.tenantId,
+      orderId: parsed.data.orderId,
+      promoCode: parsed.data.promoCode,
+      expectedVersion: parsed.data.expectedVersion,
+    },
     {
       resolvePromo: async (args) => {
         const resolved = await resolvePromo(g.admin, {
@@ -91,7 +124,7 @@ export async function posReprice(input: { orderId: string; promoCode?: string })
           lines: args.lines,
         });
         if (!resolved.ok) return { ok: false as const, error: "That code could not be applied." };
-        return { ok: true as const, discountCents: resolved.discountCents };
+        return { ok: true as const, discountCents: resolved.discountCents, codeId: resolved.codeId };
       },
     },
   );
@@ -115,7 +148,7 @@ export async function posStartCollection(input: {
     email: z.string().email().optional(),
     phone: z.string().optional(),
     displayName: z.string().optional(),
-    amountCents: z.number().int().positive().optional(),
+    amountCents: z.number().int().nonnegative().optional(),
     tenderedCents: z.number().int().nonnegative().optional(),
     idempotencyKey: z.string().min(8).max(80).optional(),
   }).safeParse(input);
@@ -143,22 +176,48 @@ export async function posStartCollection(input: {
       tenderedCents: parsed.data.tenderedCents,
       idempotencyKey: parsed.data.idempotencyKey,
     },
-    { ensureCustomer: (c) => ensureCustomer(c, { admin: g.admin }) },
+    { ensureCustomer: (c) => ensureCustomer(c, { admin: g.admin }), onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(g.admin, ctx).then(() => undefined) },
   );
 }
 
-export async function posCancelSale(orderId: string) {
+export async function posCancelSale(orderId: string, expectedVersion?: number) {
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
-  return finalizeOrCancel(g.admin, { tenantId: g.tenantId, orderId });
+  return finalizeOrCancel(g.admin, {
+    tenantId: g.tenantId,
+    orderId,
+    expectedVersion,
+  });
 }
 
-export async function posSubmitPrep(orderId: string) {
+export async function posSubmitPrep(input: {
+  orderId: string;
+  destination?: "table" | "pickup" | "counter";
+  promisedAt?: string | null;
+}) {
   const g = await staff();
   if (!g.ok) return g;
-  if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
-  return submitToPreparation(g.admin, { tenantId: g.tenantId, orderId });
+  const parsed = z
+    .object({
+      orderId: uuid,
+      destination: z.enum(["table", "pickup", "counter"]).optional(),
+      promisedAt: z.string().min(10).max(40).nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  if (parsed.data.destination === "pickup") {
+    const when = parsed.data.promisedAt ? Date.parse(parsed.data.promisedAt) : NaN;
+    if (!Number.isFinite(when) || when <= Date.now()) {
+      return { ok: false as const, error: "pickup_window" };
+    }
+  }
+  return submitToPreparation(g.admin, {
+    tenantId: g.tenantId,
+    orderId: parsed.data.orderId,
+    destination: parsed.data.destination,
+    promisedAt: parsed.data.promisedAt ?? null,
+  });
 }
 
 export async function posLoadOpen() {
@@ -181,7 +240,7 @@ export async function posCurrentShift() {
 }
 
 export async function posOpenShift(openingCashCents: number) {
-  const g = await staff();
+  const g = await staff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -193,7 +252,7 @@ export async function posOpenShift(openingCashCents: number) {
 }
 
 export async function posCloseShift(input: { closingCashCents: number; expectedVersion?: number }) {
-  const g = await staff();
+  const g = await staff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.object({
     closingCashCents: z.number().int().nonnegative(),

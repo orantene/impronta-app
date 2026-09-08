@@ -4,15 +4,29 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { loadWorkspaceOrders } from "../../_data-bridge/orders";
+import { loadWorkspaceSalesActivity } from "../../_data-bridge/sales-activity";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { isMoneyOwed } from "@/lib/orders/orders-list";
+import { salesKindLabel, type SalesKindFilter } from "@/lib/sales/activity-shape";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+type Search = Promise<{ kind?: string }>;
 
-export default async function SalesPage({ params }: { params: PageParams }) {
+function parseKind(raw: string | undefined): SalesKindFilter {
+  if (raw === "order" || raw === "booking" || raw === "reservation" || raw === "registration") {
+    return raw;
+  }
+  return "all";
+}
+
+export default async function SalesPage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: Search;
+}) {
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -21,7 +35,17 @@ export default async function SalesPage({ params }: { params: PageParams }) {
 
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
-  const load = await loadWorkspaceOrders(scope.tenantId);
+  const loc = locale === "es" ? "es" : "en";
+  const kind = parseKind((await searchParams).kind);
+  const load = await loadWorkspaceSalesActivity(scope.tenantId, tenantSlug, { kind });
+
+  const filters: Array<{ id: SalesKindFilter; label: string }> = [
+    { id: "all", label: loc === "es" ? "Toda la actividad" : "All activity" },
+    { id: "order", label: salesKindLabel("order", loc) },
+    { id: "booking", label: salesKindLabel("booking", loc) },
+    { id: "reservation", label: salesKindLabel("reservation", loc) },
+    { id: "registration", label: salesKindLabel("registration", loc) },
+  ];
 
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto" }}>
@@ -31,10 +55,21 @@ export default async function SalesPage({ params }: { params: PageParams }) {
       <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 6, marginBottom: 24 }}>
         {tr("dashboard.sales.pageIntro")}
       </p>
-      <p style={{ fontSize: 13, marginBottom: 20 }}>
+      <p style={{ fontSize: 13, marginBottom: 16 }}>
         <Link href={`/${tenantSlug}/admin/orders`}>{tr("dashboard.sales.openOrders")}</Link>
         {" · "}
         <Link href={`/${tenantSlug}/admin/calendar`}>{tr("dashboard.sales.openCalendar")}</Link>
+      </p>
+      <p style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20, fontSize: 13 }}>
+        {filters.map((filter) => (
+          <Link
+            key={filter.id}
+            href={filter.id === "all" ? `/${tenantSlug}/admin/sales` : `/${tenantSlug}/admin/sales?kind=${filter.id}`}
+            style={{ fontWeight: kind === filter.id ? 600 : 400 }}
+          >
+            {filter.label}
+          </Link>
+        ))}
       </p>
       {!load.ok ? (
         <p>{tr("dashboard.orders.unavailableTitle")}</p>
@@ -52,12 +87,20 @@ export default async function SalesPage({ params }: { params: PageParams }) {
           </thead>
           <tbody>
             {load.rows.map((row) => (
-              <tr key={row.id} style={{ borderTop: "1px solid rgba(24,24,27,0.08)" }}>
-                <td style={{ padding: 12 }}>{row.sourceChannel}</td>
+              <tr key={`${row.kind}:${row.id}`} style={{ borderTop: "1px solid rgba(24,24,27,0.08)" }}>
+                <td style={{ padding: 12 }}>
+                  <Link href={row.href}>
+                    {row.kind === "order" ? (row.title ?? salesKindLabel("order", loc)) : salesKindLabel(row.kind, loc)}
+                  </Link>
+                </td>
                 <td style={{ padding: 12 }}>{row.customerName ?? tr("dashboard.orders.noCustomer")}</td>
                 <td style={{ padding: 12, textAlign: "right" }}>
-                  {formatOrderMoney(row.totalCents, row.currency)}
-                  {isMoneyOwed(row) ? ` · ${tr("dashboard.orders.totalsOutstanding")}` : ""}
+                  {row.totalCents <= 0
+                    ? loc === "es"
+                      ? "Gratis"
+                      : "Free"
+                    : formatOrderMoney(row.totalCents, row.currency)}
+                  {row.owed ? ` · ${tr("dashboard.orders.totalsOutstanding")}` : ""}
                 </td>
                 <td style={{ padding: 12 }}>{row.status}</td>
               </tr>

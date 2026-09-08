@@ -24,7 +24,7 @@ export default async function PosPage({
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
-  const allowed = await userHasCapability("view_dashboard", scope.tenantId);
+  const allowed = await userHasCapability("booking.payment.request", scope.tenantId);
   if (!allowed) notFound();
 
   const locale = await getRequestLocale();
@@ -123,6 +123,11 @@ export default async function PosPage({
           phone: tr("dashboard.pos.phone"),
           applyCode: tr("dashboard.pos.applyCode"),
           sendToPrep: tr("dashboard.pos.sendToPrep"),
+          prepDestination: tr("dashboard.pos.prepDestination"),
+          prepPickup: tr("dashboard.pos.prepPickup"),
+          prepTable: tr("dashboard.pos.prepTable"),
+          prepCounter: tr("dashboard.pos.prepCounter"),
+          prepPromisedAt: tr("dashboard.pos.prepPromisedAt"),
           emptyCatalog: tr("dashboard.pos.emptyCatalog"),
           emptyOpen: tr("dashboard.pos.emptyOpen"),
           amount: tr("dashboard.pos.amount"),
@@ -137,6 +142,12 @@ export default async function PosPage({
           shiftVariance: tr("dashboard.pos.shiftVariance"),
           shiftNone: tr("dashboard.pos.shiftNone"),
           shiftOpenHint: tr("dashboard.pos.shiftOpenHint"),
+          tables: tr("dashboard.tables.pageTitle"),
+          catalog: tr("dashboard.pos.catalog"),
+          preparation: tr("dashboard.preparation.pageTitle"),
+          discounts: tr("dashboard.discounts.pageTitle"),
+          sales: tr("dashboard.sales.pageTitle"),
+          workspace: tr("dashboard.pos.pageTitle"),
         }}
         shift={
           shiftLoad.ok && shiftLoad.shift

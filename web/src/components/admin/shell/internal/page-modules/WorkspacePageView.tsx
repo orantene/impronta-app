@@ -125,6 +125,7 @@ type GroupId =
   // Industry and words: the sixteen presets. Sits above appointments
   // because the preset supplies the nouns that screen then uses.
   | "industry"
+  | "pos"
   | "appointments"
   | "pricing-defaults"
   | "domain"
@@ -475,6 +476,41 @@ export function WorkspacePageView() {
             title: t("dashboard.adminWorkspace.industry.label"),
             desc: t("dashboard.adminWorkspace.industry.desc"),
           },
+        ],
+      },
+      {
+        id: "pos",
+        label: t("Point of sale"),
+        desc: t("Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail."),
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? (
+          <div className="flex flex-col gap-2 py-2">
+            {(
+              [
+                { href: `${adminBasePath}/pos`, label: t("New Sale") },
+                { href: `${adminBasePath}/menu`, label: t("Catalog") },
+                { href: `${adminBasePath}/tables`, label: t("Tables & Spaces") },
+                { href: `${adminBasePath}/preparation`, label: t("Preparation") },
+                { href: `${adminBasePath}/discounts`, label: t("Discounts") },
+                { href: `${adminBasePath}/sales`, label: t("Sales") },
+                { href: `${adminBasePath}/pos`, label: t("Shifts and tender") },
+              ] as const
+            ).map((link) => (
+              <button
+                key={link.href + link.label}
+                type="button"
+                onClick={() => router.push(link.href)}
+                className="min-h-11 w-full rounded-[10px] border border-solid border-admin-border bg-white px-3 py-2 text-left text-[14px] text-admin-ink"
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        ) : null,
+        extraSearch: [
+          { title: t("Point of sale"), desc: t("Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail.") },
+          { title: t("Shifts and tender"), desc: t("Open and close the cash drawer on POS. Navigating away does not close the shift.") },
         ],
       },
       {

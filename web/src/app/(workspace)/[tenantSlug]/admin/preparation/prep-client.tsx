@@ -43,6 +43,8 @@ export function PreparationClient(props: {
             <p style={{ margin: 0 }}>
               {ticket.station} · {props.copy.destination}: {ticket.destination} · {ticket.status}
               {ticket.revision > 1 ? ` · ${props.copy.revision} ${ticket.revision}` : ""}
+              {ticket.promisedAt ? ` · ${ticket.promisedAt}` : ""}
+              {ticket.destination === "pickup" && ticket.status === "ready" ? " · pickup" : ""}
             </p>
             <ul>
               {ticket.snapshotLines.map((line) => (

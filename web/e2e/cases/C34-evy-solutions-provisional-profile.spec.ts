@@ -1,7 +1,7 @@
 /**
  * C34 [delta] — C34-evy-solutions-provisional-profile. Browser journey once the fixture exists.
  */
-import { test, expect, openWorkspace, prepareJourneysPage, skipUnlessFixture } from "./_harness";
+import { test, expect, openWorkspace, openStorefront, prepareJourneysPage, skipUnlessFixture } from "./_harness";
 
 skipUnlessFixture();
 
@@ -9,12 +9,11 @@ test.beforeEach(async ({ page }) => {
   await prepareJourneysPage(page);
 });
 
-test("C34-CUS customer can reach the storefront", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("body")).toBeVisible();
+test("C34-CUS smoke: storefront body is reachable — not a journey pass", async ({ page }) => {
+  await openStorefront(page);
 });
 
-test("C34-OP operator can open Sales", async ({ page }) => {
+test("C34-OP smoke: operator Sales heading is reachable — not a journey pass", async ({ page }) => {
   await openWorkspace(page, "sales");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

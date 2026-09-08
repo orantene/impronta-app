@@ -60,7 +60,17 @@ const ES_TEXT: Record<string, string> = {
   "Dismiss": "Descartar",
   // Sidebar rail — group labels + Website sub-links (Shopify polish W1/W7)
   "Operate": "Operar",
+  "Sell": "Vender",
   "Sell and grow": "Vender y crecer",
+  "People & Spaces": "Personas y espacios",
+  "Grow": "Crecer",
+  "Point of sale": "Punto de venta",
+  "Tables & Spaces": "Mesas y espacios",
+  "Shifts and tender": "Turnos y efectivo",
+  "Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail.":
+    "Catálogo, piso, preparación, turnos, recibos y descuentos: las mismas páginas que el riel del POS.",
+  "Open and close the cash drawer on POS. Navigating away does not close the shift.":
+    "Abre y cierra el cajón en el POS. Salir de la pantalla no cierra el turno.",
   "Site": "Sitio",
   "Card Design": "Diseño de tarjetas",
   "Profile Pages": "Páginas de perfil",

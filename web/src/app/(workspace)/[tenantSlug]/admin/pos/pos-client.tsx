@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   posAddLine,
   posCancelSale,
@@ -45,6 +46,25 @@ function parseCents(raw: string, fallback: number): number | null {
   return n;
 }
 
+const tap: React.CSSProperties = {
+  minHeight: 44,
+  minWidth: 44,
+  borderRadius: 12,
+  border: "1px solid rgba(24,24,27,0.12)",
+  background: "#fff",
+  padding: "0 14px",
+  fontSize: 14,
+  cursor: "pointer",
+};
+
+const tapPrimary: React.CSSProperties = {
+  ...tap,
+  background: "#111",
+  color: "#fff",
+  borderColor: "#111",
+  fontWeight: 600,
+};
+
 export function PosClient(props: {
   tenantSlug: string;
   sale: PosSaleView | null;
@@ -70,6 +90,11 @@ export function PosClient(props: {
     phone: string;
     applyCode: string;
     sendToPrep: string;
+    prepDestination: string;
+    prepPickup: string;
+    prepTable: string;
+    prepCounter: string;
+    prepPromisedAt: string;
     emptyCatalog: string;
     emptyOpen: string;
     amount: string;
@@ -84,6 +109,12 @@ export function PosClient(props: {
     shiftVariance: string;
     shiftNone: string;
     shiftOpenHint: string;
+    tables?: string;
+    catalog?: string;
+    preparation?: string;
+    discounts?: string;
+    sales?: string;
+    workspace?: string;
   };
 }) {
   const router = useRouter();
@@ -97,10 +128,14 @@ export function PosClient(props: {
   const [openingCash, setOpeningCash] = useState("0");
   const [countedCash, setCountedCash] = useState("");
   const [classByOffering, setClassByOffering] = useState<Record<string, string>>({});
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [prepDestination, setPrepDestination] = useState<"table" | "pickup" | "counter">("counter");
+  const [promisedAtLocal, setPromisedAtLocal] = useState("");
   const sale = props.sale;
+  const base = `/${props.tenantSlug}/admin`;
 
   function go(orderId: string) {
-    router.push(`/${props.tenantSlug}/admin/pos?order=${orderId}`);
+    router.push(`${base}/pos?order=${orderId}`);
     router.refresh();
   }
 
@@ -117,7 +152,10 @@ export function PosClient(props: {
   async function collect(method: "cash" | "online_card") {
     if (!sale) return { ok: false as const, error: "unavailable" };
     const amountCents = parseCents(amount, sale.outstandingCents);
-    if (amountCents == null || amountCents <= 0) {
+    if (amountCents == null || amountCents < 0) {
+      return { ok: false as const, error: "amount" };
+    }
+    if (sale.outstandingCents > 0 && amountCents <= 0) {
       return { ok: false as const, error: "amount" };
     }
     const tenderedCents = parseCents(tendered, amountCents);
@@ -139,9 +177,46 @@ export function PosClient(props: {
     return r;
   }
 
+  const visibleCatalog = props.catalog.filter((item) => {
+    const q = catalogQuery.trim().toLowerCase();
+    if (!q) return true;
+    return item.title.toLowerCase().includes(q);
+  });
+  const changeCents =
+    sale && parseCents(tendered, sale.outstandingCents) != null
+      ? Math.max(0, (parseCents(tendered, sale.outstandingCents) ?? 0) - (parseCents(amount, sale.outstandingCents) ?? 0))
+      : 0;
+
   return (
-    <div>
-      <section style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <nav
+        aria-label="POS"
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+      >
+        <Link href={`${base}/pos`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.newSale}>
+          ⊕ {props.copy.newSale}
+        </Link>
+        <Link href={`${base}/menu`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.catalog ?? "Catalog"}>
+          ⊞ {props.copy.catalog ?? "Catalog"}
+        </Link>
+        <Link href={`${base}/tables`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.tables ?? "Tables"}>
+          ▦ {props.copy.tables ?? "Tables"}
+        </Link>
+        <Link href={`${base}/preparation`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.preparation ?? "Prep"}>
+          🍳 {props.copy.preparation ?? "Prep"}
+        </Link>
+        <Link href={`${base}/discounts`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.discounts ?? "Discounts"}>
+          % {props.copy.discounts ?? "Discounts"}
+        </Link>
+        <Link href={`${base}/sales`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.sales ?? "Sales"}>
+          ▤ {props.copy.sales ?? "Sales"}
+        </Link>
+        <Link href={`${base}`} style={{ ...tap, display: "inline-flex", alignItems: "center" }} title={props.copy.workspace ?? "Workspace"}>
+          ← {props.copy.workspace ?? "Workspace"}
+        </Link>
+      </nav>
+
+      <section style={{ padding: 16, borderRadius: 16, background: "rgba(24,24,27,0.03)" }}>
         <h2 style={{ fontSize: 16, margin: "0 0 8px" }}>{props.copy.shiftTitle}</h2>
         <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 0 }}>{props.copy.shiftOpenHint}</p>
         {props.shift ? (
@@ -155,13 +230,14 @@ export function PosClient(props: {
                 value={countedCash}
                 onChange={(e) => setCountedCash(e.target.value)}
                 inputMode="numeric"
-                style={{ display: "block", minHeight: 44, width: 140 }}
+                style={{ display: "block", minHeight: 44, width: 140, borderRadius: 10 }}
               />
             </label>
             <button
               type="button"
               disabled={busy}
-              style={{ minHeight: 44 }}
+              style={tap}
+              title={props.copy.shiftClose}
               onClick={() => {
                 const closingCashCents = parseCents(countedCash, -1);
                 if (closingCashCents == null || closingCashCents < 0) {
@@ -188,13 +264,14 @@ export function PosClient(props: {
                 value={openingCash}
                 onChange={(e) => setOpeningCash(e.target.value)}
                 inputMode="numeric"
-                style={{ display: "block", minHeight: 44, width: 140 }}
+                style={{ display: "block", minHeight: 44, width: 140, borderRadius: 10 }}
               />
             </label>
             <button
               type="button"
               disabled={busy}
-              style={{ minHeight: 44 }}
+              style={tap}
+              title={props.copy.shiftOpen}
               onClick={() => {
                 const openingCashCents = parseCents(openingCash, 0);
                 if (openingCashCents == null) {
@@ -209,54 +286,61 @@ export function PosClient(props: {
           </div>
         )}
       </section>
-      <div style={{ display: "grid", gap: 28, gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 360px)" }}>
-      <section>
-        <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            disabled={busy}
-            style={{ minHeight: 44 }}
-            onClick={() => {
-              void run(async () => {
-                const r = await posCreateDraft();
-                if (r.ok && "orderId" in r) go(r.orderId);
-                return r;
-              });
-            }}
-          >
-            {props.copy.newSale}
-          </button>
-        </div>
-        <h2 style={{ fontSize: 16, margin: "0 0 8px" }}>{props.copy.items}</h2>
-        {props.catalog.length === 0 ? (
-          <p>{props.copy.emptyCatalog}</p>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {props.catalog.map((item) => (
-              <li key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 0", borderTop: "1px solid rgba(24,24,27,0.08)", minHeight: 44 }}>
-                <span>
-                  {item.title}
-                  <span style={{ color: "rgba(11,11,13,0.55)", marginLeft: 8 }}>{item.amountCents}</span>
-                </span>
-                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {item.sessions.length > 0 ? (
-                    <select
-                      value={classByOffering[item.id] ?? item.sessions[0]?.id ?? ""}
-                      onChange={(e) =>
-                        setClassByOffering((cur) => ({ ...cur, [item.id]: e.target.value }))
-                      }
-                      style={{ minHeight: 44, maxWidth: 180 }}
-                    >
-                      {item.sessions.map((session) => (
-                        <option key={session.id} value={session.id}>
-                          {session.title}
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
+
+      <div
+        style={{
+          display: "grid",
+          gap: 20,
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 400px)",
+        }}
+      >
+        <section>
+          <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={busy}
+              style={tapPrimary}
+              title={props.copy.newSale}
+              onClick={() => {
+                void run(async () => {
+                  const r = await posCreateDraft();
+                  if (r.ok && "orderId" in r) go(r.orderId);
+                  return r;
+                });
+              }}
+            >
+              ⊕ {props.copy.newSale}
+            </button>
+            <label style={{ flex: "1 1 180px" }}>
+              <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden" }}>{props.copy.items}</span>
+              <input
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder={props.copy.items}
+                style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 12, padding: "0 12px" }}
+              />
+            </label>
+          </div>
+          <h2 style={{ fontSize: 16, margin: "0 0 8px" }}>{props.copy.items}</h2>
+          {visibleCatalog.length === 0 ? (
+            <p>{props.copy.emptyCatalog}</p>
+          ) : (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {visibleCatalog.map((item) => (
+                <li key={item.id}>
                   <button
                     type="button"
                     disabled={busy || !sale}
+                    title={item.title}
                     onClick={() => {
                       if (!sale) return;
                       const sessionId =
@@ -269,159 +353,274 @@ export function PosClient(props: {
                           offeringId: item.id,
                           units: 1,
                           sessionId,
+                          expectedVersion: sale.version,
                         }),
                       );
                     }}
+                    style={{
+                      ...tap,
+                      width: "100%",
+                      minHeight: 72,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      padding: 12,
+                      textAlign: "left",
+                    }}
                   >
-                    +
+                    <strong>{item.title}</strong>
+                    <span style={{ color: "rgba(11,11,13,0.55)" }}>{item.amountCents}</span>
                   </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2 style={{ fontSize: 16, margin: "24px 0 8px" }}>{props.copy.openSales}</h2>
-        {props.openSales.length === 0 ? (
-          <p>{props.copy.emptyOpen}</p>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {props.openSales.map((row) => (
-              <li key={row.id}>
-                <button type="button" style={{ minHeight: 44 }} onClick={() => go(row.id)}>
-                  {row.id.slice(0, 8)} · {row.totalCents}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <aside style={{ borderLeft: "1px solid rgba(24,24,27,0.08)", paddingLeft: 20 }}>
-        {!sale ? (
-          <p>{props.copy.next}</p>
-        ) : (
-          <>
-            <p>
-              {sale.customerId ? sale.customerId.slice(0, 8) : props.copy.guest}
-              {sale.context ? ` · ${sale.context}` : ""}
-            </p>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {sale.lines.map((line) => (
-                <li key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 0" }}>
-                  <span>{line.label} × {line.units}</span>
-                  <span>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void run(() => posUpdateLine({ orderId: sale.orderId, lineId: line.id, units: line.units + 1 }))}
+                  {item.sessions.length > 0 ? (
+                    <select
+                      value={classByOffering[item.id] ?? item.sessions[0]?.id ?? ""}
+                      onChange={(e) =>
+                        setClassByOffering((cur) => ({ ...cur, [item.id]: e.target.value }))
+                      }
+                      style={{ minHeight: 44, width: "100%", marginTop: 6, borderRadius: 10 }}
+                      title={item.sessions[0]?.title}
                     >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void run(() => posRemoveLine({ orderId: sale.orderId, lineId: line.id }))}
-                    >
-                      ×
-                    </button>
-                  </span>
+                      {item.sessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {session.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                 </li>
               ))}
             </ul>
-            <p>{props.copy.discount}: {sale.discountCents}</p>
-            <label>
-              {props.copy.applyCode}
-              <input value={promo} onChange={(e) => setPromo(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%" }} />
-            </label>
-            <button
-              type="button"
-              disabled={busy}
-              style={{ minHeight: 44, marginTop: 8 }}
-              onClick={() => void run(() => posReprice({ orderId: sale.orderId, promoCode: promo }))}
-            >
-              {props.copy.applyCode}
-            </button>
-            <p>{props.copy.deposit}: {sale.depositPaidCents}</p>
-            <p>{props.copy.outstanding}: {sale.outstandingCents}</p>
-            <p>{props.copy.prep}: {sale.prepState}</p>
-            <p>{props.copy.payment}: {sale.paymentState}</p>
-            <p>{props.copy.contactHint}</p>
-            <label>
-              {props.copy.email}
-              <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%" }} />
-            </label>
-            <label>
-              {props.copy.phone}
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%" }} />
-            </label>
-            <label>
-              {props.copy.amount}
-              <input
-                value={amount}
-                placeholder={String(sale.outstandingCents)}
-                onChange={(e) => setAmount(e.target.value)}
-                inputMode="numeric"
-                style={{ display: "block", minHeight: 44, width: "100%" }}
-              />
-            </label>
-            <label>
-              {props.copy.tendered}
-              <input
-                value={tendered}
-                onChange={(e) => setTendered(e.target.value)}
-                inputMode="numeric"
-                style={{ display: "block", minHeight: 44, width: "100%" }}
-              />
-            </label>
-            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                disabled={busy || sale.paymentState === "paid"}
-                style={{ minHeight: 44 }}
-                onClick={() => void run(() => collect("cash"))}
-              >
-                {props.copy.collectCash}
-              </button>
-              <button
-                type="button"
-                disabled={busy || sale.paymentState === "paid"}
-                style={{ minHeight: 44 }}
-                onClick={() => void run(() => collect("online_card"))}
-              >
-                {props.copy.collectCard}
-              </button>
+          )}
+          <h2 style={{ fontSize: 16, margin: "24px 0 8px" }}>{props.copy.openSales}</h2>
+          {props.openSales.length === 0 ? (
+            <p>{props.copy.emptyOpen}</p>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {props.openSales.map((row) => (
+                <li key={row.id}>
+                  <button type="button" style={tap} onClick={() => go(row.id)}>
+                    {row.id.slice(0, 8)} · {row.totalCents}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <aside
+          style={{
+            border: "1px solid rgba(24,24,27,0.08)",
+            borderRadius: 16,
+            padding: 16,
+            position: "sticky",
+            top: 12,
+            background: "#fff",
+          }}
+        >
+          {!sale ? (
+            <p>{props.copy.next}</p>
+          ) : (
+            <>
+              <p style={{ marginTop: 0 }}>
+                {sale.customerId ? sale.customerId.slice(0, 8) : props.copy.guest}
+                {sale.context ? ` · ${sale.context}` : ""}
+              </p>
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {sale.lines.map((line) => (
+                  <li key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 0", minHeight: 44, alignItems: "center" }}>
+                    <span>{line.label} × {line.units}</span>
+                    <span style={{ display: "flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        style={tap}
+                        title="+"
+                        onClick={() =>
+                          void run(() =>
+                            posUpdateLine({
+                              orderId: sale.orderId,
+                              lineId: line.id,
+                              units: line.units + 1,
+                              expectedVersion: sale.version,
+                            }),
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        style={tap}
+                        title="×"
+                        onClick={() =>
+                          void run(() =>
+                            posRemoveLine({
+                              orderId: sale.orderId,
+                              lineId: line.id,
+                              expectedVersion: sale.version,
+                            }),
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p>{props.copy.discount}: {sale.discountCents}</p>
+              <label>
+                {props.copy.applyCode}
+                <input value={promo} onChange={(e) => setPromo(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }} />
+              </label>
               <button
                 type="button"
                 disabled={busy}
-                style={{ minHeight: 44 }}
+                style={{ ...tap, marginTop: 8 }}
+                title={props.copy.applyCode}
                 onClick={() =>
-                  void run(async () => {
-                    const r = await posSubmitPrep(sale.orderId);
-                    if (!r.ok) setMsg("error" in r && r.error ? r.error : "unavailable");
-                    return r;
-                  })
+                  void run(() =>
+                    posReprice({ orderId: sale.orderId, promoCode: promo, expectedVersion: sale.version }),
+                  )
                 }
               >
-                {props.copy.sendToPrep}
+                {props.copy.applyCode}
               </button>
-              <button
-                type="button"
-                disabled={busy}
-                style={{ minHeight: 44 }}
-                onClick={() =>
-                  void run(async () => {
-                    const r = await posCancelSale(sale.orderId);
-                    if (r.ok) router.push(`/${props.tenantSlug}/admin/pos`);
-                    return r;
-                  })
-                }
+              <p>{props.copy.deposit}: {sale.depositPaidCents}</p>
+              <p style={{ fontSize: 18, fontWeight: 600 }}>{props.copy.outstanding}: {sale.outstandingCents}</p>
+              <p>{props.copy.prep}: {sale.prepState}</p>
+              <label>
+                {props.copy.prepDestination}
+                <select
+                  value={prepDestination}
+                  onChange={(e) =>
+                    setPrepDestination(e.target.value as "table" | "pickup" | "counter")
+                  }
+                  style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }}
+                >
+                  <option value="counter">{props.copy.prepCounter}</option>
+                  <option value="table">{props.copy.prepTable}</option>
+                  <option value="pickup">{props.copy.prepPickup}</option>
+                </select>
+              </label>
+              {prepDestination === "pickup" ? (
+                <label>
+                  {props.copy.prepPromisedAt}
+                  <input
+                    type="datetime-local"
+                    value={promisedAtLocal}
+                    onChange={(e) => setPromisedAtLocal(e.target.value)}
+                    style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }}
+                  />
+                </label>
+              ) : null}
+              <p>{props.copy.payment}: {sale.paymentState}</p>
+              <p>{props.copy.contactHint}</p>
+              <label>
+                {props.copy.email}
+                <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }} />
+              </label>
+              <label>
+                {props.copy.phone}
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }} />
+              </label>
+              <label>
+                {props.copy.amount}
+                <input
+                  value={amount}
+                  placeholder={String(sale.outstandingCents)}
+                  onChange={(e) => setAmount(e.target.value)}
+                  inputMode="numeric"
+                  style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }}
+                />
+              </label>
+              <label>
+                {props.copy.tendered}
+                <input
+                  value={tendered}
+                  onChange={(e) => setTendered(e.target.value)}
+                  inputMode="numeric"
+                  style={{ display: "block", minHeight: 44, width: "100%", borderRadius: 10 }}
+                />
+              </label>
+              <p>{props.copy.change}: {changeCents}</p>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 8,
+                  marginTop: 12,
+                  position: "sticky",
+                  bottom: 0,
+                  background: "#fff",
+                  paddingTop: 8,
+                }}
               >
-                {props.copy.cancel}
-              </button>
-            </div>
-            {msg ? <p>{msg}</p> : null}
-          </>
-        )}
-      </aside>
+                <button
+                  type="button"
+                  disabled={busy || sale.paymentState === "paid"}
+                  style={tapPrimary}
+                  title={props.copy.collectCash}
+                  onClick={() => void run(() => collect("cash"))}
+                >
+                  {props.copy.collectCash}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || sale.paymentState === "paid"}
+                  style={tap}
+                  title={props.copy.collectCard}
+                  onClick={() => void run(() => collect("online_card"))}
+                >
+                  {props.copy.collectCard}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  style={tap}
+                  title={props.copy.sendToPrep}
+                  onClick={() =>
+                    void run(async () => {
+                      let promisedAt: string | null = null;
+                      if (prepDestination === "pickup") {
+                        const when = new Date(promisedAtLocal);
+                        if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
+                          return { ok: false as const, error: "pickup_window" };
+                        }
+                        promisedAt = when.toISOString();
+                      }
+                      const r = await posSubmitPrep({
+                        orderId: sale.orderId,
+                        destination: prepDestination,
+                        promisedAt,
+                      });
+                      if (!r.ok) setMsg("error" in r && r.error ? r.error : "unavailable");
+                      return r;
+                    })
+                  }
+                >
+                  {props.copy.sendToPrep}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  style={tap}
+                  title={props.copy.cancel}
+                  onClick={() =>
+                    void run(async () => {
+                      const r = await posCancelSale(sale.orderId, sale.version);
+                      if (r.ok) router.push(`${base}/pos`);
+                      return r;
+                    })
+                  }
+                >
+                  {props.copy.cancel}
+                </button>
+              </div>
+              {msg ? <p role="alert">{msg}</p> : null}
+            </>
+          )}
+        </aside>
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import type { ReactElement } from "react";
 const S = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 const GLYPH: Record<string, ReactElement> = {
+  pos: <g {...S}><rect x="3.5" y="5" width="17" height="14" rx="2.2" /><path d="M7 12h10M7 15h6" /><circle cx="16.5" cy="15" r="1.2" /></g>,
   account: <g {...S}><path d="M5 20V6.5L12 3l7 3.5V20" /><path d="M3 20h18" /><path d="M9.5 20v-4h5v4" /><path d="M8.5 9.5h0M15.5 9.5h0M8.5 12.8h0M15.5 12.8h0" /></g>,
   plan: <g {...S}><rect x="3" y="5.5" width="18" height="13" rx="2.2" /><path d="M3 9.5h18" /><path d="M6.5 14.5h4" /></g>,
   workspace: <g {...S}><path d="M4 7h11M19 7h1M4 12h1M9 12h11M4 17h7M15 17h5" /><circle cx="17" cy="7" r="1.8" /><circle cx="7" cy="12" r="1.8" /><circle cx="13" cy="17" r="1.8" /></g>,

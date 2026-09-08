@@ -34,6 +34,11 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "analytics", // WP1 — funnel / money / website / reviews, honest empty states
   "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
   "media",     // Agency/Studio — workspace media gallery + watermark control
+  "sales",
+  "discounts",
+  "pos",
+  "tables",
+  "preparation",
   "settings",
 ];
 
