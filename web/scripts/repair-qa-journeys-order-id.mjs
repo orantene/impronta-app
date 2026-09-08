@@ -123,6 +123,21 @@ try {
     console.log("[repair-order-id] booking_transactions created on qa-journeys only");
   }
 
+  if (!(await hasColumn("orders", "guest_session_id"))) {
+    await client.query(`ALTER TABLE public.orders ALTER COLUMN customer_id DROP NOT NULL`);
+    await client.query(`ALTER TABLE public.orders ADD COLUMN guest_session_id TEXT`);
+    await client.query(`ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS receipt_code TEXT`);
+    await client.query(`
+      ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_identified_before_payment;
+      ALTER TABLE public.orders ADD CONSTRAINT orders_identified_before_payment
+        CHECK (status = 'draft' OR customer_id IS NOT NULL);
+      ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_draft_has_an_identity;
+      ALTER TABLE public.orders ADD CONSTRAINT orders_draft_has_an_identity
+        CHECK (customer_id IS NOT NULL OR guest_session_id IS NOT NULL);
+    `);
+    console.log("[repair-order-id] orders.guest_session_id + nullable customer_id on qa-journeys only");
+  }
+
   await client.query(`NOTIFY pgrst, 'reload schema'`);
 } finally {
   await client.end();

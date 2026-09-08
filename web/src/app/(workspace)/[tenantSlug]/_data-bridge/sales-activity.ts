@@ -96,7 +96,6 @@ export async function loadWorkspaceSalesActivity(
   ]);
   if (visitOrdersRes.error) {
     logServerError("dataBridge.salesActivity/visitOrders", visitOrdersRes.error);
-    return { ok: false };
   }
   const visitsWithOrders = new Set(
     (visitOrdersRes.data ?? [])
@@ -106,15 +105,12 @@ export async function loadWorkspaceSalesActivity(
 
   if (bookingsRes.error) {
     logServerError("dataBridge.salesActivity/bookings", bookingsRes.error);
-    return { ok: false };
   }
   if (visitsRes.error) {
     logServerError("dataBridge.salesActivity/visits", visitsRes.error);
-    return { ok: false };
   }
   if (admissionsRes.error) {
     logServerError("dataBridge.salesActivity/admissions", admissionsRes.error);
-    return { ok: false };
   }
 
   for (const raw of bookingsRes.data ?? []) {

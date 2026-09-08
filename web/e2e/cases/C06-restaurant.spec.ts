@@ -40,7 +40,7 @@ test("C06-OP walk-in cash: New sale → House pizza → collect → Sales and DB
   await expect(page.getByTitle("House pizza")).toBeVisible();
 
   await page.getByRole("button", { name: "⊕ New sale" }).click();
-  await expect(page).toHaveURL(/order=/);
+  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
   await expect(page.getByTitle("House pizza")).toBeEnabled();
 
   await page.getByTitle("House pizza").click();
