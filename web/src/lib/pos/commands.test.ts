@@ -293,6 +293,9 @@ test("submitToPreparation writes a ticket instead of returning not_built", async
 test("POS actions do not call createPurchase", () => {
   const src = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts"), "utf8");
   assert.doesNotMatch(src, /createPurchase/);
+  const collection = readFileSync(join(process.cwd(), "src/lib/pos/collection.ts"), "utf8");
+  assert.match(collection, /holdDraftOrderCapacity/);
+  assert.doesNotMatch(collection, /createPurchase/);
 });
 
 test("adding a line on another workspace's draft writes nothing", async () => {
@@ -372,4 +375,47 @@ test("cash collection with contact records a settle, not a purchase", async () =
   assert.equal(r.method, "cash");
   assert.equal(settled, 1);
   assert.equal(store.orders[0].customer_id, "cust-walkin");
+});
+
+test("collect refuses when the class place is sold out and does not settle", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  let settled = 0;
+  const r = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId: created.orderId,
+      actorUserId: "u1",
+      method: "cash",
+      contact: { email: "walkin@example.com" },
+      successUrl: "https://app.test/ok",
+      cancelUrl: "https://app.test/no",
+    },
+    {
+      ensureCustomer: async () => ({
+        ok: true,
+        customerId: "cust-walkin",
+        created: true,
+        identity: { email: "walkin@example.com", phoneE164: null, displayName: null },
+      }),
+      settle: async () => {
+        settled += 1;
+        return { ok: true, orderId: created.orderId, transactionId: "txn-cash", alreadySettled: false };
+      },
+      holdCapacity: async () => ({ ok: false, reason: "sold_out", error: "That is no longer free." }),
+    },
+  );
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "sold_out");
+  assert.equal(settled, 0);
 });

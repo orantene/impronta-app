@@ -19,6 +19,7 @@ import {
   type SubmitPrepResult,
 } from "@/lib/preparation/tickets";
 import { currentShift } from "./shift";
+import { holdDraftOrderCapacity } from "./hold-capacity";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 
 type Admin = {
@@ -92,6 +93,7 @@ export type StartCollectionResult =
         | "tendered"
         | "empty"
         | "unavailable"
+        | "sold_out"
         | "terminal_unavailable"
         | "engine_error";
       error: string;
@@ -106,6 +108,7 @@ export type StartCollectionDeps = {
   }) => Promise<EnsureCustomerResult>;
   createPaymentRequest?: ReturnType<typeof stripeCollectionAdapter>["createPaymentRequest"];
   settle?: typeof settleAtDoor;
+  holdCapacity?: typeof holdDraftOrderCapacity;
 };
 
 export async function startCollection(
@@ -218,6 +221,23 @@ export async function startCollection(
       logServerError("pos.startCollection.attach", attErr);
       return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
     }
+  }
+
+  const hold = deps.holdCapacity ?? holdDraftOrderCapacity;
+  const held = await hold(admin, {
+    tenantId: input.tenantId,
+    orderId: row.id,
+    actorUserId: input.actorUserId,
+  });
+  if (!held.ok) {
+    const reason =
+      held.reason === "sold_out" ||
+      held.reason === "wrong_tenant" ||
+      held.reason === "not_found" ||
+      held.reason === "not_draft"
+        ? held.reason
+        : "unavailable";
+    return { ok: false, reason, error: held.error };
   }
 
   if (row.total_cents === 0) {

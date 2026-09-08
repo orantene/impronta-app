@@ -35,13 +35,13 @@ This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P1-06 refund effects + Orders desk | Implemented and wired. Awaiting focused verification |
 | P1-07 DST collisions operator list | Existing Sessions list proven by static test |
 | P2-01…P2-05 type / layers / nav / Sales / Discounts | Implemented on authorized types (~50 of 120). Remaining IDs wait on product docs |
-| P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. `submitToPreparation` writes tickets (P5). |
+| P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. `submitToPreparation` writes tickets (P5). Collect holds capacity-backed lines without `createPurchase`. |
 | P4 collection interface + Stripe adapter + MP discovery | Implemented, awaiting focused verification. Terminal unavailable until Point. |
 | P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
 | P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
 | P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
 | P8 hybrids | Implemented, awaiting focused verification. Package component cancel, supervised set, tournament courts (cafe omitted), breakouts, live recording, exclusive kitchen/hire, retreat days + add-on, grooming vs event rooms. |
-| W-AUDIT | Standing — tenant check on capacity pool IDs (purchase path refuses before RPC). Isolation: POS, visits (token/QR/floor), hybrid cancel, prep, shifts. Continues. |
+| W-AUDIT | Standing — tenant check on capacity pool IDs (purchase path refuses before RPC). Isolation: POS, visits (token/QR/floor), hybrid cancel, prep, shifts. Collect holds class places before money. Continues. |
 
 ## Task order (this cycle)
 
@@ -81,4 +81,4 @@ Take the next unblocked task in [`ledger.md`](ledger.md): **W-AUDIT** / **P9**. 
 One owner at a time. Stale-claim recovery: if the claim is older than 6 hours and the session is gone, the next session takes the next unblocked task and records the takeover.
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T11:42Z
+**Claimed:** 2026-09-08T12:15Z

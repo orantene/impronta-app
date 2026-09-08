@@ -10,6 +10,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | On a paid order, pick effect "cancel one ticket" and confirm. | P1-06 states the effect before money moves. | Refund with no named effect; seat not released; duplicate refund. |
 | Confirm Sessions lists DST collisions in the operator UI. | P1-07 is not log-only. | Collision only in `improntaLog`. |
 | Open `/admin/pos`, start a New Sale, add a catalog item, try Collect cash with no email/phone. | P3 walk-in draft + no_contact at collect. | Draft missing; collect succeeds without a named buyer; `createPurchase` per add. |
+| Collect a walk-in class place that is sold out. | P3-05: collect refuses; no cash recorded. | Settle succeeds; oversell. `BLOCKED:` until fixture. |
 | Same sale: enter email, Collect cash. | Cash recorded as a method on the existing order. | Second order created; Stripe session opened for cash. |
 | Collect card on a named sale. | Online Checkout at the existing Stripe boundary. | Direct Charge on a connected account; Terminal used. |
 | On a paid hybrid package, cancel catering only (`refund_hybrid_component`). | P8 L55 effect 5: that line's allocations release; other lines stand. | Whole order refunded; other allocations released; second order created. `BLOCKED:` until fixture. |
