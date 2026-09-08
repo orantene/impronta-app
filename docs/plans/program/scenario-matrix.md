@@ -9,7 +9,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C01 | C01-TAL | Nail salon | not started | `qa-evidence/C01-TAL/` |
 | C01 | C01-DIFF | Nail salon | not started | `qa-evidence/C01-DIFF/` |
 | C01 | C01-REC | Nail salon | not started | `qa-evidence/C01-REC/` |
-| C02 | C02-CUS | Spa | not started | `qa-evidence/C02-CUS/` |
+| C02 | C02-CUS | Spa | implementing — last-resource refusal (not a successful couples book) | `qa-evidence/C02-CUS/last-resource.md` |
 | C02 | C02-OP | Spa | not started | `qa-evidence/C02-OP/` |
 | C02 | C02-TAL | Spa | not started | `qa-evidence/C02-TAL/` |
 | C02 | C02-DIFF | Spa | not started | `qa-evidence/C02-DIFF/` |
