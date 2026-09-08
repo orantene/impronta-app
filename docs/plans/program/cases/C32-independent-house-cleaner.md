@@ -20,7 +20,7 @@ P7-02, P7-03
 - **Basic:** Books single cleans.
 - **Complete:** Fortnightly agreement; each visit can be skipped.
 
-Overall status: not started
+Overall status: not started — engine: service-area fit. Browser journey not run.
 
 ## Scenarios
 

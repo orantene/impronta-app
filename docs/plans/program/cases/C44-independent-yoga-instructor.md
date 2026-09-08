@@ -20,7 +20,7 @@ P7-02, P6-03, P2-02
 - **Basic:** Runs her own classes.
 - **Complete:** Hosted class does not claim the studio's capacity.
 
-Overall status: not started
+Overall status: not started — engine: sessions + attendance. Browser journey not run.
 
 ## Scenarios
 

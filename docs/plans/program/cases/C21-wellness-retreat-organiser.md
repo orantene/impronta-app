@@ -20,7 +20,7 @@ P7-04, P8-01, P6-01
 - **Basic:** Sells a retreat place.
 - **Complete:** Add massage day two; cancel day three refunds only that component.
 
-Overall status: not started
+Overall status: not started — engine: hybrid component cancel. Browser journey not run.
 
 ## Scenarios
 

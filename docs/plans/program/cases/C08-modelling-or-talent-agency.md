@@ -20,7 +20,7 @@ P2-04, P7-01
 - **Basic:** Inquiry to booking with commission.
 - **Complete:** Three-model shoot books all three atomically; fees and margin separate.
 
-Overall status: not started
+Overall status: not started — engine: combined Sales read + multi-talent reserveResourceSet. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P7-01, P7-04
 - **Basic:** Quotes and delivers.
 - **Complete:** Usage recorded; re-record beyond rounds is chargeable.
 
-Overall status: not started
+Overall status: not started — engine: independent bookings. Browser journey not run.
 
 ## Scenarios
 

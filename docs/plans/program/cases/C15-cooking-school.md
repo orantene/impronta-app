@@ -20,7 +20,7 @@ P8-01, P6-02, P7-04
 - **Basic:** Sells class places.
 - **Complete:** Private catering blocks the kitchen for a pop-up the same evening.
 
-Overall status: not started
+Overall status: not started — engine: sessions + catalog. Browser journey not run.
 
 ## Scenarios
 

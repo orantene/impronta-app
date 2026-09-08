@@ -20,7 +20,7 @@ P7-04, P7-02, P8-01
 - **Basic:** Sells workshop places.
 - **Complete:** Wedding commission bills deposit and balance against an accepted design.
 
-Overall status: not started
+Overall status: not started — engine: catalog + pickup/handoff. Browser journey not run.
 
 ## Scenarios
 

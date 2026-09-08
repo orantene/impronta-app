@@ -20,7 +20,7 @@ P7-04, P5-08
 - **Basic:** Quotes a commission.
 - **Complete:** Design change repriced; balance collected before pickup.
 
-Overall status: not started
+Overall status: not started — engine: quote versions + balance collect. Browser journey not run.
 
 ## Scenarios
 

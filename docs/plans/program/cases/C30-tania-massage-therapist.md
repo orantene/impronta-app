@@ -20,7 +20,7 @@ P6-03, P7-02, P7-03
 - **Basic:** Takes bookings at one location.
 - **Complete:** Weekly recurring client generates dated occurrences that can move independently.
 
-Overall status: not started
+Overall status: not started — engine: independent appointments. Browser journey not run.
 
 ## Scenarios
 

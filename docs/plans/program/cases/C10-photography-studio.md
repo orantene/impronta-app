@@ -20,7 +20,7 @@ P6-01, P7-01, P7-04
 - **Basic:** Books a headshot.
 - **Complete:** Shoot reserves photographer, assistant and studio together.
 
-Overall status: not started
+Overall status: not started — engine: reserveResourceSet photographer + assistant + studio. Browser journey not run.
 
 ## Scenarios
 

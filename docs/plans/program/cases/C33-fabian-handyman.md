@@ -20,7 +20,7 @@ P7-04, P7-03
 - **Basic:** Quotes a job.
 - **Complete:** On-site variation agreed and repriced without rewriting the original.
 
-Overall status: not started
+Overall status: not started — engine: quote versions; handyman ES label mantenimiento del hogar. Browser journey not run.
 
 ## Scenarios
 

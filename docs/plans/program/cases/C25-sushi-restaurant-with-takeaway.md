@@ -20,7 +20,7 @@ P5-02, P5-03, P5-08
 - **Basic:** Accepts a paid online order.
 - **Complete:** Customer picks a window; kitchen prepares; notify; handoff confirmed.
 
-Overall status: not started
+Overall status: not started — engine: pickup destination + promised_at on prep ticket; ready/handoff. Browser journey not run.
 
 ## Scenarios
 

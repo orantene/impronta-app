@@ -20,7 +20,7 @@ P7-05, P6-02, P6-04
 - **Basic:** Sells places on a dated tour.
 - **Complete:** Manifest; ninth passenger refused; attendance at meeting point.
 
-Overall status: not started
+Overall status: not started — engine: session capacity + attendance. Browser journey not run.
 
 ## Scenarios
 

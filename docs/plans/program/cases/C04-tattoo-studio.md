@@ -20,7 +20,7 @@ P7-04, P6-01
 - **Basic:** Quotes and takes a deposit.
 - **Complete:** Four-session piece is one agreement with per-session deposits.
 
-Overall status: not started
+Overall status: not started — engine: multi-resource reserve (artist + station). Browser journey not run.
 
 ## Scenarios
 

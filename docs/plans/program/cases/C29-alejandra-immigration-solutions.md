@@ -20,7 +20,7 @@ P7-01, P7-04
 - **Basic:** Quotes and invoices.
 - **Complete:** Multi-stage case bills per milestone; outstanding docs visible.
 
-Overall status: not started
+Overall status: not started — engine: quote versions (new inquiry_offers row). Browser journey not run.
 
 ## Scenarios
 

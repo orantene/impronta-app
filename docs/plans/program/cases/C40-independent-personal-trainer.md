@@ -20,7 +20,7 @@ P7-02, P2-02, P6-04
 - **Basic:** Books one-to-one sessions.
 - **Complete:** Weekly agreement plus a group class draw from the correct arrangement.
 
-Overall status: not started
+Overall status: not started — engine: lesson packages + attendance drawdown. Browser journey not run.
 
 ## Scenarios
 

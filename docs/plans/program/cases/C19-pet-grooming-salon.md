@@ -20,7 +20,7 @@ P2-02, P8-01, P6-01
 - **Basic:** Books grooming.
 - **Complete:** Saturday event does not block grooming in another room.
 
-Overall status: not started
+Overall status: not started — engine: appointments + spaces. Browser journey not run.
 
 ## Scenarios
 

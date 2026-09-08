@@ -20,7 +20,7 @@ P5-01, P5-04, P5-07, P6-02
 - **Basic:** Reserves a cabana and sells tickets.
 - **Complete:** Minimum consumed by orders; remaining credit visible.
 
-Overall status: not started
+Overall status: not started — engine: visit occupancy + remaining min spend display. Browser journey not run.
 
 ## Scenarios
 

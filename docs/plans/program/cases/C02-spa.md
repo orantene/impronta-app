@@ -20,7 +20,7 @@ P6-01, P6-02, P7-06
 - **Basic:** Books a single therapist.
 - **Complete:** Couples massage reserves two therapists and one room together.
 
-Overall status: not started
+Overall status: not started — engine: reserveResourceSet last-resource conflict + travel buffers. Browser journey not run.
 
 ## Scenarios
 

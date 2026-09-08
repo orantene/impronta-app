@@ -20,7 +20,7 @@ P7-01, P2-02
 - **Basic:** Provisional profile exists and is discoverable.
 - **Complete:** Cannot take money or publish terms until claimed; claim keeps history.
 
-Overall status: not started
+Overall status: not started — engine: unclaimed_seller refusal with EN/ES copy. Browser journey not run.
 
 ## Scenarios
 

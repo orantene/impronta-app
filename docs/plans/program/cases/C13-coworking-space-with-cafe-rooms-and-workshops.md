@@ -20,7 +20,7 @@ P2-02, P8-01, P5-01, P6-02
 - **Basic:** Books a meeting room.
 - **Complete:** Cafe sale, room booking and workshop coexist without sharing capacity wrongly.
 
-Overall status: not started
+Overall status: not started — engine: hybrid combinations keep cafe / room / workshop pools distinct. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P7-01, P6-02, P8-01
 - **Basic:** Books a training session.
 - **Complete:** One organiser pays for forty attendees across four rooms.
 
-Overall status: not started
+Overall status: not started — engine: multi-attendee sessions + breakout rooms. Browser journey not run.
 
 ## Scenarios
 

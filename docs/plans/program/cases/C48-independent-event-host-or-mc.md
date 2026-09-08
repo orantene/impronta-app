@@ -20,7 +20,7 @@ P7-05, P6-03, P7-03
 - **Basic:** Takes a booking.
 - **Complete:** Two events in one day refused if travel does not fit.
 
-Overall status: not started
+Overall status: not started — engine: travel buffers; two events in one day. Browser journey not run.
 
 ## Scenarios
 

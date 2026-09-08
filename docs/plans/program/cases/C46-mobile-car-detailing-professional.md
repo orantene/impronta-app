@@ -20,7 +20,7 @@ P7-03, P3-04
 - **Basic:** Books an appointment.
 - **Complete:** On-site upgrade added to the existing order and collected on the spot.
 
-Overall status: not started
+Overall status: not started — engine: service-area + travel buffers. Browser journey not run.
 
 ## Scenarios
 

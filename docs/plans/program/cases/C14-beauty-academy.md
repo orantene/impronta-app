@@ -20,7 +20,7 @@ P8-01, P6-01, P2-02
 - **Basic:** Enrols students.
 - **Complete:** Supervised service books student, supervisor and station.
 
-Overall status: not started
+Overall status: not started — engine: sessions + packages. Browser journey not run.
 
 ## Scenarios
 

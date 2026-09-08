@@ -20,7 +20,7 @@ P7-04, P8-01, P6-02, P5-01
 - **Basic:** Books a room slot.
 - **Complete:** Birthday package holds all three; cancelling catering leaves the game.
 
-Overall status: not started
+Overall status: not started — engine: hybrid package + component cancel. Browser journey not run.
 
 ## Scenarios
 

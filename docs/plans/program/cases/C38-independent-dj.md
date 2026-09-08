@@ -20,7 +20,7 @@ P7-05, P6-03, P6-01
 - **Basic:** Receives and accepts a booking.
 - **Complete:** Four-hour set books six hours; second venue cannot overlap.
 
-Overall status: not started
+Overall status: not started — engine: travel buffers on holds. Browser journey not run.
 
 ## Scenarios
 

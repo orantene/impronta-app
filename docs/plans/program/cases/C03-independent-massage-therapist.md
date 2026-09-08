@@ -20,7 +20,7 @@ P6-03, P6-05, P7-03
 - **Basic:** Takes a mobile booking.
 - **Complete:** Home visit blocks matching studio slot; spa cannot see private clients.
 
-Overall status: not started
+Overall status: not started — engine: independent appointments + POS walk-in draft. Browser journey not run.
 
 ## Scenarios
 

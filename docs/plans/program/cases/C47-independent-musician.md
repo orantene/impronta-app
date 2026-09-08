@@ -20,7 +20,7 @@ P7-05, P6-03, P1-04
 - **Basic:** Takes a booking.
 - **Complete:** Sells tickets to a gig at a venue he does not own without claiming its capacity.
 
-Overall status: not started
+Overall status: not started — engine: performer fee distinct from admission. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P6-03, P7-03, P6-01
 - **Basic:** Books a single session.
 - **Complete:** Bridal party of five is one on-location slot with travel and one price.
 
-Overall status: not started
+Overall status: not started — engine: independent appointments. Browser journey not run.
 
 ## Scenarios
 

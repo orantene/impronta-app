@@ -21,4 +21,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
 | Cancel a POS draft that already held a class place. | P3-05: cancel releases that allocation; foreign allocations stay. | Place stays held; B's allocation released. |
 
-Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the seed is applied, those rows stay `BLOCKED: fixture harness not applied`.
+Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the isolated schema exists and the seed is applied, those rows stay `BLOCKED: fixture harness not applied`. Honest count: **0 of 16 human rows executed**.
+
+Checkpoint 2026-09-08: `qa-journeys` still has no `agencies`/`orders` schema. Do not record passes from skipped Playwright.
+

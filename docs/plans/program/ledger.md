@@ -6,25 +6,25 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 
 | Task | Kind | Status | Owner | Claimed | Branch / commit | Notes |
 |---|---|---|---|---|---|---|
-| P0-01 | cloud-safe (docs) | blocked | — | — | cursor/journeys-program-c4d3 | Source documents not in workspace. README records gap. |
-| P0-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | START-HERE, ledger, decisions, defects, automation draft. |
-| P0-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | 48 case files from authorized matrix. Check vs verbatim docs when they land. |
+| P0-01 | cloud-safe (docs) | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Both product documents committed under `docs/product/`. |
+| P0-02 | cloud-safe | implementing | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Honest count 0/48 cases, 0/~240 scenarios. |
+| P0-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Sampled against verbatim docs; no invented requirements. Browser still not started. |
 | P0-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | L52–L56. |
-| P0-05 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T13:30Z | cursor/journeys-program-c4d3 | Instruction docs + remote `20261230000200`–`00600` applied to `pluhdapdnuiulvxmyspd`. |
-| P0-06 | mixed | awaiting external verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SQL + script + contract. Apply needs isolated `DATABASE_URL`. Do not seed Impronta live. |
+| P0-05 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | `20261230000200`–`00600` on production. Do not re-apply. `00700` RPCs not applied to production from this session. |
+| P0-06 | mixed | awaiting external verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Seeder expanded. Isolated schema empty. Do not seed Impronta. |
 | P0-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | tablet-pos + mobile-checkout; `e2e/cases/` scaffold. |
 | W-AUDIT | cloud-safe | implementing | cloud-agent | 2026-09-08T12:15Z | cursor/journeys-program-c4d3 | Isolation: POS, visits, hybrid, prep, shifts. Purchase refuses a foreign pool before `reserve_capacity_batch`. POS collect holds before money; foreign session writes nothing. Cancel releases this tenant's held places. |
-| P1-01 | local-only | awaiting external verification | — | — | cursor/journeys-program-c4d3 | Script refuses without `CAPACITY_PROOF_ISOLATED=1`. Never production. |
+| P1-01 | local-only | awaiting external verification | — | — | cursor/journeys-program-c4d3 | Guarded to qa-journeys / local. Default tenant is fixture `3333…`. Never production. |
 | P1-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Coordinating: order engine. Compensation via `ticket_refund_intents`. |
 | P1-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Runner + cron + heartbeat. Update also filters status. |
 | P1-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Guest picker promo field. Independent of P1-05. |
 | P1-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Door settle wired. Browser proof awaits fixture. |
 | P1-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Five effects + Orders desk form. |
 | P1-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SessionsPage already lists collisions; static test enrolled. |
-| P2-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Authorized types from 48 cases + 20 presets. Target remains 120. |
+| P2-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | ≥120 catalog types excluding `custom`. Accent-fold search. Settings search-to-select. |
 | P2-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | theme-layers.ts. Roster not hidden because solo. |
 | P2-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Nine destinations. `pos` built in P3; `tables` / `preparation` built in P5. |
-| P2-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Sales reads existing orders. |
+| P2-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Combined Sales read: orders + bookings/reservations/registrations without manufacturing orders. |
 | P2-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Discounts over `tenant_promo_codes`. |
 | P3-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Command module. Line mutation does not purchase; promo only on reprice. |
 | P3-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | `/admin/pos` counter. Walk-in draft without customer; collect refuses without contact. |

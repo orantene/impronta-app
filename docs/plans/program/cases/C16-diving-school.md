@@ -20,7 +20,7 @@ P7-05, P6-02, P8-01
 - **Basic:** Sells lesson places.
 - **Complete:** Departure caps at vessel capacity; cancel releases and refunds as one action.
 
-Overall status: not started
+Overall status: not started — engine: session capacity + departure/manifest primitives. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P7-02, P7-03, P6-01
 - **Basic:** Books single walks.
 - **Complete:** Group walk holds four dogs from four clients inside the area.
 
-Overall status: not started
+Overall status: not started — engine: service-area + travel buffers. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P7-01, P7-04
 - **Basic:** Books and takes payment.
 - **Complete:** Client selects images and buys prints on the same record.
 
-Overall status: not started
+Overall status: not started — engine: booking_deliverables selected_asset_ids persist on the order. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P6-02, P8-01, P5-01
 - **Basic:** Books a court.
 - **Complete:** Tournament reserves all courts; cafe keeps selling.
 
-Overall status: not started
+Overall status: not started — engine: hybrid combinations (court vs cafe). Browser journey not run.
 
 ## Scenarios
 

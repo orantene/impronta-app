@@ -20,7 +20,7 @@ P7-06, P6-01, P3-04
 - **Basic:** Books a stylist for a fixed duration.
 - **Complete:** Colour service releases the chair during development.
 
-Overall status: not started
+Overall status: not started — engine: service phases flatten into one reserveResourceSet. Browser journey not run.
 
 ## Scenarios
 

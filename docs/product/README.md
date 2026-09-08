@@ -1,14 +1,12 @@
 # Product requirements
 
-**Status:** the two source documents did not transfer into this workspace.
+Verbatim sources for the 48 Journeys program. Do not invent requirements that are not in these files.
 
-Required files, to be committed **verbatim** as P0-01 when they are available:
-
-| File | Expected size | Destination |
+| File | Lines | Role |
 |---|---|---|
-| `Tulala-Business-Journeys-POS.md` | 2,538 lines | [`Tulala-Business-Journeys-POS.md`](Tulala-Business-Journeys-POS.md) |
-| `Business-specific-labels-Workspace-Theme.md` | 595 lines | [`Business-specific-labels-Workspace-Theme.md`](Business-specific-labels-Workspace-Theme.md) |
+| [`Tulala-Business-Journeys-POS.md`](Tulala-Business-Journeys-POS.md) | 2,538 | Case studies, POS selling-screen contract, shared money/capacity rules |
+| [`Business-specific-labels-Workspace-Theme.md`](Business-specific-labels-Workspace-Theme.md) | 595 | 120-type taxonomy, navigation groups, vocabulary, Settings search |
 
-They were read in full during planning (audited SHA `749737206`). The 48 case numbers and names, the five shared contracts, and the coverage matrix in [`../plans/program/`](../plans/program/) are extracted from that reading and are authorized.
+The 48 case files in [`../plans/program/cases/`](../plans/program/cases/) are extracted from the Journeys-POS document. Re-check them against these sources before treating a scenario as specified.
 
-Do not invent requirements that were only in unread pages. When the files are re-attached, replace this note, commit them verbatim, and check the case files against them.
+`custom` / Other business is a fallback **outside** the 120 types (theme doc §7.14).

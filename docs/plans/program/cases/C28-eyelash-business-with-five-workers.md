@@ -20,7 +20,7 @@ P6-01, P6-02
 - **Basic:** Books any of five technicians.
 - **Complete:** Fourth simultaneous booking refused for lack of a station.
 
-Overall status: not started
+Overall status: not started — engine: five workers / three stations sold-out on the station. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P5-08, P2-02, P0-04
 - **Basic:** Sells a fixed quantity.
 - **Complete:** Twenty pizzas Friday sell out Friday only; cancel returns a Friday unit.
 
-Overall status: not started
+Overall status: not started — engine: anonymous cash/free collect; pickup promised_at; offering_stock windows. Browser journey not run.
 
 ## Scenarios
 

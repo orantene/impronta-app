@@ -10,7 +10,7 @@ One log. Blocking / high-risk also get a GitHub issue. Normal and cosmetic stay 
 | D-004 | normal | closed — P0-05 | docs | Instruction docs updated. Remote `20261230000200`–`00600` applied to `pluhdapdnuiulvxmyspd` (visits, shifts, deliverables, visit slug, remaining holes). | CLAUDE.md, OPERATING.md |
 | D-007 | cosmetic | closed | events | Ticket picker file headers now say card or pay-at-door. | `ticket-picker-island.tsx` |
 | D-005 | high-risk | awaiting external verification — P1-01 | capacity | Concurrency proof now refuses unless `CAPACITY_PROOF_ISOLATED=1`. Isolated target still required. Never production. | `verify-capacity-concurrency.mjs` |
-| D-006 | normal | open — P0-01 | product | Source product documents not in this workspace. | `docs/product/README.md` |
+| D-006 | normal | closed — P0-01 | product | Source product documents now in `docs/product/`. | `Tulala-Business-Journeys-POS.md`, `Business-specific-labels-Workspace-Theme.md` |
 | D-008 | high-risk | implementing — W-AUDIT | capacity | `reserve_capacity*` is service-role SECURITY DEFINER and keys on `pool_id` only. `reserveResourceSet` now refuses `wrong_tenant` / `pool_not_found` before the RPC. | `reserve-set.ts` |
 | D-009 | high-risk | implementing — W-AUDIT | pos | Collect holds class places; cancel now releases this tenant's live allocations for the sale's lines. | `collection.ts` finalizeOrCancel |
 | D-010 | high-risk | implementing — W-AUDIT | pos | Walk-in collect was holding `talent_offerings.capacity_pool_id`. It now holds the session `session_tier` / `default` pool via `tierReserveRequest`, same as the guest picker. | `hold-capacity.ts` |

@@ -20,7 +20,7 @@ P7-02, P7-04
 - **Basic:** Books single lessons.
 - **Complete:** Ten-lesson package decrements; unused balance refunds under the rule.
 
-Overall status: not started
+Overall status: not started — engine: attendance hop draws down the lesson package. Browser journey not run.
 
 ## Scenarios
 

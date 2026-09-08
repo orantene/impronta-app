@@ -20,7 +20,7 @@ P6-02, P8-01, P2-02
 - **Basic:** Sells exhibition admission.
 - **Complete:** Workshop, hire and admission cannot double-book the room.
 
-Overall status: not started
+Overall status: not started — engine: admissions + shared room capacity pools. Browser journey not run.
 
 ## Scenarios
 

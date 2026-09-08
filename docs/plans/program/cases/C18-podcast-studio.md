@@ -20,7 +20,7 @@ P6-01, P6-02, P8-01
 - **Basic:** Hires the room.
 - **Complete:** Live recording holds room, engineer and audience seats.
 
-Overall status: not started
+Overall status: not started — engine: reserveResourceSet room + engineer + seats. Browser journey not run.
 
 ## Scenarios
 

@@ -20,7 +20,7 @@ P7-01, P7-04
 - **Basic:** Quotes and invoices.
 - **Complete:** One revision tracked; second is chargeable.
 
-Overall status: not started
+Overall status: not started — engine: independent appointments. Browser journey not run.
 
 ## Scenarios
 

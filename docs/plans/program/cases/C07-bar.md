@@ -20,7 +20,7 @@ P5-01, P5-04, P7-05, P1-04
 - **Basic:** Sells drinks as counter sales.
 - **Complete:** Tab stays open; booth and gig ticket are separate; performer fee distinct.
 
-Overall status: not started
+Overall status: not started — engine: visits.service_kind table vs tab. Browser journey not run.
 
 ## Scenarios
 
