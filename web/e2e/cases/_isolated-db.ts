@@ -199,18 +199,54 @@ export async function latestAssignedDirectoryInquiry(): Promise<{
 export async function latestInquiryOffer(inquiryId: string): Promise<{
   offerId: string;
   status: string;
+  totalClientPrice: number | null;
+  sentAt: string | null;
 } | null> {
   const admin = isolatedService();
   const { data, error } = await admin
     .from("inquiry_offers")
-    .select("id, status")
+    .select("id, status, total_client_price, sent_at")
     .eq("inquiry_id", inquiryId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return { offerId: String(data.id), status: String(data.status) };
+  return {
+    offerId: String(data.id),
+    status: String(data.status),
+    totalClientPrice:
+      data.total_client_price == null ? null : Number(data.total_client_price),
+    sentAt: (data.sent_at as string | null) ?? null,
+  };
+}
+
+export async function inquiryOfferLines(offerId: string): Promise<{
+  talentProfileId: string | null;
+  totalPrice: number;
+}[]> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("inquiry_offer_line_items")
+    .select("talent_profile_id, total_price")
+    .eq("offer_id", offerId)
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({
+    talentProfileId: (row.talent_profile_id as string | null) ?? null,
+    totalPrice: Number(row.total_price ?? 0),
+  }));
+}
+
+export async function inquiryOfferApprovalCount(offerId: string): Promise<number> {
+  const admin = isolatedService();
+  const { count, error } = await admin
+    .from("inquiry_approvals")
+    .select("id", { count: "exact", head: true })
+    .eq("offer_id", offerId);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
 }
 
 export const TABLE_1_SPACE_ID = "33330011-0000-4000-8000-000000000001";
