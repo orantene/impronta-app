@@ -115,6 +115,34 @@ test("one open shift per tenant; a second open is refused", async () => {
   assert.equal(store.pos_shifts.filter((s) => s.status === "open").length, 1);
 });
 
+test("an open shift on another workspace does not block or close this drawer", async () => {
+  const store = makeStore();
+  const other = await openShift(fakeAdmin(store), {
+    tenantId: "t2",
+    actorUserId: "u2",
+    openingCashCents: 1000,
+  });
+  assert.equal(other.ok, true);
+  const mine = await openShift(fakeAdmin(store), {
+    tenantId: "t1",
+    actorUserId: "u1",
+    openingCashCents: 5000,
+  });
+  assert.equal(mine.ok, true);
+  if (!mine.ok) return;
+  const seen = await currentShift(fakeAdmin(store), { tenantId: "t1" });
+  assert.equal(seen.ok, true);
+  if (!seen.ok) return;
+  assert.equal(seen.shift?.id, mine.shift.id);
+  const closed = await closeShift(fakeAdmin(store), {
+    tenantId: "t1",
+    actorUserId: "u1",
+    closingCashCents: 5000,
+  });
+  assert.equal(closed.ok, true);
+  assert.equal(store.pos_shifts.find((s) => s.tenant_id === "t2")?.status, "open");
+});
+
 test("cash still collects when no shift is open", async () => {
   const store = makeStore();
   store.talent_offerings.push({

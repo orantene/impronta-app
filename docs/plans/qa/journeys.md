@@ -16,5 +16,6 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Staff desk `/admin/pos`, `/admin/tables`, `/admin/preparation` on an agency host. | P3/P5 surfaces are on the allow-list, not marketing. | 404 Host not registered; marketing host serves the desk. |
 | From workspace A, add a line from workspace B's catalog, or open B's table. | Isolation: sale/visit writes nothing. | Line or visit created; `wrong_tenant` missing. |
 | Paste workspace A's table token on workspace B's host. | Guest visit / QR / floor stay tenant-scoped. | B sees A's check; floor lists B's tables on A. |
+| Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the seed is applied, those rows stay `BLOCKED: fixture harness not applied`.

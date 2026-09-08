@@ -29,7 +29,7 @@ type Call = { table: string; op: string; payload?: unknown };
  * actually calls, so a new call site shows up as a crash rather than a silent
  * pass.
  */
-function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}) {
+function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string; poolTenantId?: string } = {}) {
   const calls: Call[] = [];
 
   const offeringRow = {
@@ -80,7 +80,7 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}
       if (table === "order_lines")
         return resolve({ data: [{ id: "line_1", offering_id: OFFERING, sort_order: 0 }], error: null });
       if (table === "capacity_pools")
-        return resolve({ data: [{ id: POOL, tenant_id: TENANT }], error: null });
+        return resolve({ data: [{ id: POOL, tenant_id: opts.poolTenantId ?? TENANT }], error: null });
       return resolve({ data: [], error: null });
     };
     void thenable;
@@ -185,6 +185,27 @@ test("ancestor_full reads as sold out — the room is bought out, so the table i
   const { admin } = fakeAdmin({ capacityRefusal: "ancestor_full" });
   const r = await createPurchase(admin, input());
   assert.equal(!r.ok && r.reason, "sold_out");
+});
+
+test("a pool from another workspace does not reserve and cancels the order", async () => {
+  const { calls, admin } = fakeAdmin({
+    poolTenantId: "99999999-9999-9999-9999-999999999999",
+  });
+  const r = await createPurchase(admin, input());
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "engine_error");
+  assert.equal(
+    calls.find((c) => c.table === "rpc:reserve_capacity_batch"),
+    undefined,
+  );
+  const cancelled = calls.find(
+    (c) =>
+      c.table === "orders" &&
+      c.op === "update" &&
+      typeof c.payload === "object" &&
+      (c.payload as { status?: string }).status === "cancelled",
+  );
+  assert.ok(cancelled, "the order must be cancelled when the pool is not this workspace's");
 });
 
 // ── The success path, which the refusal tests never reach ────────────────────
