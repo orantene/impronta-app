@@ -20,7 +20,7 @@ P5-08, P2-02, P0-04
 - **Basic:** Sells a fixed quantity.
 - **Complete:** Twenty pizzas Friday sell out Friday only; cancel returns a Friday unit.
 
-Overall status: not started — engine: anonymous cash/free collect; pickup promised_at; offering_stock windows. Browser journey not run.
+Overall status: implementing — C26-OP POS cash + pickup window + Preparation handoff proven. Friday website pickup, offering_stock windows, and Saturday-unaffected DIFF not run. Case not verified.
 
 ## Scenarios
 
@@ -51,10 +51,10 @@ Overall status: not started — engine: anonymous cash/free collect; pickup prom
 | Expected visible | Sales/Calendar/Payments show the same record. |
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
-| Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C26-OP/` |
+| Automated or manual | Playwright on qa-journeys `/admin/pos` then `/admin/preparation` |
+| Evidence | `qa-evidence/C26-OP/pickup-handoff.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — cash pizza, pickup window, Mark ready, Confirm handoff; Friday stock not run |
 
 ### C26-TAL — Talent workflow
 

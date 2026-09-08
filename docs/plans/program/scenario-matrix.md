@@ -130,7 +130,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C25 | C25-DIFF | Sushi restaurant with takeaway | not started | `qa-evidence/C25-DIFF/` |
 | C25 | C25-REC | Sushi restaurant with takeaway | not started | `qa-evidence/C25-REC/` |
 | C26 | C26-CUS | Jesus: frozen pizza from home | not started | `qa-evidence/C26-CUS/` |
-| C26 | C26-OP | Jesus: frozen pizza from home | not started | `qa-evidence/C26-OP/` |
+| C26 | C26-OP | Jesus: frozen pizza from home | implementing — pickup handoff | `qa-evidence/C26-OP/pickup-handoff.md` |
 | C26 | C26-TAL | Jesus: frozen pizza from home | not started | `qa-evidence/C26-TAL/` |
 | C26 | C26-DIFF | Jesus: frozen pizza from home | not started | `qa-evidence/C26-DIFF/` |
 | C26 | C26-REC | Jesus: frozen pizza from home | not started | `qa-evidence/C26-REC/` |

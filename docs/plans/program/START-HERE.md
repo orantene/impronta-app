@@ -10,7 +10,7 @@
 | Metric | Value |
 |---|---|
 | Cases verified on the actual platform | **0 / 48** |
-| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door; no complete case. |
+| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff; no complete case. |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema + SQL fixture on `qa-journeys` | **Yes** — seed applied; staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
@@ -28,6 +28,7 @@
 | C12-CUS $0 night ticket | **Pass** on qa-journeys `/events/qa-night` + DB. Evidence: `docs/plans/qa-evidence/C12-CUS/ticket.md`. Paid 0 / admission minted / seat committed. Not card, not door. |
 | C12-OP door Admit | **Pass** on qa-journeys `/admin/events/door` + DB. Evidence: `docs/plans/qa-evidence/C12-OP/door.md`. Walk-up Admit; `admitted_count=1` + `seated_at`. Not QR. |
 | C12-DIFF pay-at-door | **Pass** on qa-journeys `/events/qa-night` + `/admin/events/door` + DB. Evidence: `docs/plans/qa-evidence/C12-DIFF/pay-at-door.md`. $20 hold blocks competitor; Cash settle commits seat + mints admission. Not card, not QR, not C12 complete. |
+| C26-OP pickup handoff | **Pass** on qa-journeys POS + Preparation + DB. Evidence: `docs/plans/qa-evidence/C26-OP/pickup-handoff.md`. Cash pizza, pickup window, Mark ready, Confirm handoff. Not Friday stock, not C26-CUS. |
 
 Skipped Playwright specs are not passes. Green unit tests and RPC helpers are supporting evidence only.
 
@@ -57,7 +58,7 @@ Product sources are in [`docs/product/`](../../product/).
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
 | P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700` RPCs are on this branch and on qa-journeys, not production |
 | P0-06 fixture harness | SQL + auth users applied. Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
-| P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, and C12-DIFF pay-at-door are real journeys. |
+| P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, and C26-OP pickup handoff are real journeys. |
 | P1-01 isolated capacity proof | Verified in test environment: 200 HTTP callers, exactly 12 wins, zero oversell. See `qa-evidence/P1-01/` |
 | P2-01 type catalog | ~120 searchable types; `custom` outside; accent-fold search; handyman ES `mantenimiento del hogar` |
 | P2-04 Sales | Combined read: orders + bookings/reservations/registrations without manufacturing orders |
@@ -67,7 +68,7 @@ Product sources are in [`docs/product/`](../../product/).
 | P6 multi-resource | `reserve_resource_set` RPC preferred; TS unwind remains fallback. qa-journeys gist + RPC EXCEPTION now deletes earlier holds on `slot_taken`. |
 | P7 C39 | `drawdown_lesson_package` RPC; attendance hop admission → order → booking → package |
 | P8 hybrids | Unchanged. Production reserve stays `createPurchase` holds/capacity |
-| W-AUDIT | Isolation unit coverage in. Browser paths: C06 restaurant paths; C01-CUS deposit requested (not collected); C09 class paths + C09-DIFF last-seat sold-out; C02-CUS last-resource + couples set; C02-DIFF; C12-CUS $0 ticket; C12-OP door Admit; C12-DIFF pay-at-door cash settle. |
+| W-AUDIT | Isolation unit coverage in. Browser paths: C06 restaurant paths; C01-CUS deposit requested (not collected); C09 class paths + C09-DIFF last-seat sold-out; C02-CUS last-resource + couples set; C02-DIFF; C12-CUS $0 ticket; C12-OP door Admit; C12-DIFF pay-at-door cash settle; C26-OP pickup handoff. |
 | P9 | Parked. Do not start |
 
 ## Task order (this cycle)
@@ -96,7 +97,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, and C12-DIFF pay-at-door cash settle are recorded. Next: Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, or remaining representatives (C08, C13, C24, C26, C27, C31). Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door cash settle, and C26-OP pickup handoff are recorded. Next: Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, or remaining representatives (C08, C13, C24, C27, C31). Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 
