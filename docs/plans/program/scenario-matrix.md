@@ -44,7 +44,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C08 | C08-TAL | Modelling or talent agency | not started | `qa-evidence/C08-TAL/` |
 | C08 | C08-DIFF | Modelling or talent agency | not started | `qa-evidence/C08-DIFF/` |
 | C08 | C08-REC | Modelling or talent agency | not started | `qa-evidence/C08-REC/` |
-| C09 | C09-CUS | Yoga or fitness studio | not started | `qa-evidence/C09-CUS/` |
+| C09 | C09-CUS | Yoga or fitness studio | implementing — storefront session_picker class register | `qa-evidence/C09-CUS/class-register.md` |
 | C09 | C09-OP | Yoga or fitness studio | implementing — POS walk-in complimentary class | `qa-evidence/C09-OP/walk-in-class.md` |
 | C09 | C09-TAL | Yoga or fitness studio | not started | `qa-evidence/C09-TAL/` |
 | C09 | C09-DIFF | Yoga or fitness studio | not started | `qa-evidence/C09-DIFF/` |

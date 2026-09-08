@@ -20,7 +20,7 @@ P2-04, P3-05, P6-04
 - **Basic:** Publishes a recurring class and sells places.
 - **Complete:** Walk-in buys at the door against the same pool; free place is not overdue.
 
-Overall status: implementing — C09-OP walk-in complimentary place proven on POS ($0 paid, not overdue). Guest website register and attendance not run. Case not verified.
+Overall status: implementing — C09-CUS website register and C09-OP walk-in complimentary place proven ($0 paid, not overdue). Attendance, recurring publish, and sold-out door not run. Case not verified.
 
 ## Scenarios
 
@@ -36,10 +36,10 @@ Overall status: implementing — C09-OP walk-in complimentary place proven on PO
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | DST collision is visible to the operator. |
 | Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C09-CUS/` |
+| Evidence | `qa-evidence/C09-CUS/class-register.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — storefront session_picker Morning class proven; attendance not run |
 
 ### C09-OP — Operator journey
 
