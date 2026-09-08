@@ -1,7 +1,7 @@
 # C08-OP — Staff assigns talent and drafts offer
 
 **Status:** verified in test environment (qa-journeys Next UI + isolated DB)  
-**When:** 2026-09-08T23:08Z  
+**When:** 2026-09-08T23:10Z  
 **Target:** `fxlankepwnvelxjrahwk` via `http://qa-journeys.local:3103`. Never production.  
 **Command:** `JOURNEYS_FIXTURE_READY=1 PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://qa-journeys.local:3103 npx playwright test e2e/cases/C08-modelling-or-talent-agency.spec.ts -g "C08-OP assign" --project=chromium`
 
@@ -15,11 +15,11 @@ This automated run does **not** tick a human QA row.
 
 | Check | Value |
 |---|---|
-| Playwright UI | Lineup add + Start drafting offer reached; receipt toast **Offer draft created** |
-| Inquiry | `aa52afee-a67f-4d02-8ac1-fc82bcf0d06a` — coordination |
-| Contact | Cora Cuevas / `c08-op-1788908798848@impronta.test` |
+| Playwright | 1 passed, chromium desktop, 25.1s |
+| Inquiry | `1cfb9b13-4f9a-4906-8ce0-23ad72c88ab9` — coordination |
+| Contact | Cora Cuevas / `c08-op-1788908872796@impronta.test` |
 | Talent | `33330003-0000-4000-8000-000000000001` — invited |
-| Offer | `d9c3f0e4-f263-4df2-80f6-cdab8c5c6b36` — draft / USD |
+| Offer | `691ca0ad-ecf4-412c-a33e-6c1b9ffe301c` — draft / USD |
 
 ## Not claimed
 
