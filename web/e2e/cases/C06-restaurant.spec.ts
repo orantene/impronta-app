@@ -12,7 +12,7 @@ import {
   signInJourneysStaff,
   assertWorkspaceIdentity,
 } from "./_harness";
-import { latestPaidPosPizza } from "./_isolated-db";
+import { latestMenuPizza, latestPaidPosPizza } from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -22,6 +22,50 @@ test.beforeEach(async ({ page }) => {
 
 test("C06-CUS smoke: storefront body is reachable — not a journey pass", async ({ page }) => {
   await openStorefront(page);
+});
+
+test("C06-CUS public menu: House pizza on storefront → send → Sales and DB agree", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const marker = `c06-cus-${Date.now()}@impronta.test`;
+
+  await openStorefront(page);
+  await expect(page.getByText("House pizza").first()).toBeVisible();
+  await expect(page.getByText("Menu items are not published yet.")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Increase House pizza" }).click();
+  await expect(page.getByText(/in your order/i)).toBeVisible();
+
+  await page.getByLabel(/^name$/i).fill("C06 guest");
+  await page.getByLabel(/^email$/i).fill(marker);
+  await page.getByLabel(/^phone$/i).fill("55501006");
+  await page.getByRole("button", { name: /order now|send order/i }).click();
+  await expect(page.getByRole("status")).toContainText(/order sent/i, { timeout: 30_000 });
+
+  await page.reload();
+  await expect(page.getByText("House pizza").first()).toBeVisible();
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("menu").first()).toBeVisible();
+  await expect(page.getByText("$18.00").first()).toBeVisible();
+
+  const persisted = await latestMenuPizza(marker);
+  expect(persisted, "menu pizza order must exist on qa-journeys").not.toBeNull();
+  expect(persisted?.status).toBe("pending_payment");
+  expect(persisted?.totalCents).toBe(1800);
+  expect(persisted?.sourceChannel).toBe("menu");
+  expect(persisted?.customerEmail).toBe(marker);
+  expect(persisted?.lineLabel?.toLowerCase()).toContain("house pizza");
+  expect(persisted?.bookingId, "pay-in-person menu order needs a money-spine booking").toBeTruthy();
+
+  await page.screenshot({
+    path: testInfo.outputPath("c06-cus-sales.png"),
+    fullPage: true,
+  });
 });
 
 test("C06-OP smoke: operator Sales heading is reachable — not a journey pass", async ({ page }) => {

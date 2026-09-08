@@ -132,13 +132,17 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now();
 
 INSERT INTO public.talent_offerings (
   id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
-  booking_mode, status, visibility, moderation_state
+  booking_mode, allow_pay_in_person, status, visibility, moderation_state
 )
 VALUES
-  ('33330012-0000-4000-8000-000000000001'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Gel manicure', 5000, 'USD', 'instant', 'published', 'public', 'approved'),
-  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', 'published', 'public', 'approved'),
-  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', 'published', 'public', 'approved')
-ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, amount_cents = EXCLUDED.amount_cents, updated_at = now();
+  ('33330012-0000-4000-8000-000000000001'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Gel manicure', 5000, 'USD', 'instant', TRUE, 'published', 'public', 'approved'),
+  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', TRUE, 'published', 'public', 'approved'),
+  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', TRUE, 'published', 'public', 'approved')
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  amount_cents = EXCLUDED.amount_cents,
+  allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  updated_at = now();
 
 INSERT INTO public.sessions (id, tenant_id, offering_id, title, starts_at, ends_at, status)
 VALUES (

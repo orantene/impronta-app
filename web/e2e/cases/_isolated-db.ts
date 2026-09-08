@@ -29,6 +29,10 @@ export type PaidPosPizza = {
   lineLabel: string | null;
 };
 
+export type MenuPizzaOrder = PaidPosPizza & {
+  bookingId: string | null;
+};
+
 export async function latestPaidPosPizza(email: string): Promise<PaidPosPizza | null> {
   const admin = isolatedService();
   const { data: customer, error: customerErr } = await admin
@@ -67,5 +71,54 @@ export async function latestPaidPosPizza(email: string): Promise<PaidPosPizza | 
     sourceChannel: order.source_channel,
     customerEmail: (customer.email as string | null) ?? null,
     lineLabel: (line?.label as string | null) ?? null,
+  };
+}
+
+export async function latestMenuPizza(email: string): Promise<MenuPizzaOrder | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, source_channel, customer_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "menu")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("label, total_cents")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+
+  const { data: booking, error: bookingErr } = await admin
+    .from("agency_bookings")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (bookingErr) throw new Error(bookingErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    totalCents: Number(order.total_cents),
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    lineLabel: (line?.label as string | null) ?? null,
+    bookingId: (booking?.id as string | null) ?? null,
   };
 }

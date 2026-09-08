@@ -138,6 +138,23 @@ try {
     console.log("[repair-order-id] orders.guest_session_id + nullable customer_id on qa-journeys only");
   }
 
+  const { rows: offeringPolicies } = await client.query(
+    `SELECT polname FROM pg_policy
+      WHERE polrelid = 'public.talent_offerings'::regclass
+        AND polname = 'talent_offerings_public_read'`,
+  );
+  if (offeringPolicies.length === 0) {
+    await client.query(`
+      CREATE POLICY talent_offerings_public_read ON public.talent_offerings
+        FOR SELECT USING (
+          status = 'published'
+          AND visibility IN ('public','on_request')
+          AND moderation_state = 'approved'
+        )
+    `);
+    console.log("[repair-order-id] talent_offerings_public_read on qa-journeys only");
+  }
+
   await client.query(`NOTIFY pgrst, 'reload schema'`);
 } finally {
   await client.end();
