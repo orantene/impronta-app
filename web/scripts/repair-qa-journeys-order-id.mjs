@@ -214,6 +214,10 @@ try {
     await client.query(`ALTER TABLE public.talent_profiles ADD COLUMN booking_terms jsonb`);
     console.log("[repair-order-id] talent_profiles.booking_terms on qa-journeys only");
   }
+  if (!(await hasColumn("talent_profiles", "claimed_at"))) {
+    await client.query(`ALTER TABLE public.talent_profiles ADD COLUMN claimed_at timestamptz`);
+    console.log("[repair-order-id] talent_profiles.claimed_at on qa-journeys only");
+  }
   if (!(await hasColumn("agencies", "plan_tier"))) {
     await client.query(`ALTER TABLE public.agencies ADD COLUMN plan_tier text`);
     console.log("[repair-order-id] agencies.plan_tier on qa-journeys only");

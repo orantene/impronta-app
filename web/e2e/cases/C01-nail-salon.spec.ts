@@ -44,9 +44,8 @@ test("C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB a
   await expect(slot).toBeVisible({ timeout: 30_000 });
   await slot.click();
 
-  const contact = page.locator("[data-guest-instant-contact]");
-  await contact.locator("input[type=text]").fill("C01 guest");
-  await contact.locator("input[type=email]").fill(marker);
+  await page.getByRole("textbox", { name: /your name/i }).fill("C01 guest");
+  await page.getByRole("textbox", { name: /your email/i }).fill(marker);
   await page.getByRole("button", { name: /confirm this time/i }).click();
 
   await expect(page).toHaveURL(/checkout\/(success|cancel)|checkout\.stripe\.com/i, {
@@ -57,7 +56,10 @@ test("C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB a
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText(/gel manicure/i).first()).toBeVisible();
+  await expect(page.getByText("instant_book").first()).toBeVisible();
+  await expect(page.getByText(/still owed/i).first()).toBeVisible();
+  await expect(page.getByText("pending_payment").first()).toBeVisible();
+  await expect(page.getByText("$50.00").first()).toBeVisible();
 
   const persisted = await latestGelManicureDeposit(marker);
   expect(persisted, "gel manicure deposit order must exist on qa-journeys").not.toBeNull();

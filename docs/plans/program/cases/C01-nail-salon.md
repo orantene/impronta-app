@@ -20,7 +20,7 @@ P2-01, P3-04, P6-01, P6-02
 - **Basic:** Books a technician and takes a deposit.
 - **Complete:** Bridal group of four holds four technicians and four stations atomically.
 
-Overall status: not started — engine: `reserveResourceSet` holds technicians + stations atomically (P6-01/02). Browser journey not run.
+Overall status: implementing — C01-CUS books a technician and opens a 50% deposit Checkout on qa-journeys. Isolated env has no Stripe secret, so the charge is not collected. Bridal set and balance collect still open. Case not verified.
 
 ## Scenarios
 
@@ -35,11 +35,11 @@ Overall status: not started — engine: `reserveResourceSet` holds technicians +
 | Expected visible | Journey completes without a dead end. |
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | Deposit paid but hold expired — compensation, no silent paid-no-seat. |
-| Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C01-CUS/` |
+| Automated or manual | Playwright on qa-journeys `/book` |
+| Evidence | `qa-evidence/C01-CUS/deposit.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — technician booked and deposit requested (2500/5000); card not collected |
 
 ### C01-OP — Operator journey
 

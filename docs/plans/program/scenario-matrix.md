@@ -4,7 +4,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 
 | Case | Scenario | Title | Status | Evidence |
 |---|---|---|---|---|
-| C01 | C01-CUS | Nail salon | not started | `qa-evidence/C01-CUS/` |
+| C01 | C01-CUS | Nail salon | implementing — deposit requested, not collected | `qa-evidence/C01-CUS/deposit.md` |
 | C01 | C01-OP | Nail salon | not started | `qa-evidence/C01-OP/` |
 | C01 | C01-TAL | Nail salon | not started | `qa-evidence/C01-TAL/` |
 | C01 | C01-DIFF | Nail salon | not started | `qa-evidence/C01-DIFF/` |

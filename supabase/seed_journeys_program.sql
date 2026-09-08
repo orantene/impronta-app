@@ -139,7 +139,8 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now();
 
 INSERT INTO public.talent_profiles (
   id, profile_code, display_name, created_by_agency_id,
-  profile_kind, booking_terms, visibility, workflow_status, is_test_account
+  profile_kind, booking_terms, visibility, workflow_status, is_test_account,
+  claimed_at
 )
 VALUES (
   '33330003-0000-4000-8000-000000000001'::UUID,
@@ -150,12 +151,14 @@ VALUES (
   '{"directBookingOptIn": true}'::jsonb,
   'public',
   'published',
-  TRUE)
+  TRUE,
+  now()
 )
 ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   booking_terms = EXCLUDED.booking_terms,
   profile_kind = EXCLUDED.profile_kind,
+  claimed_at = COALESCE(public.talent_profiles.claimed_at, EXCLUDED.claimed_at),
   updated_at = now();
 
 INSERT INTO public.agency_talent_roster (
