@@ -25,4 +25,4 @@ App fix on this branch: zero-total collect attaches the supplied contact before 
 
 ## Not claimed
 
-This is not C09-CUS (guest register is `qa-evidence/C09-CUS/class-register.md`). This is not C09-OP attendance. Recurring publish, sold-out door collect, and C09-DIFF / REC are not started. Case count stays **0 / 48**.
+This is not C09-CUS (guest register is `qa-evidence/C09-CUS/class-register.md`). C09-DIFF last-seat sold-out is a separate record (`qa-evidence/C09-DIFF/same-pool-sold-out.md`). This is not C09-OP attendance. Recurring publish and REC are not started. Case count stays **0 / 48**.

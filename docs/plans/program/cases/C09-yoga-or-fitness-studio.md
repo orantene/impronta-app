@@ -20,7 +20,7 @@ P2-04, P3-05, P6-04
 - **Basic:** Publishes a recurring class and sells places.
 - **Complete:** Walk-in buys at the door against the same pool; free place is not overdue.
 
-Overall status: implementing — C09-CUS website register and C09-OP walk-in complimentary place proven ($0 paid, not overdue). Attendance, recurring publish, and sold-out door not run. Case not verified.
+Overall status: implementing — C09-CUS website register, C09-OP walk-in complimentary place, and C09-DIFF last-seat sold-out proven. Attendance, recurring publish, and REC not run. Case not verified.
 
 ## Scenarios
 
@@ -72,7 +72,9 @@ Overall status: implementing — C09-CUS website register and C09-OP walk-in com
 | Steps | Walk-in consumes the same pool. |
 | Expected persisted | All committed resources held together; competing request cannot take any. |
 | Blocks completion | Partial reserve, leaked hold, oversell |
-| Disposition | not started |
+| Automated or manual | Playwright on qa-journeys storefront then `/admin/pos` |
+| Evidence | `qa-evidence/C09-DIFF/same-pool-sold-out.md` |
+| Disposition | implementing — website takes the 1-unit Last place pool; POS Collect cash refuses; attendance not run |
 
 ### C09-REC — Recovery
 

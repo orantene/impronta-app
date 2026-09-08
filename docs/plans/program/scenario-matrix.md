@@ -47,7 +47,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C09 | C09-CUS | Yoga or fitness studio | implementing — storefront session_picker class register | `qa-evidence/C09-CUS/class-register.md` |
 | C09 | C09-OP | Yoga or fitness studio | implementing — POS walk-in complimentary class | `qa-evidence/C09-OP/walk-in-class.md` |
 | C09 | C09-TAL | Yoga or fitness studio | not started | `qa-evidence/C09-TAL/` |
-| C09 | C09-DIFF | Yoga or fitness studio | not started | `qa-evidence/C09-DIFF/` |
+| C09 | C09-DIFF | Yoga or fitness studio | implementing — last-seat sold-out walk-in | `qa-evidence/C09-DIFF/same-pool-sold-out.md` |
 | C09 | C09-REC | Yoga or fitness studio | not started | `qa-evidence/C09-REC/` |
 | C10 | C10-CUS | Photography studio | not started | `qa-evidence/C10-CUS/` |
 | C10 | C10-OP | Photography studio | not started | `qa-evidence/C10-OP/` |

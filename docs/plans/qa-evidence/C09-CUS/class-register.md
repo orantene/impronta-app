@@ -25,4 +25,4 @@ The restaurant-orderable fallback nests `session_picker` with an empty `offering
 
 ## Not claimed
 
-This is not C09-OP walk-in (that is POS). This is not attendance. Recurring publish, sold-out door, and C09-DIFF / REC are not started. Case count stays **0 / 48**.
+This is not C09-OP walk-in (that is POS). C09-DIFF last-seat sold-out is a separate record (`qa-evidence/C09-DIFF/same-pool-sold-out.md`). This is not attendance. Recurring publish and REC are not started. Case count stays **0 / 48**.
