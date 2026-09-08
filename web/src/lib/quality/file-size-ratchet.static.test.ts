@@ -313,7 +313,8 @@ const BUDGETS: Record<string, number> = {
   //   +2 Sessions "Schedule" — PAGE_META entry + WORKSPACE_PAGES nav entry
   //   +1 Events — PAGE_META entry (no WORKSPACE_PAGES line; its rail door is deferred)
   // Number finalized against the consolidated tree's wc -l.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5155,
+  // +1 POS "New sale" — PAGE_META entry required by Record<WorkspacePage>.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5156,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -368,7 +369,8 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website Analytics page (W2): +1 for the Spanish entry of the
   // new "Analytics" sub-nav label — ES_TEXT is keyed by the English literal,
   // so it cannot live beside the nav item.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3536,
+  // +5 POS PAGE_META copy.t strings (New sale + description).
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3541,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -450,7 +452,8 @@ const BUDGETS: Record<string, number> = {
   // and the note recording why a bare completeness percentage was replaced by
   // the unmet requirement labels ("Still needs: a bio, 1 language") drawn from
   // the same gate the Publish button enforces.
-  "src/components/admin/shell/internal/state/types.ts": 2882,
+  // +2 POS — WorkspacePage union member `pos` (P3 New Sale).
+  "src/components/admin/shell/internal/state/types.ts": 2884,
   "src/components/admin/shell/admin-shell-client.tsx": 2430,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type

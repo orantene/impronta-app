@@ -249,6 +249,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   orders:    { label: "Orders",    icon: "credit",      description: "Every order taken, and what is still owed on each" },
   sales:     { label: "Sales",     icon: "credit",      description: "Bookings, orders, appointments and registrations in one list" },
   discounts: { label: "Discounts", icon: "tag",         description: "Promo codes this workspace owns" },
+  pos:       { label: "New sale",  icon: "credit",      description: "Open a walk-in sale, add items, and collect" },
   reservations: { label: "Reservations", icon: "calendar", description: "The host stand: today's book, arrivals, and who is still unseated" },
   events:    { label: "Events",    icon: "calendar",    description: "Ticketed events: tiers, lineup, sales, and the door" },
   payouts:   { label: "Payouts",   icon: "credit-card", description: "Stripe Connect payout onboarding and base reservation fee" },

@@ -21,6 +21,8 @@ test("resolveWorkspaceAdminPage maps legacy route aliases", () => {
 test("resolveWorkspaceAdminPage maps canonical server-rendered routes", () => {
   // /admin/financials — business financials page (L46)
   assert.equal(resolveWorkspaceAdminPage("financials"), "financials");
+  assert.equal(resolveWorkspaceAdminPage("pos"), "pos");
+  assert.equal(resolveWorkspaceAdminPage("sales"), "sales");
   // /admin/roster/applications — layout strips to first segment "roster";
   // the "roster" entry already covers this sub-route.
   assert.equal(resolveWorkspaceAdminPage("roster"), "roster");

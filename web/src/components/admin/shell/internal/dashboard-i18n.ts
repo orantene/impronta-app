@@ -125,8 +125,10 @@ const ES_TEXT: Record<string, string> = {
   // PAGE_META entries the palette + rail tooltips render via copy.t
   "Sales": "Ventas",
   "Discounts": "Descuentos",
+  "New sale": "Nueva venta",
   "Bookings, orders, appointments and registrations in one list": "Reservas, pedidos, citas e inscripciones en una lista",
   "Promo codes this workspace owns": "Códigos promocionales de este espacio",
+  "Open a walk-in sale, add items, and collect": "Abre una venta de mostrador, agrega artículos y cobra",
   "Financials": "Finanzas",
   "Payouts": "Pagos",
   "Revenue, payouts, commissions, and payment status": "Ingresos, pagos, comisiones y estado de pago",

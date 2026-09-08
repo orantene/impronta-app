@@ -23,9 +23,15 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P1-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SessionsPage already lists collisions; static test enrolled. |
 | P2-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Authorized types from 48 cases + 20 presets. Target remains 120. |
 | P2-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | theme-layers.ts. Roster not hidden because solo. |
-| P2-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Nine destinations. POS/tables/preparation unbuilt. |
+| P2-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Nine destinations. `pos` built in P3; tables/preparation still unbuilt. |
 | P2-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Sales reads existing orders. |
 | P2-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Discounts over `tenant_promo_codes`. |
+| P3-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Command module. Line mutation does not purchase; promo only on reprice. |
+| P3-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | `/admin/pos` counter. Walk-in draft without customer; collect refuses without contact. |
+| P3-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Same shell sells appointment offerings as lines. Bridal group / dual resource is P6. |
+| P3-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | `sessionId` on addLine for walk-in class places. Capacity reserve still on reprice/collection of the purchase engine, not line edits. |
+| P4-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Collection interface + Stripe adapter at Checkout boundary. Cash via settle. Terminal unavailable. |
+| P4-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:34Z | cursor/journeys-program-c4d3 | Mercado Pago discovery from live MX docs. No credentials. Adapter not implemented. |
 
 ## Case matrix (overall)
 

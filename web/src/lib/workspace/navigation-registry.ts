@@ -27,7 +27,7 @@ export type NavDestination = {
 export const NAV_REGISTRY: Readonly<Record<NavDestinationId, NavDestination>> = {
   sales: { id: "sales", path: "sales", existingPage: "orders", built: true },
   discounts: { id: "discounts", path: "discounts", existingPage: null, built: true },
-  pos: { id: "pos", path: null, existingPage: null, built: false },
+  pos: { id: "pos", path: "pos", existingPage: null, built: true },
   today: { id: "today", path: "calendar", existingPage: "calendar", built: true },
   tables: { id: "tables", path: null, existingPage: null, built: false },
   preparation: { id: "preparation", path: null, existingPage: null, built: false },
@@ -43,8 +43,8 @@ export function navPath(id: NavDestinationId, tenantSlug: string): string | null
 }
 
 export function operatorNav(kind: "salon" | "restaurant" | "event" | "independent"): NavDestinationId[] {
-  if (kind === "salon") return ["today", "sales", "receipts"];
+  if (kind === "salon") return ["today", "pos", "sales", "receipts"];
   if (kind === "restaurant") return ["tables", "sales", "catalog", "preparation"];
-  if (kind === "event") return ["admissions", "sales", "receipts"];
-  return ["today", "sales", "receipts"];
+  if (kind === "event") return ["admissions", "pos", "receipts"];
+  return ["today", "pos", "receipts"];
 }

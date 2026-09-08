@@ -9,5 +9,8 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Pay-at-door hold, then settle cash on the Door screen. | P1-05 collection, allocation and admission stay separate. | Settle missing; paid with no admission; duplicate collection. |
 | On a paid order, pick effect "cancel one ticket" and confirm. | P1-06 states the effect before money moves. | Refund with no named effect; seat not released; duplicate refund. |
 | Confirm Sessions lists DST collisions in the operator UI. | P1-07 is not log-only. | Collision only in `improntaLog`. |
+| Open `/admin/pos`, start a New Sale, add a catalog item, try Collect cash with no email/phone. | P3 walk-in draft + no_contact at collect. | Draft missing; collect succeeds without a named buyer; `createPurchase` per add. |
+| Same sale: enter email, Collect cash. | Cash recorded as a method on the existing order. | Second order created; Stripe session opened for cash. |
+| Collect card on a named sale. | Online Checkout at the existing Stripe boundary. | Direct Charge on a connected account; Terminal used. |
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the seed is applied, those rows stay `BLOCKED: fixture harness not applied`.

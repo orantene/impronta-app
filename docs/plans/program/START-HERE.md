@@ -10,7 +10,7 @@
 
 Every documented case study functions end to end: customer, operator, applicable talent, difficult combination, money/capacity/fulfilment consistency, recovery. QA is a standing workstream (W-AUDIT), not a gate.
 
-Sequence: **P0**, then **P1 ∥ P2**, then P3 ∥ P4, then P5, then P6 ∥ P7, then P8. P9 stays outstanding. This file tracks P0–P2.
+This file tracks P0–P4. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4** (this checkpoint), then P5.
 
 ## Missing dependency
 
@@ -35,13 +35,15 @@ Sequence: **P0**, then **P1 ∥ P2**, then P3 ∥ P4, then P5, then P6 ∥ P7, t
 | P1-06 refund effects + Orders desk | Implemented and wired. Awaiting focused verification |
 | P1-07 DST collisions operator list | Existing Sessions list proven by static test |
 | P2-01…P2-05 type / layers / nav / Sales / Discounts | Implemented on authorized types (~50 of 120). Remaining IDs wait on product docs |
+| P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. Preparation command returns not-built (P5). |
+| P4 collection interface + Stripe adapter + MP discovery | Implemented, awaiting focused verification. Terminal unavailable until Point. |
 | W-AUDIT | Standing — continues with every project |
 
 ## Task order (this cycle)
 
 1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md).  
 2. P0-01 / P1-01 / `db:check` stay awaiting external. Never mark them passed.  
-3. Next unblocked after this checkpoint: P3 ∥ P4 only when P0–P2 ledger rows are not blocked. Until then, W-AUDIT and remaining verification.
+3. Next unblocked after this checkpoint: **P5 restaurant engine** only after P3's command boundary exists (it does). P3-04/P3-05 journeys reuse the same POS shell; multi-resource and kitchen routing stay P6/P5.
 
 ## Test commands
 
@@ -67,11 +69,11 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`. Echo the real exit code
 
 ## Next action
 
-Take the next unblocked task in [`ledger.md`](ledger.md). Do not write a new plan.
+Take the next unblocked task in [`ledger.md`](ledger.md): **P5** (restaurant checks, preparation, takeaway, table QR) now that P3's command boundary exists. Do not write a new plan.
 
 ## Owner claim
 
 One owner at a time. Stale-claim recovery: if the claim is older than 6 hours and the session is gone, the next session takes the next unblocked task and records the takeover.
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T06:03Z
+**Claimed:** 2026-09-08T06:34Z
