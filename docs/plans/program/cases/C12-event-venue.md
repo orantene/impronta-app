@@ -20,7 +20,7 @@ P1-04, P1-05, P6-02, P7-05, P2-04
 - **Basic:** Sells tickets to a public event.
 - **Complete:** Private hire invoiced to organiser; performer paid; second layout cannot invent capacity.
 
-Overall status: not started — engine: admissions mint on paid + promo identity on POS reprice. Browser journey not run.
+Overall status: not started — engine: admissions mint on paid + promo identity on POS reprice. qa-journeys now has `events` + `sessions.event_id` + ticket variant columns (MCP DDL, not git). No fixture event or ticket_picker mount. Browser journey not run.
 
 ## Scenarios
 

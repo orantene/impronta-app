@@ -35,7 +35,7 @@ This file tracks P0–P8. P9 stays parked.
 
 ## Missing dependency
 
-Isolated preview `qa-journeys` (`fxlankepwnvelxjrahwk`) answers SQL. Historical replay finished (763 files). Cheap-repair recorded some versions without function bodies; `reserve_capacity` / `upsert_capacity_pool` / `reserve_capacity_batch`, `reserve_resource_set` (hold-only sets), POS money-spine columns, appointment hours, `booking_transactions`, `btree_gist` / `talent_holds_firm_no_overlap` / expire reaper, and `reserve_resource_set` EXCEPTION unwind were repaired on **qa-journeys only** via MCP DDL. **Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or these repairs to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint.
+Isolated preview `qa-journeys` (`fxlankepwnvelxjrahwk`) answers SQL. Historical replay finished (763 files). Cheap-repair recorded some versions without function bodies; `reserve_capacity` / `upsert_capacity_pool` / `reserve_capacity_batch`, `reserve_resource_set` (hold-only sets), POS money-spine columns, appointment hours, `booking_transactions`, `btree_gist` / `talent_holds_firm_no_overlap` / expire reaper, `reserve_resource_set` EXCEPTION unwind, `public.events` (plus `sessions.event_id` and ticket columns on `talent_offering_variants`) were repaired on **qa-journeys only** via MCP DDL. **Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or these repairs to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint and `events`. No C12 fixture or ticket-picker journey yet.
 
 SQL fixture is applied: two workspaces (`3333…3333` / `3333…3334`), hosts `qa-journeys.local` / `qa-journeys-b.local`, venue + table/room, Gel / pizza / class / reservation plus Therapist B, Massage, Couples (T1+T2+Room A), morning session, 12-place `session_tier` pool, Room A 1-unit `space` pool. Five auth users + owner/viewer/B-owner memberships + two talent profiles + customer row exist on that branch.
 
@@ -68,7 +68,7 @@ Product sources are in [`docs/product/`](../../product/).
 
 ## Task order (this cycle)
 
-1. Continue browser journeys on qa-journeys: C01 paid deposit (needs Stripe test keys), C12 (`events` missing), C02-OP / TAL / REC, then ten representatives, then 38 deltas. C06 DIFF / complete restaurant path (QR, courses, split) still open. C09 attendance / sold-out / DIFF still open.  
+1. Continue browser journeys on qa-journeys: C01 paid deposit (needs Stripe test keys), C12 (events table now exists on qa-journeys; still needs fixture + ticket_picker mount), C02-OP / TAL / REC, then ten representatives, then 38 deltas. C06 DIFF / complete restaurant path (QR, courses, split) still open. C09 attendance / sold-out / DIFF still open.  
 2. Keep `JOURNEYS_FIXTURE_READY=1` in the gitignored isolated env only.  
 3. P9 stays parked.
 
@@ -92,7 +92,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, C02-CUS last-resource + couples set, and C02-DIFF competitor-after-couples are recorded. Next: Stripe test deposit collect, C12 (`events` table still missing on cheap-repair), C02-OP assign (Calendar New booking does not pick therapist + room), or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, C02-CUS last-resource + couples set, and C02-DIFF competitor-after-couples are recorded. Next: Stripe test deposit collect, C12 (seed event + ticket_picker; `events` / `sessions.event_id` / variant ticket columns now exist on qa-journeys only), C02-OP assign (Calendar New booking does not pick therapist + room), or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 
