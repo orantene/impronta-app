@@ -36,6 +36,8 @@ export type VisitRow = {
   version: number;
   openedAt: string | null;
   closedAt: string | null;
+  /** C07: a bar tab is occupancy that is not a table check. */
+  serviceKind: "table" | "tab";
 };
 
 export type OpenVisitResult =
@@ -52,6 +54,7 @@ export async function openVisit(
     tenantId: string;
     spaceId: string;
     actorUserId: string;
+    serviceKind?: "table" | "tab";
   },
 ): Promise<OpenVisitResult> {
   if (!input.tenantId || !input.spaceId) {
@@ -89,6 +92,7 @@ export async function openVisit(
     return { ok: false, reason: "already_open", error: "This table already has an open visit." };
   }
 
+  const serviceKind = input.serviceKind === "tab" ? "tab" : "table";
   const publicToken = generateOpaqueCode();
   const now = new Date().toISOString();
   try {
@@ -102,8 +106,9 @@ export async function openVisit(
         version: 1,
         opened_at: now,
         opened_by: input.actorUserId,
+        service_kind: serviceKind,
       })
-      .select("id, tenant_id, space_id, public_token, status, version, opened_at, closed_at")
+      .select("id, tenant_id, space_id, public_token, status, version, opened_at, closed_at, service_kind")
       .single();
     if (error || !visit) {
       if (error && (error as { code?: string }).code === "23505") {
@@ -121,11 +126,12 @@ export async function openVisit(
       version: number;
       opened_at: string | null;
       closed_at: string | null;
+      service_kind?: string | null;
     };
     const drafted = await createDraftOrder(admin, {
       tenantId: input.tenantId,
       actorUserId: input.actorUserId,
-      context: `table:${input.spaceId}`,
+      context: serviceKind === "tab" ? `tab:${input.spaceId}` : `table:${input.spaceId}`,
       visitId: row.id,
       spaceId: input.spaceId,
     });
@@ -142,6 +148,13 @@ export async function openVisit(
     logServerError("visits.openVisit", error);
     return { ok: false, reason: "unavailable", error: "Could not open the table." };
   }
+}
+
+export async function openTab(
+  admin: Admin,
+  input: { tenantId: string; spaceId: string; actorUserId: string },
+): Promise<OpenVisitResult> {
+  return openVisit(admin, { ...input, serviceKind: "tab" });
 }
 
 export type CloseVisitResult =
@@ -320,6 +333,7 @@ function mapVisit(row: {
   version: number;
   opened_at: string | null;
   closed_at: string | null;
+  service_kind?: string | null;
 }): VisitRow {
   return {
     id: row.id,
@@ -330,5 +344,6 @@ function mapVisit(row: {
     version: row.version,
     openedAt: row.opened_at,
     closedAt: row.closed_at,
+    serviceKind: row.service_kind === "tab" ? "tab" : "table",
   };
 }

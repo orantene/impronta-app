@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ticket_picker — the guest buys a ticket (E5 step 4, CARD ONLY).
+ * ticket_picker — the guest buys a ticket (E5 step 4, card or pay-at-door).
  *
  * THE ONE RULE: this block never renders a buy control it cannot complete.
  * It shows exactly one of a WORKING purchase (a scheduled night, a tier on

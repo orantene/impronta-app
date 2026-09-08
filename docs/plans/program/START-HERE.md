@@ -24,30 +24,26 @@ This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P0-02 START-HERE / ledger / decisions / defects | Implemented, awaiting focused verification |
 | P0-03 48 case files | Implemented, awaiting focused verification (authorized matrix; check against verbatim docs when they land) |
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56 |
-| P0-05 db:check + stale docs | Instruction docs updated. `db:check` awaiting external verification (no `.env.local`) |
-| P0-06 fixture harness | Script + SQL + contract written. Apply awaiting credentials |
-| P0-07 Playwright tablet/mobile + case scaffold | Implemented. Journeys skip until `JOURNEYS_FIXTURE_READY=1` |
-| P1-01 isolated capacity proof | Awaiting external verification. Script now refuses without `CAPACITY_PROOF_ISOLATED=1` |
-| P1-02 paid-order-with-no-seat compensation | Implemented, awaiting focused verification |
-| P1-03 expire-orders runner + cron + heartbeat | Implemented, awaiting focused verification |
-| P1-04 guest promo input | Implemented, awaiting focused verification |
-| P1-05 door settle | Implemented and wired on the Door screen. Awaiting focused verification |
-| P1-06 refund effects + Orders desk | Implemented and wired. Awaiting focused verification |
-| P1-07 DST collisions operator list | Existing Sessions list proven by static test |
-| P2-01…P2-05 type / layers / nav / Sales / Discounts | Implemented on authorized types (~50 of 120). Remaining IDs wait on product docs |
+| P0-05 db:check + stale docs | Instruction docs updated. Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. |
+| P0-06 fixture harness | Script + SQL + contract written. Apply still needs an isolated prospect tenant (`DATABASE_URL`). Do not seed Impronta live. |
+| P0-07 Playwright tablet/mobile + case scaffold | Implemented. All 48 case spec files exist; they skip until `JOURNEYS_FIXTURE_READY=1`. |
+| P1-01 isolated capacity proof | Awaiting owner. No isolated branch. Never production. |
+| P2-01…P2-05 type / layers / nav / Sales / Discounts | Implemented on authorized types (~50 of 120). Remaining IDs wait on product docs (P0-01). |
 | P3 POS shell + command boundary + `/admin/pos` | Implemented, awaiting focused verification. `submitToPreparation` writes tickets (P5). Collect holds the class's `session_tier` pool (same as the guest picker) without `createPurchase`. Upcoming scheduled classes on the counter are this tenant's. |
-| P4 collection interface + Stripe adapter + MP discovery | Implemented, awaiting focused verification. Terminal unavailable until Point. |
-| P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
-| P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
-| P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
-| P8 hybrids | Implemented, awaiting focused verification. Package component cancel, supervised set, tournament courts (cafe omitted), breakouts, live recording, exclusive kitchen/hire, retreat days + add-on, grooming vs event rooms. |
-| W-AUDIT | Standing — tenant check on capacity pool IDs (purchase path refuses before RPC). Isolation: POS, visits (token/QR/floor), hybrid cancel, prep, shifts. Collect holds class places before money; cancel releases them. Continues. |
+| P4 collection interface + Stripe adapter + MP Point adapter | Stripe Checkout + cash. Mercado Pago Point adapter maps Orders API; without credentials `terminalAvailability` is `point_not_landed`. Live charges wait on owner credentials. |
+| P5 restaurant engine | Implemented (visits including bar `tab` vs table, prep, ready notify, split allocations, shift cash-up). Remote schema applied. |
+| P6 multi-resource | Implemented. Awaiting focused verification. |
+| P7 service-business states | Implemented plus C37 gallery selection and C39 lesson-package drawdown. Awaiting focused verification. |
+| P8 hybrids | Implemented. Production reserve stays `createPurchase` `holds[]`/`capacity[]`. |
+| W-AUDIT | Standing. Isolation tests in. Browser/provider proof waits on fixture. D-007 closed. |
+| P9 | Parked. Separate outstanding milestone. Do not start. |
 
 ## Task order (this cycle)
 
-1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md).  
-2. P0-01 / P1-01 / `db:check` stay awaiting external. Never mark them passed.  
-3. P8-01 is in. Next unblocked: **W-AUDIT** (standing) and **P9** (separate outstanding milestone). Do not write a new plan.
+1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md). Do not rebuild P0–P8 engines.  
+2. P0-01 / P1-01 / fixture apply stay owner-blocked. Never mark them passed without evidence.  
+3. P9 stays parked. Owner-queued credentials (MP live, Stripe refund events, Meta/TikTok, MX/SPF, Sentry, real-card) stay parked.  
+4. Next unblocked: W-AUDIT browser once `JOURNEYS_FIXTURE_READY=1`.
 
 ## Test commands
 
@@ -68,17 +64,17 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`. Echo the real exit code
 
 - Product source documents not in this workspace (P0-01).  
 - No isolated database for concurrency proof (P1-01) — awaiting owner. Do not run against production.  
-- `db:check` / `db:push` need credentials (P0-05 remote half).  
-- Fixture apply needs `DATABASE_URL` (P0-06).  
-- Vercel preview is red until `npm run db:push`: `prebuild` runs `check-migrations-applied`, and GitHub admin-boot skips that script (`npx next build`). First fail was `6d43677cb` (visits migration). Do not set `SKIP_MIGRATION_DRIFT_CHECK`. 
+- Fixture apply needs `DATABASE_URL` on an isolated prospect tenant (P0-06). Do not seed Impronta live.  
+- Browser journeys skip until `JOURNEYS_FIXTURE_READY=1`.  
+- Mercado Pago live charges wait on merchant credentials. 
 
 ## Next action
 
-Take the next unblocked task in [`ledger.md`](ledger.md): **W-AUDIT** / **P9**. Do not write a new plan.
+Take the next unblocked task in [`ledger.md`](ledger.md): **W-AUDIT** browser after fixture apply. Do not start P9. Do not write a new plan.
 
 ## Owner claim
 
 One owner at a time. Stale-claim recovery: if the claim is older than 6 hours and the session is gone, the next session takes the next unblocked task and records the takeover.
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T12:15Z
+**Claimed:** 2026-09-08T13:30Z

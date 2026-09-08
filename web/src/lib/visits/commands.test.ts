@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { closeVisit, moveVisitToSpace, openVisit } from "./commands";
+import { closeVisit, moveVisitToSpace, openTab, openVisit } from "./commands";
 import { loadOpenVisitByToken, resolveOpenVisitForSpace } from "./qr";
 import { listFloor } from "./floor";
 import { addLine } from "@/lib/pos/draft";
@@ -321,4 +321,23 @@ test("guest visit page looks up public_token, not space_id", () => {
   const page = readFileSync(join(process.cwd(), "src/app/visit/[token]/page.tsx"), "utf8");
   assert.match(page, /loadOpenVisitByToken/);
   assert.doesNotMatch(page, /eq\("space_id"/);
+});
+
+test("a bar tab is occupancy distinct from a table check", async () => {
+  const store = makeStore();
+  seedSpace(store);
+  seedSpace(store, { id: "bar-rail", name: "Bar", code: "bar", kind: "bar" });
+  const tab = await openTab(fakeAdmin(store), { tenantId: "t1", spaceId: "bar-rail", actorUserId: "u1" });
+  assert.equal(tab.ok, true);
+  if (!tab.ok) return;
+  assert.equal(tab.visit.serviceKind, "tab");
+  assert.equal(store.visits[0].service_kind, "tab");
+  const table = await openVisit(fakeAdmin(store), {
+    tenantId: "t1",
+    spaceId: "space-t7",
+    actorUserId: "u1",
+  });
+  assert.equal(table.ok, true);
+  if (!table.ok) return;
+  assert.equal(table.visit.serviceKind, "table");
 });

@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * The guest ticket picker — public server actions (E5 step 1, CARD ONLY).
+ * The guest ticket picker — public server actions (E5 step 1, card or pay-at-door).
  *
  * Mirrors `_sessions/session-picker-actions.ts`: every input parses through a
  * zod schema whose ids are `uuid()`, so an empty or malformed id is refused

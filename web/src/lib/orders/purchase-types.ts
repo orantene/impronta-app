@@ -143,6 +143,8 @@ export type PurchaseRefusalReason =
   | "promo_not_applicable"
   /** The promo READ failed. A retry, not a verdict on the code. */
   | "promo_unavailable"
+  /** C34: a provisional talent profile cannot take money until claimed. */
+  | "unclaimed_seller"
   | "engine_error";
 
 export type PurchaseResult =

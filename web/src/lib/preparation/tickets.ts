@@ -10,6 +10,7 @@ import "server-only";
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyTicketReady } from "@/lib/preparation/notify-ready";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -254,6 +255,7 @@ export async function markTicketReady(
     logServerError("prep.ready", error);
     return { ok: false, reason: "unavailable", error: "Could not mark ready." };
   }
+  void notifyTicketReady(admin, input);
   return { ok: true, ticketId: input.ticketId };
 }
 

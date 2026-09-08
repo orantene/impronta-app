@@ -24,6 +24,7 @@ import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
+import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -144,6 +145,11 @@ export async function createPurchase(
 
     const catalog = await loadCatalog(admin, offeringIds);
     if (!catalog.ok) return { ok: false, reason: "engine_error", error: catalog.error };
+
+    const seller = await refuseUnclaimedSellers(admin, catalog);
+    if (!seller.ok) {
+      return { ok: false, reason: seller.reason, offeringId: seller.offeringId, error: seller.error };
+    }
 
     // ── 2. Re-validate intent against the derived policy. THE gate.
     const policy = resolvePurchasePolicy(
