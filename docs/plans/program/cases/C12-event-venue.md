@@ -20,7 +20,7 @@ P1-04, P1-05, P6-02, P7-05, P2-04
 - **Basic:** Sells tickets to a public event.
 - **Complete:** Private hire invoiced to organiser; performer paid; second layout cannot invent capacity.
 
-Overall status: not started — engine: admissions mint on paid + promo identity on POS reprice. qa-journeys now has `events` + `sessions.event_id` + ticket variant columns (MCP DDL, not git). No fixture event or ticket_picker mount. Browser journey not run.
+Overall status: implementing — C12-CUS $0 night ticket on `/events/qa-night` proven. Card ticket, door check-in, promo, sold-out, private-hire not run. Case not verified.
 
 ## Scenarios
 
@@ -35,11 +35,11 @@ Overall status: not started — engine: admissions mint on paid + promo identity
 | Expected visible | Journey completes without a dead end. |
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | Paid with no seat compensates. |
-| Automated or manual | Playwright when fixture exists; until then not started |
-| Evidence | `qa-evidence/C12-CUS/` |
+| Automated or manual | Playwright on qa-journeys `/events/qa-night` |
+| Evidence | `qa-evidence/C12-CUS/ticket.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | not started |
+| Disposition | implementing — $0 ticket + admission + committed seat; card and door not run |
 
 ### C12-OP — Operator journey
 

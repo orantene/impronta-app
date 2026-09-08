@@ -59,7 +59,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C11 | C11-TAL | Beach club | not started | `qa-evidence/C11-TAL/` |
 | C11 | C11-DIFF | Beach club | not started | `qa-evidence/C11-DIFF/` |
 | C11 | C11-REC | Beach club | not started | `qa-evidence/C11-REC/` |
-| C12 | C12-CUS | Event venue | not started | `qa-evidence/C12-CUS/` |
+| C12 | C12-CUS | Event venue | implementing — $0 ticket + admission | `qa-evidence/C12-CUS/ticket.md` |
 | C12 | C12-OP | Event venue | not started | `qa-evidence/C12-OP/` |
 | C12 | C12-TAL | Event venue | not started | `qa-evidence/C12-TAL/` |
 | C12 | C12-DIFF | Event venue | not started | `qa-evidence/C12-DIFF/` |
