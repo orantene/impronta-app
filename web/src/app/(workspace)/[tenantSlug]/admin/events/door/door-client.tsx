@@ -330,6 +330,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
       <div
         role="status"
         aria-live="assertive"
+        data-door-verdict=""
         className={`rounded-xl px-4 py-5 text-center text-lg font-semibold ${toneClass}`}
       >
         {lastLabel ? lastLabel.text : "Ready"}

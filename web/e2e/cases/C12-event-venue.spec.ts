@@ -117,7 +117,7 @@ test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }
   const admit = row.getByRole("button", { name: /^admit$/i });
   await expect(admit).toBeEnabled({ timeout: 20_000 });
   await admit.click();
-  const verdict = page.locator("[aria-live=assertive]");
+  const verdict = page.locator("[data-door-verdict]");
   await expect(verdict).toHaveText(/^In$/i, { timeout: 30_000 });
 
   await page.reload();
