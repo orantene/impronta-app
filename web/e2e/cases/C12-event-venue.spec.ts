@@ -107,13 +107,18 @@ test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/qa night/i);
   await expect(page.getByText(/could not load the door/i)).toHaveCount(0);
+  await expect(page.getByText(/loading the door/i)).toHaveCount(0, { timeout: 20_000 });
+  await page.keyboard.press("Escape");
 
   await page.getByPlaceholder(/find by name/i).fill(guestName);
   const row = page.locator("li").filter({ hasText: guestName });
   await expect(row).toBeVisible({ timeout: 20_000 });
   await expect(row.getByText(/not yet/i)).toBeVisible();
-  await row.getByRole("button", { name: /^admit$/i }).click();
-  await expect(page.getByRole("status")).toHaveText(/^In$/i, { timeout: 20_000 });
+  const admit = row.getByRole("button", { name: /^admit$/i });
+  await expect(admit).toBeEnabled({ timeout: 20_000 });
+  await admit.click();
+  const verdict = page.locator("[aria-live=assertive]");
+  await expect(verdict).toHaveText(/^In$/i, { timeout: 30_000 });
 
   await page.reload();
   await expect(page.getByText(/could not load the door/i)).toHaveCount(0);
