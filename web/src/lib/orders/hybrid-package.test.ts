@@ -146,3 +146,43 @@ test("a cafe sale and a room booking do not share a capacity pool", () => {
   assert.equal(remainingUnits(room, [cafeSale], window), 1);
   assert.equal(remainingUnits(cafe, [cafeSale], window), 38);
 });
+
+test("cancelling retreat day three leaves day one, day two and the massage standing", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "ord", tenant_id: "ten", status: "paid" });
+  store.order_lines.push(
+    { id: "day-1", order_id: "ord", total_cents: 20000, refunded_cents: 0 },
+    { id: "day-2", order_id: "ord", total_cents: 20000, refunded_cents: 0 },
+    { id: "day-3", order_id: "ord", total_cents: 20000, refunded_cents: 0 },
+    { id: "massage", order_id: "ord", total_cents: 8000, refunded_cents: 0 },
+  );
+  store.capacity_allocations.push(
+    { id: "a-d1", tenant_id: "ten", order_line_id: "day-1", released_at: null },
+    { id: "a-d2", tenant_id: "ten", order_line_id: "day-2", released_at: null },
+    { id: "a-d3", tenant_id: "ten", order_line_id: "day-3", released_at: null },
+    { id: "a-m", tenant_id: "ten", order_line_id: "massage", released_at: null },
+  );
+  const released: string[] = [];
+  const result = await cancelHybridComponents(
+    fakeAdmin(store),
+    { tenantId: "ten", orderId: "ord", lineIds: ["day-3"] },
+    {
+      refundLines: async () => ({
+        ok: true,
+        refundedCents: 20000,
+        refundIds: ["r1"],
+        admissionsStamped: 0,
+        admissionsIncomplete: false,
+        releasedPromoRedemption: false,
+      }),
+      release: async (ids) => {
+        released.push(...ids);
+        return { ok: true, released: ids.length, alreadyReleased: 0 };
+      },
+    },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(released, ["a-d3"]);
+  assert.deepEqual(result.standingLineIds.sort(), ["day-1", "day-2", "massage"]);
+});

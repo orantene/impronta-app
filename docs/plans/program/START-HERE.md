@@ -40,14 +40,14 @@ This file tracks P0–P8. Sequence: **P0**, then **P1 ∥ P2**, then **P3 ∥ P4
 | P5 restaurant engine | Implemented (visits, prep, split allocations, shift cash-up on POS). Apply of `20261230000200` + `20261230000300` awaiting credentials. |
 | P6 multi-resource | Implemented (atomic person+station set, space pools, travel buffers, attendance ≠ payment, cross-workspace client privacy). Awaiting focused verification. Apply of `20261230000400` awaiting credentials. Structural CI green on `a3c81529b`. |
 | P7 service-business states | Implemented (deliverables + revision limit + passthrough budget, recurring skip-without-ending, service-area fit, quote versions, departure manifest, appointment phases). Awaiting focused verification. |
-| P8 hybrids | Implementing. Component cancel + supervised service + tournament courts (cafe omitted) + breakout rooms + live recording. Remaining: kitchen/pop-up, gallery triple-use of one room, retreat per-day add-ons. |
+| P8 hybrids | Implemented, awaiting focused verification. Package component cancel, supervised set, tournament courts (cafe omitted), breakouts, live recording, exclusive kitchen/hire, retreat days + add-on, grooming vs event rooms. |
 | W-AUDIT | Standing — continues with every project |
 
 ## Task order (this cycle)
 
 1. Keep executing the 20 tasks in [`PLAN.md`](PLAN.md).  
 2. P0-01 / P1-01 / `db:check` stay awaiting external. Never mark them passed.  
-3. Next: finish **P8** hybrid packages (partial component cancel is in; remaining combinations still to wire). Do not write a new plan.
+3. P8-01 is in. Next unblocked: **W-AUDIT** (standing) and **P9** (separate outstanding milestone). Do not write a new plan.
 
 ## Test commands
 
@@ -74,7 +74,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`. Echo the real exit code
 
 ## Next action
 
-Take the next unblocked task in [`ledger.md`](ledger.md): **P8-01** remaining combinations. Do not write a new plan.
+Take the next unblocked task in [`ledger.md`](ledger.md): **W-AUDIT** / **P9**. Do not write a new plan.
 
 ## Owner claim
 

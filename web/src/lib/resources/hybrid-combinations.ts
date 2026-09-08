@@ -9,6 +9,9 @@
  *   • Tournament window — every court (space pool), never the cafe offering.
  *   • Breakout rooms — N rooms in one set; a taken room writes nothing.
  *   • Live recording — room + engineer + audience seats.
+ *   • Exclusive space window — catering holds the kitchen so a pop-up cannot.
+ *   • Retreat stay — each day's place plus optional per-day add-ons; an add-on
+ *     attached later does not consume another retreat place.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -236,6 +239,145 @@ export async function reserveLiveRecording(
         { poolId: input.roomPoolId, units: 1, startsAt: input.startsAt, endsAt: input.endsAt },
         { poolId: input.audiencePoolId, units: seats, startsAt: input.startsAt, endsAt: input.endsAt },
       ],
+    },
+    deps,
+  );
+}
+
+export type RetreatDay = {
+  startsAt: string;
+  endsAt: string;
+  placePoolId: string;
+  addOns?: ReadonlyArray<{ poolId: string; units?: number; talentId?: string }>;
+};
+
+/** Private catering, pop-up dinner, private hire: one unit of one space for the window. */
+export async function reserveExclusiveSpace(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    actorUserId?: string | null;
+    ttlSeconds?: number | null;
+    spacePoolId: string;
+    startsAt: string;
+    endsAt: string;
+  },
+  deps?: ReserveResourceSetDeps,
+): Promise<ReserveResourceSetResult> {
+  if (!input.spacePoolId) {
+    return {
+      ok: false,
+      reason: "invalid",
+      error: "Pick the room or kitchen.",
+      failedPoolId: null,
+      failedTalentId: null,
+    };
+  }
+  return reserveResourceSet(
+    admin,
+    {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      ttlSeconds: input.ttlSeconds,
+      capacity: [{ poolId: input.spacePoolId, units: 1, startsAt: input.startsAt, endsAt: input.endsAt }],
+    },
+    deps,
+  );
+}
+
+/**
+ * Multi-day retreat place. Days flatten into one set so a sold-out later day
+ * does not leave earlier days held. Per-day add-ons (massage) ride the same
+ * set when sold with the stay.
+ */
+export async function reserveRetreatStay(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    actorUserId?: string | null;
+    ttlSeconds?: number | null;
+    days: readonly RetreatDay[];
+  },
+  deps?: ReserveResourceSetDeps,
+): Promise<ReserveResourceSetResult> {
+  if (input.days.length === 0) {
+    return {
+      ok: false,
+      reason: "invalid",
+      error: "A retreat needs at least one day.",
+      failedPoolId: null,
+      failedTalentId: null,
+    };
+  }
+  const holds = input.days.flatMap((day) =>
+    (day.addOns ?? [])
+      .filter((a) => a.talentId)
+      .map((a) => ({
+        talentProfileId: a.talentId as string,
+        startsAt: day.startsAt,
+        endsAt: day.endsAt,
+        title: "Retreat add-on",
+      })),
+  );
+  const capacity = input.days.flatMap((day) => [
+    { poolId: day.placePoolId, units: 1, startsAt: day.startsAt, endsAt: day.endsAt },
+    ...(day.addOns ?? []).map((a) => ({
+      poolId: a.poolId,
+      units: a.units ?? 1,
+      startsAt: day.startsAt,
+      endsAt: day.endsAt,
+    })),
+  ]);
+  return reserveResourceSet(
+    admin,
+    {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      ttlSeconds: input.ttlSeconds,
+      holds,
+      capacity,
+    },
+    deps,
+  );
+}
+
+/**
+ * Optional treatment on an existing retreat. Holds only the add-on, never
+ * another retreat place, so day-two massage availability is its own pool.
+ */
+export async function reserveRetreatAddOn(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    actorUserId?: string | null;
+    ttlSeconds?: number | null;
+    startsAt: string;
+    endsAt: string;
+    poolId: string;
+    talentId?: string;
+    units?: number;
+  },
+  deps?: ReserveResourceSetDeps,
+): Promise<ReserveResourceSetResult> {
+  if (!input.poolId) {
+    return {
+      ok: false,
+      reason: "invalid",
+      error: "Pick the treatment.",
+      failedPoolId: null,
+      failedTalentId: null,
+    };
+  }
+  return reserveResourceSet(
+    admin,
+    {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      ttlSeconds: input.ttlSeconds,
+      holds: input.talentId
+        ? [{ talentProfileId: input.talentId, startsAt: input.startsAt, endsAt: input.endsAt, title: "Retreat add-on" }]
+        : [],
+      capacity: [{ poolId: input.poolId, units: input.units ?? 1, startsAt: input.startsAt, endsAt: input.endsAt }],
     },
     deps,
   );

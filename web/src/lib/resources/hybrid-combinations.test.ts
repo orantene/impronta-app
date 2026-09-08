@@ -5,7 +5,10 @@ import type { CapacityAllocation, CapacityPool } from "@/lib/capacity/types";
 import {
   listSpacePoolIds,
   reserveBreakoutRooms,
+  reserveExclusiveSpace,
   reserveLiveRecording,
+  reserveRetreatAddOn,
+  reserveRetreatStay,
   reserveSupervisedService,
   reserveTournamentWindow,
 } from "./hybrid-combinations";
@@ -259,3 +262,118 @@ test("a live recording without an engineer writes nothing", async () => {
   assert.equal(r.ok, false);
   assert.equal(reserved, 0);
 });
+
+test("private catering holds the kitchen so a pop-up the same evening is sold out", async () => {
+  const pools: string[] = [];
+  const first = await reserveExclusiveSpace(
+    ADMIN,
+    { tenantId: "t1", spacePoolId: "kitchen-1", startsAt: START, endsAt: END },
+    {
+      ...noopRelease,
+      reserveCapacityBatch: async (reqs) => {
+        pools.push(...reqs.map((q) => q.poolId));
+        return passCapacity(reqs);
+      },
+      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
+    },
+  );
+  assert.equal(first.ok, true);
+  const second = await reserveExclusiveSpace(
+    ADMIN,
+    { tenantId: "t1", spacePoolId: "kitchen-1", startsAt: START, endsAt: END },
+    {
+      ...noopRelease,
+      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "kitchen-1" }),
+      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
+    },
+  );
+  assert.equal(second.ok, false);
+  if (!second.ok) assert.equal(second.failedPoolId, "kitchen-1");
+  assert.deepEqual(pools, ["kitchen-1"]);
+});
+
+test("a retreat stay holds each day's place; a sold-out later day writes nothing", async () => {
+  const released: string[] = [];
+  const r = await reserveRetreatStay(
+    ADMIN,
+    {
+      tenantId: "t1",
+      days: [
+        { startsAt: "2026-09-08T08:00:00.000Z", endsAt: "2026-09-08T20:00:00.000Z", placePoolId: "retreat" },
+        { startsAt: "2026-09-09T08:00:00.000Z", endsAt: "2026-09-09T20:00:00.000Z", placePoolId: "retreat" },
+        { startsAt: "2026-09-10T08:00:00.000Z", endsAt: "2026-09-10T20:00:00.000Z", placePoolId: "retreat" },
+      ],
+    },
+    {
+      ...noopRelease,
+      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "retreat" }),
+      releaseCapacity: async (ids) => {
+        released.push(...ids);
+        return { ok: true, released: ids.length, alreadyReleased: 0 };
+      },
+      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
+    },
+  );
+  assert.equal(r.ok, false);
+  assert.equal(released.length, 0);
+});
+
+test("adding a massage on day two does not consume another retreat place", async () => {
+  const pools: Array<{ poolId: string; units?: number }> = [];
+  const placed: string[] = [];
+  const r = await reserveRetreatAddOn(
+    ADMIN,
+    {
+      tenantId: "t1",
+      startsAt: "2026-09-09T14:00:00.000Z",
+      endsAt: "2026-09-09T15:00:00.000Z",
+      poolId: "massage-room",
+      talentId: "therapist-1",
+    },
+    {
+      ...noopRelease,
+      reserveCapacityBatch: async (reqs) => {
+        pools.push(...reqs.map((q) => ({ poolId: q.poolId, units: q.units })));
+        return passCapacity(reqs);
+      },
+      placeHold: async (_a, input) => {
+        placed.push(input.talentProfileId);
+        return passHold(_a, input);
+      },
+    },
+  );
+  assert.equal(r.ok, true);
+  assert.deepEqual(pools, [{ poolId: "massage-room", units: 1 }]);
+  assert.ok(!pools.some((p) => p.poolId === "retreat"));
+  assert.deepEqual(placed, ["therapist-1"]);
+});
+
+test("an adoption event in hall A does not consume the grooming room", () => {
+  const grooming: CapacityPool = {
+    id: "groom",
+    tenantId: "t1",
+    subjectKind: "space",
+    subjectId: "groom-1",
+    poolKey: "default",
+    parentPoolId: null,
+    poolPath: ["groom"],
+    unitsTotal: 1,
+    overbookUnits: 0,
+    holdTtlSeconds: 900,
+    unitLabel: null,
+    isActive: true,
+  };
+  const event: CapacityAllocation = {
+    id: "adopt",
+    poolId: "hall",
+    poolPath: ["hall"],
+    orderLineId: "event-line",
+    units: 1,
+    state: "committed",
+    startsAt: START,
+    endsAt: END,
+    expiresAt: null,
+  };
+  assert.equal(remainingUnits(grooming, [event], { startsAt: START, endsAt: END }), 1);
+});
+

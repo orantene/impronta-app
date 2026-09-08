@@ -51,7 +51,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P7-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Agreed change inserts a new `inquiry_offers` version. Accepted quote is not rewritten. |
 | P7-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Departure = session + admissions manifest. Vehicle cap via capacity remaining. Performer fee ≠ admission. |
 | P7-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Appointment phases flatten into one `reserveResourceSet`. Sold-out later phase writes no earlier hold. |
-| P8-01 | cloud-safe | implementing | cloud-agent | 2026-09-08T08:30Z | cursor/journeys-program-c4d3 | Component cancel; supervised student+supervisor+station; tournament space pools omit cafe; breakouts all-or-nothing; live recording room+engineer+seats. Kitchen/gallery/retreat add-ons still open. |
+| P8-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T08:30Z | cursor/journeys-program-c4d3 | Component cancel; supervised set; tournament omits cafe; breakouts; live recording; exclusive kitchen; retreat days + add-on (cancel day 3 leaves massage); grooming vs event rooms. |
 
 ## Case matrix (overall)
 
