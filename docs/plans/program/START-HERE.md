@@ -15,7 +15,8 @@
 | Isolated schema + SQL fixture on `qa-journeys` | **Yes** — seed applied; staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
 | C06-OP walk-in cash | **Pass** on qa-journeys UI + DB. Evidence: `docs/plans/qa-evidence/C06-OP/walk-in-cash.md`. Not QR / courses / split. |
-| C06-CUS public menu | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/public-menu.md`. Not a reservation. |
+| C06-CUS public menu | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/public-menu.md`. |
+| C06-CUS table reservation | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/reservation.md`. Not one combined reserve-then-order visit. |
 
 Skipped Playwright specs are not passes. Green unit tests and RPC helpers are supporting evidence only.
 
@@ -55,12 +56,12 @@ Product sources are in [`docs/product/`](../../product/).
 | P6 multi-resource | `reserve_resource_set` RPC preferred; TS unwind remains fallback |
 | P7 C39 | `drawdown_lesson_package` RPC; attendance hop admission → order → booking → package |
 | P8 hybrids | Unchanged. Production reserve stays `createPurchase` holds/capacity |
-| W-AUDIT | Isolation unit coverage in. Browser paths: C06-OP walk-in cash; C06-CUS public menu. |
+| W-AUDIT | Isolation unit coverage in. Browser paths: C06-OP walk-in cash; C06-CUS public menu; C06-CUS table reservation. |
 | P9 | Parked. Do not start |
 
 ## Task order (this cycle)
 
-1. Continue browser journeys on qa-journeys: C06 reservation / DIFF / complete restaurant path, then C01, C12, C02, then ten representatives, then 38 deltas.  
+1. Continue browser journeys on qa-journeys: C01, C12, C02, then ten representatives, then 38 deltas. C06 DIFF / complete restaurant path still open.  
 2. Keep `JOURNEYS_FIXTURE_READY=1` in the gitignored isolated env only.  
 3. P9 stays parked.
 
@@ -84,7 +85,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06-OP walk-in cash and C06-CUS public menu are recorded. Next: C06 reservation (`reserve_table` + venue service config) or C01/C12/C02 on the real UI against qa-journeys. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+C06-OP walk-in cash, C06-CUS public menu, and C06-CUS table reservation are recorded as separate paths. Next: C01 / C12 / C02, or one guest who reserves then orders. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 

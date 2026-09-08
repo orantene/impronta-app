@@ -85,9 +85,7 @@ test("C06-CUS reservation: storefront reserve_table → hold → Sales and DB ag
   await expect(board.getByText(/this restaurant is not taking bookings/i)).toHaveCount(0);
   await expect(board.getByText(/checking the book/i)).toHaveCount(0, { timeout: 20_000 });
 
-  const slotButtons = board.getByRole("button").filter({
-    hasNotText: /fewer people|more people|today|pick a time|reserve|ask first/i,
-  });
+  const slotButtons = board.getByRole("button", { name: /^\d{1,2}:\d{2}/ });
   await expect(slotButtons.first()).toBeVisible({ timeout: 20_000 });
   await slotButtons.first().click();
 
