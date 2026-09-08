@@ -309,6 +309,64 @@ export async function reserveResourceSet(
     };
   }
 
+  if (typeof admin.rpc === "function") {
+    const { data, error } = await admin.rpc("reserve_resource_set", {
+      p_tenant_id: input.tenantId,
+      p_actor_id: input.actorUserId ?? null,
+      p_ttl_seconds: input.ttlSeconds ?? null,
+      p_capacity: capacity.map((c) => ({
+        pool_id: c.poolId,
+        units: c.units,
+        starts_at: c.startsAt ?? null,
+        ends_at: c.endsAt ?? null,
+        order_line_id: c.orderLineId ?? null,
+        ttl_seconds: c.ttlSeconds ?? null,
+      })),
+      p_holds: holds.map((h) => ({
+        talent_profile_id: h.talentProfileId,
+        starts_at: h.startsAt,
+        ends_at: h.endsAt,
+        title: h.title ?? null,
+        inquiry_id: h.inquiryId ?? null,
+        buffer_before_seconds: h.bufferBeforeSeconds ?? 0,
+        buffer_after_seconds: h.bufferAfterSeconds ?? 0,
+      })),
+    });
+    if (!error) {
+      const reply = (data ?? {}) as {
+        ok?: boolean;
+        reason?: string;
+        hold_ids?: string[];
+        allocation_ids?: string[];
+        expires_at?: string | null;
+        failed_pool_id?: string | null;
+        failed_talent_id?: string | null;
+      };
+      if (reply.ok === true) {
+        return {
+          ok: true,
+          holdIds: reply.hold_ids ?? [],
+          allocationIds: reply.allocation_ids ?? [],
+          expiresAt: reply.expires_at ?? null,
+        };
+      }
+      if (reply.reason && reply.reason !== "unavailable") {
+        return {
+          ok: false,
+          reason: reply.reason as ReserveResourceSetReason,
+          error:
+            reply.reason === "sold_out" || reply.reason === "slot_taken"
+              ? "That resource is not free."
+              : "Could not hold those resources.",
+          failedPoolId: reply.failed_pool_id ?? null,
+          failedTalentId: reply.failed_talent_id ?? null,
+        };
+      }
+    } else {
+      logServerError("resources.reserveSet.rpc", error);
+    }
+  }
+
   const resolved = {
     reserveCapacityBatch: deps.reserveCapacityBatch ?? reserveCapacityBatch,
     releaseCapacity: deps.releaseCapacity ?? releaseCapacity,

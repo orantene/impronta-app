@@ -35,6 +35,7 @@ export type FloorTable = {
   orderId: string | null;
   orderTotalCents: number;
   remainingMinSpendCents: number;
+  serviceKind: "table" | "tab";
 };
 
 export async function listFloor(
@@ -55,7 +56,7 @@ export async function listFloor(
 
   const { data: visits, error: visitError } = await admin
     .from("visits")
-    .select("id, space_id, public_token, version")
+    .select("id, space_id, public_token, version, service_kind")
     .eq("tenant_id", tenantId)
     .eq("status", "open");
   if (visitError) {
@@ -63,9 +64,14 @@ export async function listFloor(
     return { ok: false, reason: "unavailable" };
   }
 
-  const visitBySpace = new Map<string, { id: string; public_token: string; version: number }>();
-  for (const v of (visits ?? []) as Array<{ id: string; space_id: string; public_token: string; version: number }>) {
-    visitBySpace.set(v.space_id, { id: v.id, public_token: v.public_token, version: v.version });
+  const visitBySpace = new Map<string, { id: string; public_token: string; version: number; service_kind: string | null }>();
+  for (const v of (visits ?? []) as Array<{ id: string; space_id: string; public_token: string; version: number; service_kind?: string | null }>) {
+    visitBySpace.set(v.space_id, {
+      id: v.id,
+      public_token: v.public_token,
+      version: v.version,
+      service_kind: v.service_kind ?? "table",
+    });
   }
 
   const visitIds = [...visitBySpace.values()].map((v) => v.id);
@@ -108,6 +114,7 @@ export async function listFloor(
       orderId: order?.id ?? null,
       orderTotalCents: orderTotal,
       remainingMinSpendCents: Math.max(0, minSpend - orderTotal),
+      serviceKind: visit?.service_kind === "tab" ? "tab" : "table",
     };
   });
 

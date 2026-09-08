@@ -39,7 +39,9 @@ function fake(store: { lesson_packages: Row[] }) {
         return api;
       },
       maybeSingle: async () => {
+        const before = match();
         apply();
+        if (mode === "update") return { data: before[0] ?? null, error: null };
         return { data: match()[0] ?? null, error: null };
       },
       single: async () => {
@@ -73,4 +75,59 @@ test("a ten-lesson package decrements; unused remaining is the refundable balanc
   if (foreign.ok) return;
   assert.equal(foreign.reason, "wrong_tenant");
   assert.equal(store.lesson_packages[0].remaining_units, 9);
+});
+
+test("the last package unit cannot be consumed twice", async () => {
+  const store = { lesson_packages: [] as Row[] };
+  const created = await createLessonPackage(fake(store), { tenantId: "t1", bookingId: "b1", units: 1 });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const first = await drawdownLesson(fake(store), {
+    tenantId: "t1",
+    packageId: created.pack.id,
+    consumptionKey: "adm-1",
+  });
+  assert.equal(first.ok, true);
+  const second = await drawdownLesson(fake(store), {
+    tenantId: "t1",
+    packageId: created.pack.id,
+    consumptionKey: "adm-2",
+  });
+  assert.equal(second.ok, false);
+  if (second.ok) return;
+  assert.equal(second.reason, "exhausted");
+  assert.equal(store.lesson_packages[0].remaining_units, 0);
+});
+
+test("duplicate attendance replay does not consume a second unit via RPC", async () => {
+  const store = { remaining: 3, consumed: new Set<string>() };
+  const admin = {
+    from: () => {
+      throw new Error("TS path must not run when RPC exists");
+    },
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      assert.equal(fn, "drawdown_lesson_package");
+      const key = String(args.p_reference_key);
+      if (store.consumed.has(key)) {
+        return { data: { ok: true, already: true, remaining_units: store.remaining, original_units: 3 }, error: null };
+      }
+      if (store.remaining < 1) {
+        return { data: { ok: false, reason: "exhausted" }, error: null };
+      }
+      store.consumed.add(key);
+      store.remaining -= 1;
+      return { data: { ok: true, already: false, remaining_units: store.remaining, original_units: 3 }, error: null };
+    },
+  };
+  const first = await drawdownLesson(admin, { tenantId: "t1", packageId: "pkg-1", consumptionKey: "adm-1" });
+  const replay = await drawdownLesson(admin, { tenantId: "t1", packageId: "pkg-1", consumptionKey: "adm-1" });
+  const other = await drawdownLesson(admin, { tenantId: "t1", packageId: "pkg-1", consumptionKey: "adm-2" });
+  assert.equal(first.ok, true);
+  assert.equal(replay.ok, true);
+  if (!first.ok || !replay.ok) return;
+  assert.equal(first.already, false);
+  assert.equal(replay.already, true);
+  assert.equal(other.ok, true);
+  assert.equal(store.remaining, 1);
+  assert.equal(store.consumed.size, 2);
 });

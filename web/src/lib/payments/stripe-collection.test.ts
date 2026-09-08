@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { stripeCollectionAdapter } from "./stripe-collection";
 import { reportTerminalAvailability, stripeTerminalSupported } from "./terminal-availability";
+import { reportStripeTerminalAvailability } from "./stripe-terminal";
 
 type Call = { params: Record<string, unknown>; options?: { idempotencyKey?: string } };
 
@@ -55,7 +56,7 @@ test("cash is not opened at Stripe", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("terminal create is refused until Point lands", async () => {
+test("terminal create is refused without keys or a reader", async () => {
   const { calls, stripe } = fakeStripe();
   const adapter = stripeCollectionAdapter({ stripe });
   const out = await adapter.createPaymentRequest({ ...input, method: "terminal" });
@@ -63,12 +64,20 @@ test("terminal create is refused until Point lands", async () => {
   if (out.ok) return;
   assert.equal(out.reason, "terminal_unavailable");
   assert.equal(calls.length, 0);
-  assert.deepEqual(adapter.terminalAvailability(), { available: false, reason: "point_not_landed" });
+  assert.equal(adapter.terminalAvailability().available, false);
 });
 
-test("pilot terminal report is unavailable", () => {
-  assert.deepEqual(reportTerminalAvailability(), { available: false, reason: "point_not_landed" });
-  assert.equal(stripeTerminalSupported(), false);
+test("Stripe Terminal code exists; keys and reader are separate from Point", () => {
+  assert.equal(stripeTerminalSupported(), true);
+  assert.deepEqual(reportStripeTerminalAvailability({ secretKey: null, readerId: null }), {
+    available: false,
+    reason: "stripe_terminal_missing_keys",
+  });
+  assert.deepEqual(reportStripeTerminalAvailability({ secretKey: "sk_test", readerId: null }), {
+    available: false,
+    reason: "stripe_terminal_missing_reader",
+  });
+  assert.equal(reportTerminalAvailability().available, false);
 });
 
 test("refund without a wired Stripe refund stays on the original route", async () => {

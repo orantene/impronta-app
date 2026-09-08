@@ -95,7 +95,9 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
       order: () => api,
       limit: () => api,
       maybeSingle: async () => {
+        const before = match();
         apply();
+        if (mode === "update") return { data: before[0] ?? null, error: null };
         const rows = match();
         return { data: rows[0] ?? null, error: null };
       },
@@ -166,6 +168,9 @@ test("line mutation does not import or call createPurchase", () => {
   assert.doesNotMatch(updateFn, /promoCode/);
   assert.doesNotMatch(removeFn, /promoCode/);
   assert.match(src, /export async function repriceAndValidate/);
+  assert.match(src, /pos_mutate_draft_line/);
+  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261230000700_journeys_atomic_rpcs.sql"), "utf8");
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public.pos_mutate_draft_line/);
 });
 
 test("adding a line does not write a purchase or a discount", async () => {
@@ -216,7 +221,7 @@ test("promo attaches only on reprice, and needs a named buyer", async () => {
     {
       resolvePromo: async () => {
         promoCalls += 1;
-        return { ok: true, discountCents: 500 };
+        return { ok: true, discountCents: 500, codeId: "promo-1" };
       },
     },
   );
@@ -538,4 +543,142 @@ test("cancelling another workspace's sale writes nothing", async () => {
   assert.equal(r.reason, "wrong_tenant");
   assert.equal(released, 0);
   assert.equal(store.orders[0].status, "draft");
+});
+
+test("two operators writing the same expectedVersion conflict", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const first = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    expectedVersion: 1,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(first.ok, true);
+  const second = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    expectedVersion: 1,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(second.ok, false);
+  if (second.ok) return;
+  assert.equal(second.reason, "conflict");
+});
+
+test("pos_mutate_draft_line RPC conflict is not a silent overwrite", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  let rpcCalls = 0;
+  const admin = fakeAdmin(store) as ReturnType<typeof fakeAdmin> & {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: null }>;
+  };
+  admin.rpc = async (fn: string, args: Record<string, unknown>) => {
+    assert.equal(fn, "pos_mutate_draft_line");
+    rpcCalls += 1;
+    const order = store.orders[0];
+    if (Number(order.version) !== Number(args.p_expected_version)) {
+      return { data: { ok: false, reason: "conflict" }, error: null };
+    }
+    order.version = Number(order.version) + 1;
+    return { data: { ok: true, version: order.version }, error: null };
+  };
+  const first = await addLine(admin, {
+    tenantId: "t1",
+    orderId: created.orderId,
+    expectedVersion: 1,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(first.ok, true);
+  const second = await addLine(admin, {
+    tenantId: "t1",
+    orderId: created.orderId,
+    expectedVersion: 1,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(second.ok, false);
+  if (second.ok) return;
+  assert.equal(second.reason, "conflict");
+  assert.equal(rpcCalls, 1);
+  assert.equal(store.orders[0].version, 2);
+});
+
+test("cancelling a draft whose allocation read fails is not a successful release", async () => {
+  const store = makeStore();
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  store.order_lines.push({ id: "line-1", order_id: created.orderId, tenant_id: "t1" });
+  const admin = fakeAdmin(store);
+  const origFrom = admin.from;
+  admin.from = (table: string) => {
+    const api = origFrom(table) as Record<string, unknown> & {
+      then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => unknown;
+    };
+    if (table === "capacity_allocations") {
+      api.then = (resolve) =>
+        Promise.resolve({ data: null, error: { message: "read failed" } }).then(resolve);
+    }
+    return api;
+  };
+  let released = 0;
+  const r = await finalizeOrCancel(
+    admin,
+    { tenantId: "t1", orderId: created.orderId },
+    {
+      release: async () => {
+        released += 1;
+        return { ok: true, released: 1, alreadyReleased: 0 };
+      },
+    },
+  );
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "unavailable");
+  assert.equal(released, 0);
+});
+
+test("zero-total collect does not fabricate a charge", async () => {
+  const store = makeStore();
+  seedOffering(store, { amount_cents: 0 });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  let paidHook = 0;
+  const r = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId: created.orderId,
+      actorUserId: "u1",
+      method: "cash",
+      successUrl: "https://app.test/ok",
+      cancelUrl: "https://app.test/no",
+    },
+    {
+      holdCapacity: async () => ({ ok: true, allocationIds: [], holdIds: [], skipped: true }),
+      onOrderPaid: async () => {
+        paidHook += 1;
+      },
+    },
+  );
+  assert.equal(r.ok, true);
+  assert.equal(store.booking_transactions.length, 0);
+  assert.equal(store.orders[0].status, "paid");
+  assert.equal(paidHook, 1);
+  assert.equal(
+    store.booking_transactions.some((row) => String(row.id).includes("zero-collect")),
+    false,
+  );
 });

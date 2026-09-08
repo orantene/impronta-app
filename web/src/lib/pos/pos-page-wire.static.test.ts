@@ -27,10 +27,13 @@ test("layer 4 — the nav registry routes New Sale to pos", () => {
   assert.match(src, /pos: \{ id: "pos", path: "pos"/);
 });
 
-test("POS actions require workspace staff and view_dashboard", () => {
+test("POS actions require workspace staff and booking.payment.request", () => {
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /requireWorkspaceStaffAction/);
-  assert.match(src, /userHasCapability\("view_dashboard"/);
+  assert.match(src, /booking.payment.request/);
+  assert.match(src, /userHasCapability\(capability/);
+  assert.match(src, /staff\("booking.payment.mark_received"\)/);
+  assert.doesNotMatch(src, /view_dashboard/);
 });
 
 test("shift cash-up lives on POS, not a new destination", () => {
@@ -40,6 +43,9 @@ test("shift cash-up lives on POS, not a new destination", () => {
   assert.match(client, /posOpenShift/);
   assert.match(client, /posCloseShift/);
   assert.match(client, /amountCents/);
+  assert.match(client, /posSubmitPrep/);
+  assert.match(client, /promisedAt/);
+  assert.match(client, /prepDestination/);
   assert.doesNotMatch(client, /useEffect/);
 });
 

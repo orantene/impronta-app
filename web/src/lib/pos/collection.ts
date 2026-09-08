@@ -10,6 +10,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { settleAtDoor } from "@/lib/orders/settle-at-door";
+import { completeZeroTotalOrder, type OnOrderPaid } from "@/lib/orders/complete-order";
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
@@ -27,6 +28,8 @@ type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
 
 const COLLECTABLE = new Set(["draft", "pending_payment"]);
@@ -96,7 +99,8 @@ export type StartCollectionResult =
         | "unavailable"
         | "sold_out"
         | "terminal_unavailable"
-        | "engine_error";
+        | "engine_error"
+        | "conflict";
       error: string;
     };
 
@@ -110,6 +114,7 @@ export type StartCollectionDeps = {
   createPaymentRequest?: ReturnType<typeof stripeCollectionAdapter>["createPaymentRequest"];
   settle?: typeof settleAtDoor;
   holdCapacity?: typeof holdDraftOrderCapacity;
+  onOrderPaid?: OnOrderPaid;
 };
 
 export async function startCollection(
@@ -134,7 +139,7 @@ export async function startCollection(
 ): Promise<StartCollectionResult> {
   const { data: order, error } = await admin
     .from("orders")
-    .select("id, tenant_id, status, customer_id, currency, total_cents")
+    .select("id, tenant_id, status, customer_id, currency, total_cents, promo_code_id, discount_cents")
     .eq("id", input.orderId)
     .maybeSingle();
   if (error) {
@@ -149,6 +154,8 @@ export async function startCollection(
     customer_id: string | null;
     currency: string;
     total_cents: number;
+    promo_code_id?: string | null;
+    discount_cents?: number;
   };
   if (row.tenant_id !== input.tenantId) {
     return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
@@ -190,7 +197,8 @@ export async function startCollection(
   }
 
   let customerId = row.customer_id;
-  if (!customerId) {
+  const needsContact = row.total_cents > 0;
+  if (!customerId && needsContact) {
     const email = input.contact?.email ?? null;
     const phone = input.contact?.phone ?? null;
     if (!email && !phone) {
@@ -241,21 +249,37 @@ export async function startCollection(
     return { ok: false, reason, error: held.error };
   }
 
+  if (row.promo_code_id && customerId && typeof admin.rpc === "function") {
+    const redeemed = await admin.rpc("redeem_tenant_promo", {
+      p_code_id: row.promo_code_id,
+      p_order_id: row.id,
+      p_customer_id: customerId,
+      p_amount_cents: Math.trunc(Number(row.discount_cents ?? 0)),
+    });
+    if (redeemed.error) {
+      logServerError("pos.startCollection.redeem", redeemed.error);
+      return { ok: false, reason: "unavailable", error: "Could not redeem that code." };
+    }
+    const verdict = (redeemed.data ?? {}) as { ok?: boolean; reason?: string };
+    if (verdict.ok !== true && verdict.reason !== "already") {
+      return { ok: false, reason: "unavailable", error: "That code cannot be used on this sale." };
+    }
+  }
+
   if (row.total_cents === 0) {
-    const { error: paidErr } = await admin
-      .from("orders")
-      .update({ status: "paid" })
-      .eq("id", row.id)
-      .in("status", ["draft", "pending_payment"]);
-    if (paidErr) {
-      logServerError("pos.startCollection.zero", paidErr);
-      return { ok: false, reason: "unavailable", error: "Could not close a free sale." };
+    const done = await completeZeroTotalOrder(
+      admin as never,
+      { tenantId: input.tenantId, orderId: row.id },
+      { onOrderPaid: deps.onOrderPaid },
+    );
+    if (!done.ok) {
+      return { ok: false, reason: "unavailable", error: done.error ?? "Could not close a free sale." };
     }
     return {
       ok: true,
       method: "cash",
       orderId: row.id,
-      transactionId: "zero-collect",
+      transactionId: row.id,
       alreadySettled: false,
       amountCents: 0,
       tenderedCents: 0,
@@ -277,7 +301,7 @@ export async function startCollection(
       idempotencyKey: input.idempotencyKey ?? `pos-cash:${row.id}:${crypto.randomUUID()}`,
       shiftId,
       tenderedCents,
-    });
+    }, { onOrderPaid: deps.onOrderPaid });
     if (!settled.ok) {
       return { ok: false, reason: "unavailable", error: "Could not record the cash." };
     }
@@ -439,34 +463,79 @@ export async function recordVerifiedCollection(
 
 export type FinalizeResult =
   | { ok: true; orderId: string; status: "cancelled"; releasedAllocationIds: string[] }
-  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_open" | "unavailable"; error: string };
+  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_open" | "unavailable" | "conflict"; error: string };
 
 export async function finalizeOrCancel(
   admin: Admin,
-  input: { tenantId: string; orderId: string },
+  input: { tenantId: string; orderId: string; expectedVersion?: number },
   deps: { release?: typeof releaseCapacity } = {},
 ): Promise<FinalizeResult> {
+  if (typeof admin.rpc === "function") {
+    const { data, error } = await admin.rpc("pos_cancel_draft", {
+      p_tenant_id: input.tenantId,
+      p_order_id: input.orderId,
+      p_expected_version: input.expectedVersion ?? null,
+    });
+    if (error) {
+      logServerError("pos.finalizeOrCancel.rpc", error);
+      return { ok: false, reason: "unavailable", error: "Could not cancel the sale." };
+    }
+    const reply = (data ?? {}) as {
+      ok?: boolean;
+      reason?: string;
+      order_id?: string;
+      released_allocation_ids?: string[];
+    };
+    if (reply.ok !== true) {
+      const reason =
+        reply.reason === "not_found" ||
+        reply.reason === "wrong_tenant" ||
+        reply.reason === "not_open" ||
+        reply.reason === "conflict"
+          ? reply.reason
+          : "unavailable";
+      return { ok: false, reason, error: "Could not cancel the sale." };
+    }
+    return {
+      ok: true,
+      orderId: reply.order_id ?? input.orderId,
+      status: "cancelled",
+      releasedAllocationIds: reply.released_allocation_ids ?? [],
+    };
+  }
+
   const { data: order, error } = await admin
     .from("orders")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, version")
     .eq("id", input.orderId)
     .maybeSingle();
   if (error) return { ok: false, reason: "unavailable", error: "Could not load the sale." };
   if (!order) return { ok: false, reason: "not_found", error: "That sale is gone." };
-  const row = order as { id: string; tenant_id: string; status: string };
+  const row = order as { id: string; tenant_id: string; status: string; version: number };
   if (row.tenant_id !== input.tenantId) {
     return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
   }
   if (row.status !== "draft" && row.status !== "pending_payment") {
     return { ok: false, reason: "not_open", error: "This sale cannot be cancelled." };
   }
-  const { error: uErr } = await admin
+  if (input.expectedVersion != null && Number(row.version) !== input.expectedVersion) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
+  const { data: cancelled, error: uErr } = await admin
     .from("orders")
-    .update({ status: "cancelled" })
-    .eq("id", row.id);
+    .update({ status: "cancelled", version: Number(row.version) + 1 })
+    .eq("id", row.id)
+    .eq("tenant_id", input.tenantId)
+    .in("status", ["draft", "pending_payment"])
+    .eq("version", row.version)
+    .select("id")
+    .maybeSingle();
   if (uErr) {
     logServerError("pos.finalizeOrCancel", uErr);
     return { ok: false, reason: "unavailable", error: "Could not cancel the sale." };
+  }
+  if (!cancelled) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
   }
 
   const { data: lineRows, error: lineErr } = await admin
@@ -476,7 +545,7 @@ export async function finalizeOrCancel(
     .eq("tenant_id", input.tenantId);
   if (lineErr) {
     logServerError("pos.finalizeOrCancel.lines", lineErr);
-    return { ok: true, orderId: row.id, status: "cancelled", releasedAllocationIds: [] };
+    return { ok: false, reason: "unavailable", error: "Could not release the held places." };
   }
   const lineIds = ((lineRows ?? []) as Array<{ id: string }>).map((l) => l.id);
   let releasedAllocationIds: string[] = [];
@@ -488,14 +557,17 @@ export async function finalizeOrCancel(
       .in("order_line_id", lineIds);
     if (allocErr) {
       logServerError("pos.finalizeOrCancel.allocations", allocErr);
-    } else {
-      const live = ((allocRows ?? []) as Array<{ id: string; released_at: string | null }>).filter(
-        (a) => !a.released_at,
-      );
-      releasedAllocationIds = live.map((a) => a.id);
-      if (releasedAllocationIds.length > 0) {
-        const release = deps.release ?? releaseCapacity;
-        await release(releasedAllocationIds, admin as never);
+      return { ok: false, reason: "unavailable", error: "Could not release the held places." };
+    }
+    const live = ((allocRows ?? []) as Array<{ id: string; released_at: string | null }>).filter(
+      (a) => !a.released_at,
+    );
+    releasedAllocationIds = live.map((a) => a.id);
+    if (releasedAllocationIds.length > 0) {
+      const release = deps.release ?? releaseCapacity;
+      const released = await release(releasedAllocationIds, admin as never);
+      if (!released.ok) {
+        return { ok: false, reason: "unavailable", error: "Could not release the held places." };
       }
     }
   }

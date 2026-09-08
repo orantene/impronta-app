@@ -329,3 +329,51 @@ test("an unknown pool id writes nothing", async () => {
   }
   assert.equal(reserved, 0);
 });
+
+test("reserve_resource_set RPC conflict does not place a partial TypeScript hold", async () => {
+  let holds = 0;
+  const admin = {
+    rpc: async () => ({
+      data: { ok: false, reason: "slot_taken", failed_talent_id: "tech-b", failed_pool_id: null },
+      error: null,
+    }),
+    from: (table: string) => {
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        in: () => api,
+        then: (resolve: (v: { data: unknown; error: null }) => unknown) =>
+          Promise.resolve({
+            data: table === "capacity_pools" ? [{ id: "station-1", tenant_id: "t1" }] : [],
+            error: null,
+          }).then(resolve),
+      };
+      return api;
+    },
+  } as never;
+  const r = await reserveResourceSet(
+    admin,
+    {
+      tenantId: "t1",
+      holds: [
+        { talentProfileId: "tech-a", startsAt: START, endsAt: END },
+        { talentProfileId: "tech-b", startsAt: START, endsAt: END },
+      ],
+      capacity: [{ poolId: "station-1", units: 1, startsAt: START, endsAt: END }],
+    },
+    {
+      reserveCapacityBatch: async () => ({ ok: true, allocationIds: ["alloc-1"], expiresAt: null }),
+      releaseCapacity: async () => ({ ok: true, released: 0, alreadyReleased: 0 }),
+      placeHold: async () => {
+        holds += 1;
+        return { ok: true, holdId: "should-not", expiresAt: null };
+      },
+      releaseHold: async () => ({ ok: true }),
+    },
+  );
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "slot_taken");
+  assert.equal(r.failedTalentId, "tech-b");
+  assert.equal(holds, 0);
+});

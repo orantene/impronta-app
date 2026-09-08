@@ -49,10 +49,14 @@ export type PaymentRequestSnapshot = {
 };
 
 export type TerminalAvailability =
-  | { available: true; provider: "mercado_pago_point" }
+  | { available: true; provider: "mercado_pago_point" | "stripe_terminal" }
   | {
       available: false;
-      reason: "point_not_landed" | "stripe_terminal_not_supported";
+      reason:
+        | "point_not_landed"
+        | "stripe_terminal_not_supported"
+        | "stripe_terminal_missing_keys"
+        | "stripe_terminal_missing_reader";
     };
 
 export type CollectionAdapter = {

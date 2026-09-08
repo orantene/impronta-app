@@ -10,7 +10,6 @@
  * stays the commercial record (L52). Never refund a Stripe payment here.
  */
 
-import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type {
   CollectionAdapter,
   CreatePaymentRequestInput,
@@ -137,20 +136,44 @@ export function mercadoPagoPointAdapter(deps: MercadoPagoPointDeps = {}): Collec
       if (!res.ok) return { ok: false as const, error: "Could not cancel the Point order." };
       return { ok: true as const };
     },
-    async refund(requestId) {
+    async refund(requestId, amountCents) {
       if (!token) return { ok: false as const, error: "Refund this payment through its original Mercado Pago route." };
+      if (!deps.terminalId) {
+        return { ok: false as const, error: "Point refunds need an assigned terminal." };
+      }
+      if (amountCents != null && (!Number.isInteger(amountCents) || amountCents <= 0)) {
+        return { ok: false as const, error: "Refund amount must be a positive integer in cents." };
+      }
+      const body: Record<string, unknown> = {};
+      if (amountCents != null) {
+        body.amount = amountString(amountCents);
+      }
       const res = await fetchImpl(`${ORDERS_URL}/${requestId}/refund`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "X-Idempotency-Key": `mp_refund_${requestId}`,
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": `mp_refund_${requestId}${amountCents != null ? `_${amountCents}` : ""}`,
         },
+        body: JSON.stringify(body),
       });
-      if (!res.ok) return { ok: false as const, error: "Could not refund the Point order." };
-      return { ok: true as const, refundId: `mp_rf_${requestId}` };
+      if (!res.ok) {
+        const text = await res.text();
+        if (res.status === 400 && /partial/i.test(text)) {
+          return { ok: false as const, error: "partial_unsupported" };
+        }
+        return { ok: false as const, error: "Could not refund the Point order." };
+      }
+      const refundBody = (await res.json().catch(() => ({}))) as { id?: string };
+      const refundId =
+        typeof refundBody.id === "string" && refundBody.id.length > 0 ? refundBody.id : requestId;
+      return { ok: true as const, refundId };
     },
     terminalAvailability(): TerminalAvailability {
-      if (!token) return reportTerminalAvailability();
+      if (!token) return { available: false, reason: "point_not_landed" };
+      if (!deps.terminalId) {
+        return { available: false, reason: "point_not_landed" };
+      }
       return { available: true, provider: "mercado_pago_point" };
     },
   };

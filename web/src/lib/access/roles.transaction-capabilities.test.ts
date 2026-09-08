@@ -3,6 +3,19 @@ import assert from "node:assert/strict";
 
 import { roleGrantsCapability } from "@/lib/access/roles";
 
+test("viewer cannot collect, discount, refund, or close a shift", () => {
+  assert.equal(roleGrantsCapability("viewer", "view_dashboard"), true);
+  assert.equal(roleGrantsCapability("viewer", "booking.payment.request"), false);
+  assert.equal(roleGrantsCapability("viewer", "booking.payment.refund"), false);
+  assert.equal(roleGrantsCapability("viewer", "booking.payment.mark_received"), false);
+});
+
+test("manager can request payment but cannot refund or mark received", () => {
+  assert.equal(roleGrantsCapability("manager", "booking.payment.request"), true);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.refund"), false);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.mark_received"), false);
+});
+
 test("coordinator has receiver-select and request-payment caps", () => {
   assert.equal(roleGrantsCapability("manager", "booking.payment.select_receiver"), true);
   assert.equal(roleGrantsCapability("manager", "booking.payment.request"), true);

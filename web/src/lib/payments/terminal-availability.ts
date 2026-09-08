@@ -1,14 +1,14 @@
 /**
- * Card-present terminals. Existing Stripe support is online collection only.
- * The pilot is online card + cash recorded as a method. Point lands later.
+ * Card-present terminals. Stripe Checkout and cash are live collection paths.
+ * Terminal code exists in stripe-terminal.ts; hardware and keys are separate.
+ * Mercado Pago Point is a distinct adapter (`mercado-pago-collection.ts`).
  */
 
 import type { TerminalAvailability } from "./collection";
+import { reportStripeTerminalAvailability } from "./stripe-terminal";
 
 export function reportTerminalAvailability(): TerminalAvailability {
-  return { available: false, reason: "point_not_landed" };
+  return reportStripeTerminalAvailability();
 }
 
-export function stripeTerminalSupported(): boolean {
-  return false;
-}
+export { stripeTerminalSupported } from "./stripe-terminal";

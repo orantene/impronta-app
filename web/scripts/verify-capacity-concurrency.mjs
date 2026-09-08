@@ -26,9 +26,13 @@
 // the client before they are ever sent, and a reply-only tally cannot tell that
 // apart from a refusal. The row count can.
 
+import { assertIsolatedJourneysTarget, JOURNEYS_TENANT_ID } from "./isolated-target-guard.mjs";
+
+assertIsolatedJourneysTarget(process.env, { requireIsolatedFlag: true });
+
 const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TENANT = process.env.CAPACITY_PROOF_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
+const TENANT = process.env.CAPACITY_PROOF_TENANT_ID ?? process.env.JOURNEYS_TENANT_ID ?? JOURNEYS_TENANT_ID;
 const N = Number(process.env.CAPACITY_PROOF_CALLS ?? 200);
 const UNITS = Number(process.env.CAPACITY_PROOF_UNITS ?? 12);
 

@@ -1,13 +1,14 @@
 /**
  * Stripe adapter at the existing Checkout boundary.
  *
- * Does not re-express payouts, Connect, or Terminal. Card-present is
- * unavailable until Mercado Pago Point lands (see terminal-availability.ts).
+ * Does not re-express payouts or Connect. Card-present uses stripe-terminal.ts;
+ * missing keys and missing hardware are distinct from missing code.
  */
 
 import type Stripe from "stripe";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
+import { createStripeTerminalPaymentRequest } from "@/lib/payments/stripe-terminal";
 import type {
   CollectionAdapter,
   CreatePaymentRequestInput,
@@ -30,11 +31,7 @@ export function stripeCollectionAdapter(deps: StripeCollectionDeps = {}): Collec
   return {
     async createPaymentRequest(input: CreatePaymentRequestInput): Promise<CreatePaymentRequestResult> {
       if (input.method === "terminal") {
-        return {
-          ok: false,
-          reason: "terminal_unavailable",
-          error: "Card-present collection is unavailable until Point lands.",
-        };
+        return createStripeTerminalPaymentRequest(input);
       }
       if (input.method === "cash") {
         return {

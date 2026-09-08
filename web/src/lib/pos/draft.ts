@@ -17,6 +17,9 @@ type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
+  // Real PostgREST rpc() is thenable; tests inject a Promise.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
 
 function num(value: number | string | null | undefined): number {
@@ -43,6 +46,7 @@ type OrderRow = {
   discount_cents: number | string;
   tax_cents: number | string;
   total_cents: number | string;
+  promo_code_id?: string | null;
 };
 
 type LineRow = {
@@ -120,7 +124,7 @@ async function loadDraft(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, promo_code_id",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -146,35 +150,114 @@ async function loadDraft(
 
 async function writeTotals(
   admin: Admin,
-  orderId: string,
+  input: { tenantId: string; orderId: string; discountCents: number; version: number; promoCodeId?: string | null },
   lines: readonly { unitCents: number; units: number }[],
-  discountCents: number,
-  version: number,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const totals = cartTotals(lines, discountCents);
-  if (!totalsAreWritable(totals)) return { ok: false, error: "CART_TOTALS_NOT_WRITABLE" };
-  const { error } = await admin
+): Promise<{ ok: true; version: number } | { ok: false; reason: "conflict" | "unavailable"; error: string }> {
+  const totals = cartTotals(lines, input.discountCents);
+  if (!totalsAreWritable(totals)) return { ok: false, reason: "unavailable", error: "CART_TOTALS_NOT_WRITABLE" };
+
+  if (typeof admin.rpc === "function") {
+    const { data, error } = await admin.rpc("pos_apply_draft_totals", {
+      p_tenant_id: input.tenantId,
+      p_order_id: input.orderId,
+      p_expected_version: input.version,
+      p_discount_cents: totals.discountCents,
+    });
+    if (error) {
+      logServerError("pos.writeTotals.rpc", error);
+      return { ok: false, reason: "unavailable", error: error.message };
+    }
+    const reply = (data ?? {}) as { ok?: boolean; reason?: string; version?: number };
+    if (reply.ok !== true) {
+      const reason = reply.reason === "conflict" ? "conflict" : "unavailable";
+      return { ok: false, reason, error: reason === "conflict" ? "This sale was just changed. Reload." : "Could not save the sale." };
+    }
+    if (input.promoCodeId !== undefined) {
+      await admin
+        .from("orders")
+        .update({ promo_code_id: input.promoCodeId })
+        .eq("id", input.orderId)
+        .eq("tenant_id", input.tenantId);
+    }
+    return { ok: true, version: Number(reply.version) || input.version + 1 };
+  }
+
+  const patch: Record<string, unknown> = {
+    subtotal_cents: totals.subtotalCents,
+    discount_cents: totals.discountCents,
+    tax_cents: totals.taxCents,
+    total_cents: totals.totalCents,
+    version: input.version + 1,
+  };
+  if (input.promoCodeId !== undefined) patch.promo_code_id = input.promoCodeId;
+  const { data, error } = await admin
     .from("orders")
-    .update({
-      subtotal_cents: totals.subtotalCents,
-      discount_cents: totals.discountCents,
-      tax_cents: totals.taxCents,
-      total_cents: totals.totalCents,
-      version: version + 1,
-    })
-    .eq("id", orderId)
+    .update(patch)
+    .eq("id", input.orderId)
     .eq("status", "draft")
-    .eq("version", version);
+    .eq("version", input.version)
+    .select("id")
+    .maybeSingle();
   if (error) {
     logServerError("pos.writeTotals", error);
-    return { ok: false, error: error.message };
+    return { ok: false, reason: "unavailable", error: error.message };
   }
-  return { ok: true };
+  if (!data) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
+  return { ok: true, version: input.version + 1 };
+}
+
+async function mutateDraftLine(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    orderId: string;
+    expectedVersion: number;
+    op: "add" | "update" | "remove";
+    line: Record<string, unknown>;
+  },
+): Promise<MutateLineResult | "fallback"> {
+  if (typeof admin.rpc !== "function") return "fallback";
+  const { data, error } = await admin.rpc("pos_mutate_draft_line", {
+    p_tenant_id: input.tenantId,
+    p_order_id: input.orderId,
+    p_expected_version: input.expectedVersion,
+    p_op: input.op,
+    p_line: input.line,
+  });
+  if (error) {
+    const message = error.message ?? "";
+    if (/does not exist|42883|pos_mutate_draft_line/i.test(message)) return "fallback";
+    logServerError("pos.mutateDraftLine.rpc", error);
+    return { ok: false, reason: "unavailable", error: "Could not save the sale." };
+  }
+  const reply = (data ?? {}) as { ok?: boolean; reason?: string };
+  if (reply.ok !== true) {
+    const reason =
+      reply.reason === "conflict"
+        ? "conflict"
+        : reply.reason === "not_found"
+          ? "not_found"
+          : reply.reason === "wrong_tenant"
+            ? "wrong_tenant"
+            : reply.reason === "not_draft"
+              ? "not_draft"
+              : reply.reason === "invalid"
+                ? "invalid"
+                : "unavailable";
+    return {
+      ok: false,
+      reason,
+      error: reason === "conflict" ? "This sale was just changed. Reload." : "Could not save the sale.",
+    };
+  }
+  return { ok: true, orderId: input.orderId };
 }
 
 export type MutateLineResult =
   | { ok: true; orderId: string }
-  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid"; error: string };
+  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "conflict"; error: string };
 
 export async function addLine(
   admin: Admin,
@@ -182,10 +265,15 @@ export async function addLine(
     tenantId: string;
     orderId: string;
     line: PosLineInput;
+    expectedVersion?: number;
   },
 ): Promise<MutateLineResult> {
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
   if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
+  const loadedVersion = Number(loaded.order.version) || 1;
+  if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
   if (!Number.isFinite(input.line.units) || input.line.units <= 0) {
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
@@ -266,6 +354,29 @@ export async function addLine(
   const units = Math.trunc(input.line.units);
   const totalCents = lineTotalCents({ unitCents, units });
   const talentId = off.talent_profile_id;
+  const expectedVersion = input.expectedVersion ?? loadedVersion;
+  const viaRpc = await mutateDraftLine(admin, {
+    tenantId: input.tenantId,
+    orderId: input.orderId,
+    expectedVersion,
+    op: "add",
+    line: {
+      offering_id: off.id,
+      variant_id: input.line.variantId ?? null,
+      addon_ids: input.line.addonIds ?? [],
+      session_id: input.line.sessionId ?? null,
+      label,
+      units,
+      unit_cents: unitCents,
+      total_cents: totalCents,
+      talent_profile_id: talentId,
+      owner_tenant_id: talentId ? null : input.tenantId,
+      talent_cost_cents: talentId ? unitCents : 0,
+      sort_order: loaded.lines.length,
+    },
+  });
+  if (viaRpc !== "fallback") return viaRpc;
+
   const { error: insErr } = await admin.from("order_lines").insert({
     order_id: input.orderId,
     tenant_id: input.tenantId,
@@ -293,21 +404,28 @@ export async function addLine(
   ];
   const written = await writeTotals(
     admin,
-    input.orderId,
+    {
+      tenantId: input.tenantId,
+      orderId: input.orderId,
+      discountCents: num(loaded.order.discount_cents),
+      version: expectedVersion,
+    },
     nextLines,
-    num(loaded.order.discount_cents),
-    Number(loaded.order.version) || 1,
   );
-  if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
+  if (!written.ok) return { ok: false, reason: written.reason, error: written.error };
   return { ok: true, orderId: input.orderId };
 }
 
 export async function updateLine(
   admin: Admin,
-  input: { tenantId: string; orderId: string; lineId: string; units: number },
+  input: { tenantId: string; orderId: string; lineId: string; units: number; expectedVersion?: number },
 ): Promise<MutateLineResult> {
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
   if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
+  const loadedVersion = Number(loaded.order.version) || 1;
+  if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
   if (!Number.isFinite(input.units) || input.units <= 0) {
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
@@ -315,6 +433,20 @@ export async function updateLine(
   if (!line) return { ok: false, reason: "not_found", error: "That line is not on this sale." };
   const units = Math.trunc(input.units);
   const unitCents = num(line.unit_cents);
+  const expectedVersion = input.expectedVersion ?? loadedVersion;
+  const viaRpc = await mutateDraftLine(admin, {
+    tenantId: input.tenantId,
+    orderId: input.orderId,
+    expectedVersion,
+    op: "update",
+    line: {
+      id: input.lineId,
+      units,
+      unit_cents: unitCents,
+      total_cents: lineTotalCents({ unitCents, units }),
+    },
+  });
+  if (viaRpc !== "fallback") return viaRpc;
   const { error } = await admin
     .from("order_lines")
     .update({ units, total_cents: lineTotalCents({ unitCents, units }) })
@@ -331,21 +463,37 @@ export async function updateLine(
   );
   const written = await writeTotals(
     admin,
-    input.orderId,
+    {
+      tenantId: input.tenantId,
+      orderId: input.orderId,
+      discountCents: num(loaded.order.discount_cents),
+      version: expectedVersion,
+    },
     nextLines,
-    num(loaded.order.discount_cents),
-    Number(loaded.order.version) || 1,
   );
-  if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
+  if (!written.ok) return { ok: false, reason: written.reason, error: written.error };
   return { ok: true, orderId: input.orderId };
 }
 
 export async function removeLine(
   admin: Admin,
-  input: { tenantId: string; orderId: string; lineId: string },
+  input: { tenantId: string; orderId: string; lineId: string; expectedVersion?: number },
 ): Promise<MutateLineResult> {
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
   if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
+  const loadedVersion = Number(loaded.order.version) || 1;
+  if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
+  const expectedVersion = input.expectedVersion ?? loadedVersion;
+  const viaRpc = await mutateDraftLine(admin, {
+    tenantId: input.tenantId,
+    orderId: input.orderId,
+    expectedVersion,
+    op: "remove",
+    line: { id: input.lineId },
+  });
+  if (viaRpc !== "fallback") return viaRpc;
   const { error } = await admin
     .from("order_lines")
     .delete()
@@ -360,12 +508,15 @@ export async function removeLine(
     .map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
   const written = await writeTotals(
     admin,
-    input.orderId,
+    {
+      tenantId: input.tenantId,
+      orderId: input.orderId,
+      discountCents: num(loaded.order.discount_cents),
+      version: input.expectedVersion ?? loadedVersion,
+    },
     nextLines,
-    num(loaded.order.discount_cents),
-    Number(loaded.order.version) || 1,
   );
-  if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
+  if (!written.ok) return { ok: false, reason: written.reason, error: written.error };
   return { ok: true, orderId: input.orderId };
 }
 
@@ -373,24 +524,28 @@ export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
       ok: false;
-      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "promo_needs_customer" | "promo_refused";
+      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "promo_needs_customer" | "promo_refused" | "conflict";
       error: string;
     };
 
 export async function repriceAndValidate(
   admin: Admin,
-  input: { tenantId: string; orderId: string; promoCode?: string | null },
+  input: { tenantId: string; orderId: string; promoCode?: string | null; expectedVersion?: number },
   deps: {
     resolvePromo?: (args: {
       tenantId: string;
       code: string;
       customerId: string;
       lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null }>;
-    }) => Promise<{ ok: true; discountCents: number } | { ok: false; error: string }>;
+    }) => Promise<{ ok: true; discountCents: number; codeId: string } | { ok: false; error: string }>;
   } = {},
 ): Promise<RepriceResult> {
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
   if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
+  const loadedVersion = Number(loaded.order.version) || 1;
+  if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
+    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
 
   for (const line of loaded.lines) {
     if (!line.offering_id) continue;
@@ -433,6 +588,7 @@ export async function repriceAndValidate(
   }
 
   let discountCents = 0;
+  let promoCodeId: string | null = null;
   const code = input.promoCode?.trim() ?? "";
   if (code) {
     if (!loaded.order.customer_id) {
@@ -454,17 +610,22 @@ export async function repriceAndValidate(
     });
     if (!resolved.ok) return { ok: false, reason: "promo_refused", error: resolved.error };
     discountCents = resolved.discountCents;
+    promoCodeId = resolved.codeId;
   }
 
   const nextLines = loaded.lines.map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
   const written = await writeTotals(
     admin,
-    input.orderId,
+    {
+      tenantId: input.tenantId,
+      orderId: input.orderId,
+      discountCents,
+      version: input.expectedVersion ?? loadedVersion,
+      promoCodeId,
+    },
     nextLines,
-    discountCents,
-    Number(loaded.order.version) || 1,
   );
-  if (!written.ok) return { ok: false, reason: "unavailable", error: written.error };
+  if (!written.ok) return { ok: false, reason: written.reason === "conflict" ? "conflict" : "unavailable", error: written.error };
   return { ok: true, orderId: input.orderId, discountCents };
 }
 

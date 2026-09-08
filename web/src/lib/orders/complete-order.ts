@@ -262,3 +262,99 @@ export async function completeOrderForTransaction(
     return { ok: false, reason: "unavailable" };
   }
 }
+
+/**
+ * F04: a free / zero-total sale completes without a fabricated charge.
+ * There is no `booking_transactions` row. `onOrderPaid` still runs so
+ * admissions mint exactly once.
+ */
+export async function completeZeroTotalOrder(
+  admin: Pick<SupabaseClient, "from">,
+  input: { tenantId: string; orderId: string },
+  deps: { onOrderPaid?: OnOrderPaid } = {},
+): Promise<CompleteOrderResult> {
+  try {
+    const { data: order, error: orderErr } = await admin
+      .from("orders")
+      .select("id, status, total_cents, version, tenant_id")
+      .eq("id", input.orderId)
+      .maybeSingle();
+    if (orderErr) {
+      logServerError("orders.completeZero/order", orderErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!order) return { ok: false, reason: "not_found" };
+    const row = order as {
+      id: string;
+      status: string;
+      total_cents: number;
+      version: number;
+      tenant_id: string;
+    };
+    if (row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
+    if (row.status === "paid" || row.status === "fulfilled") {
+      return { ok: true, orderId: row.id, status: "paid", committed: 0 };
+    }
+    if (Number(row.total_cents) !== 0) {
+      return { ok: false, reason: "unavailable", error: "This sale is not free." };
+    }
+    if (row.status !== "draft" && row.status !== "pending_payment") {
+      return { ok: false, reason: "unavailable", error: "This sale is no longer open." };
+    }
+
+    const { data: flipped, error: flipErr } = await admin
+      .from("orders")
+      .update({ status: "paid", hold_expires_at: null, version: row.version + 1 })
+      .eq("id", row.id)
+      .eq("tenant_id", input.tenantId)
+      .in("status", ["draft", "pending_payment"])
+      .eq("version", row.version)
+      .select("id")
+      .maybeSingle();
+    if (flipErr) {
+      logServerError("orders.completeZero/flip", flipErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!flipped) {
+      return { ok: false, reason: "unavailable", error: "This sale was just changed." };
+    }
+
+    if (deps.onOrderPaid) {
+      try {
+        const { data: lineRows, error: lineErr } = await admin
+          .from("order_lines")
+          .select("id, units, session_id, variant_id")
+          .eq("order_id", row.id);
+        if (lineErr) {
+          logServerError("orders.completeZero/onOrderPaid/lines", lineErr);
+        } else {
+          await deps.onOrderPaid({
+            orderId: row.id,
+            tenantId: row.tenant_id,
+            lines: (lineRows ?? []).map((l) => {
+              const r = l as {
+                id: string;
+                units: number | string;
+                session_id: string | null;
+                variant_id: string | null;
+              };
+              return {
+                id: r.id,
+                units: Number(r.units),
+                sessionId: r.session_id,
+                variantId: r.variant_id,
+              };
+            }),
+          });
+        }
+      } catch (hookErr) {
+        logServerError("orders.completeZero/onOrderPaid", hookErr);
+      }
+    }
+
+    return { ok: true, orderId: row.id, status: "paid", committed: 0 };
+  } catch (err) {
+    logServerError("orders.completeZero", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}

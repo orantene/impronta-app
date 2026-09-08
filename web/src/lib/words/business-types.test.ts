@@ -5,6 +5,7 @@ import {
   BUSINESS_FAMILIES,
   BUSINESS_TYPE_CATALOG_TARGET,
   BUSINESS_TYPES,
+  catalogBusinessTypes,
   searchBusinessTypes,
 } from "./business-types";
 
@@ -25,12 +26,20 @@ test("every type has a known family, preset, and both labels", () => {
   }
 });
 
-test("search matches EN, ES and aliases", () => {
+test("search matches EN, ES, aliases and accent-folded unas", () => {
   assert.ok(searchBusinessTypes("uñas").some((r) => r.id === "nail-salon"));
+  assert.ok(searchBusinessTypes("unas").some((r) => r.id === "nail-salon"));
   assert.ok(searchBusinessTypes("restaurante").some((r) => r.id === "restaurant"));
+  assert.ok(searchBusinessTypes("mantenimiento del hogar").some((r) => r.id === "handyman"));
 });
 
-test("catalog target stays 120; fill-in waits on the product documents", () => {
+test("catalog reaches 120 excluding custom fallback", () => {
   assert.equal(BUSINESS_TYPE_CATALOG_TARGET, 120);
-  assert.ok(BUSINESS_TYPES.length <= BUSINESS_TYPE_CATALOG_TARGET);
+  assert.ok(catalogBusinessTypes().length >= BUSINESS_TYPE_CATALOG_TARGET);
+  assert.ok(BUSINESS_TYPES.some((row) => row.id === "custom"));
+  assert.ok(BUSINESS_TYPES.some((row) => row.id === "nail-salon"));
+  assert.equal(
+    BUSINESS_TYPES.find((row) => row.id === "handyman")?.label.es,
+    "mantenimiento del hogar",
+  );
 });
