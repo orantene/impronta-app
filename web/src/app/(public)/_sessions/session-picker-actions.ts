@@ -25,6 +25,7 @@
 import { z } from "zod";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
@@ -63,6 +64,74 @@ const listSchema = z.object({
   tenantId: uuidWire,
   offeringId: uuidWire,
 });
+
+const tenantOnlySchema = z.object({
+  tenantId: uuidWire,
+});
+
+/**
+ * Bind an unconfigured picker to this tenant's next published class.
+ *
+ * Page-less fallbacks cannot hard-code a fixture offering id. An empty
+ * `offeringId` therefore means "this workspace's class, if it has one".
+ * No published scheduled night → none, and the island hides.
+ */
+export async function resolveSessionPickerOffering(
+  input: unknown,
+): Promise<{ ok: true; offeringId: string } | { ok: false; reason: "unavailable" | "none" }> {
+  const parsed = tenantOnlySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "unavailable" };
+  const { tenantId } = parsed.data;
+
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+
+    const now = new Date().toISOString();
+    const { data: rows, error } = await tenantScopedQuery(admin, "sessions", tenantId)
+      .select("offering_id, starts_at")
+      .eq("status", "scheduled")
+      .gte("starts_at", now)
+      .not("offering_id", "is", null)
+      .order("starts_at", { ascending: true })
+      .limit(20);
+    if (error) {
+      logServerError("sessions.picker.resolve", error);
+      return { ok: false, reason: "unavailable" };
+    }
+
+    const sessionRows = (rows ?? []) as Array<{ offering_id: unknown }>;
+    const offeringIds = [
+      ...new Set(
+        sessionRows
+          .map((r) => r.offering_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    if (offeringIds.length === 0) return { ok: false, reason: "none" };
+
+    const { data: offerings, error: offErr } = await tenantScopedQuery(
+      admin,
+      "talent_offerings",
+      tenantId,
+    )
+      .select("id")
+      .eq("status", "published")
+      .in("id", offeringIds);
+    if (offErr) {
+      logServerError("sessions.picker.resolve.offering", offErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    const offeringRows = (offerings ?? []) as Array<{ id: unknown }>;
+    const published = new Set(offeringRows.map((o) => String(o.id)));
+    const offeringId = offeringIds.find((id) => published.has(id));
+    if (!offeringId) return { ok: false, reason: "none" };
+    return { ok: true, offeringId };
+  } catch (error) {
+    logServerError("sessions.picker.resolve", error);
+    return { ok: false, reason: "unavailable" };
+  }
+}
 
 /**
  * The sessions of one offering a visitor may buy.
@@ -349,7 +418,7 @@ export async function bookSessionSeat(input: unknown): Promise<BookSeatResult> {
       clientOrderKey: d.clientOrderKey,
       actorUserId: null,
       contact: { email: d.email, displayName: d.displayName ?? null },
-      lines: [{ offeringId: d.offeringId, units: d.units }],
+      lines: [{ offeringId: d.offeringId, units: d.units, sessionId: d.sessionId }],
       paymentChoice: "full",
       sourceChannel: "session_picker",
       capacity: [

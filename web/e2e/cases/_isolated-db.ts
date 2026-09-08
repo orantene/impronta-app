@@ -221,7 +221,7 @@ export type ClassWalkIn = {
   sessionId: string | null;
 };
 
-export async function latestClassWalkIn(email: string): Promise<ClassWalkIn | null> {
+async function latestClassOrder(email: string, channel: string): Promise<ClassWalkIn | null> {
   const admin = isolatedService();
   const { data: customer, error: customerErr } = await admin
     .from("customers")
@@ -237,7 +237,7 @@ export async function latestClassWalkIn(email: string): Promise<ClassWalkIn | nu
     .select("id, status, total_cents, source_channel")
     .eq("tenant_id", JOURNEYS_TENANT_ID)
     .eq("customer_id", customer.id)
-    .eq("source_channel", "pos")
+    .eq("source_channel", channel)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -260,6 +260,14 @@ export async function latestClassWalkIn(email: string): Promise<ClassWalkIn | nu
     lineLabel: (line?.label as string | null) ?? null,
     sessionId: (line?.session_id as string | null) ?? null,
   };
+}
+
+export function latestClassWalkIn(email: string): Promise<ClassWalkIn | null> {
+  return latestClassOrder(email, "pos");
+}
+
+export function latestSessionPickerClass(email: string): Promise<ClassWalkIn | null> {
+  return latestClassOrder(email, "session_picker");
 }
 
 export type GelManicureDeposit = {

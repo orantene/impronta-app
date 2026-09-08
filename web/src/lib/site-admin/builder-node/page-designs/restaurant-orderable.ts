@@ -490,6 +490,70 @@ const restaurantOrderableTree: BuilderNode[] = [
           },
         ],
       },
+      // ── Class seats (session_picker) ──────────────────────────────────────
+      // offeringId is empty on purpose: the island binds to this tenant's
+      // published class with a scheduled night, and hides when there is none.
+      // Do not hard-code a fixture offering id into a preset-owned design.
+      {
+        id: "restaurant-orderable-class",
+        kind: "container",
+        anchorId: "class",
+        props: {
+          layout: "stack",
+          align: "center",
+          style: {
+            width: "100%",
+            maxWidthFree: "100%",
+            paddingTop: "96px",
+            paddingRight: "44px",
+            paddingBottom: "96px",
+            paddingLeft: "44px",
+            backgroundColor: PANEL,
+            responsive: { mobile: { paddingRight: "24px", paddingLeft: "24px" } },
+          },
+        },
+        children: [
+          {
+            id: "restaurant-orderable-class-inner",
+            kind: "container",
+            props: {
+              layout: "stack",
+              style: { width: "100%", maxWidthFree: "800px", gap: "24px" },
+            },
+            children: [
+              {
+                id: "restaurant-orderable-class-kicker",
+                kind: "paragraph",
+                props: {
+                  text: "Classes",
+                  style: {
+                    fontFamily: INTER,
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    letterSpacing: "0.26em",
+                    textTransform: "uppercase",
+                    textColor: EMBER,
+                  },
+                },
+              },
+              {
+                id: "restaurant-orderable-class-board",
+                kind: "session_picker",
+                props: {
+                  offeringId: "",
+                  title: "Take a seat",
+                  style: {
+                    width: "100%",
+                    maxWidthFree: "100%",
+                    fontFamily: INTER,
+                    textColor: CREAM,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
       // ── Footer ────────────────────────────────────────────────────────────
     ],
   },

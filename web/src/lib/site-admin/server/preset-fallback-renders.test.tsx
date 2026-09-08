@@ -145,6 +145,11 @@ test("the BOOKING DOOR is pinned, so it cannot drop the way the menu did", () =>
     /data-builder-node-kind="menu_board"/,
     "the restaurant design lost its menu board",
   );
+  assert.match(
+    html,
+    /data-builder-node-kind="session_picker"/,
+    "the restaurant design lost its class picker",
+  );
 });
 
 for (const designId of ["restaurant-orderable", "restaurant"] as const) {
@@ -172,11 +177,15 @@ for (const designId of ["restaurant-orderable", "restaurant"] as const) {
     // no footer strip, and the tenant's name exactly once (the hero headline).
     const html = renderPresetHomepage(designId, { businessName: "El Paisa" });
     assert.doesNotMatch(html, /Menu · Story/, "the design still draws its own nav row");
-    // Twice inside the design: the hero headline, and the story split's
-    // designed-absence slot (charcoal ground, the name in the display face
-    // until the owner's photo arrives). The platform chrome shows it above.
+    // restaurant-orderable: hero headline, story photo slot, and the
+    // reserve_table kicker (venueName). Display-only restaurant: hero + slot.
     const nameHits = html.match(/El Paisa/g) ?? [];
-    assert.equal(nameHits.length, 2, `tenant name appears ${nameHits.length} times inside the design; expected the hero headline and the story slot, nothing else`);
+    const expected = designId === "restaurant-orderable" ? 3 : 2;
+    assert.equal(
+      nameHits.length,
+      expected,
+      `tenant name appears ${nameHits.length} times inside the design; expected ${expected}`,
+    );
   });
 
   test(`${designId}: a tenant with ONLY a name (El Paisa's real state) still gets a hero, its menu block and its button`, () => {

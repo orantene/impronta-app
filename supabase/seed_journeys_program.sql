@@ -234,17 +234,21 @@ ON CONFLICT (id) DO UPDATE SET
   duration_minutes = EXCLUDED.duration_minutes,
   updated_at = now();
 
-INSERT INTO public.sessions (id, tenant_id, offering_id, title, starts_at, ends_at, status)
+INSERT INTO public.sessions (id, tenant_id, offering_id, venue_id, title, starts_at, ends_at, status)
 VALUES (
   '33330013-0000-4000-8000-000000000001'::UUID,
   '33333333-3333-4333-8333-333333333333'::UUID,
   '33330012-0000-4000-8000-000000000003'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
   'Morning class',
   now() + interval '1 day',
   now() + interval '1 day 1 hour',
   'scheduled'
 )
-ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, updated_at = now();
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  venue_id = EXCLUDED.venue_id,
+  updated_at = now();
 
 INSERT INTO public.talent_offerings (
   id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,

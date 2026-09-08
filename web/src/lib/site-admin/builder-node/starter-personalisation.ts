@@ -138,6 +138,9 @@ export const STARTER_COPY_PROP_KEYS: ReadonlySet<string> = new Set([
   "badge",
   "menuLabel",
   "ariaLabel",
+  // reserve_table kicker. Left out, `{{business.name}}` printed on the live
+  // booking door because the island renders venueName as visible copy.
+  "venueName",
 ]);
 
 /**
