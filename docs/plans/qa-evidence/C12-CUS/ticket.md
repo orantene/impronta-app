@@ -27,4 +27,4 @@ qa-journeys-only (not git, not production): `public.events`, `sessions.event_id`
 
 ## Not claimed
 
-Not a card charge (isolated Next has no Stripe secret). Not C12-OP door check-in. Not pay-at-door. Not promo. Not sold-out. Not private-hire / performer / layout. Not C12 complete. Case count stays **0 / 48**.
+Not a card charge (isolated Next has no Stripe secret). C12-OP door Admit is a separate record (`qa-evidence/C12-OP/door.md`). Not pay-at-door. Not promo. Not sold-out. Not private-hire / performer / layout. Not C12 complete. Case count stays **0 / 48**.

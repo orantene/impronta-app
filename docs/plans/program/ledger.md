@@ -55,7 +55,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 
 ## Case matrix (overall)
 
-See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. C09-OP walk-in class is in `qa-evidence/C09-OP/walk-in-class.md`. C09-CUS website register is in `qa-evidence/C09-CUS/class-register.md`. C02-CUS last-resource and couples set are in `qa-evidence/C02-CUS/`. C02-DIFF competitor-after-couples is in `qa-evidence/C02-DIFF/competitor-after-couples.md`. C12-CUS $0 night ticket is in `qa-evidence/C12-CUS/ticket.md`. No case is complete.
+See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-CUS reserve-then-order is in `qa-evidence/C06-CUS/reserve-then-order.md`. C09-OP walk-in class is in `qa-evidence/C09-OP/walk-in-class.md`. C09-CUS website register is in `qa-evidence/C09-CUS/class-register.md`. C02-CUS last-resource and couples set are in `qa-evidence/C02-CUS/`. C02-DIFF competitor-after-couples is in `qa-evidence/C02-DIFF/competitor-after-couples.md`. C12-CUS $0 night ticket is in `qa-evidence/C12-CUS/ticket.md`. C12-OP door Admit is in `qa-evidence/C12-OP/door.md`. No case is complete.
 
 ## Defects
 

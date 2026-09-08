@@ -20,7 +20,7 @@ P1-04, P1-05, P6-02, P7-05, P2-04
 - **Basic:** Sells tickets to a public event.
 - **Complete:** Private hire invoiced to organiser; performer paid; second layout cannot invent capacity.
 
-Overall status: implementing — C12-CUS $0 night ticket on `/events/qa-night` proven. Card ticket, door check-in, promo, sold-out, private-hire not run. Case not verified.
+Overall status: implementing — C12-CUS $0 night ticket and C12-OP door Admit on `/admin/events/door` proven. Card ticket, QR scan, pay-at-door, promo, sold-out, private-hire not run. Case not verified.
 
 ## Scenarios
 
@@ -52,9 +52,9 @@ Overall status: implementing — C12-CUS $0 night ticket on `/events/qa-night` p
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
 | Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C12-OP/` |
+| Evidence | `qa-evidence/C12-OP/door.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — walk-up Admit on QA Night; QR scan and pay-at-door not run |
 
 ### C12-TAL — Talent workflow
 
