@@ -300,6 +300,20 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
               variantId: (l.variant_id as string | null) ?? null,
             })),
           });
+          // Mint writes seats, not the guest. Stamp the name the picker
+          // already collected so the door list is not a row of "Ticket".
+          const lineIds = (lineRows ?? []).map((l) => l.id as string);
+          if (lineIds.length > 0 && (d.displayName || d.email)) {
+            const { error: holderErr } = await admin
+              .from("admissions")
+              .update({
+                holder_name: d.displayName ?? null,
+                holder_email: d.email,
+              })
+              .in("order_line_id", lineIds)
+              .eq("tenant_id", d.tenantId);
+            if (holderErr) logServerError("events.buy.compHolder", holderErr);
+          }
         } catch (mintErr) {
           logServerError("events.buy.compMint", mintErr);
         }

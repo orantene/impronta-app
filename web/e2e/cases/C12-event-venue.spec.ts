@@ -78,3 +78,64 @@ test("C12-CUS ticket: /events/qa-night General admission → receipt and DB agre
     fullPage: true,
   });
 });
+
+test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const marker = `c12-op-${Date.now()}@impronta.test`;
+  const guestName = "C12 door guest";
+
+  await page.goto(`/events/${QA_NIGHT_SLUG}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/qa night/i);
+  const picker = page.locator("[data-ticket-picker=root]");
+  await expect(picker).toBeVisible({ timeout: 30_000 });
+  await picker.locator("input[name=night]").first().check();
+  await picker.locator("input[name=tier]").first().check();
+  await picker.locator("input[type=email]").fill(marker);
+  await picker.locator("input[autocomplete=name]").fill(guestName);
+  await picker.getByRole("button", { name: /get your ticket/i }).click();
+  await expect(page).toHaveURL(/\/r\/[A-Za-z0-9]+/, { timeout: 45_000 });
+
+  const bought = await latestTicketPickerNight(marker);
+  expect(bought, "fresh ticket_picker night order must exist").not.toBeNull();
+  expect(bought?.status).toBe("paid");
+  expect(bought?.admissionId).toBeTruthy();
+  expect(bought?.admittedCount).toBe(0);
+  expect(bought?.seatedAt).toBeNull();
+  expect(bought?.holderName).toBe(guestName);
+
+  await signInJourneysStaff(page, `/admin/events/door?session=${QA_NIGHT_SESSION_ID}`);
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/qa night/i);
+  await expect(page.getByText(/could not load the door/i)).toHaveCount(0);
+
+  await page.getByPlaceholder(/find by name/i).fill(guestName);
+  const row = page.locator("li").filter({ hasText: guestName });
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText(/not yet/i)).toBeVisible();
+  await row.getByRole("button", { name: /^admit$/i }).click();
+  await expect(page.getByRole("status")).toHaveText(/^In$/i, { timeout: 20_000 });
+
+  await page.reload();
+  await expect(page.getByText(/could not load the door/i)).toHaveCount(0);
+  await page.getByPlaceholder(/find by name/i).fill(guestName);
+  const afterReload = page.locator("li").filter({ hasText: guestName });
+  await expect(afterReload.getByText(/^In/)).toBeVisible();
+  await expect(afterReload.getByRole("button", { name: /^admit$/i })).toHaveCount(0);
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("ticket_picker").first()).toBeVisible();
+
+  const persisted = await latestTicketPickerNight(marker);
+  expect(persisted?.admittedCount).toBe(1);
+  expect(persisted?.seatedAt).toBeTruthy();
+  expect(persisted?.holderName).toBe(guestName);
+  expect(persisted?.allocationState).toBe("committed");
+
+  await page.screenshot({
+    path: testInfo.outputPath("c12-op-sales.png"),
+    fullPage: true,
+  });
+});

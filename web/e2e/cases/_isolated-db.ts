@@ -521,6 +521,9 @@ export type TicketPickerNight = {
   admissionId: string | null;
   allocationId: string | null;
   allocationState: string | null;
+  admittedCount: number | null;
+  seatedAt: string | null;
+  holderName: string | null;
 };
 
 export async function latestTicketPickerNight(email: string): Promise<TicketPickerNight | null> {
@@ -557,7 +560,7 @@ export async function latestTicketPickerNight(email: string): Promise<TicketPick
   const { data: admission, error: admissionErr } = line
     ? await admin
         .from("admissions")
-        .select("id, allocation_id")
+        .select("id, allocation_id, admitted_count, seated_at, holder_name")
         .eq("tenant_id", JOURNEYS_TENANT_ID)
         .eq("order_line_id", line.id)
         .maybeSingle()
@@ -587,6 +590,9 @@ export async function latestTicketPickerNight(email: string): Promise<TicketPick
     admissionId: (admission?.id as string | null) ?? null,
     allocationId: (alloc?.id as string | null) ?? null,
     allocationState: (alloc?.state as string | null) ?? null,
+    admittedCount: admission ? Number(admission.admitted_count) : null,
+    seatedAt: (admission?.seated_at as string | null) ?? null,
+    holderName: (admission?.holder_name as string | null) ?? null,
   };
 }
 
