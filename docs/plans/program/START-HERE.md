@@ -10,7 +10,7 @@
 | Metric | Value |
 |---|---|
 | Cases verified on the actual platform | **0 / 48** |
-| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09-OP walk-in class, C09-CUS website register, C02-CUS last-resource refusal; no complete case. |
+| Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths, C02-CUS last-resource + couples set; no complete case. |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema + SQL fixture on `qa-journeys` | **Yes** — seed applied; staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
@@ -21,7 +21,8 @@
 | C01-CUS technician deposit | **Pass** as deposit *requested* on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C01-CUS/deposit.md`. Charge not collected — isolated Next has no Stripe secret. |
 | C09-OP walk-in class | **Pass** on qa-journeys POS + DB. Evidence: `docs/plans/qa-evidence/C09-OP/walk-in-class.md`. Not website register, not attendance. |
 | C09-CUS website register | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C09-CUS/class-register.md`. Not attendance, not sold-out. |
-| C02-CUS last-resource | **Pass** on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C02-CUS/last-resource.md`. Massage books Therapist B; Couples set refuses. Not a successful couples book. |
+| C02-CUS last-resource | **Pass** on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C02-CUS/last-resource.md`. Massage books Therapist B; Couples refuses. |
+| C02-CUS couples set | **Pass** on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C02-CUS/couples-set.md`. T1 + T2 + Room A held together. Not C02 complete. |
 
 Skipped Playwright specs are not passes. Green unit tests and RPC helpers are supporting evidence only.
 
@@ -51,7 +52,7 @@ Product sources are in [`docs/product/`](../../product/).
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
 | P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700` RPCs are on this branch and on qa-journeys, not production |
 | P0-06 fixture harness | SQL + auth users applied. Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
-| P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, and C02-CUS last-resource are real journeys. |
+| P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, and C02-CUS last-resource + couples set are real journeys. |
 | P1-01 isolated capacity proof | Verified in test environment: 200 HTTP callers, exactly 12 wins, zero oversell. See `qa-evidence/P1-01/` |
 | P2-01 type catalog | ~120 searchable types; `custom` outside; accent-fold search; handyman ES `mantenimiento del hogar` |
 | P2-04 Sales | Combined read: orders + bookings/reservations/registrations without manufacturing orders |
@@ -61,12 +62,12 @@ Product sources are in [`docs/product/`](../../product/).
 | P6 multi-resource | `reserve_resource_set` RPC preferred; TS unwind remains fallback. qa-journeys gist + RPC EXCEPTION now deletes earlier holds on `slot_taken`. |
 | P7 C39 | `drawdown_lesson_package` RPC; attendance hop admission → order → booking → package |
 | P8 hybrids | Unchanged. Production reserve stays `createPurchase` holds/capacity |
-| W-AUDIT | Isolation unit coverage in. Browser paths: C06 restaurant paths; C01-CUS deposit requested (not collected); C09-OP walk-in class; C09-CUS website register; C02-CUS last-resource refusal. |
+| W-AUDIT | Isolation unit coverage in. Browser paths: C06 restaurant paths; C01-CUS deposit requested (not collected); C09 class paths; C02-CUS last-resource + couples set. |
 | P9 | Parked. Do not start |
 
 ## Task order (this cycle)
 
-1. Continue browser journeys on qa-journeys: C01 paid deposit (needs Stripe test keys), C12 (`events` missing), C02 successful couples / OP / TAL, then ten representatives, then 38 deltas. C06 DIFF / complete restaurant path (QR, courses, split) still open. C09 attendance / sold-out / DIFF still open.  
+1. Continue browser journeys on qa-journeys: C01 paid deposit (needs Stripe test keys), C12 (`events` missing), C02-OP / TAL / DIFF, then ten representatives, then 38 deltas. C06 DIFF / complete restaurant path (QR, courses, split) still open. C09 attendance / sold-out / DIFF still open.  
 2. Keep `JOURNEYS_FIXTURE_READY=1` in the gitignored isolated env only.  
 3. P9 stays parked.
 
@@ -90,7 +91,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, and C02-CUS last-resource refusal are recorded. Next: Stripe test deposit collect, C12 (`events` table still missing on cheap-repair), C02 successful couples / OP, or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+C06 restaurant paths, C01-CUS deposit-requested, C09 class paths, and C02-CUS last-resource + couples set are recorded. Next: Stripe test deposit collect, C12 (`events` table still missing on cheap-repair), C02-OP, or C01-OP balance. Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 

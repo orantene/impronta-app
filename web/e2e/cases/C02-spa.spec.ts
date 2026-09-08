@@ -36,7 +36,7 @@ test("C02-OP smoke: operator Sales heading is reachable — not a journey pass",
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
-test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the same slot", async ({
+test("C02-CUS last-resource: Massage takes therapist B, competing Couples request refuses the same slot", async ({
   page,
 }, testInfo) => {
   test.setTimeout(150_000);

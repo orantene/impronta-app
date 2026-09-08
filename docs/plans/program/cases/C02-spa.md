@@ -20,7 +20,7 @@ P6-01, P6-02, P7-06
 - **Basic:** Books a single therapist.
 - **Complete:** Couples massage reserves two therapists and one room together.
 
-Overall status: implementing — C02-CUS last-resource refusal proven (Massage takes Therapist B; Couples set refuses). Successful couples book, OP assign, TAL, DIFF-as-couples-first, and REC compensation not run. Case not verified.
+Overall status: implementing — C02-CUS last-resource refusal and couples set (T1+T2+Room A) proven. OP assign, TAL, DIFF-as-competitor-after-couples, and REC compensation not run. Case not verified.
 
 ## Scenarios
 
@@ -35,11 +35,11 @@ Overall status: implementing — C02-CUS last-resource refusal proven (Massage t
 | Expected visible | Journey completes without a dead end. |
 | Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
 | Negative / recovery | One therapist unavailable — whole set refuses. |
-| Automated or manual | Playwright last-resource on qa-journeys |
-| Evidence | `qa-evidence/C02-CUS/last-resource.md` |
+| Automated or manual | Playwright last-resource + couples set on qa-journeys |
+| Evidence | `qa-evidence/C02-CUS/last-resource.md`, `qa-evidence/C02-CUS/couples-set.md` |
 | Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
 | Severity if failed | blocking or high-risk when money/capacity; else normal |
-| Disposition | implementing — last-resource refusal proven; successful couples book not run |
+| Disposition | implementing — last-resource refusal and couples set proven; OP/TAL/DIFF/REC not run |
 
 ### C02-OP — Operator journey
 
