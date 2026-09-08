@@ -46,6 +46,11 @@ function fake(store: { booking_deliverables: Row[] }) {
         apply();
         return { data: inserted[0] ?? match()[0] ?? null, error: null };
       },
+      then: (resolve: (v: { data: unknown; error: null }) => unknown) => {
+        apply();
+        const data = mode === "insert" ? inserted[0] ?? null : match();
+        return Promise.resolve({ data, error: null }).then(resolve);
+      },
     };
     return api;
   };

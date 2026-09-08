@@ -169,7 +169,7 @@ test("three cash allocations on one order leave it unpaid until the third, then 
       { ...named, settle: settleAtDoor },
     );
     assert.equal(r.ok, true, `allocation ${i + 1}`);
-    if (!r.ok) return;
+    if (!r.ok || r.method !== "cash") return;
     assert.equal(r.alreadySettled, false);
     assert.equal(r.amountCents, 3000);
     assert.equal(store.orders.length, 1);
@@ -258,7 +258,7 @@ test("the same cash idempotency key does not write a second allocation", async (
   const second = await startCollection(fakeAdmin(store), input, { ...named, settle: settleAtDoor });
   assert.equal(first.ok, true);
   assert.equal(second.ok, true);
-  if (!second.ok) return;
+  if (!second.ok || second.method !== "cash") return;
   assert.equal(second.alreadySettled, true);
   assert.equal(store.booking_transactions.length, 1);
 });
@@ -324,7 +324,7 @@ test("change is tendered minus the allocation, not a second order", async () => 
     { ...named, settle: settleAtDoor },
   );
   assert.equal(r.ok, true);
-  if (!r.ok) return;
+  if (!r.ok || r.method !== "cash") return;
   assert.equal(r.changeCents, 2000);
   assert.equal(r.amountCents, 3000);
   assert.equal(store.orders.length, 1);

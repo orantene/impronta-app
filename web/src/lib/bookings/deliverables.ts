@@ -124,7 +124,7 @@ export async function requestRevision(
   if (row.status !== "submitted") {
     return { ok: false, reason: "not_found", error: "That deliverable is not waiting on a revision." };
   }
-  if (row.revision >= row.revision_limit) {
+  if (row.revision >= row.revisionLimit) {
     return {
       ok: false,
       reason: "limit_reached",
