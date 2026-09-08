@@ -283,6 +283,10 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   }
   const addLine = page.getByRole("button", { name: /\+ add line item/i });
   await expect(addLine).toBeVisible({ timeout: 20_000 });
+  const rowRemove = page.locator("button").filter({ hasText: /^×$/ });
+  while ((await rowRemove.count()) > 1) {
+    await rowRemove.first().click();
+  }
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
@@ -290,25 +294,14 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     await addLine.click();
   }
   await expect(talentSelect.first()).toBeVisible({ timeout: 10_000 });
-  const selectCount = await talentSelect.count();
-  for (let i = 0; i < selectCount; i += 1) {
-    await talentSelect.nth(i).selectOption({ label: "QA Journeys Talent" });
-  }
-  const rates = page.getByPlaceholder(/^rate$/i);
-  const rateCount = await rates.count();
-  expect(rateCount, "draft editor must expose a client rate").toBeGreaterThan(0);
-  for (let i = 0; i < rateCount; i += 1) {
-    await rates.nth(i).fill("800");
-  }
-  const saveDraft = page.getByRole("button", { name: /^save draft$/i });
-  await saveDraft.click();
+  await talentSelect.first().selectOption({ label: "QA Journeys Talent" });
+  const rate = page.locator('input[placeholder="rate"]').first();
+  await expect(rate).toBeVisible({ timeout: 10_000 });
+  await rate.fill("800");
+  await page.getByRole("button", { name: /^save draft$/i }).click();
   await expect(page.getByText(/saved ·/i).first()).toBeVisible({ timeout: 20_000 });
 
   const sendOffer = page.getByRole("button", { name: /^send to client$/i });
-  if (await sendOffer.isDisabled()) {
-    await saveDraft.click();
-    await expect(page.getByText(/saved ·/i).first()).toBeVisible({ timeout: 20_000 });
-  }
   await expect(sendOffer).toBeEnabled({ timeout: 20_000 });
   await sendOffer.click();
   await expect(
