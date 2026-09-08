@@ -471,7 +471,8 @@ export async function overlappingTherapistHoldCount(
     .select("id")
     .eq("tenant_id", JOURNEYS_TENANT_ID)
     .eq("talent_profile_id", talentProfileId)
-    .eq("starts_at", startsAt);
+    .eq("starts_at", startsAt)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
   if (error) throw new Error(error.message);
   return (data ?? []).length;
 }
