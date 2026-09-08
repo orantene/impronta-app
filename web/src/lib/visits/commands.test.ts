@@ -282,6 +282,38 @@ test("opening a visit on another workspace's table writes nothing", async () => 
   assert.equal(store.orders.length, 0);
 });
 
+test("another workspace cannot read this visit token, QR, or floor table", async () => {
+  const store = makeStore();
+  seedSpace(store);
+  seedSpace(store, { id: "space-x", tenant_id: "t2", name: "Other", code: "x", sort_order: 9 });
+  const opened = await openVisit(fakeAdmin(store), {
+    tenantId: "t1",
+    spaceId: "space-t7",
+    actorUserId: "u1",
+  });
+  assert.equal(opened.ok, true);
+  if (!opened.ok) return;
+  const token = opened.visit.publicToken;
+
+  const guest = await loadOpenVisitByToken(fakeAdmin(store), { tenantId: "t2", publicToken: token });
+  assert.equal(guest.ok, false);
+  if (guest.ok) return;
+  assert.equal(guest.reason, "not_found");
+
+  const qr = await resolveOpenVisitForSpace(fakeAdmin(store), { tenantId: "t2", spaceId: "space-t7" });
+  assert.equal(qr.ok, false);
+  if (qr.ok) return;
+  assert.equal(qr.reason, "not_seated");
+
+  const floor = await listFloor(fakeAdmin(store), "t1");
+  assert.equal(floor.ok, true);
+  if (!floor.ok) return;
+  assert.deepEqual(
+    floor.tables.map((t) => t.spaceId),
+    ["space-t7"],
+  );
+});
+
 test("guest visit page looks up public_token, not space_id", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/visits/qr.ts"), "utf8");
   assert.match(src, /public_token/);

@@ -13,7 +13,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P0-05 | mixed | awaiting external verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Instruction docs updated. `db:check` not run (no credentials). |
 | P0-06 | mixed | awaiting external verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | SQL + script + contract. Apply needs DATABASE_URL. |
 | P0-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | tablet-pos + mobile-checkout; `e2e/cases/` scaffold. |
-| W-AUDIT | cloud-safe | implementing | cloud-agent | 2026-09-08T10:40Z | cursor/journeys-program-c4d3 | Pool IDs tenant-scoped. Isolation tests: POS, visits, hybrid cancel, prep. Human rows in `docs/plans/qa/journeys.md`. |
+| W-AUDIT | cloud-safe | implementing | cloud-agent | 2026-09-08T11:12Z | cursor/journeys-program-c4d3 | Isolation: POS, visits (token/QR/floor), hybrid cancel, prep. Pool IDs tenant-scoped. |
 | P1-01 | local-only | awaiting external verification | — | — | cursor/journeys-program-c4d3 | Script refuses without `CAPACITY_PROOF_ISOLATED=1`. Never production. |
 | P1-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Coordinating: order engine. Compensation via `ticket_refund_intents`. |
 | P1-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | Runner + cron + heartbeat. Update also filters status. |
