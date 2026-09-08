@@ -322,6 +322,22 @@ ON CONFLICT (id) DO UPDATE SET
   venue_id = EXCLUDED.venue_id,
   updated_at = now();
 
+INSERT INTO public.sessions (id, tenant_id, offering_id, venue_id, title, starts_at, ends_at, status)
+VALUES (
+  '33330013-0000-4000-8000-000000000003'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330012-0000-4000-8000-000000000003'::UUID,
+  '33330010-0000-4000-8000-000000000001'::UUID,
+  'Last place class',
+  now() + interval '1 day 4 hours',
+  now() + interval '1 day 5 hours',
+  'scheduled'
+)
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  venue_id = EXCLUDED.venue_id,
+  updated_at = now();
+
 INSERT INTO public.talent_offerings (
   id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
   booking_mode, allow_pay_in_person, reserve_mode, status, visibility, moderation_state
@@ -364,6 +380,22 @@ VALUES (
   'default',
   ARRAY['33330020-0000-4000-8000-000000000001'::UUID],
   12,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET units_total = EXCLUDED.units_total, updated_at = now();
+
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-000000000006'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'session_tier',
+  '33330013-0000-4000-8000-000000000003'::UUID,
+  'default',
+  ARRAY['33330020-0000-4000-8000-000000000006'::UUID],
+  1,
   900,
   TRUE
 )

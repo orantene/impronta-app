@@ -210,6 +210,8 @@ export async function latestReserveThenOrder(email: string): Promise<{
 }
 
 export const MORNING_CLASS_SESSION_ID = "33330013-0000-4000-8000-000000000001";
+export const LAST_PLACE_CLASS_SESSION_ID = "33330013-0000-4000-8000-000000000003";
+export const LAST_PLACE_CLASS_POOL_ID = "33330020-0000-4000-8000-000000000006";
 
 export type ClassWalkIn = {
   orderId: string;
@@ -219,6 +221,9 @@ export type ClassWalkIn = {
   customerEmail: string | null;
   lineLabel: string | null;
   sessionId: string | null;
+  allocationId: string | null;
+  allocationState: string | null;
+  poolId: string | null;
 };
 
 async function latestClassOrder(email: string, channel: string): Promise<ClassWalkIn | null> {
@@ -246,10 +251,20 @@ async function latestClassOrder(email: string, channel: string): Promise<ClassWa
 
   const { data: line, error: lineErr } = await admin
     .from("order_lines")
-    .select("label, session_id, total_cents")
+    .select("id, label, session_id, total_cents")
     .eq("order_id", order.id)
     .maybeSingle();
   if (lineErr) throw new Error(lineErr.message);
+
+  const { data: alloc, error: allocErr } = line
+    ? await admin
+        .from("capacity_allocations")
+        .select("id, state, pool_id")
+        .eq("tenant_id", JOURNEYS_TENANT_ID)
+        .eq("order_line_id", line.id)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (allocErr) throw new Error(allocErr.message);
 
   return {
     orderId: order.id,
@@ -259,6 +274,9 @@ async function latestClassOrder(email: string, channel: string): Promise<ClassWa
     customerEmail: (customer.email as string | null) ?? null,
     lineLabel: (line?.label as string | null) ?? null,
     sessionId: (line?.session_id as string | null) ?? null,
+    allocationId: (alloc?.id as string | null) ?? null,
+    allocationState: (alloc?.state as string | null) ?? null,
+    poolId: (alloc?.pool_id as string | null) ?? null,
   };
 }
 
