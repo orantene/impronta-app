@@ -123,6 +123,10 @@ const ES_TEXT: Record<string, string> = {
   "Operations alerts": "Alertas de operaciones",
   "Cross-tenant flags": "Señales entre inquilinos",
   // PAGE_META entries the palette + rail tooltips render via copy.t
+  "Sales": "Ventas",
+  "Discounts": "Descuentos",
+  "Bookings, orders, appointments and registrations in one list": "Reservas, pedidos, citas e inscripciones en una lista",
+  "Promo codes this workspace owns": "Códigos promocionales de este espacio",
   "Financials": "Finanzas",
   "Payouts": "Pagos",
   "Revenue, payouts, commissions, and payment status": "Ingresos, pagos, comisiones y estado de pago",

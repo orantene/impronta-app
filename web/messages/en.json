@@ -11989,7 +11989,30 @@
       "totalsScopeNote": "These totals describe the orders shown, not the whole workspace.",
       "totalsSettled": "Paid",
       "unavailableBody": "This is on our side, not yours. Please refresh in a moment.",
-      "unavailableTitle": "We could not load your orders"
+      "unavailableTitle": "We could not load your orders",
+      "refund": "Refund lines",
+      "refundEffect": "What this refund does",
+      "refundConfirm": "Confirm this refund"
+    },
+    "sales": {
+      "pageTitle": "Sales",
+      "pageIntro": "Bookings, orders, appointments and registrations. This list reads existing records; it is not a second ledger.",
+      "openOrders": "Orders desk",
+      "openCalendar": "Calendar",
+      "empty": "No sales yet.",
+      "colKind": "Kind"
+    },
+    "discounts": {
+      "pageTitle": "Discounts",
+      "pageIntro": "Promo codes this workspace owns. Redemption is checked again under a lock at purchase.",
+      "unavailable": "We could not load discounts.",
+      "empty": "No codes yet.",
+      "colCode": "Code",
+      "colValue": "Value",
+      "colActive": "Active",
+      "on": "On",
+      "off": "Off",
+      "readOnly": "Only an owner can add or turn off a code."
     },
     "adminSessions": {
       "title": "Schedule",

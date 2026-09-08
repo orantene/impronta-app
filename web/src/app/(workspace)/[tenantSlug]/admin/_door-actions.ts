@@ -520,3 +520,90 @@ export async function sellAtDoor(input: {
     return { ok: false, error: "Could not sell at the door." };
   }
 }
+
+const settleSchema = z.object({
+  orderId: z.string().uuid(),
+  paidVia: z.enum(["cash", "card"]),
+  amountCents: z.number().int().nonnegative(),
+  currency: z.string().min(3).max(8),
+  idempotencyKey: z.string().min(8).max(80),
+});
+
+export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>) {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  const parsed = settleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, error: "unavailable" };
+
+  const { mintOnPaid } = await import("@/lib/events/mint-on-paid");
+  const { settleAtDoor } = await import("@/lib/orders/settle-at-door");
+  return settleAtDoor(
+    admin,
+    {
+      tenantId: guard.tenantId,
+      orderId: parsed.data.orderId,
+      actorUserId: guard.user.id,
+      paidVia: parsed.data.paidVia,
+      amountCents: parsed.data.amountCents,
+      currency: parsed.data.currency,
+      idempotencyKey: parsed.data.idempotencyKey,
+    },
+    { onOrderPaid: (ctx) => mintOnPaid(admin, ctx) },
+  );
+}
+
+export type HeldDoorOrder = {
+  id: string;
+  totalCents: number;
+  currency: string;
+  holderName: string | null;
+};
+
+export async function loadHeldDoorOrders(
+  sessionId: string,
+): Promise<{ ok: true; orders: HeldDoorOrder[] } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    return { ok: false, error: "That is not a session." };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "unavailable" };
+
+  const { data: lines, error: lineErr } = await admin
+    .from("order_lines")
+    .select("order_id")
+    .eq("session_id", sessionId);
+  if (lineErr) {
+    logServerError("door.held/lines", lineErr);
+    return { ok: false, error: "unavailable" };
+  }
+  const orderIds = [...new Set(((lines ?? []) as Array<{ order_id: string }>).map((r) => r.order_id))];
+  if (orderIds.length === 0) return { ok: true, orders: [] };
+
+  const { data: orders, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, currency, tenant_id")
+    .eq("tenant_id", guard.tenantId)
+    .in("id", orderIds)
+    .in("status", ["draft", "pending_payment"]);
+  if (orderErr) {
+    logServerError("door.held/orders", orderErr);
+    return { ok: false, error: "unavailable" };
+  }
+  return {
+    ok: true,
+    orders: ((orders ?? []) as Array<{
+      id: string;
+      total_cents: number;
+      currency: string | null;
+    }>).map((row) => ({
+      id: row.id,
+      totalCents: row.total_cents,
+      currency: row.currency ?? "usd",
+      holderName: null,
+    })),
+  };
+}

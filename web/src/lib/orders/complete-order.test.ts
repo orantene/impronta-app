@@ -36,6 +36,10 @@ function fakeAdmin(opts: {
         updates.push({ table, ...payload });
         return api;
       },
+      upsert: (payload: unknown) => {
+        updates.push({ table, upsert: payload });
+        return Promise.resolve({ data: payload, error: null });
+      },
       maybeSingle: async () => {
         if (table === "booking_transactions") {
           return { data: { id: "t1", order_id: opts.orderId ?? null }, error: null };
@@ -138,6 +142,10 @@ test("MONEY LANDED BUT THE HOLD LAPSED: the order STILL becomes paid", async () 
   assert.equal(r.ok && r.status, "paid");
   assert.equal(r.ok && r.committed, 0);
   assert.equal(updates.find((u) => u.table === "orders")?.status, "paid");
+  assert.ok(
+    updates.some((u) => u.table === "ticket_refund_intents"),
+    "a paid order with no seat must leave a compensation row",
+  );
 });
 
 test("capacity is committed when the hold is still live", async () => {

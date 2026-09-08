@@ -59,6 +59,14 @@ const COPY: Record<Locale, Record<string, string>> = {
     email: "Email",
     emailHelp: "Your ticket goes here. If you cannot open it, we will find you by name at the door.",
     emailPlaceholder: "you@email.com",
+    promo: "Promo code",
+    promoPlaceholder: "If you have one",
+    promo_unknown: "That code is not recognised.",
+    promo_not_started: "That code is not active yet.",
+    promo_expired: "That code has ended.",
+    promo_exhausted: "That code has been used up.",
+    promo_customer_limit: "You have already used that code.",
+    promo_not_applicable: "That code does not apply to this order.",
     name: "Name",
     namePlaceholder: "Your name",
     buy: "Buy with card",
@@ -130,6 +138,14 @@ const COPY: Record<Locale, Record<string, string>> = {
     engine_error: "Algo falló de nuestro lado. No se cobró nada.",
     pay_at_door_not_yet: "Pagar en la puerta aún no está disponible en línea. Pagá con tarjeta, o en la puerta esa noche.",
     pay_at_door_not_offered: "Pagar en la puerta no se ofrece para esa noche.",
+    promo: "Código promocional",
+    promoPlaceholder: "Si tenés uno",
+    promo_unknown: "Ese código no se reconoce.",
+    promo_not_started: "Ese código todavía no está activo.",
+    promo_expired: "Ese código ya terminó.",
+    promo_exhausted: "Ese código ya se usó por completo.",
+    promo_customer_limit: "Ya usaste ese código.",
+    promo_not_applicable: "Ese código no aplica a este pedido.",
     emailRequired: "Necesitamos un correo para enviarte la entrada.",
     not_found: "No encontramos ese pedido. No se cobró nada.",
   },
@@ -218,6 +234,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const [qty, setQty] = useState(1);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [promo, setPromo] = useState("");
   const [orderKey, setOrderKey] = useState(() => newOrderKey());
   const [busy, setBusy] = useState<"idle" | "holding" | "redirecting">("idle");
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -255,7 +272,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
       const choice = chosenNight.door.offered ? payHow : "full";
       const res = await startTicketPurchase({
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,
-        email: email.trim(), displayName: name.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
+        email: email.trim(), displayName: name.trim() || undefined, promoCode: promo.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
       });
       if (!res.ok) {
         setRefusal(t(res.reason === "quantity" ? "quantity_err" : res.reason));
@@ -448,6 +465,21 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                   disabled={busy !== "idle"}
                   autoComplete="name"
                   placeholder={t("namePlaceholder")}
+                />
+              </label>
+              <label>
+                <span className="tp-field-label">{t("promo")}</span>
+                <input
+                  className="tp-field"
+                  type="text"
+                  name="promo"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={promo}
+                  onChange={(e) => setPromo(e.target.value)}
+                  disabled={busy !== "idle"}
+                  placeholder={t("promoPlaceholder")}
+                  aria-label={t("promo")}
                 />
               </label>
               {chosenNight?.door.offered ? (

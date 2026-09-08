@@ -11989,7 +11989,30 @@
       "totalsScopeNote": "Estos totales describen los pedidos mostrados, no todo el espacio de trabajo.",
       "totalsSettled": "Pagado",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
-      "unavailableTitle": "No pudimos cargar tus pedidos"
+      "unavailableTitle": "No pudimos cargar tus pedidos",
+      "refund": "Reembolsar líneas",
+      "refundEffect": "Qué hace este reembolso",
+      "refundConfirm": "Confirmar este reembolso"
+    },
+    "sales": {
+      "pageTitle": "Ventas",
+      "pageIntro": "Reservas, pedidos, citas e inscripciones. Esta lista lee registros existentes; no es un segundo libro.",
+      "openOrders": "Escritorio de pedidos",
+      "openCalendar": "Calendario",
+      "empty": "Aún no hay ventas.",
+      "colKind": "Tipo"
+    },
+    "discounts": {
+      "pageTitle": "Descuentos",
+      "pageIntro": "Códigos promocionales de este espacio. El canje se vuelve a comprobar bajo un bloqueo al comprar.",
+      "unavailable": "No pudimos cargar los descuentos.",
+      "empty": "Aún no hay códigos.",
+      "colCode": "Código",
+      "colValue": "Valor",
+      "colActive": "Activo",
+      "on": "Sí",
+      "off": "No",
+      "readOnly": "Solo un dueño puede agregar o apagar un código."
     },
     "adminSessions": {
       "title": "Horario",

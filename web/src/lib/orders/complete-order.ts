@@ -3,6 +3,10 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { commitCapacity } from "@/lib/capacity";
+import {
+  linesNeedingCompensation,
+  recordCapacityLostCompensation,
+} from "@/lib/orders/capacity-lost-compensation";
 
 /**
  * THE COMPLETION PATH. Step 12 of the 0.6 design, and until now it did not exist.
@@ -89,7 +93,7 @@ export async function completeOrderForTransaction(
 
     const { data: order, error: orderErr } = await admin
       .from("orders")
-      .select("id, status, total_cents, version, tenant_id")
+      .select("id, status, total_cents, version, tenant_id, hold_expires_at")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -101,7 +105,7 @@ export async function completeOrderForTransaction(
 
     const row = order as {
       id: string; status: string; total_cents: number; version: number;
-      tenant_id: string;
+      tenant_id: string; hold_expires_at: string | null;
     };
 
     // Already settled. Idempotent because webhooks redeliver, and a second
@@ -165,18 +169,40 @@ export async function completeOrderForTransaction(
     if (allocErr) logServerError("orders.completeOrder/allocations", allocErr);
 
     let committed = 0;
+    let commitFailed = false;
+    const lineIds = ((await admin.from("order_lines").select("id").eq("order_id", orderId)).data ?? []).map(
+      (l) => (l as { id: string }).id,
+    );
     const allocationIds = (allocRows ?? []).map((a) => (a as { id: string }).id);
     if (allocationIds.length > 0) {
       const result = await commitCapacity(allocationIds, null, admin);
       if (result.ok) {
         committed = result.committed;
       } else {
+        commitFailed = true;
         logServerError(
           "orders.completeOrder/CAPACITY_LOST_AFTER_PAYMENT",
           `order ${orderId} paid but capacity could not be committed (${result.reason}) — `
             + `a customer has paid for something they may no longer hold. Needs a human.`,
         );
       }
+    }
+
+    if (
+      linesNeedingCompensation({
+        holdExpiresAt: row.hold_expires_at ?? null,
+        holdAllocationCount: allocationIds.length,
+        commitFailed,
+        committed,
+      })
+    ) {
+      await recordCapacityLostCompensation(admin, {
+        tenantId: row.tenant_id,
+        orderId,
+        lineIds,
+        transactionId,
+        reason: "seat_lost_after_payment",
+      });
     }
 
     // ── DECISION 3: the flip is optimistic-concurrency guarded, and a failure

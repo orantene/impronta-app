@@ -71,3 +71,75 @@ export function decideOrderExpiry(order: ExpiringOrder, now: Date = new Date()):
 
   return { action: "keep", reason: "not_expirable" };
 }
+
+export type SweepExpiredOrdersResult = {
+  scanned: number;
+  cancelled: number;
+  failed: number;
+};
+
+export function idsToCancel(
+  rows: readonly ExpiringOrder[],
+  now: Date = new Date(),
+): string[] {
+  return rows
+    .filter((row) => decideOrderExpiry(row, now).action === "cancel")
+    .map((row) => row.id);
+}
+
+type SweepClient = {
+  from: (table: string) => {
+    select: (cols: string) => {
+      in: (col: string, vals: readonly string[]) => Promise<{
+        data: Array<{
+          id: string;
+          status: string;
+          hold_expires_at: string | null;
+          created_at: string;
+          updated_at: string | null;
+        }> | null;
+        error: { message: string } | null;
+      }>;
+    };
+    update: (payload: Record<string, unknown>) => {
+      in: (col: string, vals: readonly string[]) => {
+        in: (col: string, vals: readonly string[]) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+};
+
+/** Move expired draft / pending_payment orders to cancelled. */
+export async function sweepExpiredOrders(
+  admin: SweepClient,
+  now: Date = new Date(),
+): Promise<SweepExpiredOrdersResult> {
+  const { data, error } = await admin
+    .from("orders")
+    .select("id, status, hold_expires_at, created_at, updated_at")
+    .in("status", ["draft", "pending_payment"]);
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []).map((row) => ({
+    id: row.id,
+    status: row.status,
+    holdExpiresAt: row.hold_expires_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+  const cancelIds = idsToCancel(rows, now);
+  const result: SweepExpiredOrdersResult = { scanned: rows.length, cancelled: 0, failed: 0 };
+  if (cancelIds.length === 0) return result;
+
+  const { error: updErr } = await admin
+    .from("orders")
+    .update({ status: "cancelled", hold_expires_at: null })
+    .in("id", cancelIds)
+    .in("status", ["draft", "pending_payment"]);
+  if (updErr) {
+    result.failed = cancelIds.length;
+    return result;
+  }
+  result.cancelled = cancelIds.length;
+  return result;
+}

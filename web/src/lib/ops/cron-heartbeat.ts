@@ -28,7 +28,7 @@ import { logServerError } from "@/lib/server/safe-error";
 /** Jobs that write a heartbeat. Adding one here is not enough — the alert
  *  sweep's expectations table must also learn its schedule, or a job could
  *  heartbeat forever with nothing checking that it still does. */
-export type HeartbeatJob = "project-ledger" | "ingest-balance-transactions";
+export type HeartbeatJob = "project-ledger" | "ingest-balance-transactions" | "expire-orders";
 
 /** Detail strings are capped in the schema; truncate rather than let the
  *  insert fail on a runaway error message and lose the heartbeat entirely. */
@@ -109,6 +109,8 @@ export const HEARTBEAT_EXPECTATIONS: Record<HeartbeatJob, { intervalMinutes: num
   "project-ledger": { intervalMinutes: 60, graceMinutes: 15 },
   // vercel.json: `35 * * * *` — hourly.
   "ingest-balance-transactions": { intervalMinutes: 60, graceMinutes: 15 },
+  // vercel.json: `* * * * *` — every minute.
+  "expire-orders": { intervalMinutes: 1, graceMinutes: 5 },
 };
 
 /** Minutes of silence after which a job is considered stopped. */

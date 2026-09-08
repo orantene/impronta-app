@@ -10,13 +10,16 @@
 //
 // Why this is not in the `ci` aggregate: it needs a real Postgres, and CI has
 // none. Keeping it out means `check:ci-lane-parity` stays truthful about what
-// actually gates a PR. Run it by hand against a Supabase branch (or, as the
-// author did, production — it creates ONE pool under a throwaway subject id and
-// deletes it, allocations cascading with it, leaving zero rows behind).
+// actually gates a PR. Run it only against an isolated Supabase branch. It
+// creates ONE pool under a throwaway subject id and deletes it.
 //
-//   node --env-file=web/.env.vercel.local web/scripts/verify-capacity-concurrency.mjs
+// Isolated target only. Never production.
+//
+//   CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local \
+//     scripts/verify-capacity-concurrency.mjs
 //
 // Exit 0 = exactly 12 of 200 won and the table agrees. Exit 1 = oversell.
+// Exit 2 = refused (no isolated flag).
 //
 // It reads GROUND TRUTH from capacity_allocations rather than tallying the HTTP
 // replies. That matters: under 200 parallel sockets a handful of requests die in
@@ -29,9 +32,18 @@ const TENANT = process.env.CAPACITY_PROOF_TENANT_ID ?? "00000000-0000-0000-0000-
 const N = Number(process.env.CAPACITY_PROOF_CALLS ?? 200);
 const UNITS = Number(process.env.CAPACITY_PROOF_UNITS ?? 12);
 
+if (process.env.CAPACITY_PROOF_ISOLATED !== "1") {
+  console.error(
+    "[capacity-proof] refusing. This is not a production script.\n" +
+      "Provision an isolated Supabase branch, then:\n" +
+      "  CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/verify-capacity-concurrency.mjs",
+  );
+  process.exit(2);
+}
+
 if (!URL_ || !KEY) {
   console.error("[capacity-proof] missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.\n" +
-    "Run with --env-file=web/.env.vercel.local (after `vercel env pull`).");
+    "Load an isolated env file. Do not use .env.vercel.local.");
   process.exit(1);
 }
 

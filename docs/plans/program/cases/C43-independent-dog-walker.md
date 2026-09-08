@@ -1,0 +1,93 @@
+# C43 — Independent dog walker
+
+Cluster: field  
+Representative full browser journey: no — delta over shared engine
+
+## Existing working path
+
+Have: appointments.
+
+## Missing business behavior
+
+Missing: recurring, service area, multi-client group walks.
+
+## Tasks required
+
+P7-02, P7-03, P6-01
+
+## Completion
+
+- **Basic:** Books single walks.
+- **Complete:** Group walk holds four dogs from four clients inside the area.
+
+Overall status: not started
+
+## Scenarios
+
+### C43-CUS — Customer journey
+
+| Field | Value |
+|---|---|
+| Environment | Fixture tenant for cluster `field` |
+| Role | Customer / guest |
+| Fixture | Minimum catalog, people, spaces, sessions for this case |
+| Steps | Four clients book. Through the real website or profile. Refresh and reopen. |
+| Expected visible | Journey completes without a dead end. |
+| Expected persisted | Matching order/booking/inquiry rows; money and capacity consistent. |
+| Negative / recovery | One cancellation releases one slot. |
+| Automated or manual | Playwright when fixture exists; until then not started |
+| Evidence | `qa-evidence/C43-CUS/` |
+| Blocks completion | Unauthorized access, duplicate charge/booking, oversell, broken core journey |
+| Severity if failed | blocking or high-risk when money/capacity; else normal |
+| Disposition | not started |
+
+### C43-OP — Operator journey
+
+| Field | Value |
+|---|---|
+| Environment | Same fixture, staff or owner |
+| Role | Operator |
+| Steps | Walker runs the group. Workspace or POS. Sign out/in. Reopen the record. |
+| Expected visible | Sales/Calendar/Payments show the same record. |
+| Expected persisted | Same ids after refresh. |
+| Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
+| Automated or manual | Playwright operator project (desktop or tablet POS) |
+| Evidence | `qa-evidence/C43-OP/` |
+| Blocks completion | Broken operator loop, silent overwrite, permission bypass |
+| Disposition | not started |
+
+### C43-TAL — Talent workflow
+
+| Field | Value |
+|---|---|
+| Applies | yes if the case has an assigned professional |
+| Steps | Assignment reaches the correct professional. Private customer information stays isolated. |
+| Expected persisted | Roster assignment ≠ staff access. |
+| Disposition | not started |
+
+### C43-DIFF — Difficult combination
+
+| Field | Value |
+|---|---|
+| Steps | Area boundary refuses an out-of-area dog. |
+| Expected persisted | All committed resources held together; competing request cannot take any. |
+| Blocks completion | Partial reserve, leaked hold, oversell |
+| Disposition | not started |
+
+### C43-REC — Recovery
+
+| Field | Value |
+|---|---|
+| Steps | One cancellation releases one slot. |
+| Expected persisted | Compensation or release matches L55. No duplicate refund. Staff can see pending/failed/done. |
+| Disposition | not started |
+
+## Score
+
+| Scenario | Passed | Failed | Blocked |
+|---|---|---|---|
+| CUS | | | |
+| OP | | | |
+| TAL | | | |
+| DIFF | | | |
+| REC | | | |
