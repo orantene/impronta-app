@@ -27,4 +27,4 @@ Harness: a public header "Sign in" / "Log in" link is not an auth wall.
 
 ## Not claimed
 
-This is not a table reservation. Header Reserve still opens `?inquiry=open` because no published page carries `reserve_table`. Venue service windows / bands / `admissions` are still missing on the cheap-repaired schema. C06-CUS reservation, C06-DIFF / REC, and the complete restaurant path are not started. Case count stays **0 / 48**. Do not treat the C06-CUS smoke spec as a pass.
+This file is the separate public-menu path. Combined reserve-then-order is `reserve-then-order.md`. Header Reserve still opens `?inquiry=open` because `verb-destination` reads published `cms_pages`. QR / courses / split / C06-DIFF / REC are not started. Case count stays **0 / 48**. Do not treat the C06-CUS smoke spec as a pass.

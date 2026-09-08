@@ -23,5 +23,5 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Isolated SQL fixture is applied on `qa-journeys`; staff login on `qa-journeys.local:3103` is verified. Honest count: **0 of 16 human rows executed**. Automated C06-OP walk-in cash and C06-CUS public menu are in `qa-evidence/` — those do not tick the human POS walk-in row.
 
-Checkpoint 2026-09-08T19:13Z: P1-01 HTTP concurrency passed (`qa-evidence/P1-01/`). C06-OP walk-in cash passed (`qa-evidence/C06-OP/`). C06-CUS public menu and table reservation passed as separate paths (`qa-evidence/C06-CUS/`). C01-CUS technician deposit requested (`qa-evidence/C01-CUS/deposit.md`) — charge not collected. Not a complete case. Do not record passes from skipped Playwright.
+Checkpoint 2026-09-08T19:22Z: P1-01 HTTP concurrency passed (`qa-evidence/P1-01/`). C06-OP walk-in cash passed (`qa-evidence/C06-OP/`). C06-CUS public menu, table reservation, and one-guest reserve-then-order passed (`qa-evidence/C06-CUS/`). C01-CUS technician deposit requested (`qa-evidence/C01-CUS/deposit.md`) — charge not collected. Not a complete case. Do not record passes from skipped Playwright.
 

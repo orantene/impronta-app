@@ -29,7 +29,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C05 | C05-TAL | Hair salon | not started | `qa-evidence/C05-TAL/` |
 | C05 | C05-DIFF | Hair salon | not started | `qa-evidence/C05-DIFF/` |
 | C05 | C05-REC | Hair salon | not started | `qa-evidence/C05-REC/` |
-| C06 | C06-CUS | Restaurant | implementing — public menu + reservation paths | `qa-evidence/C06-CUS/` |
+| C06 | C06-CUS | Restaurant | implementing — one guest reserved then ordered | `qa-evidence/C06-CUS/reserve-then-order.md` |
 | C06 | C06-OP | Restaurant | implementing — walk-in cash only | `qa-evidence/C06-OP/walk-in-cash.md` |
 | C06 | C06-TAL | Restaurant | not started | `qa-evidence/C06-TAL/` |
 | C06 | C06-DIFF | Restaurant | not started | `qa-evidence/C06-DIFF/` |

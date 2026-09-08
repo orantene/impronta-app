@@ -25,4 +25,4 @@ App: `restaurant-orderable` now carries `reserve_table` (booking door). Header R
 
 ## Not claimed
 
-This is not one guest who reserved and then ordered in the same visit. Public menu is a separate path (`public-menu.md`). QR / courses / split / C06-DIFF / REC are not started. Case count stays **0 / 48**.
+Combined reserve-then-order is now recorded in `reserve-then-order.md`. This file stays the separate reservation-only path. QR / courses / split / C06-DIFF / REC are not started. Case count stays **0 / 48**.
