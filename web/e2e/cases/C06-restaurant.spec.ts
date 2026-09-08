@@ -12,7 +12,12 @@ import {
   signInJourneysStaff,
   assertWorkspaceIdentity,
 } from "./_harness";
-import { latestMenuPizza, latestPaidPosPizza, latestTableReservation } from "./_isolated-db";
+import {
+  latestMenuPizza,
+  latestPaidPosPizza,
+  latestReserveThenOrder,
+  latestTableReservation,
+} from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -112,6 +117,71 @@ test("C06-CUS reservation: storefront reserve_table → hold → Sales and DB ag
 
   await page.screenshot({
     path: testInfo.outputPath("c06-cus-reservation.png"),
+    fullPage: true,
+  });
+});
+
+test("C06-CUS reserve-then-order: one guest reserves a table then orders pizza", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const marker = `c06-cus-both-${Date.now()}@impronta.test`;
+
+  await openStorefront(page);
+
+  const board = page.locator("[data-builder-node-kind='reserve_table']");
+  await expect(page.getByText("Reserve a table").first()).toBeVisible();
+  await expect(board.getByText(/checking the book/i)).toHaveCount(0, { timeout: 20_000 });
+
+  const slotButtons = board.getByRole("button", { name: /^\d{1,2}:\d{2}/ });
+  await expect(slotButtons.first()).toBeVisible({ timeout: 20_000 });
+  await slotButtons.first().click();
+  await board.getByLabel(/^name$/i).fill("C06 diner");
+  await board.getByLabel(/^email$/i).fill(marker);
+  await board.getByRole("button", { name: /^reserve at /i }).click();
+  await expect(board.getByRole("status")).toContainText(/you are booked|nothing to pay/i, {
+    timeout: 30_000,
+  });
+
+  const menu = page.locator(".site-builder-node--menu-board");
+  await expect(page.getByText("House pizza").first()).toBeVisible();
+  await page.getByRole("button", { name: "Increase House pizza" }).click();
+  await expect(page.getByText(/in your order/i)).toBeVisible();
+  await menu.getByLabel(/^name$/i).fill("C06 diner");
+  await menu.getByLabel(/^email$/i).fill(marker);
+  await menu.getByLabel(/^phone$/i).fill("55501006");
+  await page.locator(".site-builder-node--menu-board-submit").click();
+  await expect(page.locator(".site-builder-node--menu-board-form-status")).toContainText(
+    /order sent|your order is in/i,
+    { timeout: 30_000 },
+  );
+
+  await page.reload();
+  await expect(page.getByText("Reserve a table").first()).toBeVisible();
+  await expect(page.getByText("House pizza").first()).toBeVisible();
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("reservation").first()).toBeVisible();
+  await expect(page.getByText("menu").first()).toBeVisible();
+  await expect(page.getByText("$18.00").first()).toBeVisible();
+
+  const persisted = await latestReserveThenOrder(marker);
+  expect(persisted, "same guest must have both reservation and menu orders").not.toBeNull();
+  expect(persisted?.reservation.sourceChannel).toBe("reservation");
+  expect(persisted?.reservation.admissionId).toBeTruthy();
+  expect(persisted?.reservation.partySize).toBe(2);
+  expect(persisted?.menu.status).toBe("paid");
+  expect(persisted?.menu.totalCents).toBe(1800);
+  expect(persisted?.menu.sourceChannel).toBe("menu");
+  expect(persisted?.menu.lineLabel?.toLowerCase()).toContain("house pizza");
+  expect(persisted?.reservation.customerEmail).toBe(marker);
+  expect(persisted?.menu.customerEmail).toBe(marker);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c06-cus-reserve-then-order.png"),
     fullPage: true,
   });
 });

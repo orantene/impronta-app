@@ -182,6 +182,33 @@ export async function latestTableReservation(email: string): Promise<TableReserv
   };
 }
 
+/** One guest who reserved a table and then ordered — same customer, two orders. */
+export async function latestReserveThenOrder(email: string): Promise<{
+  customerId: string;
+  reservation: TableReservation;
+  menu: MenuPizzaOrder;
+} | null> {
+  const reservation = await latestTableReservation(email);
+  const menu = await latestMenuPizza(email);
+  if (!reservation || !menu) return null;
+
+  const admin = isolatedService();
+  const { data: customer, error } = await admin
+    .from("customers")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!customer) return null;
+
+  return {
+    customerId: customer.id as string,
+    reservation,
+    menu,
+  };
+}
+
 export type GelManicureDeposit = {
   orderId: string;
   status: string;
