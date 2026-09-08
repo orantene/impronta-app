@@ -36,22 +36,31 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await page.goto("/directory?inquiry=open");
   await assertNotAuthWall(page);
 
-  const composer = page.getByPlaceholder(/type your message|write a reply/i);
+  const chat = page.getByRole("dialog", { name: /message the agency/i });
+  await expect(chat).toBeVisible({ timeout: 20_000 });
+  const start = chat.getByRole("button", { name: /start a new inquiry/i });
+  if (await start.isVisible().catch(() => false)) {
+    await start.click();
+  } else {
+    await chat.getByRole("tab", { name: /^chat$/i }).click();
+  }
+
+  const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
   await composer.fill(brief);
 
-  const sendLine = page.getByRole("button", { name: /send message/i }).first();
+  const sendLine = chat.getByRole("button", { name: /send message/i }).first();
   if (await sendLine.isVisible().catch(() => false)) {
     await sendLine.click();
   } else {
-    await page.getByRole("button", { name: /send to agency/i }).click();
+    await chat.getByRole("button", { name: /send to agency/i }).click();
   }
 
-  await expect(page.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
-  await page.getByPlaceholder(/^first name$/i).fill("Cora");
-  await page.getByPlaceholder(/^last name$/i).fill("Cuevas");
-  await page.getByPlaceholder(/^email$/i).fill(marker);
-  await page.getByRole("button", { name: /^send message$/i }).click();
+  await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
+  await chat.getByPlaceholder(/^first name$/i).fill("Cora");
+  await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+  await chat.getByPlaceholder(/email/i).fill(marker);
+  await chat.getByRole("button", { name: /^send message$/i }).click();
 
   await expect(
     page.getByText(/inquiry sent|sent\. the agency will reply|your inquiry is on its way/i).first(),
