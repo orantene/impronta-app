@@ -1,7 +1,18 @@
 /**
- * C26 [representative] — C26-jesus-frozen-pizza-from-home. Browser journey once the fixture exists.
+ * C26 [representative] — frozen pizza from home.
+ * Smoke stays honest. C26-OP pickup handoff is a real journey on qa-journeys.
  */
-import { test, expect, openWorkspace, openStorefront, prepareJourneysPage, skipUnlessFixture } from "./_harness";
+import {
+  test,
+  expect,
+  openWorkspace,
+  openStorefront,
+  prepareJourneysPage,
+  skipUnlessFixture,
+  signInJourneysStaff,
+  assertWorkspaceIdentity,
+} from "./_harness";
+import { latestPosPizzaPickup } from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -16,4 +27,76 @@ test("C26-CUS smoke: storefront body is reachable — not a journey pass", async
 test("C26-OP smoke: operator Sales heading is reachable — not a journey pass", async ({ page }) => {
   await openWorkspace(page, "sales");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+function pickupWindowLocal(): string {
+  const when = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}T${pad(when.getHours())}:${pad(when.getMinutes())}`;
+}
+
+test("C26-OP pickup: New sale → House pizza → cash → prep handoff and DB agree", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  const marker = `c26-op-${Date.now()}@impronta.test`;
+  const promised = pickupWindowLocal();
+
+  await signInJourneysStaff(page, "/admin/pos");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByTitle("House pizza")).toBeVisible();
+
+  await page.getByRole("button", { name: "⊕ New sale" }).click();
+  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
+  await page.getByTitle("House pizza").click();
+  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
+
+  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
+  await page.getByTitle("Collect cash").click();
+  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+
+  await page.getByLabel(/prep destination/i).selectOption("pickup");
+  await page.getByLabel(/pickup window/i).fill(promised);
+  await page.getByTitle("Send to preparation").click();
+  await expect(page.getByText(/preparation:\s*queued/i)).toBeVisible({ timeout: 30_000 });
+
+  await signInJourneysStaff(page, "/admin/preparation");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/preparation/i);
+  await expect(page.getByText(/could not load the board/i)).toHaveCount(0);
+
+  const ticket = page.locator("li").filter({ hasText: /house pizza/i }).filter({ hasText: /pickup/i });
+  await expect(ticket.first()).toBeVisible({ timeout: 20_000 });
+  await ticket.first().getByRole("button", { name: /mark ready/i }).click();
+  await expect(ticket.first().getByRole("button", { name: /confirm handoff/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  await ticket.first().getByRole("button", { name: /confirm handoff/i }).click();
+  await expect(ticket.first().getByRole("button", { name: /confirm handoff/i })).toHaveCount(0, {
+    timeout: 20_000,
+  });
+
+  const persisted = await latestPosPizzaPickup(marker);
+  expect(persisted, "paid POS pizza pickup must exist on qa-journeys").not.toBeNull();
+  expect(persisted?.status).toBe("paid");
+  expect(persisted?.totalCents).toBe(1800);
+  expect(persisted?.sourceChannel).toBe("pos");
+  expect(persisted?.customerEmail).toBe(marker);
+  expect(persisted?.lineLabel?.toLowerCase()).toContain("house pizza");
+  expect(persisted?.ticketId).toBeTruthy();
+  expect(persisted?.destination).toBe("pickup");
+  expect(persisted?.ticketStatus).toBe("ready");
+  expect(persisted?.promisedAt).toBeTruthy();
+  expect(persisted?.handedOffAt).toBeTruthy();
+
+  await page.goto("/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("pos").first()).toBeVisible();
+  await expect(page.getByText("$18.00").first()).toBeVisible();
+
+  await page.screenshot({
+    path: testInfo.outputPath("c26-op-sales.png"),
+    fullPage: true,
+  });
 });

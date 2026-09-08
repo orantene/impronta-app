@@ -29,6 +29,14 @@ export type PaidPosPizza = {
   lineLabel: string | null;
 };
 
+export type PosPizzaPickup = PaidPosPizza & {
+  ticketId: string | null;
+  destination: string | null;
+  ticketStatus: string | null;
+  promisedAt: string | null;
+  handedOffAt: string | null;
+};
+
 export type MenuPizzaOrder = PaidPosPizza & {
   bookingId: string | null;
 };
@@ -71,6 +79,29 @@ export async function latestPaidPosPizza(email: string): Promise<PaidPosPizza | 
     sourceChannel: order.source_channel,
     customerEmail: (customer.email as string | null) ?? null,
     lineLabel: (line?.label as string | null) ?? null,
+  };
+}
+
+export async function latestPosPizzaPickup(email: string): Promise<PosPizzaPickup | null> {
+  const paid = await latestPaidPosPizza(email);
+  if (!paid) return null;
+  const admin = isolatedService();
+  const { data: ticket, error } = await admin
+    .from("preparation_tickets")
+    .select("id, destination, status, promised_at, handed_off_at")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("order_id", paid.orderId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return {
+    ...paid,
+    ticketId: (ticket?.id as string | null) ?? null,
+    destination: (ticket?.destination as string | null) ?? null,
+    ticketStatus: (ticket?.status as string | null) ?? null,
+    promisedAt: (ticket?.promised_at as string | null) ?? null,
+    handedOffAt: (ticket?.handed_off_at as string | null) ?? null,
   };
 }
 
