@@ -357,3 +357,120 @@ export async function latestGelManicureDeposit(email: string): Promise<GelManicu
     holdId: (hold?.id as string | null) ?? null,
   };
 }
+
+export const THERAPIST_B_ID = "33330003-0000-4000-8000-000000000002";
+export const ROOM_A_POOL_ID = "33330020-0000-4000-8000-000000000003";
+
+export type SpaInstantBook = {
+  orderId: string;
+  status: string;
+  totalCents: number;
+  sourceChannel: string;
+  customerEmail: string | null;
+  lineLabel: string | null;
+  holdTalentIds: string[];
+  roomAllocationId: string | null;
+};
+
+async function latestSpaOrder(email: string, lineNeedle: string): Promise<SpaInstantBook | null> {
+  const admin = isolatedService();
+  const { data: customer, error: customerErr } = await admin
+    .from("customers")
+    .select("id, email")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("email", email)
+    .maybeSingle();
+  if (customerErr) throw new Error(customerErr.message);
+  if (!customer) return null;
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, source_channel")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("customer_id", customer.id)
+    .eq("source_channel", "instant_book")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order) return null;
+
+  const { data: line, error: lineErr } = await admin
+    .from("order_lines")
+    .select("id, label")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+  if (!line?.label || !String(line.label).toLowerCase().includes(lineNeedle)) {
+    return null;
+  }
+
+  const { data: holds, error: holdErr } = await admin
+    .from("talent_holds")
+    .select("talent_profile_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (holdErr) throw new Error(holdErr.message);
+
+  const { data: room, error: roomErr } = await admin
+    .from("capacity_allocations")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("pool_id", ROOM_A_POOL_ID)
+    .eq("order_line_id", line.id)
+    .maybeSingle();
+  if (roomErr) throw new Error(roomErr.message);
+
+  return {
+    orderId: order.id,
+    status: order.status,
+    totalCents: Number(order.total_cents),
+    sourceChannel: order.source_channel,
+    customerEmail: (customer.email as string | null) ?? null,
+    lineLabel: (line.label as string | null) ?? null,
+    holdTalentIds: (holds ?? []).map((h) => String(h.talent_profile_id)),
+    roomAllocationId: (room?.id as string | null) ?? null,
+  };
+}
+
+export function latestSpaMassage(email: string): Promise<SpaInstantBook | null> {
+  return latestSpaOrder(email, "massage");
+}
+
+export function latestCouplesMassage(email: string): Promise<SpaInstantBook | null> {
+  return latestSpaOrder(email, "couples");
+}
+
+export async function latestTherapistHold(talentProfileId: string): Promise<{
+  id: string;
+  startsAt: string;
+} | null> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("talent_holds")
+    .select("id, starts_at")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("talent_profile_id", talentProfileId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return { id: String(data.id), startsAt: String(data.starts_at) };
+}
+
+export async function overlappingTherapistHoldCount(
+  talentProfileId: string,
+  startsAt: string,
+): Promise<number> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("talent_holds")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("talent_profile_id", talentProfileId)
+    .eq("starts_at", startsAt);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
+}

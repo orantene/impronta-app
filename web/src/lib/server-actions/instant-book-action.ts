@@ -25,6 +25,8 @@ import {
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
+import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 
 export type InstantBookFormPayload = {
   talentProfileId: string;
@@ -120,7 +122,7 @@ export async function createInstantBookingAction(
           "talent_offerings",
           engineInput.tenantId,
         )
-          .select("reserve_mode")
+          .select("reserve_mode, attributes")
           .eq("id", offeringId)
           .maybeSingle();
         if (offeringPolicyErr) {
@@ -130,6 +132,82 @@ export async function createInstantBookingAction(
             reason: "engine_error" as const,
             error: "We could not confirm how this is paid. Please try again.",
           };
+        }
+
+        const reservation = payload.reservation;
+        const resourceSet = parseOfferingResourceSet(
+          (offeringPolicy as { attributes?: unknown } | null)?.attributes,
+        );
+        const companionIds = resourceSet.companionTalentIds.filter(
+          (id) => id !== engineInput.talentProfileId,
+        );
+        if (companionIds.length > 0) {
+          const { data: roster, error: rosterErr } = await tenantScopedQuery(
+            convertClient,
+            "agency_talent_roster",
+            engineInput.tenantId,
+          )
+            .select("talent_profile_id")
+            .in("talent_profile_id", companionIds)
+            .eq("status", "active");
+          if (rosterErr) {
+            logServerError("instantBookAction.companions", rosterErr);
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "We could not confirm who this treatment needs.",
+            };
+          }
+          const onRoster = new Set(
+            ((roster ?? []) as Array<{ talent_profile_id: unknown }>).map((r) =>
+              String(r.talent_profile_id),
+            ),
+          );
+          if (companionIds.some((id) => !onRoster.has(id))) {
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "That treatment is missing a therapist.",
+            };
+          }
+        }
+
+        const capacity: Array<{
+          offeringId: string;
+          poolId: string;
+          units: number;
+          startsAt?: string;
+          endsAt?: string;
+        }> = [];
+        if (poolId) {
+          capacity.push({
+            offeringId,
+            poolId,
+            units: payload.quantity ?? 1,
+            ...(reservation
+              ? { startsAt: reservation.startsAt, endsAt: reservation.endsAt }
+              : {}),
+          });
+        }
+        if (resourceSet.spaceId && reservation) {
+          const room = await spaceCapacityPool(convertClient, {
+            tenantId: engineInput.tenantId,
+            spaceId: resourceSet.spaceId,
+          });
+          if (!room.ok) {
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "That treatment room is not on sale.",
+            };
+          }
+          capacity.push({
+            offeringId,
+            poolId: room.poolId,
+            units: 1,
+            startsAt: reservation.startsAt,
+            endsAt: reservation.endsAt,
+          });
         }
 
         const booked = await createPurchase(convertClient, {
@@ -161,20 +239,28 @@ export async function createInstantBookingAction(
           ),
           sourceChannel: "instant_book",
           sourcePage: payload.sourcePage ?? null,
-          capacity: poolId
-            ? [{ offeringId, poolId, units: payload.quantity ?? 1 }]
-            : undefined,
+          capacity: capacity.length > 0 ? capacity : undefined,
           // The calendar slot, when this purchase takes someone's time. Capacity
           // and the slot are two different questions and both are on the
           // pipeline's unwind ledger.
-          reservation: payload.reservation
+          reservation: reservation
             ? {
                 talentProfileId: engineInput.talentProfileId,
-                startsAt: payload.reservation.startsAt,
-                endsAt: payload.reservation.endsAt,
+                startsAt: reservation.startsAt,
+                endsAt: reservation.endsAt,
                 poolId,
               }
             : null,
+          // Several people (couples). Reserved with the primary slot as one set.
+          holds:
+            reservation && companionIds.length > 0
+              ? companionIds.map((talentProfileId) => ({
+                  talentProfileId,
+                  startsAt: reservation.startsAt,
+                  endsAt: reservation.endsAt,
+                  title: "Couples therapist",
+                }))
+              : undefined,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
         });

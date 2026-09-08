@@ -1,7 +1,24 @@
 /**
- * C02 [delta] — C02-spa. Browser journey once the fixture exists.
+ * C02 [delta] — spa. Smoke stays honest. C02-CUS last-resource is a real
+ * journey on qa-journeys: one therapist taken, the couples set refuses.
  */
-import { test, expect, openWorkspace, openStorefront, prepareJourneysPage, skipUnlessFixture } from "./_harness";
+import {
+  test,
+  expect,
+  openWorkspace,
+  openStorefront,
+  prepareJourneysPage,
+  skipUnlessFixture,
+  signInJourneysStaff,
+  assertWorkspaceIdentity,
+} from "./_harness";
+import {
+  latestCouplesMassage,
+  latestSpaMassage,
+  latestTherapistHold,
+  overlappingTherapistHoldCount,
+  THERAPIST_B_ID,
+} from "./_isolated-db";
 
 skipUnlessFixture();
 
@@ -16,4 +33,68 @@ test("C02-CUS smoke: storefront body is reachable — not a journey pass", async
 test("C02-OP smoke: operator Sales heading is reachable — not a journey pass", async ({ page }) => {
   await openWorkspace(page, "sales");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the same slot", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const blocker = `c02-b-${Date.now()}@impronta.test`;
+  const challenger = `c02-c-${Date.now()}@impronta.test`;
+
+  await page.goto("/book");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  await page.getByLabel(/^service$/i).selectOption({ label: "Massage" });
+  await expect(page.getByText(/no open times/i)).toHaveCount(0);
+
+  const slot = page.locator("[data-testid=slot-picker] button").first();
+  await expect(slot).toBeVisible({ timeout: 30_000 });
+  const slotLabel = ((await slot.innerText()) ?? "").trim();
+  expect(slotLabel.length).toBeGreaterThan(0);
+  await slot.click();
+
+  await page.getByRole("textbox", { name: /your name/i }).fill("C02 blocker");
+  await page.getByRole("textbox", { name: /your email/i }).fill(blocker);
+  await page.getByRole("button", { name: /confirm this time/i }).click();
+  await expect(page).toHaveURL(/instant_booked=1|\/c\//, { timeout: 45_000 });
+
+  const massage = await latestSpaMassage(blocker);
+  expect(massage, "therapist B massage must exist on qa-journeys").not.toBeNull();
+  expect(massage?.status).toBe("paid");
+  expect(massage?.totalCents).toBe(0);
+  expect(massage?.sourceChannel).toBe("instant_book");
+  expect(massage?.lineLabel?.toLowerCase()).toContain("massage");
+  expect(massage?.lineLabel?.toLowerCase()).not.toContain("couples");
+  expect(massage?.roomAllocationId).toBeNull();
+
+  const t2Hold = await latestTherapistHold(THERAPIST_B_ID);
+  expect(t2Hold, "therapist B hold must exist").not.toBeNull();
+
+  await page.goto("/book");
+  await page.getByLabel(/^service$/i).selectOption({ label: "Couples massage" });
+  const couplesSlot = page.locator("[data-testid=slot-picker] button", { hasText: slotLabel }).first();
+  await expect(couplesSlot).toBeVisible({ timeout: 30_000 });
+  await couplesSlot.click();
+  await page.getByRole("textbox", { name: /your name/i }).fill("C02 challenger");
+  await page.getByRole("textbox", { name: /your email/i }).fill(challenger);
+  await page.getByRole("button", { name: /confirm this time/i }).click();
+  await expect(page.getByText(/just taken|not free|could not hold/i)).toBeVisible({
+    timeout: 30_000,
+  });
+
+  expect(await latestCouplesMassage(challenger)).toBeNull();
+  expect(await overlappingTherapistHoldCount("33330003-0000-4000-8000-000000000001", t2Hold!.startsAt)).toBe(0);
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("instant_book").first()).toBeVisible();
+  await expect(page.getByText(/overdue/i)).toHaveCount(0);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c02-cus-sales.png"),
+    fullPage: true,
+  });
 });

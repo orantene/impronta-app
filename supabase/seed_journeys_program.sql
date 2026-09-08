@@ -10,8 +10,9 @@
 -- WHAT THIS IS NOT
 --   Not the business action under test. Fixtures prepare state; Playwright
 --   books, settles, and refunds through the real UI.
---   This file creates two workspaces, hosts, venue, table+room, three
---   workspace offerings, a session, and a 12-place session_tier pool.
+--   This file creates two workspaces, hosts, venue, table+room, catalog
+--   offerings (including two therapists + a couples set), a session, and
+--   a 12-place session_tier pool.
 --   Staff/customer/talent auth users are provisioned by
 --   `web/scripts/seed-journeys-program.mjs` once isolated credentials exist.
 --   Do not set JOURNEYS_FIXTURE_READY=1 from a seed log line alone.
@@ -207,10 +208,79 @@ ON CONFLICT (talent_profile_id) DO UPDATE SET
   slot_minutes = EXCLUDED.slot_minutes,
   updated_at = now();
 
+INSERT INTO public.talent_profiles (
+  id, profile_code, display_name, created_by_agency_id,
+  profile_kind, booking_terms, visibility, workflow_status, is_test_account,
+  claimed_at
+)
+VALUES (
+  '33330003-0000-4000-8000-000000000002'::UUID,
+  'QA-JNY-T2',
+  'QA Journeys Therapist B',
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'person',
+  '{"directBookingOptIn": true}'::jsonb,
+  'public',
+  'published',
+  TRUE,
+  now()
+)
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  booking_terms = EXCLUDED.booking_terms,
+  profile_kind = EXCLUDED.profile_kind,
+  claimed_at = COALESCE(public.talent_profiles.claimed_at, EXCLUDED.claimed_at),
+  updated_at = now();
+
+INSERT INTO public.agency_talent_roster (
+  id, tenant_id, talent_profile_id, status, agency_visibility, is_primary,
+  source_type, hub_visibility_status, direct_booking_enabled
+)
+VALUES (
+  '33330004-0000-4000-8000-000000000002'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  '33330003-0000-4000-8000-000000000002'::UUID,
+  'active',
+  'site_visible',
+  FALSE,
+  'agency_created',
+  'not_submitted',
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  agency_visibility = EXCLUDED.agency_visibility,
+  direct_booking_enabled = EXCLUDED.direct_booking_enabled,
+  updated_at = now();
+
+INSERT INTO public.talent_booking_hours (
+  talent_profile_id, tenant_id, timezone, weekly, exceptions,
+  slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days
+)
+VALUES (
+  '33330003-0000-4000-8000-000000000002'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'America/Mexico_City',
+  '{"0":[{"startMin":540,"endMin":1080}],"1":[{"startMin":540,"endMin":1080}],"2":[{"startMin":540,"endMin":1080}],"3":[{"startMin":540,"endMin":1080}],"4":[{"startMin":540,"endMin":1080}],"5":[{"startMin":540,"endMin":1080}],"6":[{"startMin":540,"endMin":1080}]}'::jsonb,
+  '[]'::jsonb,
+  45,
+  0,
+  0,
+  0,
+  14
+)
+ON CONFLICT (talent_profile_id) DO UPDATE SET
+  timezone = EXCLUDED.timezone,
+  weekly = EXCLUDED.weekly,
+  min_notice_min = EXCLUDED.min_notice_min,
+  horizon_days = EXCLUDED.horizon_days,
+  slot_minutes = EXCLUDED.slot_minutes,
+  updated_at = now();
+
 INSERT INTO public.talent_offerings (
   id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
   booking_mode, allow_pay_in_person, reserve_mode, deposit_pct, duration_minutes,
-  status, visibility, moderation_state
+  status, visibility, moderation_state, sort_order
 )
 VALUES
   (
@@ -219,10 +289,10 @@ VALUES
     '33330003-0000-4000-8000-000000000001'::UUID,
     'talent', 'service', 'Gel manicure', 5000, 'USD',
     'instant', TRUE, 'deposit', 50, 45,
-    'published', 'public', 'approved'
+    'published', 'public', 'approved', 10
   ),
-  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved'),
-  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved')
+  ('33330012-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'product', 'House pizza', 1800, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved', 0),
+  ('33330012-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, NULL, 'workspace', 'service', 'Complimentary class', 0, 'USD', 'instant', TRUE, 'full', NULL, NULL, 'published', 'public', 'approved', 0)
 ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   amount_cents = EXCLUDED.amount_cents,
@@ -232,6 +302,7 @@ ON CONFLICT (id) DO UPDATE SET
   reserve_mode = EXCLUDED.reserve_mode,
   deposit_pct = EXCLUDED.deposit_pct,
   duration_minutes = EXCLUDED.duration_minutes,
+  sort_order = EXCLUDED.sort_order,
   updated_at = now();
 
 INSERT INTO public.sessions (id, tenant_id, offering_id, venue_id, title, starts_at, ends_at, status)
@@ -308,6 +379,60 @@ VALUES (
   'default',
   ARRAY['33330020-0000-4000-8000-000000000002'::UUID],
   4,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET units_total = EXCLUDED.units_total, updated_at = now();
+
+INSERT INTO public.talent_offerings (
+  id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
+  booking_mode, allow_pay_in_person, reserve_mode, duration_minutes,
+  status, visibility, moderation_state, attributes, sort_order
+)
+VALUES
+  (
+    '33330012-0000-4000-8000-000000000005'::UUID,
+    '33333333-3333-4333-8333-333333333333'::UUID,
+    '33330003-0000-4000-8000-000000000002'::UUID,
+    'talent', 'service', 'Massage', 0, 'USD',
+    'instant', TRUE, 'free', 45,
+    'published', 'public', 'approved',
+    '{}'::jsonb,
+    20
+  ),
+  (
+    '33330012-0000-4000-8000-000000000006'::UUID,
+    '33333333-3333-4333-8333-333333333333'::UUID,
+    '33330003-0000-4000-8000-000000000001'::UUID,
+    'talent', 'service', 'Couples massage', 0, 'USD',
+    'instant', TRUE, 'free', 45,
+    'published', 'public', 'approved',
+    '{"resourceSet":{"companionTalentIds":["33330003-0000-4000-8000-000000000002"],"spaceId":"33330011-0000-4000-8000-000000000002"}}'::jsonb,
+    30
+  )
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  amount_cents = EXCLUDED.amount_cents,
+  allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  owner_kind = EXCLUDED.owner_kind,
+  talent_profile_id = EXCLUDED.talent_profile_id,
+  reserve_mode = EXCLUDED.reserve_mode,
+  duration_minutes = EXCLUDED.duration_minutes,
+  attributes = EXCLUDED.attributes,
+  sort_order = EXCLUDED.sort_order,
+  updated_at = now();
+
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-000000000003'::UUID,
+  '33333333-3333-4333-8333-333333333333'::UUID,
+  'space',
+  '33330011-0000-4000-8000-000000000002'::UUID,
+  'default',
+  ARRAY['33330020-0000-4000-8000-000000000003'::UUID],
+  1,
   900,
   TRUE
 )
