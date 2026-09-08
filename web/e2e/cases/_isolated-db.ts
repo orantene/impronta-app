@@ -93,7 +93,31 @@ export type TabCollectAtClose = PaidPosPizza & {
   closedAt: string | null;
 };
 
-/** Close leftover Table 1 visits so C07-OP can reopen the floor. */
+export async function latestOpenTable1Visit(): Promise<{
+  visitId: string;
+  publicToken: string;
+  serviceKind: string | null;
+} | null> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("visits")
+    .select("id, public_token, service_kind")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("space_id", TABLE_1_SPACE_ID)
+    .eq("status", "open")
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    visitId: String(data.id),
+    publicToken: String(data.public_token),
+    serviceKind: (data.service_kind as string | null) ?? null,
+  };
+}
+
+/** Close leftover Table 1 visits so C07 can reopen the floor. */
 export async function releaseTable1Floor(): Promise<void> {
   const admin = isolatedService();
   const now = new Date().toISOString();
