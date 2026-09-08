@@ -25,4 +25,4 @@ Throwaway pool id `75ee2524-a986-475f-8d82-2806a15c08b6` was created under fixtu
 
 This is not a browser journey. Case count stays 0/48. The seeded 12-place `session_tier` pool was not used; after this run it still has remaining 12 and 0 holds.
 
-`JOURNEYS_FIXTURE_READY` stays unset until a verified login on the isolated app host.
+`JOURNEYS_FIXTURE_READY` is set only in the gitignored isolated env after the isolated-app login.

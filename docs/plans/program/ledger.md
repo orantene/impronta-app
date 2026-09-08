@@ -11,7 +11,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P0-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Sampled against verbatim docs; no invented requirements. Browser still not started. |
 | P0-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | L52–L56. |
 | P0-05 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | `20261230000200`–`00600` on production. Do not re-apply. `00700` RPCs on this branch and on qa-journeys only. |
-| P0-06 | mixed | awaiting external verification | cloud-agent | 2026-09-08T17:20Z | cursor/journeys-program-c4d3 | SQL fixture + 5 auth users on qa-journeys. P1-01 passed. `JOURNEYS_FIXTURE_READY` unset until isolated-app login. Do not seed Impronta. |
+| P0-06 | mixed | verified in test environment | cloud-agent | 2026-09-08T18:15Z | cursor/journeys-program-c4d3 | SQL fixture + staff login on qa-journeys.local:3103. Flag only in gitignored isolated env. Do not seed Impronta. |
 | P0-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | tablet-pos + mobile-checkout; `e2e/cases/` scaffold. |
 | W-AUDIT | cloud-safe | implementing | cloud-agent | 2026-09-08T12:15Z | cursor/journeys-program-c4d3 | Isolation: POS, visits, hybrid, prep, shifts. Purchase refuses a foreign pool before `reserve_capacity_batch`. POS collect holds before money; foreign session writes nothing. Cancel releases this tenant's held places. |
 | P1-01 | local-only | verified in test environment | cloud-agent | 2026-09-08T17:20Z | cursor/journeys-program-c4d3 | 200 HTTP `reserve_capacity` vs 12-unit pool: 12 ok / 188 sold_out; table agrees. Never production. `qa-evidence/P1-01/`. |
@@ -55,7 +55,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 
 ## Case matrix (overall)
 
-See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint.
+See [`cases/`](cases/). Each case: required scenarios → passed / failed / blocked → overall. Basic vs Complete are separate. No case is verified in this checkpoint. C06-OP walk-in cash is in `qa-evidence/C06-OP/`; that is not C06 complete.
 
 ## Defects
 

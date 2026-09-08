@@ -21,7 +21,7 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
 | Cancel a POS draft that already held a class place. | P3-05: cancel releases that allocation; foreign allocations stay. | Place stays held; B's allocation released. |
 
-Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Isolated SQL fixture is applied on `qa-journeys`; rows stay `BLOCKED:` until a login on that isolated target (not production) and `JOURNEYS_FIXTURE_READY=1`. Honest count: **0 of 16 human rows executed**.
+Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Isolated SQL fixture is applied on `qa-journeys`; staff login on `qa-journeys.local:3103` is verified. Honest count: **0 of 16 human rows executed**. Automated C06-OP walk-in cash is in `qa-evidence/C06-OP/` — that does not tick the human POS walk-in row.
 
-Checkpoint 2026-09-08T17:20Z: `qa-journeys` has agencies, catalog, 12-place pool, and five auth users. P1-01 HTTP concurrency passed (see `qa-evidence/P1-01/`). That is not a browser case. Do not record passes from skipped Playwright.
+Checkpoint 2026-09-08T18:15Z: P1-01 HTTP concurrency passed (`qa-evidence/P1-01/`). C06-OP walk-in cash passed on the isolated app (`qa-evidence/C06-OP/`). That is not a complete case. Do not record passes from skipped Playwright.
 

@@ -20,7 +20,7 @@ P5-01–P5-06, P3-01, P3-02
 - **Basic:** Takes a reservation and a public menu order.
 - **Complete:** Guest scans table QR; staff fire courses; check moves; bill splits.
 
-Overall status: implementing (open check, visit QR, kitchen, split allocations, shift on POS). Case not verified.
+Overall status: implementing (walk-in cash proven; open check, visit QR, kitchen, split allocations, shift on POS still open). Case not verified.
 
 ## Scenarios
 
@@ -52,9 +52,9 @@ Overall status: implementing (open check, visit QR, kitchen, split allocations, 
 | Expected persisted | Same ids after refresh. |
 | Negative / recovery | Unauthorized discount/refund/cash refused server-side. |
 | Automated or manual | Playwright operator project (desktop or tablet POS) |
-| Evidence | `qa-evidence/C06-OP/` |
+| Evidence | `qa-evidence/C06-OP/walk-in-cash.md` |
 | Blocks completion | Broken operator loop, silent overwrite, permission bypass |
-| Disposition | not started |
+| Disposition | implementing — walk-in cash verified in test environment; courses / QR / split not started |
 
 ### C06-TAL — Talent workflow
 
