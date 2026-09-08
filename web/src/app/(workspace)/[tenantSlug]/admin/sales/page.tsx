@@ -6,7 +6,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceOrders } from "../../_data-bridge/orders";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { outstandingCents } from "@/lib/orders/orders-list";
+import { isMoneyOwed } from "@/lib/orders/orders-list";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,7 @@ export default async function SalesPage({ params }: { params: PageParams }) {
                 <td style={{ padding: 12 }}>{row.customerName ?? tr("dashboard.orders.noCustomer")}</td>
                 <td style={{ padding: 12, textAlign: "right" }}>
                   {formatOrderMoney(row.totalCents, row.currency)}
-                  {outstandingCents(row) > 0 ? ` · ${tr("dashboard.orders.totalsOutstanding")}` : ""}
+                  {isMoneyOwed(row) ? ` · ${tr("dashboard.orders.totalsOutstanding")}` : ""}
                 </td>
                 <td style={{ padding: 12 }}>{row.status}</td>
               </tr>

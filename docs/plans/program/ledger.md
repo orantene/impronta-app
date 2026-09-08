@@ -40,6 +40,17 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 | P5-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:05Z | cursor/journeys-program-c4d3 | One order, several cash allocations. Unique idempotency per allocation. No second order / no check entity. |
 | P5-07 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Remaining minimum displayed from `spaces.min_spend_cents`. Not a charge. |
 | P5-08 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:49Z | cursor/journeys-program-c4d3 | Handoff on a ready ticket. Sellable limits remain `offering_stock`. |
+| P6-01 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | `reserveResourceSet`: capacity first, talent holds by id, unwind, 3 deadlock retries. Wired through `createPurchase`. |
+| P6-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Stations/rooms are `capacity_pools` with `subject_kind: space`. `spaceCapacityPool`. No person-capacity migration. |
+| P6-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Travel/setup buffers extend the hold window (`bufferBeforeSeconds` / `bufferAfterSeconds`). |
+| P6-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | `markAttendance` via `check_in` (tenant-scoped). No payment write. Complimentary `$0` is not overdue on Sales. |
+| P6-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | `listPrivateClients` refuses cross-workspace reads; does not query the other tenant. |
+| P7-01 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | `booking_deliverables`: draft→submitted→approved/revision_requested. Revision limit. `passthrough_budget` ≠ service. Apply `20261230000400` awaiting credentials. |
+| P7-02 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Recurring agreement = `session_series`. Skip one visit (`sessions.status=cancelled`) without deactivating the series. |
+| P7-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | `visitFitsServiceArea` against existing `talent_service_areas`. No parallel area table. |
+| P7-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Agreed change inserts a new `inquiry_offers` version. Accepted quote is not rewritten. |
+| P7-05 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Departure = session + admissions manifest. Vehicle cap via capacity remaining. Performer fee ≠ admission. |
+| P7-06 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T07:20Z | cursor/journeys-program-c4d3 | Appointment phases flatten into one `reserveResourceSet`. Sold-out later phase writes no earlier hold. |
 
 ## Case matrix (overall)
 

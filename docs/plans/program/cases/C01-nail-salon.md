@@ -20,7 +20,7 @@ P2-01, P3-04, P6-01, P6-02
 - **Basic:** Books a technician and takes a deposit.
 - **Complete:** Bridal group of four holds four technicians and four stations atomically.
 
-Overall status: not started
+Overall status: not started — engine: `reserveResourceSet` holds technicians + stations atomically (P6-01/02). Browser journey not run.
 
 ## Scenarios
 

@@ -92,7 +92,22 @@ export type PurchaseInput = {
     title?: string | null;
     /** The pool whose TTL governs both holds. */
     poolId?: string | null;
+    bufferBeforeSeconds?: number;
+    bufferAfterSeconds?: number;
   } | null;
+  /**
+   * Several people in one purchase (bridal group, couples massage). The
+   * singular `reservation` is still honoured; both are reserved as one set.
+   */
+  holds?: Array<{
+    talentProfileId: string;
+    startsAt: string;
+    endsAt: string;
+    title?: string | null;
+    poolId?: string | null;
+    bufferBeforeSeconds?: number;
+    bufferAfterSeconds?: number;
+  }>;
 };
 
 export type PurchaseRefusalReason =

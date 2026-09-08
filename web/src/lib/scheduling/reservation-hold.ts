@@ -68,7 +68,7 @@ export type PlaceReservationHoldInput = {
 
 export type PlaceReservationHoldFailure = {
   ok: false;
-  code: "slot_taken" | "invalid" | "unavailable";
+  code: "slot_taken" | "invalid" | "unavailable" | "deadlock";
   error: string;
 };
 
@@ -101,11 +101,22 @@ export function isExclusionViolation(err: { code?: string | null; message?: stri
   );
 }
 
+/** Postgres deadlock_detected / serialization_failure — retry the whole set. */
+export function isDeadlock(err: { code?: string | null; message?: string | null } | null | undefined): boolean {
+  if (!err) return false;
+  if (err.code === "40P01" || err.code === "40001") return true;
+  const msg = (err.message ?? "").toLowerCase();
+  return msg.includes("deadlock") || msg.includes("40p01");
+}
+
 export function mapHoldInsertError(
   err: { code?: string | null; message?: string | null } | null | undefined,
 ): PlaceReservationHoldFailure {
   if (isExclusionViolation(err)) {
     return { ok: false, code: "slot_taken", error: "That time was just taken. Pick another time." };
+  }
+  if (isDeadlock(err)) {
+    return { ok: false, code: "deadlock", error: "Could not hold that time. Try again." };
   }
   return { ok: false, code: "unavailable", error: "Could not hold that time. Try again." };
 }

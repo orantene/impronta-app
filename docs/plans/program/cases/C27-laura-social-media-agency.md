@@ -20,7 +20,7 @@ P7-01, P7-02
 - **Basic:** Converts inquiry to retainer.
 - **Complete:** Client approves a deliverable; revisions limited; ad funds distinct.
 
-Overall status: not started
+Overall status: not started — engine: deliverables + revision limit + passthrough budget (P7-01); skip occurrence without ending agreement (P7-02). Browser journey not run.
 
 ## Scenarios
 

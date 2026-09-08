@@ -4,20 +4,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import {
-  reserveCapacityBatch,
   releaseCapacity,
   capacityHoldTtlSeconds,
 } from "@/lib/capacity";
 import {
-  placeReservationHold,
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
-import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import {
   resolvePurchasePolicy,
-  type OfferingPolicy,
-  type PaymentChoice,
 } from "@/lib/orders/purchase-policy";
 import {
   loadCatalog,
@@ -28,6 +23,7 @@ import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
+import { reserveResourceSet } from "@/lib/resources/reserve-set";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -97,16 +93,18 @@ export async function createPurchase(
   const heldAllocationIds: string[] = [];
   let createdOrderId: string | null = null;
   let createdTransactionId: string | null = null;
-  let placedHoldId: string | null = null;
+  const placedHoldIds: string[] = [];
 
   const unwind = async (why: string) => {
     // The slot first: it blocks a PERSON's calendar, so leaving it held is the
     // most visible kind of leak — a talent looks booked for a purchase that
     // never happened.
-    if (placedHoldId) {
-      const released = await releaseReservationHold(admin, placedHoldId);
-      if (!released.ok) {
-        logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+    if (placedHoldIds.length > 0) {
+      for (const holdId of [...placedHoldIds].reverse()) {
+        const released = await releaseReservationHold(admin, holdId);
+        if (!released.ok) {
+          logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+        }
       }
     }
     if (heldAllocationIds.length > 0) {
@@ -388,8 +386,12 @@ export async function createPurchase(
 
     let shortestTtlSeconds: number | null = null;
     const needs = input.capacity ?? [];
+    const slotHolds = [
+      ...(input.holds ?? []),
+      ...(input.reservation ? [input.reservation] : []),
+    ];
 
-    if (needs.length > 0) {
+    if (needs.length > 0 || slotHolds.length > 0) {
       // ONE atomic batch for the whole cart.
       //
       // This used to be a loop, one batch per line, because
@@ -411,6 +413,15 @@ export async function createPurchase(
         const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
         const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
+      }
+      if (input.reservation?.poolId) {
+        const reservationPoolTtl = await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin);
+        if (reservationPoolTtl != null) {
+          shortestTtlSeconds =
+            shortestTtlSeconds == null
+              ? reservationPoolTtl
+              : Math.min(shortestTtlSeconds, reservationPoolTtl);
+        }
       }
 
       // ── A DOOR HOLD LASTS UNTIL THE SESSION ENDS.
@@ -460,11 +471,9 @@ export async function createPurchase(
         }
       }
 
-      const built = buildCapacityRequests(needs, lineIdByOffering);
+      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIdByOffering) : { ok: true as const, requests: [] };
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
-        // Distinguished: one is a cart nobody can fulfil, the other a unit this
-        // engine cannot hold.
         return built.reason === "fractional_units_unsupported"
           ? { ok: false, reason: "invalid_units", offeringId: built.offeringId,
               error: "This item cannot be sold in part quantities." }
@@ -472,21 +481,37 @@ export async function createPurchase(
               error: "That is more seats than one order can hold." };
       }
 
-      const reserved = await reserveCapacityBatch(
-        built.requests,
-        { ttlSeconds: holdTtlSeconds, createdBy: input.actorUserId },
-        admin,
-      );
-
-      if (!reserved.ok) {
-        await unwind(`capacity refused: ${reserved.reason}`);
+      const set = await reserveResourceSet(admin, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        ttlSeconds: holdTtlSeconds,
+        capacity: built.requests,
+        holds: slotHolds.map((h) => ({
+          talentProfileId: h.talentProfileId,
+          startsAt: h.startsAt,
+          endsAt: h.endsAt,
+          title: h.title ?? priced.lines[0]?.label ?? "Reservation",
+          bufferBeforeSeconds: h.bufferBeforeSeconds,
+          bufferAfterSeconds: h.bufferAfterSeconds,
+        })),
+      });
+      if (!set.ok) {
+        await unwind(`resource set refused: ${set.reason}`);
         return {
           ok: false,
-          reason: mapCapacityRefusal(reserved.reason),
-          offeringId: needs.find((n) => n.poolId === reserved.failedPoolId)?.offeringId,
+          reason: set.reason === "slot_taken"
+            ? "slot_taken"
+            : set.reason === "sold_out" || set.reason === "ancestor_full"
+              ? mapCapacityRefusal(set.reason)
+              : set.reason === "unavailable"
+                ? "capacity_unavailable"
+                : "engine_error",
+          offeringId: needs.find((n) => n.poolId === set.failedPoolId)?.offeringId,
+          error: set.error,
         };
       }
-      heldAllocationIds.push(...reserved.allocationIds);
+      heldAllocationIds.push(...set.allocationIds);
+      placedHoldIds.push(...set.holdIds);
     }
 
     // ── 7a. A TIMED offering may not be bought without a slot.
@@ -497,7 +522,7 @@ export async function createPurchase(
     // was caught by a Capacity guard that pinned the engine's source, which is
     // the argument for repointing guards rather than deleting them: the guard
     // outlived the file and was still right.
-    if (input.reservation === null || input.reservation === undefined) {
+    if (!input.reservation && !(input.holds && input.holds.length > 0)) {
       for (const line of input.lines) {
         const offering = catalog.rawOfferings.get(line.offeringId);
         if (!offering) continue;
@@ -512,41 +537,6 @@ export async function createPurchase(
           return { ok: false, reason: "slot_required", offeringId: line.offeringId };
         }
       }
-    }
-
-    // ── 7b. The calendar slot, when the purchase takes someone's time.
-    //
-    // AFTER capacity and BEFORE money, so a sold-out purchase never blocks a
-    // calendar and a slot conflict never charges a card. Both holds are on the
-    // unwind ledger, so either failing releases the other.
-    if (input.reservation) {
-      const ttlSeconds =
-        (await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin))
-        ?? shortestTtlSeconds
-        ?? FALLBACK_HOLD_TTL_SECONDS;
-
-      const hold = await placeReservationHold(admin, {
-        talentProfileId: input.reservation.talentProfileId,
-        tenantId: input.tenantId,
-        startsAt: input.reservation.startsAt,
-        endsAt: input.reservation.endsAt,
-        title: input.reservation.title ?? priced.lines[0]?.label ?? "Reservation",
-        ttlSeconds,
-        createdByUserId: input.actorUserId,
-      });
-
-      if (!hold.ok) {
-        await unwind(`slot refused: ${hold.code}`);
-        return {
-          ok: false,
-          // `slot_taken` is NOT sold_out. Seats remain; that TIME is gone. A
-          // buyer told "sold out" stops looking, one told the time is taken
-          // picks another.
-          reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
-          error: hold.error,
-        };
-      }
-      placedHoldId = hold.holdId;
     }
 
     // ── 8/9. The payment leg.
@@ -732,7 +722,7 @@ export async function createPurchase(
       allocationIds: heldAllocationIds,
       transactionId,
       bookingId,
-      reservationHoldId: placedHoldId,
+      reservationHoldId: placedHoldIds[0] ?? null,
     };
   } catch (err) {
     logServerError("orders.createPurchase", err);

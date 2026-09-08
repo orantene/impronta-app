@@ -20,7 +20,7 @@ P2-04, P3-05, P6-04
 - **Basic:** Publishes a recurring class and sells places.
 - **Complete:** Walk-in buys at the door against the same pool; free place is not overdue.
 
-Overall status: not started
+Overall status: not started — engine: `markAttendance` does not write a payment; `$0` places are not overdue (P6-04). Browser journey not run.
 
 ## Scenarios
 

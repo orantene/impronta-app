@@ -20,7 +20,7 @@ P7-03, P7-04, P6-01
 - **Basic:** Takes a booking with a deposit.
 - **Complete:** Dinner for twelve records menu, travel, and an assistant.
 
-Overall status: not started
+Overall status: not started — engine: service-area fit (P7-03); travel buffers on holds (P6-03); quote versions (P7-04). Browser journey not run.
 
 ## Scenarios
 
