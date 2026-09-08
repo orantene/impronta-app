@@ -1,6 +1,6 @@
 /**
- * C02 [delta] — spa. Smoke stays honest. C02-CUS last-resource is a real
- * journey on qa-journeys: one therapist taken, the couples set refuses.
+ * C02 [delta] — spa. Smoke stays honest. C02-CUS last-resource and the
+ * successful couples set are real journeys on qa-journeys.
  */
 import {
   test,
@@ -14,6 +14,7 @@ import {
 } from "./_harness";
 import {
   latestCouplesMassage,
+  latestCouplesSet,
   latestSpaMassage,
   latestTherapistHold,
   overlappingTherapistHoldCount,
@@ -96,6 +97,52 @@ test("C02-CUS last-resource: Massage takes therapist B, Couples set refuses the 
 
   await page.screenshot({
     path: testInfo.outputPath("c02-cus-sales.png"),
+    fullPage: true,
+  });
+});
+
+test("C02-CUS couples set: two therapists and Room A held together", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const marker = `c02-set-${Date.now()}@impronta.test`;
+
+  await page.goto("/book");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  await page.locator("select").selectOption({ label: "Couples massage" });
+  await expect(page.getByText(/no open times/i)).toHaveCount(0);
+
+  // Second slot: last-resource (and leftover Massage holds) take the first.
+  const slot = page.locator("[data-testid=slot-picker] button").nth(1);
+  await expect(slot).toBeVisible({ timeout: 30_000 });
+  await slot.click();
+
+  await page.getByRole("textbox", { name: /your name/i }).fill("C02 couples");
+  await page.getByRole("textbox", { name: /your email/i }).fill(marker);
+  await page.getByRole("button", { name: /confirm this time/i }).click();
+  await expect(page).toHaveURL(/instant_booked=1|\/c\//, { timeout: 45_000 });
+
+  const booked = await latestCouplesSet(marker);
+  expect(booked, "couples set must persist on qa-journeys").not.toBeNull();
+  expect(booked?.order.status).toBe("paid");
+  expect(booked?.order.totalCents).toBe(0);
+  expect(booked?.order.sourceChannel).toBe("instant_book");
+  expect(booked?.order.lineLabel?.toLowerCase()).toContain("couples");
+  expect(booked?.order.roomAllocationId).toBeTruthy();
+  expect(booked?.primaryHoldId).toBeTruthy();
+  expect(booked?.companionHoldId).toBeTruthy();
+  expect(booked?.primaryHoldId).not.toBe(booked?.companionHoldId);
+
+  await signInJourneysStaff(page, "/admin/sales");
+  await assertWorkspaceIdentity(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+  await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+  await expect(page.getByText("instant_book").first()).toBeVisible();
+  await expect(page.getByText(/overdue/i)).toHaveCount(0);
+
+  await page.screenshot({
+    path: testInfo.outputPath("c02-cus-couples-sales.png"),
     fullPage: true,
   });
 });

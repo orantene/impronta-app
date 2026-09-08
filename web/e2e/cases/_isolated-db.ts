@@ -358,6 +358,7 @@ export async function latestGelManicureDeposit(email: string): Promise<GelManicu
   };
 }
 
+export const THERAPIST_A_ID = "33330003-0000-4000-8000-000000000001";
 export const THERAPIST_B_ID = "33330003-0000-4000-8000-000000000002";
 export const ROOM_A_POOL_ID = "33330020-0000-4000-8000-000000000003";
 
@@ -441,6 +442,49 @@ export function latestSpaMassage(email: string): Promise<SpaInstantBook | null> 
 
 export function latestCouplesMassage(email: string): Promise<SpaInstantBook | null> {
   return latestSpaOrder(email, "couples");
+}
+
+/** Couples set: primary + companion holds on one window, plus Room A. */
+export async function latestCouplesSet(email: string): Promise<{
+  order: SpaInstantBook;
+  primaryHoldId: string;
+  companionHoldId: string;
+  startsAt: string;
+} | null> {
+  const order = await latestCouplesMassage(email);
+  if (!order?.roomAllocationId) return null;
+
+  const admin = isolatedService();
+  const now = new Date().toISOString();
+  const { data: holds, error } = await admin
+    .from("talent_holds")
+    .select("id, talent_profile_id, starts_at, title")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .in("talent_profile_id", [THERAPIST_A_ID, THERAPIST_B_ID])
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order("created_at", { ascending: false })
+    .limit(16);
+  if (error) throw new Error(error.message);
+
+  const primary = (holds ?? []).find(
+    (h) =>
+      String(h.talent_profile_id) === THERAPIST_A_ID
+      && /couples/i.test(String(h.title ?? "")),
+  );
+  if (!primary) return null;
+  const companion = (holds ?? []).find(
+    (h) =>
+      String(h.talent_profile_id) === THERAPIST_B_ID
+      && String(h.starts_at) === String(primary.starts_at),
+  );
+  if (!companion) return null;
+
+  return {
+    order,
+    primaryHoldId: String(primary.id),
+    companionHoldId: String(companion.id),
+    startsAt: String(primary.starts_at),
+  };
 }
 
 export async function latestTherapistHold(talentProfileId: string): Promise<{
