@@ -63,7 +63,7 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await chat.getByRole("button", { name: /^send message$/i }).click();
 
   await expect(
-    page.getByText(/inquiry sent|sent\. the agency will reply|your inquiry is on its way/i).first(),
+    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
   ).toBeVisible({ timeout: 40_000 });
 
   const persisted = await latestGuestDirectoryInquiry(marker);
