@@ -644,6 +644,32 @@ test("cancelling a draft whose allocation read fails is not a successful release
   assert.equal(released, 0);
 });
 
+test("zero-total collect without contact is refused", async () => {
+  const store = makeStore();
+  seedOffering(store, { amount_cents: 0 });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const r = await startCollection(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    actorUserId: "u1",
+    method: "cash",
+    successUrl: "https://app.test/ok",
+    cancelUrl: "https://app.test/no",
+  });
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "no_contact");
+  assert.equal(store.orders[0].status, "draft");
+  assert.equal(store.booking_transactions.length, 0);
+});
+
 test("zero-total collect does not fabricate a charge", async () => {
   const store = makeStore();
   seedOffering(store, { amount_cents: 0 });
@@ -663,10 +689,17 @@ test("zero-total collect does not fabricate a charge", async () => {
       orderId: created.orderId,
       actorUserId: "u1",
       method: "cash",
+      contact: { email: "free@example.com" },
       successUrl: "https://app.test/ok",
       cancelUrl: "https://app.test/no",
     },
     {
+      ensureCustomer: async () => ({
+        ok: true as const,
+        customerId: "cust-free",
+        created: true,
+        identity: { email: "free@example.com", phoneE164: null, displayName: null },
+      }),
       holdCapacity: async () => ({ ok: true, allocationIds: [], holdIds: [], skipped: true }),
       onOrderPaid: async () => {
         paidHook += 1;

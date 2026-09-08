@@ -197,15 +197,20 @@ export async function startCollection(
   }
 
   let customerId = row.customer_id;
-  const needsContact = row.total_cents > 0;
-  if (!customerId && needsContact) {
+  // `orders_identified_before_payment`: customer_id may be null ONLY while
+  // status = draft. Completing a free sale still leaves draft, so a name is
+  // required even when total_cents is 0. Do not fabricate a contact.
+  if (!customerId) {
     const email = input.contact?.email ?? null;
     const phone = input.contact?.phone ?? null;
     if (!email && !phone) {
       return {
         ok: false,
         reason: "no_contact",
-        error: "Collecting money needs an email or a phone.",
+        error:
+          row.total_cents > 0
+            ? "Collecting money needs an email or a phone."
+            : "Closing a free sale needs an email or a phone.",
       };
     }
     if (!deps.ensureCustomer) {
