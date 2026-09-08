@@ -12,7 +12,7 @@ Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 | C02 | C02-CUS | Spa | implementing — last-resource + couples set (not C02 complete) | `qa-evidence/C02-CUS/` |
 | C02 | C02-OP | Spa | not started | `qa-evidence/C02-OP/` |
 | C02 | C02-TAL | Spa | not started | `qa-evidence/C02-TAL/` |
-| C02 | C02-DIFF | Spa | not started | `qa-evidence/C02-DIFF/` |
+| C02 | C02-DIFF | Spa | implementing — couples then competitor cannot take | `qa-evidence/C02-DIFF/competitor-after-couples.md` |
 | C02 | C02-REC | Spa | not started | `qa-evidence/C02-REC/` |
 | C03 | C03-CUS | Independent massage therapist | not started | `qa-evidence/C03-CUS/` |
 | C03 | C03-OP | Independent massage therapist | not started | `qa-evidence/C03-OP/` |
