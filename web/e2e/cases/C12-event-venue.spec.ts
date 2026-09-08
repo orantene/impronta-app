@@ -82,7 +82,7 @@ test("C12-CUS ticket: /events/qa-night General admission → receipt and DB agre
 test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const marker = `c12-op-${Date.now()}@impronta.test`;
-  const guestName = "C12 door guest";
+  const guestName = `C12 door ${Date.now()}`;
 
   await page.goto(`/events/${QA_NIGHT_SLUG}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/qa night/i);
