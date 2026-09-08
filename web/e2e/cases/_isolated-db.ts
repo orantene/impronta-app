@@ -82,6 +82,60 @@ export async function latestPaidPosPizza(email: string): Promise<PaidPosPizza | 
   };
 }
 
+export const TABLE_1_SPACE_ID = "33330011-0000-4000-8000-000000000001";
+
+export type TabCollectAtClose = PaidPosPizza & {
+  sourcePage: string | null;
+  visitId: string | null;
+  visitStatus: string | null;
+  serviceKind: string | null;
+  spaceId: string | null;
+  closedAt: string | null;
+};
+
+/** Close leftover Table 1 visits so C07-OP can reopen the floor. */
+export async function releaseTable1Floor(): Promise<void> {
+  const admin = isolatedService();
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("visits")
+    .update({ status: "closed", closed_at: now, updated_at: now })
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("space_id", TABLE_1_SPACE_ID)
+    .eq("status", "open");
+  if (error) throw new Error(error.message);
+}
+
+export async function latestTabCollectAtClose(email: string): Promise<TabCollectAtClose | null> {
+  const paid = await latestPaidPosPizza(email);
+  if (!paid) return null;
+  const admin = isolatedService();
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .select("source_page, visit_id, space_id")
+    .eq("id", paid.orderId)
+    .maybeSingle();
+  if (orderErr) throw new Error(orderErr.message);
+  if (!order?.visit_id) return null;
+
+  const { data: visit, error: visitErr } = await admin
+    .from("visits")
+    .select("id, status, service_kind, space_id, closed_at")
+    .eq("id", order.visit_id)
+    .maybeSingle();
+  if (visitErr) throw new Error(visitErr.message);
+
+  return {
+    ...paid,
+    sourcePage: (order.source_page as string | null) ?? null,
+    visitId: (visit?.id as string | null) ?? null,
+    visitStatus: (visit?.status as string | null) ?? null,
+    serviceKind: (visit?.service_kind as string | null) ?? null,
+    spaceId: (visit?.space_id as string | null) ?? null,
+    closedAt: (visit?.closed_at as string | null) ?? null,
+  };
+}
+
 export async function latestPosPizzaPickup(email: string): Promise<PosPizzaPickup | null> {
   const paid = await latestPaidPosPizza(email);
   if (!paid) return null;
