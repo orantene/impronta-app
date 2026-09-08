@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { POS_COMMANDS, isPosCommand, posGuestSessionId } from "./commands";
 import { addLine, createDraftOrder, repriceAndValidate, updateLine } from "./draft";
-import { startCollection, submitToPreparation } from "./collection";
+import { finalizeOrCancel, startCollection, submitToPreparation } from "./collection";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -21,6 +21,7 @@ function makeStore() {
     visits: [] as Row[],
     spaces: [] as Row[],
     sessions: [] as Row[],
+    capacity_allocations: [] as Row[],
   };
 }
 
@@ -466,4 +467,75 @@ test("collect refuses when the class place is sold out and does not settle", asy
   if (r.ok) return;
   assert.equal(r.reason, "sold_out");
   assert.equal(settled, 0);
+});
+
+test("cancelling a draft releases held class places", async () => {
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const lineId = String(store.order_lines[0].id);
+  store.capacity_allocations.push({
+    id: "alloc-1",
+    tenant_id: "t1",
+    order_line_id: lineId,
+    released_at: null,
+  });
+  store.capacity_allocations.push({
+    id: "alloc-foreign",
+    tenant_id: "t2",
+    order_line_id: lineId,
+    released_at: null,
+  });
+  const released: string[] = [];
+  const r = await finalizeOrCancel(
+    fakeAdmin(store),
+    { tenantId: "t1", orderId: created.orderId },
+    {
+      release: async (ids) => {
+        released.push(...ids);
+        return { ok: true, released: ids.length, alreadyReleased: 0 };
+      },
+    },
+  );
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.status, "cancelled");
+  assert.deepEqual(released, ["alloc-1"]);
+  assert.equal(store.orders[0].status, "cancelled");
+});
+
+test("cancelling another workspace's sale writes nothing", async () => {
+  const store = makeStore();
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t2", actorUserId: "u2" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  store.capacity_allocations.push({
+    id: "alloc-2",
+    tenant_id: "t2",
+    order_line_id: "line-x",
+    released_at: null,
+  });
+  let released = 0;
+  const r = await finalizeOrCancel(
+    fakeAdmin(store),
+    { tenantId: "t1", orderId: created.orderId },
+    {
+      release: async () => {
+        released += 1;
+        return { ok: true, released: 1, alreadyReleased: 0 };
+      },
+    },
+  );
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "wrong_tenant");
+  assert.equal(released, 0);
+  assert.equal(store.orders[0].status, "draft");
 });

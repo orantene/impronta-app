@@ -19,5 +19,6 @@ Scenario IDs live in `docs/plans/program/cases/`. This file is the human-only li
 | On POS, add a class place for a session belonging to another workspace. | Walk-in session is tenant-scoped. | Line created; foreign `session_id` stored. |
 | Paste workspace A's table token on workspace B's host. | Guest visit / QR / floor stay tenant-scoped. | B sees A's check; floor lists B's tables on A. |
 | Open a cash shift on A while B's drawer is open; close A's. | P5-05: one open shift per tenant; drawers independent. | A's open blocked; B's shift closed. |
+| Cancel a POS draft that already held a class place. | P3-05: cancel releases that allocation; foreign allocations stay. | Place stays held; B's allocation released. |
 
 Ten representative cases (C01, C06, C08, C09, C12, C13, C24, C26, C27, C31) get complete browser journeys once `JOURNEYS_FIXTURE_READY=1`. Until the seed is applied, those rows stay `BLOCKED: fixture harness not applied`.

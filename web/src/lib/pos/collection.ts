@@ -13,6 +13,7 @@ import { settleAtDoor } from "@/lib/orders/settle-at-door";
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
+import { releaseCapacity } from "@/lib/capacity";
 import {
   submitOrderToPreparation,
   type PrepDestination,
@@ -437,12 +438,13 @@ export async function recordVerifiedCollection(
 }
 
 export type FinalizeResult =
-  | { ok: true; orderId: string; status: "cancelled" }
+  | { ok: true; orderId: string; status: "cancelled"; releasedAllocationIds: string[] }
   | { ok: false; reason: "not_found" | "wrong_tenant" | "not_open" | "unavailable"; error: string };
 
 export async function finalizeOrCancel(
   admin: Admin,
   input: { tenantId: string; orderId: string },
+  deps: { release?: typeof releaseCapacity } = {},
 ): Promise<FinalizeResult> {
   const { data: order, error } = await admin
     .from("orders")
@@ -466,7 +468,38 @@ export async function finalizeOrCancel(
     logServerError("pos.finalizeOrCancel", uErr);
     return { ok: false, reason: "unavailable", error: "Could not cancel the sale." };
   }
-  return { ok: true, orderId: row.id, status: "cancelled" };
+
+  const { data: lineRows, error: lineErr } = await admin
+    .from("order_lines")
+    .select("id")
+    .eq("order_id", row.id)
+    .eq("tenant_id", input.tenantId);
+  if (lineErr) {
+    logServerError("pos.finalizeOrCancel.lines", lineErr);
+    return { ok: true, orderId: row.id, status: "cancelled", releasedAllocationIds: [] };
+  }
+  const lineIds = ((lineRows ?? []) as Array<{ id: string }>).map((l) => l.id);
+  let releasedAllocationIds: string[] = [];
+  if (lineIds.length > 0) {
+    const { data: allocRows, error: allocErr } = await admin
+      .from("capacity_allocations")
+      .select("id, released_at")
+      .eq("tenant_id", input.tenantId)
+      .in("order_line_id", lineIds);
+    if (allocErr) {
+      logServerError("pos.finalizeOrCancel.allocations", allocErr);
+    } else {
+      const live = ((allocRows ?? []) as Array<{ id: string; released_at: string | null }>).filter(
+        (a) => !a.released_at,
+      );
+      releasedAllocationIds = live.map((a) => a.id);
+      if (releasedAllocationIds.length > 0) {
+        const release = deps.release ?? releaseCapacity;
+        await release(releasedAllocationIds, admin as never);
+      }
+    }
+  }
+  return { ok: true, orderId: row.id, status: "cancelled", releasedAllocationIds };
 }
 
 export { reportTerminalAvailability };

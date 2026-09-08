@@ -12,5 +12,6 @@ One log. Blocking / high-risk also get a GitHub issue. Normal and cosmetic stay 
 | D-006 | normal | open — P0-01 | product | Source product documents not in this workspace. | `docs/product/README.md` |
 | D-007 | cosmetic | logged | events | Ticket picker file header still says CARD ONLY; pay-at-door is implemented. | `ticket-picker-island.tsx` |
 | D-008 | high-risk | implementing — W-AUDIT | capacity | `reserve_capacity*` is service-role SECURITY DEFINER and keys on `pool_id` only. `reserveResourceSet` now refuses `wrong_tenant` / `pool_not_found` before the RPC. | `reserve-set.ts` |
+| D-009 | high-risk | implementing — W-AUDIT | pos | Collect holds class places; cancel now releases this tenant's live allocations for the sale's lines. | `collection.ts` finalizeOrCancel |
 
 Classification: blocking / high-risk / normal / cosmetic. Fix blocking and high-risk in the active workstream. Do not stop unrelated work for cosmetic issues.
