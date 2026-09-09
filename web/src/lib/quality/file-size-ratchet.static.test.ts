@@ -315,7 +315,15 @@ const BUDGETS: Record<string, number> = {
   // Number finalized against the consolidated tree's wc -l.
   // +1 POS "New sale" — PAGE_META entry required by Record<WorkspacePage>.
   // +2 P5 — PAGE_META entries for Tables and Preparation (Record<WorkspacePage>).
-  "src/components/admin/shell/internal/state/fixtures.ts": 5158,
+  // +5 (blueprint-parity M0): the Sell rail landed five WORKSPACE_PAGES entries
+  // — sales, discounts, pos, tables, preparation — whose PAGE_META rows were
+  // already budgeted above but whose nav-list lines were not, so the recorded
+  // number was short by exactly the nav list. Both halves are mandatory: the
+  // union makes PAGE_META exhaustive and WORKSPACE_PAGES is what the rail is a
+  // projection of, so a page in one and not the other is either a compile error
+  // or an unreachable screen. Re-recorded rather than extracted for the reason
+  // given on the Orders line: the diff is +1/-0 per entry with nothing to trim.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5163,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -372,7 +380,15 @@ const BUDGETS: Record<string, number> = {
   // so it cannot live beside the nav item.
   // +5 POS PAGE_META copy.t strings (New sale + description).
   // +4 P5 PAGE_META copy.t strings (Tables, Preparation + descriptions).
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3545,
+  // +19 (blueprint-parity M0): Spanish for the five Sell rail entries and their
+  // descriptions, plus the calendar-sync rewrite. The sync strings are a
+  // REPLACEMENT, not an addition — the old drawer promised "two-way sync, last
+  // synced 4 minutes ago" over a hardcoded URL and disabled buttons, and the
+  // read-only iCal subscription that replaced it needs its own sentences
+  // because the old ones were describing something that did not exist. ES_TEXT
+  // is a flat map keyed by the English literal, so a translated string has
+  // nowhere to live except here.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3564,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
