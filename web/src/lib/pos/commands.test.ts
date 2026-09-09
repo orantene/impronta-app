@@ -665,6 +665,8 @@ test("zero-total collect without contact is allowed for a guest-session draft", 
   });
   assert.equal(r.ok, true);
   if (!r.ok) return;
+  assert.equal(r.method, "cash");
+  if (r.method !== "cash") return;
   assert.equal(r.amountCents, 0);
   assert.equal(store.orders[0].status, "paid");
   assert.equal(store.orders[0].customer_id, null, "no invented contact");

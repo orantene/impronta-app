@@ -4,8 +4,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isMoneyOwed, type OrderListRow } from "@/lib/orders/orders-list";
 import { loadWorkspaceOrders } from "./orders";
+import type { SalesChipKind, SalesKindFilter } from "@/lib/sales/activity-shape";
 
-export type SalesActivityKind = "order" | "booking" | "reservation" | "registration";
+export type SalesActivityKind = SalesChipKind;
 
 export type SalesActivityRow = {
   id: string;
@@ -56,7 +57,7 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
 export async function loadWorkspaceSalesActivity(
   tenantId: string,
   tenantSlug: string,
-  opts: { kind?: SalesActivityKind | "all" } = {},
+  opts: { kind?: SalesKindFilter } = {},
 ): Promise<SalesActivityLoad> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };

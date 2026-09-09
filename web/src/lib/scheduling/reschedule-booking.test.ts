@@ -13,9 +13,14 @@ function fakeAdmin(store: {
   talent_holds: Row[];
   holdFail?: "slot_taken" | null;
 }) {
+  const tables: Record<string, Row[]> = {
+    agency_bookings: store.agency_bookings,
+    talent_bookings: store.talent_bookings,
+    talent_holds: store.talent_holds,
+  };
   return {
     from(table: string) {
-      const rows = (store as Record<string, Row[]>)[table] ?? [];
+      const rows = tables[table] ?? [];
       const filters: Array<(r: Row) => boolean> = [];
       let pendingUpdate: Row | null = null;
       let pendingInsert: Row | null = null;
