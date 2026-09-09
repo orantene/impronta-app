@@ -9,7 +9,7 @@ import type { Feature } from "./types";
  *
  * STATUS: COMING as of the 2026 appointments-hours audit. The engine and the
  * public slots endpoint are real, but production tenants had no
- * `talent_booking_hours` rows — every bookable offering answered
+ * `talent_booking_hours` rows: every bookable offering answered
  * `no_booking_hours`, which reads as a fully booked calendar. Advertising
  * `live` while the storefront cannot take a booking is the trust failure this
  * page was held at `coming` to avoid. Default hours now seed on publish; the
@@ -131,7 +131,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "Can I use this today?",
-        a: "Yes. Online booking is live. Turn it on from your dashboard, set your hours and how each service should book, and your page starts taking real appointments.",
+        a: "Not yet. The scheduling engine and the public slots endpoint already exist, but self serve online booking is not shipped yet. It is on the roadmap, and this page will update the day clients can book for themselves.",
       },
       {
         q: "Do my clients need an account to book?",
@@ -266,7 +266,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "¿Puedo usarlo hoy?",
-        a: "Sí. Las reservas en línea ya están disponibles. Actívalas desde tu panel, define tus horarios y cómo se reserva cada servicio, y tu página empieza a recibir citas reales.",
+        a: "Todavía no. El motor de agenda y el endpoint público de horarios ya existen, pero la reserva en línea por cuenta propia todavía no se lanza. Está en la hoja de ruta, y esta página se actualiza el día en que tus clientes puedan reservar solos.",
       },
       {
         q: "¿Mis clientes necesitan cuenta para reservar?",
