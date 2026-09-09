@@ -74,11 +74,19 @@ So the branch has its own checks, and they are the evidence:
 
 | Command | What it proves |
 |---|---|
-| `npm run journeys:probe` | Presence. Read-only catalog reads for every function, table, column, index and fixture row the journeys need. Counts fixture rows **per workspace**. |
+| `npm run journeys:probe` | Presence of a **curated** critical set, read-only. Counts fixture rows **per workspace**. Necessary and, on its own, weak — see below. |
 | `npm run journeys:smoke` | Behaviour. Calls the functions inside one always-rolled-back transaction and asserts the structured refusals the TypeScript callers are written against. |
+| `npm run journeys:audit` | **Completeness.** Derives what to expect from all 770 migration files *and* from `database.types.ts`, rather than from a list someone wrote. |
 | `npm run journeys:repair <files…>` | Replays named migration files. Takes an explicit list because "pending" is not computable from a ledger that lies. |
 
-Last run 2026-09-09T04:10Z: probe exit 0, smoke 10/10, and P1-01 re-run after the replay still gives 12 of 200 with zero oversell. Before that run, 16 objects were missing — four functions including `refund_admission` and `cancel_event_cascade`, the `command_idempotency` / `outbox_messages` / `calendar_feed_tokens` / `ticket_refund_intents` tables, the `orders` age-gate columns and five indexes — which meant the isolated app could not exercise any M0 money or event-day path. Twelve migration files were replayed from `supabase/migrations/` to close it. Full record: [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md).
+**Do not take a green probe as a healthy branch.** The probe went green at 04:10Z and the branch was still missing 588 objects across 248 migrations; the dev server found six of them by crashing on them. A curated list proves what its author remembered. `journeys:audit` is the completeness check and it is the one to trust.
+
+State at 2026-09-09T04:45Z: probe exit 0, smoke 10/10, P1-01 re-run 12 of 200 with zero oversell, the migration corpus replayed to a fixed point (588 → **99** remaining, causes in D-017), and the isolated storefront serving 200 with **zero** schema errors and zero verb-destination warnings. Full record: [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md).
+
+Two defects came out of making this checkable, both of which shipped past every unit lane:
+
+- **D-015 / D-016 are real product bugs**, not QA-environment noise. `cms_pages.blocks` is a column production has and no migration creates, so on any repo-built database every reserve button fell back to the chat cue. And the age-gate triple was assembled from three expressions that disagreed, so a buyer who confirmed their age could be refused with "Could not start the order". Both were invisible until the schema reached an environment the code actually runs in.
+- **D-014 is the structural one: this repo cannot rebuild its own production schema.** 58 objects exist in `database.types.ts` with no migration behind them. Absence of a migration is not evidence a column is unused.
 
 **Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or the twelve replayed files to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint, `events`, `check_in`, `engine_send_offer`, and `engine_submit_approval`.
 
@@ -124,8 +132,12 @@ cd web && npm run typecheck && npm run lint
 cd web && npm run test:money
 # Isolated only — never production. Each refuses a non-qa-journeys target
 # before opening a socket:
-cd web && npm run journeys:probe    # presence, read-only
+cd web && npm run journeys:audit    # completeness — trust this one
+cd web && npm run journeys:probe    # presence of the curated critical set
 cd web && npm run journeys:smoke    # behaviour, always rolled back
+# The isolated app, which is how the CMS/settings drift was found at all:
+#   set -a && . ./.env.capacity-isolated.local && set +a && PORT=3008 npm run dev
+#   (host proxy on 3103 rewrites Host to qa-journeys.local)
 # npm run journeys:repair 20261230001300_command_envelope_and_outbox.sql
 # npm run seed:journeys-program
 # CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/verify-capacity-concurrency.mjs
@@ -141,7 +153,9 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-The isolated branch is now schema-current with the branch and checkable (probe + smoke). Twenty-two blueprint-parity commits are on the branch with **no browser evidence**, so the highest-value next step is browser coverage of what just landed, not new features: the event cancel-cascade refund path, the age gate at purchase, POS add-on charging, and the Exceptions inbox against the outbox now that both exist on qa-journeys.
+The isolated app now runs clean: storefront 200, no schema errors, no verb-destination warnings. That unblocks browser work, and browser work is the gap — the blueprint-parity commits have **no browser evidence** at all. Highest value is coverage of what already landed rather than new features: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
+
+Two open schema items sit behind that: D-017's 99 residual objects (taxonomy, profile fields, `agency_bookings.balance_due_at`, the publicly-listed triggers) and D-014's 58 unmigrated production objects. Neither blocks the storefront; both will block specific cases.
 
 Still open from before: C08-CUS client accept / convert, Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, remaining representatives (C13, C24, C27, C31).
 
