@@ -12,14 +12,14 @@
 | Cases verified on the actual platform | **0 / 48** |
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP talent assigned + draft + sent offer, C08-TAL talent approved (client still pending); no complete case. |
 | Human QA rows executed | **0 / 16** |
-| Isolated schema on `qa-journeys` | **Verified 2026-09-09T04:10Z** — `npm run journeys:probe` exit 0, `npm run journeys:smoke` 10/10. Previously 16 objects were missing; see [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md). |
+| Isolated schema on `qa-journeys` | **Re-verified 2026-09-09T08:26Z** — `npm run journeys:probe` exit 0, `npm run journeys:smoke` 10/10. Audit residual is **2** archive tables (D-017), not 99. |
 | SQL fixture on `qa-journeys` | **Both workspaces transact.** A has catalog / spaces / sessions / pools; B has its own venue, station, technician with booking hours, two offerings, a one-unit pool, a customer and a paid order (D-011 closed). Staff login on `qa-journeys.local:3103` and `qa-journeys-b.local:3104` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
 | C06-OP walk-in cash | **Pass** on qa-journeys UI + DB. Evidence: `docs/plans/qa-evidence/C06-OP/walk-in-cash.md`. Not QR / courses / split. |
 | C06-CUS public menu | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/public-menu.md`. |
-| C06-CUS table reservation | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/reservation.md`. |
-| C06-CUS reserve-then-order | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/reserve-then-order.md`. C06-CUS basic, not C06 complete. |
-| C01-CUS technician deposit | **Pass** as deposit *requested* on qa-journeys `/book` + DB. Evidence: `docs/plans/qa-evidence/C01-CUS/deposit.md`. Charge not collected — isolated Next has no Stripe secret. |
+| C06-CUS table reservation | **Pass** (re-run 2026-09-09T07:58Z, 6/6 C06 chromium). Paid, no payment deadline, allocation `committed` then released by the spec. D-018/D-023/D-024 closed under it. |
+| C06-CUS reserve-then-order | **Pass** on the same run. Table half `paid`+committed; pizza half `pending_payment` $18 still owed. C06-CUS basic, not C06 complete. |
+| C01-CUS technician deposit | **Pass** as deposit *requested* on re-run 2026-09-09T08:21Z after D-025. Charge not collected — isolated Next has no Stripe secret. |
 | C09-OP walk-in class | **Pass** on qa-journeys POS + DB. Evidence: `docs/plans/qa-evidence/C09-OP/walk-in-class.md`. Not website register, not attendance. |
 | C09-CUS website register | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C09-CUS/class-register.md`. Not attendance. |
 | C09-DIFF last-seat sold-out | **Pass** on qa-journeys storefront + POS + DB. Evidence: `docs/plans/qa-evidence/C09-DIFF/same-pool-sold-out.md`. Website takes the 1-unit Last place pool; POS Collect cash refuses. Not attendance, not C09 complete. |
@@ -81,7 +81,7 @@ So the branch has its own checks, and they are the evidence:
 
 **Do not take a green probe as a healthy branch.** The probe went green at 04:10Z and the branch was still missing 588 objects across 248 migrations; the dev server found six of them by crashing on them. A curated list proves what its author remembered. `journeys:audit` is the completeness check and it is the one to trust.
 
-State at 2026-09-09T04:45Z: probe exit 0, smoke 10/10, P1-01 re-run 12 of 200 with zero oversell, the migration corpus replayed to a fixed point (588 → **99** remaining, causes in D-017), and the isolated storefront serving 200 with **zero** schema errors and zero verb-destination warnings. Full record: [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md).
+State at 2026-09-09T08:26Z: probe exit 0, smoke 10/10, residual **2** (`field_definitions_archived_20260611`, `field_values_archived_20260611` — D-017), storefront 200. The 99 figure was a repair-script artefact: one-file-one-transaction skipped the rest of a file after an already-true `CREATE TYPE`. Statement-level replay plus two data migrations (`term_type` unflatten, three canonical roles) recovered the rest. Full record: [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md).
 
 Two defects came out of making this checkable, both of which shipped past every unit lane:
 
@@ -104,7 +104,7 @@ Product sources are in [`docs/product/`](../../product/).
 |---|---|
 | P0-01 product docs verbatim | Implemented, awaiting focused verification — both files in `docs/product/` |
 | P0-02 START-HERE / ledger / decisions / defects | implementing — this checkpoint |
-| P0-03 48 case files | Implemented, awaiting focused verification — sampled against Journeys-POS. Browser still not started |
+| P0-03 48 case files | Implemented, awaiting focused verification — sampled against Journeys-POS. Browser is running on qa-journeys; 0/48 stands |
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
 | P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700`–`001300` are on this branch and on qa-journeys, not production. `db:check` cannot see qa-journeys at all (D-012); use `journeys:probe` |
 | P0-06 fixture harness | Workspaces A **and B** seeded and verified (D-011 closed). Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
@@ -164,26 +164,42 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## First browser run on the repaired branch
 
-The isolated app now runs clean — storefront 200, no schema errors, no verb-destination warnings — so browser journeys are possible again. C06 was run first and is **4 of 6 on chromium**:
+The isolated app now runs clean — storefront 200, no schema errors, no verb-destination warnings — so browser journeys are possible again.
 
-| C06 test | Result |
+**C06 is 6/6 on chromium** as of 2026-09-09T07:58Z, after D-018 (date strip offered a day with no bookable seating), D-023 (a $0 reservation was left `pending_payment` behind a 15-minute hold), D-024 (allocations were unattributed so commit-by-line was blind) and D-022 (dev sign-in). That supersedes the 4-of-6 table below, which is kept as the post-repair first look.
+
+| C06 test | First look (pre D-018/023) | Re-run 07:58Z |
+|---|---|---|
+| C06-CUS smoke (reachability, not a journey) | pass | pass |
+| C06-CUS public menu → send → Sales and DB agree | pass (after correcting the test) | pass |
+| C06-CUS reservation: reserve_table → hold | fail — D-018 | **pass** — paid, committed, no deadline |
+| C06-CUS reserve-then-order | fail — D-018 | **pass** — table paid; pizza pending_payment $18 |
+| C06-OP smoke (reachability, not a journey) | pass | pass |
+| C06-OP walk-in cash → collect | pass (D-019) | pass |
+
+**The public-menu test had been passing against a broken storefront, and one of its assertions was a money lie.** It asserted the $18 pizza order was `paid` when nothing had been collected; the fixture seeds House pizza as `reserve_mode: 'full'`, so `pending_payment` is correct. Its name field locator also only worked while the class block was failing to render. Both corrected in d7c88aea0.
+
+C06 is not marked done: 0/48 stands, because a case needs its customer, operator and talent steps to pass, and QR / courses / split are still open.
+
+## Post-repair regression (same morning)
+
+Recorded journeys re-run on chromium, workers=1, against the repaired branch. Sign-in 404s after later Turbopack compiles (D-022) aborted several operator specs mid-file; those are not product refusals.
+
+| Spec | This morning |
 |---|---|
-| C06-CUS smoke (reachability, not a journey) | pass |
-| C06-CUS public menu → send → Sales and DB agree | **pass** (after correcting the test — see below) |
-| C06-CUS reservation: reserve_table → hold | fail — D-018, no slots offered |
-| C06-CUS reserve-then-order | fail — D-018, same cause |
-| C06-OP smoke (reachability, not a journey) | pass |
-| C06-OP walk-in cash → collect | **pass** (after fixing D-019 — three stacked money faults) |
-
-**The public-menu test had been passing against a broken storefront, and one of its assertions was a money lie.** It asserted the $18 pizza order was `paid` when nothing had been collected; the fixture seeds House pizza as `reserve_mode: 'full'`, so `pending_payment` is correct. Its name field locator also only worked while the class block was failing to render. Both corrected in d7c88aea0. This is the second time this week that repairing the environment revealed an assertion that was agreeing with a bug — worth assuming there are more.
-
-C06 is not marked done: 0/48 stands, because a case needs its customer, operator and talent steps to pass.
+| C06 restaurant (6) | **6 passed** |
+| C01 nail salon (3) | 2 smoke + **deposit requested** passed after D-025 |
+| C02 spa (5) | 4 passed; last-resource failed because the couples slot was **hidden** after Massage took Therapist B (the DIFF spec already treats hidden as the product). Not re-opened as a defect. |
+| C07 bar (4) | **4 passed** on the second run (first run: pizza click did not land in the aside; second run both tab journeys passed) |
+| C09 yoga (5) | CUS class register failed on Complimentary class (zero-price instant — D-026). Operator specs 404'd on D-022. |
+| C12 events (5) | `/events/qa-night` rendered "This page is no longer here" (D-027). Operator smoke 404'd on D-022. |
+| C08 / C26 / PERM | not re-run this morning after the D-022 outage |
 
 ## Next action
 
-Finish C06 by closing D-018, then take the blueprint-parity commits, which still have **no browser evidence** at all: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
+Keep running recorded journeys, restarting the isolated `next dev` (wipe `.next/dev`) when `/api/dev/signin` sticks at 404. Close D-026 (a free instant offering is a CHECK violation the fixture plants) and D-027 (the QA Night CMS page) before treating C09/C12 as regressions of the repair. Then C08, C26, PERM.
 
-D-018 is not a fixture gap: a restaurant table is space-and-service-period availability, but the only availability source wired to the storefront block is `talent_booking_hours`, keyed on a talent profile the offering does not have. That is the same shape as `m0-appointments-dead`, and both C06-CUS reservation failures are that one cause.
+D-018's first diagnosis (no `talent_booking_hours` on a workspace-owned table) was the appointments-dead shape and was **wrong for this failure**. The widget had days; it offered *today* after last seating, so the guest saw a date with an empty slot list while tomorrow was open. Fixed in 03c0489d0. The hours gap remains a real appointments blocker (`m0-appointments-dead`) but it is not why C06's table widget was empty at 23:00.
 
 ### What D-019 cost, and what it says about the rest
 
@@ -195,7 +211,7 @@ D-019 was filed as "never shows `payment: paid`" and looked like a label bug. It
 
 Two lessons worth carrying into the remaining milestones. **A path with no happy-path test is not covered by having refusal tests** — `settle-at-door.test.ts` had three tests, all of them early refusals, and all three passed throughout. **A migration that re-creates a function silently owns every line of it**, so a body re-emitted to add one transition can drop an unrelated clause with nothing flagging it; there is no gate for this today.
 
-Two open schema items sit behind all of it: D-017's 99 residual objects (taxonomy, profile fields, `agency_bookings.balance_due_at`, the publicly-listed triggers) and D-014's 58 unmigrated production objects. Neither blocks the storefront; both will block specific cases.
+Two open schema items sit behind all of it: D-017's 2 leftover archive tables (System A drop could not recreate them on a branch that never had the live tables) and D-014's ~56 remaining unmigrated production objects. Neither blocks the storefront.
 
 Still open from before: C08-CUS client accept / convert, Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, remaining representatives (C13, C24, C27, C31).
 

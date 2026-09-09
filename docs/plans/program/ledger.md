@@ -8,7 +8,7 @@ Claim stale after 6 hours if the session is gone. Shared schema/service changes 
 |---|---|---|---|---|---|---|
 | P0-01 | cloud-safe (docs) | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Both product documents committed under `docs/product/`. |
 | P0-02 | cloud-safe | implementing | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Honest count 0/48 cases, 0/~240 scenarios. |
-| P0-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Sampled against verbatim docs; no invented requirements. Browser still not started. |
+| P0-03 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | Sampled against verbatim docs; no invented requirements. Browser running on qa-journeys; 0/48 stands. |
 | P0-04 | cloud-safe | implemented, awaiting focused verification | cloud-agent | 2026-09-08T06:03Z | cursor/journeys-program-c4d3 | L52–L56. |
 | P0-05 | mixed | implemented, awaiting focused verification | cloud-agent | 2026-09-08T15:35Z | cursor/journeys-program-c4d3 | `20261230000200`–`00600` on production. Do not re-apply. `00700` RPCs on this branch and on qa-journeys only. |
 | P0-06 | mixed | verified in test environment | cloud-agent | 2026-09-09T04:15Z | cursor/journeys-program-c4d3 | Workspace A fixture + staff login on qa-journeys.local:3103 verified; schema verified by `journeys:probe` exit 0 and `journeys:smoke` 10/10. Workspace B is identity-only (D-011). Flag only in gitignored isolated env. Do not seed Impronta. |
