@@ -1,6 +1,7 @@
 # Scenario register — 404 rows (Seven Blueprint Parity)
 
-Case QA stays **frozen** until the final campaign. This register folds the
+QA is a standing workstream, not frozen. It runs continuously against the isolated
+`qa-journeys` preview; see `START-HERE.md`. This register folds the
 Master + blueprint scenario IDs into the program under the resolved prefixes.
 
 **Case IDs:** `CS-01`–`CS-48` (alias of existing evidence dirs `C01`–`C48`).  
