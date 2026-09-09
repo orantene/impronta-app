@@ -5,6 +5,41 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const JOURNEYS_TENANT_ID = "33333333-3333-4333-8333-333333333333";
 
+/**
+ * Workspace B's real records, for the direction of isolation that an EMPTY
+ * second workspace cannot test.
+ *
+ * With B empty, a cross-workspace attempt could only name a UUID that exists
+ * nowhere — and then a refusal proves nothing, because "not found" and
+ * "forbidden" are the same response. These ids are rows that genuinely exist
+ * and genuinely belong to someone else, so a refusal is authorization rather
+ * than absence. Seeded by the workspace B section of
+ * `supabase/seed_journeys_program.sql`.
+ */
+export const JOURNEYS_B_TENANT_ID = "33333333-3333-4333-8333-333333333334";
+export const JOURNEYS_B_ORDER_ID = "33330031-0000-4000-8000-0000000000b1";
+export const JOURNEYS_B_OFFERING_ID = "33330012-0000-4000-8000-0000000000b2";
+export const JOURNEYS_B_CUSTOMER_ID = "33330030-0000-4000-8000-0000000000b1";
+export const JOURNEYS_B_SPACE_ID = "33330011-0000-4000-8000-0000000000b1";
+export const JOURNEYS_B_POOL_ID = "33330020-0000-4000-8000-0000000000b1";
+export const JOURNEYS_B_OWNER_EMAIL = "qa-journeys-b-owner@impronta.test";
+
+/**
+ * Proof that B's fixture is actually present, so a case can refuse to run
+ * rather than pass because the thing it wanted to reach was never seeded.
+ */
+export async function workspaceBFixturePresent(): Promise<boolean> {
+  const sb = isolatedService();
+  const { data, error } = await sb
+    .from("orders")
+    .select("id, tenant_id, total_cents, status")
+    .eq("id", JOURNEYS_B_ORDER_ID)
+    .maybeSingle();
+  if (error || !data) return false;
+  const row = data as { tenant_id: string; total_cents: number; status: string };
+  return row.tenant_id === JOURNEYS_B_TENANT_ID && Number(row.total_cents) === 900;
+}
+
 export function isolatedService(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
