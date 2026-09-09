@@ -17,12 +17,24 @@ import {
   latestPaidPosPizza,
   latestReserveThenOrder,
   latestTableReservation,
+  releaseJourneyTableReservations,
 } from "./_isolated-db";
 
 skipUnlessFixture();
 
 test.beforeEach(async ({ page }) => {
   await prepareJourneysPage(page);
+});
+
+/**
+ * Give the four tables back. A confirmed reservation now COMMITS its table, so
+ * without this the suite eats one of the "Two-to-four tops" per run and the
+ * fifth run fails with an empty widget that looks like an availability bug.
+ * Runs after every test rather than only the reservation ones, because a
+ * failed run halfway through still booked a table.
+ */
+test.afterEach(async () => {
+  await releaseJourneyTableReservations();
 });
 
 test("C06-CUS smoke: storefront body is reachable — not a journey pass", async ({ page }) => {
@@ -136,6 +148,22 @@ test("C06-CUS reservation: storefront reserve_table → hold → Sales and DB ag
   expect(persisted?.admissionId, "reservation must write an admission").toBeTruthy();
   expect(persisted?.partySize).toBe(2);
 
+  // THE TABLE IS ACTUALLY HELD, which is the part that was untrue. A free
+  // reservation used to be written as an order owing $0 behind a 15-minute
+  // payment deadline: `decideOrderExpiry` cancelled it a quarter of an hour
+  // after the guest booked, and the table stopped counting even sooner because
+  // `remaining()` only counts a hold while `expires_at > now()`.
+  expect(persisted?.totalCents, "the table itself is free").toBe(0);
+  expect(persisted?.status, "an order for nothing is settled, not awaiting $0").toBe("paid");
+  expect(
+    persisted?.holdExpiresAt,
+    "a confirmed reservation must carry no payment deadline — the deadline cancelled it",
+  ).toBeNull();
+  expect(
+    persisted?.allocationState,
+    "the table must be COMMITTED; a hold lapses and the venue can resell it",
+  ).toBe("committed");
+
   await page.screenshot({
     path: testInfo.outputPath("c06-cus-reservation.png"),
     fullPage: true,
@@ -187,14 +215,32 @@ test("C06-CUS reserve-then-order: one guest reserves a table then orders pizza",
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
   await expect(page.getByText("reservation").first()).toBeVisible();
   await expect(page.getByText("menu").first()).toBeVisible();
-  await expect(page.getByText("$18.00").first()).toBeVisible();
+
+  // Scoped to this guest's row, for the same reason as the public-menu case:
+  // a bare `$18.00` anywhere on the page is satisfied by another case's order.
+  const menuRow = page.getByRole("row", { name: /C06 diner/i }).first();
+  await expect(menuRow).toContainText("$18.00");
+  await expect(menuRow).toContainText(/still owed/i);
+  await expect(menuRow, "an uncollected order must never read as paid").not.toContainText(
+    /\bpaid\b/i,
+  );
 
   const persisted = await latestReserveThenOrder(marker);
   expect(persisted, "same guest must have both reservation and menu orders").not.toBeNull();
   expect(persisted?.reservation.sourceChannel).toBe("reservation");
   expect(persisted?.reservation.admissionId).toBeTruthy();
   expect(persisted?.reservation.partySize).toBe(2);
-  expect(persisted?.menu.status).toBe("paid");
+  // The table half of this journey holds a real table, and separately from
+  // the pizza: two orders for one guest, and only one of them owes money.
+  expect(persisted?.reservation.status).toBe("paid");
+  expect(persisted?.reservation.allocationState).toBe("committed");
+  expect(persisted?.reservation.holdExpiresAt).toBeNull();
+  // `pending_payment`, and the `paid` this used to assert was the same money
+  // lie corrected in the public-menu case above: House pizza is seeded
+  // `reserve_mode: 'full'`, so sending the order from the storefront collects
+  // nothing. This copy survived because the test never got this far — it was
+  // failing earlier on the reservation slots (D-018).
+  expect(persisted?.menu.status).toBe("pending_payment");
   expect(persisted?.menu.totalCents).toBe(1800);
   expect(persisted?.menu.sourceChannel).toBe("menu");
   expect(persisted?.menu.lineLabel?.toLowerCase()).toContain("house pizza");

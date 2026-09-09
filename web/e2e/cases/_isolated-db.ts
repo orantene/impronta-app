@@ -633,6 +633,9 @@ export async function latestMenuPizza(email: string): Promise<MenuPizzaOrder | n
   };
 }
 
+/** The four "Two-to-four tops" the reserve_table block sells against. */
+export const TABLE_GROUP_POOL_ID = "33330020-0000-4000-8000-000000000002";
+
 export type TableReservation = {
   orderId: string;
   status: string;
@@ -640,6 +643,19 @@ export type TableReservation = {
   customerEmail: string | null;
   admissionId: string | null;
   partySize: number | null;
+  totalCents: number;
+  /**
+   * The payment deadline. Must be null on a confirmed reservation: a lapsed
+   * one is what `decideOrderExpiry` cancels.
+   */
+  holdExpiresAt: string | null;
+  /**
+   * `committed` or `hold`. A reservation the guest was told is confirmed must
+   * be `committed`, because `remaining()` counts a hold only while
+   * `expires_at > now()` — an uncommitted table is resellable in 15 minutes.
+   */
+  allocationState: string | null;
+  allocationExpiresAt: string | null;
 };
 
 export async function latestTableReservation(email: string): Promise<TableReservation | null> {
@@ -655,7 +671,7 @@ export async function latestTableReservation(email: string): Promise<TableReserv
 
   const { data: order, error: orderErr } = await admin
     .from("orders")
-    .select("id, status, source_channel")
+    .select("id, status, source_channel, total_cents, hold_expires_at")
     .eq("tenant_id", JOURNEYS_TENANT_ID)
     .eq("customer_id", customer.id)
     .eq("source_channel", "reservation")
@@ -682,6 +698,18 @@ export async function latestTableReservation(email: string): Promise<TableReserv
     : { data: null, error: null };
   if (admissionErr) throw new Error(admissionErr.message);
 
+  const { data: alloc, error: allocErr } = line
+    ? await admin
+        .from("capacity_allocations")
+        .select("state, expires_at")
+        .eq("order_line_id", line.id)
+        .eq("pool_id", TABLE_GROUP_POOL_ID)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (allocErr) throw new Error(allocErr.message);
+
   return {
     orderId: order.id,
     status: order.status,
@@ -689,7 +717,65 @@ export async function latestTableReservation(email: string): Promise<TableReserv
     customerEmail: (customer.email as string | null) ?? null,
     admissionId: (admission?.id as string | null) ?? null,
     partySize: admission ? Number(admission.party_size) : null,
+    totalCents: Number(order.total_cents ?? 0),
+    holdExpiresAt: (order.hold_expires_at as string | null) ?? null,
+    allocationState: (alloc?.state as string | null) ?? null,
+    allocationExpiresAt: (alloc?.expires_at as string | null) ?? null,
   };
+}
+
+/**
+ * Give the tables back after a reservation journey.
+ *
+ * NOT tidiness. A confirmed reservation now COMMITS its table — which is the
+ * point of the fix, and which means each run of the reservation journeys
+ * permanently consumes one of the four "Two-to-four tops". Four runs closed
+ * the 15:00 seating for good, and the fifth failed with an empty widget that
+ * looked exactly like the availability bug it was not.
+ *
+ * Before the fix the same pool drained a slower way: the holds were never
+ * committed, so they lapsed and `reap_capacity_allocations` cleared them —
+ * which is why this was invisible until the reservation actually held.
+ *
+ * Same shape and same reason as `releaseTable1Floor` above: the harness
+ * releases what the harness booked, using the fixture's own ids, so no
+ * assertion depends on how many times the suite has run.
+ */
+export async function releaseJourneyTableReservations(): Promise<void> {
+  const admin = isolatedService();
+  const { data: orders, error: orderErr } = await admin
+    .from("orders")
+    .select("id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("source_channel", "reservation")
+    .in("status", ["paid", "pending_payment"]);
+  if (orderErr) throw new Error(orderErr.message);
+  const orderIds = (orders ?? []).map((o) => String(o.id));
+  if (orderIds.length === 0) return;
+
+  const { data: lines, error: lineErr } = await admin
+    .from("order_lines")
+    .select("id")
+    .in("order_id", orderIds);
+  if (lineErr) throw new Error(lineErr.message);
+  const lineIds = (lines ?? []).map((l) => String(l.id));
+
+  if (lineIds.length > 0) {
+    const now = new Date().toISOString();
+    const { error: allocErr } = await admin
+      .from("capacity_allocations")
+      .update({ state: "released", released_at: now })
+      .eq("pool_id", TABLE_GROUP_POOL_ID)
+      .in("order_line_id", lineIds)
+      .in("state", ["hold", "committed"]);
+    if (allocErr) throw new Error(allocErr.message);
+  }
+
+  const { error: cancelErr } = await admin
+    .from("orders")
+    .update({ status: "cancelled", hold_expires_at: null })
+    .in("id", orderIds);
+  if (cancelErr) throw new Error(cancelErr.message);
 }
 
 /** One guest who reserved a table and then ordered — same customer, two orders. */
