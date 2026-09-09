@@ -451,7 +451,12 @@ const BUDGETS: Record<string, number> = {
   // the unmet requirement labels ("Still needs: a bio, 1 language") drawn from
   // the same gate the Publish button enforces.
   "src/components/admin/shell/internal/state/types.ts": 2882,
-  "src/components/admin/shell/admin-shell-client.tsx": 2430,
+  // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
+  // lines, no interpolation, a self-contained concern) moved out to
+  // internal/messages-mobile-css.ts rather than growing this file past its
+  // budget to hold the new rules. Net 2430 -> 2182; lowered so the win is
+  // locked in instead of becoming headroom.
+  "src/components/admin/shell/admin-shell-client.tsx": 2182,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
