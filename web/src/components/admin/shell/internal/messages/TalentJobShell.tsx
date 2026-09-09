@@ -140,8 +140,8 @@ export function TalentJobShell() {
           // to clear the cbar + identity bar (50 + 56 = 106px) at the
           // top, and the bottom nav (80px) at the bottom.
           + "top:calc(var(--proto-cbar, 50px) + 56px)!important;"
-          + "bottom:80px!important;"
-          + "height:calc(100dvh - var(--proto-cbar, 50px) - 56px - 80px)!important;"
+          + "bottom:var(--tulala-mobile-nav-h, 65px)!important;"
+          + "height:calc(100dvh - var(--proto-cbar, 50px) - 56px - var(--tulala-mobile-nav-h, 65px) - var(--proto-kb, 0px))!important;"
           + "min-height:0!important;max-height:none!important;"
           + "border-radius:0!important;border-left:0!important;border-right:0!important;"
           + "z-index:10!important;"

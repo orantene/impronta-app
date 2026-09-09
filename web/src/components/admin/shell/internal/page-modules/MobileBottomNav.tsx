@@ -101,7 +101,7 @@ export function MobileBottomNav() {
             <BottomTab
               id="more"
               label={copy.t("More")}
-              icon="info"
+              icon="ellipsis"
               active={moreActive}
               run={() => setMoreOpen(true)}
             />
@@ -210,7 +210,7 @@ function BottomTab({
 }: {
   id: string;
   label: string;
-  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down" | "layers" | "globe" | "image" | "star" | "chart" | "send" | "briefcase";
+  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down" | "layers" | "globe" | "image" | "star" | "chart" | "send" | "briefcase" | "ellipsis";
   active: boolean;
   run: () => void;
   badge?: number;

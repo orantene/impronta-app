@@ -714,6 +714,7 @@ export function EditJobButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
+      data-tulala-thread-action
       onClick={onClick}
       aria-label="Edit job details"
       title="Edit job details"

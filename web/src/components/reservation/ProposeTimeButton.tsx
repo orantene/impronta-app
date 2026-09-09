@@ -24,7 +24,10 @@ export function ProposeTimeButton({
     <>
       <button
         type="button"
+        data-tulala-thread-action
         onClick={() => setOpen(true)}
+        aria-label={t("dashboard.adminThread.proposeTime")}
+        title={t("dashboard.adminThread.proposeTime")}
         style={{
           height: 32,
           padding: "0 10px",
@@ -34,9 +37,18 @@ export function ProposeTimeButton({
           fontSize: 12,
           fontWeight: 600,
           cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
-        {t("dashboard.adminThread.proposeTime")}
+        {/* Clock glyph carries the meaning once the label is hidden on
+            mobile, where this collapses to an icon-only 40px button. */}
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+          <circle cx="7" cy="7" r="5.4" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M7 4.2V7l2 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span data-tulala-action-label>{t("dashboard.adminThread.proposeTime")}</span>
       </button>
       {open ? (
         <div

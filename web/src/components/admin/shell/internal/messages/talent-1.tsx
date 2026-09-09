@@ -391,7 +391,10 @@ export function ShellHeader({
     : conv.stage === "hold" ? t("dashboard.adminThread.shellHeader.stageOffer")
     : talentStageLabel(conv.stage, t);
   const metaLine = [
-    interpolate(t("dashboard.talentThread.via"), { agency: conv.agency }),
+    // Guard the agency segment: interpolating an empty agency yields the
+    // bare string "via ", which is truthy, so `filter(Boolean)` kept it and
+    // every inquiry with no agency rendered a dangling "via · Lisbon · …".
+    conv.agency ? interpolate(t("dashboard.talentThread.via"), { agency: conv.agency }) : null,
     conv.location ? conv.location.split(" · ")[0] : null,
     conv.date,
   ].filter(Boolean).join(" · ");
@@ -403,14 +406,67 @@ export function ShellHeader({
       fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 10,
     }}>
       <style dangerouslySetInnerHTML={{ __html:
-        "@media (max-width: 520px){"
+        // ── Mobile thread app-bar (≤720px, the shell's own collapse
+        // breakpoint — this block used to be 520px and never fired) ──
+        //
+        // Before: six equally-weighted controls in one `nowrap` row that
+        // measured 474px inside a 281px box with overflow:visible, so
+        // "Move to" — the stage-advance CTA — plus search and the ⋯ were
+        // simply cut off the screen. Letting it wrap instead produced a
+        // three-deck header 290px tall out of a 691px pane.
+        //
+        // Now it reads as a real app-bar with one level of hierarchy:
+        //   [ Move to ▾ ]  (filled primary, keeps its label)
+        //   [✎] [🕐] [👤] [🔍]  (quiet 40px icon buttons, labels hidden)
+        // Each icon button keeps aria-label + title, so the label is
+        // hidden visually, never removed from the accessibility tree.
+        "@media (max-width: 720px){"
         + "[data-tulala-job-shell-header] [data-tulala-header-row1]{flex-wrap:wrap}"
         + "[data-tulala-job-shell-header] [data-tulala-header-meta]{flex:1 1 100%}"
-        + "[data-tulala-job-shell-header] [data-tulala-header-actions]{order:3;flex:1 1 100%;justify-content:flex-start;gap:8px;margin-left:36px}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions]"
+        + "{order:3;flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;"
+        + "justify-content:flex-start;gap:6px;margin-left:0;min-width:0}"
+        // The six controls measure ~350px against a 317px row. A horizontal
+        // scroller was tried and is WRONG here: overflow-x creates a
+        // clipping context, and the "Move to" menu — which is absolutely
+        // positioned inside it — opened invisible. Wrapping keeps every
+        // control on screen AND lets the popovers escape. Now that the
+        // secondaries are icons this costs one short second line, not the
+        // three-deck 290px header that wrapping full-width labels produced.
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] > *{flex:0 0 auto;min-width:0}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] > div"
+        + "{display:flex;flex-wrap:wrap;align-items:center;gap:6px}"
+        // Reading order left to right: where it stands, what to do next,
+        // then the quiet tools. The status chip is a direct child of the
+        // actions row while everything else is inside the caller's
+        // `rightSlot` wrapper, so the wrapper is ordered after it; the
+        // primary is pulled to the front of that wrapper.
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] > div{order:2}"
+        + "[data-tulala-job-shell-header] [data-tulala-thread-primary-action]{order:-1}"
+        // Secondaries collapse to square icon buttons, all with the same
+        // outline — the edit pencil ships border-less and read as a stray
+        // glyph next to four bordered controls.
+        + "[data-tulala-job-shell-header] [data-tulala-action-label]{display:none!important}"
+        + "[data-tulala-job-shell-header] [data-tulala-thread-action]"
+        + "{width:40px!important;height:40px!important;padding:0!important;"
+        + "border-radius:10px!important;justify-content:center;gap:0!important;flex:0 0 auto;"
+        + "border:1px solid rgba(24,24,27,0.12)!important;background:#fff!important}"
+        // The stage chip renders at ~150px of a 347px bar by default,
+        // crowding out an icon's worth of room; it is a status read, not
+        // an action, so it gets the smallest footprint that stays legible.
+        + "[data-tulala-job-shell-header] [data-tulala-header-status-chip]"
+        + "{height:40px;margin-top:0!important;padding:0 10px!important;"
+        + "font-size:10px!important;border-radius:10px;flex:0 0 auto}"
+        // The one primary keeps its words and its weight.
+        + "[data-tulala-job-shell-header] [data-tulala-thread-primary-action] button"
+        + "{height:40px;padding:0 14px;border-radius:10px;font-size:13px;white-space:nowrap}"
+        // The ⋯ menu is entirely "coming soon" placeholders — it does not
+        // earn a slot in a 375px bar.
+        + "[data-tulala-job-shell-header] [data-tulala-thread-overflow]{display:none!important}"
         + "}"
       }} />
       <div data-tulala-header-row1 style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
-        <button type="button" onClick={onBack} aria-label={interpolate(t("dashboard.adminThread.shellHeader.backTo"), { label: backLabel })} style={{
+        <button type="button" data-tulala-back-btn onClick={onBack} aria-label={interpolate(t("dashboard.adminThread.shellHeader.backTo"), { label: backLabel })} style={{
           flexShrink: 0, marginTop: 2, width: 26, height: 26, borderRadius: 7,
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
           color: COLORS.inkMuted, cursor: "pointer",
@@ -476,6 +532,7 @@ export function ShellHeader({
               onStatusClick ? (
                 <button
                   type="button"
+                  data-tulala-header-status-chip
                   onClick={onStatusClick}
                   aria-label={interpolate(t("dashboard.adminThread.shellHeader.statusAria"), { stage: stageLabel })}
                   title={t("dashboard.adminThread.shellHeader.viewFullStatus")}
@@ -515,7 +572,7 @@ export function ShellHeader({
           chrome on every thread. JobStageFunnel function remains in use
           by inbox-row + other compact contexts. */}
       {metaExtras && (
-        <div style={{ paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, flexWrap: "wrap" }} className="text-admin-ink-muted">
+        <div data-tulala-header-meta-extras style={{ paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, flexWrap: "wrap" }} className="text-admin-ink-muted">
           {metaExtras}
         </div>
       )}

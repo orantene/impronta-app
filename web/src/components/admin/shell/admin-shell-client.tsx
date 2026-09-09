@@ -56,6 +56,7 @@ import { ShellUpgradeModal } from "./internal/shell-upgrade-modal";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { MESSAGES_MOBILE_CSS } from "./internal/messages-mobile-css";
 import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
 // `import "server-only"`, so a runtime import would throw at hydration. The
@@ -1680,250 +1681,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
              collapses to a single-pane stack at <720px. The list is
              shown by default; tapping a conversation flips to the
              thread; back arrow returns to list. Identity bar +
-             talent topbar stay sticky above. */
-          @media (max-width: 720px) {
-            .tulala-shell [data-tulala-messages-shell] {
-              grid-template-columns: 1fr !important;
-              border: none !important;
-              border-radius: 0 !important;
-              /* 100dvh handles iOS dynamic URL bar; --proto-kb is set
-                 by a visualViewport listener so the shell shrinks when
-                 the soft keyboard opens (audit P0 — keyboard avoidance). */
-              height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
-              max-height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
-              min-height: 0 !important;
-            }
-            /* 2026-style native-app slide transition between list and
-               thread. Both panes are stacked via grid (same row + col)
-               and animated via transform — much smoother than display
-               toggling, GPU-accelerated, no layout thrash. The active
-               pane sits at translateX(0); the inactive pane sits off
-               the right edge and slides in. iOS push-navigation feel. */
-            .tulala-shell [data-tulala-messages-shell] {
-              grid-template-columns: 1fr !important;
-            }
-            .tulala-shell [data-tulala-messages-shell] [data-tulala-list-pane],
-            .tulala-shell [data-tulala-messages-shell] [data-tulala-thread-pane] {
-              grid-row: 1 !important;
-              grid-column: 1 !important;
-              transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
-              will-change: transform;
-              backface-visibility: hidden;
-            }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-list-pane] {
-              transform: translateX(0);
-              z-index: 2;
-            }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-pane] {
-              transform: translateX(100%);
-              z-index: 1;
-              pointer-events: none;
-            }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-list-pane] {
-              transform: translateX(-30%);
-              z-index: 1;
-              pointer-events: none;
-              opacity: 0.4;
-              filter: brightness(0.92);
-            }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-pane] {
-              transform: translateX(0);
-              z-index: 2;
-              box-shadow: -8px 0 24px -8px rgba(11,11,13,0.18);
-            }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-info-sidebar] {
-              display: none !important;
-            }
-            /* Respect reduced-motion preference. */
-            @media (prefers-reduced-motion: reduce) {
-              .tulala-shell [data-tulala-messages-shell] [data-tulala-list-pane],
-              .tulala-shell [data-tulala-messages-shell] [data-tulala-thread-pane] {
-                transition: none !important;
-              }
-            }
-            /* Inner thread+info grid (1fr 320px desktop) collapses to a
-               single column at mobile — the info sidebar slides up as a
-               bottom sheet (position:fixed below) and shouldn't reserve
-               grid space. */
-            .tulala-shell [data-tulala-thread-grid] {
-              grid-template-columns: 1fr !important;
-            }
-            /* Info sidebar at mobile = premium bottom sheet (not a
-               full-screen overlay). Slides up from bottom with rounded
-               top corners + drag-handle pill + soft shadow. Caps at
-               80vh so the user can still see thread context above. */
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-info-sidebar] {
-              position: fixed !important;
-              left: 0 !important;
-              right: 0 !important;
-              bottom: 0 !important;
-              top: auto !important;
-              max-height: 80vh !important;
-              border-left: none !important;
-              border-top: 1px solid rgba(11,11,13,0.08) !important;
-              border-radius: 18px 18px 0 0 !important;
-              z-index: 200 !important;
-              box-shadow: 0 -10px 40px rgba(11,11,13,0.18) !important;
-              animation: tulala-sheet-up .26s cubic-bezier(.4,.0,.2,1) !important;
-              padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-            }
-            /* Drag-handle pill at top of the bottom sheet — pure visual
-               affordance hinting the sheet is dismissable. Tap × to close. */
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-info-sidebar]::before {
-              content: "";
-              position: sticky;
-              top: 0;
-              display: block;
-              width: 36px;
-              height: 4px;
-              border-radius: 999px;
-              background: rgba(11,11,13,0.18);
-              margin: 8px auto 0;
-              z-index: 1;
-            }
-            /* Mobile back button reveals at narrow widths */
-            .tulala-shell .tulala-mobile-back {
-              display: inline-flex !important;
-            }
-            /* Mobile inbox tab — door pattern. Visible only ≤720px while
-               the user is in the thread pane. Tap to slide the inbox
-               open; selecting a row auto-closes back to the thread. */
-            .tulala-shell [data-tulala-mobile-inbox-tab] {
-              display: inline-flex !important;
-            }
-            /* Workspace messages WhatsApp-style header: show back arrow,
-               hide desktop-only trust chip + status chip to keep the bar
-               clean for thumb-driven nav. */
-            .tulala-shell [data-tulala-thread-back] {
-              display: inline-flex !important;
-            }
-            .tulala-shell [data-tulala-header-trust-desktop],
-            .tulala-shell [data-tulala-header-status-desktop] {
-              display: none !important;
-            }
-            /* Mobile FAB sits comfortably above the bottom tab bar +
-               safe-area inset. */
-            .tulala-shell button[aria-label^="Messages ·"][style*="position: fixed"] {
-              bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
-            }
-            /* Feedback FAB is hidden on mobile — the "Send feedback"
-               action lives inside the bottom-nav More menu instead, so
-               we never cover content with a floating button. The panel
-               itself still opens via the same FeedbackButton component
-               (it listens to a "tulala-open-feedback" custom event). */
-            .tulala-shell [data-tulala-feedback-btn] > button[aria-label="Send feedback"] {
-              display: none !important;
-            }
-            /* AI helpbot lifts above the bottom nav on mobile (Feedback
-               is no longer floating, so we just clear the 64px tab bar
-               + a comfortable gap). */
-            .tulala-shell [data-tulala-ai-helpbot] {
-              bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
-            }
-            /* Account menu trigger (avatar + hamburger) — make sure the
-               whole pill is at least 36px tall on mobile for thumb taps. */
-            .tulala-shell [data-tulala-account-menu-root] > button {
-              min-height: 36px !important;
-            }
-            /* Composer mobile: input taller for thumb comfort, button
-               touch zones grown, attach popover spans full viewport
-               width above the composer. */
-            .tulala-shell [data-tulala-thread-pane] form input,
-            .tulala-shell [data-tulala-thread-pane] input[placeholder="Message…"],
-            .tulala-shell [data-tulala-thread-pane] textarea[placeholder="Message…"] {
-              padding: 12px 0 !important;
-              font-size: 16px !important; /* iOS won't auto-zoom on focus when ≥16 */
-            }
-            /* Composer trigger buttons (attach +, voice 🎙️): grow to
-               40px hit area. Smart-replies ✨ toggle hides at mobile
-               per audit E4 — frees real estate, smart-replies still
-               accessible on tablet+. */
-            .tulala-shell [data-tulala-thread-pane] [aria-label="Attach"],
-            .tulala-shell [data-tulala-thread-pane] [aria-label="Voice note"] {
-              width: 40px !important;
-              height: 40px !important;
-            }
-            .tulala-shell [data-tulala-thread-pane] [aria-label^="Hide smart"],
-            .tulala-shell [data-tulala-thread-pane] [aria-label^="Show smart"] {
-              display: none !important;
-            }
-            .tulala-shell [data-tulala-thread-pane] [aria-label="Send"] {
-              width: 40px !important;
-              height: 40px !important;
-            }
-            /* Thread header on mobile: condense padding so it doesn't
-               eat 60px of vertical space when stacked under the
-               identity bar. */
-            .tulala-shell [data-tulala-thread-pane] > div:first-child {
-              padding: 10px 14px !important;
-            }
-            /* Bottom-sheet info panel: pad past the safe-area inset and
-               give the close button + first heading more breathing room. */
-            .tulala-shell [data-tulala-thread-info-sidebar] > div:first-child {
-              padding: 16px 18px 12px !important;
-            }
-            /* Message bubbles: larger font for readability over arm's
-               length. Targets the rounded chat-bubble shapes used by
-               text messages (18px corners with one nub). */
-            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 18px 18px 18px 6px"],
-            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 18px 18px 6px 18px"],
-            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 4px 16px"],
-            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 16px 4px"] {
-              font-size: 14.5px !important;
-              line-height: 1.45 !important;
-            }
-            /* Action message cards (rate input, transport, etc.) clamp
-               to viewport width at mobile. */
-            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 380px"],
-            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 360px"],
-            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 320px"] {
-              max-width: calc(100vw - 48px) !important;
-            }
-            /* Message bubbles use more of the viewport on mobile. */
-            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 70%"] {
-              max-width: 88% !important;
-            }
-            /* Conversation list rows: 44px minimum vertical tap area
-               (Apple HIG / Material). Scoped to the list-body buttons
-               (conversation rows) — NOT the header chips/filter pills. */
-            .tulala-shell [data-tulala-list-pane] > div:nth-child(2) > button {
-              min-height: 56px !important;
-            }
-            /* Audit P0-1 — filter chips become a horizontal scroll
-               strip on phone instead of wrapping to 2-3 rows that eat
-               list real estate. Edge-fade hints overflow. */
-            .tulala-shell [data-tulala-msg-filter-chips] {
-              flex-wrap: nowrap !important;
-              overflow-x: auto !important;
-              scroll-snap-type: x mandatory !important;
-              -webkit-overflow-scrolling: touch !important;
-              padding-bottom: 2px !important;
-              scrollbar-width: none !important;
-              mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%) !important;
-              -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%) !important;
-            }
-            .tulala-shell [data-tulala-msg-filter-chips]::-webkit-scrollbar { display: none !important; }
-            .tulala-shell [data-tulala-msg-filter-chips] > button {
-              flex-shrink: 0 !important;
-              scroll-snap-align: start !important;
-            }
-            /* Audit P1-7 — bump conversation row typography above iOS
-               minimum (12px). Stage chip 9.5 → 10.5; preview/age 10.5/11
-               → 12; client name 13 → 14. */
-            .tulala-shell [data-tulala-conv-row-name] { font-size: 14px !important; }
-            .tulala-shell [data-tulala-conv-row-age] { font-size: 11.5px !important; }
-            .tulala-shell [data-tulala-conv-row-brief] { font-size: 12.5px !important; }
-            .tulala-shell [data-tulala-conv-row-preview] { font-size: 12px !important; }
-            .tulala-shell [data-tulala-conv-row-stage] { font-size: 10px !important; }
-            /* Audit P1-6 — trim thread header on phone. Hide the
-               in-thread search button + info-toggle (info still
-               reachable via the ⋯ menu / bottom-sheet swipe). */
-            .tulala-shell [data-tulala-thread-header] [aria-label="Search in thread"],
-            .tulala-shell [data-tulala-thread-header] [aria-label="Hide info panel"],
-            .tulala-shell [data-tulala-thread-header] [aria-label="Show info panel"] {
-              display: none !important;
-            }
-          }
+          ${MESSAGES_MOBILE_CSS}
           @keyframes tulala-sheet-up {
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
@@ -2340,6 +2098,13 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            // Real height of the fixed mobile bottom nav (64px content +
+            // 1px top border) plus the device's home-indicator inset.
+            // Every mobile surface that pins itself to the viewport must
+            // subtract THIS, not a hardcoded guess — the messages shell
+            // used to subtract 52px and its composer sat 13px under the nav.
+            ["--tulala-mobile-nav-h" as never]:
+              "calc(65px + env(safe-area-inset-bottom, 0px))",
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,
