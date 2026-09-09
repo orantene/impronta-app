@@ -389,13 +389,16 @@ export async function createRedirectAction(input: {
   // is NOT tenant-scoped, so a redirect from the same path across tenants would
   // collide. Pre-check within this tenant for a friendlier message; the DB
   // index is still the hard backstop.
-  const { data: existing } = await admin
+  const { data: existing, error: existingError } = await admin
     .from("cms_redirects")
     .select("id")
     .eq("tenant_id", scope.tenantId)
     .eq("old_path", normalized.oldPath)
     .eq("active", true)
     .maybeSingle<{ id: string }>();
+  if (existingError) {
+    return { ok: false, error: "Could not check existing redirects." };
+  }
   if (existing) {
     return {
       ok: false,
