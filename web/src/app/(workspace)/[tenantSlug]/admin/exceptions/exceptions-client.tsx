@@ -29,21 +29,27 @@ import { newCommandId } from "@/lib/commands/envelope";
 import type { ExceptionRow, ExceptionSeverity, ExceptionSummary } from "@/lib/exceptions/model";
 import { resumeExceptionAction } from "../_exceptions-actions";
 
+// Reads the workspace theme rather than carrying its own palette. A hardcoded
+// hex here would survive a rebrand and put an unthemed panel in the middle of a
+// themed admin — and severity is exactly the wrong place to be off-brand, since
+// "critical" has to look like this workspace's critical. The `--tl-*` tokens
+// are the marketing scale the admin surfaces already alias.
 const C = {
-  ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
-  border: "rgba(24,24,27,0.10)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  card: "#FFFFFF",
-  surface: "#FAFAF7",
-  critical: "#7F1D1D",
-  criticalSoft: "rgba(127,29,29,0.08)",
-  high: "#92400E",
-  highSoft: "rgba(245,158,11,0.12)",
-  normal: "rgba(11,11,13,0.55)",
-  normalSoft: "rgba(11,11,13,0.05)",
-  accent: "#1D4ED8",
+  ink: "var(--tl-ink)",
+  inkMuted: "var(--tl-muted)",
+  inkDim: "var(--tl-muted-soft)",
+  border: "var(--tl-hairline)",
+  borderSoft: "var(--tl-hairline)",
+  card: "var(--tl-surface-raised)",
+  surface: "var(--tl-surface)",
+  critical: "var(--tl-error)",
+  criticalSoft: "var(--tl-error-bg)",
+  high: "var(--tl-warning)",
+  highSoft: "var(--tl-warning-bg)",
+  normal: "var(--tl-muted)",
+  normalSoft: "var(--tl-surface-deep)",
+  accent: "var(--tl-info)",
+  onAccent: "var(--tl-on-inverse)",
 } as const;
 
 const SEVERITY_CHROME: Record<ExceptionSeverity, { label: string; fg: string; bg: string }> = {
@@ -260,7 +266,7 @@ export function ExceptionsClient({
                         borderRadius: 999,
                         border: `1px solid ${C.accent}`,
                         background: C.accent,
-                        color: "#FFFFFF",
+                        color: C.onAccent,
                         cursor: rowState?.pending ? "progress" : "pointer",
                       }}
                     >
