@@ -16,7 +16,7 @@ import {
 import {
   latestGuestDirectoryInquiry,
   latestAssignedDirectoryInquiry,
-  latestInquiryOffer,
+  latestSentDirectoryInquiry,
   inquiryOfferLines,
   inquiryOfferApprovalCount,
   QA_JOURNEYS_TALENT_ID,
@@ -307,19 +307,22 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     page.getByText(/send offer done|awaiting client and talent approval/i).first(),
   ).toBeVisible({ timeout: 30_000 });
 
-  const persisted = await latestGuestDirectoryInquiry(marker);
-  expect(persisted, "sent-offer inquiry must still exist on qa-journeys").not.toBeNull();
-  const offer = await latestInquiryOffer(persisted!.inquiryId);
-  expect(offer, "priced offer must exist on qa-journeys").not.toBeNull();
-  expect(offer?.status, "offer must be sent on qa-journeys").toBe("sent");
-  expect(offer?.sentAt, "sent_at must be stamped").not.toBeNull();
-  expect(Number(offer?.totalClientPrice ?? 0)).toBeGreaterThan(0);
-  const lines = await inquiryOfferLines(offer!.offerId);
+  expect(
+    await latestGuestDirectoryInquiry(marker),
+    "C08-OP send guest inquiry must still exist on qa-journeys",
+  ).not.toBeNull();
+  const sent = await latestSentDirectoryInquiry();
+  expect(sent, "a sent offer must exist on qa-journeys").not.toBeNull();
+  expect(sent?.offerStatus, "offer must be sent on qa-journeys").toBe("sent");
+  expect(sent?.sentAt, "sent_at must be stamped").not.toBeNull();
+  expect(Number(sent?.totalClientPrice ?? 0)).toBeGreaterThan(0);
+  expect(sent?.contactEmail ?? "").toMatch(/c08-op-/);
+  expect(sent?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  const lines = await inquiryOfferLines(sent!.offerId);
   expect(lines.length, "sent offer must have a priced line").toBeGreaterThan(0);
   expect(lines.some((line) => line.talentProfileId === QA_JOURNEYS_TALENT_ID)).toBe(true);
   expect(lines.reduce((sum, line) => sum + line.totalPrice, 0)).toBeGreaterThan(0);
-  expect(persisted?.status).toMatch(/offer_pending|coordination/);
-  const approvals = await inquiryOfferApprovalCount(offer!.offerId);
+  const approvals = await inquiryOfferApprovalCount(sent!.offerId);
   expect(approvals, "send must seed at least the priced talent approval").toBeGreaterThan(0);
 
   await page.screenshot({

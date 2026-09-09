@@ -239,6 +239,44 @@ export async function inquiryOfferLines(offerId: string): Promise<{
   }));
 }
 
+export async function latestSentDirectoryInquiry(): Promise<{
+  inquiryId: string;
+  contactEmail: string | null;
+  inquiryStatus: string;
+  offerId: string;
+  offerStatus: string;
+  totalClientPrice: number | null;
+  sentAt: string | null;
+} | null> {
+  const admin = isolatedService();
+  const { data, error } = await admin
+    .from("inquiry_offers")
+    .select("id, status, total_client_price, sent_at, inquiry_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("status", "sent")
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.inquiry_id) return null;
+  const { data: inq, error: inqErr } = await admin
+    .from("inquiries")
+    .select("id, status, contact_email")
+    .eq("id", data.inquiry_id)
+    .maybeSingle();
+  if (inqErr) throw new Error(inqErr.message);
+  return {
+    inquiryId: String(data.inquiry_id),
+    contactEmail: (inq?.contact_email as string | null) ?? null,
+    inquiryStatus: String(inq?.status ?? ""),
+    offerId: String(data.id),
+    offerStatus: String(data.status),
+    totalClientPrice:
+      data.total_client_price == null ? null : Number(data.total_client_price),
+    sentAt: (data.sent_at as string | null) ?? null,
+  };
+}
+
 export async function inquiryOfferApprovalCount(offerId: string): Promise<number> {
   const admin = isolatedService();
   const { count, error } = await admin
