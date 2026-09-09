@@ -522,8 +522,12 @@ export async function createPurchase(
               error: "That is more seats than one order can hold." };
       }
 
+      // The order id is the command's name. If the answer is lost and the
+      // purchase is retried, the RPC returns the FIRST reservation rather than
+      // allocating the same seats and people a second time.
       const set = await reserveResourceSet(admin, {
         tenantId: input.tenantId,
+        operationKey: `order:${createdOrderId}:reserve`,
         actorUserId: input.actorUserId,
         ttlSeconds: holdTtlSeconds,
         capacity: built.requests,

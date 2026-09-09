@@ -97,6 +97,35 @@ function fakeAdmin(opts: {
   const rpc = async (fn: string, args?: Record<string, unknown>) => {
     calls.push({ table: `rpc:${fn}`, op: "rpc", payload: args });
     if (fn === "ensure_customer_for_tenant") return { data: "cust_1", error: null };
+    // The set is ONE call now. `reserve_resource_set_v2` claims the operation
+    // key, checks the pools and runs the capacity batch inside one
+    // transaction; the TypeScript path that used to reserve on its own after a
+    // failed RPC was deleted for allocating twice on a lost answer. So the
+    // refusal a purchase reacts to arrives from here, not from
+    // `reserve_capacity_batch`.
+    if (fn === "reserve_resource_set_v2") {
+      if (opts.capacityRefusal) {
+        return {
+          data: {
+            ok: false,
+            reason: opts.capacityRefusal,
+            failed_pool_id: POOL,
+            failed_talent_id: null,
+          },
+          error: null,
+        };
+      }
+      return {
+        data: {
+          ok: true,
+          already: false,
+          hold_ids: [],
+          allocation_ids: ["alloc_1"],
+          expires_at: null,
+        },
+        error: null,
+      };
+    }
     if (fn === "reserve_capacity_batch") {
       if (opts.capacityRefusal) {
         return { data: { ok: false, reason: opts.capacityRefusal, failed_pool_id: POOL }, error: null };
@@ -205,10 +234,10 @@ test("a pool from another workspace does not reserve and cancels the order", asy
   const r = await createPurchase(admin, input());
   assert.equal(r.ok, false);
   assert.equal(!r.ok && r.reason, "engine_error");
-  assert.equal(
-    calls.find((c) => c.table === "rpc:reserve_capacity_batch"),
-    undefined,
-  );
+  // Neither the set command nor the batch underneath it may run: the tenant
+  // check happens before either, so nothing is ever allocated to unwind.
+  assert.equal(calls.find((c) => c.table === "rpc:reserve_resource_set_v2"), undefined);
+  assert.equal(calls.find((c) => c.table === "rpc:reserve_capacity_batch"), undefined);
   const cancelled = calls.find(
     (c) =>
       c.table === "orders" &&
@@ -237,6 +266,12 @@ test("a successful purchase opens ONE order, ONE booking and ONE transaction", a
     ["customers", "orders", "order_lines", "agency_bookings", "booking_transactions"],
     `exactly one of each, in this order; got ${JSON.stringify(inserts)}`,
   );
+
+  // The reservation is named after the ORDER, so a retried purchase replays
+  // one command instead of allocating a second set of seats.
+  const set = calls.find((c) => c.table === "rpc:reserve_resource_set_v2");
+  assert.ok(set, "the set must go through the atomic RPC");
+  assert.equal((set.payload as { p_operation_key?: string }).p_operation_key, "order:order_1:reserve");
 });
 
 test("the booking is created with NO INQUIRY and with order_id already set", async () => {

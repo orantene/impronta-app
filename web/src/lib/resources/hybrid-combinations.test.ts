@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+
 import { remainingUnits } from "@/lib/capacity/remaining";
 import type { CapacityAllocation, CapacityPool } from "@/lib/capacity/types";
+import { fakeReserveSetAdmin, type ReserveSetRpcCall } from "../../../test/helpers/reserve-set-fake";
 import {
   listSpacePoolIds,
   reserveBreakoutRooms,
@@ -16,109 +18,49 @@ import {
 const START = "2026-09-08T18:00:00.000Z";
 const END = "2026-09-08T20:00:00.000Z";
 
-function adminForTenant(tenantId = "t1") {
-  return {
-    rpc: async () => ({ data: null, error: null }),
-    from: (table: string) => {
-      let ids: string[] = [];
-      const api: Record<string, unknown> = {
-        select: () => api,
-        eq: () => api,
-        in: (_col: string, values: string[]) => {
-          ids = values;
-          return api;
-        },
-        then: (
-          resolve: (v: { data: unknown; error: null }) => unknown,
-          reject?: (e: unknown) => unknown,
-        ) =>
-          Promise.resolve({
-            data:
-              table === "capacity_pools"
-                ? ids.map((id) => ({ id, tenant_id: tenantId }))
-                : [],
-            error: null,
-          }).then(resolve, reject),
-      };
-      return api;
-    },
-  } as never;
-}
+/** Every combination is one command; these read what that command carried. */
+const poolsOf = (call: ReserveSetRpcCall) => (call.args.p_capacity ?? []).map((c) => String(c.pool_id));
+const unitsOf = (call: ReserveSetRpcCall) =>
+  (call.args.p_capacity ?? []).map((c) => ({ poolId: String(c.pool_id), units: c.units }));
+const talentOf = (call: ReserveSetRpcCall) => (call.args.p_holds ?? []).map((h) => String(h.talent_profile_id));
 
-const ADMIN = adminForTenant();
-
-const passCapacity = async (reqs: readonly { poolId: string }[]) => ({
-  ok: true as const,
-  allocationIds: reqs.map((_, i) => `a${i}`),
-  expiresAt: null,
+const soldOut = (poolId: string) => () => ({
+  data: { ok: false, reason: "sold_out", failed_pool_id: poolId, failed_talent_id: null },
+  error: null,
 });
-const passHold = async (_admin: unknown, input: { talentProfileId: string }) => ({
-  ok: true as const,
-  holdId: `h-${input.talentProfileId}`,
-  expiresAt: null,
-});
-const noopRelease = {
-  releaseCapacity: async () => ({ ok: true as const, released: 0, alreadyReleased: 0 }),
-  releaseHold: async () => ({ ok: true as const }),
-};
 
 test("a supervised service refuses without a supervisor and writes nothing", async () => {
-  let reserved = 0;
-  const r = await reserveSupervisedService(
-    ADMIN,
-    {
-      tenantId: "t1",
-      studentId: "student-1",
-      supervisorId: "",
-      stationPoolId: "station-1",
-      startsAt: START,
-      endsAt: END,
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => {
-        reserved += 1;
-        return { ok: true, allocationIds: ["x"], expiresAt: null };
-      },
-      placeHold: async () => {
-        reserved += 1;
-        return { ok: true, holdId: "x", expiresAt: null };
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveSupervisedService(admin, {
+    tenantId: "t1",
+    operationKey: "supervised:1",
+    studentId: "student-1",
+    supervisorId: "",
+    stationPoolId: "station-1",
+    startsAt: START,
+    endsAt: END,
+  });
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.reason, "invalid");
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
 
 test("a supervised service holds student, supervisor and station as one set", async () => {
-  const placed: string[] = [];
-  const pools: string[] = [];
-  const r = await reserveSupervisedService(
-    ADMIN,
-    {
-      tenantId: "t1",
-      studentId: "student-1",
-      supervisorId: "supervisor-1",
-      stationPoolId: "station-1",
-      startsAt: START,
-      endsAt: END,
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => q.poolId));
-        return passCapacity(reqs);
-      },
-      placeHold: async (_a, input) => {
-        placed.push(input.talentProfileId);
-        return passHold(_a, input);
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveSupervisedService(admin, {
+    tenantId: "t1",
+    operationKey: "supervised:1",
+    studentId: "student-1",
+    supervisorId: "supervisor-1",
+    stationPoolId: "station-1",
+    startsAt: START,
+    endsAt: END,
+  });
   assert.equal(r.ok, true);
-  assert.deepEqual(placed.sort(), ["student-1", "supervisor-1"]);
-  assert.deepEqual(pools, ["station-1"]);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(talentOf(calls[0]!).sort(), ["student-1", "supervisor-1"]);
+  assert.deepEqual(poolsOf(calls[0]!), ["station-1"]);
+  assert.equal(calls[0]!.args.p_operation_key, "supervised:1");
 });
 
 test("listing courts for a tournament omits cafe offering pools", async () => {
@@ -150,85 +92,53 @@ test("listing courts for a tournament omits cafe offering pools", async () => {
 });
 
 test("a tournament window reserves every court and does not take the cafe", async () => {
-  const pools: string[] = [];
-  const r = await reserveTournamentWindow(
-    ADMIN,
-    {
-      tenantId: "t1",
-      startsAt: START,
-      endsAt: END,
-      courtPoolIds: ["court-1", "court-2", "court-3"],
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => q.poolId));
-        return passCapacity(reqs);
-      },
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveTournamentWindow(admin, {
+    tenantId: "t1",
+    operationKey: "tournament:1",
+    startsAt: START,
+    endsAt: END,
+    courtPoolIds: ["court-1", "court-2", "court-3"],
+  });
   assert.equal(r.ok, true);
-  assert.deepEqual(pools, ["court-1", "court-2", "court-3"]);
-  assert.ok(!pools.includes("cafe-stock"));
+  assert.deepEqual(poolsOf(calls[0]!), ["court-1", "court-2", "court-3"]);
+  assert.ok(!poolsOf(calls[0]!).includes("cafe-stock"));
 });
 
 test("a taken breakout room writes no rooms and no attendee seats", async () => {
-  const released: string[] = [];
-  const r = await reserveBreakoutRooms(
-    ADMIN,
-    {
-      tenantId: "t1",
-      startsAt: START,
-      endsAt: END,
-      roomPoolIds: ["room-a", "room-b", "room-c", "room-d"],
-      attendeePoolId: "seats",
-      attendeeCount: 40,
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "room-c" }),
-      releaseCapacity: async (ids) => {
-        released.push(...ids);
-        return { ok: true, released: ids.length, alreadyReleased: 0 };
-      },
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin({ reply: soldOut("room-c") });
+  const r = await reserveBreakoutRooms(admin, {
+    tenantId: "t1",
+    operationKey: "breakout:1",
+    startsAt: START,
+    endsAt: END,
+    roomPoolIds: ["room-a", "room-b", "room-c", "room-d"],
+    attendeePoolId: "seats",
+    attendeeCount: 40,
+  });
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.failedPoolId, "room-c");
-  assert.equal(released.length, 0);
+  // One transaction refused as a whole. There is no half-held set to unwind,
+  // which is the property the second reservation path used to destroy.
+  assert.equal(calls.length, 1);
+  assert.deepEqual(poolsOf(calls[0]!), ["room-a", "room-b", "room-c", "room-d", "seats"]);
 });
 
 test("a live recording holds room, engineer and audience seats together", async () => {
-  const placed: string[] = [];
-  const pools: Array<{ poolId: string; units?: number }> = [];
-  const r = await reserveLiveRecording(
-    ADMIN,
-    {
-      tenantId: "t1",
-      startsAt: START,
-      endsAt: END,
-      engineerId: "eng-1",
-      roomPoolId: "studio-1",
-      audiencePoolId: "seats-1",
-      audienceSeats: 20,
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => ({ poolId: q.poolId, units: q.units })));
-        return passCapacity(reqs);
-      },
-      placeHold: async (_a, input) => {
-        placed.push(input.talentProfileId);
-        return passHold(_a, input);
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveLiveRecording(admin, {
+    tenantId: "t1",
+    operationKey: "recording:1",
+    startsAt: START,
+    endsAt: END,
+    engineerId: "eng-1",
+    roomPoolId: "studio-1",
+    audiencePoolId: "seats-1",
+    audienceSeats: 20,
+  });
   assert.equal(r.ok, true);
-  assert.deepEqual(placed, ["eng-1"]);
-  assert.deepEqual(pools, [
+  assert.deepEqual(talentOf(calls[0]!), ["eng-1"]);
+  assert.deepEqual(unitsOf(calls[0]!), [
     { poolId: "studio-1", units: 1 },
     { poolId: "seats-1", units: 20 },
   ]);
@@ -265,117 +175,75 @@ test("workshop, private hire and admission cannot double-book the same room", ()
 });
 
 test("a live recording without an engineer writes nothing", async () => {
-  let reserved = 0;
-  const r = await reserveLiveRecording(
-    ADMIN,
-    {
-      tenantId: "t1",
-      startsAt: START,
-      endsAt: END,
-      engineerId: "",
-      roomPoolId: "studio-1",
-      audiencePoolId: "seats-1",
-      audienceSeats: 20,
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => {
-        reserved += 1;
-        return { ok: true, allocationIds: ["x"], expiresAt: null };
-      },
-      placeHold: async () => {
-        reserved += 1;
-        return { ok: true, holdId: "x", expiresAt: null };
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveLiveRecording(admin, {
+    tenantId: "t1",
+    operationKey: "recording:2",
+    startsAt: START,
+    endsAt: END,
+    engineerId: "",
+    roomPoolId: "studio-1",
+    audiencePoolId: "seats-1",
+    audienceSeats: 20,
+  });
   assert.equal(r.ok, false);
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
 
 test("private catering holds the kitchen so a pop-up the same evening is sold out", async () => {
-  const pools: string[] = [];
-  const first = await reserveExclusiveSpace(
-    ADMIN,
-    { tenantId: "t1", spacePoolId: "kitchen-1", startsAt: START, endsAt: END },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => q.poolId));
-        return passCapacity(reqs);
-      },
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-    },
-  );
+  const booked = fakeReserveSetAdmin();
+  const first = await reserveExclusiveSpace(booked.admin, {
+    tenantId: "t1",
+    operationKey: "catering:1",
+    spacePoolId: "kitchen-1",
+    startsAt: START,
+    endsAt: END,
+  });
   assert.equal(first.ok, true);
-  const second = await reserveExclusiveSpace(
-    ADMIN,
-    { tenantId: "t1", spacePoolId: "kitchen-1", startsAt: START, endsAt: END },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "kitchen-1" }),
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-    },
-  );
+  assert.deepEqual(poolsOf(booked.calls[0]!), ["kitchen-1"]);
+
+  const popup = fakeReserveSetAdmin({ reply: soldOut("kitchen-1") });
+  const second = await reserveExclusiveSpace(popup.admin, {
+    tenantId: "t1",
+    operationKey: "popup:1",
+    spacePoolId: "kitchen-1",
+    startsAt: START,
+    endsAt: END,
+  });
   assert.equal(second.ok, false);
   if (!second.ok) assert.equal(second.failedPoolId, "kitchen-1");
-  assert.deepEqual(pools, ["kitchen-1"]);
 });
 
 test("a retreat stay holds each day's place; a sold-out later day writes nothing", async () => {
-  const released: string[] = [];
-  const r = await reserveRetreatStay(
-    ADMIN,
-    {
-      tenantId: "t1",
-      days: [
-        { startsAt: "2026-09-08T08:00:00.000Z", endsAt: "2026-09-08T20:00:00.000Z", placePoolId: "retreat" },
-        { startsAt: "2026-09-09T08:00:00.000Z", endsAt: "2026-09-09T20:00:00.000Z", placePoolId: "retreat" },
-        { startsAt: "2026-09-10T08:00:00.000Z", endsAt: "2026-09-10T20:00:00.000Z", placePoolId: "retreat" },
-      ],
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "retreat" }),
-      releaseCapacity: async (ids) => {
-        released.push(...ids);
-        return { ok: true, released: ids.length, alreadyReleased: 0 };
-      },
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin({ reply: soldOut("retreat") });
+  const r = await reserveRetreatStay(admin, {
+    tenantId: "t1",
+    operationKey: "retreat:1",
+    days: [
+      { startsAt: "2026-09-08T08:00:00.000Z", endsAt: "2026-09-08T20:00:00.000Z", placePoolId: "retreat" },
+      { startsAt: "2026-09-09T08:00:00.000Z", endsAt: "2026-09-09T20:00:00.000Z", placePoolId: "retreat" },
+      { startsAt: "2026-09-10T08:00:00.000Z", endsAt: "2026-09-10T20:00:00.000Z", placePoolId: "retreat" },
+    ],
+  });
   assert.equal(r.ok, false);
-  assert.equal(released.length, 0);
+  assert.equal(calls.length, 1, "three days are one command, so a sold-out third day holds none of them");
+  assert.equal(calls[0]!.args.p_capacity?.length, 3);
 });
 
 test("adding a massage on day two does not consume another retreat place", async () => {
-  const pools: Array<{ poolId: string; units?: number }> = [];
-  const placed: string[] = [];
-  const r = await reserveRetreatAddOn(
-    ADMIN,
-    {
-      tenantId: "t1",
-      startsAt: "2026-09-09T14:00:00.000Z",
-      endsAt: "2026-09-09T15:00:00.000Z",
-      poolId: "massage-room",
-      talentId: "therapist-1",
-    },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => ({ poolId: q.poolId, units: q.units })));
-        return passCapacity(reqs);
-      },
-      placeHold: async (_a, input) => {
-        placed.push(input.talentProfileId);
-        return passHold(_a, input);
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveRetreatAddOn(admin, {
+    tenantId: "t1",
+    operationKey: "retreat-addon:1",
+    startsAt: "2026-09-09T14:00:00.000Z",
+    endsAt: "2026-09-09T15:00:00.000Z",
+    poolId: "massage-room",
+    talentId: "therapist-1",
+  });
   assert.equal(r.ok, true);
-  assert.deepEqual(pools, [{ poolId: "massage-room", units: 1 }]);
-  assert.ok(!pools.some((p) => p.poolId === "retreat"));
-  assert.deepEqual(placed, ["therapist-1"]);
+  assert.deepEqual(unitsOf(calls[0]!), [{ poolId: "massage-room", units: 1 }]);
+  assert.ok(!poolsOf(calls[0]!).includes("retreat"));
+  assert.deepEqual(talentOf(calls[0]!), ["therapist-1"]);
 });
 
 test("an adoption event in hall A does not consume the grooming room", () => {
@@ -408,45 +276,17 @@ test("an adoption event in hall A does not consume the grooming room", () => {
 });
 
 test("exclusive hire of another workspace's kitchen writes nothing", async () => {
-  let reserved = 0;
-  const foreign = {
-    rpc: async () => ({ data: null, error: null }),
-    from: (table: string) => {
-      const api: Record<string, unknown> = {
-        select: () => api,
-        in: () => api,
-        then: (
-          resolve: (v: { data: unknown; error: null }) => unknown,
-          reject?: (e: unknown) => unknown,
-        ) =>
-          Promise.resolve({
-            data:
-              table === "capacity_pools"
-                ? [{ id: "kitchen-other", tenant_id: "t-other" }]
-                : [],
-            error: null,
-          }).then(resolve, reject),
-      };
-      return api;
-    },
-  } as never;
-  const r = await reserveExclusiveSpace(
-    foreign,
-    { tenantId: "t1", spacePoolId: "kitchen-other", startsAt: START, endsAt: END },
-    {
-      ...noopRelease,
-      reserveCapacityBatch: async () => {
-        reserved += 1;
-        return { ok: true, allocationIds: ["x"], expiresAt: null };
-      },
-      placeHold: async () => {
-        reserved += 1;
-        return { ok: true, holdId: "x", expiresAt: null };
-      },
-    },
-  );
+  const { admin, calls } = fakeReserveSetAdmin({
+    pools: [{ id: "kitchen-other", tenant_id: "t-other" }],
+  });
+  const r = await reserveExclusiveSpace(admin, {
+    tenantId: "t1",
+    operationKey: "catering:2",
+    spacePoolId: "kitchen-other",
+    startsAt: START,
+    endsAt: END,
+  });
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.reason, "wrong_tenant");
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
-
