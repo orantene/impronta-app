@@ -13,7 +13,7 @@
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP talent assigned + draft + sent offer, C08-TAL talent approved (client still pending); no complete case. |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema on `qa-journeys` | **Verified 2026-09-09T04:10Z** — `npm run journeys:probe` exit 0, `npm run journeys:smoke` 10/10. Previously 16 objects were missing; see [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md). |
-| SQL fixture on `qa-journeys` | **Workspace A yes, workspace B identity only.** A has catalog / spaces / sessions / pools; B has an `agencies` row, an active host and an owner and **zero** fixture rows. Staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
+| SQL fixture on `qa-journeys` | **Both workspaces transact.** A has catalog / spaces / sessions / pools; B has its own venue, station, technician with booking hours, two offerings, a one-unit pool, a customer and a paid order (D-011 closed). Staff login on `qa-journeys.local:3103` and `qa-journeys-b.local:3104` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
 | C06-OP walk-in cash | **Pass** on qa-journeys UI + DB. Evidence: `docs/plans/qa-evidence/C06-OP/walk-in-cash.md`. Not QR / courses / split. |
 | C06-CUS public menu | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/public-menu.md`. |
@@ -90,7 +90,9 @@ Two defects came out of making this checkable, both of which shipped past every 
 
 **Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or the twelve replayed files to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint, `events`, `check_in`, `engine_send_offer`, and `engine_submit_approval`.
 
-Fixture, as counted rather than as claimed. **Workspace A** (`3333…3333`, host `qa-journeys.local`): venue + table/room, Gel / pizza / class / reservation plus Therapist B, Massage, Couples (T1+T2+Room A), morning session, 12-place `session_tier` pool, Room A 1-unit `space` pool — 2 spaces, 7 offerings, 3 sessions, 6 pools, 42 customers, 49 orders. C12 fixture is in `seed_journeys_program.sql`. **Workspace B** (`3333…3334`, host `qa-journeys-b.local`): an `agencies` row, an active domain and an owner membership, and nothing else — zero spaces, offerings, sessions, pools, customers and orders. That is enough for the negative isolation direction and not enough for any case where B must transact (D-011). Five auth users + owner/viewer/B-owner memberships + two talent profiles exist.
+Fixture, as counted rather than as claimed. **Workspace A** (`3333…3333`, host `qa-journeys.local`): venue + table/room, Gel / pizza / class / reservation plus Therapist B, Massage, Couples (T1+T2+Room A), morning session, 12-place `session_tier` pool, Room A 1-unit `space` pool — 2 spaces, 7 offerings, 3 sessions, 6 pools, 42 customers, 49 orders. C12 fixture is in `seed_journeys_program.sql`. **Workspace B** (`3333…3334`, host `qa-journeys-b.local`): now transacts — its own venue, Station B1, a technician **with booking hours**, Acrylic fill + Cuticle oil, a one-unit `space` pool, a customer and a paid $9.00 order with a line (D-011 closed, 803b08325). It is a nail salon against A's restaurant, so the pair also covers two vocabulary presets. Five auth users + owner/viewer/B-owner memberships + three talent profiles exist.
+
+**Why B being empty was worse than B not existing.** The permissions requirement is that changing a record ID in a request does not bypass authorization. With B empty there was no B record ID to substitute, so such a test could only paste a UUID that exists nowhere — and "not found" and "forbidden" are then the same empty screen. It would have passed on day one and kept passing if authorization were deleted. `PERM-cross-workspace.spec.ts` is the case that could not be written before, and it is 5/5: each refusal is paired with a positive control showing the same locator matching for a viewer who is entitled, because `toHaveCount(0)` on a locator nothing can match is not a test.
 
 Password and `service_role` for the branch belong in gitignored `web/.env.capacity-isolated.local` — never git. P1-01 used those isolated credentials against qa-journeys only.
 
@@ -105,7 +107,7 @@ Product sources are in [`docs/product/`](../../product/).
 | P0-03 48 case files | Implemented, awaiting focused verification — sampled against Journeys-POS. Browser still not started |
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
 | P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700`–`001300` are on this branch and on qa-journeys, not production. `db:check` cannot see qa-journeys at all (D-012); use `journeys:probe` |
-| P0-06 fixture harness | Workspace A seeded and verified; workspace B is identity-only (D-011). Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
+| P0-06 fixture harness | Workspaces A **and B** seeded and verified (D-011 closed). Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
 | P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP assign + draft + sent offer, and C08-TAL talent approve (client still pending) are real journeys. |
 | P1-01 isolated capacity proof | Verified in test environment: 200 HTTP callers, exactly 12 wins, zero oversell. See `qa-evidence/P1-01/` |
 | P2-01 type catalog | ~120 searchable types; `custom` outside; accent-fold search; handyman ES `mantenimiento del hogar` |
@@ -135,9 +137,18 @@ cd web && npm run test:money
 cd web && npm run journeys:audit    # completeness — trust this one
 cd web && npm run journeys:probe    # presence of the curated critical set
 cd web && npm run journeys:smoke    # behaviour, always rolled back
-# The isolated app, which is how the CMS/settings drift was found at all:
-#   set -a && . ./.env.capacity-isolated.local && set +a && PORT=3008 npm run dev
-#   (host proxy on 3103 rewrites Host to qa-journeys.local)
+# The isolated app, which is how the CMS/settings drift was found at all.
+# TULALA_ALLOW_DEV_SURFACES=1 is NOT optional and its absence does not look
+# like a misconfiguration: the Edge proxy inlines NODE_ENV=production, so
+# without the flag `/api/dev/*` falls through host resolution and every
+# fixture sign-in returns the storefront's 404 page. Playwright then reports
+# "dev sign-in must mint a session" on every case at once.
+#   set -a && . ./.env.capacity-isolated.local && set +a \
+#     && TULALA_ALLOW_DEV_SURFACES=1 npm run dev -- --port 3008
+# One host proxy per workspace, both onto 3008, because the proxy pins a
+# single Host header per port:
+#   node scripts/local-host-proxy.mjs 3103 qa-journeys.local   3008
+#   node scripts/local-host-proxy.mjs 3104 qa-journeys-b.local 3008
 # npm run journeys:repair 20261230001300_command_envelope_and_outbox.sql
 # npm run seed:journeys-program
 # CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/verify-capacity-concurrency.mjs
