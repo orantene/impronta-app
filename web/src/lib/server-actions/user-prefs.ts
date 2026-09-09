@@ -21,6 +21,7 @@
  * backfill: migration 20261226000008.
  */
 
+import { ACCOUNT_EXPORT_PATH } from "@/lib/account/export-path";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -445,6 +446,3 @@ export async function requestDataExport(): Promise<{ ok: boolean; error?: string
   if (!stamped.ok) return stamped;
   return { ok: true, url: ACCOUNT_EXPORT_PATH };
 }
-
-/** One literal, so the route, the action and the reachability test agree. */
-export const ACCOUNT_EXPORT_PATH = "/api/account/export";

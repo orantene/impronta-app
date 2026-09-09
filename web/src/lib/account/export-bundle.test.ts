@@ -135,7 +135,19 @@ test("the path is reachable, which is the fourth layer this repo keeps missing",
 });
 
 test("the privacy action points at the route that now exists", () => {
+  const path = readFileSync(join(process.cwd(), "src/lib/account/export-path.ts"), "utf8");
+  assert.match(path, /ACCOUNT_EXPORT_PATH = "\/api\/account\/export"/, "one literal for the path");
   const prefs = readFileSync(join(process.cwd(), "src/lib/server-actions/user-prefs.ts"), "utf8");
-  assert.match(prefs, /ACCOUNT_EXPORT_PATH = "\/api\/account\/export"/, "one literal for the path");
   assert.match(prefs, /url: ACCOUNT_EXPORT_PATH/, "requesting an export hands back where it is");
+});
+
+test("the path literal is NOT declared in a \"use server\" module", () => {
+  // The build breaker this pins: every export in a `"use server"` file becomes
+  // a server action, so a plain `export const` there is refused by Turbopack —
+  // and by nothing else. tsc, eslint and every unit lane were green while
+  // `next build` could not compile the admin layout at all.
+  const prefs = readFileSync(join(process.cwd(), "src/lib/server-actions/user-prefs.ts"), "utf8");
+  assert.doesNotMatch(prefs, /export const ACCOUNT_EXPORT_PATH/);
+  const path = readFileSync(join(process.cwd(), "src/lib/account/export-path.ts"), "utf8");
+  assert.doesNotMatch(path, /"use server"/, "the literal's home must not be an action module");
 });
