@@ -11,6 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals";
 import { loadActiveTicketForOrder } from "@/lib/preparation/tickets";
+import { addonCentsOnLine, priceAddons } from "./addons";
 import { posGuestSessionId, type PosLineInput, type PosSaleView } from "./commands";
 
 type Admin = {
@@ -53,12 +54,34 @@ type LineRow = {
   id: string;
   offering_id: string | null;
   variant_id: string | null;
+  addon_ids: string[] | null;
   session_id: string | null;
   label: string;
   units: number | string;
   unit_cents: number | string;
   total_cents: number | string;
 };
+
+/**
+ * A stored line, as `cartTotals` wants it.
+ *
+ * Every command that rebuilds the order's totals goes through this, because
+ * every one of them used to drop the add-on charge on the lines it was NOT
+ * touching: change the quantity of the coffee and the bacon on the burger
+ * stopped being billed. The residue carries it without a second catalog read
+ * — see `addonCentsOnLine`.
+ */
+function totalsInput(line: LineRow): { unitCents: number; units: number; addonCents: number } {
+  const unitCents = num(line.unit_cents);
+  const units = num(line.units);
+  return {
+    unitCents,
+    units,
+    addonCents: addonCentsOnLine({ unitCents, units, totalCents: num(line.total_cents) }),
+  };
+}
+
+const LINE_COLUMNS = "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -138,7 +161,7 @@ async function loadDraft(
   if (row.status !== "draft") return { ok: false, reason: "not_draft" };
   const { data: lineRows, error: linesError } = await admin
     .from("order_lines")
-    .select("id, offering_id, variant_id, session_id, label, units, unit_cents, total_cents")
+    .select(LINE_COLUMNS)
     .eq("order_id", orderId)
     .order("sort_order", { ascending: true });
   if (linesError) {
@@ -151,7 +174,7 @@ async function loadDraft(
 async function writeTotals(
   admin: Admin,
   input: { tenantId: string; orderId: string; discountCents: number; version: number; promoCodeId?: string | null },
-  lines: readonly { unitCents: number; units: number }[],
+  lines: readonly { unitCents: number; units: number; addonCents?: number }[],
 ): Promise<{ ok: true; version: number } | { ok: false; reason: "conflict" | "unavailable"; error: string }> {
   const totals = cartTotals(lines, input.discountCents);
   if (!totalsAreWritable(totals)) return { ok: false, reason: "unavailable", error: "CART_TOTALS_NOT_WRITABLE" };
@@ -351,8 +374,20 @@ export async function addLine(
     if (v.label) label = `${label} · ${v.label}`;
   }
 
+  // The extras, priced. Before the line is written, because a refused add-on
+  // must leave the sale untouched rather than add a mispriced line and then
+  // report an error the operator reads after the item is already on screen.
+  const addons = await priceAddons(admin, {
+    tenantId: input.tenantId,
+    offeringId: off.id,
+    addonIds: input.line.addonIds,
+  });
+  if (!addons.ok) return { ok: false, reason: addons.reason, error: addons.error };
+  const { addonIds, addonCents, labelSuffix } = addons.priced;
+  if (labelSuffix) label += labelSuffix;
+
   const units = Math.trunc(input.line.units);
-  const totalCents = lineTotalCents({ unitCents, units });
+  const totalCents = lineTotalCents({ unitCents, units, addonCents });
   const talentId = off.talent_profile_id;
   const expectedVersion = input.expectedVersion ?? loadedVersion;
   const viaRpc = await mutateDraftLine(admin, {
@@ -363,7 +398,7 @@ export async function addLine(
     line: {
       offering_id: off.id,
       variant_id: input.line.variantId ?? null,
-      addon_ids: input.line.addonIds ?? [],
+      addon_ids: addonIds,
       session_id: input.line.sessionId ?? null,
       label,
       units,
@@ -382,7 +417,7 @@ export async function addLine(
     tenant_id: input.tenantId,
     offering_id: off.id,
     variant_id: input.line.variantId ?? null,
-    addon_ids: input.line.addonIds ?? [],
+    addon_ids: addonIds,
     session_id: input.line.sessionId ?? null,
     label,
     units,
@@ -398,10 +433,7 @@ export async function addLine(
     return { ok: false, reason: "unavailable", error: "Could not add the item." };
   }
 
-  const nextLines = [
-    ...loaded.lines.map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) })),
-    { unitCents, units },
-  ];
+  const nextLines = [...loaded.lines.map(totalsInput), { unitCents, units, addonCents }];
   const written = await writeTotals(
     admin,
     {
@@ -433,6 +465,11 @@ export async function updateLine(
   if (!line) return { ok: false, reason: "not_found", error: "That line is not on this sale." };
   const units = Math.trunc(input.units);
   const unitCents = num(line.unit_cents);
+  // The extras survive a quantity change unchanged, because they are charged
+  // per line. Re-reading their catalog price here would silently reprice a line
+  // the operator only wanted more of.
+  const addonCents = addonCentsOnLine({ unitCents, units: num(line.units), totalCents: num(line.total_cents) });
+  const nextTotal = lineTotalCents({ unitCents, units, addonCents });
   const expectedVersion = input.expectedVersion ?? loadedVersion;
   const viaRpc = await mutateDraftLine(admin, {
     tenantId: input.tenantId,
@@ -443,13 +480,13 @@ export async function updateLine(
       id: input.lineId,
       units,
       unit_cents: unitCents,
-      total_cents: lineTotalCents({ unitCents, units }),
+      total_cents: nextTotal,
     },
   });
   if (viaRpc !== "fallback") return viaRpc;
   const { error } = await admin
     .from("order_lines")
-    .update({ units, total_cents: lineTotalCents({ unitCents, units }) })
+    .update({ units, total_cents: nextTotal })
     .eq("id", input.lineId)
     .eq("order_id", input.orderId);
   if (error) {
@@ -457,9 +494,7 @@ export async function updateLine(
     return { ok: false, reason: "unavailable", error: "Could not update the item." };
   }
   const nextLines = loaded.lines.map((l) =>
-    l.id === input.lineId
-      ? { unitCents, units }
-      : { unitCents: num(l.unit_cents), units: num(l.units) },
+    l.id === input.lineId ? { unitCents, units, addonCents } : totalsInput(l),
   );
   const written = await writeTotals(
     admin,
@@ -503,9 +538,7 @@ export async function removeLine(
     logServerError("pos.removeLine", error);
     return { ok: false, reason: "unavailable", error: "Could not remove the item." };
   }
-  const nextLines = loaded.lines
-    .filter((l) => l.id !== input.lineId)
-    .map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
+  const nextLines = loaded.lines.filter((l) => l.id !== input.lineId).map(totalsInput);
   const written = await writeTotals(
     admin,
     {
@@ -524,7 +557,7 @@ export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
       ok: false;
-      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "promo_needs_customer" | "promo_refused" | "conflict";
+      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict";
       error: string;
     };
 
@@ -574,17 +607,32 @@ export async function repriceAndValidate(
       const amount = (variant as { amount_cents?: number | null } | null)?.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
+    // Extras are repriced from the catalog like everything else here. This is
+    // the one command whose job is to answer "what does this cost NOW", and an
+    // add-on left at its stored price would be the only stale number on a
+    // receipt that claims to be current.
+    //
+    // An add-on that has since been deleted or moved to another offering makes
+    // the whole reprice REFUSE. Silently dropping it would take money off the
+    // sale while the kitchen ticket still promises the extra.
+    const addons = await priceAddons(admin, {
+      tenantId: input.tenantId,
+      offeringId: line.offering_id,
+      addonIds: line.addon_ids,
+    });
+    if (!addons.ok) return { ok: false, reason: addons.reason, error: addons.error };
     const units = num(line.units);
+    const totalCents = lineTotalCents({ unitCents, units, addonCents: addons.priced.addonCents });
     const { error: uErr } = await admin
       .from("order_lines")
-      .update({ unit_cents: unitCents, total_cents: lineTotalCents({ unitCents, units }) })
+      .update({ unit_cents: unitCents, total_cents: totalCents })
       .eq("id", line.id);
     if (uErr) {
       logServerError("pos.reprice.line", uErr);
       return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     }
     line.unit_cents = unitCents;
-    line.total_cents = lineTotalCents({ unitCents, units });
+    line.total_cents = totalCents;
   }
 
   let discountCents = 0;
@@ -613,7 +661,7 @@ export async function repriceAndValidate(
     promoCodeId = resolved.codeId;
   }
 
-  const nextLines = loaded.lines.map((l) => ({ unitCents: num(l.unit_cents), units: num(l.units) }));
+  const nextLines = loaded.lines.map(totalsInput);
   const written = await writeTotals(
     admin,
     {
@@ -650,7 +698,7 @@ export async function loadPosSale(
 
   const { data: lineRows, error: linesError } = await admin
     .from("order_lines")
-    .select("id, offering_id, variant_id, session_id, label, units, unit_cents, total_cents")
+    .select(LINE_COLUMNS)
     .eq("order_id", input.orderId)
     .order("sort_order", { ascending: true });
   if (linesError) {
