@@ -68,6 +68,27 @@ export const JOURNEYS_TALENT_EMAIL =
   process.env.JOURNEYS_TALENT_EMAIL ?? "qa-journeys-talent@impronta.test";
 
 /**
+ * How many times to ask for a session before calling it a failure.
+ *
+ * A 404 from `/api/dev/signin` has two very different causes and only one of
+ * them is worth retrying.
+ *
+ * PERMANENT: TULALA_ALLOW_DEV_SURFACES is not set on the dev server. The Edge
+ * proxy inlines NODE_ENV=production, so without the flag `/api/dev/*` is not
+ * short-circuited, falls through host resolution, and every request lands on
+ * the storefront's not-found page. Retrying cannot help and the message below
+ * has to name the flag, because the symptom looks like a missing route.
+ *
+ * TRANSIENT: the Turbopack dev server briefly loses the route from its tree
+ * after it rebuilds — observed as four consecutive 404s immediately after
+ * `Compiling /_not-found/page`, followed by 307 for the sixteen requests
+ * either side of them, all inside one server process with the flag set the
+ * whole time. It is a dev-server fault, not a product one, so it must not be
+ * allowed to read as "the fixture cannot sign in".
+ */
+const SIGNIN_ATTEMPTS = 6;
+
+/**
  * Passwordless fixture sign-in. Reads cookies from the 307 and then opens
  * `nextPath` on PLAYWRIGHT_BASE_URL so a Location that dropped the proxy
  * port cannot bounce the browser onto :80.
@@ -78,10 +99,29 @@ export async function signInJourneysStaff(
   email = JOURNEYS_OWNER_EMAIL,
 ): Promise<void> {
   const params = new URLSearchParams({ email, next: nextPath });
-  const res = await page.request.get(`/api/dev/signin?${params.toString()}`, {
-    maxRedirects: 0,
-  });
-  expect(res.status(), "dev sign-in must mint a session").toBe(307);
+  const seen: number[] = [];
+  for (let attempt = 1; attempt <= SIGNIN_ATTEMPTS; attempt += 1) {
+    const res = await page.request.get(`/api/dev/signin?${params.toString()}`, {
+      maxRedirects: 0,
+    });
+    if (res.status() === 307) break;
+    seen.push(res.status());
+    // Anything other than a 404 is the HANDLER answering: 403 outside
+    // dev/preview, 400 for a missing email, 401 for a rejected token, 503 with
+    // no service role, 500 when the link could not be minted. Those are real
+    // and retrying only delays the report, so fail on the first one and show
+    // what it said.
+    if (res.status() !== 404) {
+      expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
+    }
+    if (attempt < SIGNIN_ATTEMPTS) await page.waitForTimeout(250 * attempt);
+  }
+  expect(
+    seen.length,
+    `dev sign-in returned ${seen.join(", ")} — ${SIGNIN_ATTEMPTS} 404s is not a rebuild ` +
+      `gap. Start the dev server with TULALA_ALLOW_DEV_SURFACES=1 or /api/dev/* falls ` +
+      `through to the storefront's not-found page.`,
+  ).toBeLessThan(SIGNIN_ATTEMPTS);
   await page.goto(nextPath);
   await assertNotAuthWall(page);
 }
