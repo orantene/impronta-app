@@ -809,6 +809,22 @@ export const MORNING_CLASS_SESSION_ID = "33330013-0000-4000-8000-000000000001";
 export const LAST_PLACE_CLASS_SESSION_ID = "33330013-0000-4000-8000-000000000003";
 export const LAST_PLACE_CLASS_POOL_ID = "33330020-0000-4000-8000-000000000006";
 
+/**
+ * The Last place pool is one unit. A previous C09-DIFF run that committed the
+ * seat leaves the radio disabled and the DIFF cannot start. Release only that
+ * pool's live rows so the spec is re-runnable without touching morning class.
+ */
+export async function releaseLastPlaceClassSeat(): Promise<void> {
+  const admin = isolatedService();
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("capacity_allocations")
+    .update({ state: "released", released_at: now })
+    .eq("pool_id", LAST_PLACE_CLASS_POOL_ID)
+    .in("state", ["hold", "committed"]);
+  if (error) throw new Error(error.message);
+}
+
 export type ClassWalkIn = {
   orderId: string;
   status: string;

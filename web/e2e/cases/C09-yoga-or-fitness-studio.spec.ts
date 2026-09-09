@@ -18,6 +18,7 @@ import {
   LAST_PLACE_CLASS_POOL_ID,
   LAST_PLACE_CLASS_SESSION_ID,
   MORNING_CLASS_SESSION_ID,
+  releaseLastPlaceClassSeat,
 } from "./_isolated-db";
 
 skipUnlessFixture();
@@ -126,6 +127,7 @@ test("C09-DIFF door: website last seat blocks POS walk-in on the same pool", asy
   page,
 }, testInfo) => {
   test.setTimeout(180_000);
+  await releaseLastPlaceClassSeat();
   const guestMarker = `c09-diff-${Date.now()}@impronta.test`;
   const walkInMarker = `c09-diff-pos-${Date.now()}@impronta.test`;
 

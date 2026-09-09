@@ -12,7 +12,7 @@
 | Cases verified on the actual platform | **0 / 48** |
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP talent assigned + draft + sent offer, C08-TAL talent approved (client still pending); no complete case. |
 | Human QA rows executed | **0 / 16** |
-| Isolated schema on `qa-journeys` | **Re-verified 2026-09-09T08:26Z** — `npm run journeys:probe` exit 0, `npm run journeys:smoke` 10/10. Audit residual is **2** archive tables (D-017), not 99. |
+| Isolated schema on `qa-journeys` | **Re-verified 2026-09-09T08:26Z** plus `20261230002000` replayed (D-026). Audit residual is **2** archive tables (D-017), not 99. |
 | SQL fixture on `qa-journeys` | **Both workspaces transact.** A has catalog / spaces / sessions / pools; B has its own venue, station, technician with booking hours, two offerings, a one-unit pool, a customer and a paid order (D-011 closed). Staff login on `qa-journeys.local:3103` and `qa-journeys-b.local:3104` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
 | C06-OP walk-in cash | **Pass** on qa-journeys UI + DB. Evidence: `docs/plans/qa-evidence/C06-OP/walk-in-cash.md`. Not QR / courses / split. |
@@ -183,7 +183,7 @@ C06 is not marked done: 0/48 stands, because a case needs its customer, operator
 
 ## Post-repair regression (same morning)
 
-Recorded journeys re-run on chromium, workers=1, against the repaired branch. Sign-in 404s after later Turbopack compiles (D-022) aborted several operator specs mid-file; those are not product refusals.
+Recorded journeys re-run on chromium, workers=1, against the repaired branch. 0/48 still stands.
 
 | Spec | This morning |
 |---|---|
@@ -191,13 +191,15 @@ Recorded journeys re-run on chromium, workers=1, against the repaired branch. Si
 | C01 nail salon (3) | 2 smoke + **deposit requested** passed after D-025 |
 | C02 spa (5) | 4 passed; last-resource failed because the couples slot was **hidden** after Massage took Therapist B (the DIFF spec already treats hidden as the product). Not re-opened as a defect. |
 | C07 bar (4) | **4 passed** on the second run (first run: pizza click did not land in the aside; second run both tab journeys passed) |
-| C09 yoga (5) | CUS class register failed on Complimentary class (zero-price instant — D-026). Operator specs 404'd on D-022. |
-| C12 events (5) | `/events/qa-night` rendered "This page is no longer here" (D-027). Operator smoke 404'd on D-022. |
-| C08 / C26 / PERM | not re-run this morning after the D-022 outage |
+| C09 yoga (5) | **5 passed** after D-026. C09-DIFF needed `releaseLastPlaceClassSeat()` so the 1-unit pool is re-runnable. |
+| C12 events (5) | **5 passed** after D-027. OP door 502'd once when Next died; retry passed. |
+| C08 modelling | Smokes passed. CUS inquiry: `/directory?inquiry=open` 200 but no "Message the agency" dialog. OP/TAL still failing (identity scrape of builder CSS; talent inbox 404). Not a case pass. |
+| C26 pickup | CUS smoke passed. OP Sales identity scrape failed (same CSS-in-body harness). Pickup journey not a pass this run. |
+| PERM | B fixture present; A's paste-id on POS still hides B's line. B-origin positive controls did not show Cuticle oil / $9.00. A's Sales list then 404'd. Not 5/5. |
 
 ## Next action
 
-Keep running recorded journeys, restarting the isolated `next dev` (wipe `.next/dev`) when `/api/dev/signin` sticks at 404. Close D-026 (a free instant offering is a CHECK violation the fixture plants) and D-027 (the QA Night CMS page) before treating C09/C12 as regressions of the repair. Then C08, C26, PERM.
+C08 directory inquiry, C26 OP, and PERM B-origin controls. D-026 and D-027 are closed. D-022 is mitigated for `*.local` Host but Next can still 502 under memory. Keep 0/48. Do not merge #1934 and do not take it out of draft.
 
 D-018's first diagnosis (no `talent_booking_hours` on a workspace-owned table) was the appointments-dead shape and was **wrong for this failure**. The widget had days; it offered *today* after last seating, so the guest saw a date with an empty slot list while tomorrow was open. Fixed in 03c0489d0. The hours gap remains a real appointments blocker (`m0-appointments-dead`) but it is not why C06's table widget was empty at 23:00.
 
