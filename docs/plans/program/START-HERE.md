@@ -153,7 +153,7 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## First browser run on the repaired branch
 
-The isolated app now runs clean — storefront 200, no schema errors, no verb-destination warnings — so browser journeys are possible again. C06 was run first and is **3 of 6 on chromium**:
+The isolated app now runs clean — storefront 200, no schema errors, no verb-destination warnings — so browser journeys are possible again. C06 was run first and is **4 of 6 on chromium**:
 
 | C06 test | Result |
 |---|---|
@@ -162,7 +162,7 @@ The isolated app now runs clean — storefront 200, no schema errors, no verb-de
 | C06-CUS reservation: reserve_table → hold | fail — D-018, no slots offered |
 | C06-CUS reserve-then-order | fail — D-018, same cause |
 | C06-OP smoke (reachability, not a journey) | pass |
-| C06-OP walk-in cash → collect | fail — D-019, never reaches `payment: paid` |
+| C06-OP walk-in cash → collect | **pass** (after fixing D-019 — three stacked money faults) |
 
 **The public-menu test had been passing against a broken storefront, and one of its assertions was a money lie.** It asserted the $18 pizza order was `paid` when nothing had been collected; the fixture seeds House pizza as `reserve_mode: 'full'`, so `pending_payment` is correct. Its name field locator also only worked while the class block was failing to render. Both corrected in d7c88aea0. This is the second time this week that repairing the environment revealed an assertion that was agreeing with a bug — worth assuming there are more.
 
@@ -170,9 +170,19 @@ C06 is not marked done: 0/48 stands, because a case needs its customer, operator
 
 ## Next action
 
-Finish C06 by closing D-018 and D-019, then take the blueprint-parity commits, which still have **no browser evidence** at all: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
+Finish C06 by closing D-018, then take the blueprint-parity commits, which still have **no browser evidence** at all: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
 
-D-018 is the more interesting one and is not a fixture gap: a restaurant table is space-and-service-period availability, but the only availability source wired to the storefront block is `talent_booking_hours`, keyed on a talent profile the offering does not have. That is the same shape as `m0-appointments-dead`.
+D-018 is not a fixture gap: a restaurant table is space-and-service-period availability, but the only availability source wired to the storefront block is `talent_booking_hours`, keyed on a talent profile the offering does not have. That is the same shape as `m0-appointments-dead`, and both C06-CUS reservation failures are that one cause.
+
+### What D-019 cost, and what it says about the rest
+
+D-019 was filed as "never shows `payment: paid`" and looked like a label bug. It was three stacked faults, each of which alone made POS cash and the event door **unable to record money at all** — the cashier takes the note, the order stays unpaid with the full amount outstanding, and the only signal is a generic "Could not record the cash."
+
+1. The booking shell was private to the POS **card** path. The cash branch returned before reaching it, so `settleAtDoor` inserted `booking_transactions` with a null `booking_id` and the scope trigger refused the row.
+2. `settleAtDoor` inserted `status: 'paid'`, which the transition trigger forbids on INSERT — only `draft` is legal.
+3. `20260906100000_phase_8_corrective_hardening.sql` had reverted the off-platform receiver exemption (D-021), so cash was required to name a Stripe payout destination. There are zero `payout_accounts` rows on this workspace, which is the normal state for a venue that only takes cash.
+
+Two lessons worth carrying into the remaining milestones. **A path with no happy-path test is not covered by having refusal tests** — `settle-at-door.test.ts` had three tests, all of them early refusals, and all three passed throughout. **A migration that re-creates a function silently owns every line of it**, so a body re-emitted to add one transition can drop an unrelated clause with nothing flagging it; there is no gate for this today.
 
 Two open schema items sit behind all of it: D-017's 99 residual objects (taxonomy, profile fields, `agency_bookings.balance_due_at`, the publicly-listed triggers) and D-014's 58 unmigrated production objects. Neither blocks the storefront; both will block specific cases.
 
