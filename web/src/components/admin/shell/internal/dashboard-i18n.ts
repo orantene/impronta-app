@@ -1839,16 +1839,25 @@ const ES_TEXT: Record<string, string> = {
 
   // light-19 — calendar / status / telemetry / beta / CSV import / migration
   "Calendar sync": "Sincronización de calendario",
-  "Sync your Tulala bookings with your personal calendar. Changes appear within 5 minutes.": "Sincroniza tus reservas de Tulala con tu calendario personal. Los cambios aparecen en 5 minutos.",
-  "Connected calendars": "Calendarios conectados",
-  "Two-way sync · Last synced 4 min ago": "Sincronización bidireccional · Última sincronización hace 4 min",
-  "Subscribe via URL below": "Suscríbete con la URL de abajo",
-  "Connect via Microsoft OAuth": "Conecta con Microsoft OAuth",
+  // The five strings above these that promised two-way sync, a Google
+  // connection and a 5-minute refresh are gone with the mock they described.
+  // Leaving a translation for copy the product no longer makes would put the
+  // false promise back the moment someone reused the key.
+  "Subscribe to your workspace bookings and event nights from any calendar app. One direction: Tulala sends, your calendar receives.": "Suscríbete a las reservas y noches de eventos de tu espacio de trabajo desde cualquier app de calendario. En una dirección: Tulala envía, tu calendario recibe.",
+  "Subscription URL": "URL de suscripción",
+  "Works in Google Calendar, Apple Calendar, Outlook and anything else that reads an iCal subscription. Your calendar app decides how often it checks; most check every few hours.": "Funciona en Google Calendar, Apple Calendar, Outlook y cualquier app que lea una suscripción iCal. Tu app de calendario decide con qué frecuencia consulta; la mayoría lo hace cada pocas horas.",
+  "Generate subscription URL": "Generar URL de suscripción",
+  "Copy it now — it is not shown again. Anyone with this link can read your workspace calendar, so treat it like a password.": "Cópiala ahora: no se vuelve a mostrar. Cualquiera con este enlace puede leer el calendario de tu espacio de trabajo, así que trátalo como una contraseña.",
+  "Subscription URL copied": "URL de suscripción copiada",
+  "Stop syncing": "Detener la sincronización",
+  "Stops every calendar you have subscribed. Generating a new URL also stops the old one.": "Detiene todos los calendarios que hayas suscrito. Generar una URL nueva también detiene la anterior.",
+  "Stop the subscription": "Detener la suscripción",
+  "Subscription stopped. Calendars will stop updating.": "Suscripción detenida. Los calendarios dejarán de actualizarse.",
+  "Could not create a subscription URL.": "No se pudo crear una URL de suscripción.",
+  "Could not stop the subscription.": "No se pudo detener la suscripción.",
+  "Read-only for now. Moving an event in your own calendar does not move the booking in Tulala — two-way sync is not built yet, and a control that pretended otherwise is what this screen used to be.": "Solo lectura por ahora. Mover un evento en tu propio calendario no mueve la reserva en Tulala: la sincronización bidireccional todavía no existe, y un control que fingía lo contrario es lo que esta pantalla era antes.",
   "Disconnect": "Desconectar",
   "Connect": "Conectar",
-  "iCal subscription URL": "URL de suscripción iCal",
-  "Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.": "Añade esta URL a cualquier app de calendario que admita suscripciones iCal (Apple Calendar, Outlook, Fantastical). Solo lectura, se actualiza cada 15 minutos.",
-  "iCal URL copied": "URL de iCal copiada",
   "Couldn't copy, copy manually": "No se pudo copiar, cópialo manualmente",
   "Copy": "Copiar",
   "System status": "Estado del sistema",

@@ -125,6 +125,15 @@ export const SHARED_API_PREFIXES = [
   // browser gets the branded HTML 404, which is the four-layer failure this
   // repo has shipped twice.
   "/api/account",
+  // Read-only iCal subscription feed. Polled by Google, Apple and Outlook from
+  // THEIR servers, not from the operator's browser, so no cookie arrives and
+  // the Host header is whatever the operator pasted — usually the app host, but
+  // a workspace on a custom domain will paste that domain instead. The token in
+  // the path carries the whole authority and resolves its own tenant, so the
+  // handler has no argument that Host could vary. Absent from this list the
+  // subscription 404s on exactly the hosts operators are most likely to copy
+  // the URL from, which is the failure the drawer's hardcoded URL already had.
+  "/api/calendar",
 ] as const;
 
 /**

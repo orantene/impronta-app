@@ -31,7 +31,14 @@ function pad(n: number, width = 2): string {
   return n.toString().padStart(width, "0");
 }
 
-function toUtcStamp(d: Date): string {
+/**
+ * Exported for the subscription feed, which emits many VEVENTs rather than one
+ * and therefore cannot reuse `buildIcsEvent` — but MUST use the same stamp,
+ * escape and fold rules. A second implementation of RFC 5545 line folding is a
+ * second set of edge cases (a comma in a venue name, a 90-character title) that
+ * would then have to be found twice.
+ */
+export function toUtcStamp(d: Date): string {
   return (
     d.getUTCFullYear().toString() +
     pad(d.getUTCMonth() + 1) +
@@ -44,7 +51,7 @@ function toUtcStamp(d: Date): string {
   );
 }
 
-function escapeIcs(text: string): string {
+export function escapeIcs(text: string): string {
   return text
     .replace(/\\/g, "\\\\")
     .replace(/\n/g, "\\n")
@@ -52,7 +59,7 @@ function escapeIcs(text: string): string {
     .replace(/;/g, "\\;");
 }
 
-function fold(line: string): string {
+export function fold(line: string): string {
   // RFC 5545 §3.1 — content lines must be <= 75 octets; longer lines
   // are split with CRLF + leading space. We're conservative: 73 chars per fold.
   if (line.length <= 73) return line;

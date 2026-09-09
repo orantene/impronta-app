@@ -5522,7 +5522,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { key: "notification-prefs", label: "Notification controls", desc: "Per-event email, in-app, and push notification rules.", defaultOn: true },
       { key: "invite-flow", label: "Talent invite flow", desc: "Send invite links to talent with pre-filled profile data.", defaultOn: true },
       { key: "referral-dashboard", label: "Referral dashboard", desc: "Track referral links, conversions, and credit balances.", defaultOn: false, badge: "Studio+" },
-      { key: "calendar-sync", label: "Calendar sync", desc: "Two-way sync with Google Calendar and Outlook.", defaultOn: false, badge: "Studio+" },
+      { key: "calendar-sync", label: "Calendar sync", desc: "Read-only iCal subscription for Google Calendar, Apple Calendar and Outlook.", defaultOn: false, badge: "Studio+" },
       { key: "system-status", label: "System status", desc: "Live uptime, incident feed, and maintenance notices.", defaultOn: true },
     ],
   },
