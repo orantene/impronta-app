@@ -47,6 +47,9 @@ export type RefusalReason =
   | "invalid_payment_choice"
   | "offering_not_priceable"
   | "variant_not_on_offering"
+  | "variant_required"
+  | "below_min_per_order"
+  | "above_max_per_order"
   | "addon_not_on_offering"
   | "amount_out_of_range"
   | "no_contact"
@@ -71,7 +74,13 @@ export type RefusalReason =
   | "invalid_ttl"
   | "empty_batch"
   /** C34: a provisional listing cannot take money until someone claims it. */
-  | "unclaimed_seller";
+  | "unclaimed_seller"
+  /**
+   * Age gates. Two reasons, not one, because the surfaces differ: the first
+   * means "ask the question", the second means "the answer was no".
+   */
+  | "age_gate_unconfirmed"
+  | "age_gate_below_minimum";
 
 /** Can the person fix this by trying again, or must they change something? */
 export type RefusalKind = "absence" | "fault" | "input";
@@ -172,6 +181,35 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
     en: "That time does not look right. Please pick another.",
     es: "Ese horario no es válido. Elige otro.",
   },
+  // The order sits under the seller's minimum quantity. Theirs to fix by
+  // adding more, so `input`.
+  below_min_per_order: {
+    kind: "input",
+    en: "Please add more to meet the minimum for this order.",
+    es: "Agrega más para alcanzar el mínimo de este pedido.",
+  },
+  // The order sits over the seller's maximum quantity. Theirs to fix by
+  // removing some, so `input`.
+  above_max_per_order: {
+    kind: "input",
+    en: "Please remove some to stay within the limit for this order.",
+    es: "Quita algunos para mantenerte dentro del límite de este pedido.",
+  },
+  // The purchase needs an age confirmation that has not happened yet. The
+  // person can supply it, so `input`.
+  age_gate_unconfirmed: {
+    kind: "input",
+    en: "Please confirm your age before continuing.",
+    es: "Confirma tu edad antes de continuar.",
+  },
+  // The person confirmed an age that does not clear the bar. Nothing they do
+  // next changes that fact, but the reason lives here as `input` alongside
+  // the other age-gate reason, since the two share one surface.
+  age_gate_below_minimum: {
+    kind: "input",
+    en: "You do not meet the minimum age required for this purchase.",
+    es: "No cumples con la edad mínima requerida para esta compra.",
+  },
 
   // ── Fault: ours. Retrying is the right advice. ───────────────────────────
   // Everything below is a bug, a race or an outage. A person must never be
@@ -261,6 +299,13 @@ const COPY: Readonly<Record<RefusalReason, RefusalCopy>> = {
     kind: "fault",
     en: "That option is not available. Please try again.",
     es: "Esa opción no está disponible. Inténtalo de nuevo.",
+  },
+  // The person picked an item that has options (size, colour, ...) without
+  // choosing one. Theirs to fix, so `input`, not `fault`.
+  variant_required: {
+    kind: "input",
+    en: "Choose an option before adding this to your order.",
+    es: "Elige una opción antes de agregar esto a tu pedido.",
   },
   addon_not_on_offering: {
     kind: "fault",
