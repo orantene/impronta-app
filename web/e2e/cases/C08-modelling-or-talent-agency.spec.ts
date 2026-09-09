@@ -404,7 +404,10 @@ test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, 
   const messagesPath = `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`;
   await signInJourneysStaff(page, messagesPath, ready!.contactEmail!);
   if (/\/onboarding\/role/.test(page.url())) {
-    await page.getByRole("button", { name: /i'm a client/i }).click();
+    const chooseClient = page.getByRole("button", { name: /i'm a client/i });
+    await expect(chooseClient).toBeVisible();
+    await chooseClient.click();
+    await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
     await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
     await page.goto(messagesPath);
   }
