@@ -12,11 +12,26 @@
 -- statement is guarded, so it creates on an empty database and changes nothing
 -- on one that already has the objects.
 --
--- Ordering note: the older files that ALTER these tables
--- (20260527063534, 20260615211200) still sort BEFORE this one, so a literal
--- replay of the whole directory from zero stops in them first. The shape below
--- is the POST-ALTER shape, so once those files are made conditional (or the
--- history is squashed) this single file rebuilds both tables correctly.
+-- Ordering note, stated precisely because an earlier draft of this comment
+-- understated it. FOUR older files touch these tables unconditionally and all
+-- of them sort BEFORE this one, so a literal replay of the whole directory
+-- from zero still stops in the first of them:
+--   20260527063534  ALTER TABLE ... ADD COLUMN
+--   20260527174407  INSERT INTO ... (unguarded)
+--   20260615194714  CREATE INDEX IF NOT EXISTS on a table that does not exist
+--                   (the guard covers the index, not the table)
+--   20260615211200  ALTER ... ADD COLUMN, UPDATE, then DROP COLUMN
+--
+-- This file cannot simply be dated earlier to fix that: it references
+-- public.agencies (20260601100000) and public.is_staff_of_tenant
+-- (20260602100000), both of which are themselves created AFTER the first of
+-- the four. So a true from-zero replay needs those four made conditional, or
+-- the history squashed. That work is tracked as a defect and is not done here.
+--
+-- What this file DOES fix, today: any database that already has the shared
+-- history applied but lacks these two tables - the isolated QA branch, a
+-- restored preview, a rebuilt local stack - gains them in production's exact
+-- shape. The shape below is the POST-ALTER shape.
 
 BEGIN;
 
