@@ -120,10 +120,47 @@ VALUES (
   now(),
   NULL
 )
-ON CONFLICT (hostname) DO UPDATE
+  ON CONFLICT (hostname) DO UPDATE
   SET tenant_id = EXCLUDED.tenant_id,
       status    = EXCLUDED.status,
       updated_at = now();
+
+-- Public identity. Branded 404 / launcher / admin chrome read public_name, not
+-- agencies.display_name. Without a row the storefront falls back to "Studio" /
+-- "the agency" and workspace-identity assertions scrape CSS instead of a name.
+INSERT INTO public.agency_business_identity (
+  tenant_id, public_name, legal_name, tagline,
+  contact_email, default_locale, supported_locales, version
+)
+VALUES
+  (
+    '33333333-3333-4333-8333-333333333333'::UUID,
+    'QA Journeys',
+    'QA Journeys (48-case fixture)',
+    'Isolated 48 Journeys fixture — not a live tenant.',
+    'qa-journeys-owner@impronta.test',
+    'en',
+    ARRAY['en','es']::TEXT[],
+    1
+  ),
+  (
+    '33333333-3333-4333-8333-333333333334'::UUID,
+    'QA Journeys B',
+    'QA Journeys B (48-case fixture)',
+    'Isolated second workspace — authorization positive control.',
+    'qa-journeys-b-owner@impronta.test',
+    'en',
+    ARRAY['en','es']::TEXT[],
+    1
+  )
+ON CONFLICT (tenant_id) DO UPDATE
+  SET public_name         = EXCLUDED.public_name,
+      legal_name          = EXCLUDED.legal_name,
+      tagline             = EXCLUDED.tagline,
+      contact_email       = EXCLUDED.contact_email,
+      default_locale      = EXCLUDED.default_locale,
+      supported_locales   = EXCLUDED.supported_locales,
+      updated_at          = now();
 
 INSERT INTO public.venues (id, tenant_id, name, slug, timezone, is_default, status)
 VALUES (

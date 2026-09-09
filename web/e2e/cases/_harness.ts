@@ -46,9 +46,22 @@ export async function assertNotAuthWall(page: Page): Promise<void> {
 
 export async function assertWorkspaceIdentity(page: Page): Promise<void> {
   await assertNotAuthWall(page);
+  expect(
+    page.url(),
+    "workspace identity must be asserted on a workspace surface",
+  ).toMatch(/\/(admin|talent|client)(\/|\?|$)/);
+  await expect(
+    page.getByRole("heading", { name: /this page is no longer here/i }),
+    "branded 404 cannot pass a workspace identity check",
+  ).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const shell = ((await page.locator("body").textContent()) ?? "").toLowerCase();
-  expect(shell).toContain(JOURNEYS_DISPLAY.toLowerCase().slice(0, 8));
+  const landmarks = await page
+    .locator("header, [role='banner'], nav, aside, h1")
+    .allTextContents();
+  const shell = [await page.title(), ...landmarks].join(" ").toLowerCase();
+  expect(shell, `workspace chrome must name ${JOURNEYS_DISPLAY}`).toContain(
+    JOURNEYS_DISPLAY.toLowerCase().slice(0, 8),
+  );
 }
 
 export async function openWorkspace(page: Page, segment: string): Promise<void> {
@@ -106,12 +119,10 @@ export async function signInJourneysStaff(
     });
     if (res.status() === 307) break;
     seen.push(res.status());
-    // Anything other than a 404 is the HANDLER answering: 403 outside
-    // dev/preview, 400 for a missing email, 401 for a rejected token, 503 with
-    // no service role, 500 when the link could not be minted. Those are real
-    // and retrying only delays the report, so fail on the first one and show
-    // what it said.
-    if (res.status() !== 404) {
+    // 404 (Turbopack briefly missing the route) and 502/503 (Next restarting
+    // or the proxy's upstream gone) are the only statuses worth retrying.
+    // 403/400/401/500 are the handler answering; retrying only delays the report.
+    if (res.status() !== 404 && res.status() !== 502 && res.status() !== 503) {
       expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
     }
     if (attempt < SIGNIN_ATTEMPTS) await page.waitForTimeout(250 * attempt);

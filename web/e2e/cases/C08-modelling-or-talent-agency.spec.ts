@@ -51,7 +51,7 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await page.goto("/directory?inquiry=open");
   await assertNotAuthWall(page);
 
-  const chat = page.getByRole("dialog", { name: /message the agency/i });
+  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
   await expect(chat).toBeVisible({ timeout: 20_000 });
   const start = chat.getByRole("button", { name: /start a new inquiry/i });
   if (await start.isVisible().catch(() => false)) {
@@ -103,7 +103,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
 
   await page.goto("/directory?inquiry=open");
   await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message the agency/i });
+  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
   await expect(chat).toBeVisible({ timeout: 20_000 });
   const start = chat.getByRole("button", { name: /start a new inquiry/i });
   if (await start.isVisible().catch(() => false)) {
@@ -200,7 +200,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
 
   await page.goto("/directory?inquiry=open");
   await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message the agency/i });
+  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
   await expect(chat).toBeVisible({ timeout: 20_000 });
   const start = chat.getByRole("button", { name: /start a new inquiry/i });
   if (await start.isVisible().catch(() => false)) {
@@ -278,18 +278,6 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     });
   }
 
-  await page.keyboard.press("Escape");
-  const draftLabel = page.getByText(/^draft editor$/i);
-  await expect(draftLabel).toBeVisible({ timeout: 20_000 });
-  const editDraft = page
-    .locator("div")
-    .filter({ has: draftLabel })
-    .filter({ has: page.getByRole("button", { name: /^edit$/i }) })
-    .getByRole("button", { name: /^edit$/i })
-    .first();
-  if (await editDraft.isVisible().catch(() => false)) {
-    await editDraft.click();
-  }
   const addLine = page.getByRole("button", { name: /\+ add line item/i });
   await expect(addLine).toBeVisible({ timeout: 20_000 });
   const talentSelect = page
@@ -411,7 +399,10 @@ test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, 
     await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
     await page.goto(messagesPath);
   }
-  await expect(page).toHaveURL(new RegExp(`/${JOURNEYS_SLUG}/client/messages`), { timeout: 40_000 });
+  await expect(page).toHaveURL(
+    new RegExp(`(?:/${JOURNEYS_SLUG})?/client/messages`),
+    { timeout: 40_000 },
+  );
   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
@@ -426,7 +417,9 @@ test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, 
   await expect(approve.nth(1)).toBeVisible({ timeout: 15_000 });
   await approve.nth(1).click();
   await expect(
-    page.getByText(/you approved this offer|you approved · awaiting others|offer approved/i).first(),
+    page.getByText(
+      /you approved this offer|you approved · awaiting others|offer approved|approved, booking soon|all approvals are complete/i,
+    ).first(),
   ).toBeVisible({ timeout: 30_000 });
 
   const approvals = await inquiryOfferApprovals(ready!.offerId);

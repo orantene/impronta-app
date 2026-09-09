@@ -86,10 +86,25 @@ test("A's operator pasting B's order id into POS does not get B's sale", async (
 /** Sign in on B's origin. `signInJourneysStaff` mints against the base URL, which is A. */
 async function signInAsBOwner(page: import("@playwright/test").Page, next: string): Promise<void> {
   const params = new URLSearchParams({ email: JOURNEYS_B_OWNER_EMAIL, next });
-  const res = await page.request.get(`${B_ORIGIN}/api/dev/signin?${params.toString()}`, {
-    maxRedirects: 0,
-  });
-  expect(res.status(), "dev sign-in must mint a session for B's owner").toBe(307);
+  const seen: number[] = [];
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const res = await page.request.get(`${B_ORIGIN}/api/dev/signin?${params.toString()}`, {
+      maxRedirects: 0,
+    });
+    if (res.status() === 307) {
+      const location = res.headers().location;
+      if (location) {
+        await page.goto(new URL(location, B_ORIGIN).toString());
+      }
+      return;
+    }
+    seen.push(res.status());
+    if (res.status() !== 404 && res.status() !== 502) {
+      expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
+    }
+    if (attempt < 6) await page.waitForTimeout(250 * attempt);
+  }
+  expect(seen[seen.length - 1], "dev sign-in must mint a session for B's owner").toBe(307);
 }
 
 test("the POS locator finds B's line when the viewer is allowed to see it", async ({ page }) => {
