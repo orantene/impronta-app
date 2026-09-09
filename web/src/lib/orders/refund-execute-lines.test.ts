@@ -63,6 +63,44 @@ test("an already-scanned or non-valid admission is skipped, not refunded", () =>
   assert.match(SRC, /admitted_count\s*>\s*0/, "a scanned ticket is a dispute, not a refund");
 });
 
+test("a VOID admission is still refunded, because cancellation voids before the money moves", () => {
+  // `cancel_event_cascade` closes the door at the moment of the decision by
+  // stamping `void`, then leaves a refund intent for the cron. If this skipped
+  // `void` the row would never reach `refunded` and — the part that actually
+  // costs a seat — `refund_admission` would never run, so the allocation would
+  // stay committed against the pool it was bought from.
+  assert.match(
+    SRC,
+    /a\.status\s*!==\s*"valid"\s*&&\s*a\.status\s*!==\s*"void"/,
+    "void must reach refund_admission",
+  );
+  assert.doesNotMatch(
+    SRC,
+    /a\.admitted_count\s*>\s*0\s*\|\|\s*a\.status\s*!==\s*"valid"/,
+    "the old single-state skip drops every cancelled-event refund on the floor",
+  );
+});
+
+test("refund_admission itself accepts the void starting state", () => {
+  // Two halves of one contract that live in different languages: the executor
+  // may only send `void` through because the function on the other side takes
+  // it. Pinned together so relaxing one without the other is a failing test
+  // rather than a silent `not_valid` in a cron log.
+  const MIGRATIONS = join(process.cwd(), "..", "supabase", "migrations");
+  const fn = readFileSync(
+    join(MIGRATIONS, "20261230000900_refund_admission_from_void.sql"),
+    "utf8",
+  );
+  assert.match(fn, /r\.status NOT IN \('valid', 'void'\)/, "both states proceed to the stamp");
+  const admitted = fn.indexOf("r.admitted_count > 0");
+  const statusGate = fn.indexOf("r.status NOT IN");
+  assert.ok(admitted > -1 && statusGate > -1, "both guards must exist");
+  assert.ok(
+    admitted < statusGate,
+    "the dispute guard runs first, or a cancelled event refunds people who came in",
+  );
+});
+
 test("the promo redemption is released only when the planner says FULL", () => {
   // Never re-derived here. A partial refund keeps the redemption, and
   // eligibility is never re-evaluated — a customer who receives a refund we

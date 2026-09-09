@@ -64,9 +64,26 @@ export async function createEventWithOffering(admin: SupabaseClient, tenantId: s
   }
 }
 
-export type SetEventStatusResult = { ok: true; status: EventStatus } | { ok: false; error: string };
+/**
+ * What a cancellation actually did, so the surface can say so.
+ *
+ * Reported rather than swallowed because these numbers are the only evidence
+ * the cascade ran. "Cancelled" alone is exactly the message the broken version
+ * printed while doing none of this.
+ */
+export type CancelCascadeCounts = {
+  alreadyCancelled: boolean;
+  sessionsCancelled: number;
+  poolsDeactivated: number;
+  admissionsVoided: number;
+  refundIntents: number;
+};
 
-/** draft → published (stamps published_at); published → cancelled. No un-publish. */
+export type SetEventStatusResult =
+  | { ok: true; status: EventStatus; cascade?: CancelCascadeCounts }
+  | { ok: false; error: string };
+
+/** draft → published (stamps published_at); draft or published → cancelled. No un-publish. */
 export async function setEventStatusRow(admin: SupabaseClient, tenantId: string, eventId: string, to: "published" | "cancelled"): Promise<SetEventStatusResult> {
   try {
     const { data: ev, error: rErr } = await admin.from("events").select("id, status").eq("id", eventId).eq("tenant_id", tenantId).maybeSingle();
@@ -77,15 +94,58 @@ export async function setEventStatusRow(admin: SupabaseClient, tenantId: string,
     if (!canTransition(from, to)) {
       return { ok: false, error: to === "published" ? "A cancelled event cannot be published again. Create a new one." : "Only a published event can be cancelled." };
     }
-    const patch: Record<string, unknown> = { status: to, updated_at: new Date().toISOString() };
-    if (to === "published") patch.published_at = new Date().toISOString();
-    const { error: uErr } = await admin.from("events").update(patch).eq("id", eventId).eq("tenant_id", tenantId).eq("status", from);
+    if (to === "cancelled") return cancelEventRow(admin, tenantId, eventId);
+    const { error: uErr } = await admin.from("events").update({ status: to, updated_at: new Date().toISOString(), published_at: new Date().toISOString() }).eq("id", eventId).eq("tenant_id", tenantId).eq("status", from);
     if (uErr) { logServerError("events.writers.setStatus/update", uErr); return { ok: false, error: "Could not update the event." }; }
     return { ok: true, status: to };
   } catch (err) {
     logServerError("events.writers.setStatus", err);
     return { ok: false, error: "Could not update the event." };
   }
+}
+
+/**
+ * Cancelling is NOT a status write, and this function exists to make that
+ * impossible to forget.
+ *
+ * Everything downstream of an event reads its OWN status, never the event's:
+ * the public listing filters `sessions.status = 'scheduled'`, the purchase path
+ * asks `capacity_pools.is_active`, and the door asks `admissions.status`. An
+ * `update({ status: 'cancelled' })` on `events` alone therefore changed a badge
+ * and nothing else — the show stayed listed, kept selling and kept admitting.
+ *
+ * All five writes live in `cancel_event_cascade` under one transaction and one
+ * row lock, because they are not independent: pools off without sessions
+ * cancelled is a listed night nobody can buy into, and admissions voided
+ * without refund intents takes entry away while keeping the money.
+ */
+export async function cancelEventRow(admin: SupabaseClient, tenantId: string, eventId: string): Promise<SetEventStatusResult> {
+  const { data, error } = await admin.rpc("cancel_event_cascade", {
+    p_tenant_id: tenantId,
+    p_event_id: eventId,
+    p_actor: null,
+  });
+  if (error) {
+    logServerError("events.writers.cancel/rpc", error);
+    return { ok: false, error: "Could not cancel the event." };
+  }
+  const reply = (data ?? {}) as Record<string, unknown>;
+  if (reply.ok !== true) {
+    // No partial state to report: the function is all-or-nothing, so a refusal
+    // means the event is exactly as it was.
+    return { ok: false, error: reply.reason === "unknown_event" ? "No such event in this workspace." : "Could not cancel the event." };
+  }
+  return {
+    ok: true,
+    status: "cancelled",
+    cascade: {
+      alreadyCancelled: reply.alreadyCancelled === true,
+      sessionsCancelled: Number(reply.sessionsCancelled ?? 0),
+      poolsDeactivated: Number(reply.poolsDeactivated ?? 0),
+      admissionsVoided: Number(reply.admissionsVoided ?? 0),
+      refundIntents: Number(reply.refundIntents ?? 0),
+    },
+  };
 }
 
 export type AddTierResult = { ok: true; tierId: string; poolKey: string } | { ok: false; error: string };

@@ -29,7 +29,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
-import { seatLostMessage } from "@/lib/events/ticket-purchase";
+import { eventCancelledMessage, seatLostMessage } from "@/lib/events/ticket-purchase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
   const { data: pending, error: pErr } = await admin
     .from("ticket_refund_intents")
-    .select("id, tenant_id, order_id, order_line_id, attempts")
+    .select("id, tenant_id, order_id, order_line_id, attempts, reason")
     .is("executed_at", null)
     .is("claimed_at", null)
     .lt("attempts", MAX_ATTEMPTS)
@@ -91,18 +91,26 @@ export async function GET(request: Request) {
     if (lErr) logServerError("cron/ticket-refund-intents/line", lErr);
     if (eErr) logServerError("cron/ticket-refund-intents/event", eErr);
 
+    // Two reasons, one mechanism, two sentences. The note is what a person
+    // reconciling the ledger reads months later, so it names WHY rather than
+    // describing the refund they can already see.
+    const cancelled = intent.reason === "event_cancelled";
+
     const res = await refundOrderLines(admin, {
       orderId: intent.order_id as string,
       lineIds: [intent.order_line_id as string],
       reason: "service_not_delivered",
       actorUserId: null,
-      note: "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
+      note: cancelled
+        ? "event_cancelled: the venue cancelled the event; every paid line is refunded regardless of the cutoff"
+        : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
     });
 
     const now = new Date().toISOString();
     if (res.ok) {
       const cents = Number((line as { total_cents?: unknown } | null)?.total_cents ?? (line as { amount_cents?: unknown } | null)?.amount_cents ?? 0);
-      const message = seatLostMessage({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
+      const say = cancelled ? eventCancelledMessage : seatLostMessage;
+      const message = say({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
       const { error: uErr } = await admin.from("ticket_refund_intents")
         .update({ executed_at: now, result: "ok", result_detail: { buyer_message: message, movedCents: (res as { movedCents?: number }).movedCents ?? null } })
         .eq("id", id);

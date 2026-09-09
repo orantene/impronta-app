@@ -146,3 +146,18 @@ export function seatLostMessage(args: { eventTitle: string | null; amountLabel: 
   const what = args.eventTitle ? `your ticket for ${args.eventTitle}` : "your ticket";
   return `The seat for ${what} was taken while your payment was completing, so we have refunded ${args.amountLabel} in full. If seats are still available you can buy again; otherwise please contact the venue.`;
 }
+
+/**
+ * The buyer's message when the VENUE cancelled, not when a seat was lost.
+ *
+ * Deliberately a separate sentence rather than a parameterised one. The two
+ * refunds have the same mechanism and opposite meanings: one says "somebody
+ * beat you to it, try again", the other says "this is not happening". Telling
+ * a person to buy again for a show that has been called off is worse than
+ * saying nothing, and a single template with a conditional clause is one edit
+ * away from doing exactly that.
+ */
+export function eventCancelledMessage(args: { eventTitle: string | null; amountLabel: string }): string {
+  const what = args.eventTitle ? `${args.eventTitle} has been cancelled` : "the event has been cancelled";
+  return `We are sorry — ${what}. Your ticket is no longer valid and we have refunded ${args.amountLabel} in full. Nothing is needed from you.`;
+}

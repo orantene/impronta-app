@@ -225,8 +225,18 @@ export async function refundOrderLines(
       );
     }
 
+    // `void` is refundable, not skippable. `cancel_event_cascade` stamps every
+    // admission of a cancelled event `void` at the moment of the decision so
+    // the door closes immediately, then leaves a refund intent for the cron —
+    // which lands here. Skipping `void` would leave the row at `void` for ever
+    // (the door then says "cancelled" to a person we did pay back) and, worse,
+    // would never call `refund_admission`, so the seat's allocation would stay
+    // committed against the pool. `refund_admission` accepts both states and
+    // still refuses `admitted_count > 0` first, so an attended ticket remains a
+    // dispute either way.
     for (const a of (admRows ?? []) as Array<{ id: string; admitted_count: number; status: string }>) {
-      if (a.admitted_count > 0 || a.status !== "valid") continue;
+      if (a.admitted_count > 0) continue;
+      if (a.status !== "valid" && a.status !== "void") continue;
       const { data: res, error } = await admin.rpc("refund_admission", { p_admission_id: a.id });
       if (error) {
         logServerError("orders.refundLines/admission", error);
