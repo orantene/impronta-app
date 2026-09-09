@@ -24,3 +24,18 @@
 
 ## Queued approvals (not requested now)
 Implementation start (this program) · live financial actions · production migration apply · production release/promotion.
+
+## D-POS-10 — the POS mode id is `projects`
+
+Decided 2026-09-09 by the implementation lead under the owner's standing
+authority. Two design files disagreed: `modes.md` called the mode `client`
+(labelled "Projects (formerly Client Work)"), while the audit disposition of the
+same day said the registry entry was `work` and becomes `projects`.
+
+The id is **`projects`**, matching the sidebar destination of the same name, so
+one name covers the destination, the POS mode and the URL. `client` and `work`
+are accepted as aliases wherever a stored value may still carry them, and
+neither appears in new code. The mode's landing action is "Collect a balance".
+
+**Why:** a mode whose id differs from its destination gives the same idea two
+names, which is how the old "Client work" confusion started.
