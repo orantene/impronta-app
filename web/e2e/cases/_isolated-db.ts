@@ -384,6 +384,70 @@ export async function latestSentOfferAwaitingTalent(): Promise<{
   return null;
 }
 
+/** Newest sent offer the client can finish — talent already accepted. */
+export async function latestOfferReadyForClientAccept(): Promise<{
+  inquiryId: string;
+  contactEmail: string | null;
+  contactName: string | null;
+  inquiryStatus: string;
+  offerId: string;
+  offerStatus: string;
+  totalClientPrice: number | null;
+} | null> {
+  const admin = isolatedService();
+  const { data: parts, error: partErr } = await admin
+    .from("inquiry_participants")
+    .select("id, inquiry_id")
+    .eq("tenant_id", JOURNEYS_TENANT_ID)
+    .eq("role", "talent")
+    .eq("talent_profile_id", QA_JOURNEYS_TALENT_ID)
+    .eq("status", "active");
+  if (partErr) throw new Error(partErr.message);
+  const participantIds = (parts ?? []).map((row) => String(row.id));
+  if (participantIds.length === 0) return null;
+
+  const { data: accepted, error: acceptedErr } = await admin
+    .from("inquiry_approvals")
+    .select("offer_id, inquiry_id, decided_at")
+    .in("participant_id", participantIds)
+    .eq("status", "accepted")
+    .order("decided_at", { ascending: false })
+    .limit(20);
+  if (acceptedErr) throw new Error(acceptedErr.message);
+
+  for (const row of accepted ?? []) {
+    const { data: offer, error: offerErr } = await admin
+      .from("inquiry_offers")
+      .select("id, status, total_client_price")
+      .eq("id", row.offer_id)
+      .eq("status", "sent")
+      .maybeSingle();
+    if (offerErr) throw new Error(offerErr.message);
+    if (!offer) continue;
+    const approvals = await inquiryOfferApprovals(String(offer.id));
+    const client = approvals.find((item) => item.role === "client");
+    if (client?.status !== "pending") continue;
+    const { data: inq, error: inqErr } = await admin
+      .from("inquiries")
+      .select("id, status, contact_email, contact_name")
+      .eq("id", row.inquiry_id)
+      .maybeSingle();
+    if (inqErr) throw new Error(inqErr.message);
+    if (!inq) continue;
+    return {
+      inquiryId: String(inq.id),
+      contactEmail: (inq.contact_email as string | null) ?? null,
+      contactName: (inq.contact_name as string | null) ?? null,
+      inquiryStatus: String(inq.status ?? ""),
+      offerId: String(offer.id),
+      offerStatus: String(offer.status),
+      totalClientPrice:
+        offer.total_client_price == null ? null : Number(offer.total_client_price),
+    };
+  }
+  return null;
+}
+
 export const TABLE_1_SPACE_ID = "33330011-0000-4000-8000-000000000001";
 
 export type TabCollectAtClose = PaidPosPizza & {

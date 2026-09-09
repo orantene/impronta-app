@@ -12,6 +12,7 @@ import {
   assertNotAuthWall,
   signInJourneysStaff,
   assertWorkspaceIdentity,
+  JOURNEYS_SLUG,
   JOURNEYS_TALENT_EMAIL,
 } from "./_harness";
 import {
@@ -19,6 +20,8 @@ import {
   latestAssignedDirectoryInquiry,
   latestSentDirectoryInquiry,
   latestSentOfferAwaitingTalent,
+  latestOfferReadyForClientAccept,
+  latestInquiryOffer,
   inquiryOfferLines,
   inquiryOfferApprovalCount,
   inquiryOfferApprovals,
@@ -386,6 +389,54 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
 
   await page.screenshot({
     path: testInfo.outputPath("c08-tal-accept.png"),
+    fullPage: true,
+  });
+});
+
+test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const ready = await latestOfferReadyForClientAccept();
+  expect(ready, "a sent offer must wait on the claimed client after talent approve").not.toBeNull();
+  expect(ready?.contactEmail, "claimed client email must exist").toMatch(/@impronta\.test$/);
+  expect(ready?.offerStatus).toBe("sent");
+  expect(ready?.inquiryStatus).toMatch(/offer_pending|coordination/);
+
+  await signInJourneysStaff(
+    page,
+    `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`,
+    ready!.contactEmail!,
+  );
+  await expect(page).toHaveURL(new RegExp(`/${JOURNEYS_SLUG}/client/messages`), { timeout: 40_000 });
+  await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+  await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+
+  const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  if (await offerTab.isVisible().catch(() => false)) {
+    await offerTab.click();
+  }
+  const approve = page.getByRole("button", { name: /approve & lock/i });
+  await expect(approve.first()).toBeVisible({ timeout: 40_000 });
+  await approve.first().click();
+  await expect(approve.nth(1)).toBeVisible({ timeout: 15_000 });
+  await approve.nth(1).click();
+  await expect(
+    page.getByText(/you approved this offer|you approved · awaiting others|offer approved/i).first(),
+  ).toBeVisible({ timeout: 30_000 });
+
+  const approvals = await inquiryOfferApprovals(ready!.offerId);
+  const talent = approvals.find((row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID);
+  const client = approvals.find((row) => row.role === "client");
+  expect(talent?.status, "talent approval must stay accepted").toBe("accepted");
+  expect(client?.status, "client approval must be accepted").toBe("accepted");
+
+  const offer = await latestInquiryOffer(ready!.inquiryId);
+  expect(offer?.status, "all parties accepted so the offer must flip to accepted").toBe("accepted");
+  const persisted = await latestGuestDirectoryInquiry(ready!.contactEmail!);
+  expect(persisted?.status, "inquiry must be approved once every party accepts").toBe("approved");
+
+  await page.screenshot({
+    path: testInfo.outputPath("c08-cus-accept.png"),
     fullPage: true,
   });
 });
