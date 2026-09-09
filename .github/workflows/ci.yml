@@ -444,6 +444,24 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:commands
 
+      # The M0 design system: the ImpactPreview model (which decides whether a
+      # destructive confirm is offered at all) and the catalog coverage ratchet
+      # that keeps the axe lane's subject list honest. Pure — no DOM here.
+      - name: tests — design system model and catalog coverage
+        if: ${{ !cancelled() }}
+        run: npm run test:design-system
+
+      # axe-core over every variant in the component catalog, one mount each.
+      # The plan's finding was "no axe in CI"; this is the answer to it, and it
+      # is deliberately aimed at PRIMITIVES rather than pages — a page-level
+      # sweep tells you a screen is broken, this tells you which component is.
+      # It found a real `role="alert"` on a <ul> in the first component it ran
+      # against, which is the sort of defect no screenshot and no type ever
+      # catches.
+      - name: tests — axe (component catalog)
+        if: ${{ !cancelled() }}
+        run: npm run test:axe
+
       # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
       # the status moves (cancelled is terminal), doors as an OFFSET so it never
       # acquires a second wall clock, and the refund decision, which returns a
@@ -583,3 +601,20 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           NODE_OPTIONS: --max-old-space-size=8192
         run: npx next build
+
+      # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
+      # MUST follow the build: it reads `.next/app-build-manifest.json`, which
+      # is the bundler's own account of which chunks each route loads. The
+      # builder perf budget above covers seven static designs; these are the two
+      # surfaces where weight is actually paid — an admin shell opened forty
+      # times a day and a register downloaded by a tablet on venue wifi at the
+      # start of every shift. Neither had a ceiling before.
+      #
+      # The self-test runs FIRST, so a gate that has quietly stopped measuring
+      # (a moved route, a stale prefix, a manifest shape change) fails as a
+      # broken gate rather than passing as a clean bundle.
+      - name: perf — admin and POS bundle budget
+        if: ${{ !cancelled() }}
+        run: |
+          npm run perf:app-budget:selftest
+          npm run perf:app-budget
