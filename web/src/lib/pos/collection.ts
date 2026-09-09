@@ -73,6 +73,98 @@ export async function submitToPreparation(
   return submitOrderToPreparation(admin, input);
 }
 
+/**
+ * The order's ONE booking shell: found if it exists, created if it does not.
+ *
+ * WHY A SHELL EXISTS AT ALL. `booking_transactions.booking_id` is NOT NULL, so
+ * a payment cannot be recorded without a booking behind it. The web purchase
+ * pipeline in `lib/orders/purchase.ts` makes the same accommodation and
+ * explains it in full: the order is the commercial record, the booking is the
+ * operations anchor the money spine still requires.
+ *
+ * WHY THIS IS FIND-OR-CREATE AND NOT CREATE. Collection is called once PER
+ * ALLOCATION, not once per sale — a split tab is two calls, a card that gets
+ * declined and re-run is two calls, an operator who taps Card twice is two
+ * calls. A bare insert therefore minted a fresh `agency_bookings` row each
+ * time, and every surface that lists or sums bookings counted one sale two or
+ * three times. Nothing errored; the numbers were just wrong.
+ *
+ * THE UNIQUE-VIOLATION BRANCH IS NOT DEFENSIVE PADDING. Two cashiers collecting
+ * the same tab on two devices can both read "no booking" and both insert.
+ * `agency_bookings_order_uniq` makes the loser fail loudly instead of quietly
+ * duplicating, and the only correct response to that failure is to re-read: the
+ * winner's row is the shell we wanted. Treating it as an error would refuse a
+ * payment that has nothing wrong with it.
+ */
+async function bookingShellForOrder(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    orderId: string;
+    currency: string;
+    revenue: number;
+    contact?: PosBuyerContact;
+  },
+): Promise<{ ok: true; bookingId: string } | { ok: false }> {
+  const find = async (): Promise<string | null | false> => {
+    const { data, error } = await admin
+      .from("agency_bookings")
+      .select("id")
+      .eq("order_id", input.orderId)
+      .eq("tenant_id", input.tenantId)
+      .maybeSingle();
+    if (error) {
+      logServerError("pos.startCollection.bookingLookup", error);
+      return false;
+    }
+    return (data as { id: string } | null)?.id ?? null;
+  };
+
+  const existing = await find();
+  if (existing === false) return { ok: false };
+  if (existing) return { ok: true, bookingId: existing };
+
+  const { data: created, error: insErr } = await admin
+    .from("agency_bookings")
+    .insert({
+      tenant_id: input.tenantId,
+      tenant_id_snapshot: input.tenantId,
+      // Stamped BEFORE the insert on purpose, exactly as the web pipeline does:
+      // `bookings_write_order` fires AFTER INSERT and returns early when
+      // `order_id` is already present, so setting it here is what stops the
+      // trigger writing a SECOND order for the order we are collecting.
+      order_id: input.orderId,
+      source_inquiry_id: null,
+      title: "POS sale",
+      status: "confirmed",
+      contact_email: input.contact?.email ?? null,
+      contact_phone: input.contact?.phone ?? null,
+      contact_name: input.contact?.displayName ?? null,
+      total_client_revenue: input.revenue,
+      currency_code: input.currency,
+    })
+    .select("id")
+    .single();
+  if (!insErr && created) return { ok: true, bookingId: (created as { id: string }).id };
+
+  // 23505 is the race, not a bug. Anything else is.
+  const raced = (insErr as { code?: string } | null)?.code === "23505";
+  if (!raced) {
+    logServerError("pos.startCollection.booking", insErr);
+    return { ok: false };
+  }
+  const winner = await find();
+  if (!winner) {
+    logServerError(
+      "pos.startCollection.booking",
+      `order ${input.orderId}: agency_bookings insert hit the order uniqueness index, `
+        + `but no booking for that order could then be read back.`,
+    );
+    return { ok: false };
+  }
+  return { ok: true, bookingId: winner };
+}
+
 export type StartCollectionResult =
   | {
       ok: true;
@@ -323,28 +415,17 @@ export async function startCollection(
     };
   }
 
-  const { data: bookingRow, error: bookingErr } = await admin
-    .from("agency_bookings")
-    .insert({
-      tenant_id: input.tenantId,
-      tenant_id_snapshot: input.tenantId,
-      order_id: row.id,
-      source_inquiry_id: null,
-      title: "POS sale",
-      status: "confirmed",
-      contact_email: input.contact?.email ?? null,
-      contact_phone: input.contact?.phone ?? null,
-      contact_name: input.contact?.displayName ?? null,
-      total_client_revenue: amountCents / 100,
-      currency_code: row.currency,
-    })
-    .select("id")
-    .single();
-  if (bookingErr || !bookingRow) {
-    logServerError("pos.startCollection.booking", bookingErr);
+  const shell = await bookingShellForOrder(admin, {
+    tenantId: input.tenantId,
+    orderId: row.id,
+    currency: row.currency,
+    revenue: amountCents / 100,
+    contact: input.contact,
+  });
+  if (!shell.ok) {
     return { ok: false, reason: "engine_error", error: "Could not open the payment." };
   }
-  const bookingId = (bookingRow as { id: string }).id;
+  const bookingId = shell.bookingId;
 
   const { data: txnRow, error: txnErr } = await admin
     .from("booking_transactions")
