@@ -7,10 +7,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
+  acceptBookingHoursProposal,
   listBookingHoursTargets,
   loadBookingHours,
   saveBookingHours,
   setTalentDirectBookingOptIn,
+  type BookingHoursProposal,
   type HoursTarget,
 } from "@/lib/server-actions/booking-hours";
 import { DEFAULT_APPOINTMENT_DEFAULTS } from "@/lib/scheduling/appointments-settings-types";
@@ -80,6 +82,10 @@ export function BookingHoursCard({
   const [savedOk, setSavedOk] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const [canEditHours, setCanEditHours] = useState(true);
+  const [proposal, setProposal] = useState<BookingHoursProposal | null>(null);
+  const [proposalTimezone, setProposalTimezone] = useState("");
+  const [accepting, setAccepting] = useState(false);
+  const [acceptedOk, setAcceptedOk] = useState(false);
   const [, startTransition] = useTransition();
 
   const filteredTargets = useMemo(() => {
@@ -124,6 +130,12 @@ export function BookingHoursCard({
         setSlotMinutes(res.hours?.slotMinutes ?? DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
         setOptIn(res.directBookingOptIn);
         setCanEditHours(res.canEditHours);
+        setProposal(res.proposal);
+        // Prefill with the proposal's own timezone when it resolved one;
+        // otherwise the operator's own zone is the honest starting point,
+        // never the literal "UTC".
+        setProposalTimezone(res.proposal?.timezone ?? res.defaultTimezone);
+        setAcceptedOk(false);
       }
       setLoading(false);
     });
@@ -156,6 +168,28 @@ export function BookingHoursCard({
         setSlotMinutes(res.hours.slotMinutes);
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  function acceptProposal() {
+    if (!selectedId || !canEditHours || !proposalTimezone.trim()) return;
+    setAccepting(true);
+    setError(null);
+    startTransition(async () => {
+      const res = await acceptBookingHoursProposal(selectedId, {
+        timezone: proposalTimezone.trim(),
+      });
+      setAccepting(false);
+      if (res.ok) {
+        setWeekly(res.hours.weekly);
+        setTimezone(res.hours.timezone);
+        setSlotMinutes(res.hours.slotMinutes);
+        setProposal(null);
+        setAcceptedOk(true);
+        setTimeout(() => setAcceptedOk(false), 2000);
       } else {
         setError(res.error);
       }
@@ -315,6 +349,66 @@ export function BookingHoursCard({
           {!canEditHours ? (
             <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 10 }}>
               {t(`${K}.hoursReadOnly`)}
+            </div>
+          ) : null}
+          {proposal && canEditHours ? (
+            <div
+              data-testid="booking-hours-proposal-banner"
+              style={{
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "10px 12px",
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+                {t(`${K}.proposalBannerTitle`)}
+              </div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, marginBottom: 8 }}>
+                {t(`${K}.proposalBannerDesc`)}
+              </div>
+              <label style={{ fontSize: 11, color: C.inkMuted, display: "block", marginBottom: 8 }}>
+                {t(`${K}.proposalTimezoneLabel`)}
+                <input
+                  value={proposalTimezone}
+                  disabled={accepting}
+                  onChange={(e) => setProposalTimezone(e.target.value)}
+                  style={{
+                    display: "block",
+                    marginTop: 4,
+                    fontSize: 13,
+                    fontFamily: FONT,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    minWidth: 200,
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={acceptProposal}
+                disabled={accepting || !proposalTimezone.trim()}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: FONT,
+                  border: `1px solid ${C.accent}`,
+                  background: C.accent,
+                  color: "#fff",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  cursor: accepting ? "default" : "pointer",
+                }}
+              >
+                {accepting ? t(`${K}.proposalAccepting`) : t(`${K}.proposalAccept`)}
+              </button>
+              {acceptedOk ? (
+                <span style={{ fontSize: 11, color: C.success, marginLeft: 8 }}>
+                  {t(`${K}.proposalAccepted`)}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <label style={{ fontSize: 11, color: C.inkMuted, display: "block", marginBottom: 10 }}>

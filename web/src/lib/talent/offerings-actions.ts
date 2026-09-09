@@ -35,7 +35,10 @@ import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-c
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
 import { trackWorkspaceActivated } from "@/lib/analytics/conversion-events";
-import { ensureDefaultBookingHours } from "@/lib/scheduling/ensure-default-booking-hours";
+import {
+  proposeDefaultBookingHours,
+  type BookingHoursStatus,
+} from "@/lib/scheduling/propose-default-booking-hours";
 
 /**
  * Untyped write surface for talent_offerings (+ media join). The tables ARE in
@@ -204,7 +207,9 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
   }
 }
 
-type SaveResult = { ok: true; item: TalentOffering } | { ok: false; error: string };
+type SaveResult =
+  | { ok: true; item: TalentOffering; bookingHoursStatus?: BookingHoursStatus }
+  | { ok: false; error: string };
 
 /** Create or update one offering (id === "" ⇒ insert). Validates first. */
 export async function upsertTalentOffering(
@@ -284,20 +289,30 @@ export async function upsertTalentOffering(
 
     // A published bookable offering without hours is a dead storefront: the
     // public slots endpoint returns the same empty list as a fully-booked day.
-    // Seed a weekday default once; never overwrite an existing calendar.
+    // Propose a weekday default once for an operator to review; never write
+    // hours directly and never overwrite an existing calendar or a decision
+    // the operator already made on a prior proposal.
+    let bookingHoursStatus: BookingHoursStatus | undefined;
     if (saved.status === "published" && saved.talent_profile_id && auth.tenantId) {
-      const hours = await ensureDefaultBookingHours(admin, {
+      const proposal = await proposeDefaultBookingHours(admin, {
         talentProfileId: saved.talent_profile_id,
         tenantId: auth.tenantId,
+        actorId: auth.userId,
       });
-      if (!hours.ok) {
-        logServerError("talent.offerings.defaultHours", hours.error);
+      if (proposal.ok) {
+        bookingHoursStatus = proposal.status;
+      } else {
+        logServerError("talent.offerings.defaultHoursProposal", proposal.error);
         // Soft: the offering saved; the operator can still set hours manually.
       }
     }
 
     revalidatePath("/talent/services");
-    return { ok: true, item: rowToOffering(saved, "en", offering.imageUrls ?? []) };
+    return {
+      ok: true,
+      item: rowToOffering(saved, "en", offering.imageUrls ?? []),
+      bookingHoursStatus,
+    };
   } catch (err) {
     logServerError("talent.offerings.upsert", err);
     return { ok: false, error: "Unexpected error." };

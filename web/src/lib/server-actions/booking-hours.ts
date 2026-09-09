@@ -203,10 +203,42 @@ export async function listBookingHoursTargets(): Promise<ListTargetsResult> {
   return { ok: true, targets };
 }
 
+/** A proposal awaiting review. Timezone is nullable — never guessed as UTC. */
+export type BookingHoursProposal = {
+  timezone: string | null;
+  weekly: WeeklyHours;
+  slotMinutes: number;
+  bufferBeforeMin: number;
+  bufferAfterMin: number;
+  minNoticeMin: number;
+  horizonDays: number;
+  source: string;
+  proposedAt: string | null;
+};
+
+function parseProposalRow(raw: unknown): BookingHoursProposal | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  const weekly = parseWeeklyHours(row.weekly) ?? { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+  return {
+    timezone: typeof row.timezone === "string" && row.timezone.trim() ? row.timezone.trim() : null,
+    weekly,
+    slotMinutes: typeof row.slot_minutes === "number" ? row.slot_minutes : 30,
+    bufferBeforeMin: typeof row.buffer_before_min === "number" ? row.buffer_before_min : 0,
+    bufferAfterMin: typeof row.buffer_after_min === "number" ? row.buffer_after_min : 0,
+    minNoticeMin: typeof row.min_notice_min === "number" ? row.min_notice_min : 120,
+    horizonDays: typeof row.horizon_days === "number" ? row.horizon_days : 60,
+    source: typeof row.source === "string" ? row.source : "publish_default",
+    proposedAt: typeof row.proposed_at === "string" ? row.proposed_at : null,
+  };
+}
+
 type LoadHoursResult =
   | {
       ok: true;
       hours: BookingHours | null;
+      /** A proposal awaiting review, when there is one and no hours exist yet. */
+      proposal: BookingHoursProposal | null;
       /** The workspace's zone, for an editor opening on a person with no hours yet. */
       defaultTimezone: string;
       directBookingOptIn: boolean;
@@ -220,7 +252,11 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const [{ data: hoursRow, error: hoursErr }, { data: tp, error: tpErr }] = await Promise.all([
+  const [
+    { data: hoursRow, error: hoursErr },
+    { data: tp, error: tpErr },
+    { data: proposalRow, error: proposalErr },
+  ] = await Promise.all([
     admin
       .from("talent_booking_hours")
       .select(
@@ -233,6 +269,12 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
       .select("booking_terms")
       .eq("id", talentProfileId)
       .maybeSingle(),
+    admin
+      .from("talent_booking_hours_proposals")
+      .select("timezone, weekly, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days, source, proposed_at")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("status", "proposed")
+      .maybeSingle(),
   ]);
 
   if (hoursErr) {
@@ -241,6 +283,10 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
   }
   if (tpErr) {
     logServerError("booking-hours.loadTerms", tpErr);
+    return { ok: false, error: "Could not load hours." };
+  }
+  if (proposalErr) {
+    logServerError("booking-hours.loadProposal", proposalErr);
     return { ok: false, error: "Could not load hours." };
   }
 
@@ -258,10 +304,80 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
   return {
     ok: true,
     hours: parseBookingHours(hoursRow),
+    // A proposal only matters while there is no real calendar yet: once
+    // hours exist the proposal (accepted or otherwise stale) has nothing
+    // left to offer the editor.
+    proposal: hoursRow ? null : parseProposalRow(proposalRow),
     defaultTimezone,
     directBookingOptIn: terms.directBookingOptIn === true,
     canEditHours: auth.canEditHours,
   };
+}
+
+type AcceptProposalResult = { ok: true; hours: BookingHours } | { ok: false; error: string };
+
+/**
+ * Accept the pending proposal for this talent with the operator's own
+ * timezone. Gated by the same hours-edit policy as saveBookingHours — the
+ * proposal is not a second, weaker write path.
+ */
+export async function acceptBookingHoursProposal(
+  talentProfileId: string,
+  input: { timezone: string },
+): Promise<AcceptProposalResult> {
+  const auth = await authorizeHours(talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!auth.canEditHours) {
+    return { ok: false, error: "This person sets their own hours." };
+  }
+
+  const timezone = input.timezone.trim();
+  if (!timezone) return { ok: false, error: "Pick a time zone." };
+  if (!isValidIanaTimeZone(timezone)) return { ok: false, error: "Pick a valid time zone." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data, error } = await admin.rpc("accept_booking_hours_proposal", {
+    p_talent_profile_id: talentProfileId,
+    p_actor_id: auth.userId,
+    p_overrides: { timezone },
+  });
+  if (error) {
+    logServerError("booking-hours.acceptProposal", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const result = data as { ok?: boolean; reason?: string } | null;
+  if (!result?.ok) {
+    if (result?.reason === "hours_exist") {
+      return { ok: false, error: "This person already has booking hours." };
+    }
+    if (result?.reason === "timezone_required" || result?.reason === "bad_input") {
+      return { ok: false, error: "Pick a time zone." };
+    }
+    if (result?.reason === "not_found") {
+      return { ok: false, error: "That proposal is no longer there." };
+    }
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const { data: hoursRow, error: hoursErr } = await admin
+    .from("talent_booking_hours")
+    .select(
+      "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (hoursErr) {
+    logServerError("booking-hours.acceptProposal/reload", hoursErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  const hours = parseBookingHours(hoursRow);
+  if (!hours) return { ok: false, error: CLIENT_ERROR.update };
+
+  revalidatePath("/", "layout");
+  return { ok: true, hours };
 }
 
 type SaveHoursResult = { ok: true; hours: BookingHours } | { ok: false; error: string };
