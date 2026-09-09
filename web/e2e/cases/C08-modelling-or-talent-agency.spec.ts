@@ -234,7 +234,10 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   if (await allChip.isVisible().catch(() => false)) {
     await allChip.click();
   }
-  const row = inbox.getByRole("button", { name: /cora cuevas/i }).first();
+  const row = inbox
+    .getByRole("button", { name: /cora cuevas/i })
+    .filter({ hasText: /shortlist empty/i })
+    .first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
 
