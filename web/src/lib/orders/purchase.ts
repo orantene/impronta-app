@@ -25,6 +25,7 @@ import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
+import { loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -166,6 +167,27 @@ export async function createPurchase(
       return { ok: false, reason: policy.reason, offeringId: policy.offeringId };
     }
 
+    // ── 2b. Age. Before pricing, because a refusal here must cost the buyer
+    //       nothing and must not depend on whether the basket happens to price.
+    //
+    //       Read from the database in this request. An age gate the client sent
+    //       would be a gate the client can remove, which is the same class of
+    //       mistake `resolvePurchasePolicy` exists to make impossible.
+    const gates = await loadAgeGates(admin, {
+      tenantId: input.tenantId,
+      lines: input.lines.map((l) => ({ variantId: l.variantId, sessionId: l.sessionId })),
+    });
+    if (!gates.ok) {
+      // FAILS CLOSED. An unreadable restriction is not an absent one — see the
+      // module header. Reported as an engine error because it is a retry, not a
+      // verdict about this buyer.
+      return { ok: false, reason: "engine_error", error: "Could not check the age restriction." };
+    }
+    const ageVerdict = ruleOnAgeGate({ gates: gates.gates, attestation: input.ageAttestation ?? null });
+    if (!ageVerdict.ok) {
+      return { ok: false, reason: ageVerdict.reason, error: ageVerdict.message };
+    }
+
     // ── 3. Price from catalog rows.
     // `priced.lines[i]` ↔ `input.lines[i]`: pricing pushes one per request in
     // order. The session binding rides that index; a KEYED join would be wrong
@@ -291,6 +313,14 @@ export async function createPurchase(
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
+        // The age gate as it was at the moment of sale, and what the buyer said
+        // about it. Stored on the ORDER rather than derived later because both
+        // halves can move: a venue can lower the gate next week, and the
+        // question a chargeback or a licensing inspector asks is what this
+        // buyer was told and answered on the day.
+        age_gate_min_age: ageVerdict.requiredMinimumAge,
+        age_gate_confirmed_age: ageVerdict.confirmedAge,
+        age_gate_confirmed_at: ageVerdict.requiredMinimumAge != null ? new Date().toISOString() : null,
       })
       .select("id")
       .single();

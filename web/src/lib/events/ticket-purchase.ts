@@ -69,6 +69,13 @@ export type TicketPurchaseArgs = {
   promoCode?: string | null;
   locale?: string | null;
   sourcePage?: string | null;
+  /**
+   * What the buyer stated about their age. Threaded rather than defaulted:
+   * `null` here is "not asked", and the pipeline turns that into a refusal on a
+   * gated event instead of a silent sale. A default of, say, 18 would have made
+   * the gate decorative in a different way than it already was.
+   */
+  confirmedAge?: number | null;
 };
 
 /**
@@ -99,6 +106,7 @@ export function buildTicketPurchase(a: TicketPurchaseArgs): PurchaseInput {
     ],
     promoCode: a.promoCode ?? null,
     locale: a.locale ?? null,
+    ageAttestation: typeof a.confirmedAge === "number" ? { confirmedAge: a.confirmedAge } : null,
   };
 }
 

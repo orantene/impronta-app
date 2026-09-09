@@ -39,6 +39,17 @@ export type PurchaseInput = {
   actorUserId: string | null;
   contact: { email?: string | null; phone?: string | null; displayName?: string | null };
   lines: PurchaseLineInput[];
+  /**
+   * What the buyer stated about their age, when something in the basket is
+   * gated.
+   *
+   * `undefined`/`null` means they were never asked, which the pipeline treats
+   * as a REFUSAL on a gated line rather than as consent — a client that has not
+   * been updated must fail loudly, not sell an 18+ ticket by omission. Ungated
+   * baskets ignore this entirely; see `lib/orders/age-gate.ts` for why the
+   * artefact is an attestation and not a date of birth.
+   */
+  ageAttestation?: { confirmedAge: number } | null;
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
   sourceChannel: string;
@@ -145,6 +156,12 @@ export type PurchaseRefusalReason =
   | "promo_unavailable"
   /** C34: a provisional talent profile cannot take money until claimed. */
   | "unclaimed_seller"
+  /**
+   * Age gates. Two reasons, not one, because the surfaces differ: the first
+   * means "ask the question", the second means "the answer was no".
+   */
+  | "age_gate_unconfirmed"
+  | "age_gate_below_minimum"
   | "engine_error";
 
 export type PurchaseResult =
