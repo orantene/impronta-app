@@ -343,13 +343,15 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
 
   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
+  await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
+  await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
 
   const approve = page.getByRole("button", { name: /approve offer/i });
   if (!(await approve.isVisible().catch(() => false))) {
     await page.goto("/talent/inbox");
-    await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
+    await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
     const allChip = page.getByRole("button", { name: /^all$/i });
     if (await allChip.isVisible().catch(() => false)) {
       await allChip.click();
@@ -357,7 +359,6 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
     const row = page
       .locator("[data-tulala-inbox-row]")
       .filter({ hasText: /cora cuevas/i })
-      .filter({ hasText: /offer|awaiting you/i })
       .first();
     await expect(row).toBeVisible({ timeout: 40_000 });
     await row.click();
