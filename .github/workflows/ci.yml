@@ -431,6 +431,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
+      # Command envelope and outbox (M0). Pure, against fakes that enforce the
+      # two schema properties the behaviour depends on: the unique index on
+      # (tenant, command, idempotency key) and the partial unique index on the
+      # outbox dedupe key. The races ARE the subject here — a double-tapped
+      # button, a key reused with different arguments, a retried enqueue — and
+      # a real Postgres cannot hold an interleaving still enough to assert on.
+      - name: tests — command envelope and outbox
+        if: ${{ !cancelled() }}
+        run: npm run test:commands
+
       # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
       # the status moves (cancelled is terminal), doors as an OFFSET so it never
       # acquires a second wall clock, and the refund decision, which returns a

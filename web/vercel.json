@@ -247,6 +247,10 @@
     {
       "path": "/api/cron/expire-orders",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/outbox",
+      "schedule": "* * * * *"
     }
   ]
 }
