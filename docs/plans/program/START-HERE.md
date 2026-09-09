@@ -151,11 +151,30 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 - Mercado Pago live charges wait on merchant credentials.  
 - Live Stripe `refund.failed` / `refund.updated` endpoint change is ops, not this PR.
 
+## First browser run on the repaired branch
+
+The isolated app now runs clean — storefront 200, no schema errors, no verb-destination warnings — so browser journeys are possible again. C06 was run first and is **3 of 6 on chromium**:
+
+| C06 test | Result |
+|---|---|
+| C06-CUS smoke (reachability, not a journey) | pass |
+| C06-CUS public menu → send → Sales and DB agree | **pass** (after correcting the test — see below) |
+| C06-CUS reservation: reserve_table → hold | fail — D-018, no slots offered |
+| C06-CUS reserve-then-order | fail — D-018, same cause |
+| C06-OP smoke (reachability, not a journey) | pass |
+| C06-OP walk-in cash → collect | fail — D-019, never reaches `payment: paid` |
+
+**The public-menu test had been passing against a broken storefront, and one of its assertions was a money lie.** It asserted the $18 pizza order was `paid` when nothing had been collected; the fixture seeds House pizza as `reserve_mode: 'full'`, so `pending_payment` is correct. Its name field locator also only worked while the class block was failing to render. Both corrected in d7c88aea0. This is the second time this week that repairing the environment revealed an assertion that was agreeing with a bug — worth assuming there are more.
+
+C06 is not marked done: 0/48 stands, because a case needs its customer, operator and talent steps to pass.
+
 ## Next action
 
-The isolated app now runs clean: storefront 200, no schema errors, no verb-destination warnings. That unblocks browser work, and browser work is the gap — the blueprint-parity commits have **no browser evidence** at all. Highest value is coverage of what already landed rather than new features: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
+Finish C06 by closing D-018 and D-019, then take the blueprint-parity commits, which still have **no browser evidence** at all: the event cancel-cascade refund path, the age gate at purchase (now that D-016 is fixed and the constraint is live there), POS add-on charging, and the Exceptions inbox against the outbox.
 
-Two open schema items sit behind that: D-017's 99 residual objects (taxonomy, profile fields, `agency_bookings.balance_due_at`, the publicly-listed triggers) and D-014's 58 unmigrated production objects. Neither blocks the storefront; both will block specific cases.
+D-018 is the more interesting one and is not a fixture gap: a restaurant table is space-and-service-period availability, but the only availability source wired to the storefront block is `talent_booking_hours`, keyed on a talent profile the offering does not have. That is the same shape as `m0-appointments-dead`.
+
+Two open schema items sit behind all of it: D-017's 99 residual objects (taxonomy, profile fields, `agency_bookings.balance_due_at`, the publicly-listed triggers) and D-014's 58 unmigrated production objects. Neither blocks the storefront; both will block specific cases.
 
 Still open from before: C08-CUS client accept / convert, Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, remaining representatives (C13, C24, C27, C31).
 
