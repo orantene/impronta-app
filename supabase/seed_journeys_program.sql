@@ -14,6 +14,10 @@
 --   offerings (including two therapists + a couples set), a class session,
 --   a 12-place session_tier pool, and a published $0 event night
 --   (`/events/qa-night`) with a General admission tier + session_tier pool.
+--   Workspace B transacts too — venue, station, technician with booking
+--   hours, two offerings, a one-unit pool, a customer and a paid order — see
+--   the section at the foot of this file for why an EMPTY second workspace
+--   made the isolation cases pass without proving anything.
 --   Staff/customer/talent auth users are provisioned by
 --   `web/scripts/seed-journeys-program.mjs` once isolated credentials exist.
 --   Do not set JOURNEYS_FIXTURE_READY=1 from a seed log line alone.
@@ -656,5 +660,260 @@ ON CONFLICT (id) DO UPDATE SET
   units_total = EXCLUDED.units_total,
   is_active = TRUE,
   updated_at = now();
+
+-- ===========================================================================
+-- WORKSPACE B — a workspace that TRANSACTS, not just one that exists (D-011)
+-- ===========================================================================
+--
+-- B used to be an `agencies` row, a domain and an owner membership. That is
+-- enough to prove the negative direction of isolation — A's operator cannot
+-- see B — and it quietly makes the more important direction untestable.
+--
+-- WHY AN EMPTY WORKSPACE IS WORSE THAN NO WORKSPACE. The permissions
+-- requirement is that "changing a record ID in a request does not bypass
+-- authorization". With B empty there is no B record ID to substitute, so such
+-- a test can only paste a UUID that exists nowhere — and then "not found" and
+-- "forbidden" are indistinguishable. It passes while proving nothing, which is
+-- the failure mode this program keeps finding (see the public-menu assertion
+-- that agreed with a bug for weeks). Every row below exists so that a
+-- cross-workspace attempt has a REAL target: an order that is genuinely
+-- there, owned by someone else, that must still be refused.
+--
+-- B is deliberately a nail salon against A's restaurant, so the pair also
+-- covers two different vocabulary presets rather than two copies of one.
+--
+-- The ids are namespaced `…b<n>` inside the same `3333…` family, so the
+-- removal line at the top of this file still collects them.
+
+-- Something upstream of this fixture gives a new workspace a default venue
+-- with a generated id, a null slug and a UTC timezone. It cannot be referenced
+-- deterministically, and `idx_venues_one_default_per_tenant` allows only one
+-- default, so demote whatever is there before claiming the role.
+UPDATE public.venues
+  SET is_default = FALSE, updated_at = now()
+  WHERE tenant_id = '33333333-3333-4333-8333-333333333334'::UUID
+    AND is_default
+    AND id <> '33330010-0000-4000-8000-0000000000b1'::UUID;
+
+INSERT INTO public.venues (id, tenant_id, name, slug, timezone, is_default, status)
+VALUES (
+  '33330010-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'QA Salon B',
+  'qa-salon-b',
+  'America/Mexico_City',
+  TRUE,
+  'active'
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  slug = EXCLUDED.slug,
+  timezone = EXCLUDED.timezone,
+  is_default = TRUE,
+  updated_at = now();
+
+-- A station rather than a table: B is a salon, and the space kinds should not
+-- read as a copy of A's floor.
+INSERT INTO public.spaces (id, tenant_id, venue_id, kind, name, code, party_min, party_max, status)
+VALUES (
+  '33330011-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  '33330010-0000-4000-8000-0000000000b1'::UUID,
+  'room', 'Station B1', 'SB1', 1, 1, 'active'
+)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now();
+
+INSERT INTO public.talent_profiles (
+  id, profile_code, display_name, created_by_agency_id,
+  profile_kind, booking_terms, visibility, workflow_status, is_test_account,
+  claimed_at
+)
+VALUES (
+  '33330003-0000-4000-8000-0000000000b1'::UUID,
+  'QA-JNY-B1',
+  'QA Journeys B Technician',
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'person',
+  '{"directBookingOptIn": true}'::jsonb,
+  'public',
+  'published',
+  TRUE,
+  now()
+)
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  booking_terms = EXCLUDED.booking_terms,
+  profile_kind = EXCLUDED.profile_kind,
+  claimed_at = COALESCE(public.talent_profiles.claimed_at, EXCLUDED.claimed_at),
+  updated_at = now();
+
+INSERT INTO public.agency_talent_roster (
+  id, tenant_id, talent_profile_id, status, agency_visibility, is_primary,
+  source_type, hub_visibility_status, direct_booking_enabled
+)
+VALUES (
+  '33330004-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  '33330003-0000-4000-8000-0000000000b1'::UUID,
+  'active',
+  'site_visible',
+  TRUE,
+  'agency_created',
+  'not_submitted',
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  agency_visibility = EXCLUDED.agency_visibility,
+  is_primary = EXCLUDED.is_primary,
+  direct_booking_enabled = EXCLUDED.direct_booking_enabled,
+  updated_at = now();
+
+-- Booking hours, so B's public booking surface can actually offer a slot. A
+-- roster entry without these returns `no_booking_hours`, which is the same
+-- production blocker `m0-appointments-dead` tracks: it would have made B look
+-- seeded while still refusing every booking.
+INSERT INTO public.talent_booking_hours (
+  talent_profile_id, tenant_id, timezone, weekly, exceptions,
+  slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days
+)
+VALUES (
+  '33330003-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'America/Mexico_City',
+  '{"0":[{"startMin":540,"endMin":1080}],"1":[{"startMin":540,"endMin":1080}],"2":[{"startMin":540,"endMin":1080}],"3":[{"startMin":540,"endMin":1080}],"4":[{"startMin":540,"endMin":1080}],"5":[{"startMin":540,"endMin":1080}],"6":[{"startMin":540,"endMin":1080}]}'::jsonb,
+  '[]'::jsonb,
+  45,
+  0,
+  0,
+  0,
+  14
+)
+ON CONFLICT (talent_profile_id) DO UPDATE SET
+  tenant_id = EXCLUDED.tenant_id,
+  timezone = EXCLUDED.timezone,
+  weekly = EXCLUDED.weekly,
+  min_notice_min = EXCLUDED.min_notice_min,
+  horizon_days = EXCLUDED.horizon_days,
+  slot_minutes = EXCLUDED.slot_minutes,
+  updated_at = now();
+
+INSERT INTO public.talent_offerings (
+  id, tenant_id, talent_profile_id, owner_kind, kind, title, amount_cents, currency,
+  booking_mode, allow_pay_in_person, reserve_mode, deposit_pct, duration_minutes,
+  status, visibility, moderation_state, sort_order
+)
+VALUES
+  (
+    '33330012-0000-4000-8000-0000000000b1'::UUID,
+    '33333333-3333-4333-8333-333333333334'::UUID,
+    '33330003-0000-4000-8000-0000000000b1'::UUID,
+    'talent', 'service', 'Acrylic fill', 4200, 'USD',
+    'instant', TRUE, 'deposit', 50, 45,
+    'published', 'public', 'approved', 10
+  ),
+  (
+    '33330012-0000-4000-8000-0000000000b2'::UUID,
+    '33333333-3333-4333-8333-333333333334'::UUID,
+    NULL,
+    'workspace', 'product', 'Cuticle oil', 900, 'USD',
+    'instant', TRUE, 'full', NULL, NULL,
+    'published', 'public', 'approved', 0
+  )
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  amount_cents = EXCLUDED.amount_cents,
+  allow_pay_in_person = EXCLUDED.allow_pay_in_person,
+  owner_kind = EXCLUDED.owner_kind,
+  talent_profile_id = EXCLUDED.talent_profile_id,
+  reserve_mode = EXCLUDED.reserve_mode,
+  deposit_pct = EXCLUDED.deposit_pct,
+  duration_minutes = EXCLUDED.duration_minutes,
+  sort_order = EXCLUDED.sort_order,
+  updated_at = now();
+
+-- A one-unit pool on B's station. Small on purpose: a single unit is what lets
+-- a case prove that exhausting B's capacity leaves A's untouched, which is the
+-- claim two pools of twelve cannot demonstrate.
+INSERT INTO public.capacity_pools (
+  id, tenant_id, subject_kind, subject_id, pool_key, pool_path, units_total, hold_ttl_seconds, is_active
+)
+VALUES (
+  '33330020-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'space',
+  '33330011-0000-4000-8000-0000000000b1'::UUID,
+  'default',
+  ARRAY['33330020-0000-4000-8000-0000000000b1'::UUID],
+  1,
+  900,
+  TRUE
+)
+ON CONFLICT (id) DO UPDATE SET
+  subject_id = EXCLUDED.subject_id,
+  units_total = EXCLUDED.units_total,
+  is_active = TRUE,
+  updated_at = now();
+
+INSERT INTO public.customers (id, tenant_id, email, display_name, phone_e164)
+VALUES (
+  '33330030-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'qa-journeys-b-guest@impronta.test',
+  'QA B Guest',
+  NULL
+)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  display_name = EXCLUDED.display_name,
+  updated_at = now();
+
+-- THE POINT OF THIS WHOLE SECTION. A real, settled order belonging to B, so a
+-- cross-workspace attempt has something that genuinely exists to be refused
+-- access to. Left `paid` rather than `draft` because the interesting refusals
+-- are on records worth reading: a receipt, a refund, a line edit.
+-- `orders_total_is_derived` is a CHECK, not a convention:
+-- total = subtotal - discount + tax. Stating the subtotal explicitly is what
+-- keeps the row legal rather than relying on a default that happens to agree.
+INSERT INTO public.orders (
+  id, tenant_id, customer_id, status, source_channel,
+  subtotal_cents, discount_cents, tax_cents, total_cents, currency
+)
+VALUES (
+  '33330031-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  '33330030-0000-4000-8000-0000000000b1'::UUID,
+  'paid',
+  'pos',
+  900, 0, 0, 900,
+  'USD'
+)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  subtotal_cents = EXCLUDED.subtotal_cents,
+  total_cents = EXCLUDED.total_cents,
+  updated_at = now();
+
+-- `order_lines_payee_xor` requires exactly one of `talent_profile_id` /
+-- `owner_tenant_id`: every line names who gets paid for it. This one is a
+-- workspace-owned retail product, so the payee is B itself.
+INSERT INTO public.order_lines (
+  id, order_id, tenant_id, offering_id, owner_tenant_id, label, units, unit_cents, total_cents
+)
+VALUES (
+  '33330032-0000-4000-8000-0000000000b1'::UUID,
+  '33330031-0000-4000-8000-0000000000b1'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  '33330012-0000-4000-8000-0000000000b2'::UUID,
+  '33333333-3333-4333-8333-333333333334'::UUID,
+  'Cuticle oil',
+  1,
+  900,
+  900
+)
+ON CONFLICT (id) DO UPDATE SET
+  label = EXCLUDED.label,
+  unit_cents = EXCLUDED.unit_cents,
+  total_cents = EXCLUDED.total_cents;
 
 COMMIT;
