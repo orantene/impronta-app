@@ -239,6 +239,7 @@
     "test:anon-write-policy": "bash scripts/gate-queue.sh test 2 -- node --test scripts/anon-write-policy-shape.test.mjs",
     "check:migration-collisions": "node scripts/check-migration-version-collisions.mjs",
     "test:migration-collisions": "bash scripts/gate-queue.sh test 2 -- node --test scripts/migration-version-collisions.test.mjs",
+    "test:migration-tooling": "bash scripts/gate-queue.sh test 2 -- node --test scripts/sql-statements.test.mjs",
     "manual:migration-collisions": "node --env-file=.env.local scripts/check-migration-version-collisions.mjs --remote",
     "manual:capability-keys-db": "tsx --env-file=.env.local scripts/check-capability-keys-db.mjs"
   },

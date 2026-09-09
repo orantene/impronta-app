@@ -409,6 +409,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:migration-collisions
 
+      # The splitter the isolated-branch repair depends on. It decides what one
+      # statement is, and getting a dollar-quoted plpgsql body wrong would make
+      # a replay report success over a half-applied schema.
+      - name: tests — migration replay tooling
+        if: ${{ !cancelled() }}
+        run: npm run test:migration-tooling
+
       - name: tests — notifications
         if: ${{ !cancelled() }}
         run: npm run test:notifications
