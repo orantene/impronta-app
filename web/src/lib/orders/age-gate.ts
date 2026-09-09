@@ -108,7 +108,13 @@ export function ruleOnAgeGate(input: {
 }): AgeGateVerdict {
   const gate = strictestAgeGate(input.gates);
   if (!gate) {
-    return { ok: true, requiredMinimumAge: null, confirmedAge: input.attestation?.confirmedAge ?? null };
+    // A volunteered age against no gate is DISCARDED, not stored. A client that
+    // collected an age and then had its gated line removed — or raced an
+    // operator lowering the gate — would otherwise hand us an answer to a
+    // question nobody asked, and keeping it would be the blanket collection
+    // this module's header refuses. `age_gate_min_age IS NULL` means nothing in
+    // the basket was gated, and that has to stay true of the whole triple.
+    return { ok: true, requiredMinimumAge: null, confirmedAge: null };
   }
 
   const stated = input.attestation?.confirmedAge;
@@ -131,6 +137,44 @@ export function ruleOnAgeGate(input: {
   }
 
   return { ok: true, requiredMinimumAge: gate.minimumAge, confirmedAge: Math.trunc(stated) };
+}
+
+/** The three `orders` columns, which move together or not at all. */
+export type AgeGateStamp = {
+  readonly age_gate_min_age: number | null;
+  readonly age_gate_confirmed_age: number | null;
+  readonly age_gate_confirmed_at: string | null;
+};
+
+/**
+ * Turn a passing verdict into the columns to persist.
+ *
+ * WHY THIS IS A FUNCTION AND NOT THREE LINES AT THE INSERT. It was three lines
+ * at the insert, and they disagreed: two read straight off the verdict while
+ * the third was conditional on the minimum, so an ungated basket carrying an
+ * attestation produced `min = NULL, confirmed_age = 21, confirmed_at = NULL`.
+ *
+ * `orders_age_gate_paired` is a CHECK requiring all three or none, so that
+ * triple is not a slightly-wrong record — it is a REFUSED INSERT. The buyer
+ * confirmed their age and got "Could not start the order", on the one path
+ * where money and capacity are about to move. It was invisible until the
+ * constraint reached an environment the purchase path actually runs in.
+ *
+ * Deriving all three from one branch is what makes the disagreement
+ * unrepresentable rather than merely fixed.
+ */
+export function ageGateStamp(
+  verdict: Extract<AgeGateVerdict, { ok: true }>,
+  nowIso: string,
+): AgeGateStamp {
+  if (verdict.requiredMinimumAge == null || verdict.confirmedAge == null) {
+    return { age_gate_min_age: null, age_gate_confirmed_age: null, age_gate_confirmed_at: null };
+  }
+  return {
+    age_gate_min_age: verdict.requiredMinimumAge,
+    age_gate_confirmed_age: verdict.confirmedAge,
+    age_gate_confirmed_at: nowIso,
+  };
 }
 
 export type LoadAgeGatesResult =

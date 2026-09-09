@@ -25,7 +25,7 @@ import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
-import { loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
+import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -318,9 +318,11 @@ export async function createPurchase(
         // halves can move: a venue can lower the gate next week, and the
         // question a chargeback or a licensing inspector asks is what this
         // buyer was told and answered on the day.
-        age_gate_min_age: ageVerdict.requiredMinimumAge,
-        age_gate_confirmed_age: ageVerdict.confirmedAge,
-        age_gate_confirmed_at: ageVerdict.requiredMinimumAge != null ? new Date().toISOString() : null,
+        //
+        // All three columns come from one call because `orders_age_gate_paired`
+        // refuses a half-filled triple, and writing them as three expressions
+        // here is how they came apart.
+        ...ageGateStamp(ageVerdict, new Date().toISOString()),
       })
       .select("id")
       .single();

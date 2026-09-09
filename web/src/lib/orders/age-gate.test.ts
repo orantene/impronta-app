@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { ruleOnAgeGate, strictestAgeGate, type AgeGate } from "./age-gate";
+import { ageGateStamp, ruleOnAgeGate, strictestAgeGate, type AgeGate } from "./age-gate";
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
 const event = (n: number): AgeGate => ({ minimumAge: n, source: "event", label: "Late Show" });
@@ -99,6 +99,62 @@ test("the age check runs before the basket is priced", () => {
 });
 
 test("what was told and what was answered are both snapshotted on the order", () => {
-  assert.match(PURCHASE, /age_gate_min_age: ageVerdict\.requiredMinimumAge/, "");
-  assert.match(PURCHASE, /age_gate_confirmed_age: ageVerdict\.confirmedAge/, "");
+  const stamp = ageGateStamp(
+    { ok: true, requiredMinimumAge: 18, confirmedAge: 30 },
+    "2026-09-09T04:00:00.000Z",
+  );
+  assert.equal(stamp.age_gate_min_age, 18);
+  assert.equal(stamp.age_gate_confirmed_age, 30);
+  assert.equal(stamp.age_gate_confirmed_at, "2026-09-09T04:00:00.000Z");
+});
+
+test("the order takes all three age columns from one call, not three expressions", () => {
+  // Three separate expressions is how they came apart: two read the verdict
+  // directly and the third was conditional on the minimum, so an ungated
+  // basket with an attestation wrote a triple `orders_age_gate_paired`
+  // refuses. Writing them individually here must stay impossible.
+  assert.match(PURCHASE, /\.\.\.ageGateStamp\(ageVerdict, new Date\(\)\.toISOString\(\)\)/, "one call");
+  assert.doesNotMatch(PURCHASE, /age_gate_confirmed_at:/, "not assembled at the insert");
+});
+
+test("an ungated basket never writes a half-filled triple", () => {
+  // THE DEFECT. A client that collected an age and then lost its gated line —
+  // or raced an operator lowering the gate — sent an attestation for a basket
+  // with no gate. The verdict passed, and the insert then set confirmed_age
+  // with a NULL minimum and a NULL timestamp: a CHECK violation, surfacing to
+  // a buyer who had just confirmed their age as "Could not start the order",
+  // on the one path where money and capacity are about to move.
+  const v = ruleOnAgeGate({ gates: [], attestation: { confirmedAge: 21 } });
+  assert.equal(v.ok, true);
+  if (!v.ok) return;
+  assert.equal(v.requiredMinimumAge, null);
+  assert.equal(v.confirmedAge, null, "a volunteered age against no gate is discarded, not stored");
+
+  const stamp = ageGateStamp(v, "2026-09-09T04:00:00.000Z");
+  assert.deepEqual(stamp, {
+    age_gate_min_age: null,
+    age_gate_confirmed_age: null,
+    age_gate_confirmed_at: null,
+  });
+});
+
+test("the stamp is all three or none, for every verdict shape", () => {
+  // `orders_age_gate_paired` accepts exactly two shapes. Anything the stamp can
+  // return must be one of them, including combinations no current caller
+  // produces — the next caller is the one that gets this wrong.
+  const shapes: Array<{ requiredMinimumAge: number | null; confirmedAge: number | null }> = [
+    { requiredMinimumAge: null, confirmedAge: null },
+    { requiredMinimumAge: null, confirmedAge: 21 },
+    { requiredMinimumAge: 18, confirmedAge: null },
+    { requiredMinimumAge: 18, confirmedAge: 21 },
+  ];
+  for (const shape of shapes) {
+    const stamp = ageGateStamp({ ok: true, ...shape }, "2026-09-09T04:00:00.000Z");
+    const set = [stamp.age_gate_min_age, stamp.age_gate_confirmed_age, stamp.age_gate_confirmed_at]
+      .filter((v) => v !== null).length;
+    assert.ok(
+      set === 0 || set === 3,
+      `${JSON.stringify(shape)} produced ${set} of 3 set columns, which the CHECK refuses`,
+    );
+  }
 });
