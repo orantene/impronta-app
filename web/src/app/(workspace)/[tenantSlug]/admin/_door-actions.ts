@@ -18,15 +18,22 @@
  *
  * `check_in` is service-role EXECUTE only, so the walk-up path authenticates
  * the staff member first and then calls with the admin client — exactly as
- * Sessions' caller does. It scopes the admission by `id` AND `tenant_id`
- * before the RPC, because `check_in` has no tenant predicate and a genuine
- * admission from another workspace would otherwise check in.
+ * Sessions' caller does. It scopes the admission by `id` AND `tenant_id` AND
+ * `session_id` before the RPC, because `check_in` has no predicate for any of
+ * the three: a genuine admission from another workspace, or from another
+ * night, would otherwise check in. THE LIST BEING SESSION-SCOPED IS NOT THE
+ * SCOPE — `loadDoor` decides what the screen offers, and a server action is
+ * reachable without the screen.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
-import { doorOutcomeForCheckIn, type DoorOutcome } from "@/lib/sessions/door";
+import {
+  doorOutcomeForCheckIn,
+  doorOutcomeForSessionScope,
+  type DoorOutcome,
+} from "@/lib/sessions/door";
 import { doorCounts, doorTakings, type DoorCounts, type DoorPaidVia, type DoorTakings } from "@/lib/events/summary";
 import { commitCapacity, releaseCapacity, reserveCapacityBatch } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
@@ -151,9 +158,14 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
  * `p_mode => 'actor'` — no token is involved, and none is required. `count`
  * defaults to the remainder inside `check_in`, so tapping once on a party of
  * four admits four; passing 2 admits two of them.
+ *
+ * `doorSessionId` is required and precedes the optional `count` for the reason
+ * given on `scanAdmission`: a scope argument that can be omitted is a scope
+ * that will be.
  */
 export async function admitAtDoor(
   admissionId: string,
+  doorSessionId: string,
   count?: number,
 ): Promise<{ outcome: DoorOutcome }> {
   const guard = await requireWorkspaceStaffAction();
@@ -163,15 +175,18 @@ export async function admitAtDoor(
   if (typeof admissionId !== "string" || !/^[0-9a-f-]{36}$/i.test(admissionId)) {
     return { outcome: { kind: "unknown_ticket" } };
   }
+  if (typeof doorSessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(doorSessionId)) {
+    return { outcome: { kind: "engine_error", detail: "no session at this door" } };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { outcome: { kind: "door_misconfigured" } };
 
   try {
-    // Tenant scope BEFORE the RPC. `check_in` has no tenant predicate.
+    // Tenant AND session scope BEFORE the RPC. `check_in` has neither predicate.
     const { data: owned, error: ownErr } = await admin
       .from("admissions")
-      .select("id")
+      .select("id, session_id, starts_at")
       .eq("id", admissionId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -182,6 +197,13 @@ export async function admitAtDoor(
     // Same answer as a genuinely unknown ticket, so this workspace learns
     // nothing about another's.
     if (!owned) return { outcome: { kind: "unknown_ticket" } };
+
+    const offNight = doorOutcomeForSessionScope({
+      doorSessionId,
+      admissionSessionId: (owned.session_id as string | null) ?? null,
+      ticketStartsAt: (owned.starts_at as string | null) ?? null,
+    });
+    if (offNight) return { outcome: offNight };
 
     const { data, error } = await admin.rpc("check_in", {
       p_admission_id: admissionId,

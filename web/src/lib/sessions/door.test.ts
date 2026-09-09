@@ -11,6 +11,7 @@ import { test } from "node:test";
 import {
   doorAdmits,
   doorOutcomeForCheckIn,
+  doorOutcomeForSessionScope,
   doorOutcomeForToken,
 } from "./door";
 
@@ -37,6 +38,70 @@ test("a good signature yields NO outcome — the row decides, not the signature"
   // is what forces the caller to go to check_in.
   const out = doorOutcomeForToken({ ok: true, admissionId: "a", tokenVersion: 2 });
   assert.equal(out, null);
+});
+
+// ── The scope layer: the night, which no other gate asks about ─────────────
+
+const FRIDAY = "11111111-1111-4111-8111-111111111111";
+const SATURDAY = "22222222-2222-4222-8222-222222222222";
+
+test("the SAME night proceeds — null means go to check_in, not admit", () => {
+  // Returning null rather than an "ok" outcome is what keeps this layer from
+  // becoming a second authority on entitlement.
+  assert.equal(
+    doorOutcomeForSessionScope({
+      doorSessionId: FRIDAY,
+      admissionSessionId: FRIDAY,
+      ticketStartsAt: "2026-10-09T20:00:00Z",
+    }),
+    null,
+  );
+});
+
+test("FRIDAY'S TICKET DOES NOT ADMIT ON SATURDAY — the defect this layer exists for", () => {
+  // Every other gate says yes to this ticket: the signature is genuine, the
+  // tenant matches, the token version is current, the status is valid and the
+  // party has room. Only the night is wrong, and until this function existed
+  // nothing asked.
+  const out = doorOutcomeForSessionScope({
+    doorSessionId: SATURDAY,
+    admissionSessionId: FRIDAY,
+    ticketStartsAt: "2026-10-09T20:00:00Z",
+  });
+  assert.equal(out?.kind, "wrong_session");
+  assert.equal(doorAdmits(out!), false);
+  if (out?.kind !== "wrong_session") return;
+  // The date is CARRIED, not swallowed: "wrong night" starts an argument that
+  // "this is for the 9th" ends.
+  assert.equal(out.ticketStartsAt, "2026-10-09T20:00:00Z");
+});
+
+test("an admission anchored to NO session is refused at a session door, with no date to offer", () => {
+  // Cases 4 and 5 of the anchor table (band reservation, walk-in against a
+  // pool) carry session_id NULL legitimately — but "legitimate row" and
+  // "belongs at tonight's door" are different facts, and tonight's list is
+  // built by session_id, so this row is not on it.
+  const out = doorOutcomeForSessionScope({
+    doorSessionId: SATURDAY,
+    admissionSessionId: null,
+    ticketStartsAt: null,
+  });
+  assert.equal(out?.kind, "wrong_session");
+  assert.equal(doorAdmits(out!), false);
+  if (out?.kind !== "wrong_session") return;
+  assert.equal(out.ticketStartsAt, null);
+});
+
+test("a null admission session is refused even when the door id is also absent-looking", () => {
+  // Guard against the null-equals-null trap: if the comparison were a bare
+  // `!==`, two nulls would match and every unanchored admission would admit at
+  // every door. The identity branch is written to require a non-null match.
+  const out = doorOutcomeForSessionScope({
+    doorSessionId: "",
+    admissionSessionId: null,
+    ticketStartsAt: null,
+  });
+  assert.equal(out?.kind, "wrong_session");
 });
 
 // ── The row layer ──────────────────────────────────────────────────────────

@@ -69,6 +69,15 @@ function outcomeLabel(o: DoorOutcome): { text: string; tone: "green" | "red" | "
       return { text: "Not a valid ticket", tone: "red" };
     case "unknown_ticket":
       return { text: "Not found for this event", tone: "red" };
+    case "wrong_session":
+      // The date, when the row has one. "Wrong night" alone starts an argument
+      // that "wrong night — this is for Fri 9 Oct" ends.
+      return {
+        text: o.ticketStartsAt
+          ? `Wrong night — this ticket is for ${dateLabel(o.ticketStartsAt)}`
+          : "Not for tonight — this ticket is not on this door's list",
+        tone: "red",
+      };
     case "too_many":
       return { text: `Only ${o.remaining} left on this ticket`, tone: "amber" };
     case "door_misconfigured":
@@ -82,6 +91,12 @@ function timeLabel(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function dateLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "another night";
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
 export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; tenantId: string }) {
@@ -193,10 +208,10 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
   const onScan = useCallback(
     async (raw: string) => {
       const token = raw.trim();
-      if (!token || busy) return;
+      if (!token || busy || !sessionId) return;
       setBusy(true);
       try {
-        const { outcome } = await scanAdmission(tenantId, token, 1);
+        const { outcome } = await scanAdmission(tenantId, sessionId, token, 1);
         setLast({ outcome, at: Date.now() });
         if (doorAdmits(outcome)) refresh();
       } finally {
@@ -207,7 +222,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
         }
       }
     },
-    [busy, refresh, tenantId],
+    [busy, refresh, sessionId, tenantId],
   );
 
   const onSettleHeld = useCallback(
@@ -238,17 +253,17 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
 
   const onAdmit = useCallback(
     async (row: DoorRow, count?: number) => {
-      if (busy) return;
+      if (busy || !sessionId) return;
       setBusy(true);
       try {
-        const { outcome } = await admitAtDoor(row.id, count);
+        const { outcome } = await admitAtDoor(row.id, sessionId, count);
         setLast({ outcome, at: Date.now() });
         if (doorAdmits(outcome)) refresh();
       } finally {
         setBusy(false);
       }
     },
-    [busy, refresh],
+    [busy, refresh, sessionId],
   );
 
   const onReport = useCallback(async () => {
