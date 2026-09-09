@@ -54,7 +54,7 @@ test("reset preview lists only keys that would change", () => {
     platform: { locale: "en", density: "comfortable", accent: "coral" },
     workspacePreset: { locale: "en", density: "comfortable", accent: "ink" },
   });
-  assert.deepEqual(preview.changingKeys.sort(), ["accent", "density", "locale"]);
+  assert.deepEqual([...preview.changingKeys].sort(), ["accent", "density", "locale"]);
   assert.equal(preview.after.accent, "ink");
 });
 
