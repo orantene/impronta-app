@@ -118,6 +118,13 @@ export const SHARED_API_PREFIXES = [
   // page unloads, on any host the editor runs on, and is gated inside the
   // handler by `requireStaffApi`.
   "/api/site-admin/homepage-draft-beacon",
+  // Subject access export. The link is offered from account settings, which a
+  // person reaches from whichever host they signed in on, and the response is
+  // scoped entirely by the session rather than by Host — the handler has no
+  // argument to vary. Absent from this list the route never runs and the
+  // browser gets the branded HTML 404, which is the four-layer failure this
+  // repo has shipped twice.
+  "/api/account",
 ] as const;
 
 /**

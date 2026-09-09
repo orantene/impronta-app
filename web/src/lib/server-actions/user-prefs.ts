@@ -425,11 +425,26 @@ export async function setPrivacyPrefs(
 }
 
 /**
- * F.11 — Record a data-export request. The actual export job is async
- * (sends an email with a download link); this just marks the request
- * timestamp so we can rate-limit ("you requested an export 6 hours ago,
- * try again later").
+ * F.11 — Record a data-export request AND say where the data is.
+ *
+ * This used to stamp a timestamp and nothing else, against a comment in
+ * `20260513181600_f11_user_privacy_prefs.sql` promising an export "via
+ * /api/account/export" that had never been written. So the rate-limit counter
+ * for a job existed, and the job did not: asking for your data produced a date.
+ *
+ * The export is now SYNCHRONOUS and this returns its URL. That is a smaller
+ * design than the async-job-plus-email the original comment imagined, and it is
+ * the right one at this size: the bundle is a few hundred rows keyed on one
+ * user id, so a job queue, a storage bucket, a signed link and an expiry would
+ * be four new failure modes standing between a person and a file we can hand
+ * them in a request. The timestamp is still written, because "you asked six
+ * hours ago" remains worth being able to say.
  */
-export async function requestDataExport(): Promise<{ ok: boolean; error?: string }> {
-  return setPrivacyPrefs({ dataExportRequestedAt: new Date().toISOString() });
+export async function requestDataExport(): Promise<{ ok: boolean; error?: string; url?: string }> {
+  const stamped = await setPrivacyPrefs({ dataExportRequestedAt: new Date().toISOString() });
+  if (!stamped.ok) return stamped;
+  return { ok: true, url: ACCOUNT_EXPORT_PATH };
 }
+
+/** One literal, so the route, the action and the reachability test agree. */
+export const ACCOUNT_EXPORT_PATH = "/api/account/export";

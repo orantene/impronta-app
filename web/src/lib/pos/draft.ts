@@ -10,78 +10,9 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals";
-import { loadActiveTicketForOrder } from "@/lib/preparation/tickets";
 import { addonCentsOnLine, priceAddons } from "./addons";
-import { posGuestSessionId, type PosLineInput, type PosSaleView } from "./commands";
-
-type Admin = {
-  // Tests inject a fake PostgREST builder. Same seam as expire-orders.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
-  // Real PostgREST rpc() is thenable; tests inject a Promise.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  rpc?: (fn: string, args: Record<string, unknown>) => any;
-};
-
-function num(value: number | string | null | undefined): number {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (typeof value === "string") {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
-type OrderRow = {
-  id: string;
-  tenant_id: string;
-  status: string;
-  currency: string;
-  customer_id: string | null;
-  guest_session_id: string | null;
-  source_page: string | null;
-  visit_id: string | null;
-  space_id: string | null;
-  version: number;
-  subtotal_cents: number | string;
-  discount_cents: number | string;
-  tax_cents: number | string;
-  total_cents: number | string;
-  promo_code_id?: string | null;
-};
-
-type LineRow = {
-  id: string;
-  offering_id: string | null;
-  variant_id: string | null;
-  addon_ids: string[] | null;
-  session_id: string | null;
-  label: string;
-  units: number | string;
-  unit_cents: number | string;
-  total_cents: number | string;
-};
-
-/**
- * A stored line, as `cartTotals` wants it.
- *
- * Every command that rebuilds the order's totals goes through this, because
- * every one of them used to drop the add-on charge on the lines it was NOT
- * touching: change the quantity of the coffee and the bacon on the burger
- * stopped being billed. The residue carries it without a second catalog read
- * — see `addonCentsOnLine`.
- */
-function totalsInput(line: LineRow): { unitCents: number; units: number; addonCents: number } {
-  const unitCents = num(line.unit_cents);
-  const units = num(line.units);
-  return {
-    unitCents,
-    units,
-    addonCents: addonCentsOnLine({ unitCents, units, totalCents: num(line.total_cents) }),
-  };
-}
-
-const LINE_COLUMNS = "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents";
+import { LINE_COLUMNS, num, totalsInput, type Admin, type LineRow, type OrderRow } from "./sale-rows";
+import { posGuestSessionId, type PosLineInput } from "./commands";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -677,126 +608,11 @@ export async function repriceAndValidate(
   return { ok: true, orderId: input.orderId, discountCents };
 }
 
-export async function loadPosSale(
-  admin: Admin,
-  input: { tenantId: string; orderId: string },
-): Promise<{ ok: true; sale: PosSaleView } | { ok: false; reason: "not_found" | "wrong_tenant" | "unavailable" }> {
-  const { data: order, error } = await admin
-    .from("orders")
-    .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents",
-    )
-    .eq("id", input.orderId)
-    .maybeSingle();
-  if (error) {
-    logServerError("pos.loadSale", error);
-    return { ok: false, reason: "unavailable" };
-  }
-  if (!order) return { ok: false, reason: "not_found" };
-  const row = order as OrderRow;
-  if (row.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
-
-  const { data: lineRows, error: linesError } = await admin
-    .from("order_lines")
-    .select(LINE_COLUMNS)
-    .eq("order_id", input.orderId)
-    .order("sort_order", { ascending: true });
-  if (linesError) {
-    logServerError("pos.loadSale.lines", linesError);
-    return { ok: false, reason: "unavailable" };
-  }
-
-  const { data: paid, error: paidError } = await admin
-    .from("booking_transactions")
-    .select("gross_amount_cents, status")
-    .eq("order_id", input.orderId);
-  if (paidError) {
-    logServerError("pos.loadSale.paid", paidError);
-    return { ok: false, reason: "unavailable" };
-  }
-
-  let depositPaidCents = 0;
-  for (const txn of (paid ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
-    if (txn.status === "paid") depositPaidCents += num(txn.gross_amount_cents);
-  }
-
-  const totalCents = num(row.total_cents);
-  const outstandingCents = Math.max(0, totalCents - depositPaidCents);
-  const status = row.status;
-  const paymentState =
-    status === "paid" || status === "fulfilled"
-      ? "paid"
-      : status === "cancelled" || status === "refunded"
-        ? "cancelled"
-        : status === "pending_payment"
-          ? "pending"
-          : "unpaid";
-
-  const ticketRes = await loadActiveTicketForOrder(admin, { tenantId: input.tenantId, orderId: input.orderId });
-  if (!ticketRes.ok) return { ok: false, reason: "unavailable" };
-  const ticket = ticketRes.ticket;
-  const prepState: PosSaleView["prepState"] = !ticket
-    ? "not_submitted"
-    : ticket.revision > 1 && ticket.status === "queued"
-      ? "amended"
-      : ticket.status;
-
-  return {
-    ok: true,
-    sale: {
-      orderId: row.id,
-      tenantId: row.tenant_id,
-      status,
-      currency: row.currency,
-      customerId: row.customer_id,
-      guestSessionId: row.guest_session_id,
-      context: row.source_page,
-      visitId: row.visit_id,
-      spaceId: row.space_id,
-      version: Number(row.version) || 1,
-      subtotalCents: num(row.subtotal_cents),
-      discountCents: num(row.discount_cents),
-      taxCents: num(row.tax_cents),
-      totalCents,
-      depositPaidCents,
-      outstandingCents,
-      prepState,
-      paymentState,
-      lines: ((lineRows ?? []) as LineRow[]).map((l) => ({
-        id: l.id,
-        offeringId: l.offering_id,
-        variantId: l.variant_id,
-        sessionId: l.session_id,
-        label: l.label,
-        units: num(l.units),
-        unitCents: num(l.unit_cents),
-        totalCents: num(l.total_cents),
-      })),
-    },
-  };
-}
-
-export async function listOpenPosSales(
-  admin: Admin,
-  tenantId: string,
-): Promise<{ ok: true; rows: Array<{ id: string; totalCents: number; createdAt: string | null }> } | { ok: false; reason: "unavailable" }> {
-  const { data, error } = await admin
-    .from("orders")
-    .select("id, total_cents, created_at")
-    .eq("tenant_id", tenantId)
-    .eq("status", "draft")
-    .eq("source_channel", "pos")
-    .order("created_at", { ascending: false });
-  if (error) {
-    logServerError("pos.listOpen", error);
-    return { ok: false, reason: "unavailable" };
-  }
-  return {
-    ok: true,
-    rows: ((data ?? []) as Array<{ id: string; total_cents: number; created_at: string | null }>).map((r) => ({
-      id: r.id,
-      totalCents: num(r.total_cents),
-      createdAt: r.created_at,
-    })),
-  };
-}
+/**
+ * The read side lives in `sale-read.ts`, re-exported here so the twelve call
+ * sites that import `@/lib/pos/draft` keep working. The split is commands
+ * versus queries and happened when this file hit the 800-line cap; moving the
+ * import path as well would have turned a size fix into a rename in files that
+ * had nothing to do with it.
+ */
+export { loadPosSale, listOpenPosSales } from "./sale-read";
