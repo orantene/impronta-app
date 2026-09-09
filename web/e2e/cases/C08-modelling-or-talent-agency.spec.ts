@@ -401,11 +401,13 @@ test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, 
   expect(ready?.offerStatus).toBe("sent");
   expect(ready?.inquiryStatus).toMatch(/offer_pending|coordination/);
 
-  await signInJourneysStaff(
-    page,
-    `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`,
-    ready!.contactEmail!,
-  );
+  const messagesPath = `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`;
+  await signInJourneysStaff(page, messagesPath, ready!.contactEmail!);
+  if (/\/onboarding\/role/.test(page.url())) {
+    await page.getByRole("button", { name: /i'm a client/i }).click();
+    await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
+    await page.goto(messagesPath);
+  }
   await expect(page).toHaveURL(new RegExp(`/${JOURNEYS_SLUG}/client/messages`), { timeout: 40_000 });
   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
