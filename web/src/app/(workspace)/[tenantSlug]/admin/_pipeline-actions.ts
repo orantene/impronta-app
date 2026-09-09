@@ -38,6 +38,7 @@ import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
 import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
+import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { emitNotification } from "@/lib/notifications/emit";
 import {
   assignCoordinator,
@@ -3249,7 +3250,6 @@ export async function loadHoldsForInquiryAction(
 // BOOKING_AUDIT.STATUS_CHANGED entry, and revalidates.
 
 const CANCELLABLE_STATES = new Set(["tentative", "confirmed", "draft", "in_progress"]);
-const RESCHEDULABLE_STATES = new Set(["tentative", "confirmed", "draft", "in_progress"]);
 
 export async function cancelBookingAction(
   _tenantSlug: string,
@@ -3366,46 +3366,21 @@ export async function rescheduleBookingAction(
   note?: string | null,
 ): Promise<PipelineActionResult> {
   try {
-    if (!newStartsAt) return { ok: false, error: "Start date required." };
-    if (newEndsAt && new Date(newEndsAt).getTime() <= new Date(newStartsAt).getTime()) {
-      return { ok: false, error: "End must be after start." };
-    }
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
-    const { data: booking, error: lookupErr } = await supabase
-      .from("agency_bookings")
-      .select("id, status, starts_at, ends_at")
-      .eq("id", bookingId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (lookupErr) {
-      logServerError("rescheduleBookingAction/lookup", lookupErr);
-      return { ok: false, error: lookupErr.message };
-    }
-    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
-    const status = booking.status as string;
-    if (!RESCHEDULABLE_STATES.has(status)) {
-      return { ok: false, error: `Booking is ${status} — reschedule isn't supported.` };
-    }
-
-    const prevStartsAt = booking.starts_at as string | null;
-    const prevEndsAt = booking.ends_at as string | null;
-
-    const { error: updErr } = await supabase
-      .from("agency_bookings")
-      .update({
-        starts_at: newStartsAt,
-        ends_at: newEndsAt ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", bookingId)
-      .eq("tenant_id", tenantId);
-    if (updErr) {
-      logServerError("rescheduleBookingAction/update", updErr);
-      return { ok: false, error: updErr.message };
-    }
+    // Service role: firm holds + talent_bookings exclusion must not depend on
+    // staff RLS. Tenant scope is still enforced inside rescheduleBooking.
+    const admin = createServiceRoleClient() ?? supabase;
+    const moved = await rescheduleBooking(admin, {
+      tenantId,
+      bookingId,
+      newStartsAt,
+      newEndsAt,
+      actorUserId: user.id,
+    });
+    if (!moved.ok) return { ok: false, error: moved.error };
 
     await logBookingActivity(supabase, {
       bookingId,
@@ -3413,7 +3388,7 @@ export async function rescheduleBookingAction(
       eventType: BOOKING_AUDIT.STATUS_CHANGED, // reusing STATUS_CHANGED — no dedicated RESCHEDULED enum yet
       payload: {
         kind: "rescheduled",
-        previous: { starts_at: prevStartsAt, ends_at: prevEndsAt },
+        previous: { starts_at: moved.previous.startsAt, ends_at: moved.previous.endsAt },
         next: { starts_at: newStartsAt, ends_at: newEndsAt ?? null },
         note: note?.trim() || null,
       },

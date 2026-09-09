@@ -1,21 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterSalesRows, salesKindLabel } from "./activity-shape";
+import {
+  SALES_TYPE_CHIPS,
+  salesMoneyPresentation,
+  salesSourceHref,
+  filterSalesRows,
+} from "./activity-shape";
 
-test("free activity is a row kind, not an order", () => {
-  const rows = [
-    { kind: "order", id: "o1" },
-    { kind: "booking", id: "b1" },
-    { kind: "registration", id: "r1" },
-  ];
-  assert.deepEqual(
-    filterSalesRows(rows, "booking").map((row) => row.id),
-    ["b1"],
-  );
-  assert.equal(filterSalesRows(rows, "all").length, 3);
+test("type chips cover the cross-product kinds", () => {
+  assert.ok(SALES_TYPE_CHIPS.includes("admission"));
+  assert.ok(SALES_TYPE_CHIPS.includes("project"));
+  assert.ok(SALES_TYPE_CHIPS.includes("appointment"));
 });
 
-test("kind labels stay EN/ES and do not invent a second ledger name", () => {
-  assert.equal(salesKindLabel("order", "en"), "Order");
-  assert.equal(salesKindLabel("booking", "es"), "Reserva");
+test("free registration never presents as unpaid", () => {
+  const r = salesMoneyPresentation({
+    kind: "registration",
+    totalCents: 0,
+    status: "confirmed",
+  });
+  assert.equal(r.treatAsFree, true);
+  assert.equal(r.amountDueLabel, "Free");
+});
+
+test("source link prefers an absolute path", () => {
+  assert.equal(
+    salesSourceHref({ tenantSlug: "acme", kind: "order", sourcePath: "orders/o1" }),
+    "/acme/admin/orders/o1",
+  );
+});
+
+test("filter keeps kind chips honest", () => {
+  const rows = filterSalesRows(
+    [{ kind: "order" }, { kind: "registration" }, { kind: "admission" }],
+    "registration",
+  );
+  assert.deepEqual(rows, [{ kind: "registration" }]);
 });

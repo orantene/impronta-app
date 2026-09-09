@@ -10,6 +10,8 @@
 | Metric | Value |
 |---|---|
 | Cases verified on the actual platform | **0 / 48** |
+| Seven-Blueprint Parity (M0–M9) | Product work on this branch; see `FINAL-CAMPAIGN.md`. **Does not** raise the 0/48 case count. |
+| Scenario register | **404** IDs in `scenario-register-404.md` (CS-01–CS-48 alias C01–C48) |
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP talent assigned + draft + sent offer, C08-TAL talent approved (client still pending); no complete case. |
 | Human QA rows executed | **0 / 16** |
 | Isolated schema on `qa-journeys` | **Re-verified 2026-09-09T08:26Z** plus `20261230002000` replayed (D-026). Audit residual is **2** archive tables (D-017), not 99. |

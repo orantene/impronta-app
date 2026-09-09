@@ -35,6 +35,7 @@ import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-c
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
 import { trackWorkspaceActivated } from "@/lib/analytics/conversion-events";
+import { ensureDefaultBookingHours } from "@/lib/scheduling/ensure-default-booking-hours";
 
 /**
  * Untyped write surface for talent_offerings (+ media join). The tables ARE in
@@ -279,6 +280,20 @@ export async function upsertTalentOffering(
         return { ok: false, error: "Saved, but the stock number could not be applied." };
       }
       saved = { ...saved, inventory_qty: stock.available, capacity_pool_id: stock.poolId };
+    }
+
+    // A published bookable offering without hours is a dead storefront: the
+    // public slots endpoint returns the same empty list as a fully-booked day.
+    // Seed a weekday default once; never overwrite an existing calendar.
+    if (saved.status === "published" && saved.talent_profile_id && auth.tenantId) {
+      const hours = await ensureDefaultBookingHours(admin, {
+        talentProfileId: saved.talent_profile_id,
+        tenantId: auth.tenantId,
+      });
+      if (!hours.ok) {
+        logServerError("talent.offerings.defaultHours", hours.error);
+        // Soft: the offering saved; the operator can still set hours manually.
+      }
     }
 
     revalidatePath("/talent/services");

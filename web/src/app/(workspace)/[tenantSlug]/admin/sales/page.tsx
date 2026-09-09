@@ -6,7 +6,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceSalesActivity } from "../../_data-bridge/sales-activity";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { salesKindLabel, type SalesKindFilter } from "@/lib/sales/activity-shape";
+import { salesKindLabel, SALES_TYPE_CHIPS, type SalesKindFilter } from "@/lib/sales/activity-shape";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,15 @@ type PageParams = Promise<{ tenantSlug: string }>;
 type Search = Promise<{ kind?: string }>;
 
 function parseKind(raw: string | undefined): SalesKindFilter {
-  if (raw === "order" || raw === "booking" || raw === "reservation" || raw === "registration") {
+  if (
+    raw === "order" ||
+    raw === "booking" ||
+    raw === "reservation" ||
+    raw === "registration" ||
+    raw === "admission" ||
+    raw === "appointment" ||
+    raw === "project"
+  ) {
     return raw;
   }
   return "all";
@@ -41,10 +49,7 @@ export default async function SalesPage({
 
   const filters: Array<{ id: SalesKindFilter; label: string }> = [
     { id: "all", label: loc === "es" ? "Toda la actividad" : "All activity" },
-    { id: "order", label: salesKindLabel("order", loc) },
-    { id: "booking", label: salesKindLabel("booking", loc) },
-    { id: "reservation", label: salesKindLabel("reservation", loc) },
-    { id: "registration", label: salesKindLabel("registration", loc) },
+    ...SALES_TYPE_CHIPS.map((id) => ({ id: id as SalesKindFilter, label: salesKindLabel(id, loc) })),
   ];
 
   return (

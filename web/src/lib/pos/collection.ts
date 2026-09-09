@@ -210,42 +210,45 @@ export async function startCollection(
 
   let customerId = row.customer_id;
   // `orders_identified_before_payment`: customer_id may be null ONLY while
-  // status = draft. Completing a free sale still leaves draft, so a name is
-  // required even when total_cents is 0. Do not fabricate a contact.
+  // status = draft, OR on a zero-total order that still carries a guest
+  // session (R08 counter registrations). Money still needs a name.
   if (!customerId) {
     const email = input.contact?.email ?? null;
     const phone = input.contact?.phone ?? null;
     if (!email && !phone) {
-      return {
-        ok: false,
-        reason: "no_contact",
-        error:
-          row.total_cents > 0
-            ? "Collecting money needs an email or a phone."
-            : "Closing a free sale needs an email or a phone.",
-      };
-    }
-    if (!deps.ensureCustomer) {
-      return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
-    }
-    const named = await deps.ensureCustomer({
-      tenantId: input.tenantId,
-      email,
-      phone,
-      displayName: input.contact?.displayName,
-    });
-    if (!named.ok) {
-      return { ok: false, reason: "no_contact", error: named.error };
-    }
-    customerId = named.customerId;
-    const { error: attErr } = await admin
-      .from("orders")
-      .update({ customer_id: customerId })
-      .eq("id", row.id)
-      .in("status", ["draft", "pending_payment"]);
-    if (attErr) {
-      logServerError("pos.startCollection.attach", attErr);
-      return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
+      if (row.total_cents === 0) {
+        // Anonymous free sale: guest_session_id on the draft is the identity.
+        // Do not invent a contact.
+      } else {
+        return {
+          ok: false,
+          reason: "no_contact",
+          error: "Collecting money needs an email or a phone.",
+        };
+      }
+    } else {
+      if (!deps.ensureCustomer) {
+        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
+      }
+      const named = await deps.ensureCustomer({
+        tenantId: input.tenantId,
+        email,
+        phone,
+        displayName: input.contact?.displayName,
+      });
+      if (!named.ok) {
+        return { ok: false, reason: "no_contact", error: named.error };
+      }
+      customerId = named.customerId;
+      const { error: attErr } = await admin
+        .from("orders")
+        .update({ customer_id: customerId })
+        .eq("id", row.id)
+        .in("status", ["draft", "pending_payment"]);
+      if (attErr) {
+        logServerError("pos.startCollection.attach", attErr);
+        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
+      }
     }
   }
 

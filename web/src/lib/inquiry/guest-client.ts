@@ -14,14 +14,14 @@
  *     "matched" — reuse that user, refresh the client profile.
  *   • email belongs to staff / talent / super_admin → "unlinked" — never
  *     silently convert a privileged account into a client.
- *   • email is new → "created" — provision a fresh client auth user.
+ *   • email is new → "unlinked" — do NOT mint auth.users; guests keep a
+ *     customers / guest_session identity until they deliberately sign up.
  *
  * The caller submits the inquiry regardless: an "unlinked" result simply
  * means the inquiry has a null client_user_id (guest_session_id still
  * links it for the magic-link merge).
  */
 
-import { randomBytes } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -29,10 +29,6 @@ export type GuestClientProvisionResult =
   | { status: "matched"; clientUserId: string }
   | { status: "created"; clientUserId: string }
   | { status: "unlinked"; clientUserId: null };
-
-function generateGuestClientPassword() {
-  return randomBytes(18).toString("base64url");
-}
 
 function buildGuestDisplayName(args: {
   name?: string;
@@ -147,60 +143,12 @@ export async function ensureGuestClientByEmail(args: {
     return { status: "matched", clientUserId: userId };
   }
 
-  const created = await admin.auth.admin.createUser({
-    email: normalizedEmail,
-    password: generateGuestClientPassword(),
-    email_confirm: true,
-    user_metadata: userMetadata,
-  });
-
-  if (created.error || !created.data.user?.id) {
-    logServerError("inquiry/ensureGuestClientByEmail/createUser", created.error);
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const userId = created.data.user.id;
-
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .update({
-      display_name: displayName || null,
-      app_role: "client",
-      account_status: "onboarding",
-      onboarding_completed_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  if (profileErr) {
-    logServerError(
-      "inquiry/ensureGuestClientByEmail/profileCreatePatch",
-      profileErr,
-    );
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const { error: clientProfileErr } = await admin
-    .from("client_profiles")
-    .upsert(
-      {
-        user_id: userId,
-        company_name: args.company || null,
-        phone: args.phone || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (clientProfileErr) {
-    logServerError(
-      "inquiry/ensureGuestClientByEmail/clientProfileCreate",
-      clientProfileErr,
-    );
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  return { status: "created", clientUserId: userId };
+  // No match → do NOT mint an auth.users row. Tickets and POS already use
+  // `customers` without accounts; inquiry-time createUser was the path that
+  // littered production with menu-qa-* identities. A new guest stays
+  // `unlinked` (inquiry may still open on guest_session_id); they gain an
+  // account only when they deliberately sign up or claim a magic link.
+  return { status: "unlinked", clientUserId: null };
 }
 
 /**
@@ -218,14 +166,10 @@ export async function ensureGuestClientByEmail(args: {
  *
  * POLICY, in one place so both admin creation paths agree:
  *   - staff explicitly picked an existing client → use it, never re-provision;
- *   - otherwise provision (or match) by contact email, exactly as the public
- *     contact form does, via the same helper;
- *   - no usable email → null, and the inquiry is still created (unchanged).
+ *   - otherwise match by contact email when an account already exists;
+ *   - no usable email / no match → null, and the inquiry is still created.
  *
- * Provisioning is deliberately the SAME helper as the public path, so a
- * privileged address (staff / talent / super_admin) still resolves "unlinked"
- * rather than being converted into a client. Never throws — a provisioning
- * failure must not stop a coordinator from logging an inquiry.
+ * Never throws — a match failure must not stop a coordinator from logging an inquiry.
  */
 export async function resolveStaffCreatedInquiryClient(args: {
   /** Client the staff member explicitly selected, when the form offers that. */

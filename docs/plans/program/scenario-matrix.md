@@ -2,6 +2,10 @@
 
 Honest checkpoint: **0 passed**. Skipped Playwright is not a pass.
 
+**Parity aliases:** Master cases are `CS-01`–`CS-48` (same businesses as `C01`–`C48`
+evidence dirs). Catalog QA is `C-01`–`C-32`. Full 404 scenario register:
+[`scenario-register-404.md`](scenario-register-404.md).
+
 | Case | Scenario | Title | Status | Evidence |
 |---|---|---|---|---|
 | C01 | C01-CUS | Nail salon | implementing — deposit requested, not collected | `qa-evidence/C01-CUS/deposit.md` |

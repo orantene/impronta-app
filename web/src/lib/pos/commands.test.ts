@@ -644,9 +644,37 @@ test("cancelling a draft whose allocation read fails is not a successful release
   assert.equal(released, 0);
 });
 
-test("zero-total collect without contact is refused", async () => {
+test("zero-total collect without contact is allowed for a guest-session draft", async () => {
   const store = makeStore();
   seedOffering(store, { amount_cents: 0 });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const r = await startCollection(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    actorUserId: "u1",
+    method: "cash",
+    successUrl: "https://app.test/ok",
+    cancelUrl: "https://app.test/no",
+  });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.amountCents, 0);
+  assert.equal(store.orders[0].status, "paid");
+  assert.equal(store.orders[0].customer_id, null, "no invented contact");
+  assert.ok(store.orders[0].guest_session_id, "guest session remains the identity");
+  assert.equal(store.booking_transactions.length, 0, "no fabricated charge");
+});
+
+test("paid collect without contact is still refused", async () => {
+  const store = makeStore();
+  seedOffering(store);
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
   assert.equal(created.ok, true);
   if (!created.ok) return;
@@ -666,8 +694,6 @@ test("zero-total collect without contact is refused", async () => {
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "no_contact");
-  assert.equal(store.orders[0].status, "draft");
-  assert.equal(store.booking_transactions.length, 0);
 });
 
 test("zero-total collect does not fabricate a charge", async () => {

@@ -35,6 +35,8 @@ export type MintOnPaidCtx = {
     units: number;
     sessionId: string | null;
     variantId: string | null;
+    /** Per-attendee holders — length must equal units when present. */
+    holders?: ReadonlyArray<{ name?: string | null; email?: string | null }>;
   }>;
 };
 
@@ -165,6 +167,7 @@ export async function mintAdmissionsForPaidOrder(
       sessionId: line.sessionId,
       allocationId: allocsByLine.get(line.id)?.[0] ?? null,
       allocationIds: allocsByLine.get(line.id),
+      holders: line.holders,
     });
 
     if (!plan.ok) {
@@ -185,6 +188,8 @@ export async function mintAdmissionsForPaidOrder(
         allocation_id: r.allocationId,
         session_id: r.sessionId,
         party_size: r.partySize,
+        holder_name: r.holderName,
+        holder_email: r.holderEmail,
       });
     });
   }
