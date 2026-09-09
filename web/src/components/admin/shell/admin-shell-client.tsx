@@ -1689,8 +1689,8 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
               /* 100dvh handles iOS dynamic URL bar; --proto-kb is set
                  by a visualViewport listener so the shell shrinks when
                  the soft keyboard opens (audit P0 — keyboard avoidance). */
-              height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
-              max-height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
+              height: calc(100dvh - var(--proto-cbar, 50px) - 56px - var(--tulala-mobile-nav-h, 65px) - var(--proto-kb, 0px)) !important;
+              max-height: calc(100dvh - var(--proto-cbar, 50px) - 56px - var(--tulala-mobile-nav-h, 65px) - var(--proto-kb, 0px)) !important;
               min-height: 0 !important;
             }
             /* 2026-style native-app slide transition between list and
@@ -1850,6 +1850,71 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-thread-pane] [aria-label="Send"] {
               width: 40px !important;
               height: 40px !important;
+            }
+            /* ── Touch-target floor ──────────────────────────────────
+               The inbox filter chips (31px tall) and the thread's tab
+               strip (39px) were both under the 44px thumb target. */
+            .tulala-shell [data-tulala-inbox-chips] > * {
+              min-height: 44px !important;
+            }
+            /* Bulk-select toggle. Pin / Mark-unread / Archive live in a
+               hover-reveal pill that touch can never summon, so on mobile
+               this button is the way into Archive + Nudge — it must not be
+               a 20px-tall sliver. */
+            .tulala-shell [data-tulala-inbox-bulk-toggle] {
+              min-height: 44px !important;
+              padding-inline: 12px !important;
+            }
+            .tulala-shell [data-tulala-thread-tabs] button {
+              min-height: 44px !important;
+            }
+            /* Thread-header back arrow was a 26x36 sliver. */
+            .tulala-shell [data-tulala-thread-back],
+            .tulala-shell [data-tulala-back-btn] {
+              min-width: 44px !important;
+              min-height: 44px !important;
+            }
+            /* ── Horizontal strips actually scroll ───────────────────
+               Both rails overflow at 375px (chips 700px of content in a
+               346px rail; tabs 506px in 345px). They scrolled, but with
+               a visible scrollbar, no momentum, and each drag also
+               dragged the pane behind them. */
+            .tulala-shell [data-tulala-inbox-chips],
+            .tulala-shell [data-tulala-thread-tabs] {
+              overflow-x: auto !important;
+              flex-wrap: nowrap !important;
+              -webkit-overflow-scrolling: touch;
+              overscroll-behavior-x: contain;
+              scrollbar-width: none;
+              scroll-padding-inline: 12px;
+            }
+            .tulala-shell [data-tulala-inbox-chips]::-webkit-scrollbar,
+            .tulala-shell [data-tulala-thread-tabs]::-webkit-scrollbar {
+              display: none;
+            }
+            /* Support launcher is pinned mid-right (top:62%), which on a
+               phone parks it right on top of the conversation. Dock it
+               above the bottom nav instead of over the content.
+               NOT scoped to .tulala-shell: the launcher is mounted as a
+               sibling of the shell, so a scoped selector never matches. */
+            [data-tulala-support-launcher] {
+              top: auto !important;
+              transform: none !important;
+              bottom: calc(var(--tulala-mobile-nav-h, 65px) + 12px) !important;
+            }
+            /* …and it lands exactly where the inbox's bulk action bar
+               appears, covering "Reassign". The bar is in a different
+               subtree, so :has() on the root is what relates them. */
+            html:has([data-tulala-bulk-bar]) [data-tulala-support-launcher] {
+              display: none !important;
+            }
+            /* Inside a conversation the bottom of the screen is already the
+               composer plus the "Reply to client" nudge bar, and the docked
+               launcher lands on top of that CTA. Stand it down while the
+               thread pane is open; support is still reachable from More. */
+            html:has([data-tulala-messages-shell][data-mobile-pane="thread"])
+              [data-tulala-support-launcher] {
+              display: none !important;
             }
             /* Thread header on mobile: condense padding so it doesn't
                eat 60px of vertical space when stacked under the
@@ -2340,6 +2405,13 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            // Real height of the fixed mobile bottom nav (64px content +
+            // 1px top border) plus the device's home-indicator inset.
+            // Every mobile surface that pins itself to the viewport must
+            // subtract THIS, not a hardcoded guess — the messages shell
+            // used to subtract 52px and its composer sat 13px under the nav.
+            ["--tulala-mobile-nav-h" as never]:
+              "calc(65px + env(safe-area-inset-bottom, 0px))",
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,

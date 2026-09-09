@@ -206,6 +206,7 @@ export function AdminInboxList({
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
             <button type="button"
+              data-tulala-inbox-bulk-toggle
               onClick={() => setBulkMode(b => !b)}
               title={bulkMode ? copy.t("Exit bulk select") : copy.t("Select multiple threads")}
               style={{
@@ -229,7 +230,20 @@ export function AdminInboxList({
         </div>
         <style>{`
           @media (max-width: 720px) {
-            [data-tulala-list-header] { display: none !important; }
+            /* The list header used to be hidden wholesale on mobile. It
+               carries the ONLY touch-reachable route into bulk Archive +
+               Nudge (Pin / Mark-unread / Archive otherwise live in a
+               hover-reveal pill that a touch device can never summon), so
+               hiding it stranded those actions on phones. Keep the row,
+               drop the redundant "Inbox" heading — the bottom nav already
+               labels this surface — and right-align what remains. */
+            [data-tulala-list-header] {
+              display: flex !important;
+              justify-content: flex-end !important;
+              align-items: center !important;
+              margin-bottom: 6px !important;
+            }
+            [data-tulala-list-header] > h3 { display: none !important; }
             [data-tulala-inbox-header],
             [data-tulala-inbox-search],
             [data-tulala-inbox-chips],
@@ -243,6 +257,17 @@ export function AdminInboxList({
               scrollbar-width: none !important;
             }
             [data-tulala-inbox-chips]::-webkit-scrollbar { display: none !important; }
+            /* Bulk action bar: nowrap put "Reassign" past the right edge
+               with nothing to scroll. Let it wrap and give every action a
+               thumb-sized target. */
+            [data-tulala-bulk-bar] {
+              flex-wrap: wrap !important;
+              gap: 8px !important;
+            }
+            [data-tulala-bulk-bar] button {
+              min-height: 44px !important;
+              padding-inline: 14px !important;
+            }
           }
         `}</style>
         <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
@@ -379,7 +404,7 @@ export function AdminInboxList({
           are coord+. All resolve to a toast in the prototype but the
           underlying selectedIds set is real. */}
       {bulkMode && selectedIds.size > 0 && (
-        <div style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
+        <div data-tulala-bulk-bar style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
           <span className="font-bold">
             {copy.isSpanish
               ? `${selectedIds.size} seleccionada${selectedIds.size === 1 ? "" : "s"}`

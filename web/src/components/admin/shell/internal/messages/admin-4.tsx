@@ -166,7 +166,27 @@ export function AdminMessageStream({
           reveal on hover. Touch / coarse pointer: always visible. */}
       <style dangerouslySetInnerHTML={{ __html:
         "[data-msg-bubble-group]:hover [data-msg-actions]{opacity:1!important;pointer-events:auto!important}"
-        + "@media (pointer:coarse){[data-msg-actions]{opacity:1!important;pointer-events:auto!important}}"
+        // Touch has no hover, so the row is forced visible — but it is
+        // absolutely positioned at top:-10 OVER the bubble, so on mobile
+        // it permanently covered the first line of every message. Drop it
+        // out of the overlay and let it sit under the bubble instead.
+        + "@media (pointer:coarse){"
+        // The bubble group is a flex ROW; letting it wrap lets the action
+        // row take a full-width line of its own UNDER the bubble.
+        + "[data-msg-bubble-group]{flex-wrap:wrap}"
+        + "[data-msg-actions]{opacity:1!important;pointer-events:auto!important;"
+        + "position:static!important;top:auto!important;left:auto!important;right:auto!important;"
+        // 36px of left margin ON TOP of a 100% basis overflowed the group
+        // (317px box, 353px content) and put a horizontal scrollbar under
+        // the whole stream — indent inside the box instead.
+        // It is the FIRST child in DOM order, so a plain wrap floats it
+        // ABOVE the bubble; order pushes it under the message it acts on.
+        + "flex:0 0 100%;order:9;box-sizing:border-box;justify-content:flex-start;"
+        + "margin:2px 0 0;padding-left:36px;box-shadow:none!important;"
+        + "background:transparent!important;border-color:transparent!important}"
+        // …and each glyph becomes a real touch target rather than a 28px dot.
+        + "[data-msg-actions] > *{min-width:40px;min-height:40px}"
+        + "}"
       }} />
       {firstTimeClientName && (
         <div style={{ paddingTop: 10 }}>

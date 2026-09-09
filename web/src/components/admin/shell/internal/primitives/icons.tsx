@@ -44,7 +44,8 @@ export type AdminShellIconName =
   | "image"
   | "briefcase"
   | "chart"
-  | "life-buoy";
+  | "life-buoy"
+  | "ellipsis";
 
 export function Icon({
   name,
@@ -319,6 +320,16 @@ export function Icon({
       return (
         <svg {...common}>
           <path d="M8.6 16.5H6.5A3.5 3.5 0 013 13V8.5A3.5 3.5 0 016.5 5h11A3.5 3.5 0 0121 8.5V13a3.5 3.5 0 01-3.5 3.5h-4.7l-3.5 3a.7.7 0 01-1.2-.5v-2.5z" />
+        </svg>
+      );
+    // Overflow ("More") — the conventional horizontal ellipsis. The
+    // tab used to render "info", the same (i) glyph as Settings.
+    case "ellipsis":
+      return (
+        <svg {...common}>
+          <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
         </svg>
       );
   }

@@ -403,10 +403,32 @@ export function ShellHeader({
       fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 10,
     }}>
       <style dangerouslySetInnerHTML={{ __html:
-        "@media (max-width: 520px){"
+        // Mobile (matches the messages shell's own 720px collapse, not
+        // the old 520px). The action cluster is `inline-flex; nowrap` and
+        // measured 474px inside a 281px row with overflow:visible, so the
+        // right-most control — "Move to", the stage-advance CTA — was
+        // clipped off-screen with no way to reach it.
+        //
+        // It drops to its own full-width row and SCROLLS horizontally.
+        // Wrapping instead was tried and is worse: it pushed the header to
+        // 290px of a 691px pane, leaving almost nothing for the thread.
+        // One 44px row keeps every CTA reachable and the conversation visible.
+        "@media (max-width: 720px){"
         + "[data-tulala-job-shell-header] [data-tulala-header-row1]{flex-wrap:wrap}"
         + "[data-tulala-job-shell-header] [data-tulala-header-meta]{flex:1 1 100%}"
-        + "[data-tulala-job-shell-header] [data-tulala-header-actions]{order:3;flex:1 1 100%;justify-content:flex-start;gap:8px;margin-left:36px}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions]"
+        + "{order:3;flex:1 1 100%;display:flex;flex-wrap:nowrap;justify-content:flex-start;"
+        + "gap:8px;margin-left:0;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;"
+        + "scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions]::-webkit-scrollbar{display:none}"
+        // The cluster arrives as ONE nested flex row (the caller's
+        // `rightSlot` wrapper); it has to stay nowrap inside the scroller.
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] > *{flex:0 0 auto}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] > div{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}"
+        // Real touch targets, and labels stay on one line ("Propose a
+        // time" used to wrap to two, leaving the row ragged).
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions] button"
+        + "{min-height:44px;white-space:nowrap;flex:0 0 auto}"
         + "}"
       }} />
       <div data-tulala-header-row1 style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
