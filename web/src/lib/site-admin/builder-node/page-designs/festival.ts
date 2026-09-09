@@ -27,11 +27,10 @@ import { BRICOLAGE, MANROPE } from "./tokens";
  * backgroundImage hero + a cinematic band + a portrait lineup), a P3 REPEATER
  * for the lineup (bound to `festival_lineup` with field bindings + per-slot
  * container queries + a hover-lift), a rich_text programme note with an {accent}
- * run and a safe inline link, a native `ticket_picker` for live pass sales (not
- * a static pricing_table), the `nav` node (desktop inline links + mobile
- * hamburger), a scroll-reveal on the lineup (proven by the `reveal` motion
- * frame), a lineup-card hover-lift (proven by the `hover` frame), and a
- * responsive layout that collapses to a single column.
+ * run and a safe inline link, a P2 pricing_table for pass tiers, the `nav` node
+ * (desktop inline links + mobile hamburger), a scroll-reveal on the lineup
+ * (proven by the `reveal` motion frame), a lineup-card hover-lift (proven by the
+ * `hover` frame), and a responsive layout that collapses to a single column.
  */
 
 const PHOTO = {
@@ -523,7 +522,15 @@ const festivalTree: BuilderNode[] = [
           },
         ],
       },
-      // ── Passes (native ticket_picker — live inventory, not a static table) ──
+      // ── Passes (P2 pricing_table) ───────────────────────────────────────────
+      // NOT a `ticket_picker`. This design is a TEMPLATE a tenant picks in the
+      // builder, and a template cannot carry anybody's event UUID: the picker's
+      // own rule (`configured = UUID.test(tenantId) && UUID.test(eventId)`,
+      // ticket-picker-island.tsx) turns an empty `eventId` into the honest
+      // "this block is not set up yet" placeholder, so seeding one here shipped
+      // every tenant a passes section that sells nothing. The live picker
+      // belongs on `/events/<slug>`, where `event-page-view.tsx` mounts it with
+      // a real tenant + event and a server-seeded preload.
       {
         id: "festival-passes-section",
         kind: "container",
@@ -579,11 +586,57 @@ const festivalTree: BuilderNode[] = [
           },
           {
             id: "festival-passes",
-            kind: "ticket_picker",
+            kind: "pricing_table",
             props: {
-              eventId: "",
-              title: "Pick your pass",
               style: { fontFamily: MANROPE, maxWidthFree: "1100px" },
+              tiers: [
+                {
+                  id: "day",
+                  name: "Day pass",
+                  description: "One night, all stages",
+                  price: "$89",
+                  period: "/ night",
+                  ctaLabel: "Buy day pass",
+                  ctaHref: "?inquiry=open",
+                  features: [
+                    { label: "Single-night entry", included: true },
+                    { label: "All three stages", included: true },
+                    { label: "Re-entry", included: true },
+                    { label: "Lounge access", included: false },
+                  ],
+                },
+                {
+                  id: "festival",
+                  name: "Festival",
+                  description: "All three nights",
+                  price: "$149",
+                  period: "/ weekend",
+                  ctaLabel: "Buy festival pass",
+                  ctaHref: "?inquiry=open",
+                  highlighted: true,
+                  features: [
+                    { label: "Three-night entry", included: true },
+                    { label: "All three stages", included: true },
+                    { label: "Priority lanes", included: true },
+                    { label: "Lounge access", included: true },
+                  ],
+                },
+                {
+                  id: "patron",
+                  name: "Patron",
+                  description: "Festival + the extras",
+                  price: "$320",
+                  period: "/ weekend",
+                  ctaLabel: "Become a patron",
+                  ctaHref: "?inquiry=open",
+                  features: [
+                    { label: "Everything in Festival", included: true },
+                    { label: "Backstage sessions", included: true },
+                    { label: "Limited print + tote", included: true },
+                    { label: "Named in the programme", included: true },
+                  ],
+                },
+              ],
             },
           },
         ],
