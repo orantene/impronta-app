@@ -97,6 +97,22 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    // Vercel Authentication gates every preview deployment, including the
+    // branch-bound QA hosts. The project's Protection Bypass for Automation
+    // secret lets the runner through without disabling protection for people.
+    // Set VERCEL_AUTOMATION_BYPASS_SECRET in .env.capacity-isolated.local (or
+    // the CI secret) when targeting a preview; unset for localhost runs.
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          extraHTTPHeaders: {
+            // Header only. Do NOT ask for the bypass cookie: that makes the
+            // platform answer with its own 307 + Set-Cookie, which a caller
+            // using maxRedirects:0 reads as the app's redirect and never
+            // reaches the route it asked for.
+            "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+          },
+        }
+      : {}),
   },
   projects: [
     {

@@ -113,11 +113,18 @@ export async function signInJourneysStaff(
 ): Promise<void> {
   const params = new URLSearchParams({ email, next: nextPath });
   const seen: number[] = [];
+  let setCookies: string[] = [];
   for (let attempt = 1; attempt <= SIGNIN_ATTEMPTS; attempt += 1) {
     const res = await page.request.get(`/api/dev/signin?${params.toString()}`, {
       maxRedirects: 0,
     });
-    if (res.status() === 307) break;
+    if (res.status() === 307) {
+      setCookies = res
+        .headersArray()
+        .filter((h) => h.name.toLowerCase() === "set-cookie")
+        .map((h) => h.value);
+      break;
+    }
     seen.push(res.status());
     // 404 (Turbopack briefly missing the route) and 502/503 (Next restarting
     // or the proxy's upstream gone) are the only statuses worth retrying.
@@ -133,8 +140,47 @@ export async function signInJourneysStaff(
       `gap. Start the dev server with TULALA_ALLOW_DEV_SURFACES=1 or /api/dev/* falls ` +
       `through to the storefront's not-found page.`,
   ).toBeLessThan(SIGNIN_ATTEMPTS);
+  // A response that is not followed does not always reach the browser's cookie
+  // jar (observed on a remote https origin: only the platform's own cookie was
+  // stored). The session cookie is the whole point of the call, so put it in
+  // the context explicitly rather than trusting the transfer.
+  await adoptSetCookies(page, setCookies);
   await page.goto(nextPath);
   await assertNotAuthWall(page);
+}
+
+/** Parse `Set-Cookie` headers from a non-followed response into the context. */
+async function adoptSetCookies(page: Page, headers: string[]): Promise<void> {
+  if (headers.length === 0) return;
+  const origin = new URL(
+    process.env.PLAYWRIGHT_BASE_URL ?? new URL(page.url()).origin,
+  );
+  const cookies = headers
+    .map((header) => {
+      const [pair, ...attrs] = header.split(";");
+      const eq = pair.indexOf("=");
+      if (eq <= 0) return null;
+      const attrMap = new Map(
+        attrs.map((a) => {
+          const [k, ...v] = a.trim().split("=");
+          return [k.toLowerCase(), v.join("=")] as const;
+        }),
+      );
+      const sameSiteRaw = (attrMap.get("samesite") ?? "Lax").toLowerCase();
+      const sameSite =
+        sameSiteRaw === "none" ? "None" : sameSiteRaw === "strict" ? "Strict" : "Lax";
+      return {
+        name: pair.slice(0, eq).trim(),
+        value: pair.slice(eq + 1).trim(),
+        domain: attrMap.get("domain")?.replace(/^\./, "") ?? origin.hostname,
+        path: attrMap.get("path") ?? "/",
+        httpOnly: attrMap.has("httponly"),
+        secure: attrMap.has("secure") || origin.protocol === "https:",
+        sameSite,
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+  if (cookies.length > 0) await page.context().addCookies(cookies);
 }
 
 export function skipUnlessFixture(): void {
