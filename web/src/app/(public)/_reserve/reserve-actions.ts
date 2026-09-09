@@ -172,19 +172,35 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
     // BOUNDED. A venue with every day closed must not spin: the scan stops at a
     // fixed horizon and simply returns fewer days, which the page then reports
     // as closed rather than as an empty strip with no explanation.
+    // OPEN IS NOT THE SAME AS STILL BOOKABLE, and conflating them emptied the
+    // widget every evening. `resolveWindowOnDate` answers "does this venue run
+    // a service on this date" — a question about the calendar, which knows
+    // nothing about the clock. So at 23:00 today was "open" although dinner's
+    // last seating was 20:30, today became `dates[0]`, and `availabilityForWindow`
+    // then dropped every one of its seatings for being before `now +
+    // minNotice`. The guest saw a reserve block with no times, on a night the
+    // restaurant had tomorrow wide open — during exactly the hours people book
+    // for tomorrow. It also made C06's reservation journeys fail only between
+    // last seating and local midnight, which reads as flake rather than a bug.
+    //
+    // So a day is offered when it still has a seating a guest could take. The
+    // test is vacuous for future days, whose last seating is hours or days
+    // ahead, so it applies uniformly rather than being special-cased to today.
+    const earliestBookable = now.getTime() + config.rules.minNoticeMinutes * 60_000;
     for (let i = 0; i <= DATE_STRIP_SCAN_DAYS && dates.length < DATE_STRIP_DAYS; i += 1) {
       const ymd = i === 0 ? todayInZone : addUtcDays(todayInZone, i);
       if (!ymd) continue;
-      const open = config.windows.some(
-        (window) =>
-          resolveWindowOnDate({
-            window,
-            exceptions: config.exceptions,
-            onDate: ymd,
-            timeZone: timezone,
-            defaultTurnMinutes: config.rules.defaultTurnMinutes,
-          }).ok,
-      );
+      const open = config.windows.some((window) => {
+        const resolved = resolveWindowOnDate({
+          window,
+          exceptions: config.exceptions,
+          onDate: ymd,
+          timeZone: timezone,
+          defaultTurnMinutes: config.rules.defaultTurnMinutes,
+        });
+        if (!resolved.ok) return false;
+        return resolved.window.lastSeatingAt.getTime() >= earliestBookable;
+      });
       if (open) dates.push(ymd);
     }
 
