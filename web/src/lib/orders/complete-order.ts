@@ -267,9 +267,17 @@ export async function completeOrderForTransaction(
  * F04: a free / zero-total sale completes without a fabricated charge.
  * There is no `booking_transactions` row. `onOrderPaid` still runs so
  * admissions mint exactly once.
+ *
+ * IT ALSO COMMITS THE CAPACITY, and for a while it did not. Clearing
+ * `hold_expires_at` settles the ORDER but leaves the allocation a `hold` with
+ * its own `expires_at`, and `remaining()` counts a hold only while
+ * `expires_at > now()` — so a free class registration taken at the till
+ * stopped holding its place fifteen minutes later, and
+ * `reap_capacity_allocations` then released it. Nothing failed and nothing
+ * logged; the seat was simply resellable while the registration stood.
  */
 export async function completeZeroTotalOrder(
-  admin: Pick<SupabaseClient, "from">,
+  admin: Pick<SupabaseClient, "from" | "rpc">,
   input: { tenantId: string; orderId: string },
   deps: { onOrderPaid?: OnOrderPaid } = {},
 ): Promise<CompleteOrderResult> {
@@ -300,6 +308,45 @@ export async function completeZeroTotalOrder(
     }
     if (row.status !== "draft" && row.status !== "pending_payment") {
       return { ok: false, reason: "unavailable", error: "This sale is no longer open." };
+    }
+
+    // COMMIT BEFORE THE FLIP, and refuse if the places are gone. No money has
+    // moved on a free sale, so refusing is honest and cheap — the opposite of
+    // `completeOrderForTransaction` above, which cannot refuse because a charge
+    // has already completed and alerts a human instead.
+    const zeroLineIds = (
+      (await admin.from("order_lines").select("id").eq("order_id", row.id)).data ?? []
+    ).map((l) => (l as { id: string }).id);
+    let zeroCommitted = 0;
+    if (zeroLineIds.length > 0) {
+      const { data: holdRows, error: holdErr } = await admin
+        .from("capacity_allocations")
+        .select("id")
+        .in("order_line_id", zeroLineIds)
+        .eq("state", "hold");
+      if (holdErr) {
+        logServerError("orders.completeZero/allocations", holdErr);
+        return { ok: false, reason: "unavailable", error: "Could not check those places." };
+      }
+      const holdIds = (holdRows ?? []).map((a) => (a as { id: string }).id);
+      if (holdIds.length > 0) {
+        const commit = await commitCapacity(holdIds, null, admin);
+        if (!commit.ok) {
+          logServerError(
+            "orders.completeZero/commit",
+            `order ${row.id}: free sale could not keep its places (${commit.reason}).`,
+          );
+          return {
+            ok: false,
+            reason: "unavailable",
+            error:
+              commit.reason === "expired" || commit.reason === "released"
+                ? "Those places are no longer held."
+                : "Could not keep those places.",
+          };
+        }
+        zeroCommitted = commit.committed;
+      }
     }
 
     const { data: flipped, error: flipErr } = await admin
@@ -352,7 +399,7 @@ export async function completeZeroTotalOrder(
       }
     }
 
-    return { ok: true, orderId: row.id, status: "paid", committed: 0 };
+    return { ok: true, orderId: row.id, status: "paid", committed: zeroCommitted };
   } catch (err) {
     logServerError("orders.completeZero", err);
     return { ok: false, reason: "unavailable" };

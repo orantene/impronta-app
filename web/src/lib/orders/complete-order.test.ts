@@ -13,7 +13,10 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { completeOrderForTransaction } from "@/lib/orders/complete-order";
+import {
+  completeOrderForTransaction,
+  completeZeroTotalOrder,
+} from "@/lib/orders/complete-order";
 
 type Row = Record<string, unknown>;
 
@@ -184,6 +187,82 @@ test("the flip is version-guarded, so a concurrent write cannot be clobbered", a
   assert.equal(updates.find((u) => u.table === "orders")?.version, 8);
 });
 
+
+// ── A free sale keeps what it reserved ───────────────────────────────────────
+//
+// The order side of this was right from the start: `hold_expires_at` is
+// cleared, so the ORDER is settled. The capacity side was not. An allocation
+// left as a `hold` counts towards `remaining()` only while
+// `expires_at > now()`, so a free class registration taken at the till stopped
+// holding its place fifteen minutes later and `reap_capacity_allocations`
+// released it — silently, with nothing failing and nothing logged.
+
+const freeOrder = (over: Row = {}) => ({
+  id: "o1", status: "pending_payment", total_cents: 0, version: 1, tenant_id: "t9", ...over,
+});
+
+test("a free sale commits its places rather than leaving them on a payment TTL", async () => {
+  const { updates, rpcs, admin } = fakeAdmin({ order: freeOrder(), allocations: ["a1", "a2"] });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+
+  assert.equal(r.ok, true, `expected ok, got ${JSON.stringify(r)}`);
+  assert.equal(r.ok && r.committed, 2);
+
+  const commit = rpcs.find((c) => c.fn === "commit_capacity");
+  assert.ok(commit, "settling the order is not enough — the hold has its own clock");
+  assert.deepEqual((commit.args as { p_allocation_ids?: string[] })?.p_allocation_ids, ["a1", "a2"]);
+
+  const flip = updates.find((u) => u.table === "orders");
+  assert.equal(flip?.status, "paid");
+  assert.equal(flip?.hold_expires_at, null);
+});
+
+test("a free sale whose places have already lapsed is REFUSED, not completed", async () => {
+  const { updates, admin } = fakeAdmin({
+    order: freeOrder(), allocations: ["a1"], commitFails: "expired",
+  });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+
+  // No money moved, so refusing is honest and cheap. Completing instead would
+  // hand the operator a registration for a place somebody else can now buy.
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.error, "Those places are no longer held.");
+  assert.equal(updates.find((u) => u.table === "orders"), undefined, "must not flip");
+});
+
+test("a free sale holding no capacity still completes", async () => {
+  // A $0 retail line reserves nothing. Requiring a commit here would refuse
+  // every free sale that is not a seat.
+  const { rpcs, admin } = fakeAdmin({ order: freeOrder(), allocations: [] });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.committed, 0);
+  assert.equal(rpcs.some((c) => c.fn === "commit_capacity"), false);
+});
+
+test("a free sale refuses another workspace's order", async () => {
+  const { admin } = fakeAdmin({ order: freeOrder({ tenant_id: "someone-else" }) });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "not_found");
+});
+
+test("a free sale is idempotent, and re-committing is not attempted", async () => {
+  const { rpcs, updates, admin } = fakeAdmin({
+    order: freeOrder({ status: "paid" }), allocations: ["a1"],
+  });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+  assert.equal(r.ok && r.status, "paid");
+  assert.deepEqual(updates, []);
+  assert.deepEqual(rpcs, []);
+});
+
+test("a sale that is NOT free is refused here — this path fabricates no charge", async () => {
+  const { admin } = fakeAdmin({ order: freeOrder({ total_cents: 1800 }) });
+  const r = await completeZeroTotalOrder(admin, { tenantId: "t9", orderId: "o1" });
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.error, "This sale is not free.");
+});
 
 // ── The onOrderPaid seam ────────────────────────────────────────────────────
 

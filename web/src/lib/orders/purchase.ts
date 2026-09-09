@@ -3,10 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
-import {
-  releaseCapacity,
-  capacityHoldTtlSeconds,
-} from "@/lib/capacity";
+import { releaseCapacity, capacityHoldTtlSeconds } from "@/lib/capacity";
 import {
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
@@ -26,6 +23,7 @@ import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
+import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -288,6 +286,11 @@ export async function createPurchase(
       promoCodeId = resolved.codeId;
     }
 
+    // One name for what the order costs, because the settle decision at step 9
+    // asks the same question the insert answers and the two must not drift.
+    // `orders_total_is_derived` refuses a row where they do.
+    const totalCents = priced.subtotalCents - promoDiscountCents;
+
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
       .insert({
@@ -298,7 +301,7 @@ export async function createPurchase(
         subtotal_cents: priced.subtotalCents,
         discount_cents: promoDiscountCents,
         tax_cents: 0,
-        total_cents: priced.subtotalCents - promoDiscountCents,
+        total_cents: totalCents,
         // Public receipt identifier for `/r/<code>`. Assigned HERE because the
         // column is meaningless until an order exists to be shown, and this is
         // the one place an order is created.
@@ -673,30 +676,30 @@ export async function createPurchase(
       createdTransactionId = transactionId;
     }
 
-    // `paid` is reachable ONLY from a webhook or an explicit staff
-    // pay-in-person action. Nothing in this function writes it — which is the
-    // single rule the menu engine breaks when it force-writes state to get past
-    // a gate. A zero-collect card/free order is `paid` because there is
-    // nothing to collect. A door hold is the opposite: collect is "none"
-    // until someone is standing there, so it MUST stay pending_payment or
+    // `paid` is reachable ONLY from a webhook, an explicit staff pay-in-person
+    // action, or an order that owes nothing — which is the single rule the menu
+    // engine breaks when it force-writes state to get past a gate. A door hold
+    // is the case that must NOT settle: collect is "none" until someone is
+    // standing there, but $20 is still owed, so it stays pending_payment or
     // `loadHeldDoorOrders` cannot see it and `settleAtDoor` refuses `not_held`.
-    const nextStatus = policy.payInPerson || collectCents > 0 ? "pending_payment" : "paid";
+    // `settleOrHoldOrder` is where "collected nothing" is told apart from
+    // "owes nothing", and where a settled order's capacity is committed rather
+    // than left to lapse.
+    const settlement = await settleOrHoldOrder(admin, {
+      payInPerson: policy.payInPerson,
+      collectCents,
+      totalCents,
+      heldAllocationIds,
+      holdTtlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+    });
+    if (!settlement.ok) {
+      await unwind(settlement.note);
+      return { ok: false, reason: settlement.reason };
+    }
 
     const { error: statusErr } = await admin
       .from("orders")
-      .update({
-        status: nextStatus,
-        // The SHORTEST hold across the lines. The order expires when its first
-        // allocation does — anything later would leave the order claiming a
-        // hold it no longer has. Door holds use the session-end TTL already
-        // resolved above.
-        hold_expires_at:
-          (policy.payInPerson || collectCents > 0) && heldAllocationIds.length > 0
-            ? new Date(
-                Date.now() + (shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS) * 1000,
-              ).toISOString()
-            : null,
-      })
+      .update(settlement.patch)
       .eq("id", createdOrderId)
       .eq("status", "draft");
 
