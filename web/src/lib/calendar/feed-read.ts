@@ -23,7 +23,6 @@ import "server-only";
  *     caller-supplied filter that could widen them.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   CANCELLED_RETENTION_DAYS,
@@ -32,7 +31,10 @@ import {
   type FeedEvent,
 } from "./ics-feed";
 
-type Admin = SupabaseClient<never, never, never>;
+type Admin = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
 
 const DAY_MS = 86_400_000;
 

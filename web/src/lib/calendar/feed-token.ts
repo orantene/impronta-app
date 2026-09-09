@@ -21,7 +21,6 @@ import "server-only";
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 
 /** Long enough that a guess is not a strategy, short enough to fit a URL bar. */
@@ -37,7 +36,12 @@ export type MintedFeedToken = {
   createdAt: string;
 };
 
-type Admin = SupabaseClient<never, never, never>;
+type Admin = {
+  // `calendar_feed_tokens` is newer than the generated database.types.ts, and
+  // tests inject a fake PostgREST builder. Same seam as expire-orders.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
 
 /**
  * Mint a subscription token for one operator on one workspace, replacing
