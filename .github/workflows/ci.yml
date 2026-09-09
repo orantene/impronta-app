@@ -409,6 +409,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:migration-collisions
 
+      # The splitter the isolated-branch repair depends on. It decides what one
+      # statement is, and getting a dollar-quoted plpgsql body wrong would make
+      # a replay report success over a half-applied schema.
+      - name: tests — migration replay tooling
+        if: ${{ !cancelled() }}
+        run: npm run test:migration-tooling
+
       - name: tests — notifications
         if: ${{ !cancelled() }}
         run: npm run test:notifications
@@ -430,6 +437,37 @@ jobs:
       - name: tests — capacity engine
         if: ${{ !cancelled() }}
         run: npm run test:capacity
+
+      # The M0 reliability layer: command envelope, transactional outbox and the
+      # Exceptions inbox that reads what they leave behind. Pure, against fakes
+      # that enforce the two schema properties the behaviour depends on — the
+      # unique index on (tenant, command, idempotency key) and the partial
+      # unique index on the outbox dedupe key. The races ARE the subject here (a
+      # double-tapped button, a key reused with different arguments, a retried
+      # enqueue) and a real Postgres cannot hold an interleaving still enough to
+      # assert on. The exceptions half additionally pins the one classification
+      # whose failure mode is a second refund.
+      - name: tests — command envelope, outbox and exceptions
+        if: ${{ !cancelled() }}
+        run: npm run test:commands
+
+      # The M0 design system: the ImpactPreview model (which decides whether a
+      # destructive confirm is offered at all) and the catalog coverage ratchet
+      # that keeps the axe lane's subject list honest. Pure — no DOM here.
+      - name: tests — design system model and catalog coverage
+        if: ${{ !cancelled() }}
+        run: npm run test:design-system
+
+      # axe-core over every variant in the component catalog, one mount each.
+      # The plan's finding was "no axe in CI"; this is the answer to it, and it
+      # is deliberately aimed at PRIMITIVES rather than pages — a page-level
+      # sweep tells you a screen is broken, this tells you which component is.
+      # It found a real `role="alert"` on a <ul> in the first component it ran
+      # against, which is the sort of defect no screenshot and no type ever
+      # catches.
+      - name: tests — axe (component catalog)
+        if: ${{ !cancelled() }}
+        run: npm run test:axe
 
       # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
       # the status moves (cancelled is terminal), doors as an OFFSET so it never
@@ -570,3 +608,20 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           NODE_OPTIONS: --max-old-space-size=8192
         run: npx next build
+
+      # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
+      # MUST follow the build: it reads `.next/app-build-manifest.json`, which
+      # is the bundler's own account of which chunks each route loads. The
+      # builder perf budget above covers seven static designs; these are the two
+      # surfaces where weight is actually paid — an admin shell opened forty
+      # times a day and a register downloaded by a tablet on venue wifi at the
+      # start of every shift. Neither had a ceiling before.
+      #
+      # The self-test runs FIRST, so a gate that has quietly stopped measuring
+      # (a moved route, a stale prefix, a manifest shape change) fails as a
+      # broken gate rather than passing as a clean bundle.
+      - name: perf — admin and POS bundle budget
+        if: ${{ !cancelled() }}
+        run: |
+          npm run perf:app-budget:selftest
+          npm run perf:app-budget

@@ -93,6 +93,9 @@
     "src/app/api/cron/expire-calendar-holds/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/expire-orders/route.ts": {
+      "maxDuration": 30
+    },
     "src/app/api/cron/materialise-sessions/route.ts": {
       "maxDuration": 60
     },
@@ -240,6 +243,14 @@
     {
       "path": "/api/cron/ticket-refund-intents",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-orders",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/outbox",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -29,7 +29,8 @@ export const OFFERING_PRICE_DISPLAYS: readonly OfferingPriceDisplay[] = ["exact"
 /**
  * How the TALENT chose to sell this offering:
  *  - request: inquiry → chat → offer → booking (human-confirmed; default)
- *  - instant: direct booking / reserve right away (fixed price required)
+ *  - instant: direct booking / reserve right away (one exact price required,
+ *    including $0 — complimentary class, table hold, free GA)
  */
 export type OfferingBookingMode = "request" | "instant";
 export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant"];
@@ -303,12 +304,12 @@ export function validateOffering(o: TalentOffering): string[] {
   const errors: string[] = [];
   if (!str(o.title, MAX_TITLE)) errors.push("Give it a name (e.g. “60-min massage”).");
   const quoteOnly = o.priceDisplay === "quote" || o.priceType === "custom";
-  if (!quoteOnly && (o.amountCents == null || o.amountCents <= 0)) {
+  if (!quoteOnly && (o.amountCents == null || o.amountCents < 0)) {
     errors.push(`“${o.title || "This service"}” needs a price — or switch it to “Contact for price.”`);
   }
   if (o.bookingMode === "instant") {
-    if (quoteOnly || o.amountCents == null || o.amountCents <= 0 || o.priceDisplay !== "exact") {
-      errors.push(`Direct booking needs one fixed price — set an exact amount on “${o.title}” or switch it to “Inquiry to book.”`);
+    if (quoteOnly || o.amountCents == null || o.amountCents < 0 || o.priceDisplay !== "exact") {
+      errors.push(`Direct booking needs one exact price — set an amount on “${o.title}” (zero is free) or switch it to “Inquiry to book.”`);
     }
   }
   if (o.bookingMode === "instant" && o.reserveMode === "deposit" && (o.depositPct == null || o.depositPct <= 0 || o.depositPct >= 100)) {
@@ -330,9 +331,10 @@ export function resolveOfferingCta(
 }
 
 /**
- * SERVER GUARD: may this offering be charged via the direct/instant path?
- * A quote/custom/on-request/draft offering is uncharge-able by construction —
- * the ONLY path to money for those is a human-composed offer.
+ * SERVER GUARD: may this offering be taken via the direct/instant path?
+ * A quote/custom/on-request/draft offering is unbookable by construction —
+ * the ONLY path for those is a human-composed offer. Zero is a price (free).
+ * Null is not.
  */
 export function offeringIsDirectlyBookable(
   o: Pick<
@@ -348,7 +350,7 @@ export function offeringIsDirectlyBookable(
     o.priceType !== "custom" &&
     o.priceDisplay === "exact" &&
     o.amountCents != null &&
-    o.amountCents > 0
+    o.amountCents >= 0
   );
 }
 

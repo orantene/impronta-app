@@ -4,6 +4,28 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-09-08 — L52 occupancy column
+
+**Clarification, not a reopen.** `orders.space_id` remains the physical table (`spaces.id`). Occupancy and QR identity live on `visits` and `orders.visit_id`. Stuffing a visit UUID into `space_id` would collide with the space identity that column was reserved for. One visit still has one order until bill-splitting proves otherwise.
+
+---
+
+## 2026-09-08 — 48 journeys program: shared contracts
+
+**L52 — The existing `orders` row is the commercial record.** Visit/occupancy, payment attempt, payment allocation, and preparation ticket are separate concepts. No parallel "check" entity. `orders.space_id` is the visit link. A multi-order visit record is deferred until a case proves it.
+
+**L53 — POS uses a seven-command boundary**, not `createPurchase` per button press: `createDraftOrder`, line mutation, `repriceAndValidate`, `submitToPreparation`, `startCollection`, `recordVerifiedCollection`, `finalizeOrCancel`. Promotion and capacity attach to reprice and collection, never to line mutation.
+
+**L54 — Multi-resource booking is one transactional command** across `talent_holds` and capacity pools. All-or-nothing, consistent lock order, bounded deadlock retry. No person-capacity migration.
+
+**L55 — Refund effects are five related decisions**, not one action: partial price keep entitlement; cancel one ticket (revoke + release); refund after service as adjustment; revoke unused admission (refund optional); refund one hybrid component. The UI states the effect before confirmation.
+
+**L56 — Theme layers stay separate:** business type (primary + secondary activities), vocabulary, enabled capabilities (server-side), operational starting view. Roster visibility follows capabilities and relationships, never a solo assumption. Catalog page stable ID is `catalog`.
+
+Full text: [`docs/plans/program/decisions.md`](plans/program/decisions.md).
+
+---
+
 ## 2026-08-30 — Tulala Agent foundations: derived identity, and the Brief
 
 **L50 — Identity is derived from which objects exist. No permanent user-type field may be added.**

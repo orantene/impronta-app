@@ -41,15 +41,16 @@ const src = raw
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^[^\n]*?\/\/.*$/gm, "");
 
-test("BOTH branches record through the same after()-guarded helper", () => {
+test("paused, table-visit, and default-target branches record through the same after()-guarded helper", () => {
   // A refusal is a scan, so the paused path must record with the same
-  // guarantees as the resolved one. Two call sites with their own copies would
-  // drift, and the paused branch — being rarer — is the copy that would
-  // silently lose the after() and start dropping rows nobody looks at.
+  // guarantees as the resolved ones. Call sites with their own copies would
+  // drift, and the rarer branch is the copy that would silently lose after()
+  // and start dropping rows nobody looks at.
   // Count CALL sites only — `recordScanInBackground({` — not the definition,
   // which also matches a bare `recordScanInBackground(`.
+  // Three: paused, table-kind visit redirect, ordinary destination.
   const calls = [...src.matchAll(/recordScanInBackground\(\{/g)].length;
-  assert.equal(calls, 2, `expected both branches to call the helper, found ${calls}`);
+  assert.equal(calls, 3, `expected paused + table-visit + default-target to call the helper, found ${calls}`);
   assert.match(src, /function recordScanInBackground/);
 });
 

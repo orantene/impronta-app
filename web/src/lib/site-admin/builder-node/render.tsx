@@ -5450,6 +5450,13 @@ function renderBuilderNodeElement(
     // render from server-resolved `dataSources.menuOfferings`; the render path
     // never fetches, and an absent / empty source must still produce a visible
     // empty state rather than a blank page.
+    //
+    // The server list is the CONTENT — item names and prices are what a
+    // restaurant is indexed on, so they stay in the server HTML rather than
+    // moving behind a client fetch the way `ticket_picker`, `session_picker`
+    // and `reserve_table` do. What decays (price, stock) is re-read by the
+    // island after paint; see `menu-board-actions.ts` for why that split, and
+    // why a re-read never reorders or re-groups what is emitted here.
     case "menu_board": {
       const p = node.props;
       const offerings = options.dataSources.menuOfferings ?? [];
@@ -5600,6 +5607,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
+            locale={options.contentLocale?.locale}
           />
         </section>
       );

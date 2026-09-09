@@ -67,12 +67,18 @@ export async function loadWorkspaceOrders(
     source_channel: string;
     created_at: string;
     inquiry_id: string | null;
-    customer_id: string;
+    customer_id: string | null;
   }>;
   if (orders.length === 0) return { ok: true, rows: [] };
 
   const orderIds = orders.map((o) => o.id);
-  const customerIds = [...new Set(orders.map((o) => o.customer_id))];
+  const customerIds = [
+    ...new Set(
+      orders
+        .map((o) => o.customer_id)
+        .filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)),
+    ),
+  ];
 
   // Three reads rather than one nested select. The joins here cross an RLS
   // boundary and a nested PostgREST select silently returns null for a row the
@@ -85,7 +91,9 @@ export async function loadWorkspaceOrders(
       .select("order_id, gross_amount_cents")
       .in("order_id", orderIds)
       .eq("status", PAID),
-    admin.from("customers").select("id, display_name, email").in("id", customerIds),
+    customerIds.length > 0
+      ? admin.from("customers").select("id, display_name, email").in("id", customerIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (linesRes.error || txRes.error || custRes.error) {
@@ -113,7 +121,7 @@ export async function loadWorkspaceOrders(
   }
 
   const rows: OrderListRow[] = orders.map((o) => {
-    const cust = customers.get(o.customer_id) ?? null;
+    const cust = o.customer_id ? customers.get(o.customer_id) ?? null : null;
     return {
       id: o.id,
       status: o.status,

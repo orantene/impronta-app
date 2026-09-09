@@ -116,19 +116,21 @@ export default async function DirectoryPage() {
     return (
       <>
         <DiscoveryStateBridge savedIds={initialSavedIds} />
-        <Suspense fallback={null}>
-          <DirectoryInquiryUrlSync />
-        </Suspense>
         {/* Assigned directory served through the full storefront renderer. Pass
             mountChatLauncher={false} and mount the launcher here with the
             directory sourcePage so it gates on show_on_directory (CmsPublicPage's
             own generic /p mount would gate enabled-only and double up). The
-            discovery/inquiry providers come from (public)/layout.tsx. */}
+            discovery/inquiry providers come from (public)/layout.tsx. UrlSync
+            sits after the launcher so ?inquiry=open cannot consume the cue
+            before registerChatLauncher. */}
         <CmsPublicPage
           params={Promise.resolve({ slug: [assignedDirectorySlug] })}
           mountChatLauncher={false}
         />
         <AgencyChatLauncherMount sourcePage="/directory" />
+        <Suspense fallback={null}>
+          <DirectoryInquiryUrlSync />
+        </Suspense>
       </>
     );
   }
@@ -143,9 +145,6 @@ export default async function DirectoryPage() {
       <PublicHeader />
       <DirectoryAnalyticsMount locale={locale} />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
-      <Suspense fallback={null}>
-        <DirectoryInquiryUrlSync />
-      </Suspense>
       {directorySectionPage?.snapshot ? (
         <main className="flex-1">
           <HomepageCmsSections
@@ -168,6 +167,9 @@ export default async function DirectoryPage() {
       {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
           tenant's guest-chat settings (enabled + show-on-directory). */}
       <AgencyChatLauncherMount sourcePage="/directory" />
+      <Suspense fallback={null}>
+        <DirectoryInquiryUrlSync />
+      </Suspense>
     </>
   );
 }

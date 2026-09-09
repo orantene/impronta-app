@@ -18,9 +18,12 @@ import test from "node:test";
 
 import {
   MAX_QTY,
+  REFRESH_MIN_INTERVAL_MS,
   fill,
   isSoldOut,
   maxAddableQty,
+  mergeLiveOfferings,
+  reconcileQuantities,
   shouldPayInPerson,
 } from "./menu-board-stock";
 
@@ -102,4 +105,87 @@ test("no cart is persisted server-side, whatever the tenant", async () => {
   } finally {
     if (realWindow !== undefined) (globalThis as Record<string, unknown>).window = realWindow;
   }
+});
+
+// ── Live refresh (defect 8: the board could paint stale prices and stock) ────
+//
+// `menu_board` is the one commerce block that resolves server-side; the other
+// three self-fetch. So the numbers on screen were frozen at render time while
+// stock decayed underneath them, and the customer found out at submit — after
+// filling in name, email and phone. These rules govern the re-read that closed
+// that, and the property they all defend is that a refresh may only make the
+// board TRUER, never rearrange it and never invent a control.
+
+const dish = (
+  id: string,
+  unitsLeft: number | null = null,
+  amountCents = 1000,
+) => ({
+  id,
+  title: id,
+  description: null,
+  amountCents,
+  currency: "MXN",
+  priceType: "fixed",
+  priceDisplay: "fixed",
+  kind: "product",
+  unitsLeft,
+  allowPayInPerson: true,
+});
+
+test("a live re-read replaces price and stock in place", () => {
+  const merged = mergeLiveOfferings(
+    [dish("a", 5, 1000), dish("b", null, 2000)],
+    [dish("b", null, 2500), dish("a", 1, 1200)],
+  );
+  assert.deepEqual(
+    merged.map((o) => o.id),
+    ["a", "b"],
+    "the server's sort_order survives a refresh that returns a different order",
+  );
+  assert.equal(merged[0].unitsLeft, 1);
+  assert.equal(merged[0].amountCents, 1200);
+  assert.equal(merged[1].amountCents, 2500);
+});
+
+test("an item the refresh no longer returns leaves the board", () => {
+  const merged = mergeLiveOfferings([dish("a"), dish("b")], [dish("a")]);
+  assert.deepEqual(merged.map((o) => o.id), ["a"]);
+});
+
+test("an item published since render is NOT appended", () => {
+  // It has no server-rendered <li>, so appending would put a quantity stepper
+  // under a dish that appears nowhere on the menu above it.
+  const merged = mergeLiveOfferings([dish("a")], [dish("a"), dish("new")]);
+  assert.deepEqual(merged.map((o) => o.id), ["a"]);
+});
+
+test("a refresh that changes nothing returns the same quantities object", () => {
+  // Identity, not equality: the caller bails out of setState on it, and a new
+  // object every tab focus is a re-render plus a sessionStorage write for a
+  // board that did not move.
+  const held = { a: 2 };
+  assert.equal(reconcileQuantities(held, [dish("a", 10)]), held);
+});
+
+test("a cart is clamped down to what stock now allows", () => {
+  assert.deepEqual(reconcileQuantities({ a: 6 }, [dish("a", 2)]), { a: 2 });
+});
+
+test("a line that sold out while the page sat open is dropped from the cart", () => {
+  assert.deepEqual(reconcileQuantities({ a: 3, b: 1 }, [dish("a", 0), dish("b", null)]), {
+    b: 1,
+  });
+});
+
+test("a cart line for a delisted item does not survive the merge", () => {
+  const offerings = mergeLiveOfferings([dish("a"), dish("b")], [dish("a")]);
+  assert.deepEqual(reconcileQuantities({ a: 1, b: 4 }, offerings), { a: 1 });
+});
+
+test("the refresh floor is long enough to collapse a burst and short enough to be honest", () => {
+  // pageshow + visibilitychange + mount all fire within a few ms of one back
+  // button press; without a floor that is three identical round trips.
+  assert.ok(REFRESH_MIN_INTERVAL_MS >= 5_000, "must actually collapse the burst");
+  assert.ok(REFRESH_MIN_INTERVAL_MS <= 60_000, "a minute-old price is a wrong price");
 });

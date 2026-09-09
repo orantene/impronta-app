@@ -57,16 +57,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function PublicEventPage({ params }: Params) {
   const { slug } = await params;
   const scope = await getPublicTenantScope();
-  if (!scope) notFound();
+  if (!scope) {
+    logServerError("events.publicDetail", new Error("no public tenant scope"));
+    notFound();
+  }
   const supabase = await createClient();
-  if (!supabase) notFound();
+  if (!supabase) {
+    logServerError("events.publicDetail", new Error("createClient returned null"));
+    notFound();
+  }
 
   const { data: event, error: eventErr } = await supabase
     .from("events")
     .select("id, slug, title, description, doors_offset_minutes, age_gate, refund_cutoff_hours, venue_id, offering_id, cover_media_id")
     .eq("tenant_id", scope.tenantId).eq("status", "published").eq("slug", slug).maybeSingle();
   if (eventErr) { logServerError("events.publicDetail", eventErr); notFound(); }
-  if (!event) notFound();
+  if (!event) {
+    logServerError("events.publicDetail", new Error(`no published event for slug=${slug} tenant=${scope.tenantId}`));
+    notFound();
+  }
 
   const [{ data: sessionRows, error: sessionErr }, ctx, { data: cover, error: coverErr }] = await Promise.all([
     supabase.from("sessions").select("id, starts_at, ends_at, status").eq("event_id", event.id as string).eq("status", "scheduled").order("starts_at", { ascending: true }),

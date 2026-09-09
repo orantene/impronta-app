@@ -160,6 +160,19 @@ export async function publishPageSnapshot(input: {
     return { ok: false, error: "You don't have permission to publish this page." };
   }
 
+  // Server-side preflight — the drawer already refuses on error severity; this
+  // closes the path that skipped the drawer (direct action / automation).
+  const { runPublishPreflight } = await import("./publish-preflight-action");
+  const { preflightBlocksPublish } = await import("./publish-preflight-gate");
+  const preflight = await runPublishPreflight({
+    pageId: input.pageId,
+    surfaceKind: "cms_page",
+  });
+  if (preflight.ok) {
+    const gate = preflightBlocksPublish(preflight.issues);
+    if (gate.blocked) return { ok: false, error: gate.message };
+  }
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };
 

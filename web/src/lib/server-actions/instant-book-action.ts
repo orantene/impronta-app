@@ -8,10 +8,13 @@
  * service-role client (auth.role() = service_role).
  */
 
+import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { createPurchase } from "@/lib/orders/purchase";
 import { loadOfferingCapacityPoolId } from "@/lib/orders/purchase-catalog";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
   convertClientForActor,
@@ -19,7 +22,11 @@ import {
   notifyGuestInstantBooking,
   resolveInstantBookActor,
 } from "@/lib/scheduling/instant-book-guest";
+import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
+import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 
 export type InstantBookFormPayload = {
   talentProfileId: string;
@@ -110,6 +117,99 @@ export async function createInstantBookingAction(
         }
         const poolId = pool.poolId;
 
+        const { data: offeringPolicy, error: offeringPolicyErr } = await tenantScopedQuery(
+          convertClient,
+          "talent_offerings",
+          engineInput.tenantId,
+        )
+          .select("reserve_mode, attributes")
+          .eq("id", offeringId)
+          .maybeSingle();
+        if (offeringPolicyErr) {
+          logServerError("instantBookAction.reserveMode", offeringPolicyErr);
+          return {
+            ok: false as const,
+            reason: "engine_error" as const,
+            error: "We could not confirm how this is paid. Please try again.",
+          };
+        }
+
+        const reservation = payload.reservation;
+        const resourceSet = parseOfferingResourceSet(
+          (offeringPolicy as { attributes?: unknown } | null)?.attributes,
+        );
+        const companionIds = resourceSet.companionTalentIds.filter(
+          (id) => id !== engineInput.talentProfileId,
+        );
+        if (companionIds.length > 0) {
+          const { data: roster, error: rosterErr } = await tenantScopedQuery(
+            convertClient,
+            "agency_talent_roster",
+            engineInput.tenantId,
+          )
+            .select("talent_profile_id")
+            .in("talent_profile_id", companionIds)
+            .eq("status", "active");
+          if (rosterErr) {
+            logServerError("instantBookAction.companions", rosterErr);
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "We could not confirm who this treatment needs.",
+            };
+          }
+          const onRoster = new Set(
+            ((roster ?? []) as Array<{ talent_profile_id: unknown }>).map((r) =>
+              String(r.talent_profile_id),
+            ),
+          );
+          if (companionIds.some((id) => !onRoster.has(id))) {
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "That treatment is missing a therapist.",
+            };
+          }
+        }
+
+        const capacity: Array<{
+          offeringId: string;
+          poolId: string;
+          units: number;
+          startsAt?: string;
+          endsAt?: string;
+        }> = [];
+        if (poolId) {
+          capacity.push({
+            offeringId,
+            poolId,
+            units: payload.quantity ?? 1,
+            ...(reservation
+              ? { startsAt: reservation.startsAt, endsAt: reservation.endsAt }
+              : {}),
+          });
+        }
+        if (resourceSet.spaceId && reservation) {
+          const room = await spaceCapacityPool(convertClient, {
+            tenantId: engineInput.tenantId,
+            spaceId: resourceSet.spaceId,
+          });
+          if (!room.ok) {
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "That treatment room is not on sale.",
+            };
+          }
+          capacity.push({
+            offeringId,
+            poolId: room.poolId,
+            units: 1,
+            startsAt: reservation.startsAt,
+            endsAt: reservation.endsAt,
+          });
+        }
+
         const booked = await createPurchase(convertClient, {
           tenantId: engineInput.tenantId,
           // Per CART. Stable for one attempt at one offering by one buyer, so a
@@ -132,23 +232,35 @@ export async function createInstantBookingAction(
           // INTENT, never policy. The pipeline re-derives reserve_mode,
           // deposit_pct, allow_pay_in_person and require_account_to_book from
           // the offering row and refuses if the client's choice disagrees.
-          paymentChoice: payload.payInPerson === true ? "in_person" : "full",
+          // A deposit offering used to send "full" and charge the whole total.
+          paymentChoice: instantBookPaymentChoice(
+            payload.payInPerson,
+            (offeringPolicy as { reserve_mode?: string | null } | null)?.reserve_mode,
+          ),
           sourceChannel: "instant_book",
           sourcePage: payload.sourcePage ?? null,
-          capacity: poolId
-            ? [{ offeringId, poolId, units: payload.quantity ?? 1 }]
-            : undefined,
+          capacity: capacity.length > 0 ? capacity : undefined,
           // The calendar slot, when this purchase takes someone's time. Capacity
           // and the slot are two different questions and both are on the
           // pipeline's unwind ledger.
-          reservation: payload.reservation
+          reservation: reservation
             ? {
                 talentProfileId: engineInput.talentProfileId,
-                startsAt: payload.reservation.startsAt,
-                endsAt: payload.reservation.endsAt,
+                startsAt: reservation.startsAt,
+                endsAt: reservation.endsAt,
                 poolId,
               }
             : null,
+          // Several people (couples). Reserved with the primary slot as one set.
+          holds:
+            reservation && companionIds.length > 0
+              ? companionIds.map((talentProfileId) => ({
+                  talentProfileId,
+                  startsAt: reservation.startsAt,
+                  endsAt: reservation.endsAt,
+                  title: "Couples therapist",
+                }))
+              : undefined,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
         });
@@ -174,7 +286,43 @@ export async function createInstantBookingAction(
             error: booked.error,
           };
         }
-        return { ok: true, inquiryId: booked.inquiryId ?? "", bookingId: booked.bookingId ?? "" };
+        let checkoutUrl: string | null = null;
+        if (booked.collectCents > 0 && booked.transactionId && booked.bookingId) {
+          const hdrs = await headers();
+          const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost";
+          const proto = hdrs.get("x-forwarded-proto") ?? "https";
+          const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+          const session = await createCheckoutSessionForTransaction({
+            transactionId: booked.transactionId,
+            amountCents: booked.collectCents,
+            currency: operatingCurrency || "USD",
+            payerEmail: engineInput.contactEmail,
+            inquiryId: booked.inquiryId ?? null,
+            bookingId: booked.bookingId,
+            successUrl: `${origin}/checkout/success`,
+            cancelUrl: `${origin}/checkout/cancel`,
+            description: "Booking deposit",
+            locale: await getRequestLocale(),
+          });
+          if (!session.ok) {
+            logServerError(
+              "instantBookAction.checkout",
+              new Error(session.error ?? "checkout session failed"),
+            );
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: session.error ?? "Could not open payment.",
+            };
+          }
+          checkoutUrl = session.url;
+        }
+        return {
+          ok: true,
+          inquiryId: booked.inquiryId ?? "",
+          bookingId: booked.bookingId ?? "",
+          checkoutUrl,
+        };
       },
       notifyGuest: async (resolved) => {
         await notifyGuestInstantBooking({

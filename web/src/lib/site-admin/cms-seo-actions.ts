@@ -29,13 +29,16 @@ import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { pageSlugSchema } from "@/lib/site-admin/forms/pages";
 import { reservedSlugMessage } from "@/lib/site-admin/reserved-routes";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
+import { CMS_PATH_SEGMENT } from "@/lib/cms/paths";
 import {
   jsonLdDocumentToEditorText,
   normalizeRedirectPair,
+  normalizeRedirectPath,
   parsePageJsonLd,
   type JsonLdDocument,
 } from "@/lib/site-admin/cms-seo";
@@ -131,6 +134,37 @@ export async function savePageSlugAction(input: {
   // quickRenamePageAction (admin-site-pages-inline.ts) — this SEO-panel path
   // was the one rename surface that skipped the reconcile.
   await reconcileRolesOnSlugChange(scope.tenantId, row.slug, slug);
+
+  // AUTOMATIC REDIRECT. The revisions panel promises that renaming a published
+  // URL leaves the old path working. Manual redirects existed; this is the
+  // missing automatic insert. Paths are `/p/<slug>` (storefront CMS grammar).
+  // Failures here must not roll back the slug change — the new URL is already
+  // live — but they are logged so a missing redirect is diagnosable.
+  const oldPath = normalizeRedirectPath(`/${CMS_PATH_SEGMENT}/${row.slug.replace(/^\/+/, "")}`);
+  const newPath = normalizeRedirectPath(`/${CMS_PATH_SEGMENT}/${slug.replace(/^\/+/, "")}`);
+  if (oldPath.ok && newPath.ok && oldPath.value !== newPath.value) {
+    const { data: existingRedirect } = await admin
+      .from("cms_redirects")
+      .select("id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("old_path", oldPath.value)
+      .eq("active", true)
+      .maybeSingle<{ id: string }>();
+    if (!existingRedirect) {
+      const { error: redirectErr } = await admin.from("cms_redirects").insert({
+        tenant_id: scope.tenantId,
+        old_path: oldPath.value,
+        new_path: newPath.value,
+        status_code: 301,
+        active: true,
+        created_by: auth.user.id,
+      });
+      if (redirectErr) {
+        // Unique race or CHECK: leave the slug change intact.
+        logServerError("cms-seo.savePageSlug/redirect", redirectErr);
+      }
+    }
+  }
 
   updateTag(tagFor(scope.tenantId, "pages", { id: input.pageId }));
   updateTag(tagFor(scope.tenantId, "pages-all"));

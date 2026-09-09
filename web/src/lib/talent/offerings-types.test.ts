@@ -82,9 +82,11 @@ describe("validateOffering", () => {
     o.priceDisplay = "quote";
     assert.deepEqual(validateOffering(o), []); // contact-for-price is valid without amount
   });
-  it("instant booking demands one exact fixed price", () => {
+  it("instant booking demands one exact price, including free", () => {
     const o = { ...blankOffering("t1", "USD", 0), title: "Fade", bookingMode: "instant" as const };
     assert.ok(validateOffering(o).length > 0); // no amount
+    o.amountCents = 0;
+    assert.deepEqual(validateOffering(o), []);
     o.amountCents = 4000;
     assert.deepEqual(validateOffering(o), []);
     o.priceDisplay = "from";
@@ -110,7 +112,7 @@ describe("resolveOfferingCta + offeringIsDirectlyBookable (the money guard)", ()
     assert.equal(offeringIsDirectlyBookable({ ...ok, status: "draft" }), false);
     assert.equal(offeringIsDirectlyBookable({ ...ok, visibility: "agency_only" }), false);
     assert.equal(offeringIsDirectlyBookable({ ...ok, amountCents: null }), false);
-    assert.equal(offeringIsDirectlyBookable({ ...ok, amountCents: 0 }), false);
+    assert.equal(offeringIsDirectlyBookable({ ...ok, amountCents: 0 }), true);
     assert.equal(offeringIsDirectlyBookable({ ...ok, bookingMode: "request" }), false);
   });
 });

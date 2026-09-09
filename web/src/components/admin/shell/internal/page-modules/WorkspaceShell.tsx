@@ -106,9 +106,11 @@ export function WorkspaceShell() {
 // the agency plan at the rail (the in-page gate stays as the backstop).
 const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
   { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "sessions", "reservations", "clients"] },
-  { label: "Sell and grow", pages: ["menu", "events", "roster", "pitches", "reviews", "analytics"] },
-  { label: "Site", pages: ["website", "media"] },
+  { label: "Operate", pages: ["messages", "calendar", "sales", "clients"] },
+  { label: "Sell", pages: ["menu", "sessions", "reservations", "events", "discounts"] },
+  { label: "People & Spaces", pages: ["roster", "tables"] },
+  { label: "Grow", pages: ["website", "media", "reviews"] },
+  { label: "Manage", pages: ["analytics", "preparation"] },
 ];
 
 function buildSidebarGroups(
@@ -144,6 +146,11 @@ const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
   website: "globe",
   media: "image",
   settings: "settings",
+  sales: "credit",
+  pos: "credit",
+  discounts: "bolt",
+  tables: "layers",
+  preparation: "layers",
 };
 
 function SidebarNavButton({
@@ -277,6 +284,26 @@ function WorkspaceSidebarShell() {
         count: item.count,
       }));
     }
+    if (p === "overview") {
+      // The Exceptions inbox hangs off Overview because it is the only rail
+      // entry every workspace has and the queue spans four of the others —
+      // refunds, tickets, inquiries and background jobs. Filing it under any
+      // one of those would hide it from the operators who own the rest, and a
+      // queue nobody opens is the state it exists to end.
+      return [
+        {
+          id: "overview-dashboard",
+          label: copy.isSpanish ? "Resumen" : "Dashboard",
+          href: adminBase,
+          exact: true,
+        },
+        {
+          id: "overview-exceptions",
+          label: copy.isSpanish ? "Excepciones" : "Exceptions",
+          href: `${adminBase}/exceptions`,
+        },
+      ];
+    }
     if (p === "roster") {
       return [
         {
@@ -335,6 +362,41 @@ function WorkspaceSidebarShell() {
           id: "events-door",
           label: copy.isSpanish ? "Puerta" : "Live check-in",
           href: `${eventsBase}/door`,
+        },
+      ];
+    }
+    if (p === "pos") {
+      return [
+        {
+          id: "pos-new",
+          label: copy.isSpanish ? "Nueva venta" : "New Sale",
+          href: `${adminBase}/pos`,
+          exact: true,
+        },
+        {
+          id: "pos-catalog",
+          label: copy.isSpanish ? "Catálogo" : "Catalog",
+          href: `${adminBase}/menu`,
+        },
+        {
+          id: "pos-tables",
+          label: copy.isSpanish ? "Mesas y espacios" : "Tables & Spaces",
+          href: `${adminBase}/tables`,
+        },
+        {
+          id: "pos-prep",
+          label: copy.isSpanish ? "Preparación" : "Preparation",
+          href: `${adminBase}/preparation`,
+        },
+        {
+          id: "pos-discounts",
+          label: copy.isSpanish ? "Descuentos" : "Discounts",
+          href: `${adminBase}/discounts`,
+        },
+        {
+          id: "pos-sales",
+          label: copy.isSpanish ? "Ventas" : "Sales",
+          href: `${adminBase}/sales`,
         },
       ];
     }
@@ -510,6 +572,7 @@ function WorkspaceSidebarShell() {
             + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
             would be duplication, not convenience. */}
         <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
+          {state.visiblePages.includes("pos") ? renderItem("pos") : null}
           {renderItem("settings")}
         </div>
       </aside>

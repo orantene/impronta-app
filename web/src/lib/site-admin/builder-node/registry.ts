@@ -71,6 +71,8 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // rendered NOTHING.
   "menu_board",
   "reserve_table",
+  "session_picker",
+  "ticket_picker",
   // BUILDER 2027 · P2A — the native kinds are ordinary leaves for drop purposes
   // too, except `reveal`, which is itself a wrapper (it accepts any child) and
   // is therefore droppable anywhere a layout shell is.

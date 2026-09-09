@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * The guest ticket picker — public server actions (E5 step 1, CARD ONLY).
+ * The guest ticket picker — public server actions (E5 step 1, card or pay-at-door).
  *
  * Mirrors `_sessions/session-picker-actions.ts`: every input parses through a
  * zod schema whose ids are `uuid()`, so an empty or malformed id is refused
@@ -45,6 +45,11 @@ export type PickerTier = {
   /** From `saleWindowState`: a hidden tier is still buyable by link and is included when asked for by id. */
   onSale: boolean;
   saleReason: string | null;
+  /**
+   * This tier's own minimum age, when it carries one over and above the
+   * event's. Null is the ordinary case.
+   */
+  ageGate: number | null;
 };
 
 export type PickerNight = {
@@ -57,7 +62,21 @@ export type PickerNight = {
 };
 
 export type TicketPicker =
-  | { ok: true; eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] }
+  | {
+      ok: true;
+      eventTitle: string;
+      currency: string;
+      timeZone: string | null;
+      tiers: PickerTier[];
+      nights: PickerNight[];
+      /**
+       * The event's minimum age. Surfaced here rather than left to the page
+       * copy because the picker is where the buyer has to answer for it: the
+       * purchase refuses a gated basket with no stated age, and a client that
+       * cannot see the gate cannot ask the question.
+       */
+      ageGate: number | null;
+    }
   | { ok: false; reason: "unavailable" | "not_sellable" };
 
 const loadSchema = z.object({ tenantId: uuidWire, eventId: uuidWire });
@@ -80,7 +99,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
 
     const { data: ev, error: evErr } = await admin
       .from("events")
-      .select("id, title, status, offering_id, venue_id")
+      .select("id, title, status, offering_id, venue_id, age_gate")
       .eq("id", eventId).eq("tenant_id", tenantId).maybeSingle();
     if (evErr) { logServerError("events.picker.event", evErr); return { ok: false, reason: "unavailable" }; }
     if (!ev || ev.status !== "published" || !ev.offering_id) return { ok: false, reason: "not_sellable" };
@@ -98,7 +117,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
       admin.from("sessions").select("id, starts_at, ends_at").eq("tenant_id", tenantId).eq("event_id", eventId)
         .eq("status", "scheduled").gte("ends_at", now.toISOString()).lte("starts_at", horizon).order("starts_at", { ascending: true }),
       admin.from("talent_offering_variants")
-        .select("id, label, amount_cents, admits_per_unit, min_per_order, max_per_order, is_hidden, sales_from, sales_until, pool_key, sort_order")
+        .select("id, label, amount_cents, admits_per_unit, min_per_order, max_per_order, is_hidden, sales_from, sales_until, pool_key, sort_order, age_gate")
         .eq("offering_id", ev.offering_id as string).order("sort_order", { ascending: true }),
       ev.venue_id ? admin.from("venues").select("timezone").eq("id", ev.venue_id as string).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);
@@ -133,6 +152,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
         admitsPerUnit: (v.admits_per_unit as number | null) ?? 1,
         minPerOrder: t.minPerOrder ?? 1, maxPerOrder: t.maxPerOrder ?? null,
         onSale: st.onSale, saleReason: st.onSale ? null : st.reason,
+        ageGate: (v.age_gate as number | null) ?? null,
       };
     }).filter((t) => !tierRows.find((v) => v.id === t.variantId)?.is_hidden);
 
@@ -151,6 +171,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     return {
       ok: true, eventTitle: ev.title as string, currency: String(offering.currency ?? "USD"),
       timeZone: (venue?.timezone as string | null) ?? null, tiers, nights,
+      ageGate: (ev.age_gate as number | null) ?? null,
     };
   } catch (err) {
     logServerError("events.picker.load", err);
@@ -170,12 +191,21 @@ const buySchema = z.object({
   clientOrderKey: z.string().min(8).max(80),
   paymentChoice: z.enum(["full", "in_person"]),
   locale: z.string().max(10).optional(),
+  /**
+   * The buyer's stated age, when the picker asked. Optional on the WIRE and
+   * mandatory in EFFECT: the purchase pipeline refuses a gated basket that
+   * carries none. Making it optional in the schema is what lets the refusal
+   * name the real problem ("this one is 18+") instead of `invalid_request`,
+   * which tells a guest nothing and a client nothing either.
+   */
+  confirmedAge: z.number().int().min(1).max(120).optional(),
 });
 
 export type StartTicketPurchaseResult =
   | { ok: true; orderId: string; transactionId: string | null; receiptCode: string | null; payAtDoor: boolean }
   | { ok: false; reason: "invalid_request" | "not_sellable" | "night_not_on_sale" | "tier_not_on_sale" | "quantity" | "sold_out"
-      | "pay_at_door_not_yet" | "pay_at_door_not_offered" | "engine_error"; detail?: string };
+      | "pay_at_door_not_yet" | "pay_at_door_not_offered" | "age_gate_unconfirmed" | "age_gate_below_minimum"
+      | "engine_error"; detail?: string };
 
 /**
  * Create the order and hold the seats. One line, one tier, one night.
@@ -256,9 +286,16 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       sessionStartsAt: req.startsAt ?? (session.starts_at as string), sessionEndsAt: req.endsAt ?? (session.ends_at as string),
       units: d.units, email: d.email, displayName: d.displayName ?? null, promoCode: d.promoCode ?? null,
       locale: d.locale ?? null, sourcePage: `/events`,
+      confirmedAge: d.confirmedAge ?? null,
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };
+      // Passed through rather than folded into `engine_error`: one means "ask
+      // the question", the other means "the answer was no", and a guest who
+      // sees "something went wrong" for either will simply try again.
+      if (result.reason === "age_gate_unconfirmed" || result.reason === "age_gate_below_minimum") {
+        return { ok: false, reason: result.reason, detail: result.error };
+      }
       // Orders' pipeline refuses an in_person order for a finished session
       // (#1836, `session_already_ended`); my picker never sends one, but the
       // sentence should be the honest one if a caller ever does.
@@ -300,6 +337,20 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
               variantId: (l.variant_id as string | null) ?? null,
             })),
           });
+          // Mint writes seats, not the guest. Stamp the name the picker
+          // already collected so the door list is not a row of "Ticket".
+          const lineIds = (lineRows ?? []).map((l) => l.id as string);
+          if (lineIds.length > 0 && (d.displayName || d.email)) {
+            const { error: holderErr } = await admin
+              .from("admissions")
+              .update({
+                holder_name: d.displayName ?? null,
+                holder_email: d.email,
+              })
+              .in("order_line_id", lineIds)
+              .eq("tenant_id", d.tenantId);
+            if (holderErr) logServerError("events.buy.compHolder", holderErr);
+          }
         } catch (mintErr) {
           logServerError("events.buy.compMint", mintErr);
         }

@@ -39,6 +39,27 @@ export type SystemEventType =
  * (server actions, RPC wrappers); system messages are always
  * platform-authored — there's no user-content path here.
  */
+async function tenantIdForInquiry(
+  supabase: SupabaseClient,
+  inquiryId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("tenant_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (typeof data?.tenant_id === "string" && data.tenant_id) return data.tenant_id;
+  const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data: row } = await admin
+    .from("inquiries")
+    .select("tenant_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  return typeof row?.tenant_id === "string" && row.tenant_id ? row.tenant_id : null;
+}
+
 export async function insertSystemMessage(
   supabase: SupabaseClient,
   args: {
@@ -49,8 +70,22 @@ export async function insertSystemMessage(
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
+  // tenant_id is NOT NULL. Omitting it used to rely on the autofill trigger;
+  // when that trigger was absent (schema-drift environments) the insert either
+  // failed or inherited a platform default, and clientAcceptOffer then threw
+  // [tenant-coherence] because inquiry_messages pointed at another workspace.
+  const tenantId = await tenantIdForInquiry(supabase, args.inquiryId);
+  if (!tenantId) {
+    const { logServerError } = await import("@/lib/server/safe-error");
+    logServerError(
+      "inquiry-system-messages/insert.missing-tenant",
+      new Error(`inquiry ${args.inquiryId} has no tenant_id`),
+    );
+    return;
+  }
   const payload = {
     inquiry_id: args.inquiryId,
+    tenant_id: tenantId,
     thread_type: args.threadType,
     sender_user_id: null,
     body: args.body,

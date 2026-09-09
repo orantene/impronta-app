@@ -26,6 +26,7 @@ import {
   type OrderListBucket,
   type OrderListRow,
 } from "@/lib/orders/orders-list";
+import { OrdersRefundForm } from "./orders-refund-form";
 
 export const dynamic = "force-dynamic";
 
@@ -284,6 +285,18 @@ export default async function OrdersPage({
                             {statusKey ? t(statusKey) : row.status}
                             {bucketOf(row.status) === "to_pay" ? (
                               <span style={{ color: C.amber }}> ●</span>
+                            ) : null}
+                            {row.status === "paid" || row.status === "partially_refunded" ? (
+                              <div style={{ marginTop: 8 }}>
+                                <OrdersRefundForm
+                                  orderId={row.id}
+                                  labels={{
+                                    refund: t("refund"),
+                                    effect: t("refundEffect"),
+                                    confirm: t("refundConfirm"),
+                                  }}
+                                />
+                              </div>
                             ) : null}
                           </td>
                         </tr>

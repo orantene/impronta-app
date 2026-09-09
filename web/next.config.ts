@@ -284,7 +284,23 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
     // Edge-safe stand-in for NODE_ENV. Set here at config eval (next dev /
     // Vercel preview), then inlined into proxy.ts. Do not derive this from Host.
+    //
+    // THE OPERATOR'S OWN VALUE COMES FIRST, and that leg is not decoration.
+    // `next` inlines this whole `env` block into the Edge bundle, so whatever
+    // this expression returns REPLACES `process.env.TULALA_ALLOW_DEV_SURFACES`
+    // inside `proxy.ts` — an exported variable of the same name reached the
+    // Node runtime and was discarded at the Edge. Measured on the isolated
+    // workspace: `/api/dev/signin` answered 307 immediately after boot and 404
+    // for the rest of the session with the variable set the whole time, because
+    // the Edge bundle is compiled with NODE_ENV=production and the derivation
+    // below then evaluates to "". Every browser journey signs in through that
+    // route, so the switch the QA docs tell you to set did nothing.
+    //
+    // Reaching the handler is not the same as being allowed in: `/api/dev/*`
+    // route handlers return 403 unless NODE_ENV is development or VERCEL_ENV is
+    // preview, so setting this in production buys a refusal, not a session.
     TULALA_ALLOW_DEV_SURFACES:
+      process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
       process.env.VERCEL_ENV === "preview" ||
       process.env.NODE_ENV !== "production"
         ? "1"

@@ -11,7 +11,7 @@
  * can never eat a coordinator's offer (2026-07-11 prod audit).
  */
 
-import { useCallback, useEffect, useMemo, useState, useTransition, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type MutableRefObject } from "react";
 
 import { saveOfferDraft, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -41,6 +41,9 @@ export function useOfferSave(args: {
   // as STATE (not a ref) so the gate can read it during render without the
   // react-hooks/refs violation.
   const [lastSaved, setLastSaved] = useState<{ lineCount: number; total: number } | null>(null);
+  // After save, `reload()` replaces local `new-` ids with server rows. Re-baseline
+  // once that snapshot lands so Send is not stuck on "unsaved" from count/id drift.
+  const rebaselineAfterReload = useRef(false);
 
   // Seed the baseline from the first server-loaded draft so an unchanged,
   // already-persisted offer counts as "saved" (otherwise lastSaved only tracks
@@ -103,6 +106,7 @@ export function useOfferSave(args: {
     setLastSaved({ lineCount, total });
     clearOfferSnapshot(offerId);
     setSaveState({ status: "saved", at: Date.now() });
+    rebaselineAfterReload.current = true;
     reload();
   }, [tenantSlug, offerId, snapshotRef, reload]);
 
@@ -116,6 +120,12 @@ export function useOfferSave(args: {
   // baseline. All inputs are reactive state/props, so the memo recomputes
   // exactly when the gate can change (a save flips saveState + lastSaved; an
   // edit moves editorLineCount/editorTotal).
+  useEffect(() => {
+    if (!rebaselineAfterReload.current || !loaded) return;
+    rebaselineAfterReload.current = false;
+    setLastSaved({ lineCount: editorLineCount, total: editorTotal });
+  }, [loaded, editorLineCount, editorTotal]);
+
   const sendGate = useMemo<SendGateResult>(
     () =>
       canSendOffer({

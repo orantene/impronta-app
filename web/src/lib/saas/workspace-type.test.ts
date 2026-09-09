@@ -34,6 +34,11 @@ const ALL_PAGES: WorkspacePage[] = [
   "analytics",
   "website",
   "media",
+  "sales",
+  "discounts",
+  "pos",
+  "tables",
+  "preparation",
   "settings",
 ];
 
@@ -104,6 +109,11 @@ test("visibleWorkspacePages drops exactly roster + pitches for a business worksp
     "analytics",
     "website",
     "media",
+    "sales",
+    "discounts",
+    "pos",
+    "tables",
+    "preparation",
     "settings",
   ]);
   // Nothing beyond the documented two is removed — a business workspace keeps

@@ -60,10 +60,20 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/financials — Business Financials page (L46).
   (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/exceptions — the Exceptions inbox (M0). Real server page
+  // reading five sources directly; "exceptions" is not a WorkspacePage id, so
+  // without a matcher the SPA overview would stack underneath it — the same
+  // failure the bookings/account matchers were added for.
+  (s) => s[0] === "admin" && s[1] === "exceptions",
   // /<tenant>/admin/orders — the Orders desk (0.10). Canonical server route
   // like `financials`, not a prototype SPA tab: it reads `orders` directly and
   // has no shell data-bridge projection to hang off.
   (s) => s[0] === "admin" && s[1] === "orders",
+  (s) => s[0] === "admin" && s[1] === "sales",
+  (s) => s[0] === "admin" && s[1] === "discounts",
+  (s) => s[0] === "admin" && s[1] === "pos",
+  (s) => s[0] === "admin" && s[1] === "tables",
+  (s) => s[0] === "admin" && s[1] === "preparation",
   // /<tenant>/admin/events/door — live check-in desk. The Events SPA owns
   // /admin/events (list + tabs); the door is a real server page and must not
   // stack under EventsPage.

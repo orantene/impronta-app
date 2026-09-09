@@ -39,6 +39,7 @@ import {
   parseWordsSettings,
   type WordsSettings,
 } from "@/lib/words";
+import { businessTypeById } from "@/lib/words/business-types";
 
 const presetSchema = z.object({
   presetId: z.enum(INDUSTRY_PRESET_IDS),
@@ -68,6 +69,7 @@ const wordEditSchema = z.object({
 export async function loadIndustrySettings(): Promise<{
   ok: true;
   rawPresetId: unknown;
+  businessTypeId: string | null;
 } | { ok: false; error: string }> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -75,7 +77,14 @@ export async function loadIndustrySettings(): Promise<{
   const current = await readSettings(auth.supabase, auth.tenantId);
   if (!current.ok) return { ok: false, error: CLIENT_ERROR.update };
 
-  return { ok: true, rawPresetId: current.settings.industry_preset };
+  const storedType =
+    typeof current.settings.business_type_id === "string" ? current.settings.business_type_id : null;
+
+  return {
+    ok: true,
+    rawPresetId: current.settings.industry_preset,
+    businessTypeId: storedType,
+  };
 }
 
 export type IndustrySettingsResult =
@@ -146,6 +155,49 @@ export async function setIndustryPreset(
   // they are cached per tenant. A layout revalidate is the blunt but correct
   // instrument: an operator who picks an industry expects their own site to
   // change, and a stale header for five minutes reads as "it did not work".
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true, data: parseWordsSettings(nextSettings) };
+}
+
+const businessTypeSchema = z.object({
+  typeId: z.string().min(1).max(80),
+});
+
+/**
+ * Search-to-select business type. Writes `agencies.settings.business_type_id`
+ * and may apply the type's default preset. Word overrides stay.
+ */
+export async function setBusinessType(
+  input: z.infer<typeof businessTypeSchema>,
+): Promise<IndustrySettingsResult> {
+  const parsed = businessTypeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
+
+  const type = businessTypeById(parsed.data.typeId);
+  if (!type) return { ok: false, error: CLIENT_ERROR.update };
+
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const current = await readSettings(supabase, tenantId);
+  if (!current.ok) return { ok: false, error: CLIENT_ERROR.update };
+
+  const nextSettings = {
+    ...current.settings,
+    business_type_id: type.id,
+    industry_preset: type.preset,
+  };
+
+  const { error } = await supabase
+    .from("agencies")
+    .update({ settings: nextSettings, updated_at: new Date().toISOString() })
+    .eq("id", tenantId);
+  if (error) {
+    logServerError("industry-settings.setBusinessType", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: parseWordsSettings(nextSettings) };
 }

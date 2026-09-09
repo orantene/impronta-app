@@ -42,10 +42,16 @@ type Row = {
 
 export default async function PublicEventsPage() {
   const scope = await getPublicTenantScope();
-  if (!scope) notFound();
+  if (!scope) {
+    logServerError("events.publicList", new Error("no public tenant scope"));
+    notFound();
+  }
 
   const supabase = await createClient();
-  if (!supabase) notFound();
+  if (!supabase) {
+    logServerError("events.publicList", new Error("createClient returned null"));
+    notFound();
+  }
 
   // `error` is destructured and acted on. PostgREST does not throw: an RLS
   // refusal returns `{ data: null, error }`, and ignoring it would render "no

@@ -17,11 +17,16 @@
  * never something to redo.
  *
  * OUTCOMES (verbatim from refundOrderLines):
- *   ok                 → executed_at, buyer message recorded (decision 10)
- *   refund_refused     → not settled yet: unclaim, attempts+1, retry next run
- *   partial_failure    → money moved then a leg failed: executed_at set,
- *                        LOUD log — a person reconciles; never retried
- *   other              → executed_at set with the verdict, loud log
+ *   ok                     → executed_at, buyer message recorded (decision 10)
+ *   ok_effects_incomplete  → the money moved but a ticket was not voided or the
+ *                            line was not stamped. executed_at IS set: the
+ *                            refund must never run again. The remaining effect
+ *                            is resumable through `resumeRefundEffects`, which
+ *                            cannot touch money.
+ *   refund_refused         → not settled yet: unclaim, attempts+1, retry next run
+ *   partial_failure        → money moved then a leg failed: executed_at set,
+ *                            LOUD log — a person reconciles; never retried
+ *   other                  → executed_at set with the verdict, loud log
  */
 
 import { NextResponse } from "next/server";
@@ -29,7 +34,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
-import { seatLostMessage } from "@/lib/events/ticket-purchase";
+import { eventCancelledMessage, seatLostMessage } from "@/lib/events/ticket-purchase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +56,7 @@ export async function GET(request: Request) {
 
   const { data: pending, error: pErr } = await admin
     .from("ticket_refund_intents")
-    .select("id, tenant_id, order_id, order_line_id, attempts")
+    .select("id, tenant_id, order_id, order_line_id, attempts, reason")
     .is("executed_at", null)
     .is("claimed_at", null)
     .lt("attempts", MAX_ATTEMPTS)
@@ -62,7 +67,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "select_failed" }, { status: 500 });
   }
 
-  const summary = { claimed: 0, refunded: 0, refused_retry: 0, partial_failure: 0, other: 0, skipped: 0 };
+  const summary = { claimed: 0, refunded: 0, effects_incomplete: 0, refused_retry: 0, partial_failure: 0, other: 0, skipped: 0 };
 
   for (const intent of pending ?? []) {
     const id = intent.id as string;
@@ -91,23 +96,58 @@ export async function GET(request: Request) {
     if (lErr) logServerError("cron/ticket-refund-intents/line", lErr);
     if (eErr) logServerError("cron/ticket-refund-intents/event", eErr);
 
+    // Two reasons, one mechanism, two sentences. The note is what a person
+    // reconciling the ledger reads months later, so it names WHY rather than
+    // describing the refund they can already see.
+    const cancelled = intent.reason === "event_cancelled";
+
     const res = await refundOrderLines(admin, {
       orderId: intent.order_id as string,
       lineIds: [intent.order_line_id as string],
       reason: "service_not_delivered",
       actorUserId: null,
-      note: "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
+      note: cancelled
+        ? "event_cancelled: the venue cancelled the event; every paid line is refunded regardless of the cutoff"
+        : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
     });
 
     const now = new Date().toISOString();
     if (res.ok) {
       const cents = Number((line as { total_cents?: unknown } | null)?.total_cents ?? (line as { amount_cents?: unknown } | null)?.amount_cents ?? 0);
-      const message = seatLostMessage({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
+      const say = cancelled ? eventCancelledMessage : seatLostMessage;
+      const message = say({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
+
+      // `ok` DOES NOT MEAN EVERY EFFECT LANDED, and recording it as plain "ok"
+      // is how an unvoided ticket disappears. The money moved, so the intent is
+      // executed and must never be retried here — but a ticket that still
+      // admits, or a line that still reads unrefunded, is a distinct verdict an
+      // operator can act on with `resumeRefundEffects`, which touches no money.
+      const effectsIncomplete = res.admissionsIncomplete || res.lineStateIncomplete;
+      if (effectsIncomplete) {
+        logServerError(
+          "cron/ticket-refund-intents/EFFECTS_INCOMPLETE_AFTER_REFUND",
+          `intent ${id} order ${intent.order_id as string}: refunded ${res.refundedCents} cents but `
+            + `${res.admissionsIncomplete ? "a ticket was not voided" : "the line was not stamped"}. `
+            + `Money is done; resume the effects, do not re-refund.`,
+        );
+      }
       const { error: uErr } = await admin.from("ticket_refund_intents")
-        .update({ executed_at: now, result: "ok", result_detail: { buyer_message: message, movedCents: (res as { movedCents?: number }).movedCents ?? null } })
+        .update({
+          executed_at: now,
+          result: effectsIncomplete ? "ok_effects_incomplete" : "ok",
+          result_detail: {
+            buyer_message: message,
+            movedCents: res.refundedCents,
+            admissionsStamped: res.admissionsStamped,
+            admissionsIncomplete: res.admissionsIncomplete,
+            lineStateIncomplete: res.lineStateIncomplete,
+            resumable: effectsIncomplete,
+          },
+        })
         .eq("id", id);
       if (uErr) logServerError("cron/ticket-refund-intents/finish", uErr);
-      summary.refunded += 1;
+      if (effectsIncomplete) summary.effects_incomplete += 1;
+      else summary.refunded += 1;
       continue;
     }
     const reason = (res as { reason?: string }).reason ?? "unknown";

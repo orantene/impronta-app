@@ -44,7 +44,9 @@ test("WORKSPACE_PAGES nav list matches the union change", () => {
 test("the rail is a projection of state.visiblePages, not a hardcoded literal", () => {
   const src = read(SHELL);
   assert.ok(src.includes("buildSidebarGroups(state.visiblePages"), "rail must be built from state.visiblePages");
-  assert.ok(src.includes('label: "Sell and grow"'), '"Grow" group was not renamed to "Sell and grow"');
+  assert.ok(src.includes('label: "Sell"'), "Sell group missing from the rail template");
+  assert.ok(src.includes('id: "pos-catalog"'), "POS catalog child missing");
+  assert.ok(src.includes('id: "pos-tables"'), "POS tables child missing");
   assert.ok(!src.includes('case "operations"'), "operations router case still present");
   assert.ok(!src.includes('case "production"'), "production router case still present");
 });

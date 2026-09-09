@@ -118,6 +118,22 @@ export const SHARED_API_PREFIXES = [
   // page unloads, on any host the editor runs on, and is gated inside the
   // handler by `requireStaffApi`.
   "/api/site-admin/homepage-draft-beacon",
+  // Subject access export. The link is offered from account settings, which a
+  // person reaches from whichever host they signed in on, and the response is
+  // scoped entirely by the session rather than by Host — the handler has no
+  // argument to vary. Absent from this list the route never runs and the
+  // browser gets the branded HTML 404, which is the four-layer failure this
+  // repo has shipped twice.
+  "/api/account",
+  // Read-only iCal subscription feed. Polled by Google, Apple and Outlook from
+  // THEIR servers, not from the operator's browser, so no cookie arrives and
+  // the Host header is whatever the operator pasted — usually the app host, but
+  // a workspace on a custom domain will paste that domain instead. The token in
+  // the path carries the whole authority and resolves its own tenant, so the
+  // handler has no argument that Host could vary. Absent from this list the
+  // subscription 404s on exactly the hosts operators are most likely to copy
+  // the URL from, which is the failure the drawer's hardcoded URL already had.
+  "/api/calendar",
 ] as const;
 
 /**
@@ -344,6 +360,13 @@ export const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
  * entry the proxy 404s every scan before Next routing runs.
  */
 export const CANONICAL_LINK_PREFIX = "/q" as const;
+
+/**
+ * P5 — guest visit view (`/visit/<public_token>`). Agency and hub only: the
+ * token is tenant-scoped occupancy identity. The printed table tent stays
+ * `/q/<code>` and redirects here only while a visit is open.
+ */
+export const CANONICAL_VISIT_PREFIX = "/visit" as const;
 
 /**
  * Events & Ticketing E4 — the public event pages (`/events`, `/events/<slug>`).

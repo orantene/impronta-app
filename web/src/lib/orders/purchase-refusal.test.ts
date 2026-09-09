@@ -29,7 +29,14 @@ type Call = { table: string; op: string; payload?: unknown };
  * actually calls, so a new call site shows up as a crash rather than a silent
  * pass.
  */
-function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}) {
+function fakeAdmin(opts: {
+  capacityRefusal?: string;
+  commitRefusal?: string;
+  reserveMode?: string;
+  poolTenantId?: string;
+  allowPayInPerson?: boolean;
+  amountCents?: number;
+} = {}) {
   const calls: Call[] = [];
 
   const offeringRow = {
@@ -38,11 +45,11 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}
     title: "Posing course",
     status: "published",
     price_type: "fixed",
-    amount_cents: 5000,
+    amount_cents: opts.amountCents ?? 5000,
     talent_profile_id: null,
     reserve_mode: opts.reserveMode ?? "full",
     deposit_pct: null,
-    allow_pay_in_person: false,
+    allow_pay_in_person: opts.allowPayInPerson ?? false,
     require_account_to_book: false,
     cancellation_hours: null,
   };
@@ -79,6 +86,8 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}
       if (table === "talent_offerings") return resolve({ data: [offeringRow], error: null });
       if (table === "order_lines")
         return resolve({ data: [{ id: "line_1", offering_id: OFFERING, sort_order: 0 }], error: null });
+      if (table === "capacity_pools")
+        return resolve({ data: [{ id: POOL, tenant_id: opts.poolTenantId ?? TENANT }], error: null });
       return resolve({ data: [], error: null });
     };
     void thenable;
@@ -95,6 +104,10 @@ function fakeAdmin(opts: { capacityRefusal?: string; reserveMode?: string } = {}
       return { data: { ok: true, allocation_ids: ["alloc_1"], expires_at: null }, error: null };
     }
     if (fn === "release_capacity") return { data: { released: 1, already_released: 0 }, error: null };
+    if (fn === "commit_capacity") {
+      if (opts.commitRefusal) return { data: { ok: false, reason: opts.commitRefusal }, error: null };
+      return { data: { ok: true, committed: 1 }, error: null };
+    }
     return { data: null, error: null };
   };
 
@@ -185,6 +198,27 @@ test("ancestor_full reads as sold out — the room is bought out, so the table i
   assert.equal(!r.ok && r.reason, "sold_out");
 });
 
+test("a pool from another workspace does not reserve and cancels the order", async () => {
+  const { calls, admin } = fakeAdmin({
+    poolTenantId: "99999999-9999-9999-9999-999999999999",
+  });
+  const r = await createPurchase(admin, input());
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "engine_error");
+  assert.equal(
+    calls.find((c) => c.table === "rpc:reserve_capacity_batch"),
+    undefined,
+  );
+  const cancelled = calls.find(
+    (c) =>
+      c.table === "orders" &&
+      c.op === "update" &&
+      typeof c.payload === "object" &&
+      (c.payload as { status?: string }).status === "cancelled",
+  );
+  assert.ok(cancelled, "the order must be cancelled when the pool is not this workspace's");
+});
+
 // ── The success path, which the refusal tests never reach ────────────────────
 
 test("a successful purchase opens ONE order, ONE booking and ONE transaction", async () => {
@@ -251,6 +285,155 @@ test("a free reserve writes NO booking and NO transaction", async () => {
   const inserts = calls.filter((c) => c.op === "insert").map((c) => c.table);
   // No money to collect, so no payment anchor is invented.
   assert.deepEqual(inserts, ["customers", "orders", "order_lines"], JSON.stringify(inserts));
+});
+
+test("pay-at-door stays pending_payment with no invented charge", async () => {
+  const { calls, admin } = fakeAdmin({ allowPayInPerson: true });
+  const r = await createPurchase(
+    admin,
+    input({
+      paymentChoice: "in_person",
+      sourceChannel: "ticket_picker",
+      lines: [{ offeringId: OFFERING, units: 1, sessionId: "44444444-4444-4444-4444-444444444444" }],
+    }),
+  );
+
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.collectCents, 0);
+  assert.equal(r.ok && r.payInPerson, true);
+  assert.equal(r.ok && r.transactionId, null);
+
+  const status = calls.find(
+    (c) =>
+      c.table === "orders"
+      && c.op === "update"
+      && typeof c.payload === "object"
+      && (c.payload as { status?: string }).status === "pending_payment",
+  );
+  assert.ok(status, "door hold must stay pending_payment so settleAtDoor can see it");
+  assert.equal(
+    calls.some((c) => c.table === "booking_transactions" && c.op === "insert"),
+    false,
+    "door hold must not open a Stripe transaction",
+  );
+  assert.equal(
+    calls.some((c) => c.table === "rpc:commit_capacity"),
+    false,
+    "a door seat is still a HOLD — committing it would make the sweep unable to free "
+      + "a seat nobody turned up to pay for",
+  );
+});
+
+// ── An order that owes nothing settles, and KEEPS what it reserved ───────────
+//
+// The free-reservation defect: found in a browser, on the isolated workspace,
+// when C06-CUS's table reservation started failing because the 4-unit table
+// pool was fully held by earlier runs of the same test. Each run got told "You
+// are booked — nothing to pay" and left an order owing $0 behind a 15-minute
+// payment deadline, which `decideOrderExpiry` cancels and
+// `reap_capacity_allocations` releases.
+
+test("a pay-in-person order that owes NOTHING settles instead of holding a deadline", async () => {
+  const { calls, admin } = fakeAdmin({ allowPayInPerson: true, amountCents: 0 });
+  const r = await createPurchase(
+    admin,
+    input({ paymentChoice: "in_person", sourceChannel: "reservation" }),
+  );
+
+  assert.equal(r.ok, true, `expected ok, got ${JSON.stringify(r)}`);
+  assert.equal(r.ok && r.collectCents, 0);
+
+  const flip = calls.find(
+    (c) =>
+      c.table === "orders"
+      && c.op === "update"
+      && typeof c.payload === "object"
+      && (c.payload as { status?: string }).status === "paid",
+  );
+  assert.ok(flip, "a free reservation must be settled, not left awaiting a payment of $0");
+  assert.equal(
+    (flip.payload as { hold_expires_at?: string | null }).hold_expires_at,
+    null,
+    "and it must carry no deadline — the deadline is what cancelled it",
+  );
+
+  assert.equal(
+    calls.some((c) => c.table === "orders" && c.op === "update"
+      && (c.payload as { status?: string }).status === "pending_payment"),
+    false,
+    "it must never pass through pending_payment",
+  );
+});
+
+test("settling COMMITS the capacity, because a settled order keeps its table", async () => {
+  const { calls, admin } = fakeAdmin({ allowPayInPerson: true, amountCents: 0 });
+  await createPurchase(admin, input({ paymentChoice: "in_person", sourceChannel: "reservation" }));
+
+  const commit = calls.find((c) => c.table === "rpc:commit_capacity");
+  assert.ok(
+    commit,
+    "clearing hold_expires_at on the ORDER is not enough: `remaining()` counts a hold "
+      + "only while `expires_at > now()`, so an uncommitted table is resellable in 15 minutes",
+  );
+  assert.deepEqual(
+    (commit.payload as { p_allocation_ids?: string[] }).p_allocation_ids,
+    ["alloc_1"],
+    "the allocations this purchase reserved, and no others",
+  );
+  assert.equal(
+    (commit.payload as { p_order_line_id?: string | null }).p_order_line_id,
+    null,
+    "the second argument is a line to stamp, not an actor",
+  );
+
+  const commitIndex = calls.indexOf(commit);
+  const flipIndex = calls.findIndex(
+    (c) => c.table === "orders" && c.op === "update"
+      && (c.payload as { status?: string }).status === "paid",
+  );
+  assert.ok(
+    commitIndex < flipIndex,
+    "commit BEFORE the flip, so a refusal can still cancel rather than leaving a "
+      + "settled order with no table",
+  );
+});
+
+test("if the table cannot be committed the free reservation is REFUSED, not confirmed", async () => {
+  const { calls, admin } = fakeAdmin({
+    allowPayInPerson: true,
+    amountCents: 0,
+    commitRefusal: "expired",
+  });
+  const r = await createPurchase(
+    admin,
+    input({ paymentChoice: "in_person", sourceChannel: "reservation" }),
+  );
+
+  // No money has moved on this path, so refusing is honest and cheap. This is
+  // the opposite of `completeOrderForTransaction`, which cannot refuse — there
+  // a charge has completed and the answer is an alert for a human.
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "sold_out", "an expired hold means someone else may hold it");
+
+  const cancelled = calls.find(
+    (c) => c.table === "orders" && c.op === "update"
+      && (c.payload as { status?: string }).status === "cancelled",
+  );
+  assert.ok(cancelled, "the order must be cancelled rather than left settled without a table");
+});
+
+test("an OUTAGE while committing does not tell the guest the restaurant is full", async () => {
+  const { admin } = fakeAdmin({
+    allowPayInPerson: true,
+    amountCents: 0,
+    commitRefusal: "missing",
+  });
+  const r = await createPurchase(
+    admin,
+    input({ paymentChoice: "in_person", sourceChannel: "reservation" }),
+  );
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "capacity_unavailable");
 });
 
 // ── Absence is not a value ───────────────────────────────────────────────────

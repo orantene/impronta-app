@@ -34,6 +34,11 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "analytics", // WP1 — funnel / money / website / reviews, honest empty states
   "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
   "media",     // Agency/Studio — workspace media gallery + watermark control
+  "sales",
+  "discounts",
+  "pos",
+  "tables",
+  "preparation",
   "settings",
 ];
 
@@ -247,6 +252,11 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },
   financials:{ label: "Financials",icon: "trending-up", description: "Revenue, payouts, commissions, and payment status" },
   orders:    { label: "Orders",    icon: "credit",      description: "Every order taken, and what is still owed on each" },
+  sales:     { label: "Sales",     icon: "credit",      description: "Bookings, orders, appointments and registrations in one list" },
+  discounts: { label: "Discounts", icon: "tag",         description: "Promo codes this workspace owns" },
+  pos:       { label: "New sale",  icon: "credit",      description: "Open a walk-in sale, add items, and collect" },
+  tables:    { label: "Tables",    icon: "layers",      description: "Open checks on the floor" },
+  preparation: { label: "Preparation", icon: "layers",   description: "Tickets the kitchen and pickup station see" },
   reservations: { label: "Reservations", icon: "calendar", description: "The host stand: today's book, arrivals, and who is still unseated" },
   events:    { label: "Events",    icon: "calendar",    description: "Ticketed events: tiers, lineup, sales, and the door" },
   payouts:   { label: "Payouts",   icon: "credit-card", description: "Stripe Connect payout onboarding and base reservation fee" },

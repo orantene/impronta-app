@@ -33,12 +33,22 @@ const server = http.createServer((clientReq, clientRes) => {
   // Host: hostHeader but Origin: http://localhost:<proxyPort>, which
   // triggers "Invalid Server Actions request" (500) on every form POST.
   const proxyProto = "http";
-  const hdrs = { ...clientReq.headers, host: hostHeader };
-  if (hdrs.origin) hdrs.origin = `${proxyProto}://${hostHeader}`;
+  const hostHasPort = hostHeader.includes(":");
+  const forwardedHost = hostHasPort ? hostHeader : `${hostHeader}:${port}`;
+  const hdrs = {
+    ...clientReq.headers,
+    host: forwardedHost,
+    "x-forwarded-host": forwardedHost,
+    "x-forwarded-proto": proxyProto,
+    "x-forwarded-port": String(port),
+  };
+  // Host, Origin and x-forwarded-host must agree, including the proxy port.
+  // A mismatch aborts Next server actions with "Invalid Server Actions request".
+  if (hdrs.origin) hdrs.origin = `${proxyProto}://${forwardedHost}`;
   if (hdrs.referer) {
     try {
       const r = new URL(hdrs.referer);
-      r.host = hostHeader;
+      r.host = forwardedHost;
       r.protocol = `${proxyProto}:`;
       hdrs.referer = r.toString();
     } catch {

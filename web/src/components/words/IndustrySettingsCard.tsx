@@ -1,34 +1,18 @@
 "use client";
 
 /**
- * Settings › Industry and words — the screen that makes the words engine real.
+ * Settings › Industry and words — searchable business type plus preset.
  *
- * F2a shipped sixteen presets and a read path; F2c shipped the write path. Both
- * merged, and until this card existed no human could reach any of it: every
- * workspace resolved to "custom" because nothing in the product ever set
- * `industry_preset`. This is the control.
- *
- * SHAPE: the preset sits ABOVE the values it writes, the same shape
- * `AppointmentsSettingsCard` established, because one answer fills the words,
- * the header verb and the chat voice. A person should meet the question they
- * can answer ("what kind of business is this?") before anything they cannot.
- *
- * THE `<select>` TRAP IS GUARDED IN A PURE MODULE, NOT HERE. A select whose
- * value matches no option silently displays the FIRST option and then saves it
- * — Spaces lost a live workspace's timezone to exactly that today.
- * `presetPickerModel` returns the options AND the normalised value together so
- * a caller cannot take one and forget the other, and the invariant is asserted
- * in `picker-options.test.ts` without needing a DOM.
- *
- * Lives OUTSIDE components/admin/shell (inline-style ratchet), same as the
- * appointments card.
+ * Type search writes `business_type_id` and may apply the type's default
+ * preset. Word overrides are not cleared (L56).
  */
 
 import { useEffect, useState, useTransition } from "react";
 
-import { loadIndustrySettings, setIndustryPreset } from "@/lib/server-actions/industry-settings";
+import { loadIndustrySettings, setBusinessType, setIndustryPreset } from "@/lib/server-actions/industry-settings";
 import { presetPickerModel, presetSummary } from "@/lib/words/picker-options";
 import { resolveWords, type IndustryPresetId } from "@/lib/words";
+import { businessTypeById, searchBusinessTypes } from "@/lib/words/business-types";
 
 const inputBoxStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -66,17 +50,16 @@ function Row({
           <div style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 2 }}>{desc}</div>
         ) : null}
       </div>
-      <div style={{ flexShrink: 0 }}>{right}</div>
+      <div style={{ flexShrink: 0, minWidth: 220 }}>{right}</div>
     </div>
   );
 }
 
 export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }) {
   const [saving, startTransition] = useTransition();
-  // The RAW stored value, never a normalised one: the picker must know what is
-  // actually in the column so it can show Custom for something unrecognised
-  // rather than silently displaying the first preset.
   const [current, setCurrent] = useState<unknown>(undefined);
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,8 +67,10 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
     let alive = true;
     void loadIndustrySettings().then((result) => {
       if (!alive) return;
-      if (result.ok) setCurrent(result.rawPresetId);
-      else setError(result.error);
+      if (result.ok) {
+        setCurrent(result.rawPresetId);
+        setTypeId(result.businessTypeId);
+      } else setError(result.error);
       setLoaded(true);
     });
     return () => {
@@ -95,22 +80,16 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
 
   const es = locale === "es";
   const { options, selected } = presetPickerModel(current, locale);
-
-  // What the tenant's own site says RIGHT NOW under this choice. Showing the
-  // resolved words rather than a promise means the preview cannot drift from
-  // what the public page renders: both call `resolveWords`.
   const words = resolveWords({ presetId: selected }, locale);
   const previewVerb = words.headerVerbLabel();
   const previewPlace = words.word("reservations.place");
   const previewItem = words.word("menu.item");
+  const selectedType = typeId ? businessTypeById(typeId) : undefined;
+  const matches = searchBusinessTypes(query).slice(0, 12);
 
-  function choose(next: IndustryPresetId) {
+  function choosePreset(next: IndustryPresetId) {
     setError(null);
     const previous = current;
-    // Optimistic, because the whole point of the preview is that a person sees
-    // the consequence of the choice immediately. Reverted on failure so the
-    // screen never shows a value the database does not hold — which is the
-    // same class of lie as the select trap.
     setCurrent(next);
     startTransition(async () => {
       const result = await setIndustryPreset({ presetId: next });
@@ -121,10 +100,24 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
     });
   }
 
+  function chooseType(nextId: string) {
+    setError(null);
+    const previous = typeId;
+    const previousPreset = current;
+    const next = businessTypeById(nextId);
+    setTypeId(nextId);
+    if (next) setCurrent(next.preset);
+    startTransition(async () => {
+      const result = await setBusinessType({ typeId: nextId });
+      if (!result.ok) {
+        setTypeId(previous);
+        setCurrent(previousPreset);
+        setError(result.error);
+      }
+    });
+  }
+
   if (!loaded) {
-    // Deliberately no picker before the value is known. Rendering a select that
-    // shows "Custom" for one frame and then jumps is the same lie as the
-    // mismatch trap, briefly — and a person who clicks in that frame saves it.
     return (
       <section style={{ padding: "14px 0", fontSize: 13, color: "var(--admin-text-muted)" }}>
         {es ? "Cargando..." : "Loading..."}
@@ -134,6 +127,85 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
 
   return (
     <section style={{ display: "flex", flexDirection: "column" }}>
+      <Row
+        title={es ? "Tipo de negocio" : "Business type"}
+        desc={
+          es
+            ? "Busca el tipo más cercano. Puedes cambiarlo después. Other business queda fuera de los 120."
+            : "Search for the closest match. You can change this later. Other business sits outside the 120 types."
+        }
+        right={
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 260 }}>
+            <input
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={query.trim().length > 0}
+              aria-label={es ? "Buscar tipo de negocio" : "Search business type"}
+              placeholder={es ? "Prueba uñas, restaurante o fotógrafo" : "Try nail salon, restaurant or photographer"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{ ...inputBoxStyle, minWidth: 260 }}
+            />
+            <div style={{ fontSize: 13, color: "var(--admin-text)" }}>
+              {selectedType
+                ? `${selectedType.label[locale]} · ${selectedType.family}`
+                : es
+                  ? "Ningún tipo elegido"
+                  : "No type selected"}
+            </div>
+            {query.trim() ? (
+              <ul
+                role="listbox"
+                style={{ listStyle: "none", margin: 0, padding: 0, maxHeight: 240, overflow: "auto" }}
+              >
+                {matches.map((row) => (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={row.id === typeId}
+                      disabled={saving}
+                      onClick={() => {
+                        chooseType(row.id);
+                        setQuery("");
+                      }}
+                      style={{
+                        ...inputBoxStyle,
+                        width: "100%",
+                        textAlign: "left",
+                        cursor: saving ? "wait" : "pointer",
+                        minHeight: 44,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {row.label[locale]} · {row.family}
+                    </button>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      chooseType("custom");
+                      setQuery("");
+                    }}
+                    style={{
+                      ...inputBoxStyle,
+                      width: "100%",
+                      textAlign: "left",
+                      minHeight: 44,
+                    }}
+                  >
+                    {es ? "Otro negocio" : "Other business"}
+                  </button>
+                </li>
+              </ul>
+            ) : null}
+          </div>
+        }
+      />
+
       <Row
         title={es ? "¿Qué tipo de negocio es este?" : "What kind of business is this?"}
         desc={
@@ -146,7 +218,7 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
             aria-label={es ? "Tipo de negocio" : "Kind of business"}
             value={selected}
             disabled={saving}
-            onChange={(e) => choose(e.target.value as IndustryPresetId)}
+            onChange={(e) => choosePreset(e.target.value as IndustryPresetId)}
             style={{ ...inputBoxStyle, minWidth: 220, cursor: saving ? "wait" : "pointer" }}
           >
             {options.map((option) => (
@@ -170,8 +242,6 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
         <div style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
           {presetSummary(selected, locale)}
         </div>
-        {/* The preview reads the SAME resolver the public page reads, so it
-            cannot promise a word the site will not show. */}
         <div style={{ fontSize: 13, color: "var(--admin-text)" }}>
           {es ? "Tu sitio dirá: " : "Your site will say: "}
           <strong>{previewVerb || (es ? "Escríbenos" : "Get in touch")}</strong>

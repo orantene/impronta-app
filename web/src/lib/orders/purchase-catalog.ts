@@ -51,7 +51,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
   const [variantResult, addonResult] = await Promise.all([
     admin
       .from("talent_offering_variants")
-      .select("id, offering_id, label, amount_cents")
+      .select("id, offering_id, label, amount_cents, min_per_order, max_per_order")
       .in("offering_id", offeringIds),
     admin
       .from("talent_offering_addons")
@@ -135,7 +135,14 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     });
   }
 
-  type VariantRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
+  type VariantRow = {
+    id: string;
+    offering_id: string;
+    label: string | null;
+    amount_cents: number | null;
+    min_per_order?: number | null;
+    max_per_order?: number | null;
+  };
   type AddonRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
 
   const variants = new Map<string, PricedVariant>();
@@ -145,6 +152,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       offeringId: row.offering_id,
       label: row.label ?? "",
       amountCents: row.amount_cents,
+      minPerOrder: row.min_per_order ?? 1,
+      maxPerOrder: row.max_per_order ?? null,
     });
   }
 

@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   MAX_QTY,
+  REFRESH_MIN_INTERVAL_MS,
   fill,
   isSoldOut,
   maxAddableQty,
+  mergeLiveOfferings,
+  reconcileQuantities,
   shouldPayInPerson,
 } from "./menu-board-stock";
 
-// Do NOT statically import menu-order-actions — that file is "use server" and
-// pulls server-only into render.tsx → fidelity/perf Node runners blow up with
-// MODULE_NOT_FOUND for `server-only`. Call via dynamic import on submit only.
+// Do NOT statically import menu-order-actions or menu-board-actions — those
+// files are "use server" and pull server-only into render.tsx → fidelity/perf
+// Node runners blow up with MODULE_NOT_FOUND for `server-only`. Call via
+// dynamic import, on submit and on refresh only.
 
 export type MenuBoardOffering = {
   id: string;
@@ -64,8 +68,20 @@ export type MenuBoardCopy = {
 
 export interface MenuBoardIslandProps {
   tenantId: string;
+  /**
+   * The server-rendered board. First paint, no-JS and SEO all read this, and it
+   * stays the fallback whenever a refresh cannot complete — a menu thirty
+   * seconds old beats a menu that is not there.
+   */
   offerings: ReadonlyArray<MenuBoardOffering>;
   copy: MenuBoardCopy;
+  /**
+   * The page's content locale, so a refresh resolves the same translated titles
+   * the server did. Absent → English, matching `fetchWorkspaceMenuOfferings`'s
+   * own default; a board that silently swapped to English on refresh would be
+   * the same defect the `copy` prop exists to prevent.
+   */
+  locale?: string | null;
 }
 
 const STORAGE_PREFIX = "impronta.menu-order.";
@@ -129,7 +145,12 @@ function formatMenuMoney(amountCents: number, currency: string): string {
   }
 }
 
-export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandProps) {
+export function MenuBoardIsland({
+  tenantId,
+  offerings: rendered,
+  copy,
+  locale,
+}: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -138,6 +159,12 @@ export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandPr
   const [status, setStatus] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [live, setLive] = useState<ReadonlyArray<MenuBoardOffering> | null>(null);
+
+  const offerings = useMemo(
+    () => (live ? mergeLiveOfferings(rendered, live) : rendered),
+    [live, rendered],
+  );
 
   useEffect(() => {
     setHydrated(false);
@@ -157,6 +184,74 @@ export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandPr
       // sessionStorage can be disabled. The order still works in memory.
     }
   }, [hydrated, quantities, tenantId]);
+
+  const lastRefreshAt = useRef(0);
+  const refreshing = useRef(false);
+
+  /**
+   * Re-read prices and stock, and reconcile the cart against the answer.
+   *
+   * NEVER surfaces a failure. A refresh is an improvement on what is already on
+   * screen, not a precondition for using the board: the submit path re-resolves
+   * every line server-side and refuses there, so a swallowed refresh error can
+   * only cost freshness, never money. Setting `error` here would instead put a
+   * red alert over a working menu every time a phone came back onto a flaky
+   * network.
+   */
+  const refresh = useCallback(async () => {
+    if (!tenantId || refreshing.current) return;
+    const now = Date.now();
+    if (now - lastRefreshAt.current < REFRESH_MIN_INTERVAL_MS) return;
+    refreshing.current = true;
+    lastRefreshAt.current = now;
+    try {
+      const { loadLiveMenuBoard } = await import(
+        "@/app/(public)/_menu/menu-board-actions"
+      );
+      const result = await loadLiveMenuBoard({ tenantId, locale: locale ?? null });
+      if (!result.ok) return;
+      setLive(result.offerings);
+    } catch {
+      // Offline, a deploy mid-navigation, an aborted action. The rendered board
+      // stands.
+    } finally {
+      refreshing.current = false;
+    }
+  }, [locale, tenantId]);
+
+  /**
+   * Mount, tab-visible and bfcache restore — the three moments a board can be
+   * on screen while being older than it looks.
+   *
+   * `pageshow` is the one that matters most and the one an interval would not
+   * catch: a back-button return restores the whole page from memory, timers
+   * included but already-fired effects not re-run, so without it the stalest
+   * board a visitor can see is the one they reach by the most ordinary
+   * navigation there is. No polling interval on purpose — a menu board is a
+   * page people leave open, and a background poll on every restaurant tab is a
+   * cost with no reader.
+   */
+  useEffect(() => {
+    void refresh();
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const onPageShow = () => {
+      void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!live) return;
+    setQuantities((current) => reconcileQuantities(current, offerings));
+  }, [live, offerings]);
 
   const selectedLines = useMemo(
     () =>
@@ -218,10 +313,18 @@ export function MenuBoardIsland({ tenantId, offerings, copy }: MenuBoardIslandPr
         });
 
         if (!result.ok) {
+          // The engine just refused with the truth about stock, which makes
+          // whatever is on screen provably behind it. Clearing the floor is
+          // what lets the retry read a board that agrees with the refusal
+          // instead of the one that produced it.
+          lastRefreshAt.current = 0;
+          void refresh();
           setError(result.error);
           return;
         }
 
+        lastRefreshAt.current = 0;
+        void refresh();
         setStatus(copy.sent);
         setQuantities({});
         setContactName("");

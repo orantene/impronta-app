@@ -18,15 +18,22 @@
  *
  * `check_in` is service-role EXECUTE only, so the walk-up path authenticates
  * the staff member first and then calls with the admin client — exactly as
- * Sessions' caller does. It scopes the admission by `id` AND `tenant_id`
- * before the RPC, because `check_in` has no tenant predicate and a genuine
- * admission from another workspace would otherwise check in.
+ * Sessions' caller does. It scopes the admission by `id` AND `tenant_id` AND
+ * `session_id` before the RPC, because `check_in` has no predicate for any of
+ * the three: a genuine admission from another workspace, or from another
+ * night, would otherwise check in. THE LIST BEING SESSION-SCOPED IS NOT THE
+ * SCOPE — `loadDoor` decides what the screen offers, and a server action is
+ * reachable without the screen.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
-import { doorOutcomeForCheckIn, type DoorOutcome } from "@/lib/sessions/door";
+import {
+  doorOutcomeForCheckIn,
+  doorOutcomeForSessionScope,
+  type DoorOutcome,
+} from "@/lib/sessions/door";
 import { doorCounts, doorTakings, type DoorCounts, type DoorPaidVia, type DoorTakings } from "@/lib/events/summary";
 import { commitCapacity, releaseCapacity, reserveCapacityBatch } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
@@ -151,9 +158,14 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
  * `p_mode => 'actor'` — no token is involved, and none is required. `count`
  * defaults to the remainder inside `check_in`, so tapping once on a party of
  * four admits four; passing 2 admits two of them.
+ *
+ * `doorSessionId` is required and precedes the optional `count` for the reason
+ * given on `scanAdmission`: a scope argument that can be omitted is a scope
+ * that will be.
  */
 export async function admitAtDoor(
   admissionId: string,
+  doorSessionId: string,
   count?: number,
 ): Promise<{ outcome: DoorOutcome }> {
   const guard = await requireWorkspaceStaffAction();
@@ -163,15 +175,18 @@ export async function admitAtDoor(
   if (typeof admissionId !== "string" || !/^[0-9a-f-]{36}$/i.test(admissionId)) {
     return { outcome: { kind: "unknown_ticket" } };
   }
+  if (typeof doorSessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(doorSessionId)) {
+    return { outcome: { kind: "engine_error", detail: "no session at this door" } };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { outcome: { kind: "door_misconfigured" } };
 
   try {
-    // Tenant scope BEFORE the RPC. `check_in` has no tenant predicate.
+    // Tenant AND session scope BEFORE the RPC. `check_in` has neither predicate.
     const { data: owned, error: ownErr } = await admin
       .from("admissions")
-      .select("id")
+      .select("id, session_id, starts_at")
       .eq("id", admissionId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -182,6 +197,13 @@ export async function admitAtDoor(
     // Same answer as a genuinely unknown ticket, so this workspace learns
     // nothing about another's.
     if (!owned) return { outcome: { kind: "unknown_ticket" } };
+
+    const offNight = doorOutcomeForSessionScope({
+      doorSessionId,
+      admissionSessionId: (owned.session_id as string | null) ?? null,
+      ticketStartsAt: (owned.starts_at as string | null) ?? null,
+    });
+    if (offNight) return { outcome: offNight };
 
     const { data, error } = await admin.rpc("check_in", {
       p_admission_id: admissionId,
@@ -519,4 +541,91 @@ export async function sellAtDoor(input: {
     await unwind("unexpected");
     return { ok: false, error: "Could not sell at the door." };
   }
+}
+
+const settleSchema = z.object({
+  orderId: z.string().uuid(),
+  paidVia: z.enum(["cash", "card"]),
+  amountCents: z.number().int().nonnegative(),
+  currency: z.string().min(3).max(8),
+  idempotencyKey: z.string().min(8).max(80),
+});
+
+export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>) {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  const parsed = settleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, error: "unavailable" };
+
+  const { mintAdmissionsForPaidOrder } = await import("@/lib/events/mint-on-paid");
+  const { settleAtDoor } = await import("@/lib/orders/settle-at-door");
+  return settleAtDoor(
+    admin,
+    {
+      tenantId: guard.tenantId,
+      orderId: parsed.data.orderId,
+      actorUserId: guard.user.id,
+      paidVia: parsed.data.paidVia,
+      amountCents: parsed.data.amountCents,
+      currency: parsed.data.currency,
+      idempotencyKey: parsed.data.idempotencyKey,
+    },
+    { onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(admin, ctx).then(() => undefined) },
+  );
+}
+
+export type HeldDoorOrder = {
+  id: string;
+  totalCents: number;
+  currency: string;
+  holderName: string | null;
+};
+
+export async function loadHeldDoorOrders(
+  sessionId: string,
+): Promise<{ ok: true; orders: HeldDoorOrder[] } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    return { ok: false, error: "That is not a session." };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "unavailable" };
+
+  const { data: lines, error: lineErr } = await admin
+    .from("order_lines")
+    .select("order_id")
+    .eq("session_id", sessionId);
+  if (lineErr) {
+    logServerError("door.held/lines", lineErr);
+    return { ok: false, error: "unavailable" };
+  }
+  const orderIds = [...new Set(((lines ?? []) as Array<{ order_id: string }>).map((r) => r.order_id))];
+  if (orderIds.length === 0) return { ok: true, orders: [] };
+
+  const { data: orders, error: orderErr } = await admin
+    .from("orders")
+    .select("id, status, total_cents, currency, tenant_id")
+    .eq("tenant_id", guard.tenantId)
+    .in("id", orderIds)
+    .in("status", ["draft", "pending_payment"]);
+  if (orderErr) {
+    logServerError("door.held/orders", orderErr);
+    return { ok: false, error: "unavailable" };
+  }
+  return {
+    ok: true,
+    orders: ((orders ?? []) as Array<{
+      id: string;
+      total_cents: number;
+      currency: string | null;
+    }>).map((row) => ({
+      id: row.id,
+      totalCents: row.total_cents,
+      currency: row.currency ?? "usd",
+      holderName: null,
+    })),
+  };
 }

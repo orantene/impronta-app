@@ -7,8 +7,9 @@
  *   npx playwright install chromium
  *   npx playwright test
  *
- * Defaults to the local-host-proxy host so the middleware host resolution
- * matches what we ship to production (`app.tulala.digital` → `app.local`).
+ * Defaults to the local-host-proxy host so the edge host resolution
+ * (`web/src/proxy.ts` + `web/src/lib/saas/gate.ts`) matches production
+ * (`app.tulala.digital` → `app.local`).
  *
  * Override the base URL when QAing a deployed environment:
  *   PLAYWRIGHT_BASE_URL=https://staging.tulala.digital npx playwright test
@@ -118,6 +119,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Safari"],
       },
+    },
+    {
+      name: "tablet-pos",
+      testMatch: /cases\/.*\.spec\.ts/,
+      use: { ...devices["iPad Pro"] },
+    },
+    {
+      name: "mobile-checkout",
+      testMatch: /cases\/.*\.spec\.ts/,
+      use: { ...devices["iPhone 14"] },
     },
   ],
 });

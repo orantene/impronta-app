@@ -69,6 +69,13 @@ export type TicketPurchaseArgs = {
   promoCode?: string | null;
   locale?: string | null;
   sourcePage?: string | null;
+  /**
+   * What the buyer stated about their age. Threaded rather than defaulted:
+   * `null` here is "not asked", and the pipeline turns that into a refusal on a
+   * gated event instead of a silent sale. A default of, say, 18 would have made
+   * the gate decorative in a different way than it already was.
+   */
+  confirmedAge?: number | null;
 };
 
 /**
@@ -99,6 +106,7 @@ export function buildTicketPurchase(a: TicketPurchaseArgs): PurchaseInput {
     ],
     promoCode: a.promoCode ?? null,
     locale: a.locale ?? null,
+    ageAttestation: typeof a.confirmedAge === "number" ? { confirmedAge: a.confirmedAge } : null,
   };
 }
 
@@ -145,4 +153,19 @@ export function afterTicketPurchaseSuccess(res: {
 export function seatLostMessage(args: { eventTitle: string | null; amountLabel: string }): string {
   const what = args.eventTitle ? `your ticket for ${args.eventTitle}` : "your ticket";
   return `The seat for ${what} was taken while your payment was completing, so we have refunded ${args.amountLabel} in full. If seats are still available you can buy again; otherwise please contact the venue.`;
+}
+
+/**
+ * The buyer's message when the VENUE cancelled, not when a seat was lost.
+ *
+ * Deliberately a separate sentence rather than a parameterised one. The two
+ * refunds have the same mechanism and opposite meanings: one says "somebody
+ * beat you to it, try again", the other says "this is not happening". Telling
+ * a person to buy again for a show that has been called off is worse than
+ * saying nothing, and a single template with a conditional clause is one edit
+ * away from doing exactly that.
+ */
+export function eventCancelledMessage(args: { eventTitle: string | null; amountLabel: string }): string {
+  const what = args.eventTitle ? `${args.eventTitle} has been cancelled` : "the event has been cancelled";
+  return `We are sorry — ${what}. Your ticket is no longer valid and we have refunded ${args.amountLabel} in full. Nothing is needed from you.`;
 }

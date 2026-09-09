@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   decideOrderExpiry,
+  idsToCancel,
   IDLE_DRAFT_TTL_HOURS,
   type ExpiringOrder,
 } from "@/lib/orders/expire-orders";
@@ -92,4 +93,16 @@ test("an unparseable timestamp keeps the order rather than guessing", () => {
     decideOrderExpiry(order({ status: "draft", createdAt: "nonsense", updatedAt: null }), NOW).action,
     "keep",
   );
+});
+
+test("the sweeper cancels only the rows the decision says to cancel", () => {
+  const ids = idsToCancel(
+    [
+      order({ id: "hold", holdExpiresAt: ago(1_000) }),
+      order({ id: "live", holdExpiresAt: ahead(60_000) }),
+      order({ id: "paid", status: "paid", holdExpiresAt: ago(1_000) }),
+    ],
+    NOW,
+  );
+  assert.deepEqual(ids, ["hold"]);
 });
