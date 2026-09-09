@@ -431,13 +431,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:capacity
 
-      # Command envelope and outbox (M0). Pure, against fakes that enforce the
-      # two schema properties the behaviour depends on: the unique index on
-      # (tenant, command, idempotency key) and the partial unique index on the
-      # outbox dedupe key. The races ARE the subject here — a double-tapped
-      # button, a key reused with different arguments, a retried enqueue — and
-      # a real Postgres cannot hold an interleaving still enough to assert on.
-      - name: tests — command envelope and outbox
+      # The M0 reliability layer: command envelope, transactional outbox and the
+      # Exceptions inbox that reads what they leave behind. Pure, against fakes
+      # that enforce the two schema properties the behaviour depends on — the
+      # unique index on (tenant, command, idempotency key) and the partial
+      # unique index on the outbox dedupe key. The races ARE the subject here (a
+      # double-tapped button, a key reused with different arguments, a retried
+      # enqueue) and a real Postgres cannot hold an interleaving still enough to
+      # assert on. The exceptions half additionally pins the one classification
+      # whose failure mode is a second refund.
+      - name: tests — command envelope, outbox and exceptions
         if: ${{ !cancelled() }}
         run: npm run test:commands
 

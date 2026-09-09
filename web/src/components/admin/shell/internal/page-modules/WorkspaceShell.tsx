@@ -284,6 +284,26 @@ function WorkspaceSidebarShell() {
         count: item.count,
       }));
     }
+    if (p === "overview") {
+      // The Exceptions inbox hangs off Overview because it is the only rail
+      // entry every workspace has and the queue spans four of the others —
+      // refunds, tickets, inquiries and background jobs. Filing it under any
+      // one of those would hide it from the operators who own the rest, and a
+      // queue nobody opens is the state it exists to end.
+      return [
+        {
+          id: "overview-dashboard",
+          label: copy.isSpanish ? "Resumen" : "Dashboard",
+          href: adminBase,
+          exact: true,
+        },
+        {
+          id: "overview-exceptions",
+          label: copy.isSpanish ? "Excepciones" : "Exceptions",
+          href: `${adminBase}/exceptions`,
+        },
+      ];
+    }
     if (p === "roster") {
       return [
         {
