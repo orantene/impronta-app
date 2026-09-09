@@ -20,7 +20,7 @@ P2-04, P7-01
 - **Basic:** Inquiry to booking with commission.
 - **Complete:** Three-model shoot books all three atomically; fees and margin separate.
 
-Overall status: implementing — C08-CUS inquiry submitted; C08-OP talent assigned + draft + sent offer. Offer not accepted. Case not verified.
+Overall status: implementing — C08-CUS inquiry submitted; C08-OP talent assigned + draft + sent offer; C08-TAL talent approved. Client still pending. Offer not accepted. Case not verified.
 
 ## Scenarios
 
@@ -63,7 +63,9 @@ Overall status: implementing — C08-CUS inquiry submitted; C08-OP talent assign
 | Applies | yes if the case has an assigned professional |
 | Steps | Assignment reaches the correct professional. Private customer information stays isolated. |
 | Expected persisted | Roster assignment ≠ staff access. |
-| Disposition | not started |
+| Automated or manual | Playwright on qa-journeys `/talent/inbox` as `qa-journeys-talent@impronta.test` |
+| Evidence | `qa-evidence/C08-TAL/accept-offer.md` |
+| Disposition | implementing — talent approved the sent offer; client still pending |
 
 ### C08-DIFF — Difficult combination
 
