@@ -12,7 +12,8 @@
 | Cases verified on the actual platform | **0 / 48** |
 | Scenario records passed (CUS/OP/TAL/DIFF/REC) | **0 / ~240** — C06 path proofs, C01-CUS *deposit requested*, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF competitor-after-couples, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP talent assigned + draft + sent offer, C08-TAL talent approved (client still pending); no complete case. |
 | Human QA rows executed | **0 / 16** |
-| Isolated schema + SQL fixture on `qa-journeys` | **Yes** — seed applied; staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
+| Isolated schema on `qa-journeys` | **Verified 2026-09-09T04:10Z** — `npm run journeys:probe` exit 0, `npm run journeys:smoke` 10/10. Previously 16 objects were missing; see [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md). |
+| SQL fixture on `qa-journeys` | **Workspace A yes, workspace B identity only.** A has catalog / spaces / sessions / pools; B has an `agencies` row, an active host and an owner and **zero** fixture rows. Staff login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. |
 | P1-01 200 concurrent HTTP reserves | **Pass** — 12 `ok`, 188 `sold_out`. Evidence: `docs/plans/qa-evidence/P1-01/`. Not a browser case. |
 | C06-OP walk-in cash | **Pass** on qa-journeys UI + DB. Evidence: `docs/plans/qa-evidence/C06-OP/walk-in-cash.md`. Not QR / courses / split. |
 | C06-CUS public menu | **Pass** on qa-journeys storefront + DB. Evidence: `docs/plans/qa-evidence/C06-CUS/public-menu.md`. |
@@ -44,11 +45,44 @@ Every documented case study functions end to end: customer, operator, applicable
 
 This file tracks P0–P8. P9 stays parked.
 
-## Missing dependency
+**Which QA model governs.** The standing-workstream model above. A separate seven-blueprint parity plan was drafted with a "frozen QA" execution model, and its own developer review struck that model out; browser audit, code audit and integration testing run continuously, as `PLAN.md` L194 already said. If a document tells you to freeze verification until a milestone completes, it is the superseded draft.
 
-Isolated preview `qa-journeys` (`fxlankepwnvelxjrahwk`) answers SQL. Historical replay finished (763 files). Cheap-repair recorded some versions without function bodies; `reserve_capacity` / `upsert_capacity_pool` / `reserve_capacity_batch`, `reserve_resource_set` (hold-only sets), POS money-spine columns, appointment hours, `booking_transactions`, `btree_gist` / `talent_holds_firm_no_overlap` / expire reaper, `reserve_resource_set` EXCEPTION unwind, `public.events` (plus `sessions.event_id`, ticket columns on `talent_offering_variants`, `admissions.line_seq`, `sessions_select_public`, door columns on `admissions`, `check_in`), `engine_send_offer` plus `inquiry_offer_line_items.source_service_id` / `owner_tenant_id`, `engine_submit_approval`, and `talent_profiles.talent_plan_key` / `contact_policy` were repaired on **qa-journeys only** via MCP DDL. **Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or these repairs to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint, `events`, `check_in`, `engine_send_offer`, and `engine_submit_approval`. C12 fixture is in `seed_journeys_program.sql`; C12-CUS $0 ticket, C12-OP door Admit, and C12-DIFF pay-at-door cash settle are recorded.
+## Blueprint parity work now on this branch
 
-SQL fixture is applied: two workspaces (`3333…3333` / `3333…3334`), hosts `qa-journeys.local` / `qa-journeys-b.local`, venue + table/room, Gel / pizza / class / reservation plus Therapist B, Massage, Couples (T1+T2+Room A), morning session, 12-place `session_tier` pool, Room A 1-unit `space` pool. Five auth users + owner/viewer/B-owner memberships + two talent profiles + customer row exist on that branch.
+Twenty-two commits landed 2026-09-09 between 01:46Z and 04:09Z, after this file's previous checkpoint. **None of it is browser-verified.** It is on the branch, typechecks, lints, and passes its unit lanes; that is all that is claimed:
+
+| Area | Landed | Verified how far |
+|---|---|---|
+| Event day | wrong-night ticket refused at the door; event cancellation cascades to sessions, pools, admissions and refunds (`cancel_event_cascade`) | unit + isolated smoke |
+| Refund correctness | every `refund_admission` reply classified instead of logged-and-continued; `lineStateIncomplete` reported; money-safe `resumeRefundEffects` retry | unit (`test:money`) |
+| POS | add-ons charged rather than only recorded; one booking shell per order on the card path; POS reads split out of `draft.ts` | unit |
+| Purchase | age gates enforced server-side (`orders_age_gate_*` + paired CHECK) | unit + isolated smoke |
+| Kept promises | real iCal subscription replaces the two-way sync mock; `/api/account/export` | unit; **not** checked against a real host |
+| Platform | command envelope + transactional outbox (`command_idempotency`, `outbox_messages`, `claim_outbox_messages`); Exceptions inbox over the five silent-failure sources | unit + isolated smoke; **no** integration proof through a real command path |
+| Design system | Tabs / Table / Dialog primitives, `ImpactPreview`, component catalog, `SearchOrCreatePicker`, axe-core CI lane, admin + POS bundle budgets | CI lanes (`test:design-system`, `test:axe`, `perf:app-budget`) |
+| Web | menu board refreshes after paint like the other islands | unit |
+
+Open M0 items, unchanged by the above: reserve-set unknown-outcome double reservation; POS reserved-outstanding, where two cashiers can each collect the full balance; safe-exchange reschedule; `talent_booking_hours` missing for every bookable offering, so public booking returns `no_booking_hours`.
+
+## Isolated branch state (verify, do not trust this paragraph)
+
+Isolated preview `qa-journeys` (`fxlankepwnvelxjrahwk`) answers SQL over both PostgREST and `DATABASE_URL`.
+
+**The ledger on that branch is not evidence.** `supabase_migrations.schema_migrations` holds 763 rows up to `20261230000700` while objects belonging to versions *inside* that range did not exist: the historical replay recorded versions whose function bodies never ran. Anything that diffs local files against that table will report "in sync" over a schema missing functions the journeys call. `npm run check:migrations-applied` is separately blind here — it calls `list_applied_migrations`, which was itself never replayed, so it returns an error rather than a state.
+
+So the branch has its own checks, and they are the evidence:
+
+| Command | What it proves |
+|---|---|
+| `npm run journeys:probe` | Presence. Read-only catalog reads for every function, table, column, index and fixture row the journeys need. Counts fixture rows **per workspace**. |
+| `npm run journeys:smoke` | Behaviour. Calls the functions inside one always-rolled-back transaction and asserts the structured refusals the TypeScript callers are written against. |
+| `npm run journeys:repair <files…>` | Replays named migration files. Takes an explicit list because "pending" is not computable from a ledger that lies. |
+
+Last run 2026-09-09T04:10Z: probe exit 0, smoke 10/10, and P1-01 re-run after the replay still gives 12 of 200 with zero oversell. Before that run, 16 objects were missing — four functions including `refund_admission` and `cancel_event_cascade`, the `command_idempotency` / `outbox_messages` / `calendar_feed_tokens` / `ticket_refund_intents` tables, the `orders` age-gate columns and five indexes — which meant the isolated app could not exercise any M0 money or event-day path. Twelve migration files were replayed from `supabase/migrations/` to close it. Full record: [`qa-evidence/schema-drift/isolated-branch-repair.md`](../qa-evidence/schema-drift/isolated-branch-repair.md).
+
+**Do not reset or rebase** the branch (that replays from zero). **Do not re-apply** `20261230000700` or the twelve replayed files to production (`pluhdapdnuiulvxmyspd`). Production already has the gist constraint, `events`, `check_in`, `engine_send_offer`, and `engine_submit_approval`.
+
+Fixture, as counted rather than as claimed. **Workspace A** (`3333…3333`, host `qa-journeys.local`): venue + table/room, Gel / pizza / class / reservation plus Therapist B, Massage, Couples (T1+T2+Room A), morning session, 12-place `session_tier` pool, Room A 1-unit `space` pool — 2 spaces, 7 offerings, 3 sessions, 6 pools, 42 customers, 49 orders. C12 fixture is in `seed_journeys_program.sql`. **Workspace B** (`3333…3334`, host `qa-journeys-b.local`): an `agencies` row, an active domain and an owner membership, and nothing else — zero spaces, offerings, sessions, pools, customers and orders. That is enough for the negative isolation direction and not enough for any case where B must transact (D-011). Five auth users + owner/viewer/B-owner memberships + two talent profiles exist.
 
 Password and `service_role` for the branch belong in gitignored `web/.env.capacity-isolated.local` — never git. P1-01 used those isolated credentials against qa-journeys only.
 
@@ -62,8 +96,8 @@ Product sources are in [`docs/product/`](../../product/).
 | P0-02 START-HERE / ledger / decisions / defects | implementing — this checkpoint |
 | P0-03 48 case files | Implemented, awaiting focused verification — sampled against Journeys-POS. Browser still not started |
 | P0-04 five contracts | Implemented → `decisions.md` + decision-log L52–L56. Do not reopen |
-| P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700` RPCs are on this branch and on qa-journeys, not production |
-| P0-06 fixture harness | SQL + auth users applied. Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
+| P0-05 db:check + stale docs | Remote applied `20261230000200`–`00600` on `pluhdapdnuiulvxmyspd`. **Do not re-apply to production.** `20261230000700`–`001300` are on this branch and on qa-journeys, not production. `db:check` cannot see qa-journeys at all (D-012); use `journeys:probe` |
+| P0-06 fixture harness | Workspace A seeded and verified; workspace B is identity-only (D-011). Isolated-app login on `qa-journeys.local:3103` verified. Set `JOURNEYS_FIXTURE_READY=1` only in gitignored isolated env. Guards refuse production / Impronta |
 | P0-07 Playwright tablet/mobile + case scaffold | Smoke specs still skip unless the isolated env flag is set. C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP assign + draft + sent offer, and C08-TAL talent approve (client still pending) are real journeys. |
 | P1-01 isolated capacity proof | Verified in test environment: 200 HTTP callers, exactly 12 wins, zero oversell. See `qa-evidence/P1-01/` |
 | P2-01 type catalog | ~120 searchable types; `custom` outside; accent-fold search; handyman ES `mantenimiento del hogar` |
@@ -88,8 +122,12 @@ Product sources are in [`docs/product/`](../../product/).
 ```bash
 cd web && npm run typecheck && npm run lint
 cd web && npm run test:money
-# Isolated only — never production:
-# JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/seed-journeys-program.mjs
+# Isolated only — never production. Each refuses a non-qa-journeys target
+# before opening a socket:
+cd web && npm run journeys:probe    # presence, read-only
+cd web && npm run journeys:smoke    # behaviour, always rolled back
+# npm run journeys:repair 20261230001300_command_envelope_and_outbox.sql
+# npm run seed:journeys-program
 # CAPACITY_PROOF_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/verify-capacity-concurrency.mjs
 ```
 
@@ -103,9 +141,13 @@ Gates: queued scripts only. Never raw `tsc` or `eslint`.
 
 ## Next action
 
-C06 restaurant paths, C01-CUS deposit-requested, C09 class paths + C09-DIFF last-seat sold-out, C02-CUS last-resource + couples set, C02-DIFF, C12-CUS $0 ticket, C12-OP door Admit, C12-DIFF pay-at-door cash settle, C26-OP pickup handoff, C07-OP tab collect-at-close, C07-CUS guest check, C08-CUS directory inquiry submitted, C08-OP assign + draft + sent offer, and C08-TAL talent approve are recorded. Next: C08-CUS client accept / convert, Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, or remaining representatives (C13, C24, C27, C31). Do not merge #1934 as complete. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
+The isolated branch is now schema-current with the branch and checkable (probe + smoke). Twenty-two blueprint-parity commits are on the branch with **no browser evidence**, so the highest-value next step is browser coverage of what just landed, not new features: the event cancel-cascade refund path, the age gate at purchase, POS add-on charging, and the Exceptions inbox against the outbox now that both exist on qa-journeys.
+
+Still open from before: C08-CUS client accept / convert, Stripe test deposit collect, C02-OP assign (Calendar New booking does not pick therapist + room), C01-OP balance, remaining representatives (C13, C24, C27, C31).
+
+Standing rules: **0 / 48 stays 0 / 48** until a case's customer, operator, talent, persistence and recovery steps all pass. Do not merge #1934 and do not take it out of draft. Do not start P9. Do not re-apply production migrations. Do not reset the qa-journeys branch.
 
 ## Owner claim
 
 **Owner:** cloud agent on `cursor/journeys-program-c4d3`  
-**Claimed:** 2026-09-08T17:15Z
+**Claimed:** 2026-09-09T04:15Z
