@@ -283,10 +283,6 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   }
   const addLine = page.getByRole("button", { name: /\+ add line item/i });
   await expect(addLine).toBeVisible({ timeout: 20_000 });
-  const rowRemove = page.locator("button").filter({ hasText: /^×$/ });
-  while ((await rowRemove.count()) > 1) {
-    await rowRemove.first().click();
-  }
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
