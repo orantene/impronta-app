@@ -132,12 +132,16 @@ export async function GET(request: Request) {
       // Publish button runs (status flip + `kind='published'` revision).
       // Cron cannot run the session-scoped drawer preflight; validate the tree
       // shape at least so a broken schedule cannot freeze an invalid snapshot.
-      const { data: pageRow } = await supabase
+      const { data: pageRow, error: pageErr } = await supabase
         .from("cms_pages")
         .select("blocks")
         .eq("id", row.id)
         .eq("tenant_id", row.tenant_id)
         .maybeSingle();
+      if (pageErr) {
+        logServerError("cron/publish-scheduled/load-freeform-tree", pageErr);
+        return { ok: false, error: "Could not read the page tree." };
+      }
       const blocks = (pageRow as { blocks?: { builderTree?: unknown } | null } | null)?.blocks;
       const tree = blocks && typeof blocks === "object" ? (blocks as { builderTree?: unknown }).builderTree : null;
       if (tree) {

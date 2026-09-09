@@ -43,20 +43,30 @@ async function tenantIdForInquiry(
   supabase: SupabaseClient,
   inquiryId: string,
 ): Promise<string | null> {
-  const { data } = await supabase
+  // supabase-read-unchecked-ok: this read is expected to fail under RLS for a
+  // user-session client (see the function doc above) — the fallback right
+  // below re-reads with the service-role client, so the error case and the
+  // empty case are both handled by falling through to it.
+  const { data, error } = await supabase
     .from("inquiries")
     .select("tenant_id")
     .eq("id", inquiryId)
     .maybeSingle();
+  void error;
   if (typeof data?.tenant_id === "string" && data.tenant_id) return data.tenant_id;
   const { createServiceRoleClient } = await import("@/lib/supabase/admin");
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data: row } = await admin
+  const { data: row, error: rowError } = await admin
     .from("inquiries")
     .select("tenant_id")
     .eq("id", inquiryId)
     .maybeSingle();
+  if (rowError) {
+    const { logServerError } = await import("@/lib/server/safe-error");
+    logServerError("inquiry-system-messages/tenant-lookup", rowError);
+    return null;
+  }
   return typeof row?.tenant_id === "string" && row.tenant_id ? row.tenant_id : null;
 }
 
