@@ -5,6 +5,7 @@ import { addLine, createDraftOrder, repriceAndValidate, updateLine } from "./dra
 import { finalizeOrCancel, startCollection, submitToPreparation } from "./collection";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { makeCollectionRpc } from "./__fixtures__/collection-reservations";
 
 type Row = Record<string, unknown>;
 
@@ -22,6 +23,7 @@ function makeStore() {
     spaces: [] as Row[],
     sessions: [] as Row[],
     capacity_allocations: [] as Row[],
+    order_collection_reservations: [] as Row[],
   };
 }
 
@@ -113,6 +115,19 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
     return api;
   };
   return { from };
+}
+
+/**
+ * The same store, plus the collection RPCs.
+ *
+ * `startCollection` refuses rather than collect without `pos_reserve_collection`,
+ * because outstanding cannot be computed correctly outside the order's row
+ * lock. Draft building still goes through `fakeAdmin`: `lib/pos/draft.ts` has
+ * its own RPC pair with a PostgREST fallback, and that fallback is what these
+ * tests have always exercised.
+ */
+function fakeTill(store: ReturnType<typeof makeStore>) {
+  return { from: fakeAdmin(store).from, rpc: makeCollectionRpc(store) };
 }
 
 function seedOffering(store: ReturnType<typeof makeStore>, over: Partial<Row> = {}) {
@@ -265,13 +280,14 @@ test("collect refuses without contact when the draft has no customer", async () 
     orderId: created.orderId,
     line: { offeringId: "off-1", units: 1 },
   });
-  const r = await startCollection(fakeAdmin(store), {
+  const r = await startCollection(fakeTill(store), {
     tenantId: "t1",
     orderId: created.orderId,
     actorUserId: "u1",
     method: "cash",
     successUrl: "https://app.test/ok",
     cancelUrl: "https://app.test/no",
+    idempotencyKey: "pos-cash:commands",
   });
   assert.equal(r.ok, false);
   if (r.ok) return;
@@ -401,7 +417,7 @@ test("cash collection with contact records a settle, not a purchase", async () =
   });
   let settled = 0;
   const r = await startCollection(
-    fakeAdmin(store),
+    fakeTill(store),
     {
       tenantId: "t1",
       orderId,
@@ -410,6 +426,7 @@ test("cash collection with contact records a settle, not a purchase", async () =
       contact: { email: "walkin@example.com" },
       successUrl: "https://app.test/ok",
       cancelUrl: "https://app.test/no",
+      idempotencyKey: "pos-cash:walkin",
     },
     {
       ensureCustomer: async () => ({
@@ -444,7 +461,7 @@ test("collect refuses when the class place is sold out and does not settle", asy
   });
   let settled = 0;
   const r = await startCollection(
-    fakeAdmin(store),
+    fakeTill(store),
     {
       tenantId: "t1",
       orderId: created.orderId,
@@ -453,6 +470,7 @@ test("collect refuses when the class place is sold out and does not settle", asy
       contact: { email: "walkin@example.com" },
       successUrl: "https://app.test/ok",
       cancelUrl: "https://app.test/no",
+      idempotencyKey: "pos-cash:walkin",
     },
     {
       ensureCustomer: async () => ({
@@ -655,13 +673,14 @@ test("zero-total collect without contact is allowed for a guest-session draft", 
     orderId: created.orderId,
     line: { offeringId: "off-1", units: 1 },
   });
-  const r = await startCollection(fakeAdmin(store), {
+  const r = await startCollection(fakeTill(store), {
     tenantId: "t1",
     orderId: created.orderId,
     actorUserId: "u1",
     method: "cash",
     successUrl: "https://app.test/ok",
     cancelUrl: "https://app.test/no",
+    idempotencyKey: "pos-cash:commands",
   });
   assert.equal(r.ok, true);
   if (!r.ok) return;
@@ -685,13 +704,14 @@ test("paid collect without contact is still refused", async () => {
     orderId: created.orderId,
     line: { offeringId: "off-1", units: 1 },
   });
-  const r = await startCollection(fakeAdmin(store), {
+  const r = await startCollection(fakeTill(store), {
     tenantId: "t1",
     orderId: created.orderId,
     actorUserId: "u1",
     method: "cash",
     successUrl: "https://app.test/ok",
     cancelUrl: "https://app.test/no",
+    idempotencyKey: "pos-cash:commands",
   });
   assert.equal(r.ok, false);
   if (r.ok) return;
@@ -711,7 +731,7 @@ test("zero-total collect does not fabricate a charge", async () => {
   });
   let paidHook = 0;
   const r = await startCollection(
-    fakeAdmin(store),
+    fakeTill(store),
     {
       tenantId: "t1",
       orderId: created.orderId,
@@ -720,6 +740,7 @@ test("zero-total collect does not fabricate a charge", async () => {
       contact: { email: "free@example.com" },
       successUrl: "https://app.test/ok",
       cancelUrl: "https://app.test/no",
+      idempotencyKey: "pos-free:zero",
     },
     {
       ensureCustomer: async () => ({

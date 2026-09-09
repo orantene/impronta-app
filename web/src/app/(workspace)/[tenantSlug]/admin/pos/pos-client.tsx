@@ -185,6 +185,10 @@ export function PosClient(props: {
       amountCents,
       tenderedCents: method === "cash" ? tenderedCents : undefined,
       idempotencyKey: newIdempotencyKey(),
+      // The version the operator is looking at. A second device that collected
+      // since this screen loaded has already bumped it, so this call is refused
+      // as a conflict instead of taking the same money twice.
+      expectedVersion: sale.version,
     });
     if (r.ok && method === "online_card" && "checkoutUrl" in r && r.checkoutUrl) {
       window.location.href = r.checkoutUrl;

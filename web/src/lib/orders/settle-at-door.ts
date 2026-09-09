@@ -11,6 +11,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { completeOrderForTransaction } from "@/lib/orders/complete-order";
 import type { OnOrderPaid } from "@/lib/orders/complete-order";
 import { bookingShellForOrder, type BookingShellContact } from "@/lib/orders/booking-shell";
+import {
+  RESERVATION_METADATA_KEY,
+  settleCollectionReservation,
+} from "@/lib/pos/collection-reservations";
 
 export type DoorSettleInput = {
   tenantId: string;
@@ -26,6 +30,15 @@ export type DoorSettleInput = {
   tenderedCents?: number;
   /** Stamped on the booking shell if this settlement is the one that creates it. */
   contact?: BookingShellContact;
+  /**
+   * The claim on the order's outstanding balance this tender is completing.
+   *
+   * Closed ONLY after the transaction actually reaches `paid`. Closing it any
+   * earlier would say the money is in while this row still says it is not, and
+   * a reservation that lies is worse than no reservation: the balance would be
+   * neither reserved nor paid, and the next till would collect it again.
+   */
+  reservationId?: string | null;
 };
 
 export type DoorSettleResult =
@@ -68,6 +81,29 @@ async function walkToPaid(
   return true;
 }
 
+/**
+ * Bind the claim to the money row, now that the money row is paid.
+ *
+ * Best effort ON PURPOSE. The cash is in the drawer and the transaction says
+ * `paid`; a failure to close the claim leaves it live until the reaper takes
+ * it, which delays the next collection on this tab by the TTL. Failing the
+ * settle instead would tell an operator the cash was not recorded when it was.
+ */
+async function closeReservation(
+  admin: SupabaseClient,
+  reservationId: string | null | undefined,
+  transactionId: string,
+): Promise<void> {
+  if (!reservationId) return;
+  const closed = await settleCollectionReservation(admin, { reservationId, transactionId });
+  if (!closed.ok) {
+    logServerError(
+      "orders.settleAtDoor/reservation",
+      `transaction ${transactionId} is paid but reservation ${reservationId} did not close (${closed.reason})`,
+    );
+  }
+}
+
 export async function settleAtDoor(
   admin: SupabaseClient,
   input: DoorSettleInput,
@@ -102,10 +138,12 @@ export async function settleAtDoor(
       logServerError("orders.settleAtDoor/existing", existingErr);
       return { ok: false, reason: "unavailable" };
     }
+    const priorId = (existing as { id?: string } | null)?.id ?? null;
+    if (priorId) await closeReservation(admin, input.reservationId, priorId);
     return {
       ok: true,
       orderId: row.id,
-      transactionId: (existing as { id?: string } | null)?.id ?? "already-paid",
+      transactionId: priorId ?? "already-paid",
       alreadySettled: true,
     };
   }
@@ -133,6 +171,7 @@ export async function settleAtDoor(
     if (!resumed) return { ok: false, reason: "unavailable" };
     const done = await completeOrderForTransaction(admin, priorRow.id, deps);
     if (!done.ok) return { ok: false, reason: "unavailable" };
+    await closeReservation(admin, input.reservationId, priorRow.id);
     return { ok: true, orderId: row.id, transactionId: priorRow.id, alreadySettled: true };
   }
 
@@ -189,6 +228,8 @@ export async function settleAtDoor(
         ...(input.shiftId ? { shift_id: input.shiftId } : {}),
         tendered_cents: input.tenderedCents ?? input.amountCents,
         change_cents: (input.tenderedCents ?? input.amountCents) - input.amountCents,
+        // Same key the card path uses, so one reconciler can walk both rails.
+        ...(input.reservationId ? { [RESERVATION_METADATA_KEY]: input.reservationId } : {}),
       },
     })
     .select("id")
@@ -203,5 +244,6 @@ export async function settleAtDoor(
 
   const settled = await completeOrderForTransaction(admin, inserted.id as string, deps);
   if (!settled.ok) return { ok: false, reason: "unavailable" };
+  await closeReservation(admin, input.reservationId, inserted.id as string);
   return { ok: true, orderId: row.id, transactionId: inserted.id as string, alreadySettled: false };
 }

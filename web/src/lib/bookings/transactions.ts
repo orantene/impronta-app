@@ -11,6 +11,10 @@
  */
 
 import { completeOrderForTransaction } from "@/lib/orders/complete-order";
+import {
+  reservationIdFromMetadata,
+  settleCollectionReservation,
+} from "@/lib/pos/collection-reservations";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { improntaLog } from "@/lib/server/structured-log";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
@@ -889,6 +893,36 @@ export async function markPaid(
             "transactions.markPaid.completeOrder",
             `transaction ${result.data.id} is paid but its order did not settle (${settled.reason})`,
           );
+        }
+
+        // CLOSE THE COLLECTION CLAIM (T1-03). A POS card sale reserved part of
+        // the order's outstanding balance before the buyer was sent to Stripe,
+        // and left the reservation id on this transaction because the webhook
+        // is the only thing that learns the payment landed. Until it is closed
+        // the claim still subtracts from what the next till may collect, so a
+        // split tab would look short by exactly the amount that just arrived.
+        //
+        // Read from the row rather than from `result.data`: `BookingTransaction`
+        // does not carry `metadata`, and inventing a key here would be a guess.
+        const { data: metaRow } = await sbOrders
+          .from("booking_transactions")
+          .select("metadata")
+          .eq("id", result.data.id)
+          .maybeSingle();
+        const reservationId = reservationIdFromMetadata(
+          (metaRow as { metadata?: unknown } | null)?.metadata,
+        );
+        if (reservationId) {
+          const closed = await settleCollectionReservation(sbOrders, {
+            reservationId,
+            transactionId: result.data.id,
+          });
+          if (!closed.ok) {
+            logServerError(
+              "transactions.markPaid.collectionReservation",
+              `transaction ${result.data.id} is paid but reservation ${reservationId} did not close (${closed.reason})`,
+            );
+          }
         }
       }
     } catch (orderErr) {

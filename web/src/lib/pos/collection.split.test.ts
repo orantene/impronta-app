@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { addLine, createDraftOrder } from "./draft";
 import { startCollection } from "./collection";
 import { settleAtDoor } from "@/lib/orders/settle-at-door";
+import { makeCollectionRpc } from "./__fixtures__/collection-reservations";
 
 type Row = Record<string, unknown>;
 
@@ -19,6 +20,7 @@ function makeStore() {
     capacity_allocations: [] as Row[],
     pos_shifts: [] as Row[],
     ticket_refund_intents: [] as Row[],
+    order_collection_reservations: [] as Row[],
   };
 }
 
@@ -107,6 +109,24 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
     };
     return api;
   };
+  // The reservation RPCs are no longer optional: `startCollection` refuses
+  // rather than collect without the order lock, so the fake has to model them
+  // over the same store.
+  return { from, rpc: makeCollectionRpc(store) };
+}
+
+/**
+ * The same store with NO rpc, used only to build the fixture draft.
+ *
+ * `lib/pos/draft.ts` has its own RPC pair (`pos_mutate_draft_line`,
+ * `pos_apply_draft_totals`) and a PostgREST fallback for when they are absent.
+ * These tests have always exercised the fallback, and `makeCollectionRpc`
+ * deliberately models only the collection RPCs — inventing a second model of
+ * the draft ones here would be a model of a model. So the draft is built
+ * through the fallback and collection is driven through the till.
+ */
+function fakeDraftAdmin(store: ReturnType<typeof makeStore>) {
+  const { from } = fakeAdmin(store);
   return { from };
 }
 
@@ -137,10 +157,10 @@ const named = {
 async function openNineThousand() {
   const store = makeStore();
   seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  const created = await createDraftOrder(fakeDraftAdmin(store), { tenantId: "t1", actorUserId: "u1" });
   assert.equal(created.ok, true);
   if (!created.ok) return store;
-  await addLine(fakeAdmin(store), {
+  await addLine(fakeDraftAdmin(store), {
     tenantId: "t1",
     orderId: created.orderId,
     line: { offeringId: "off-1", units: 1 },
@@ -261,6 +281,13 @@ test("the same cash idempotency key does not write a second allocation", async (
   if (!second.ok || second.method !== "cash") return;
   assert.equal(second.alreadySettled, true);
   assert.equal(store.booking_transactions.length, 1);
+  assert.equal(store.order_collection_reservations.length, 1, "one key, one claim");
+  assert.equal(store.order_collection_reservations[0].state, "settled");
+  assert.equal(
+    second.transactionId,
+    store.booking_transactions[0].id,
+    "the replay answers with the transaction the first attempt recorded",
+  );
 });
 
 test("an allocation larger than outstanding is refused", async () => {
@@ -275,6 +302,7 @@ test("an allocation larger than outstanding is refused", async () => {
       contact,
       ...urls,
       amountCents: 9001,
+      idempotencyKey: "pos-cash:too-much",
     },
     named,
   );
@@ -297,6 +325,7 @@ test("tendered below the allocation is refused and does not write", async () => 
       ...urls,
       amountCents: 3000,
       tenderedCents: 2999,
+      idempotencyKey: "pos-cash:short",
     },
     named,
   );
@@ -335,9 +364,193 @@ test("change is tendered minus the allocation, not a second order", async () => 
   assert.equal(store.booking_transactions[0].gross_amount_cents, 3000);
 });
 
+test("two tills collecting the full outstanding leave exactly one refused on amount", async () => {
+  const store = await openNineThousand();
+  const orderId = store.orders[0].id as string;
+  const till = (key: string) =>
+    startCollection(
+      fakeAdmin(store),
+      {
+        tenantId: "t1",
+        orderId,
+        actorUserId: "u1",
+        method: "cash",
+        contact,
+        ...urls,
+        // No amount: each till asks for "everything still owed", which is the
+        // shape that used to let both of them take all 9000.
+        idempotencyKey: key,
+      },
+      { ...named, settle: settleAtDoor },
+    );
+
+  const [first, second] = await Promise.all([till("pos-cash:till-A"), till("pos-cash:till-B")]);
+  const outcomes = [first, second];
+  const won = outcomes.filter((r) => r.ok);
+  const lost = outcomes.filter((r) => !r.ok);
+  assert.equal(won.length, 1, "exactly one till collects");
+  assert.equal(lost.length, 1, "exactly one till is refused");
+
+  const refused = lost[0];
+  if (refused.ok) return;
+  assert.equal(refused.reason, "amount");
+  assert.equal(refused.outstandingCents, 0, "the refusal carries the real outstanding");
+
+  const paidCents = store.booking_transactions
+    .filter((t) => t.status === "paid")
+    .reduce((sum, t) => sum + Number(t.gross_amount_cents ?? 0), 0);
+  const reservedCents = store.order_collection_reservations
+    .filter((r) => r.state === "reserved")
+    .reduce((sum, r) => sum + Number(r.amount_cents ?? 0), 0);
+  assert.equal(paidCents + reservedCents, 9000, "reserved plus paid never exceeds the total");
+});
+
+test("a card reservation is handed back when the payment adapter fails", async () => {
+  const store = await openNineThousand();
+  const r = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId: store.orders[0].id as string,
+      actorUserId: "u1",
+      method: "online_card",
+      contact,
+      ...urls,
+      amountCents: 4000,
+      idempotencyKey: "pos-card:declined",
+    },
+    {
+      ...named,
+      createPaymentRequest: async () => ({
+        ok: false as const,
+        reason: "engine_error" as const,
+        error: "Stripe said no.",
+      }),
+    },
+  );
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "engine_error");
+  assert.equal(store.order_collection_reservations.length, 1);
+  assert.equal(
+    store.order_collection_reservations[0].state,
+    "released",
+    "a checkout that never opened must not hold the balance until the TTL",
+  );
+
+  // And the balance is collectable again, immediately, by the next till.
+  const retry = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId: store.orders[0].id as string,
+      actorUserId: "u1",
+      method: "cash",
+      contact,
+      ...urls,
+      amountCents: 9000,
+      idempotencyKey: "pos-cash:after-decline",
+    },
+    { ...named, settle: settleAtDoor },
+  );
+  assert.equal(retry.ok, true);
+});
+
+test("a stale expectedVersion is refused instead of collecting again", async () => {
+  const store = await openNineThousand();
+  const orderId = store.orders[0].id as string;
+  const staleVersion = Number(store.orders[0].version);
+
+  const first = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId,
+      actorUserId: "u1",
+      method: "cash",
+      contact,
+      ...urls,
+      amountCents: 3000,
+      idempotencyKey: "pos-cash:v-first",
+      expectedVersion: staleVersion,
+    },
+    { ...named, settle: settleAtDoor },
+  );
+  assert.equal(first.ok, true);
+
+  // The second device still holds the screen it loaded before that collection.
+  const second = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId,
+      actorUserId: "u2",
+      method: "cash",
+      contact,
+      ...urls,
+      amountCents: 3000,
+      idempotencyKey: "pos-cash:v-second",
+      expectedVersion: staleVersion,
+    },
+    { ...named, settle: settleAtDoor },
+  );
+  assert.equal(second.ok, false);
+  if (second.ok) return;
+  assert.equal(second.reason, "conflict");
+  assert.equal(store.booking_transactions.filter((t) => t.status === "paid").length, 1);
+});
+
+test("a collection with no idempotency key is refused, never given a minted one", async () => {
+  const store = await openNineThousand();
+  const r = await startCollection(
+    fakeAdmin(store),
+    {
+      tenantId: "t1",
+      orderId: store.orders[0].id as string,
+      actorUserId: "u1",
+      method: "cash",
+      contact,
+      ...urls,
+      amountCents: 3000,
+      idempotencyKey: "  ",
+    },
+    { ...named, settle: settleAtDoor },
+  );
+  assert.equal(r.ok, false);
+  assert.equal(store.booking_transactions.length, 0);
+  assert.equal(store.order_collection_reservations.length, 0);
+});
+
 test("split settlement does not introduce a check entity", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/pos/collection.ts"), "utf8");
   assert.doesNotMatch(src, /from\("checks"\)/);
   const settle = readFileSync(join(process.cwd(), "src/lib/orders/settle-at-door.ts"), "utf8");
   assert.match(settle, /shift_id/);
+});
+
+test("collection.ts no longer sums transactions to work out what is owed", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/pos/collection.ts"), "utf8");
+  // The unlocked read is what let two tills both see the whole balance. It is
+  // deleted, not guarded, so the assertion is that it cannot come back by
+  // accident: no read of gross amounts, no local reduce over transactions.
+  // The name survives in the comment that explains the deletion; the CALL and
+  // the definition must not.
+  assert.doesNotMatch(src, /collectedPaidCents\s*\(/);
+  assert.doesNotMatch(src, /function collectedPaidCents/);
+  assert.doesNotMatch(src, /select\(\s*"gross_amount_cents/);
+  assert.doesNotMatch(src, /\.eq\("status",\s*"paid"\)/);
+  assert.doesNotMatch(src, /\.reduce\(/);
+  // And that the replacement is actually wired.
+  assert.match(src, /reserveCollection\(/);
+  assert.match(src, /releaseCollectionReservation\(/);
+  // The minted-key fallback is what turned a retry into a second collection.
+  assert.doesNotMatch(src, /crypto\.randomUUID/);
+});
+
+test("the expire-orders cron reaps lapsed collection reservations", () => {
+  const route = readFileSync(
+    join(process.cwd(), "src/app/api/cron/expire-orders/route.ts"),
+    "utf8",
+  );
+  assert.match(route, /reapCollectionReservations/);
 });
