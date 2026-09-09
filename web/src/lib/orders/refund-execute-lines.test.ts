@@ -59,26 +59,41 @@ test("tickets are stamped through refund_admission, never by a bare update", () 
   );
 });
 
-test("an already-scanned or non-valid admission is skipped, not refunded", () => {
-  assert.match(SRC, /admitted_count\s*>\s*0/, "a scanned ticket is a dispute, not a refund");
-});
-
-test("a VOID admission is still refunded, because cancellation voids before the money moves", () => {
-  // `cancel_event_cascade` closes the door at the moment of the decision by
-  // stamping `void`, then leaves a refund intent for the cron. If this skipped
-  // `void` the row would never reach `refunded` and — the part that actually
-  // costs a seat — `refund_admission` would never run, so the allocation would
-  // stay committed against the pool it was bought from.
-  assert.match(
-    SRC,
-    /a\.status\s*!==\s*"valid"\s*&&\s*a\.status\s*!==\s*"void"/,
-    "void must reach refund_admission",
-  );
+test("which admissions may be refunded is decided in ONE place", () => {
+  // The gate and the RPC's own guards have to agree about `valid`, `void` and
+  // a scanned ticket. It moved to `refund-admissions.ts` so the agreement is
+  // unit-testable against real inputs rather than asserted against source
+  // text here; see `admissionIsRefundable`. What this pins is that the
+  // executor does not grow a SECOND copy of the rule.
+  assert.match(SRC, /admissionIsRefundable\(/, "the executor asks the shared gate");
   assert.doesNotMatch(
     SRC,
-    /a\.admitted_count\s*>\s*0\s*\|\|\s*a\.status\s*!==\s*"valid"/,
-    "the old single-state skip drops every cancelled-event refund on the floor",
+    /a\.status\s*!==\s*"valid"/,
+    "an inline status check here is a second answer to a settled question",
   );
+});
+
+test("EVERY refund_admission reply is classified — an RPC error is an outcome", () => {
+  // THE DEFECT. The error branch used to `logServerError(...)` then `continue`,
+  // so `stamped` came back short with `admissionsIncomplete` still false: a
+  // clean-looking refund over a ticket that still admitted and a seat still
+  // committed against its pool. The failed *read* above set the flag; the
+  // failed *call* did not. Two paths to one effect, one of them silent.
+  assert.match(SRC, /classifyAdmissionEffect\(/, "the reply must be classified, not assumed");
+  assert.doesNotMatch(
+    SRC,
+    /logServerError\("orders\.refundLines\/admission",\s*error\);\s*continue;/,
+    "log-and-continue is exactly the silent drop this closes",
+  );
+});
+
+test("a failed per-line stamp is reported, not swallowed", () => {
+  // The money moved and `refunded_cents` did not follow, so every total drawn
+  // from that column understates what was refunded. The refund LEGS are safe
+  // (headroom comes from the sibling transaction rows, not this column), but a
+  // wrong row that nobody is told about stays wrong.
+  assert.match(SRC, /lineStateIncomplete/, "the caller must be able to see it");
+  assert.match(SRC, /LINE_STATE_NOT_STAMPED_AFTER_REFUND/, "and a human must be paged");
 });
 
 test("refund_admission itself accepts the void starting state", () => {

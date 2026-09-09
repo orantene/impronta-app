@@ -67,6 +67,7 @@ test("cancelling catering releases only that line's capacity; the game stays hel
         refundIds: ["r1"],
         admissionsStamped: 0,
         admissionsIncomplete: false,
+        lineStateIncomplete: false,
         releasedPromoRedemption: false,
       }),
       release: async (ids) => {
@@ -109,6 +110,7 @@ test("cancelling a package on another workspace writes nothing", async () => {
           refundIds: ["r1"],
           admissionsStamped: 0,
           admissionsIncomplete: false,
+          lineStateIncomplete: false,
           releasedPromoRedemption: false,
         };
       },
@@ -214,6 +216,7 @@ test("cancelling retreat day three leaves day one, day two and the massage stand
         refundIds: ["r1"],
         admissionsStamped: 0,
         admissionsIncomplete: false,
+        lineStateIncomplete: false,
         releasedPromoRedemption: false,
       }),
       release: async (ids) => {
