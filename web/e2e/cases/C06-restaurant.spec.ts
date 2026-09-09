@@ -42,9 +42,16 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
   await page.getByRole("button", { name: "Increase House pizza" }).click();
   await expect(page.getByText(/in your order/i)).toBeVisible();
 
-  await page.getByLabel(/^name$/i).fill("C06 guest");
-  await page.getByLabel(/^email$/i).fill(marker);
-  await page.getByLabel(/^phone$/i).fill("55501006");
+  // Scoped to the menu board, like the sibling tests below. Page-wide
+  // `getByLabel(/^name$/i)` passed only while the storefront was rendering
+  // fewer blocks than it should: the class-registration block carries its own
+  // Name field, so once the CMS reads were repaired this matched two inputs
+  // and failed strict mode. A locator that depends on a section being broken
+  // is not a passing journey.
+  const menu = page.locator(".site-builder-node--menu-board");
+  await menu.getByLabel(/^name$/i).fill("C06 guest");
+  await menu.getByLabel(/^email$/i).fill(marker);
+  await menu.getByLabel(/^phone$/i).fill("55501006");
   await page.locator(".site-builder-node--menu-board-submit").click();
   await expect(page.locator(".site-builder-node--menu-board-form-status")).toContainText(
     /order sent|your order is in/i,
@@ -60,13 +67,27 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
   await expect(page.getByText("menu").first()).toBeVisible();
-  await expect(page.getByText("$18.00").first()).toBeVisible();
-  await expect(page.getByText("paid").first()).toBeVisible();
+  // Asserted on the ROW rather than on loose page text, so the amount and the
+  // money state have to belong to the same order. `$18.00` alone matched a POS
+  // row from another case, which is how this could have kept passing while
+  // showing the operator the wrong thing.
+  const salesRow = page.getByRole("row", { name: /C06 guest/i }).first();
+  await expect(salesRow).toContainText("$18.00");
+  await expect(salesRow).toContainText(/still owed/i);
+  await expect(salesRow, "an uncollected order must never read as paid").not.toContainText(
+    /\bpaid\b/i,
+  );
 
   const persisted = await latestMenuPizza(marker);
   expect(persisted, "menu pizza order must exist on qa-journeys").not.toBeNull();
-  // Pay-in-person collect is none: the order is paid with no fabricated charge.
-  expect(persisted?.status).toBe("paid");
+  // `pending_payment`, and the previous `paid` here was the defect rather than
+  // the baseline. The fixture seeds House pizza with `reserve_mode: 'full'` —
+  // an $18 product paid in full — so nothing has been collected at the point
+  // a guest sends the order from the storefront. It read `paid` while the
+  // isolated database disagreed with its own seed, and an $18 order marked
+  // paid with no money collected is exactly the false-paid state the money
+  // rules forbid: it tells the operator's Sales list a debt was settled.
+  expect(persisted?.status).toBe("pending_payment");
   expect(persisted?.totalCents).toBe(1800);
   expect(persisted?.sourceChannel).toBe("menu");
   expect(persisted?.customerEmail).toBe(marker);
