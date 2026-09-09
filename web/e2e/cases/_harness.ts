@@ -64,6 +64,8 @@ export async function openStorefront(page: Page): Promise<void> {
 
 export const JOURNEYS_OWNER_EMAIL =
   process.env.JOURNEYS_OWNER_EMAIL ?? "qa-journeys-owner@impronta.test";
+export const JOURNEYS_TALENT_EMAIL =
+  process.env.JOURNEYS_TALENT_EMAIL ?? "qa-journeys-talent@impronta.test";
 
 /**
  * Passwordless fixture sign-in. Reads cookies from the 307 and then opens
