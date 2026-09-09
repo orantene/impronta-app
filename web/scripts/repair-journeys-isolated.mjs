@@ -93,6 +93,16 @@ for (const arg of files) {
   } catch (e) {
     console.error(`  FAIL  ${name}\n        ${e.message}`);
     failed += 1;
+    // A file that fails inside its own BEGIN leaves this CONNECTION in an
+    // aborted transaction, and every later file would then fail with
+    // "current transaction is aborted" — one broken migration reported as
+    // hundreds. Clear it before moving on. ROLLBACK outside a transaction is
+    // a harmless warning.
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* not in a transaction */
+    }
   }
 }
 

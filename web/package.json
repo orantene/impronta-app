@@ -146,6 +146,7 @@
     "seed:journeys-program": "node --env-file=.env.capacity-isolated.local scripts/seed-journeys-program.mjs",
     "cleanup:journeys-program": "node --env-file=.env.capacity-isolated.local scripts/cleanup-journeys-program.mjs",
     "journeys:probe": "JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/probe-journeys-isolated.mjs",
+    "journeys:audit": "JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/audit-journeys-schema.mjs",
     "journeys:smoke": "JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/smoke-journeys-isolated.mjs",
     "journeys:repair": "JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/repair-journeys-isolated.mjs",
     "seed:default-storefront": "tsx --env-file=.env.local scripts/seed-default-storefront.ts",
