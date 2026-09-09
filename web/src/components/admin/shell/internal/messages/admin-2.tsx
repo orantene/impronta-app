@@ -316,7 +316,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             {inquiryIsUuid && (
               <button
                 type="button"
+                data-tulala-thread-action
                 onClick={() => setCoordinatorSheetOpen(true)}
+                aria-label={inquiry.coordinator ? interpolate(t("dashboard.adminThread.coordChipTitleAssigned"), { name: inquiry.coordinator.name }) : t("dashboard.adminThread.coordChipTitleUnassigned")}
                 title={inquiry.coordinator ? interpolate(t("dashboard.adminThread.coordChipTitleAssigned"), { name: inquiry.coordinator.name }) : t("dashboard.adminThread.coordChipTitleUnassigned")}
                 style={{
                   height: 32,
@@ -335,8 +337,19 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   whiteSpace: "nowrap",
                 }}
               >
-                <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: inquiry.coordinator ? COLORS.success : COLORS.amber, display: "inline-block" }} />
-                {coordinatorFirstName ? interpolate(t("dashboard.adminThread.coordChipLabelAssigned"), { name: coordinatorFirstName }) : t("dashboard.adminThread.coordChipLabelUnassigned")}
+                {/* Person glyph carrying the assigned/unassigned dot as part
+                    of the same SVG. The bare dot said nothing once the label
+                    is hidden on mobile, where this collapses to an icon-only
+                    40px button — and drawing the badge inside the SVG keeps
+                    this off the frozen-inline-style ratchet. */}
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0">
+                  <circle cx="7" cy="5" r="2.6" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M2.4 13.2c.5-2.3 2.5-3.6 4.6-3.6s4.1 1.3 4.6 3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  <circle cx="13" cy="3.4" r="2.5" fill={inquiry.coordinator ? COLORS.success : COLORS.amber} stroke="#fff" strokeWidth="1.2" />
+                </svg>
+                <span data-tulala-action-label>
+                  {coordinatorFirstName ? interpolate(t("dashboard.adminThread.coordChipLabelAssigned"), { name: coordinatorFirstName }) : t("dashboard.adminThread.coordChipLabelUnassigned")}
+                </span>
               </button>
             )}
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
@@ -348,7 +361,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               onJumpPayment={() => setActiveTab("offer")}
               onJumpApproval={() => setActiveTab("offer")}
             />
-            <OverflowMenu toast={toast} size="sm" />
+            <span data-tulala-thread-overflow>
+              <OverflowMenu toast={toast} size="sm" />
+            </span>
           </div>
         )}
         // Slice A (Messages consolidation v2): row 3 of the universal

@@ -575,7 +575,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
   };
 
   return (
-    <div className="relative">
+    <div className="relative" data-tulala-thread-primary-action>
       <button
         type="button"
         disabled={pending}
@@ -595,7 +595,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
         </svg>
       </button>
       {open && (
-        <div style={{
+        <div data-tulala-stage-menu style={{
           position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 50,
           background: "#fff", borderRadius: 8,
           boxShadow: "0 4px 20px rgba(0,0,0,0.12)",

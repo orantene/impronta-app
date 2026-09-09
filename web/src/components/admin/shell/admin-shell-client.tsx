@@ -1785,11 +1785,14 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell .tulala-mobile-back {
               display: inline-flex !important;
             }
-            /* Mobile inbox tab — door pattern. Visible only ≤720px while
-               the user is in the thread pane. Tap to slide the inbox
-               open; selecting a row auto-closes back to the thread. */
+            /* Mobile inbox tab — the "door" back to the list, pinned to the
+               left edge at mid-height. It is kept HIDDEN: the thread header
+               already shows a back arrow at this breakpoint (rule below), so
+               the door is a second route to the same place that permanently
+               floats on top of the conversation. One back affordance, and
+               the messages get their full width. */
             .tulala-shell [data-tulala-mobile-inbox-tab] {
-              display: inline-flex !important;
+              display: none !important;
             }
             /* Workspace messages WhatsApp-style header: show back arrow,
                hide desktop-only trust chip + status chip to keep the bar
@@ -1868,11 +1871,44 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-thread-tabs] button {
               min-height: 44px !important;
             }
-            /* Thread-header back arrow was a 26x36 sliver. */
+            /* Thread-header back arrow was a 26x26 sliver — the single most
+               tapped control in the thread. */
             .tulala-shell [data-tulala-thread-back],
             .tulala-shell [data-tulala-back-btn] {
+              width: 44px !important;
+              height: 44px !important;
               min-width: 44px !important;
               min-height: 44px !important;
+              border-radius: 10px !important;
+              margin-top: 0 !important;
+            }
+            /* Remaining sub-44px controls in the thread: the composer mic
+               (its aria-label is "Record voice note", not "Voice note", so
+               the rule above never matched it), the lineup summary row, and
+               the next-action nudge bar's CTA + dismiss. */
+            .tulala-shell [data-tulala-thread-pane] [aria-label="Record voice note"] {
+              width: 44px !important;
+              height: 44px !important;
+            }
+            .tulala-shell [data-tulala-next-action-bar] button {
+              min-height: 44px !important;
+              min-width: 44px !important;
+            }
+            .tulala-shell [data-tulala-inbox-search] input {
+              min-height: 44px !important;
+            }
+            /* Lineup summary ("1 talent · 0/1 accepted") opens the Lineup
+               tab, so it is a control, not a caption. */
+            .tulala-shell [data-tulala-header-meta-extras] button {
+              min-height: 44px !important;
+            }
+            /* The stage menu is anchored right:0 to its trigger. On desktop
+               the trigger sits at the right edge so the menu opens inward;
+               on mobile the trigger is the FIRST item on its row, so the
+               same anchor threw the menu off the left edge of the screen. */
+            .tulala-shell [data-tulala-stage-menu] {
+              right: auto !important;
+              left: 0 !important;
             }
             /* ── Horizontal strips actually scroll ───────────────────
                Both rails overflow at 375px (chips 700px of content in a
@@ -1891,6 +1927,22 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-inbox-chips]::-webkit-scrollbar,
             .tulala-shell [data-tulala-thread-tabs]::-webkit-scrollbar {
               display: none;
+            }
+            /* Same trailing fade as the thread action bar, so a rail that
+               runs past the edge reads as scrollable rather than cut. */
+            .tulala-shell [data-tulala-inbox-chips],
+            .tulala-shell [data-tulala-thread-tabs] {
+              -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+              mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+            }
+            /* The two per-message affordances ship with different chrome —
+               a 40px outlined circle next to a bare arrow. Match them. */
+            .tulala-shell [data-msg-actions] button {
+              min-width: 40px;
+              min-height: 40px;
+              border: none !important;
+              background: transparent !important;
+              box-shadow: none !important;
             }
             /* Support launcher is pinned mid-right (top:62%), which on a
                phone parks it right on top of the conversation. Dock it

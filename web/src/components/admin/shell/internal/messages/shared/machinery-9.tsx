@@ -195,6 +195,7 @@ export function ThreadSearchTrigger({
     <>
       <button
         type="button"
+        data-tulala-thread-action
         onClick={() => setOpen(true)}
         aria-label={t("dashboard.adminThread.threadSearch.searchAria")}
         title={t("dashboard.adminThread.threadSearch.searchTitle")}

@@ -538,7 +538,7 @@ export function ShellNextActionBar({
   }
 
   return (
-    <div style={{
+    <div data-tulala-next-action-bar style={{
       position: "sticky", bottom: 0, zIndex: 6,
       padding: "8px 14px",
       background: "rgba(255,255,255,0.96)", backdropFilter: "blur(6px)",
