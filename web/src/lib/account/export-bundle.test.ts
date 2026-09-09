@@ -148,6 +148,11 @@ test("the path literal is NOT declared in a \"use server\" module", () => {
   // `next build` could not compile the admin layout at all.
   const prefs = readFileSync(join(process.cwd(), "src/lib/server-actions/user-prefs.ts"), "utf8");
   assert.doesNotMatch(prefs, /export const ACCOUNT_EXPORT_PATH/);
-  const path = readFileSync(join(process.cwd(), "src/lib/account/export-path.ts"), "utf8");
+  // Comments blanked, because the module's own header EXPLAINS the directive it
+  // must not carry — quoting `"use server"` in prose is how this test failed
+  // against a correct file. The directive is what matters, not the word.
+  const path = blankComments(
+    readFileSync(join(process.cwd(), "src/lib/account/export-path.ts"), "utf8"),
+  );
   assert.doesNotMatch(path, /"use server"/, "the literal's home must not be an action module");
 });
