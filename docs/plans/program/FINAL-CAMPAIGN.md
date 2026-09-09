@@ -33,7 +33,7 @@ High-risk combinations listed in the 404 register must all pass.
 
 | Metric | Value |
 |---|---|
-| Cases verified end-to-end | **0 / 48** (frozen until campaign run) |
+| Cases verified end-to-end | **0 / 48** (QA runs continuously against `qa-journeys`; this is the honest count, not a freeze) |
 | Scenarios registered | **404** |
 | M0–M9 product work | Landed on branch; campaign still required |
 

@@ -8,7 +8,7 @@ evidence dirs). Catalog QA is `C-01`–`C-32`. Full 404 scenario register:
 
 | Case | Scenario | Title | Status | Evidence |
 |---|---|---|---|---|
-| C01 | C01-CUS | Nail salon | implementing — deposit requested, not collected | `qa-evidence/C01-CUS/deposit.md` |
+| C01 | C01-CUS | Nail salon | awaiting external verification — deposit requested, not collected (card payment; Stripe test keys and a Mercado Pago sandbox are not yet supplied on the isolated preview, so the checkout helper degrades to a mock; see D-100) | `qa-evidence/C01-CUS/deposit.md` |
 | C01 | C01-OP | Nail salon | not started | `qa-evidence/C01-OP/` |
 | C01 | C01-TAL | Nail salon | not started | `qa-evidence/C01-TAL/` |
 | C01 | C01-DIFF | Nail salon | not started | `qa-evidence/C01-DIFF/` |
