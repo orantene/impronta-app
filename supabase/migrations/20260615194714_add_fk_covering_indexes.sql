@@ -6,8 +6,21 @@
 -- ============================================================
 -- agency_taxonomy_settings (~20 262 rows)
 -- ============================================================
-create index if not exists idx_agency_taxonomy_settings_created_by
-  on public.agency_taxonomy_settings (created_by_user_id);
+-- D-104: `create index if not exists` guards the INDEX name, not the TABLE —
+-- it still errors on a from-zero replay where agency_taxonomy_settings does
+-- not exist yet (created later by 20260909221926). Wrap in a to_regclass
+-- check so it no-ops there; unchanged on a database that already has the
+-- table (20260909221926 also creates this same index, so a database built
+-- from zero picks it up then instead).
+DO $$
+BEGIN
+  IF to_regclass('public.agency_taxonomy_settings') IS NOT NULL THEN
+    create index if not exists idx_agency_taxonomy_settings_created_by
+      on public.agency_taxonomy_settings (created_by_user_id);
+  ELSE
+    RAISE NOTICE 'agency_taxonomy_settings absent — skipping idx_agency_taxonomy_settings_created_by (created by 20260909221926 later in the same replay)';
+  END IF;
+END $$;
 
 -- ============================================================
 -- analytics_events (~1 947 rows)
