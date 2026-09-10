@@ -434,6 +434,9 @@ jobs:
       # NOT here — it needs a real Postgres. It lives in
       # `npm run verify:capacity-concurrency` and is deliberately outside the
       # `ci` aggregate so lane parity stays honest about what actually gates.
+      # The sibling proof for a single physical resource (one unit, N concurrent
+      # reserve_capacity calls, ground truth from capacity_allocations) is
+      # `npm run verify:resource-concurrency` — same reason, same exclusion.
       - name: tests — capacity engine
         if: ${{ !cancelled() }}
         run: npm run test:capacity
@@ -447,6 +450,10 @@ jobs:
       # enqueue) and a real Postgres cannot hold an interleaving still enough to
       # assert on. The exceptions half additionally pins the one classification
       # whose failure mode is a second refund.
+      # The lease-taken race for the command claim table (first-claim and
+      # lease-takeover compare-and-set) needs a real Postgres and is proven
+      # separately, deliberately outside the `ci` aggregate for the same reason
+      # as the capacity proofs above: `npm run verify:command-lease`.
       - name: tests — command envelope, outbox and exceptions
         if: ${{ !cancelled() }}
         run: npm run test:commands
