@@ -30,10 +30,18 @@ import {
   DESTINATION_GROUP_LABELS,
   DESTINATION_LIST,
   SIDEBAR_GROUP_ORDER,
+  destinationHref,
   liveRouteSegment,
+  resolveDestination,
+  subViewHref,
   DESTINATIONS,
 } from "@/lib/workspace/destinations";
-import { navWorkspacePages } from "@/lib/workspace/page-ids";
+import {
+  liveWorkspacePage,
+  navWorkspacePages,
+  resolveWorkspacePageId,
+} from "@/lib/workspace/page-ids";
+import { pathIsCanonical } from "@/components/admin/shell/canonical-routes";
 import { RAIL_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-rail";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state/types";
 
@@ -195,15 +203,18 @@ test("the nav hook reads the shell's own state and the registry, nothing else", 
 });
 
 test("visibleWorkspacePages hides Pitches — and NOT People — for a business workspace", () => {
-  const pages: WorkspacePage[] = ["overview", "messages", "roster", "pitches", "reviews", "analytics", "settings"];
+  const pages: WorkspacePage[] = ["overview", "messages", "people", "roster", "pitches", "reviews", "analytics", "settings"];
   const business = visibleWorkspacePages("business", pages);
   assert.ok(!business.includes("pitches"), "business must not see pitches");
-  // `roster` is People's live page. Hiding it dropped the People row from the
-  // rail of every business workspace and clamped the page to Overview — a
-  // surface with no door, not a surface that does not apply. A restaurant has
-  // staff; what it cannot open is the roster's representation queues, and those
-  // are refused by `assertRosterWorkspace` on the routes themselves.
-  assert.ok(business.includes("roster"), "business lost its People row again");
+  // `people` is People's live page (it was `roster` until the surface got its
+  // own route). Hiding it dropped the People row from the rail of every
+  // business workspace and clamped the page to Overview — a surface with no
+  // door, not a surface that does not apply. A restaurant has staff; what it
+  // cannot open is the roster's representation queues, and those are refused by
+  // `assertRosterWorkspace` on the routes themselves.
+  assert.ok(business.includes("people"), "business lost its People row again");
+  // The legacy address must stay open too: /admin/roster is a live URL.
+  assert.ok(business.includes("roster"), "business lost the roster's own address");
   assert.deepEqual(visibleWorkspacePages("talent", pages), pages, "talent sees every page verbatim");
 });
 
@@ -276,24 +287,73 @@ test("the identity bridge carries the industry preset from the agencies row", ()
 test("every registry sub-view names a route that exists today", () => {
   // A child is drawn under the row the operator just opened. One that 404s is
   // worse than an absent one, and nothing else in the build can see it: these
-  // are data, not imports. The href the rail builds is the destination's LIVE
-  // route plus the sub-view segment, so that is exactly what is checked here.
+  // are data, not imports.
+  //
+  // The path checked here is the one `subViewHref` builds, taken from the same
+  // helper the rail calls — `subViewHref` — rather than re-derived. An earlier
+  // cut of this test re-implemented the `under` branch by hand, so a sub-view
+  // with an `adminPath` would have been checked at an address no link points
+  // to, and the guard would have passed on a 404.
   const missing: string[] = [];
   for (const destination of DESTINATION_LIST) {
     for (const view of destination.subViews ?? []) {
-      const owner = view.under !== undefined ? DESTINATIONS[view.under] : destination;
-      const base = liveRouteSegment(owner);
+      const href = subViewHref(destination, view, "/admin");
       assert.notEqual(
-        base,
+        href,
         null,
-        `${destination.id}/${view.id} hangs off ${owner.id}, which has no route at all`,
+        `${destination.id}/${view.id} hangs off a destination with no route at all`,
       );
-      const parts = [ADMIN_ROUTES, base, view.segment].filter((p) => p !== "" && p !== null);
-      const file = join(root, ...(parts as string[]), "page.tsx");
+      // "/admin/roster/rates" → ["roster","rates"]; "/admin" → [].
+      const under = href!.split("?")[0]!.replace(/^\/admin\/?/, "");
+      const parts = [ADMIN_ROUTES, ...under.split("/")].filter((p) => p !== "");
+      const file = join(root, ...parts, "page.tsx");
       if (!existsSync(file)) missing.push(`${destination.id}/${view.id} → ${file}`);
     }
   }
   assert.deepEqual(missing, [], `sub-views pointing at nothing:\n${missing.join("\n")}`);
+});
+
+test("THE PEOPLE ROW OPENS THE PEOPLE SURFACE, from the rail and from the phone", () => {
+  // THE DEFECT THIS EXISTS FOR. People carried `fallbackSegment: "roster"`, so
+  // `liveRouteSegment` answered "roster" and EVERY link builder in the app —
+  // the rail row, the mobile tab bar, `setPage`, the page router — sent an
+  // operator to the old roster SPA. The nine screens at /admin/people were
+  // reachable only by typing the URL: an engine with no door.
+  const people = DESTINATIONS.people;
+  assert.equal(liveRouteSegment(people), "people", "People's live route left /admin/people");
+  assert.equal(
+    people.fallbackSegment,
+    undefined,
+    "People has a fallback segment again, so every link points away from its surface",
+  );
+  // The rail row and the mobile tab both call this.
+  assert.equal(destinationHref(people, "/impronta/admin"), "/impronta/admin/people");
+  assert.equal(destinationHref(people, "/admin"), "/admin/people", "branded host");
+  // `setPage` maps a page id to a segment through here, and the server layout
+  // resolves the URL through the same function.
+  assert.equal(resolveWorkspacePageId("people"), "people");
+  assert.equal(liveWorkspacePage(people), "people");
+  // The landing child is the surface itself, not a second address for it.
+  const everyone = (people.subViews ?? []).find((s) => s.id === "everyone");
+  assert.ok(everyone, "People lost its landing child");
+  assert.equal(subViewHref(people, everyone!, "/impronta/admin"), "/impronta/admin/people");
+  // And the shell yields to the real page instead of stacking the SPA on it.
+  assert.equal(pathIsCanonical("/impronta/admin/people"), true);
+  assert.equal(pathIsCanonical("/admin/people"), true, "branded host");
+});
+
+test("the roster keeps its own address and its own body", () => {
+  // The other half. `roster` is now only an alias of People, and an alias that
+  // re-pointed the SPA body would have left /admin/roster painting People and
+  // the roster list with no address at all.
+  assert.equal(resolveWorkspacePageId("roster"), "roster", "the roster SPA lost its body");
+  assert.equal(
+    pathIsCanonical("/impronta/admin/roster"),
+    false,
+    "/admin/roster must go on rendering the roster SPA",
+  );
+  // The rail still lights the People row there, because the alias resolves.
+  assert.equal(resolveDestination("roster")?.id, "people");
 });
 
 test("every registry label the rail can draw has a Spanish row", () => {

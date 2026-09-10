@@ -139,27 +139,34 @@ test("every destination's live route is a route that exists", () => {
   }
 });
 
-test("an unbuilt destination's URL falls back to a page that exists", () => {
-  const payments = resolveDestination("payments");
-  assert.equal(payments?.built, false);
-  assert.equal(payments && liveRouteSegment(payments), "financials");
-  assert.equal(
-    payments && destinationHref(payments, "/acme/admin"),
-    "/acme/admin/financials",
+test("an unbuilt destination either falls back to a page that exists, or says it has none", () => {
+  // This used to name Payments and Projects. P4 built both, and each now has
+  // its own test below asserting it answers at its own segment. Naming the
+  // unbuilt ones by hand is what made this guard go stale on a merge, so it is
+  // expressed over the REGISTRY instead: whatever is unbuilt must either name a
+  // fallback route that really exists, or refuse to produce an href at all.
+  const unbuilt = DESTINATION_LIST.filter((d) => !d.built);
+  assert.deepEqual(
+    unbuilt.map((d) => d.id),
+    ["mywork"],
+    "the set of unbuilt destinations changed — update the slices' guards with it",
   );
+  const dirs = adminRouteDirs();
+  for (const d of unbuilt) {
+    const segment = liveRouteSegment(d);
+    if (segment === null) {
+      // Nowhere honest to send the URL, and it says so rather than guessing.
+      assert.equal(destinationHref(d, "/admin"), null, d.id);
+      continue;
+    }
+    assert.equal(d.fallbackSegment, segment, `${d.id} falls back without saying so`);
+    assert.ok(dirs.has(segment), `${d.id} falls back to /admin/${segment}, which does not exist`);
+    assert.equal(destinationHref(d, "/acme/admin"), `/acme/admin/${segment}`, d.id);
+  }
+
   // The legacy URLs still land where they always did.
   assert.equal(resolveDestination("financials")?.id, "payments");
   assert.equal(resolveDestination("payouts")?.id, "payments");
-  const projects = resolveDestination("projects");
-  assert.equal(projects?.built, false);
-  assert.equal(projects && liveRouteSegment(projects), "messages");
-  assert.equal(projects && destinationHref(projects, "/admin"), "/admin/messages");
-
-  // mywork has nowhere honest to send a URL yet, and says so.
-  const mywork = resolveDestination("mywork");
-  assert.equal(mywork?.built, false);
-  assert.equal(mywork && liveRouteSegment(mywork), null);
-  assert.equal(mywork && destinationHref(mywork, "/admin"), null);
 });
 
 test("Projects is built and answers at its own segment, not at a stand-in", () => {
@@ -176,13 +183,12 @@ test("Projects is built and answers at its own segment, not at a stand-in", () =
 });
 
 test("a built destination renamed ahead of its route still points at the live one", () => {
-  // spaces/catalog/people/appts/issues carry their target name and render at
-  // their legacy route until the routing task moves them. Both facts are here
-  // so no consumer has to guess which is which.
+  // spaces/catalog/appts/issues carry their target name and render at their
+  // legacy route until the routing task moves them. Both facts are here so no
+  // consumer has to guess which is which.
   const renamed: ReadonlyArray<readonly [string, string]> = [
     ["spaces", "tables"],
     ["catalog", "menu"],
-    ["people", "roster"],
     ["appts", "sessions"],
     ["issues", "exceptions"],
   ];
@@ -191,6 +197,20 @@ test("a built destination renamed ahead of its route still points at the live on
     assert.equal(d?.built, true, `${id} must be built`);
     assert.equal(d && liveRouteSegment(d), route);
   }
+  // PEOPLE HAS COMPLETED THE MOVE, and this is where that is recorded. It was
+  // in the list above with the live route "roster", which is precisely why the
+  // rail, the mobile tab bar and `setPage` all sent an operator to the roster
+  // SPA while the People surface sat at /admin/people with nothing linking to
+  // it. A `fallbackSegment` coming back here is that defect coming back.
+  const people = resolveDestination("people");
+  assert.equal(people?.built, true);
+  assert.equal(people?.fallbackSegment, undefined, "People fell back to a legacy route again");
+  assert.equal(people && liveRouteSegment(people), "people");
+  assert.equal(people && destinationHref(people, "/impronta/admin"), "/impronta/admin/people");
+  // The legacy address still resolves to the same destination, so /admin/roster
+  // keeps lighting the People row.
+  assert.equal(resolveDestination("roster")?.id, "people");
+  assert.equal(resolveDestination("talent")?.id, "people");
 });
 
 /**

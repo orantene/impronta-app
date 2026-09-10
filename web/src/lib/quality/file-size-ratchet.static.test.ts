@@ -415,7 +415,12 @@ const BUDGETS: Record<string, number> = {
   // catalog, Orders, Open POS, Book, Bookable, Applications, Everyone).
   // Both landed together, so the budget is the measured size of the merged
   // file rather than either branch's number.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3597,
+  // 2026-09-10 P4 people: +4 — one ES_TEXT entry ("Unnamed person") for the
+  // member the bridge reader returns with an empty display_name, plus the three
+  // comment lines saying why an empty name is printed rather than a user id.
+  // ES_TEXT is a flat map keyed by the English literal; a translated string has
+  // nowhere else to live, so there is nothing here to extract.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3601,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.

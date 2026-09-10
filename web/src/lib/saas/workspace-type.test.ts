@@ -41,7 +41,7 @@ const ALL_PAGES: WorkspacePage[] = [
   "tables",       // the Spaces destination, at its live route
   "discounts",
   "clients",
-  "roster",       // the People destination, at its live route
+  "people",       // the People destination, at its own route since P4
   "pitches",
   "reviews",
   "sales",
@@ -128,7 +128,7 @@ test("visibleWorkspacePages drops exactly pitches for a business workspace", () 
     "tables",
     "discounts",
     "clients",
-    "roster", // People — every workspace has people; a restaurant has staff
+    "people", // every workspace has people; a restaurant has staff
     "reviews",
     "sales",
     "payments",
@@ -255,14 +255,27 @@ for (const shape of HOST_SHAPES) {
     assert.equal(pitches, "pitches");
     assert.equal(clampWorkspacePage(pitches, "business"), "overview");
 
-    // "/talent" is a legacy alias that resolves to roster. It follows roster
-    // wherever roster goes — the alias must never be a second, different answer.
+    // "/talent" is a legacy alias of the People destination. It follows People
+    // wherever People goes — the alias must never be a second, different
+    // answer. It resolved to "roster" while People rendered there and resolves
+    // to "people" now that People has its own route; what may never happen is
+    // the two disagreeing.
     const legacy = deriveInitialPage(shape.path("/talent"), shape.prefix);
-    assert.equal(legacy, "roster");
+    assert.equal(legacy, "people");
     assert.equal(
       clampWorkspacePage(legacy, "business"),
-      clampWorkspacePage("roster", "business"),
+      clampWorkspacePage("people", "business"),
     );
+  });
+
+  test(`[${shape.name}] the People surface is reachable and never clamped away`, () => {
+    // THE DOOR. /admin/people has to derive to the People page on both host
+    // shapes and survive the business clamp, or the rail row that now points
+    // here bounces an operator to Overview.
+    const derived = deriveInitialPage(shape.path("/people"), shape.prefix);
+    assert.equal(derived, "people");
+    assert.equal(clampWorkspacePage(derived, "business"), "people");
+    assert.equal(clampWorkspacePage(derived, "talent"), "people");
   });
 
   test(`[${shape.name}] every non-pitches deep link survives on a business workspace`, () => {

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathIsCanonical } from "./canonical-routes";
+import { DESTINATIONS } from "@/lib/workspace/destinations";
 
 /** Absolute path to `web/`, derived from this file rather than from cwd. */
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
@@ -155,4 +156,41 @@ test("PROJECTS LINKS TO THE THREAD ITSELF, NOT TO THE INBOX WITH A DEAD PARAM", 
   assert.equal(pathIsCanonical("/admin/messages/1a2b3c"), true);
   assert.equal(pathIsCanonical("/impronta/admin/messages/1a2b3c"), true);
   assert.equal(pathIsCanonical("/admin/messages"), false);
+});
+
+/**
+ * People (P4) — /admin/people is a real server page; /admin/roster is NOT.
+ *
+ * Both halves matter. If the roster ever became canonical the roster SPA would
+ * render nothing at all, and if /admin/people were left non-canonical its
+ * server page would render inline UNDER the SPA — the exact stacking failure
+ * the branded-host bug above produced.
+ */
+test("People is canonical on both host shapes, from the registry and not by hand", () => {
+  assert.equal(pathIsCanonical("/admin/people"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/people"), true);
+  // People is `render: "canonical"` with no fallbackSegment, so this comes
+  // from REGISTRY_MATCHERS. That is the point: the rail, the mobile tab bar
+  // and `setPage` read the same entry, so the door an operator clicks and the
+  // matcher that yields to the real page cannot disagree. It was a
+  // hand-written matcher while the registry still said `/admin/roster`, and
+  // that is exactly how the surface ended up reachable only by typed URL.
+  assert.equal(
+    DESTINATIONS.people.render,
+    "canonical",
+    "People is back on the SPA, so the registry projection no longer covers it",
+  );
+  assert.equal(DESTINATIONS.people.fallbackSegment, undefined);
+  // The blanket registry match now covers deeper People URLs too. There are no
+  // sub-routes under /admin/people; if one is ever added it must be a real page
+  // rather than a PageRouteSyncer, and this is where that is written down.
+  assert.equal(pathIsCanonical("/admin/people/abc123"), true);
+  // And the roster the People surface sits beside is untouched: `roster` is
+  // only an ALIAS, and aliases are deliberately excluded from the projection.
+  assert.equal(pathIsCanonical("/admin/roster"), false);
+  assert.equal(pathIsCanonical("/impronta/admin/roster"), false);
+  // The roster's three talent-only queues keep their own hand-written matchers
+  // (they are real server pages) — that is unchanged, and it is why the People
+  // row can go on linking to them from their `adminPath`.
+  assert.equal(pathIsCanonical("/impronta/admin/roster/applications"), true);
 });

@@ -149,6 +149,12 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // render stacked underneath the real page (the failure the bookings/account
   // matchers below were added for).
   (s) => s[0] === "admin" && s[1] === "website" && s[2] === "redirects",
+  // /<tenant>/admin/people is NOT hand-written here any more. People is
+  // `render: "canonical"` in the registry with no fallbackSegment, so
+  // REGISTRY_MATCHERS above covers it — which is the point: the rail, the
+  // mobile tab bar and `setPage` all read the same entry, so the door and the
+  // matcher can no longer disagree. `/admin/roster` stays SPA because `roster`
+  // is only an alias and aliases are deliberately excluded from the projection.
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
   // The mega Messages shell still owns the LIST (no path segment after
   // "messages") + the legacy ?inquiry=<id> query-param flow. The new

@@ -3,27 +3,18 @@
  *
  * WHY THIS EXISTS
  * ───────────────
- * A workspace destination is currently described in four places that must be
- * hand-kept in agreement, and are not:
- *
- *   1. `SIDEBAR_GROUP_TEMPLATE` / `subItemsFor` / `SIDEBAR_ICON`
- *      (components/admin/shell/internal/page-modules/WorkspaceShell.tsx)
- *   2. `WORKSPACE_PAGES` / `PAGE_META` / `resolveWorkspacePage`
- *      (components/admin/shell/internal/state/fixtures.ts)
- *   3. `WORKSPACE_PAGE_ALIASES` + `WORKSPACE_PAGE_SEGMENTS`
- *      (app/(workspace)/[tenantSlug]/admin/workspace-page-routing.ts)
- *   4. `CANONICAL_ROUTE_MATCHERS`
- *      (components/admin/shell/canonical-routes.ts)
- *
- * Adding one destination means six to eleven separate registrations, and a
- * missed one fails silently: an icon degrades to a circle, a segment 404s to
- * Overview, a canonical page renders stacked under the SPA. This module is the
- * single description those four are meant to become projections of.
- *
- * All four are now projections of this module: the rail through
+ * A destination used to be described in four hand-synchronised places: the
+ * shell's sidebar template + icon table, `WORKSPACE_PAGES` / `PAGE_META` /
+ * `resolveWorkspacePage`, the admin route resolver's own alias map and segment
+ * allow-list, and `CANONICAL_ROUTE_MATCHERS`. Adding one meant six to eleven
+ * registrations, and a missed one failed SILENTLY: an icon degraded to a
+ * circle, a segment 404d to Overview, a canonical page rendered stacked under
+ * the SPA. All four are projections of this module now — the rail through
  * `page-modules/workspace-nav-groups.ts`, the page list and metadata through
- * `lib/workspace/page-ids.ts`, and the route resolver and canonical matchers
- * through the same helpers. A destination is described HERE and nowhere else.
+ * `lib/workspace/page-ids.ts`, the resolver and matchers through the same
+ * helpers. A destination is described HERE and nowhere else, and
+ * `rail-visible-pages.static.test.ts` fails if one of the five old structures
+ * comes back.
  *
  * PURITY
  * ──────
@@ -35,19 +26,15 @@
  * SEGMENT vs LIVE ROUTE
  * ─────────────────────
  * `segment` is the canonical URL segment a destination is MOVING to. Several
- * canonical segments are not routes yet (`appts`, `catalog`, `spaces`,
- * `people`, `issues`), and their legacy segment is carried in `aliases` so
- * every URL in the wild keeps resolving. `fallbackSegment` names the route that
- * actually renders today, for two cases that are the same case:
- *
- *   - a BUILT destination whose canonical segment is not routed yet
- *     (`spaces` renders at /admin/tables until the routing task moves it), and
- *   - an UNBUILT destination that has somewhere sensible to stand in
- *     (`payments` lands on /admin/financials; `projects` lands on /admin/messages).
- *
- * Ask `liveRouteSegment()` rather than reading `segment` directly, and treat
- * its `null` as "this destination has no route at all yet" — that is `mywork`,
- * and it is a real state, not a missing value.
+ * are not routes yet (`appts`, `catalog`, `spaces`, `issues`), and their legacy
+ * segment is carried in `aliases` so every URL in the wild keeps resolving.
+ * `fallbackSegment` names the route that actually renders today for a BUILT
+ * destination whose canonical segment is not routed yet (`spaces` renders at
+ * /admin/tables). A destination with NO `fallbackSegment` renders at its own
+ * segment; `people`, `projects` and `payments` have completed that move, and
+ * every link builder follows them. Ask `liveRouteSegment()` rather than reading
+ * `segment` directly, and treat its `null` as "this destination has no route at
+ * all yet" — that is `mywork`, a real state, not a missing value.
  */
 
 import type { AdminShellIconName } from "@/components/admin/shell/internal/primitives/icons";
@@ -138,11 +125,10 @@ export type DestinationRequires = {
 /**
  * A child link under a destination's rail row.
  *
- * EVERY SUB-VIEW NAMES A ROUTE THAT EXISTS TODAY, under the owner's LIVE route
- * rather than its canonical segment: People's children sit at /admin/roster/*
- * while People still renders there. `rail-visible-pages.static.test.ts` walks
- * the app directory and fails on one that points at nothing, because a child
- * drawn under the row an operator just opened must not be a 404.
+ * EVERY SUB-VIEW NAMES A ROUTE THAT EXISTS TODAY. `rail-visible-pages.static
+ * .test.ts` walks the app directory, through `subViewHref` itself, and fails on
+ * one that points at nothing: a child drawn under the row an operator just
+ * opened must not be a 404.
  */
 export type DestinationSubView = {
   readonly id: string;
@@ -154,6 +140,10 @@ export type DestinationSubView = {
    * the case: the door and the ticket orders it checks in are one job.
    */
   readonly under?: DestinationId;
+  /** The child's own path under the admin base, for a child that lives under
+   *  no destination's route. Wins over `under`. People needs it: the surface
+   *  moved to /admin/people, its three queues stayed under /admin/roster. */
+  readonly adminPath?: string;
   /** Query appended to the href, without the "?" (e.g. `compose=new`). */
   readonly query?: string;
   readonly requires?: DestinationRequires;
@@ -430,36 +420,41 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     group: "relationships",
     segment: "people",
     aliases: ["roster", "talent"],
-    fallbackSegment: "roster",
-    render: "spa",
+    // THE DOOR. NO `fallbackSegment`, so every link builder (rail, mobile tab
+    // bar, `setPage`, page router) sends an operator to /admin/people. It fell
+    // back to `roster`, which is how the surface ended up reachable only by
+    // typed URL. `roster` stays an alias: it still lights this row, and still
+    // renders the roster SPA — see LEGACY_PAGES_WITH_THEIR_OWN_BODY.
+    render: "canonical",
     icon: "team",
     label: "People",
     presetLabels: { cafe: "Team" },
     shortLabel: "People",
     built: true,
     mobilePriority: 9,
-    // The four children the rail has drawn under the roster since WS-3, at the
-    // live route they still render on. The last three are TALENT-ONLY because
-    // the routes themselves are: /admin/roster/{applications,registration,rates}
-    // each call `assertRosterWorkspace`, which 404s a business workspace. The
-    // landing view is not gated, because People is every workspace's row — a
-    // restaurant has staff, and it is the same page under its cafe name, Team.
-    //
-    // `talent`, `bookable` and `access` are NOT here: /admin/roster/talent is
-    // the roster's [id] route, so those three were links into a lookup for a
-    // profile with the id "talent". They arrive with the People surface.
+    // The four children the rail has drawn under the roster since WS-3. The
+    // last three are TALENT-ONLY because the routes are: each of
+    // /admin/roster/{applications,registration,rates} calls
+    // `assertRosterWorkspace`, which 404s a business workspace. The landing
+    // view is not gated: People is every workspace's row, and a restaurant has
+    // staff. Those three carry `adminPath` because they did NOT move with the
+    // surface. `talent`, `bookable` and `access` are NOT here: /admin/roster/
+    // talent is the roster's [id] route, so those three were links into a
+    // lookup for a profile with the id "talent" — they arrive with People.
     subViews: [
       { id: "everyone", label: "Everyone", segment: "" },
       {
         id: "applications",
         label: "Applications",
         segment: "applications",
+        adminPath: "roster",
         requires: { workspaceType: "talent" },
       },
       {
         id: "registration",
         label: "Registration",
         segment: "registration",
+        adminPath: "roster",
         requires: { workspaceType: "talent" },
       },
       {
@@ -468,6 +463,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
         id: "rates",
         label: "Rates",
         segment: "rates",
+        adminPath: "roster",
         requires: { workspaceType: "talent" },
       },
     ],
@@ -701,8 +697,11 @@ export function subViewHref(
   view: DestinationSubView,
   adminBase: string,
 ): string | null {
+  // `adminPath` wins, then `under`, then the owner's own live route.
   const owner = view.under !== undefined ? DESTINATIONS[view.under] : destination;
-  const base = destinationHref(owner, adminBase);
+  const base = view.adminPath !== undefined
+    ? `${adminBase}/${view.adminPath}`
+    : destinationHref(owner, adminBase);
   if (base === null) return null;
   const path = view.segment === "" ? base : `${base}/${view.segment}`;
   return view.query !== undefined ? `${path}?${view.query}` : path;

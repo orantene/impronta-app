@@ -80,9 +80,19 @@ export function liveWorkspacePage(destination: Destination): WorkspacePage | nul
  * page router a case it does not have and paint a blank screen. When Payments
  * absorbs Payouts for real, delete this set and the `payouts` router case
  * together.
+ *
+ * `roster`: the same shape, and the reason People could move. People's live
+ * route is now `/admin/people` (a real server page), and `roster` is only an
+ * alias — but `/admin/roster` still renders `<RosterPage/>` in the SPA and has
+ * no canonical matcher. Without this entry, resolving the alias would open the
+ * People body on the roster's own URL and the roster list would have no address
+ * at all. The rail still LIGHTS People for `/admin/roster`, because that is
+ * `resolveDestination`'s job and it reads the alias — a different question from
+ * which body the SPA paints, which is this one.
  */
 const LEGACY_PAGES_WITH_THEIR_OWN_BODY: ReadonlySet<string> = new Set<string>([
   "payouts",
+  "roster",
 ]);
 
 /**
@@ -113,10 +123,11 @@ export function resolveWorkspacePageId(raw: string): WorkspacePage {
  * The nav page list: one entry per BUILT destination, at the page it renders
  * as today, in registry order. This is what `WORKSPACE_PAGES` is.
  *
- * Unbuilt destinations are absent on purpose. `projects` has a fallback so its
- * URL lands somewhere, but a nav entry for it would put a second row in front
- * of a page that already has one. `payments` was in that state until its page
- * was built; it is a row now, which is the only reason anyone can reach it.
+ * Unbuilt destinations are absent on purpose: a nav entry for one would put a
+ * row in front of a page that does not exist. `projects`, `payments`, `people`
+ * and `issues` were all in that state and are rows now, which is the only
+ * reason anyone can reach them. `mywork` is what is left, and it has no
+ * fallback route either — see `liveWorkspacePage`.
  */
 export function navWorkspacePages(): WorkspacePage[] {
   const pages: WorkspacePage[] = [];

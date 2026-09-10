@@ -1808,5 +1808,138 @@
     "settings": {
       "channelPush": "Push"
     }
+  },
+  "admin": {
+    "people": {
+      "title": "Personnes",
+      "subtitle": "Une personne, jusqu'a trois casquettes. Un profil public, quelqu'un que vous pouvez reserver, quelqu'un qui peut se connecter. N'importe quelle combinaison, saisie une seule fois.",
+      "unnamed": "Personne sans nom",
+      "loadFailed": "Nous n'avons pas pu lire vos personnes pour le moment. Cela ne veut pas dire que l'espace est vide. Rechargez la page et, si cela se reproduit, le proprietaire de l'espace doit verifier la connexion a la base de donnees.",
+      "count": "{count} personnes",
+      "countOne": "1 personne",
+      "tabs": {
+        "everyone": "Tout le monde",
+        "talent": "Profils publics",
+        "bookable": "Reservables",
+        "access": "Acces"
+      },
+      "empty": {
+        "everyone": "Il n'y a encore personne. Ajoutez la premiere personne et choisissez ses casquettes.",
+        "talent": "Personne n'a encore de profil public. Ajoutez un profil pour inscrire quelqu'un sur votre liste publique.",
+        "bookable": "Personne n'est encore reservable. Ouvrez une personne et activez la casquette Reservable pour que les clients puissent la reserver.",
+        "access": "Pour l'instant, vous seul pouvez vous connecter a cet espace. Invitez quelqu'un pour lui donner l'acces."
+      },
+      "hat": {
+        "publicProfile": "Profil public",
+        "bookable": "Reservable",
+        "access": "Acces"
+      },
+      "hatWhat": {
+        "publicProfile": "Affiche sur votre liste publique et sur sa propre page de profil.",
+        "bookable": "Propose dans Choisir un professionnel, sur la page de reservation et au comptoir.",
+        "access": "Peut se connecter a cet espace et faire ce que son role autorise."
+      },
+      "on": "Active",
+      "off": "Desactive",
+      "reason": {
+        "noRosterRow": "Cette personne n'est pas sur votre liste, il n'y a donc pas de profil public a montrer.",
+        "rosterRemoved": "Cette personne a ete retiree de votre liste. Son profil existe toujours et peut etre remis.",
+        "workspaceAppointmentsOff": "Les reservations sont desactivees pour tout l'espace. Activez d'abord les rendez-vous dans les Reglages.",
+        "personHasNotOptedIn": "Cette personne n'a pas encore accepte de recevoir des reservations. Elle seule peut accepter, depuis son propre compte.",
+        "agencyGateOff": "Vous n'avez pas encore ouvert les reservations pour cette personne. Activez la casquette Reservable.",
+        "notSiteVisible": "Cette personne est sur votre liste mais masquee sur votre site, les clients ne peuvent donc pas la reserver.",
+        "exclusiveNotReleased": "Une agence exclusive n'a pas libere cette personne pour des reservations ailleurs.",
+        "noMembership": "Cette personne n'a pas de connexion a cet espace.",
+        "membershipRemoved": "L'acces a ete retire. Vous pouvez la reinviter quand vous voulez.",
+        "invitationPending": "Cette personne a ete invitee mais n'a pas encore accepte, elle ne peut donc pas se connecter. Elle n'a aucune permission tant qu'elle n'a pas accepte.",
+        "noAccount": "Il n'y a pas encore de compte derriere cette invitation."
+      },
+      "warning": {
+        "noBookingHours": "Pas encore d'horaires, donc aucun creneau ne sera propose. Definissez des horaires pour commencer a recevoir des reservations.",
+        "noOfferings": "Pas encore de services, il n'y a donc rien a reserver. Ajoutez un service dans votre catalogue."
+      },
+      "result": {
+        "saved": "Enregistre.",
+        "notAuthorized": "Reconnectez-vous et reessayez.",
+        "notAllowed": "Votre role n'autorise pas ce changement. Demandez a un proprietaire ou a un administrateur.",
+        "alreadyOnThisWorkspace": "Cette personne a deja acces a cet espace.",
+        "checkTheDetails": "Verifiez les informations et reessayez.",
+        "seatLimit": "Cet espace n'a plus de place pour une personne supplementaire avec un acces. Changez de forfait ou retirez l'acces a quelqu'un d'abord.",
+        "noAccountYet": "Cette personne n'a pas encore cree de compte, il n'y a donc rien pour se connecter. Invitez-la par courriel.",
+        "notOnRoster": "Cette personne n'est pas sur votre liste dans cet espace.",
+        "personSetsTheirOwnBooking": "Votre moitie est activee. Cette personne se connecte elle-meme, elle doit donc encore accepter de recevoir des reservations depuis son propre compte. En attendant, elle n'apparaitra pas dans Choisir un professionnel.",
+        "cannotChangeYourOwnRole": "Vous ne pouvez pas changer votre propre role. Demandez a un autre proprietaire ou administrateur.",
+        "couldNotSave": "L'enregistrement a echoue. Reessayez et prevenez le proprietaire de l'espace si cela continue.",
+        "invitationSent": "Invitation envoyee. Cette personne n'a pas encore d'acces : elle l'obtient quand elle se connecte avec cette adresse et accepte.",
+        "noEmailOnFile": "Cet espace n'a aucune adresse courriel pour cette personne, il n'y a donc nulle part ou envoyer une invitation."
+      },
+      "role": {
+        "owner": "Proprietaire",
+        "admin": "Administrateur",
+        "manager": "Responsable",
+        "editor": "Editeur",
+        "viewer": "Lecture",
+        "none": "Aucun role"
+      },
+      "detail": {
+        "pickAPerson": "Choisissez une personne pour voir ses trois casquettes.",
+        "openProfileEditor": "Ouvrir l'editeur de profil",
+        "profileEditorNote": "L'editeur de profil ne change pas. C'est le meme panneau que vous utilisez deja, presente ici comme l'une des trois casquettes.",
+        "turnOn": "Activer",
+        "turnOff": "Desactiver",
+        "working": "Enregistrement...",
+        "roleLabel": "Role",
+        "changeRole": "Changer le role",
+        "revokeAccess": "Retirer l'acces",
+        "grantAccess": "Donner l'acces",
+        "inviteByEmail": "Inviter par courriel",
+        "emailLabel": "Adresse courriel",
+        "invite": "Envoyer l'invitation",
+        "alsoRemoves": "Desactiver ceci retire aussi la casquette Reservable, car une personne absente de votre liste ne peut pas etre reservee ici.",
+        "whatStays": "Ce qui reste : {hats}",
+        "nothingElseChanges": "Rien d'autre ne change. Retirer une casquette ne supprime jamais la personne.",
+        "moneyNote": "Etre reservable n'accorde aucune permission sur l'argent. Seul un role sur l'acces le fait, et vous le voyez ici.",
+        "holdsMoney": "Ce role peut encaisser au comptoir.",
+        "noMoney": "Ce role ne peut pas encaisser au comptoir.",
+        "inviteWillGoTo": "L'invitation part vers {email}, l'adresse inscrite sur cette fiche.",
+        "inviteGrantsNothingYet": "L'envoi n'accorde rien en soi. Elle obtient l'acces quand elle se connecte avec cette adresse et accepte.",
+        "invitationWaitingOn": "Une invitation est deja partie vers {email}. Elle obtient l'acces quand elle l'accepte. En envoyer une autre annule celle-ci.",
+        "addEmailWhere": "Ajoutez-en une dans l'editeur de profil ci-dessus, puis revenez l'inviter."
+      },
+      "add": {
+        "title": "Ajouter une personne",
+        "intro": "Choisissez d'abord les casquettes. Vous pouvez les changer plus tard, et en retirer une ne supprime jamais la personne.",
+        "publicWhat": "Lui donner un profil public sur votre liste.",
+        "bookableWhat": "Permettre aux clients de la reserver. Un profil public est necessaire d'abord.",
+        "accessWhat": "Lui permettre de se connecter et de travailler ici.",
+        "doorRosterLabel": "Creer le profil",
+        "doorRosterNote": "Ajoute la personne avec un profil public. Revenez ici pour activer Reservable en un clic.",
+        "doorInviteNote": "Envoie une invitation de connexion. Aucun profil public n'est cree.",
+        "doorRosterListLabel": "Ouvrir la liste complete",
+        "doorRosterListNote": "La grille de la liste : modifications en lot, ordre, design de carte et les files de revision."
+      },
+      "explainer": {
+        "title": "Ce que controle chaque casquette",
+        "intro": "Chaque section que vous editez deja appartient a exactement une casquette. Voici la carte.",
+        "sectionColumn": "Section",
+        "hatColumn": "Casquette",
+        "resourcesNote": "Les salles, les fauteuils et le materiel ne sont pas des personnes. Ce sont des ressources, et elles vivent dans Espaces.",
+        "sections": {
+          "bookingTerms": "Conditions de reservation",
+          "bookingHours": "Horaires de reservation",
+          "availability": "Disponibilite",
+          "logistics": "Logistique",
+          "services": "Services",
+          "locationAndServiceArea": "Lieu et zone de service",
+          "limits": "Limites",
+          "trustBadges": "Confiance et verification",
+          "files": "Fichiers",
+          "media": "Medias",
+          "emergencyContact": "Contact d'urgence",
+          "roleAndPermissions": "Role et permissions",
+          "signIn": "Connexion"
+        }
+      }
+    }
   }
 }

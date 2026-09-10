@@ -1,13 +1,30 @@
 /**
- * People — the registry's canonical segment for what still renders at
- * /admin/roster. The People surface (everyone / talent / bookable / access /
- * applications as tabs) is not built; until it is, this URL opens the roster,
- * which is the same set of humans under its old name.
+ * People — one person, up to three independent hats.
+ *
+ * Replaces the stub that forwarded /admin/people to the roster SPA. The
+ * roster surface is untouched and still lives at /admin/roster: this page is
+ * the surrounding record, not a rewrite of the profile editor.
+ *
+ * Server component. The whole record set is resolved here so the first paint
+ * carries every hat state; nothing on the client derives a hat from data that
+ * is not already in the props.
  */
-import { PageRouteSyncer } from "../_page-route-syncer";
+import { notFound } from "next/navigation";
+
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { PeopleClient } from "./PeopleClient";
+import { loadPeopleSurface } from "./people-data";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminPeoplePage() {
-  return <PageRouteSyncer page="roster" />;
+type PageParams = Promise<{ tenantSlug: string }>;
+
+export default async function PeoplePage({ params }: { params: PageParams }) {
+  const { tenantSlug } = await params;
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) notFound();
+
+  const surface = await loadPeopleSurface(scope.tenantId);
+
+  return <PeopleClient people={surface.people} loadFailed={surface.loadFailed} />;
 }
