@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
+import { SignupCodeConfirm } from "@/components/auth/signup-code-confirm";
 import {
   AUTH_INPUT_CLASS,
   AUTH_INPUT_STYLE,
@@ -76,9 +77,33 @@ export function RegisterForm({
     AuthActionState,
     FormData
   >(signUpWithEmail, undefined);
+  // "Use a different email" pins the form back until the next signup attempt.
+  const [backToForm, setBackToForm] = useState(false);
+
+  // Confirmation required: the code box replaces the form for that address.
+  // The confirmation email carries the link too, so both ways still work.
+  if (state?.pendingEmail && !backToForm) {
+    return (
+      <div className="space-y-3.5">
+        <SignupCodeConfirm
+          email={state.pendingEmail}
+          nextPath={nextPath}
+          locale={locale}
+          onChangeEmail={() => setBackToForm(true)}
+        />
+        {hideFooter ? null : (
+          <RegisterLoginFooter nextPath={nextPath} locale={locale} />
+        )}
+      </div>
+    );
+  }
 
   return (
-    <form action={formAction} className="space-y-3.5">
+    <form
+      action={formAction}
+      className="space-y-3.5"
+      onSubmit={() => setBackToForm(false)}
+    >
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
 

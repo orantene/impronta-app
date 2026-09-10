@@ -205,6 +205,18 @@
           "sendFailed": "We could not send your code. Check the address and try again.",
           "verifyFailed": "We could not sign you in with that code. Send a new one and try again."
         }
+      },
+      "signupCode": {
+        "title": "Enter the code",
+        "sentTo": "Sent to",
+        "resentNotice": "New code sent.",
+        "verifySubmit": "Confirm",
+        "verifyPending": "Confirming",
+        "resendPrompt": "Didn't get it?",
+        "resend": "Resend",
+        "resendIn": "Resend in {seconds}s",
+        "resending": "Sending",
+        "changeEmail": "Change email"
       }
     },
     "profile": {

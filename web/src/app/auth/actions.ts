@@ -24,7 +24,14 @@ import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
 
-export type AuthActionState = { error?: string; message?: string } | void;
+/**
+ * `pendingEmail` is set when signup succeeded but the session is not live yet
+ * (email confirmation required). The register surfaces swap to the code box
+ * for that address: the same confirmation email carries a link AND a code.
+ */
+export type AuthActionState =
+  | { error?: string; message?: string; pendingEmail?: string }
+  | void;
 
 function authT(formData: FormData) {
   const locale = String(formData.get("locale") ?? "en");
@@ -339,6 +346,7 @@ export async function signUpWithEmail(
   if (!data.session) {
     return {
       message: t("public.auth.actions.signupConfirmation"),
+      pendingEmail: email,
     };
   }
 

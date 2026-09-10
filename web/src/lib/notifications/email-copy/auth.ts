@@ -32,7 +32,8 @@ export const AUTH_EN = {
     heading: "Confirm your email",
     intro:
       "Thanks for signing up. Click the button below to confirm your email address and activate your account.",
-    note: "This link expires in 24 hours.",
+    introWithCode: "Enter this code on the page where you signed up, or tap the button.",
+    note: "Expires in 24 hours. Single use.",
     button: "Confirm email →",
     codeLabel: "Or type this code where you asked for it:",
   },
@@ -74,7 +75,8 @@ export const AUTH_ES: typeof AUTH_EN = {
     heading: "Confirma tu correo",
     intro:
       "Gracias por registrarte. Haz clic en el botón de abajo para confirmar tu correo y activar tu cuenta.",
-    note: "Este enlace caduca en 24 horas.",
+    introWithCode: "Escribe este código en la página donde te registraste, o toca el botón.",
+    note: "Caduca en 24 horas. De un solo uso.",
     button: "Confirmar correo →",
     codeLabel: "O escribe este código donde lo solicitaste:",
   },

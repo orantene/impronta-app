@@ -1495,7 +1495,10 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
               max-width: 100% !important;
               min-width: 0 !important;
               box-sizing: border-box !important;
-              overflow-x: hidden !important;
+              /* clip, never hidden: hidden coerces overflow-y to auto — iOS touch-scroll fix, see 2026-09-10 commit */
+              overflow-x: clip !important;
+              overflow-y: visible !important;
+              overscroll-behavior: auto !important;
             }
             /* Workspace topbar — hide nav chips inside (already covered by
                data-tulala-app-topbar-nav rule above). Also: when the
@@ -2017,7 +2020,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           /* #15 — swipe-between-tabs: overscroll-x contain so accidental
              horizontal flicks don't navigate the browser history. */
           @media (max-width: 720px) {
-            .tulala-shell [data-tulala-surface-main] {
+            html {
               overscroll-behavior-x: contain;
             }
           }
@@ -2037,7 +2040,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
              browser pull-to-refresh from firing accidentally inside the
              prototype. Real PTR needs a JS touch handler. */
           @media (max-width: 720px) {
-            .tulala-shell [data-tulala-surface-main] {
+            html {
               overscroll-behavior-y: contain;
             }
           }
