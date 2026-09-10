@@ -3162,13 +3162,11 @@ export function splitShellContactPhone(stored: string | null | undefined): {
   contactPhonePrefix: string;
   contactPhone: string;
 } {
-  // Full E.164 table, longest match first. The short list above only knew
-  // eleven prefixes, so a stored "+972543979670" fell through to "+1" and the
-  // drawer showed "+1 +972543979670" (owner QA 2026-09-10, first real signup).
+  // Full E.164 table (the short list above knew eleven prefixes, so "+972…"
+  // fell through to "+1" and was saved back as "+1 +972…", owner QA 2026-09-10).
   let parsed = parseE164PhoneInput(stored ?? "", { dial: "+1", iso: "US" });
-  // Rows saved while the old splitter was live hold "+1 +972543979670": the
-  // fallback prefix glued onto a number that already carried its own. When
-  // the national part still starts with "+", the real number is that part.
+  // Self-heal those saved rows: a national part that still starts with "+"
+  // is the real number.
   if (parsed.national.startsWith("+")) {
     parsed = parseE164PhoneInput(parsed.national, { dial: "+1", iso: "US" });
   }
