@@ -26,8 +26,12 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { newCommandId } from "@/lib/commands/envelope";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { ExceptionRow, ExceptionSeverity, ExceptionSummary } from "@/lib/exceptions/model";
 import { resumeExceptionAction } from "../_exceptions-actions";
+
+const K = "dashboard.issues";
 
 // Reads the workspace theme rather than carrying its own palette. A hardcoded
 // hex here would survive a rebrand and put an unthemed panel in the middle of a
@@ -52,24 +56,29 @@ const C = {
   onAccent: "var(--tl-on-inverse)",
 } as const;
 
-const SEVERITY_CHROME: Record<ExceptionSeverity, { label: string; fg: string; bg: string }> = {
-  critical: { label: "Critical", fg: C.critical, bg: C.criticalSoft },
-  high: { label: "High", fg: C.high, bg: C.highSoft },
-  normal: { label: "Normal", fg: C.normal, bg: C.normalSoft },
+const SEVERITY_CHROME: Record<ExceptionSeverity, { fg: string; bg: string }> = {
+  critical: { fg: C.critical, bg: C.criticalSoft },
+  high: { fg: C.high, bg: C.highSoft },
+  normal: { fg: C.normal, bg: C.normalSoft },
 };
 
-const OWNER_LABEL: Record<string, string> = {
-  money: "Money",
-  door: "Door",
-  coordination: "Inquiries",
-  operations: "Background",
+const OWNER_KEY: Record<string, string> = {
+  money: "money",
+  door: "door",
+  coordination: "coordination",
+  operations: "operations",
 };
 
-function ageLabel(iso: string): string {
+/**
+ * `t` is threaded in rather than closed over at module scope, since
+ * `useT()` is only callable inside a component — the label text is the only
+ * translatable part, everything else here is a pure duration calculation.
+ */
+function ageLabel(iso: string, t: (key: string) => string): string {
   const ms = Date.now() - Date.parse(iso);
-  if (!Number.isFinite(ms)) return "unknown";
+  if (!Number.isFinite(ms)) return t(`${K}.ageUnknown`);
   const m = ms / 60_000;
-  if (m < 1) return "just now";
+  if (m < 1) return t(`${K}.ageJustNow`);
   if (m < 60) return `${Math.floor(m)}m`;
   const h = m / 60;
   if (h < 24) return `${Math.floor(h)}h`;
@@ -87,6 +96,7 @@ export function ExceptionsClient({
   summary: ExceptionSummary;
   unavailable: string[];
 }) {
+  const t = useT();
   const [state, setState] = useState<Record<string, RowState>>({});
 
   // One key per row, for the life of this mount. See the header.
@@ -129,18 +139,15 @@ export function ExceptionsClient({
             letterSpacing: 0.6,
           }}
         >
-          Exceptions
+          {t(`${K}.eyebrow`)}
         </div>
         <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 600, letterSpacing: -0.2 }}>
           {summary.total === 0
-            ? "Nothing needs a person"
-            : `${summary.total} ${summary.total === 1 ? "thing needs" : "things need"} a person`}
+            ? t(`${K}.titleEmpty`)
+            : interpolate(t(summary.total === 1 ? `${K}.titleOne` : `${K}.titleOther`), { count: summary.total })}
         </h1>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, maxWidth: 660, lineHeight: 1.5 }}>
-          Refunds that have not landed, tickets that were sold and never issued, inquiry steps
-          that failed, card payments that never came back, background jobs that gave up, and
-          commands that stopped without recording what they did. Ranked by whether they can
-          still hurt someone.
+          {t(`${K}.subtitle`)}
         </p>
       </header>
 
@@ -157,8 +164,7 @@ export function ExceptionsClient({
             fontSize: 13,
           }}
         >
-          This list is incomplete. Could not read: {unavailable.join(", ")}. There may be
-          exceptions that are not shown.
+          {interpolate(t(`${K}.incomplete`), { sources: unavailable.join(", ") })}
         </div>
       )}
 
@@ -177,7 +183,10 @@ export function ExceptionsClient({
                   color: SEVERITY_CHROME[severity].fg,
                 }}
               >
-                {summary.bySeverity[severity]} {SEVERITY_CHROME[severity].label.toLowerCase()}
+                {interpolate(t(`${K}.severityCount`), {
+                  count: summary.bySeverity[severity],
+                  severity: t(`${K}.severity.${severity}Lower`),
+                })}
               </span>
             ) : null,
           )}
@@ -197,7 +206,7 @@ export function ExceptionsClient({
             fontSize: 13,
           }}
         >
-          Every refund landed, every ticket was issued and every background job finished.
+          {t(`${K}.allClear`)}
         </div>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: "22px 0 0", display: "grid", gap: 10 }}>
@@ -227,18 +236,22 @@ export function ExceptionsClient({
                       color: chrome.fg,
                     }}
                   >
-                    {chrome.label}
+                    {t(`${K}.severity.${row.severity}`)}
                   </span>
                   <span style={{ fontSize: 11.5, color: C.inkDim }}>
-                    {OWNER_LABEL[row.owner] ?? row.owner}
+                    {t(`${K}.owner.${OWNER_KEY[row.owner] ?? row.owner}`)}
                   </span>
                   <span style={{ flex: 1 }} />
                   {row.attempts > 0 && (
                     <span style={{ fontSize: 11.5, color: C.inkDim }}>
-                      {row.attempts} attempt{row.attempts === 1 ? "" : "s"}
+                      {interpolate(t(row.attempts === 1 ? `${K}.attemptsOne` : `${K}.attemptsOther`), {
+                        count: row.attempts,
+                      })}
                     </span>
                   )}
-                  <span style={{ fontSize: 11.5, color: C.inkMuted }}>{ageLabel(row.firstSeenAt)} old</span>
+                  <span style={{ fontSize: 11.5, color: C.inkMuted }}>
+                    {interpolate(t(`${K}.ageOld`), { age: ageLabel(row.firstSeenAt, t) })}
+                  </span>
                 </div>
 
                 <div style={{ marginTop: 6, fontSize: 15, fontWeight: 600 }}>{row.title}</div>
@@ -271,7 +284,7 @@ export function ExceptionsClient({
                         cursor: rowState?.pending ? "progress" : "pointer",
                       }}
                     >
-                      {rowState?.pending ? "Working…" : row.nextAction.label}
+                      {rowState?.pending ? t(`${K}.working`) : row.nextAction.label}
                     </button>
                   ) : (
                     <span
@@ -293,7 +306,7 @@ export function ExceptionsClient({
                       href={row.href}
                       style={{ fontSize: 12.5, fontWeight: 600, color: C.accent, textDecoration: "none" }}
                     >
-                      {row.nextAction.kind === "inspect" ? row.nextAction.label : "Open"} ›
+                      {row.nextAction.kind === "inspect" ? row.nextAction.label : t(`${K}.open`)} ›
                     </Link>
                   )}
 

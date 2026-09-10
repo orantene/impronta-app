@@ -30,6 +30,9 @@ import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
 import { VenueSettingsCard } from "@/components/spaces/VenueSettingsCard";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
 import { StaffResourcesCard } from "@/components/appointments/StaffResourcesCard";
+import { PosModesSettingsCard } from "@/components/admin/settings/pos-modes-card";
+import { PaymentsProvidersCard } from "@/components/admin/settings/payments-providers-card";
+import { RolesLimitsCard } from "@/components/admin/settings/roles-limits-card";
 
 // ════════════════════════════════════════════════════════════════════════
 // 2026-07-24 flat redesign — replaces the old tabs + 13-accordion wall with
@@ -131,10 +134,12 @@ type GroupId =
   | "domain"
   | "branding"
   | "team"
+  | "roles-limits"
   | "roster-fields"
   | "registration"
   | "discover"
   | "compliance"
+  | "payments"
   | "integrations"
   | "email"
   | "advanced";
@@ -205,7 +210,7 @@ function NavItem({
 
 export function WorkspacePageView() {
   const t = useT();
-  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant, adminBasePath } = useAdminShell();
+  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant, adminBasePath, workspacePosModes } = useAdminShell();
   const router = useRouter();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
@@ -486,6 +491,7 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? (
           <div className="flex flex-col gap-2 py-2">
+            <PosModesSettingsCard canEdit={isOwner} />
             {(
               [
                 { href: `${adminBasePath}/pos`, label: t("New Sale") },
@@ -511,6 +517,7 @@ export function WorkspacePageView() {
         extraSearch: [
           { title: t("Point of sale"), desc: t("Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail.") },
           { title: t("Shifts and tender"), desc: t("Open and close the cash drawer on POS. Navigating away does not close the shift.") },
+          { title: t("dashboard.adminWorkspace.posModes.title"), desc: t("dashboard.adminWorkspace.posModes.desc") },
         ],
       },
       {
@@ -680,6 +687,25 @@ export function WorkspacePageView() {
                 onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.teamRolesFeature"), why: t("dashboard.adminWorkspace.teamUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.teamUnlock1"), t("dashboard.adminWorkspace.teamUnlock2")] }),
                 right: <LockedPill plan="agency" />,
               },
+        ],
+      },
+      {
+        // W22 (money.md §2) — who can do what. Sits right after Team since
+        // it explains the same roster of people the Team group just listed.
+        id: "roles-limits",
+        label: t("dashboard.adminWorkspace.rolesLimits.label"),
+        desc: t("dashboard.adminWorkspace.rolesLimits.desc"),
+        visible: isAdmin,
+        rows: [],
+        extra: (
+          <RolesLimitsCard
+            members={effectiveTeamMembers}
+            workspacePosModes={workspacePosModes}
+          />
+        ),
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.rolesLimits.label"), desc: t("dashboard.adminWorkspace.rolesLimits.desc") },
+          { title: t("dashboard.adminWorkspace.rolesLimits.limitsHeading"), desc: t("dashboard.adminWorkspace.rolesLimits.limitsGap") },
         ],
       },
       {
@@ -873,6 +899,20 @@ export function WorkspacePageView() {
         ],
       },
       {
+        // W21 (money.md §2) — honestly which payment providers are ready to
+        // take money, never a control for one that is not (see the card's
+        // own header for why this is read-only).
+        id: "payments",
+        label: t("dashboard.adminWorkspace.paymentsProviders.label"),
+        desc: t("dashboard.adminWorkspace.paymentsProviders.desc"),
+        visible: isAdmin,
+        rows: [],
+        extra: <PaymentsProvidersCard />,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.paymentsProviders.label"), desc: t("dashboard.adminWorkspace.paymentsProviders.desc") },
+        ],
+      },
+      {
         id: "integrations",
         label: t("dashboard.adminWorkspace.integrationsLabel"),
         desc: t("dashboard.adminWorkspace.integrationsDesc"),
@@ -1003,8 +1043,8 @@ export function WorkspacePageView() {
     ];
     return list;
   }, [
-    t, state.plan, state.role, state.workspaceType, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
-    bridgeTalentSelfProfile, effectiveTeamMembers.length, pendingTrustCount, disputedClaimsCount,
+    t, state.plan, state.role, state.workspaceType, workspacePosModes, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
+    bridgeTalentSelfProfile, effectiveTeamMembers, pendingTrustCount, disputedClaimsCount,
     pendingTalent.length, openDrawer, openUpgrade, setPage,
   ]);
 

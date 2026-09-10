@@ -4499,6 +4499,96 @@
       "brandingMediaDesc": "Logo, colors, watermark, photo library, and brand assets.",
       "advancedLabel": "Advanced",
       "advancedDesc": "Feature toggles, data tools, and workspace deletion.",
+      "posModes": {
+        "title": "Selling modes",
+        "desc": "Which parts of the point of sale this workspace has switched on.",
+        "loading": "Loading…",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "ownerOnly": "Only the workspace owner can change which selling modes are on.",
+        "onLabel": "On",
+        "offLabel": "Off",
+        "notBuiltBadge": "Not built yet",
+        "notBuiltHint": "This mode has no screens yet. It cannot be switched on.",
+        "devicesHeading": "Devices",
+        "devicesGap": "Tulala has no device registry yet, so per-device defaults are not available. Every device on this workspace shares the settings above.",
+        "modes": {
+          "counter": {
+            "label": "Counter",
+            "desc": "Sell items, take orders and run shifts at a register."
+          },
+          "floor": {
+            "label": "Floor",
+            "desc": "Tables and seating."
+          },
+          "door": {
+            "label": "Door",
+            "desc": "Check guests in, scan tickets."
+          },
+          "classes": {
+            "label": "Classes",
+            "desc": "Rosters and attendance for a class or session."
+          },
+          "projects": {
+            "label": "Projects",
+            "desc": "A project board and invoices."
+          }
+        }
+      },
+      "paymentsProviders": {
+        "label": "Payments & providers",
+        "desc": "Which payment providers are ready to take money on this workspace.",
+        "loading": "Loading…",
+        "statusReady": "Ready",
+        "statusNeedsSetup": "Needs setup",
+        "secretsNote": "These statuses never show a key or a password, only whether one is in place.",
+        "providers": {
+          "cash": {
+            "label": "Cash"
+          },
+          "stripe_checkout": {
+            "label": "Card (online checkout)"
+          },
+          "stripe_terminal": {
+            "label": "Card reader (Stripe Terminal)"
+          },
+          "mercado_pago_point": {
+            "label": "Mercado Pago Point"
+          }
+        },
+        "reasons": {
+          "no_setup_needed": "Always available. Recorded on the shift, never needs a provider.",
+          "ready": "Connected and ready to take a charge.",
+          "missing_secret_key": "Needs a Stripe secret key. Ask whoever manages hosting to add one.",
+          "missing_reader": "Stripe is connected, but no card reader is assigned yet.",
+          "not_integrated": "Not connected. This workspace has no Mercado Pago integration yet."
+        }
+      },
+      "rolesLimits": {
+        "label": "Roles & limits",
+        "desc": "Who can do what, and which point-of-sale modes reach each role.",
+        "rolesHeading": "Who can do what",
+        "rolesDesc": "Every higher role can do everything the role below it can.",
+        "roleNames": {
+          "viewer": "Viewer",
+          "editor": "Editor",
+          "manager": "Manager",
+          "admin": "Admin",
+          "owner": "Owner"
+        },
+        "roleDescriptions": {
+          "viewer": "Read-only access to your workspace.",
+          "editor": "Edit talent, client, and site content. Cannot publish or manage billing.",
+          "manager": "Run inquiries and bookings end-to-end. Publish site updates.",
+          "admin": "Full workspace control except billing and ownership transfer.",
+          "owner": "Full control including billing and workspace lifecycle."
+        },
+        "memberCount": "{count} member",
+        "posReach": "Point of sale: {modes}",
+        "posReachNone": "No selling mode reaches this role.",
+        "limitsHeading": "Per-person limits",
+        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers."
+      },
       "workspaceType": {
         "title": "What is this workspace for?",
         "desc": "Roster and Pitches appear when you represent talent, and are hidden when this workspace is your own business. Nothing is deleted either way.",
@@ -4760,6 +4850,37 @@
       },
       "planNameWebsite": "Website",
       "planNameLegacy": "Legacy"
+    },
+    "issues": {
+      "eyebrow": "Issues",
+      "titleEmpty": "Nothing needs a person",
+      "titleOne": "{count} thing needs a person",
+      "titleOther": "{count} things need a person",
+      "subtitle": "Refunds that have not landed, tickets that were sold and never issued, inquiry steps that failed, card payments that never came back, background jobs that gave up, and commands that stopped without recording what they did. Ranked by whether they can still hurt someone.",
+      "incomplete": "This list is incomplete. Could not read: {sources}. There may be issues that are not shown.",
+      "severityCount": "{count} {severity}",
+      "severity": {
+        "critical": "Critical",
+        "criticalLower": "critical",
+        "high": "High",
+        "highLower": "high",
+        "normal": "Normal",
+        "normalLower": "normal"
+      },
+      "owner": {
+        "money": "Money",
+        "door": "Door",
+        "coordination": "Inquiries",
+        "operations": "Background"
+      },
+      "allClear": "Every refund landed, every ticket was issued and every background job finished.",
+      "attemptsOne": "{count} attempt",
+      "attemptsOther": "{count} attempts",
+      "ageOld": "{age} old",
+      "ageUnknown": "unknown",
+      "ageJustNow": "just now",
+      "working": "Working…",
+      "open": "Open"
     },
     "adminBilling": {
       "affordanceOpen": "Open"

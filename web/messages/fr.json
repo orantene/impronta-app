@@ -841,7 +841,128 @@
       "replayBufferTitle": "Buffer de replay du support",
       "replayBufferDesc": "Conserver un enregistrement glissant prive des dernieres minutes dans cet espace pour que l'equipe puisse le joindre a un ticket. Desactive par defaut. Les saisies restent masquees.",
       "replayBufferToggle": "Activer le buffer",
-      "replayBufferSaving": "Enregistrement"
+      "replayBufferSaving": "Enregistrement",
+      "posModes": {
+        "title": "Modes de vente",
+        "desc": "Les parties du point de vente que cet espace de travail a activees.",
+        "loading": "Chargement…",
+        "saving": "Enregistrement…",
+        "saved": "Enregistre",
+        "ownerOnly": "Seul le proprietaire de l'espace de travail peut changer les modes de vente actives.",
+        "onLabel": "Actif",
+        "offLabel": "Inactif",
+        "notBuiltBadge": "Pas encore disponible",
+        "notBuiltHint": "Ce mode n'a pas encore d'ecrans. Il ne peut pas etre active.",
+        "devicesHeading": "Appareils",
+        "devicesGap": "Tulala n'a pas encore de registre d'appareils, donc aucun reglage par appareil n'est disponible. Tous les appareils de cet espace partagent les reglages ci-dessus.",
+        "modes": {
+          "counter": {
+            "label": "Comptoir",
+            "desc": "Vendre des articles, prendre des commandes et gerer les caisses."
+          },
+          "floor": {
+            "label": "Salle",
+            "desc": "Tables et placement en salle."
+          },
+          "door": {
+            "label": "Porte",
+            "desc": "Enregistrer les invites, scanner les billets."
+          },
+          "classes": {
+            "label": "Cours",
+            "desc": "Listes et presence pour un cours ou une session."
+          },
+          "projects": {
+            "label": "Projets",
+            "desc": "Un tableau de projets et les factures."
+          }
+        }
+      },
+      "paymentsProviders": {
+        "label": "Paiements et prestataires",
+        "desc": "Quels prestataires de paiement sont prets a encaisser dans cet espace de travail.",
+        "loading": "Chargement…",
+        "statusReady": "Pret",
+        "statusNeedsSetup": "A configurer",
+        "secretsNote": "Ces statuts n'affichent jamais une cle ni un mot de passe, seulement s'il y en a un.",
+        "providers": {
+          "cash": {
+            "label": "Especes"
+          },
+          "stripe_checkout": {
+            "label": "Carte (paiement en ligne)"
+          },
+          "stripe_terminal": {
+            "label": "Lecteur de carte (Stripe Terminal)"
+          },
+          "mercado_pago_point": {
+            "label": "Mercado Pago Point"
+          }
+        },
+        "reasons": {
+          "no_setup_needed": "Toujours disponible. Enregistre sur la caisse, ne necessite aucun prestataire.",
+          "ready": "Connecte et pret a encaisser.",
+          "missing_secret_key": "Necessite une cle secrete Stripe. Demandez a la personne qui gere l'hebergement de l'ajouter.",
+          "missing_reader": "Stripe est connecte, mais aucun lecteur de carte n'est encore assigne.",
+          "not_integrated": "Non connecte. Cet espace de travail n'a pas encore d'integration Mercado Pago."
+        }
+      },
+      "rolesLimits": {
+        "label": "Roles et limites",
+        "desc": "Qui peut faire quoi, et quels modes du point de vente chaque role atteint.",
+        "rolesHeading": "Qui peut faire quoi",
+        "rolesDesc": "Chaque role superieur peut tout faire que le role en dessous peut faire.",
+        "roleNames": {
+          "viewer": "Lecteur",
+          "editor": "Editeur",
+          "manager": "Gerant",
+          "admin": "Administrateur",
+          "owner": "Proprietaire"
+        },
+        "roleDescriptions": {
+          "viewer": "Acces en lecture seule a votre espace de travail.",
+          "editor": "Modifie le talent, les clients et le contenu du site. Ne peut pas publier ni gerer la facturation.",
+          "manager": "Gere les demandes et les reservations de bout en bout. Publie les mises a jour du site.",
+          "admin": "Controle total de l'espace de travail sauf la facturation et le transfert de propriete.",
+          "owner": "Controle total, y compris la facturation et le cycle de vie de l'espace de travail."
+        },
+        "memberCount": "{count} membre",
+        "posReach": "Point de vente : {modes}",
+        "posReachNone": "Aucun mode de vente n'atteint ce role.",
+        "limitsHeading": "Limites par personne",
+        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre."
+      }
+    },
+    "issues": {
+      "eyebrow": "Problemes",
+      "titleEmpty": "Rien n'a besoin d'une personne",
+      "titleOne": "{count} chose a besoin d'une personne",
+      "titleOther": "{count} choses ont besoin d'une personne",
+      "subtitle": "Remboursements qui ne sont pas arrives, billets vendus et jamais emis, etapes d'une demande qui ont echoue, paiements par carte sans reponse, taches de fond abandonnees, et commandes arretees sans enregistrer ce qu'elles ont fait. Classe selon si cela peut encore nuire a quelqu'un.",
+      "incomplete": "Cette liste est incomplete. Impossible de lire : {sources}. Il peut y avoir des problemes non affiches.",
+      "severityCount": "{count} {severity}",
+      "severity": {
+        "critical": "Critique",
+        "criticalLower": "critique",
+        "high": "Eleve",
+        "highLower": "eleve",
+        "normal": "Normal",
+        "normalLower": "normal"
+      },
+      "owner": {
+        "money": "Argent",
+        "door": "Porte",
+        "coordination": "Demandes",
+        "operations": "Arriere-plan"
+      },
+      "allClear": "Tous les remboursements sont arrives, tous les billets ont ete emis et toutes les taches de fond sont terminees.",
+      "attemptsOne": "{count} tentative",
+      "attemptsOther": "{count} tentatives",
+      "ageOld": "il y a {age}",
+      "ageUnknown": "inconnu",
+      "ageJustNow": "a l'instant",
+      "working": "En cours…",
+      "open": "Ouvrir"
     },
     "platform": {
       "nav": {

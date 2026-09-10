@@ -4499,6 +4499,96 @@
       "brandingMediaDesc": "Logo, colores, marca de agua, galería de fotos y recursos de marca.",
       "advancedLabel": "Avanzado",
       "advancedDesc": "Controles de funciones, herramientas de datos y eliminación del espacio de trabajo.",
+      "posModes": {
+        "title": "Modos de venta",
+        "desc": "Qué partes del punto de venta tiene activadas este espacio de trabajo.",
+        "loading": "Cargando…",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "ownerOnly": "Solo el propietario del espacio de trabajo puede cambiar qué modos de venta están activos.",
+        "onLabel": "Activo",
+        "offLabel": "Inactivo",
+        "notBuiltBadge": "Aún no disponible",
+        "notBuiltHint": "Este modo todavía no tiene pantallas. No se puede activar.",
+        "devicesHeading": "Dispositivos",
+        "devicesGap": "Tulala todavía no tiene un registro de dispositivos, así que no hay valores predeterminados por dispositivo. Todos los dispositivos de este espacio comparten la configuración de arriba.",
+        "modes": {
+          "counter": {
+            "label": "Mostrador",
+            "desc": "Vende artículos, toma pedidos y gestiona turnos en una caja."
+          },
+          "floor": {
+            "label": "Salón",
+            "desc": "Mesas y distribución del salón."
+          },
+          "door": {
+            "label": "Puerta",
+            "desc": "Registra el ingreso de invitados, escanea entradas."
+          },
+          "classes": {
+            "label": "Clases",
+            "desc": "Listas y asistencia de una clase o sesión."
+          },
+          "projects": {
+            "label": "Proyectos",
+            "desc": "Un tablero de proyectos y facturas."
+          }
+        }
+      },
+      "paymentsProviders": {
+        "label": "Pagos y proveedores",
+        "desc": "Qué proveedores de pago están listos para cobrar en este espacio de trabajo.",
+        "loading": "Cargando…",
+        "statusReady": "Listo",
+        "statusNeedsSetup": "Falta configurar",
+        "secretsNote": "Estos estados nunca muestran una clave ni una contraseña, solo si hay una configurada.",
+        "providers": {
+          "cash": {
+            "label": "Efectivo"
+          },
+          "stripe_checkout": {
+            "label": "Tarjeta (pago en línea)"
+          },
+          "stripe_terminal": {
+            "label": "Lector de tarjetas (Stripe Terminal)"
+          },
+          "mercado_pago_point": {
+            "label": "Mercado Pago Point"
+          }
+        },
+        "reasons": {
+          "no_setup_needed": "Siempre disponible. Se registra en el turno, no necesita proveedor.",
+          "ready": "Conectado y listo para cobrar.",
+          "missing_secret_key": "Necesita una clave secreta de Stripe. Pide a quien administra el hosting que la agregue.",
+          "missing_reader": "Stripe está conectado, pero todavía no hay un lector de tarjetas asignado.",
+          "not_integrated": "No está conectado. Este espacio de trabajo aún no tiene integración con Mercado Pago."
+        }
+      },
+      "rolesLimits": {
+        "label": "Roles y límites",
+        "desc": "Quién puede hacer qué, y qué modos del punto de venta alcanza cada rol.",
+        "rolesHeading": "Quién puede hacer qué",
+        "rolesDesc": "Cada rol superior puede hacer todo lo que puede el rol de abajo.",
+        "roleNames": {
+          "viewer": "Visor",
+          "editor": "Editor",
+          "manager": "Gerente",
+          "admin": "Administrador",
+          "owner": "Propietario"
+        },
+        "roleDescriptions": {
+          "viewer": "Acceso de solo lectura a tu espacio de trabajo.",
+          "editor": "Edita talento, clientes y contenido del sitio. No puede publicar ni gestionar la facturación.",
+          "manager": "Gestiona consultas y reservas de principio a fin. Publica actualizaciones del sitio.",
+          "admin": "Control total del espacio de trabajo excepto facturación y transferencia de propiedad.",
+          "owner": "Control total, incluida la facturación y el ciclo de vida del espacio de trabajo."
+        },
+        "memberCount": "{count} miembro",
+        "posReach": "Punto de venta: {modes}",
+        "posReachNone": "Ningún modo de venta alcanza este rol.",
+        "limitsHeading": "Límites por persona",
+        "limitsGap": "Tulala todavía no registra límites individuales de descuento o reembolso. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece."
+      },
       "workspaceType": {
         "title": "¿Para qué es este espacio de trabajo?",
         "desc": "Roster y Pitches aparecen cuando representas talento, y se ocultan cuando este espacio es tu propio negocio. No se borra nada en ninguno de los dos casos.",
@@ -4760,6 +4850,37 @@
       },
       "planNameWebsite": "Website",
       "planNameLegacy": "Heredado"
+    },
+    "issues": {
+      "eyebrow": "Incidencias",
+      "titleEmpty": "Nada necesita a una persona",
+      "titleOne": "{count} cosa necesita a una persona",
+      "titleOther": "{count} cosas necesitan a una persona",
+      "subtitle": "Reembolsos que no llegaron, entradas vendidas y nunca emitidas, pasos de una consulta que fallaron, pagos con tarjeta que nunca respondieron, tareas de fondo que se dieron por vencidas, y comandos que se detuvieron sin registrar qué hicieron. Ordenado por si todavía pueden perjudicar a alguien.",
+      "incomplete": "Esta lista está incompleta. No se pudo leer: {sources}. Puede haber incidencias que no se muestran.",
+      "severityCount": "{count} {severity}",
+      "severity": {
+        "critical": "Crítico",
+        "criticalLower": "crítico",
+        "high": "Alto",
+        "highLower": "alto",
+        "normal": "Normal",
+        "normalLower": "normal"
+      },
+      "owner": {
+        "money": "Dinero",
+        "door": "Puerta",
+        "coordination": "Consultas",
+        "operations": "Segundo plano"
+      },
+      "allClear": "Todos los reembolsos llegaron, todas las entradas se emitieron y todas las tareas de fondo terminaron.",
+      "attemptsOne": "{count} intento",
+      "attemptsOther": "{count} intentos",
+      "ageOld": "hace {age}",
+      "ageUnknown": "desconocido",
+      "ageJustNow": "recién",
+      "working": "Procesando…",
+      "open": "Abrir"
     },
     "adminBilling": {
       "affordanceOpen": "Abrir"

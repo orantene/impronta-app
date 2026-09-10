@@ -48,8 +48,12 @@ test("booking_transactions is scoped on source_tenant_id, not tenant_id", () => 
 test("a failed source is named to the caller rather than becoming an empty list", () => {
   assert.match(READ_SRC, /unavailable/);
   assert.match(READ_SRC, /return null;/, "a read failure must be distinguishable from no rows");
-  // The screen has to say it, not just receive it.
-  assert.match(CLIENT_SRC, /This list is incomplete/);
+  // The screen has to say it, not just receive it — the source names must
+  // actually reach the rendered banner text, not just sit in a prop nobody
+  // reads. Matched on the interpolation rather than a literal English
+  // sentence (localized 2026-09-10) so the guard survives translation.
+  assert.match(CLIENT_SRC, /role="alert"/);
+  assert.match(CLIENT_SRC, /unavailable\.join\(", "\)/);
 });
 
 test("every read destructures error alongside data", () => {
