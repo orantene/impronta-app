@@ -26,7 +26,7 @@
  * own sentences in `projects-copy.ts`. Nothing prints a reason word.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -61,6 +61,7 @@ import {
 import { posCollectionKey, tenderAfterKey } from "../counter-model";
 import { projectsCollect, projectsFindReceipt, type ProjectsReceiptResult } from "./projects-actions";
 import type { ProjectsModeCopy, ProjectsModeRefusal } from "./projects-copy";
+import { CollectedPanel, ReceiptsScreen, type Collected } from "./projects-mode-screens";
 import type { ProjectClientContact, ProjectOrderFacts } from "./projects-mode-loader";
 import {
   collectAmount,
@@ -101,14 +102,6 @@ type Refusal =
   | { kind: "engine"; reason: PosRefusalReason }
   | { kind: "mode"; reason: ProjectsModeRefusal };
 
-type Collected = {
-  amountCents: number;
-  changeCents: number;
-  outstandingAfterCents: number;
-  receiptCode: string | null;
-  currency: string;
-};
-
 const VIEWS: readonly ProjectsModeView[] = ["collect", "projects", "receipts"];
 
 function isProjectsModeView(id: string): id is ProjectsModeView {
@@ -142,7 +135,6 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
     props.detail?.ok ? props.detail.contact?.phone ?? "" : "",
   );
   const [collected, setCollected] = useState<Collected | null>(null);
-  const [receiptCopied, setReceiptCopied] = useState(false);
 
   const [receiptCode, setReceiptCode] = useState("");
   const [receipt, setReceipt] = useState<ProjectsReceiptResult | null>(null);
@@ -180,7 +172,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
   const verdict = project ? collectVerdict(project) : null;
   const money = project ? projectMoney(project) : null;
   const currency = project?.currency ?? "USD";
-  const orderFacts = detail?.ok ? detail.orders : [];
+  const orderFacts = useMemo(() => (detail?.ok ? detail.orders : []), [detail]);
   const factsFor = (orderId: string) => orderFacts.find((o) => o.orderId === orderId) ?? null;
 
   const amountVerdict =
@@ -490,67 +482,12 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
     code && props.receiptOrigin ? `${props.receiptOrigin}/r/${code}` : null;
 
   const collectedPanel = collected ? (
-    <div className={`${POS_SURFACE} flex flex-col gap-3 p-4`} data-pos-projects-collected>
-      <h2 className="m-0 text-lg font-semibold text-foreground">{mode.paid.title}</h2>
-      <dl className="grid grid-cols-2 gap-3">
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.paid.amount}</dt>
-          <dd className="m-0 text-xl font-semibold tabular-nums text-foreground" data-pos-projects-collected-amount>
-            {formatOrderMoney(collected.amountCents, collected.currency)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.paid.change}</dt>
-          <dd className="m-0 text-xl font-semibold tabular-nums text-foreground">
-            {formatOrderMoney(collected.changeCents, collected.currency)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.paid.remaining}</dt>
-          <dd className="m-0 text-xl font-semibold tabular-nums text-foreground" data-pos-projects-collected-remaining>
-            {formatOrderMoney(collected.outstandingAfterCents, collected.currency)}
-          </dd>
-        </div>
-      </dl>
-      {collected.outstandingAfterCents === 0 && (
-        <p className="m-0 text-sm text-muted-foreground">{mode.paid.settled}</p>
-      )}
-      {receiptHrefFor(collected.receiptCode) ? (
-        <div className="flex flex-col gap-2">
-          <p className="m-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {mode.paid.receipt}
-          </p>
-          <a
-            href={receiptHrefFor(collected.receiptCode) ?? "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-pos-receipt-link
-            className="break-all text-sm text-foreground underline"
-          >
-            {receiptHrefFor(collected.receiptCode)}
-          </a>
-          <button
-            type="button"
-            className={`${POS_SECONDARY_ACTION} h-11`}
-            onClick={() => {
-              const link = receiptHrefFor(collected.receiptCode);
-              if (!link) return;
-              void navigator.clipboard?.writeText(link).then(
-                () => setReceiptCopied(true),
-                () => setReceiptCopied(false),
-              );
-            }}
-          >
-            {receiptCopied ? mode.paid.receiptCopied : mode.paid.copyReceipt}
-          </button>
-        </div>
-      ) : (
-        <p className="m-0 text-sm text-destructive">{mode.paid.noReceipt}</p>
-      )}
-      <button type="button" className={`${POS_PRIMARY_ACTION} w-full`} onClick={() => setCollected(null)}>
-        {mode.paid.back}
-      </button>
-    </div>
+    <CollectedPanel
+      collected={collected}
+      mode={mode}
+      receiptHrefFor={receiptHrefFor}
+      onBack={() => setCollected(null)}
+    />
   ) : null;
 
   const projectPanel = (opts: { focus: "money" | "work" }) => {
@@ -761,76 +698,15 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
   };
 
   const receiptsScreen = (
-    <div className="flex flex-col gap-3" data-pos-projects-receipts>
-      <div className={`${POS_SURFACE} flex flex-col gap-2 p-4`}>
-        <h2 className="m-0 text-base font-semibold text-foreground">{mode.receipts.title}</h2>
-        <p className="m-0 text-sm text-muted-foreground">{mode.receipts.intro}</p>
-        <label htmlFor="pos-projects-receipt-code" className="text-xs font-medium text-muted-foreground">
-          {mode.receipts.codeLabel}
-        </label>
-        <input
-          id="pos-projects-receipt-code"
-          type="text"
-          autoComplete="off"
-          value={receiptCode}
-          onChange={(event) => setReceiptCode(event.target.value)}
-          placeholder={mode.receipts.placeholder}
-          className={`${POS_INPUT} h-14 font-mono text-base`}
-        />
-        <button
-          type="button"
-          className={`${POS_PRIMARY_ACTION} w-full`}
-          disabled={busy}
-          onClick={() => void findReceipt()}
-        >
-          {mode.receipts.find}
-        </button>
-      </div>
-      {receipt && !receipt.ok && (
-        <p role="alert" className={POS_REFUSAL_BANNER} data-pos-projects-receipt-refusal={receipt.reason}>
-          {mode.receipts.refusal[receipt.reason]}
-        </p>
-      )}
-      {receipt && receipt.ok && (
-        <div className={`${POS_SURFACE} flex flex-col gap-3 p-4`} data-pos-projects-receipt={receipt.code}>
-          <dl className="grid grid-cols-2 gap-3">
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.receipts.record}</dt>
-              <dd className="m-0 font-mono text-sm text-foreground">{shortId(receipt.orderId)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.receipts.status}</dt>
-              <dd className="m-0 text-sm text-foreground">
-                {isOrderStatus(receipt.status) ? mode.orderStatus[receipt.status] : receipt.status}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.receipts.total}</dt>
-              <dd className="m-0 text-lg font-semibold tabular-nums text-foreground">
-                {formatOrderMoney(receipt.totalCents, receipt.currency)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{mode.receipts.collected}</dt>
-              <dd className="m-0 text-lg font-semibold tabular-nums text-foreground">
-                {formatOrderMoney(receipt.collectedCents, receipt.currency)}
-              </dd>
-            </div>
-          </dl>
-          {receiptHrefFor(receipt.code) && (
-            <a
-              href={receiptHrefFor(receipt.code) ?? "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${POS_SECONDARY_ACTION} w-full`}
-              data-pos-receipt-link
-            >
-              {mode.receipts.open}
-            </a>
-          )}
-        </div>
-      )}
-    </div>
+    <ReceiptsScreen
+      mode={mode}
+      busy={busy}
+      receiptCode={receiptCode}
+      onReceiptCodeChange={setReceiptCode}
+      receipt={receipt}
+      onFind={() => void findReceipt()}
+      receiptHrefFor={receiptHrefFor}
+    />
   );
 
   const body =

@@ -1,0 +1,11 @@
+
+> web@0.1.0 lint
+> bash scripts/gate-queue.sh lint 1 -- node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --quiet --suppressions-location eslint-suppressions.json
+
+
+/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-pos-projects/web/src/app/(workspace)/[tenantSlug]/admin/pos/_projects/projects-mode-client.tsx
+  801:1  error  File has too many lines (873). Maximum allowed is 800  max-lines
+
+✖ 1 problem (1 error, 0 warnings)
+
+EXIT=1

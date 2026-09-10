@@ -175,13 +175,20 @@ export async function ensureReceiptCode(
     return null;
   }
   // Read back rather than trust the write: a concurrent mint from another
-  // tablet wins the `.is(null)` race and this one must report THAT code.
-  const { data: after } = await admin
+  // tablet wins the `.is(null)` race and this one must report THAT code. A
+  // failed read-back is reported as "no code", never as the code this call
+  // tried to write: the money still lands, and the screen says no receipt
+  // could be issued instead of printing a code that may not be the row's.
+  const { data: after, error: afterErr } = await admin
     .from("orders")
     .select("receipt_code")
     .eq("tenant_id", input.tenantId)
     .eq("id", input.orderId)
     .maybeSingle();
+  if (afterErr) {
+    logServerError("pos.projects.ensureReceiptCode/readback", afterErr);
+    return null;
+  }
   const final = (after as { receipt_code?: string | null } | null)?.receipt_code;
   return typeof final === "string" && final ? final : null;
 }

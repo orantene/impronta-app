@@ -1,0 +1,891 @@
+
+> web@0.1.0 test:size-ratchet
+> bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/quality/file-size-ratchet.static.test.ts src/lib/quality/file-size-ratchet.selftest.test.ts src/lib/quality/max-lines-suppression-enrolment.static.test.ts src/lib/quality/no-google-font-build-dependency.static.test.ts src/lib/quality/supabase-unchecked-read.static.test.ts src/lib/quality/guard-reads-source.static.test.ts src/lib/quality/hex-literal-ratchet.static.test.ts src/lib/quality/primary-button-label-colour.static.test.ts src/lib/quality/lane-enrolment.static.test.ts src/lib/quality/upsert-conflict-audit.static.test.ts src/lib/quality/platform-theme-alias.static.test.ts src/lib/quality/tsc-queue-bypass.static.test.ts src/lib/quality/font-tracing-coverage.static.test.ts
+
+TAP version 13
+# Subtest: a file at exactly its budget passes every case
+ok 1 - a file at exactly its budget passes every case
+  ---
+  duration_ms: 1.575583
+  ...
+# Subtest: GROWTH past the budget turns the ratchet red
+ok 2 - GROWTH past the budget turns the ratchet red
+  ---
+  duration_ms: 0.33725
+  ...
+# Subtest: a SHRINK past the re-baseline slack turns the ratchet red
+ok 3 - a SHRINK past the re-baseline slack turns the ratchet red
+  ---
+  duration_ms: 0.181417
+  ...
+# Subtest: an empty budget table is a failure, not a silent green
+ok 4 - an empty budget table is a failure, not a silent green
+  ---
+  duration_ms: 0.235959
+  ...
+# Subtest: a missing or emptied target file is a failure, not a silent green
+ok 5 - a missing or emptied target file is a failure, not a silent green
+  ---
+  duration_ms: 0.104875
+  ...
+# Subtest: countLines matches wc -l semantics on real files
+ok 6 - countLines matches wc -l semantics on real files
+  ---
+  duration_ms: 0.438167
+  ...
+# Subtest: no file is claimed by two ratchet tables at once
+ok 7 - no file is claimed by two ratchet tables at once
+  ---
+  duration_ms: 0.466584
+  ...
+# Subtest: src/components/edit-chrome/edit-context.tsx stays within its 6290-line budget
+ok 8 - src/components/edit-chrome/edit-context.tsx stays within its 6290-line budget
+  ---
+  duration_ms: 0.994417
+  ...
+# Subtest: src/components/edit-chrome/edit-context.tsx budget is still tight
+ok 9 - src/components/edit-chrome/edit-context.tsx budget is still tight
+  ---
+  duration_ms: 0.742208
+  ...
+# Subtest: src/components/edit-chrome/inspectors/style-panel.tsx stays within its 5623-line budget
+ok 10 - src/components/edit-chrome/inspectors/style-panel.tsx stays within its 5623-line budget
+  ---
+  duration_ms: 0.582167
+  ...
+# Subtest: src/components/edit-chrome/inspectors/style-panel.tsx budget is still tight
+ok 11 - src/components/edit-chrome/inspectors/style-panel.tsx budget is still tight
+  ---
+  duration_ms: 1.998334
+  ...
+# Subtest: src/components/edit-chrome/navigator-panel.tsx stays within its 4539-line budget
+ok 12 - src/components/edit-chrome/navigator-panel.tsx stays within its 4539-line budget
+  ---
+  duration_ms: 0.484625
+  ...
+# Subtest: src/components/edit-chrome/navigator-panel.tsx budget is still tight
+ok 13 - src/components/edit-chrome/navigator-panel.tsx budget is still tight
+  ---
+  duration_ms: 0.549333
+  ...
+# Subtest: src/components/edit-chrome/topbar.tsx stays within its 3456-line budget
+ok 14 - src/components/edit-chrome/topbar.tsx stays within its 3456-line budget
+  ---
+  duration_ms: 0.388292
+  ...
+# Subtest: src/components/edit-chrome/topbar.tsx budget is still tight
+ok 15 - src/components/edit-chrome/topbar.tsx budget is still tight
+  ---
+  duration_ms: 0.463292
+  ...
+# Subtest: src/components/edit-chrome/edit-shell.tsx stays within its 2362-line budget
+ok 16 - src/components/edit-chrome/edit-shell.tsx stays within its 2362-line budget
+  ---
+  duration_ms: 0.740291
+  ...
+# Subtest: src/components/edit-chrome/edit-shell.tsx budget is still tight
+ok 17 - src/components/edit-chrome/edit-shell.tsx budget is still tight
+  ---
+  duration_ms: 0.396459
+  ...
+# Subtest: src/components/edit-chrome/inspectors/layout-panel.tsx stays within its 1915-line budget
+ok 18 - src/components/edit-chrome/inspectors/layout-panel.tsx stays within its 1915-line budget
+  ---
+  duration_ms: 0.291459
+  ...
+# Subtest: src/components/edit-chrome/inspectors/layout-panel.tsx budget is still tight
+ok 19 - src/components/edit-chrome/inspectors/layout-panel.tsx budget is still tight
+  ---
+  duration_ms: 0.221333
+  ...
+# Subtest: src/components/edit-chrome/publish-drawer.tsx stays within its 2440-line budget
+ok 20 - src/components/edit-chrome/publish-drawer.tsx stays within its 2440-line budget
+  ---
+  duration_ms: 0.378208
+  ...
+# Subtest: src/components/edit-chrome/publish-drawer.tsx budget is still tight
+ok 21 - src/components/edit-chrome/publish-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.299583
+  ...
+# Subtest: src/components/edit-chrome/inspector-dock.tsx stays within its 1740-line budget
+ok 22 - src/components/edit-chrome/inspector-dock.tsx stays within its 1740-line budget
+  ---
+  duration_ms: 0.226583
+  ...
+# Subtest: src/components/edit-chrome/inspector-dock.tsx budget is still tight
+ok 23 - src/components/edit-chrome/inspector-dock.tsx budget is still tight
+  ---
+  duration_ms: 0.278958
+  ...
+# Subtest: src/components/edit-chrome/page-settings-drawer.tsx stays within its 1463-line budget
+ok 24 - src/components/edit-chrome/page-settings-drawer.tsx stays within its 1463-line budget
+  ---
+  duration_ms: 0.268792
+  ...
+# Subtest: src/components/edit-chrome/page-settings-drawer.tsx budget is still tight
+ok 25 - src/components/edit-chrome/page-settings-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.188375
+  ...
+# Subtest: src/components/edit-chrome/theme-drawer.tsx stays within its 1433-line budget
+ok 26 - src/components/edit-chrome/theme-drawer.tsx stays within its 1433-line budget
+  ---
+  duration_ms: 0.270208
+  ...
+# Subtest: src/components/edit-chrome/theme-drawer.tsx budget is still tight
+ok 27 - src/components/edit-chrome/theme-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.243709
+  ...
+# Subtest: src/components/edit-chrome/command-palette.tsx stays within its 1287-line budget
+ok 28 - src/components/edit-chrome/command-palette.tsx stays within its 1287-line budget
+  ---
+  duration_ms: 0.21475
+  ...
+# Subtest: src/components/edit-chrome/command-palette.tsx budget is still tight
+ok 29 - src/components/edit-chrome/command-palette.tsx budget is still tight
+  ---
+  duration_ms: 0.159042
+  ...
+# Subtest: src/components/edit-chrome/comments-drawer.tsx stays within its 1144-line budget
+ok 30 - src/components/edit-chrome/comments-drawer.tsx stays within its 1144-line budget
+  ---
+  duration_ms: 0.155417
+  ...
+# Subtest: src/components/edit-chrome/comments-drawer.tsx budget is still tight
+ok 31 - src/components/edit-chrome/comments-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.160375
+  ...
+# Subtest: src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx stays within its 983-line budget
+ok 32 - src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx stays within its 983-line budget
+  ---
+  duration_ms: 0.152917
+  ...
+# Subtest: src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx budget is still tight
+ok 33 - src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx budget is still tight
+  ---
+  duration_ms: 0.141084
+  ...
+# Subtest: src/components/edit-chrome/inspectors/featured-talent-content.tsx stays within its 904-line budget
+ok 34 - src/components/edit-chrome/inspectors/featured-talent-content.tsx stays within its 904-line budget
+  ---
+  duration_ms: 0.120959
+  ...
+# Subtest: src/components/edit-chrome/inspectors/featured-talent-content.tsx budget is still tight
+ok 35 - src/components/edit-chrome/inspectors/featured-talent-content.tsx budget is still tight
+  ---
+  duration_ms: 0.125333
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/drawer-shared.tsx stays within its 5615-line budget
+ok 36 - src/components/admin/shell/internal/drawers/drawer-shared.tsx stays within its 5615-line budget
+  ---
+  duration_ms: 1.015792
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/drawer-shared.tsx budget is still tight
+ok 37 - src/components/admin/shell/internal/drawers/drawer-shared.tsx budget is still tight
+  ---
+  duration_ms: 0.624917
+  ...
+# Subtest: src/components/admin/shell/internal/state/fixtures.ts stays within its 5184-line budget
+ok 38 - src/components/admin/shell/internal/state/fixtures.ts stays within its 5184-line budget
+  ---
+  duration_ms: 0.620166
+  ...
+# Subtest: src/components/admin/shell/internal/state/fixtures.ts budget is still tight
+ok 39 - src/components/admin/shell/internal/state/fixtures.ts budget is still tight
+  ---
+  duration_ms: 0.641375
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx stays within its 4756-line budget
+ok 40 - src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx stays within its 4756-line budget
+  ---
+  duration_ms: 0.585208
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx budget is still tight
+ok 41 - src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx budget is still tight
+  ---
+  duration_ms: 0.579167
+  ...
+# Subtest: src/components/admin/shell/internal/wave2.tsx stays within its 4599-line budget
+ok 42 - src/components/admin/shell/internal/wave2.tsx stays within its 4599-line budget
+  ---
+  duration_ms: 0.71825
+  ...
+# Subtest: src/components/admin/shell/internal/wave2.tsx budget is still tight
+ok 43 - src/components/admin/shell/internal/wave2.tsx budget is still tight
+  ---
+  duration_ms: 0.623083
+  ...
+# Subtest: src/components/admin/shell/internal/workspace.tsx stays within its 3559-line budget
+ok 44 - src/components/admin/shell/internal/workspace.tsx stays within its 3559-line budget
+  ---
+  duration_ms: 0.775833
+  ...
+# Subtest: src/components/admin/shell/internal/workspace.tsx budget is still tight
+ok 45 - src/components/admin/shell/internal/workspace.tsx budget is still tight
+  ---
+  duration_ms: 0.417917
+  ...
+# Subtest: src/components/admin/shell/internal/dashboard-i18n.ts stays within its 3601-line budget
+ok 46 - src/components/admin/shell/internal/dashboard-i18n.ts stays within its 3601-line budget
+  ---
+  duration_ms: 0.64525
+  ...
+# Subtest: src/components/admin/shell/internal/dashboard-i18n.ts budget is still tight
+ok 47 - src/components/admin/shell/internal/dashboard-i18n.ts budget is still tight
+  ---
+  duration_ms: 0.64675
+  ...
+# Subtest: src/components/admin/shell/internal/help.tsx stays within its 744-line budget
+ok 48 - src/components/admin/shell/internal/help.tsx stays within its 744-line budget
+  ---
+  duration_ms: 0.140833
+  ...
+# Subtest: src/components/admin/shell/internal/help.tsx budget is still tight
+ok 49 - src/components/admin/shell/internal/help.tsx budget is still tight
+  ---
+  duration_ms: 0.115417
+  ...
+# Subtest: src/components/admin/shell/internal/help-registry.ts stays within its 1982-line budget
+ok 50 - src/components/admin/shell/internal/help-registry.ts stays within its 1982-line budget
+  ---
+  duration_ms: 0.279625
+  ...
+# Subtest: src/components/admin/shell/internal/help-registry.ts budget is still tight
+ok 51 - src/components/admin/shell/internal/help-registry.ts budget is still tight
+  ---
+  duration_ms: 0.2665
+  ...
+# Subtest: src/components/admin/shell/internal/media-page.tsx stays within its 2943-line budget
+ok 52 - src/components/admin/shell/internal/media-page.tsx stays within its 2943-line budget
+  ---
+  duration_ms: 0.398458
+  ...
+# Subtest: src/components/admin/shell/internal/media-page.tsx budget is still tight
+ok 53 - src/components/admin/shell/internal/media-page.tsx budget is still tight
+  ---
+  duration_ms: 0.386291
+  ...
+# Subtest: src/components/admin/shell/internal/state/types.ts stays within its 2890-line budget
+ok 54 - src/components/admin/shell/internal/state/types.ts stays within its 2890-line budget
+  ---
+  duration_ms: 0.379042
+  ...
+# Subtest: src/components/admin/shell/internal/state/types.ts budget is still tight
+ok 55 - src/components/admin/shell/internal/state/types.ts budget is still tight
+  ---
+  duration_ms: 0.358334
+  ...
+# Subtest: src/components/admin/shell/admin-shell-client.tsx stays within its 2182-line budget
+ok 56 - src/components/admin/shell/admin-shell-client.tsx stays within its 2182-line budget
+  ---
+  duration_ms: 0.289542
+  ...
+# Subtest: src/components/admin/shell/admin-shell-client.tsx budget is still tight
+ok 57 - src/components/admin/shell/admin-shell-client.tsx budget is still tight
+  ---
+  duration_ms: 0.278959
+  ...
+# Subtest: src/components/admin/shell/internal/state/context.tsx stays within its 2451-line budget
+ok 58 - src/components/admin/shell/internal/state/context.tsx stays within its 2451-line budget
+  ---
+  duration_ms: 0.324917
+  ...
+# Subtest: src/components/admin/shell/internal/state/context.tsx budget is still tight
+ok 59 - src/components/admin/shell/internal/state/context.tsx budget is still tight
+  ---
+  duration_ms: 0.36925
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx stays within its 3769-line budget
+ok 60 - src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx stays within its 3769-line budget
+  ---
+  duration_ms: 0.710916
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx budget is still tight
+ok 61 - src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx budget is still tight
+  ---
+  duration_ms: 0.670167
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts stays within its 3594-line budget
+ok 62 - src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts stays within its 3594-line budget
+  ---
+  duration_ms: 0.968625
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts budget is still tight
+ok 63 - src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts budget is still tight
+  ---
+  duration_ms: 0.867375
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/media/actions.ts stays within its 2421-line budget
+ok 64 - src/app/(workspace)/[tenantSlug]/admin/media/actions.ts stays within its 2421-line budget
+  ---
+  duration_ms: 0.903167
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/media/actions.ts budget is still tight
+ok 65 - src/app/(workspace)/[tenantSlug]/admin/media/actions.ts budget is still tight
+  ---
+  duration_ms: 1.2915
+  ...
+# Subtest: src/app/t/[profileCode]/profile-view.tsx stays within its 2691-line budget
+ok 66 - src/app/t/[profileCode]/profile-view.tsx stays within its 2691-line budget
+  ---
+  duration_ms: 0.775958
+  ...
+# Subtest: src/app/t/[profileCode]/profile-view.tsx budget is still tight
+ok 67 - src/app/t/[profileCode]/profile-view.tsx budget is still tight
+  ---
+  duration_ms: 3.474
+  ...
+# Subtest: src/components/inquiry/InquiryDrawer.tsx stays within its 2382-line budget
+ok 68 - src/components/inquiry/InquiryDrawer.tsx stays within its 2382-line budget
+  ---
+  duration_ms: 0.93675
+  ...
+# Subtest: src/components/inquiry/InquiryDrawer.tsx budget is still tight
+ok 69 - src/components/inquiry/InquiryDrawer.tsx budget is still tight
+  ---
+  duration_ms: 0.352125
+  ...
+# Subtest: src/lib/site-admin/builder-node/builder-node.test.ts stays within its 3246-line budget
+ok 70 - src/lib/site-admin/builder-node/builder-node.test.ts stays within its 3246-line budget
+  ---
+  duration_ms: 0.165375
+  ...
+# Subtest: src/lib/site-admin/builder-node/builder-node.test.ts budget is still tight
+ok 71 - src/lib/site-admin/builder-node/builder-node.test.ts budget is still tight
+  ---
+  duration_ms: 0.15875
+  ...
+# Subtest: src/lib/site-admin/sections/node-presentation-render.test.ts stays within its 2638-line budget
+ok 72 - src/lib/site-admin/sections/node-presentation-render.test.ts stays within its 2638-line budget
+  ---
+  duration_ms: 0.424833
+  ...
+# Subtest: src/lib/site-admin/sections/node-presentation-render.test.ts budget is still tight
+ok 73 - src/lib/site-admin/sections/node-presentation-render.test.ts budget is still tight
+  ---
+  duration_ms: 0.269042
+  ...
+# Subtest: src/lib/site-admin/server/homepage.ts stays within its 2397-line budget
+ok 74 - src/lib/site-admin/server/homepage.ts stays within its 2397-line budget
+  ---
+  duration_ms: 0.286666
+  ...
+# Subtest: src/lib/site-admin/server/homepage.ts budget is still tight
+ok 75 - src/lib/site-admin/server/homepage.ts budget is still tight
+  ---
+  duration_ms: 0.360125
+  ...
+# Subtest: src/lib/site-admin/edit-mode/composition-actions.ts stays within its 2259-line budget
+ok 76 - src/lib/site-admin/edit-mode/composition-actions.ts stays within its 2259-line budget
+  ---
+  duration_ms: 0.266292
+  ...
+# Subtest: src/lib/site-admin/edit-mode/composition-actions.ts budget is still tight
+ok 77 - src/lib/site-admin/edit-mode/composition-actions.ts budget is still tight
+  ---
+  duration_ms: 0.243542
+  ...
+# Subtest: src/lib/quality/file-size-ratchet.static.test.ts is measuring real files
+ok 78 - src/lib/quality/file-size-ratchet.static.test.ts is measuring real files
+  ---
+  duration_ms: 13.336666
+  ...
+# Subtest: every route reaching the font loader has an outputFileTracingIncludes entry
+ok 79 - every route reaching the font loader has an outputFileTracingIncludes entry
+  ---
+  duration_ms: 202.090208
+  ...
+# Subtest: the tracing entries point at font files that actually exist
+ok 80 - the tracing entries point at font files that actually exist
+  ---
+  duration_ms: 0.213041
+  ...
+# Subtest: no test file has gained a comment-satisfiable assertion
+ok 81 - no test file has gained a comment-satisfiable assertion
+  ---
+  duration_ms: 248.501834
+  ...
+# Subtest: the baseline names files that still have exposed assertions
+ok 82 - the baseline names files that still have exposed assertions
+  ---
+  duration_ms: 189.122541
+  ...
+# Subtest: BITES: a positive assertion on a bare identifier is caught
+ok 83 - BITES: a positive assertion on a bare identifier is caught
+  ---
+  duration_ms: 0.136875
+  ...
+# Subtest: BITES: an import path counts too — a comment can name a path
+ok 84 - BITES: an import path counts too — a comment can name a path
+  ---
+  duration_ms: 0.183041
+  ...
+# Subtest: EXEMPT: a file that blanks comments has already made the decision
+ok 85 - EXEMPT: a file that blanks comments has already made the decision
+  ---
+  duration_ms: 0.145416
+  ...
+# Subtest: SAFE bucket 2: a token carrying a code fragment is not counted
+ok 86 - SAFE bucket 2: a token carrying a code fragment is not counted
+  ---
+  duration_ms: 0.099709
+  ...
+# Subtest: SAFE bucket 3: a positional read makes it a windowed check
+ok 87 - SAFE bucket 3: a positional read makes it a windowed check
+  ---
+  duration_ms: 0.066666
+  ...
+# Subtest: a NEGATIVE assertion is not counted — it fails loud, not silent
+ok 88 - a NEGATIVE assertion is not counted — it fails loud, not silent
+  ---
+  duration_ms: 0.053042
+  ...
+# Subtest: a file that never reads source is ignored
+ok 89 - a file that never reads source is ignored
+  ---
+  duration_ms: 0.106125
+  ...
+# Subtest: a variable that is not file text is ignored
+ok 90 - a variable that is not file text is ignored
+  ---
+  duration_ms: 0.109625
+  ...
+# Subtest: THIS GUARD CANNOT BE TRIPPED BY ITS OWN PROSE
+ok 91 - THIS GUARD CANNOT BE TRIPPED BY ITS OWN PROSE
+  ---
+  duration_ms: 0.054958
+  ...
+# Subtest: RATCHET BITES: a new assertion in a baselined file is reported
+ok 92 - RATCHET BITES: a new assertion in a baselined file is reported
+  ---
+  duration_ms: 0.198083
+  ...
+# Subtest: RATCHET BITES: a new file with no baseline entry is reported
+ok 93 - RATCHET BITES: a new file with no baseline entry is reported
+  ---
+  duration_ms: 0.053917
+  ...
+# Subtest: a fix is reported too, so the count cannot drift down unrecorded
+ok 94 - a fix is reported too, so the count cannot drift down unrecorded
+  ---
+  duration_ms: 0.12
+  ...
+# Subtest: no enrolled surface has gained a hex literal, and every reduction is recorded
+ok 95 - no enrolled surface has gained a hex literal, and every reduction is recorded
+  ---
+  duration_ms: 527.421417
+  ...
+# Subtest: the baseline names only files that still carry a literal
+ok 96 - the baseline names only files that still carry a literal
+  ---
+  duration_ms: 446.065917
+  ...
+# Subtest: the baseline is measuring real surfaces
+ok 97 - the baseline is measuring real surfaces
+  ---
+  duration_ms: 0.767208
+  ...
+# Subtest: every exemption names a file that exists and gives a reason
+ok 98 - every exemption names a file that exists and gives a reason
+  ---
+  duration_ms: 0.342583
+  ...
+# Subtest: BITES: a six-digit hex in code is counted, with its line
+ok 99 - BITES: a six-digit hex in code is counted, with its line
+  ---
+  duration_ms: 0.131958
+  ...
+# Subtest: BITES: an eight-digit hex counts once, not as six plus noise
+ok 100 - BITES: an eight-digit hex counts once, not as six plus noise
+  ---
+  duration_ms: 0.060208
+  ...
+# Subtest: BITES: CSS files count too
+ok 101 - BITES: CSS files count too
+  ---
+  duration_ms: 0.063125
+  ...
+# Subtest: NOT COUNTED: a three-digit hex, by the audit's definition
+ok 102 - NOT COUNTED: a three-digit hex, by the audit's definition
+  ---
+  duration_ms: 0.056875
+  ...
+# Subtest: NOT COUNTED: a hash that merely starts with six hex digits
+ok 103 - NOT COUNTED: a hash that merely starts with six hex digits
+  ---
+  duration_ms: 0.121709
+  ...
+# Subtest: NOT COUNTED: a hex named in a comment, so history notes stay legal
+ok 104 - NOT COUNTED: a hex named in a comment, so history notes stay legal
+  ---
+  duration_ms: 0.109375
+  ...
+# Subtest: a comment cannot SATISFY a recorded count either
+ok 105 - a comment cannot SATISFY a recorded count either
+  ---
+  duration_ms: 0.058833
+  ...
+# Subtest: the pattern is global, so a line with two literals yields two
+ok 106 - the pattern is global, so a line with two literals yields two
+  ---
+  duration_ms: 0.051125
+  ...
+# Subtest: RATCHET BITES: a file gaining a literal is reported as drift, with the literal named
+ok 107 - RATCHET BITES: a file gaining a literal is reported as drift, with the literal named
+  ---
+  duration_ms: 0.211375
+  ...
+# Subtest: RATCHET BITES: a NEW file with a literal is drift against an implicit zero
+ok 108 - RATCHET BITES: a NEW file with a literal is drift against an implicit zero
+  ---
+  duration_ms: 0.124041
+  ...
+# Subtest: RATCHET LOCKS IN: a file losing a literal is drift too, asking for a re-record
+ok 109 - RATCHET LOCKS IN: a file losing a literal is drift too, asking for a re-record
+  ---
+  duration_ms: 0.073708
+  ...
+# Subtest: surfaceOf maps roots and rejects neighbours
+ok 110 - surfaceOf maps roots and rejects neighbours
+  ---
+  duration_ms: 0.050791
+  ...
+# [lane-enrolment] 2 lane(s) are no longer ungated. Re-record the baseline so the count stays honest:
+#   check:capability-keys
+#   test:access
+# Subtest: no lane is ungated that was not already
+ok 111 - no lane is ungated that was not already
+  ---
+  duration_ms: 4.01325
+  ...
+# Subtest: a lane that got wired is reported, and does NOT fail the build
+ok 112 - a lane that got wired is reported, and does NOT fail the build
+  ---
+  duration_ms: 2.650125
+  ...
+# Subtest: the baseline's count matches its own list
+ok 113 - the baseline's count matches its own list
+  ---
+  duration_ms: 0.07075
+  ...
+# Subtest: GUARD BITES: an invented ungated lane is reported
+ok 114 - GUARD BITES: an invented ungated lane is reported
+  ---
+  duration_ms: 2.6935
+  ...
+# Subtest: GUARD BITES: a lane named in ci.yml is NOT reported
+ok 115 - GUARD BITES: a lane named in ci.yml is NOT reported
+  ---
+  duration_ms: 2.095208
+  ...
+# Subtest: a lane name is matched on a word boundary, not a prefix
+ok 116 - a lane name is matched on a word boundary, not a prefix
+  ---
+  duration_ms: 3.516125
+  ...
+# Subtest: the tables this guard reads are not empty
+ok 117 - the tables this guard reads are not empty
+  ---
+  duration_ms: 3.090083
+  ...
+# Subtest: every max-lines suppression is ratcheted or on the debt register
+ok 118 - every max-lines suppression is ratcheted or on the debt register
+  ---
+  duration_ms: 1.165666
+  ...
+# Subtest: the debt register only lists files that still need it
+ok 119 - the debt register only lists files that still need it
+  ---
+  duration_ms: 0.887167
+  ...
+# Subtest: no source file imports next/font/google
+ok 120 - no source file imports next/font/google
+  ---
+  duration_ms: 426.181709
+  ...
+# Subtest: every platform declaration aliases a marketing --tl-* token
+ok 121 - every platform declaration aliases a marketing --tl-* token
+  ---
+  duration_ms: 1.184125
+  ...
+# Subtest: the gold-named greens are gone from the platform block
+ok 122 - the gold-named greens are gone from the platform block
+  ---
+  duration_ms: 0.109042
+  ...
+# Subtest: nothing under the platform wrappers reads an --impronta-* token or utility
+ok 123 - nothing under the platform wrappers reads an --impronta-* token or utility
+  ---
+  duration_ms: 4.232583
+  ...
+# Subtest: every element carrying site-theme-platform also carries data-platform-surface="marketing"
+ok 124 - every element carrying site-theme-platform also carries data-platform-surface="marketing"
+  ---
+  duration_ms: 205.786042
+  ...
+# Subtest: no page design has gained a literal label colour on a primary button
+ok 125 - no page design has gained a literal label colour on a primary button
+  ---
+  duration_ms: 2.046709
+  ...
+# Subtest: every recorded literal is still there, so a removal is locked in
+ok 126 - every recorded literal is still there, so a removal is locked in
+  ---
+  duration_ms: 6.613792
+  ...
+# Subtest: the table measures real designs, and services stays the model
+ok 127 - the table measures real designs, and services stays the model
+  ---
+  duration_ms: 4.105208
+  ...
+# Subtest: BITES: a primary button carrying textColor is counted
+ok 128 - BITES: a primary button carrying textColor is counted
+  ---
+  duration_ms: 0.0885
+  ...
+# Subtest: NOT COUNTED: a primary button with no style, the model
+ok 129 - NOT COUNTED: a primary button with no style, the model
+  ---
+  duration_ms: 0.139375
+  ...
+# Subtest: NOT COUNTED: a SECONDARY button may carry its own label colour
+ok 130 - NOT COUNTED: a SECONDARY button may carry its own label colour
+  ---
+  duration_ms: 0.051541
+  ...
+# Subtest: NOT COUNTED: a colour on the NEXT node is not this button's
+ok 131 - NOT COUNTED: a colour on the NEXT node is not this button's
+  ---
+  duration_ms: 0.044542
+  ...
+# Subtest: BITES: two primary buttons in one file count twice
+ok 132 - BITES: two primary buttons in one file count twice
+  ---
+  duration_ms: 0.112125
+  ...
+# Subtest: no file has gained or lost an unchecked Supabase read without the baseline moving
+ok 133 - no file has gained or lost an unchecked Supabase read without the baseline moving
+  ---
+  duration_ms: 1368.149292
+  ...
+# Subtest: the baseline describes files that still exist and still have reads
+ok 134 - the baseline describes files that still exist and still have reads
+  ---
+  duration_ms: 1159.9755
+  ...
+# Subtest: catches the plain form
+ok 135 - catches the plain form
+  ---
+  duration_ms: 0.146875
+  ...
+# Subtest: catches the RENAMED form, which is 5x more common than the plain one
+ok 136 - catches the RENAMED form, which is 5x more common than the plain one
+  ---
+  duration_ms: 0.073
+  ...
+# Subtest: catches a destructure that takes data and something other than error
+ok 137 - catches a destructure that takes data and something other than error
+  ---
+  duration_ms: 0.0745
+  ...
+# Subtest: catches a multi-line destructure
+ok 138 - catches a multi-line destructure
+  ---
+  duration_ms: 0.049792
+  ...
+# Subtest: ignores a read that checks its error, however it is named
+ok 139 - ignores a read that checks its error, however it is named
+  ---
+  duration_ms: 0.073333
+  ...
+# Subtest: ignores awaits that are not Supabase reads
+ok 140 - ignores awaits that are not Supabase reads
+  ---
+  duration_ms: 0.052375
+  ...
+# Subtest: an annotated read with a reason stops counting
+ok 141 - an annotated read with a reason stops counting
+  ---
+  duration_ms: 0.1655
+  ...
+# Subtest: a BARE marker with no reason does NOT silence the guard
+ok 142 - a BARE marker with no reason does NOT silence the guard
+  ---
+  duration_ms: 0.109208
+  ...
+# Subtest: the marker must be adjacent, so it cannot cover a later read
+ok 143 - the marker must be adjacent, so it cannot cover a later read
+  ---
+  duration_ms: 0.060292
+  ...
+# Subtest: a documented example in a comment is not a read
+ok 144 - a documented example in a comment is not a read
+  ---
+  duration_ms: 0.044667
+  ...
+# Subtest: a // inside a string is not a comment
+ok 145 - a // inside a string is not a comment
+  ---
+  duration_ms: 0.04775
+  ...
+# Subtest: blanking preserves offsets so reported line numbers stay true
+ok 146 - blanking preserves offsets so reported line numbers stay true
+  ---
+  duration_ms: 0.183542
+  ...
+# Subtest: THE RATCHET BITES: a new read in a baselined file is reported
+ok 147 - THE RATCHET BITES: a new read in a baselined file is reported
+  ---
+  duration_ms: 0.165833
+  ...
+# Subtest: THE RATCHET BITES: a new read in a file with NO baseline entry is reported
+ok 148 - THE RATCHET BITES: a new read in a file with NO baseline entry is reported
+  ---
+  duration_ms: 0.061625
+  ...
+# Subtest: a fix is reported too, so the number cannot drift downward unrecorded
+ok 149 - a fix is reported too, so the number cannot drift downward unrecorded
+  ---
+  duration_ms: 0.098458
+  ...
+# Subtest: no NEW package.json script invokes tsc --noEmit outside the queue
+ok 150 - no NEW package.json script invokes tsc --noEmit outside the queue
+  ---
+  duration_ms: 1.242709
+  ...
+# Subtest: no committed shell script invokes tsc --noEmit except the queue itself
+ok 151 - no committed shell script invokes tsc --noEmit except the queue itself
+  ---
+  duration_ms: 3.2985
+  ...
+# Subtest: the queue this guard defends still exists and still runs tsc
+ok 152 - the queue this guard defends still exists and still runs tsc
+  ---
+  duration_ms: 0.37875
+  ...
+# Subtest: the repo does not INSTRUCT the bypass in its own onboarding script
+ok 153 - the repo does not INSTRUCT the bypass in its own onboarding script
+  ---
+  duration_ms: 0.427459
+  ...
+# Subtest: SCOPE: this guard reads the TREE, so it cannot see a bypass nobody committed
+ok 154 - SCOPE: this guard reads the TREE, so it cannot see a bypass nobody committed
+  ---
+  duration_ms: 0.495875
+  ...
+# onConflict findings fixed since the baseline:
+#   src/lib/server-actions/admin-taxonomy.ts:502 (was unknown) — FIXED, thank you. Remove it from the baseline when you next touch this file:
+#       npx tsx scripts/upsert-conflict-audit.mjs --baseline
+#   src/lib/server-actions/admin-taxonomy.ts:630 (was unknown) — FIXED, thank you. Remove it from the baseline when you next touch this file:
+#       npx tsx scripts/upsert-conflict-audit.mjs --baseline
+# Baseline names 2 finding(s) already fixed:
+#   src/lib/server-actions/admin-taxonomy.ts:502
+#   src/lib/server-actions/admin-taxonomy.ts:630
+# Subtest: no upsert has gained an uninferable onConflict target
+ok 155 - no upsert has gained an uninferable onConflict target
+  ---
+  duration_ms: 1213.0205
+  ...
+# Subtest: the scan is looking at something — the repo has upserts and unique indexes
+ok 156 - the scan is looking at something — the repo has upserts and unique indexes
+  ---
+  duration_ms: 1233.886708
+  ...
+# Subtest: BITES: a PARTIAL index matching the columns is a finding
+ok 157 - BITES: a PARTIAL index matching the columns is a finding
+  ---
+  duration_ms: 0.250917
+  ...
+# Subtest: BITES: columns matching nothing unique is a finding
+ok 158 - BITES: columns matching nothing unique is a finding
+  ---
+  duration_ms: 0.163541
+  ...
+# Subtest: a TOTAL index matching the columns is ok, in any column order
+ok 159 - a TOTAL index matching the columns is ok, in any column order
+  ---
+  duration_ms: 0.078208
+  ...
+# Subtest: an upsert with NO onConflict is not a finding — it conflicts on the primary key
+ok 160 - an upsert with NO onConflict is not a finding — it conflicts on the primary key
+  ---
+  duration_ms: 0.038625
+  ...
+# Subtest: a table no migration creates is UNKNOWN, never `missing`
+ok 161 - a table no migration creates is UNKNOWN, never `missing`
+  ---
+  duration_ms: 0.057125
+  ...
+# Subtest: a drop AFTER a create in the SAME file wins, and a create after a drop wins
+ok 162 - a drop AFTER a create in the SAME file wins, and a create after a drop wins
+  ---
+  duration_ms: 51.074292
+  ...
+# Subtest: the extractor ignores its own prose
+ok 163 - the extractor ignores its own prose
+  ---
+  duration_ms: 0.26325
+  ...
+# Subtest: the extractor does not borrow a table from an unrelated earlier query
+ok 164 - the extractor does not borrow a table from an unrelated earlier query
+  ---
+  duration_ms: 0.184916
+  ...
+# Subtest: a table separated by a statement boundary is not borrowed at all
+ok 165 - a table separated by a statement boundary is not borrowed at all
+  ---
+  duration_ms: 0.061166
+  ...
+# Subtest: a baselined key whose finding is gone is a NOTE, not a failure
+ok 166 - a baselined key whose finding is gone is a NOTE, not a failure
+  ---
+  duration_ms: 1175.039333
+  ...
+# Subtest: BITES: a NEW finding is still a regression and still fails
+ok 167 - BITES: a NEW finding is still a regression and still fails
+  ---
+  duration_ms: 0.108833
+  ...
+# Subtest: a FIXED finding is classified resolved, never a regression
+ok 168 - a FIXED finding is classified resolved, never a regression
+  ---
+  duration_ms: 0.157667
+  ...
+# Subtest: BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+ok 169 - BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+  ---
+  duration_ms: 0.073125
+  ...
+# Subtest: an UNREADABLE site is ratcheted like a broken one
+ok 170 - an UNREADABLE site is ratcheted like a broken one
+  ---
+  duration_ms: 0.117458
+  ...
+# Subtest: BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+ok 171 - BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+  ---
+  duration_ms: 0.795875
+  ...
+# Subtest: BITES: a table named through a wrapper helper resolves, it is not `unknown`
+ok 172 - BITES: a table named through a wrapper helper resolves, it is not `unknown`
+  ---
+  duration_ms: 0.176542
+  ...
+# Subtest: an UNRECOGNISED wrapper still falls back to unknown, never to silence
+ok 173 - an UNRECOGNISED wrapper still falls back to unknown, never to silence
+  ---
+  duration_ms: 0.062625
+  ...
+1..173
+# tests 173
+# suites 0
+# pass 173
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5059.841417
+EXIT=0
