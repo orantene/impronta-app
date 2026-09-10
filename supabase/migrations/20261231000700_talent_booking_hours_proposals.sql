@@ -10,8 +10,17 @@
 -- An unreviewed profile keeps answering "no booking hours" to the public
 -- endpoint, which is the honest answer.
 --
--- Timestamp sorts after 20261230002200 (the latest journeys migration on this
--- branch). Do not use today's real calendar date for the filename prefix —
+-- Originally filed at 20261230002300. Renamed to 20261231000700: a parallel
+-- task (orders/identity) had already claimed 20261230002300 for
+-- identity_by_product_not_by_money.sql, and two files sharing one version
+-- means one of them never applies while the drift check stays green on the
+-- version prefix alone — a known failure mode on this branch. This file was
+-- already applied to the isolated qa-journeys branch under the old version;
+-- it is idempotent (CREATE TABLE/POLICY/TRIGGER all guarded, CREATE OR
+-- REPLACE for the function), so it was safely re-applied under this name and
+-- the stale 20261230002300 ledger row for this migration was deleted —
+-- nothing on that branch now claims a shape this file would not produce by
+-- itself. Do not use today's real calendar date for the filename prefix —
 -- see the note in 20261230000700_journeys_atomic_rpcs.sql: migrations on this
 -- branch are ordered by an artificial forward date, not by the day they were
 -- authored.

@@ -26,6 +26,7 @@ import { tenantTimezone } from "@/lib/spaces/venues";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { actorMayWriteHours } from "@/lib/scheduling/hours-edit-policy";
+import { acceptBookingHoursProposalCore } from "@/lib/scheduling/accept-booking-hours-proposal";
 
 const weeklySchema = z.record(
   z.string(),
@@ -338,46 +339,15 @@ export async function acceptBookingHoursProposal(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const { data, error } = await admin.rpc("accept_booking_hours_proposal", {
-    p_talent_profile_id: talentProfileId,
-    p_actor_id: auth.userId,
-    p_overrides: { timezone },
-  });
-  if (error) {
-    logServerError("booking-hours.acceptProposal", error);
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
-
-  const result = data as { ok?: boolean; reason?: string } | null;
-  if (!result?.ok) {
-    if (result?.reason === "hours_exist") {
-      return { ok: false, error: "This person already has booking hours." };
-    }
-    if (result?.reason === "timezone_required" || result?.reason === "bad_input") {
-      return { ok: false, error: "Pick a time zone." };
-    }
-    if (result?.reason === "not_found") {
-      return { ok: false, error: "That proposal is no longer there." };
-    }
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
-
-  const { data: hoursRow, error: hoursErr } = await admin
-    .from("talent_booking_hours")
-    .select(
-      "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
-    )
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (hoursErr) {
-    logServerError("booking-hours.acceptProposal/reload", hoursErr);
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
-  const hours = parseBookingHours(hoursRow);
-  if (!hours) return { ok: false, error: CLIENT_ERROR.update };
+  const result = await acceptBookingHoursProposalCore(
+    admin,
+    { talentProfileId, actorId: auth.userId, timezone },
+    CLIENT_ERROR.update,
+  );
+  if (!result.ok) return result;
 
   revalidatePath("/", "layout");
-  return { ok: true, hours };
+  return result;
 }
 
 type SaveHoursResult = { ok: true; hours: BookingHours } | { ok: false; error: string };
