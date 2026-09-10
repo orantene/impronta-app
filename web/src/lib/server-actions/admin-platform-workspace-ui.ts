@@ -5,9 +5,11 @@
  * switches (the `platform_settings` singleton) on /platform/admin/settings.
  *
  * Lets HQ show/hide the workspace shell's floating "+" quick-action button, the
- * first-run guided tour, and the storefront admin quick bar. The first two ship
- * hidden by default; the quick bar ships VISIBLE (it shipped that way in #1001,
- * so HQ opts out of it rather than into it).
+ * first-run guided tour, the storefront admin quick bar, and the point of
+ * sale's platform kill switch. The first two ship hidden by default; the
+ * quick bar ships VISIBLE (it shipped that way in #1001, so HQ opts out of it
+ * rather than into it). The POS switch ships hidden too — until this action
+ * existed the only way to flip `workspace_pos_enabled` was raw SQL.
  *
  * Pattern mirrors admin-platform-payout-system.ts (platform-admin gated,
  * `{ ok, error }` result, revalidatePath on success). The DB write lives in the
@@ -29,6 +31,7 @@ const schema = z
     tourEnabled: z.boolean(),
     quickBarEnabled: z.boolean(),
     supportEnabled: z.boolean(),
+    posEnabled: z.boolean(),
   })
   .strict();
 

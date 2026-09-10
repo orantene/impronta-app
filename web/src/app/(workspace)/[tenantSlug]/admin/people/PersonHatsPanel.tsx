@@ -409,11 +409,18 @@ function HatBlock({
       <p className={PEOPLE_MUTED}>{what}</p>
 
       {/* A hat that is off ALWAYS says why. */}
-      {state.blockedBy.map((reason) => (
-        <p key={reason} className={PEOPLE_REFUSAL}>
-          {t(`admin.people.reason.${reasonKeyFor ? reasonKeyFor(reason) : reason}`)}
-        </p>
-      ))}
+      {state.blockedBy.map((reason) => {
+        // Resolved in a variable first so the key family `admin.people.reason.*`
+        // is a plain template the static usage check can see; a ternary inside
+        // the template reads to that check as no reader at all, and it then
+        // reports every reason sentence as dead copy.
+        const reasonKey = reasonKeyFor ? reasonKeyFor(reason) : reason;
+        return (
+          <p key={reason} className={PEOPLE_REFUSAL}>
+            {t(`admin.people.reason.${reasonKey}`)}
+          </p>
+        );
+      })}
       {state.warnings.map((warning) => (
         <p key={warning} className={PEOPLE_WARNING}>
           {t(`admin.people.warning.${warning}`)}

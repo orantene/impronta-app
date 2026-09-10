@@ -88,15 +88,14 @@ export const loadPlatformWorkspaceUi = cache(
  * lib so the raw `.from("platform_settings")` write stays out of the action
  * file (platform_settings has no tenant_id by design).
  *
- * Takes every switch EXCEPT `posEnabled`: the settings-UI card and its action
- * (`admin-platform-workspace-ui.ts`) only know about the first four — wiring
- * a control for the fifth is a later task's job (the "client bridge" this
- * loader intentionally does not touch). Adding `posEnabled` to the input type
- * here would force every existing caller to start passing it.
+ * Takes every switch, `posEnabled` included: the settings-UI card and its
+ * action (`admin-platform-workspace-ui.ts`) now offer a control for it, the
+ * point of sale's own kill switch — previously the only way to flip
+ * `workspace_pos_enabled` was raw SQL.
  */
 export async function writePlatformWorkspaceUi(
   updatedBy: string,
-  input: Omit<PlatformWorkspaceUi, "posEnabled">,
+  input: PlatformWorkspaceUi,
 ): Promise<{ ok: true } | { ok: false }> {
   try {
     const admin = createServiceRoleClient();
@@ -108,6 +107,7 @@ export async function writePlatformWorkspaceUi(
           workspace_tour_enabled: input.tourEnabled,
           workspace_quick_bar_enabled: input.quickBarEnabled,
           workspace_support_enabled: input.supportEnabled,
+          workspace_pos_enabled: input.posEnabled,
           updated_at: new Date().toISOString(),
           updated_by: updatedBy,
         } as never)

@@ -4766,6 +4766,7 @@
       "posModes": {
         "title": "Modos de venta",
         "desc": "Qué partes del punto de venta tiene activadas este espacio de trabajo.",
+        "platformOffHint": "El punto de venta esta apagado para toda la plataforma. Pide a un administrador que lo active antes de poder cambiar los modos de venta aqui.",
         "loading": "Cargando…",
         "saving": "Guardando…",
         "saved": "Guardado",
@@ -4782,8 +4783,8 @@
             "desc": "Vende artículos, toma pedidos y gestiona turnos en una caja."
           },
           "floor": {
-            "label": "Salón",
-            "desc": "Mesas y distribución del salón."
+            "label": "Mesas",
+            "desc": "El salón desde la caja: sentar, mover y liberar mesas, abrir sus cuentas."
           },
           "door": {
             "label": "Puerta",
@@ -6129,7 +6130,9 @@
         "saving": "Guardando…",
         "failed": "Error: {error}",
         "workspaceUiSupportLabel": "Lanzador de soporte en la app",
-        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma."
+        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma.",
+        "workspaceUiPosLabel": "El punto de venta",
+        "workspaceUiPosHint": "Permite que los espacios de trabajo activen el punto de venta. Apagado oculta el interruptor de la barra superior en todas partes."
       },
       "integrations": {
         "title": "Integraciones predeterminadas",
@@ -12358,7 +12361,7 @@
         },
         "mode": {
           "counter": "Mostrador",
-          "floor": "Salón",
+          "floor": "Mesas",
           "door": "Puerta",
           "classes": "Clases",
           "projects": "Proyectos",
@@ -12387,23 +12390,6 @@
           "product": "Productos"
         }
       },
-      "pageIntro": "Venta de mostrador sobre el pedido existente. El nombre solo se pide al cobrar.",
-      "openSales": "Ventas abiertas",
-      "items": "Artículos",
-      "discount": "Descuento",
-      "deposit": "Ya pagado",
-      "prep": "Preparación",
-      "payment": "Pago",
-      "next": "Abre una venta o elige una abierta.",
-      "collectCash": "Cobrar en efectivo",
-      "collectCard": "Cobrar con tarjeta",
-      "cancel": "Cancelar venta",
-      "applyCode": "Aplicar código",
-      "catalog": "Catálogo",
-      "emptyCatalog": "Aún no hay artículos publicados del espacio.",
-      "emptyOpen": "No hay ventas abiertas.",
-      "tendered": "Entregado",
-      "change": "Cambio",
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "projects": {
@@ -12506,6 +12492,139 @@
             "unavailable": "No pudimos consultarlo. No se cambió nada. Inténtalo de nuevo en un momento.",
             "not_allowed": "No tienes permiso para consultar recibos aquí."
           }
+        }
+      },
+      "door": {
+        "rail": {
+          "label": "Puerta",
+          "checkin": "Acceso",
+          "tickets": "Taquilla"
+        },
+        "title": "Entradas y admisiones",
+        "clock": "Las horas son las del local ({zone}).",
+        "tonight": "Esta noche",
+        "comingUp": "Próximamente",
+        "noSessions": "No hay ningún evento programado en esta puerta en las próximas dos semanas. Programa una noche desde la página de Sesiones y aparecerá aquí.",
+        "loading": "Cargando la puerta...",
+        "loadFailed": "No se pudo cargar la puerta. Revisa la conexión e inténtalo de nuevo.",
+        "counts": {
+          "admitted": "{admitted} dentro",
+          "expected": "{expected} esperados",
+          "capacity": "{capacity} de aforo",
+          "noPool": "sin aforo definido"
+        },
+        "pickSession": "Elige el evento de esta noche para abrir su acceso.",
+        "changeSession": "Cambiar de evento",
+        "scan": {
+          "label": "Escanea o escribe el código de la entrada",
+          "placeholder": "Apunta el escáner aquí o escribe el código de la entrada",
+          "submit": "Admitir",
+          "ready": "Lista para la siguiente entrada"
+        },
+        "verdict": {
+          "admitted": "Dentro. Bienvenido.",
+          "admittedParty": "Dentro. {admitted} de {party} han entrado.",
+          "admittedWasNoShow": "Dentro. Esta entrada estaba marcada como no presentado; avisa en recepción.",
+          "alreadyIn": "Ya admitida. {admitted} de {party} entraron antes con esta entrada.",
+          "superseded": "Esta entrada es antigua. Se volvió a emitir; pide la nueva.",
+          "wrongNightDated": "Noche equivocada. Esta entrada es para el {date}.",
+          "wrongNight": "No es para esta noche. Esta entrada no está en la lista de esta puerta.",
+          "refunded": "Reembolsada. Esta entrada fue devuelta y ya no da acceso.",
+          "cancelled": "Cancelada. Esta entrada ya no da acceso.",
+          "forged": "Entrada no válida. El código no cuadra.",
+          "unknown": "Código desconocido. Ninguna entrada de este evento lo lleva.",
+          "tooMany": "Solo quedan {remaining} en esta entrada.",
+          "misconfigured": "La puerta no está configurada en este servidor. Avisa al local, no al invitado.",
+          "engineError": "No se pudo contactar con la puerta. No se admitió a nadie; inténtalo de nuevo."
+        },
+        "list": {
+          "title": "Lista de invitados",
+          "search": "Buscar invitado",
+          "searchPlaceholder": "Nombre, correo o el inicio del id de la entrada",
+          "empty": "Todavía no hay nadie en la lista.",
+          "noMatch": "Nadie coincide.",
+          "walkUp": "Sin reserva",
+          "party": "Grupo de {size}",
+          "ticket": "Entrada",
+          "in": "Dentro",
+          "partial": "{admitted} de {party} dentro",
+          "notYet": "Todavía no",
+          "noShow": "Marcado como no presentado",
+          "admit": "Admitir",
+          "admitMany": "Admitir {count}",
+          "status": {
+            "void": "Cancelada",
+            "refunded": "Reembolsada"
+          }
+        },
+        "sell": {
+          "gateTitle": "Sin reserva: vender y admitir",
+          "boxTitle": "Vender una entrada",
+          "boxIntro": "La entrada se cobra en esta caja y se emite con un código que el portador muestra en el acceso.",
+          "session": "Evento",
+          "tier": "Entrada",
+          "tierNoPool": "sin plazas para esta noche",
+          "noTiers": "Este evento no tiene ningún tipo de entrada que la puerta pueda vender. Añade uno en la pestaña Entradas del evento.",
+          "holderName": "Nombre en la entrada",
+          "holderNamePlaceholder": "Opcional; ayuda en la lista de invitados",
+          "email": "Correo",
+          "phone": "Teléfono",
+          "contactHint": "Algunas entradas necesitan el correo o el teléfono del comprador antes de venderse.",
+          "open": "Abrir la venta",
+          "cancel": "Cancelar esta venta",
+          "collectGate": "Cobrar en efectivo y admitir",
+          "collectBox": "Cobrar en efectivo",
+          "openedFor": "Venta abierta: {label}",
+          "issued": "Entrada emitida",
+          "issuedMany": "{count} entradas emitidas",
+          "code": "Código de la entrada",
+          "codeUnavailable": "No se pudo firmar ningún código en este servidor; busca al invitado por su nombre en el acceso.",
+          "receipt": "Recibo",
+          "next": "Siguiente invitado",
+          "admittedNow": "Admitido en el acceso",
+          "cashOnly": "En esta puerta solo se cobra en efectivo. Otros medios de pago se cobran en el mostrador."
+        },
+        "noScanOut": "La salida no se registra: el motor todavía no tiene escaneo de salida."
+      },
+      "floor": {
+        "rail": {
+          "label": "Mesas",
+          "tables": "Salón",
+          "seating": "Grupos sentados"
+        },
+        "title": "Mesas",
+        "summary": "{seated} de {total} mesas ocupadas · {arriving} por llegar · {reset} por preparar",
+        "emptyFloor": "Todavía no hay mesas, reservados ni cabañas. Agrégalos en Espacios.",
+        "emptySeated": "Ahora mismo no hay nadie sentado.",
+        "unavailable": "No pudimos cargar el salón.",
+        "tapHint": "Toca una mesa.",
+        "sheetHeading": "{code}: ¿qué quieres hacer?",
+        "closeSheet": "Cerrar",
+        "guests": "Comensales",
+        "fewerGuests": "Un comensal menos",
+        "moreGuests": "Un comensal más",
+        "seatHere": "Sentar {n} en {code}",
+        "seatAcross": "Sentar {n} en {code} + {other}",
+        "joinOffer": "{code} sola no alcanza para {n}. Unir con:",
+        "noJoinOptions": "Ninguna combinación de mesas alcanza para este grupo.",
+        "openCheck": "Abrir cuenta",
+        "sendKitchen": "Enviar a cocina",
+        "movePartyHeading": "Mover este grupo a",
+        "noFreeTables": "Ninguna mesa libre alcanza para este grupo.",
+        "endVisit": "Terminar visita",
+        "markReady": "Marcar lista",
+        "kitchenNone": "Todavía no se envió nada a cocina",
+        "kitchenQueued": "Cocina: enviado, aún sin confirmar (revisión {n})",
+        "kitchenAcknowledged": "Cocina: confirmado (revisión {n})",
+        "kitchenReady": "Cocina: listo para servir (revisión {n})",
+        "sentToKitchen": "Enviado a cocina como ticket revisión {n}.",
+        "amendedInKitchen": "El ticket de cocina ahora es la revisión {n}. La estación tiene que confirmarlo de nuevo.",
+        "checkTotal": "Cuenta {amount}",
+        "noCheckYet": "Todavía sin cuenta",
+        "seatedNotMarked": "El grupo ya está sentado.",
+        "refusal": {
+          "kitchenEmpty": "Agrega algo a la cuenta antes de enviarla a cocina. Abre la cuenta para agregar artículos.",
+          "kitchenNotFound": "Esa cuenta ya no está abierta. Recarga el salón."
         }
       }
     },
@@ -14003,7 +14122,6 @@
         "revokeAccess": "Quitar el acceso",
         "grantAccess": "Dar acceso",
         "inviteByEmail": "Invitar por correo",
-        "emailLabel": "Correo electronico",
         "invite": "Enviar invitacion",
         "alsoRemoves": "Al desactivarlo tambien se quita el rol Reservable, porque una persona que no esta en tu lista no se puede reservar aqui.",
         "whatStays": "Lo que queda: {hats}",

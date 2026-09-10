@@ -35,6 +35,7 @@ import {
   type PosMode,
   type PosPersonRole,
 } from "@/lib/pos/modes";
+import { loadDoorTonight } from "@/lib/pos/door-tonight";
 import { currentShift } from "@/lib/pos/shift";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -44,6 +45,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { PageRouteSyncer } from "../_page-route-syncer";
 
 import type { PosCatalogItem } from "./counter-model";
+import { DoorClient } from "./door-client";
+import { doorCopy } from "./door-copy";
+import { FloorScreen } from "./floor-screen";
 import { PosClient } from "./pos-client";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
@@ -159,7 +163,20 @@ export default async function PosPage({
   const enabledModes = enabledPosModesFromSettings(
     (modesRes.data as { settings?: unknown } | null)?.settings,
   );
-  if (!sellingModesAllowCounter(enabledModes)) {
+  //
+  // THE FLOOR IS NOT THE COUNTER. A workspace that has the counter off and
+  // Tables on (a host stand with no register) still owns `?mode=floor`, so the
+  // counter-off sentence is only for a request that would land on the
+  // counter: no mode asked for, or the counter itself. A built, switched-on
+  // sibling mode goes on to the person-and-mode resolution below.
+  const q = await searchParams;
+  const requestedEarly = parsePosMode(q.mode);
+  const asksForOpenSibling =
+    requestedEarly !== undefined &&
+    requestedEarly !== "counter" &&
+    POS_MODE_META[requestedEarly].built &&
+    enabledModes.includes(requestedEarly);
+  if (!sellingModesAllowCounter(enabledModes) && !asksForOpenSibling) {
     return (
       <>
         <PageRouteSyncer page="pos" />
@@ -174,8 +191,6 @@ export default async function PosPage({
       </>
     );
   }
-
-  const q = await searchParams;
 
   // ── Which modes this person may actually use ─────────────────────────
   //
@@ -277,6 +292,66 @@ export default async function PosPage({
       </>
     );
   }
+
+  // ── The door ─────────────────────────────────────────────────────────
+  //
+  // Its own client, its own loader, the same frame, the same chrome. The
+  // door takes cash only at this till (every other tender says so in a
+  // sentence), and the money goes through the counter's own `startCollection`
+  // so the shift's expected cash, the Payments page and the door's guest list
+  // read the same rows. See `door-actions.ts` for why it is not `sellAtDoor`.
+  if (mode === "door") {
+    const tonight = await loadDoorTonight(admin, scope.tenantId);
+    const doorHdrs = await headers();
+    const doorHost = doorHdrs.get("x-forwarded-host") ?? doorHdrs.get("host") ?? "";
+    const doorProto = doorHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const cashOnly = tr("dashboard.pos.door.sell.cashOnly");
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <DoorClient
+          tenantId={scope.tenantId}
+          workspaceName={workspaceName}
+          receiptOrigin={doorHost ? `${doorProto}://${doorHost}` : ""}
+          locale={locale}
+          zone={tonight.ok ? tonight.zone : "UTC"}
+          nowIso={tonight.ok ? tonight.nowIso : new Date().toISOString()}
+          sessions={tonight.ok ? tonight.sessions : []}
+          tonightFailed={!tonight.ok}
+          currency="USD"
+          methods={[
+            { id: "cash", available: true },
+            { id: "card", available: false, unavailableReason: cashOnly },
+            { id: "link", available: false, unavailableReason: cashOnly },
+            { id: "pass", available: false, unavailableReason: cashOnly },
+          ]}
+          copy={{
+            door: doorCopy(tr),
+            collect: collectSheetCopy(tr),
+            refusal: refusalCopy(tr),
+            frameNavLabel: tr("dashboard.pos.door.rail.label"),
+          }}
+        />
+      </>
+    );
+  }
+
+  // ── The floor ────────────────────────────────────────────────────────
+  //
+  // A sibling of the counter in the same frame, entered from the same top-bar
+  // switch. Its reads and writes are the workspace Spaces page's own
+  // (`floor-screen.tsx`); this route only decides that `?mode=floor` means
+  // that screen and hands it the identity the counter would have had.
+  if (mode === "floor") {
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <FloorScreen
+          admin={admin}
+          tenantId={scope.tenantId}
+          locale={locale}
+          workspaceName={workspaceName}
+          posPath={await currentAdminPath(tenantSlug)}
 
   if (mode === "projects") {
     // The Projects mode: a sibling of the counter over the same engine. Its
