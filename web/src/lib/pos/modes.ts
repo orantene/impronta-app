@@ -90,9 +90,9 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   },
   classes: {
     id: "classes",
-    label: "Classes",
-    destinations: ["roster", "attendance"],
-    built: false,
+    label: "Front desk",
+    destinations: ["today", "sessions", "walkin", "waitlist"],
+    built: true,
   },
   projects: {
     id: "projects",

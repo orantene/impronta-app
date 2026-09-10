@@ -52,3 +52,40 @@ test("another workspace's admission is unknown, not a leak", async () => {
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.reason, "not_found");
 });
+
+test("a second mark is refused as already marked, not as an outage", async () => {
+  const admin = {
+    from: () => {
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        maybeSingle: async () => ({ data: { id: "adm-1", order_line_id: null }, error: null }),
+      };
+      return api;
+    },
+    rpc: async () => ({
+      data: { ok: false, reason: "already_admitted", partySize: 1, admittedCount: 1 },
+      error: null,
+    }),
+  };
+  const r = await markAttendance(admin as never, { tenantId: "t1", admissionId: "adm-1", actorUserId: "u1" });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "already_marked");
+});
+
+test("a refunded place is refused as not valid", async () => {
+  const admin = {
+    from: () => {
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        maybeSingle: async () => ({ data: { id: "adm-1", order_line_id: null }, error: null }),
+      };
+      return api;
+    },
+    rpc: async () => ({ data: { ok: false, reason: "not_valid", status: "refunded" }, error: null }),
+  };
+  const r = await markAttendance(admin as never, { tenantId: "t1", admissionId: "adm-1", actorUserId: "u1" });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "not_valid");
+});

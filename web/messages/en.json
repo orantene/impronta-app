@@ -4791,8 +4791,8 @@
             "desc": "Check guests in, scan tickets."
           },
           "classes": {
-            "label": "Classes",
-            "desc": "Rosters and attendance for a class or session."
+            "label": "Front desk",
+            "desc": "Appointments and classes for the day: check-ins, rosters, walk-ins and the waitlist."
           },
           "projects": {
             "label": "Collect",
@@ -12363,7 +12363,7 @@
           "counter": "Counter",
           "floor": "Tables",
           "door": "Door",
-          "classes": "Classes",
+          "classes": "Front desk",
           "projects": "Collect",
           "notBuilt": "This mode does not have a screen yet."
         },
@@ -12492,6 +12492,110 @@
             "unavailable": "We could not look that up. Nothing was changed. Try again in a moment.",
             "not_allowed": "You are not allowed to look up receipts here."
           }
+        }
+      },
+      "classes": {
+        "title": "Front desk",
+        "rail": {
+          "label": "Front desk",
+          "today": "Today",
+          "sessions": "Sessions",
+          "walkin": "Walk-in",
+          "waitlist": "Waitlist"
+        },
+        "day": {
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "yesterday": "Yesterday",
+          "clock": "{date}, on the venue's clock ({zone})",
+          "prev": "Previous day",
+          "next": "Next day",
+          "backToToday": "Back to today",
+          "reload": "Reload"
+        },
+        "today": {
+          "heading": "Appointments in arrival order",
+          "empty": "Nothing is booked for this day.",
+          "checkIn": "Check in",
+          "checkingIn": "Checking in...",
+          "arrived": "Arrived",
+          "owed": "{amount} to collect",
+          "collect": "Collect {amount}",
+          "paid": "Paid",
+          "noOrder": "No money on this booking"
+        },
+        "sessions": {
+          "heading": "Sessions and who is in them",
+          "empty": "No sessions are scheduled for this day.",
+          "seats": "{taken} of {total} seats taken",
+          "roster": "Roster",
+          "rosterEmpty": "Nobody holds a place in this session yet.",
+          "unnamed": "No name on this ticket",
+          "mark": "Mark present",
+          "marking": "Marking...",
+          "here": "Present",
+          "partOfParty": "{admitted} of {party} in",
+          "fromList": "From the waitlist",
+          "fromListHint": "Took a place from the list. The seat is held; there is no ticket to mark yet.",
+          "notValid": "Not valid: {status}",
+          "bookSeat": "Book a walk-in seat"
+        },
+        "walkin": {
+          "heading": "Book a walk-in",
+          "kindAppointment": "An appointment",
+          "kindSeat": "A seat in a session",
+          "service": "Service",
+          "noServices": "No timed service with a person behind it is on sale here.",
+          "withPerson": "with {name}",
+          "minutes": "{n} min",
+          "pickTime": "Pick a free time on this day",
+          "loadingTimes": "Looking for free times...",
+          "noTimes": "No free time on this day.",
+          "session": "Session",
+          "noSessions": "No session on this day has seats to sell.",
+          "tier": "Ticket",
+          "name": "Customer's name",
+          "book": "Book it",
+          "booking": "Booking...",
+          "booked": "Booked for {when}.",
+          "seatBooked": "Seat held in {session}.",
+          "collect": "Collect {amount} in cash",
+          "collecting": "Collecting...",
+          "collected": "Paid. {amount} collected in cash.",
+          "nothingToCollect": "Nothing to collect: this one is free.",
+          "startAgain": "Book another",
+          "mustPayOnlineHint": "Paid online before the time is held; the till cannot book it."
+        },
+        "waitlist": {
+          "heading": "Waiting for a place",
+          "empty": "No session on this day is full, and nobody is waiting."
+        },
+        "refusal": {
+          "notAllowed": "You do not have access to this till.",
+          "invalid": "That request was not usable.",
+          "unavailable": "Could not reach the workspace. Try again.",
+          "bookingNotFound": "That booking is not in this workspace.",
+          "bookingChanged": "This booking changed since you opened it. Reload the day and try again.",
+          "alreadyCheckedIn": "This person is already checked in.",
+          "bookingCancelled": "This booking was cancelled, so nobody can be checked in to it.",
+          "bookingCompleted": "This booking is already done.",
+          "bookingNotCheckinable": "This booking is not in a state that can be checked in.",
+          "placeGone": "That place is gone.",
+          "attendanceAlreadyMarked": "Attendance is already marked for this person.",
+          "placeNotValid": "That place is not valid any more, so attendance cannot be marked.",
+          "serviceNotFound": "That service is not on sale here.",
+          "noBookingHours": "Nobody has set booking hours for this person yet, so there are no times to offer.",
+          "hoursUnreadable": "This person's booking hours could not be read.",
+          "closedToday": "This person is not taking bookings on this day.",
+          "fullyBookedToday": "Every time on this day is taken. Pick another day.",
+          "nameRequired": "The customer needs a name before a time can be held.",
+          "timeTaken": "That time was just taken. Pick another.",
+          "roomFull": "The room is full at that time. Pick another.",
+          "mustPayOnline": "This service is paid online before the time is held. Book it from the website.",
+          "needsAccount": "This service needs an account to book. Book it from the website.",
+          "needsContact": "This service needs the customer's email or phone.",
+          "notForSale": "That service is not for sale right now.",
+          "couldNotBook": "Could not book that. Nothing was held."
         }
       },
       "door": {
