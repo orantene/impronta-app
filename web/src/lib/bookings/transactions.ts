@@ -1300,12 +1300,19 @@ async function transitionStatus(
   try {
     const fromArr = Array.isArray(fromStatus) ? fromStatus : [fromStatus];
 
-    const { data: existing } = await sb
+    // A failed read and a missing row are different facts, and this is the
+    // money state machine: reporting "not found" for a database error would
+    // send the caller down the create-a-new-one path for a transaction that
+    // exists. PGRST116 is PostgREST's own "no rows" for .single().
+    const { data: existing, error: existingErr } = await sb
       .from("booking_transactions")
       .select("status, source_inquiry_id, source_tenant_id, booking_id")
       .eq("id", transactionId)
       .single();
 
+    if (existingErr && existingErr.code !== "PGRST116") {
+      return { ok: false, error: "Could not read that transaction." };
+    }
     if (!existing) return { ok: false, error: "Transaction not found." };
 
     const existingRow = existing as {
