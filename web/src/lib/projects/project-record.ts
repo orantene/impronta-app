@@ -24,11 +24,33 @@
  * derives a value from `Date.now()`, so the first render and the second render
  * of the same record are the same render.
  *
+ * EVERY DATE ON THIS RECORD IS AN INSTANT, AND `timeZone` SAYS WHOSE CLOCK
+ * READS IT. `startsAt`, `endsAt` and a milestone's `dueAt` are timestamptz.
+ * Slicing the first ten characters off one of those gives the UTC calendar
+ * date, which is a DIFFERENT DAY from the venue's for every job that starts
+ * before dawn: a 2026-10-02T03:00Z call time is the evening of 2026-10-01 in
+ * America/Mexico_City. The reader resolves one zone per project through
+ * `pickTimezone` — the booking's own `timezone`, else the workspace's, else UTC
+ * — and the screens render through it and name it.
+ *
  * MONEY IS MINOR UNITS, ALWAYS. Every `…Cents` field on these types is minor
  * units of its own `currency`. `inquiry_offers` and `booking_talent` store
  * NUMERIC major units in the database; the reader converts once, on the way in,
  * with `minorUnitDivisor` — never here and never in a page.
+ *
+ * WHAT IS OWED IS THE ORDERS DESK'S ANSWER, IMPORTED. `isMoneyOwed` and
+ * `outstandingCents` come from `lib/orders/orders-list.ts` and are not restated
+ * here. Restating half of that rule is what this file shipped first: it summed
+ * `total - collected` over EVERY attached order, so a cancelled order and a
+ * draft quote were both counted as money to chase. On one project genuinely
+ * owing 65000 minor units, a cancelled order took the reported figure to
+ * 105000 and a draft to 112000. `ProjectBalance` therefore carries no
+ * outstanding field of its own: the only way to get a number out of one is
+ * `balanceOwedCents`, which asks the desk.
  */
+
+import { isMoneyOwed, outstandingCents } from "@/lib/orders/orders-list";
+import { utcToZonedYmd } from "@/lib/scheduling/tz";
 
 /** `agency_bookings.status`. The commissioned job's own state. */
 export type ProjectStatus =
@@ -106,15 +128,34 @@ export type ProjectMilestone = {
   readonly dueAt: string | null;
 };
 
-/** An order attached to this project, and what is still owed on it. */
+/**
+ * An order attached to this project.
+ *
+ * Deliberately NO outstanding field. `status`, `totalCents` and
+ * `collectedCents` are exactly the three the orders desk decides on, and the
+ * only way to turn them into money is `balanceOwedCents` below — so a screen
+ * cannot read a figure that skipped the status half of the rule.
+ */
 export type ProjectBalance = {
   readonly orderId: string;
   readonly status: string;
   readonly currency: string;
   readonly totalCents: number;
   readonly collectedCents: number;
-  readonly outstandingCents: number;
 };
+
+/**
+ * Money owed on ONE attached order, by the orders desk's own rule.
+ *
+ * `isMoneyOwed` is the desk's: only an order awaiting payment is money owed.
+ * A draft or a quote is not owed YET, a cancelled order is not a sale, and a
+ * refunded one has already been unwound — its charge transitions `paid` ->
+ * `refunded`, so `collectedCents` falls back to zero and the naive subtraction
+ * would resurrect the whole total as a balance to chase.
+ */
+export function balanceOwedCents(balance: ProjectBalance): number {
+  return isMoneyOwed(balance) ? outstandingCents(balance) : 0;
+}
 
 export type ProjectRecord = {
   readonly id: string;
@@ -122,6 +163,8 @@ export type ProjectRecord = {
   readonly title: string;
   readonly status: ProjectStatus;
   readonly currency: string;
+  /** IANA zone every date on this record is READ IN. Never null: see the header. */
+  readonly timeZone: string;
   readonly startsAt: string | null;
   readonly endsAt: string | null;
   /** The conversation this project came from. Null for a project opened directly. */
@@ -254,8 +297,12 @@ export type ProjectMoney = {
   readonly payable: ProjectAmount;
   /** Of the quote, how much has been delivered and approved. Not derivable. */
   readonly earned: ProjectAmount;
-  /** Still owed on the orders attached to this project. */
+  /**
+   * Owed on the orders attached to this project, by `balanceOwedCents`. An
+   * order that is a draft, a quote, cancelled or refunded contributes nothing.
+   */
   readonly dueCents: number;
+  /** What has actually landed: the sum of PAID transactions on those orders. */
   readonly collectedCents: number;
   /**
    * True when the attached orders are not all in the project's currency. The
@@ -274,7 +321,7 @@ export function projectMoney(project: ProjectRecord): ProjectMoney {
   ]);
   const mixedCurrency = currencies.size > 1;
 
-  const dueCents = project.balances.reduce((sum, b) => sum + b.outstandingCents, 0);
+  const dueCents = project.balances.reduce((sum, b) => sum + balanceOwedCents(b), 0);
   const collectedCents = project.balances.reduce((sum, b) => sum + b.collectedCents, 0);
 
   const payableCents = project.assignments.reduce((sum, a) => sum + a.talentCostCents, 0);
@@ -301,7 +348,7 @@ export function projectMoney(project: ProjectRecord): ProjectMoney {
 
 export type CloseBlocker =
   | { readonly kind: "milestone"; readonly milestoneId: string; readonly title: string; readonly status: MilestoneStatus }
-  | { readonly kind: "money"; readonly outstandingCents: number; readonly currency: string }
+  | { readonly kind: "money"; readonly owedCents: number; readonly currency: string }
   | { readonly kind: "already_closed"; readonly status: ProjectStatus };
 
 export type CloseReadiness = {
@@ -328,7 +375,7 @@ export function closeReadiness(project: ProjectRecord): CloseReadiness {
   }
   const money = projectMoney(project);
   if (money.dueCents > 0) {
-    blockers.push({ kind: "money", outstandingCents: money.dueCents, currency: money.currency });
+    blockers.push({ kind: "money", owedCents: money.dueCents, currency: money.currency });
   }
   return { closable: blockers.length === 0, blockers };
 }
@@ -466,6 +513,7 @@ export type ProjectListRow = {
   readonly status: ProjectStatus;
   readonly clientName: string | null;
   readonly customerId: string | null;
+  readonly timeZone: string;
   readonly startsAt: string | null;
   readonly currency: string;
   readonly dueCents: number;
@@ -484,6 +532,7 @@ export function projectListRow(project: ProjectRecord): ProjectListRow {
     status: project.status,
     clientName: project.clientName,
     customerId: project.customerId,
+    timeZone: project.timeZone,
     startsAt: project.startsAt,
     currency: project.currency,
     dueCents: money.dueCents,
@@ -491,6 +540,41 @@ export function projectListRow(project: ProjectRecord): ProjectListRow {
     assignmentCount: project.assignments.length,
     action: nextProjectAction(project).id,
   };
+}
+
+/**
+ * An ISO instant as the calendar date IN `timeZone` — the venue's clock.
+ *
+ * NOT `value.slice(0, 10)`, which is what the Projects screens did first. That
+ * is the UTC calendar date, and it is a different day from the venue's for every instant
+ * on the far side of the workspace's offset: 2026-10-02T03:00:00Z is the
+ * evening of Thursday 1 October in America/Mexico_City and was shown as Friday
+ * the 2nd. A call sheet a day out is a crew that misses a job.
+ *
+ * It lives in this module rather than beside the markup so a lane can exercise
+ * it: which DAY a stored instant falls on is a judgement, not presentation.
+ *
+ * The zone is REQUIRED, not defaulted, so a caller cannot render a date here
+ * without having decided whose clock it is on. An unparseable instant or an
+ * invalid zone falls back to the caller's own sentence rather than to UTC,
+ * because a date in the wrong zone is worse than no date.
+ */
+export function zonedDate(value: string | null, timeZone: string, fallback: string): string {
+  if (!value) return fallback;
+  return utcToZonedYmd(new Date(value), timeZone) ?? fallback;
+}
+
+/**
+ * The one zone a set of dates is read in, or `null` when they differ.
+ *
+ * Same shape as `OrderListTotals.currency` on the Orders desk, and for the same
+ * reason: a single note under a table saying "dates are in America/Mexico_City"
+ * is a confident lie the moment one row is a job in Madrid. `null` tells the
+ * screen to name the zone on each row instead of once at the bottom.
+ */
+export function commonTimeZone(zones: readonly string[]): string | null {
+  const distinct = new Set(zones.filter((z) => z.length > 0));
+  return distinct.size === 1 ? [...distinct][0]! : null;
 }
 
 export function filterProjectRows(

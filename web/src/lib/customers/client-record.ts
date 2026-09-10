@@ -31,31 +31,60 @@
  * every other id is nullable.
  *
  * MONEY IS MINOR UNITS. Same rule as `lib/projects/project-record.ts`.
+ *
+ * WHAT IS OWED IS THE ORDERS DESK'S ANSWER, IMPORTED. `isMoneyOwed` decides;
+ * this file does not restate it. Collect used to name an amount and a record
+ * count over every purchase with `total - collected > 0`, which put cancelled
+ * orders and unsent drafts into the sentence an operator reads before asking a
+ * client for money.
  */
 
+import { isMoneyOwed, outstandingCents } from "@/lib/orders/orders-list";
+
+/**
+ * One order this client placed.
+ *
+ * Deliberately NO outstanding field; see `ProjectBalance` in
+ * `lib/projects/project-record.ts` for why. `purchaseOwedCents` is the only way
+ * to turn one into money.
+ */
 export type ClientPurchase = {
   readonly orderId: string;
   readonly status: string;
   readonly currency: string;
   readonly totalCents: number;
   readonly collectedCents: number;
-  readonly outstandingCents: number;
   readonly createdAt: string;
   readonly lineCount: number;
   /** The conversation, when the order came from one. */
   readonly inquiryId: string | null;
 };
 
+/**
+ * Money owed on ONE purchase, by the orders desk's own rule.
+ *
+ * Only an order awaiting payment is owed. A draft or a quote is not owed yet;
+ * a cancelled order is not a sale; a refunded one has been unwound, and because
+ * its charge transitions `paid` -> `refunded` its `collectedCents` falls back to
+ * zero, so the naive subtraction would ask the client for the whole total again.
+ */
+export function purchaseOwedCents(purchase: ClientPurchase): number {
+  return isMoneyOwed(purchase) ? outstandingCents(purchase) : 0;
+}
+
 export type ClientProjectLink = {
   readonly projectId: string;
   readonly title: string;
   readonly status: string;
+  /** IANA zone `startsAt` is READ IN: the job's own clock, not the server's. */
+  readonly timeZone: string;
   readonly startsAt: string | null;
 };
 
 export type ClientBookingLink = {
   readonly bookingId: string;
   readonly title: string;
+  readonly timeZone: string;
   readonly startsAt: string | null;
   readonly status: string;
 };
@@ -63,6 +92,14 @@ export type ClientBookingLink = {
 export type ClientRecord = {
   readonly customerId: string;
   readonly tenantId: string;
+  /**
+   * The WORKSPACE's clock. Every date on this page that belongs to the
+   * workspace rather than to a job — a purchase's date, when this person was
+   * last seen — is read in it, and the page names it. A timestamptz sliced to
+   * its first ten characters is the UTC calendar date, which is yesterday for
+   * anything that happened after 18:00 in Mexico City.
+   */
+  readonly timeZone: string;
   readonly displayName: string | null;
   readonly email: string | null;
   readonly phoneE164: string | null;
@@ -82,7 +119,9 @@ export type ClientRecord = {
 
 export type ClientBalanceTotal = {
   readonly currency: string;
-  readonly outstandingCents: number;
+  /** Owed, by `purchaseOwedCents`. Not `total - collected`. */
+  readonly owedCents: number;
+  /** Landed: the sum of PAID transactions on this client's orders. */
   readonly collectedCents: number;
 };
 
@@ -94,11 +133,11 @@ export type ClientBalanceTotal = {
  * The screen renders one line per entry and the arithmetic stays honest.
  */
 export function clientBalances(record: ClientRecord): ClientBalanceTotal[] {
-  const byCurrency = new Map<string, { outstandingCents: number; collectedCents: number }>();
+  const byCurrency = new Map<string, { owedCents: number; collectedCents: number }>();
   for (const p of record.purchases) {
     const key = (p.currency || "USD").toUpperCase();
-    const acc = byCurrency.get(key) ?? { outstandingCents: 0, collectedCents: 0 };
-    acc.outstandingCents += p.outstandingCents;
+    const acc = byCurrency.get(key) ?? { owedCents: 0, collectedCents: 0 };
+    acc.owedCents += purchaseOwedCents(p);
     acc.collectedCents += p.collectedCents;
     byCurrency.set(key, acc);
   }
@@ -107,10 +146,10 @@ export function clientBalances(record: ClientRecord): ClientBalanceTotal[] {
     .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
-/** The purchases a Collect would apply to: unpaid, most recent first. */
+/** The purchases a Collect would apply to: money owed, most recent first. */
 export function unpaidPurchases(record: ClientRecord): ClientPurchase[] {
   return record.purchases
-    .filter((p) => p.outstandingCents > 0)
+    .filter((p) => purchaseOwedCents(p) > 0)
     .slice()
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
@@ -118,7 +157,7 @@ export function unpaidPurchases(record: ClientRecord): ClientPurchase[] {
 export type CollectRefusal = "nothing_owed" | "mixed_currency";
 
 export type CollectVerdict =
-  | { readonly ok: true; readonly currency: string; readonly outstandingCents: number; readonly recordCount: number }
+  | { readonly ok: true; readonly currency: string; readonly owedCents: number; readonly recordCount: number }
   | { readonly ok: false; readonly reason: CollectRefusal };
 
 /**
@@ -138,7 +177,7 @@ export function collectVerdict(record: ClientRecord): CollectVerdict {
   return {
     ok: true,
     currency,
-    outstandingCents: unpaid.reduce((sum, p) => sum + p.outstandingCents, 0),
+    owedCents: unpaid.reduce((sum, p) => sum + purchaseOwedCents(p), 0),
     recordCount: unpaid.length,
   };
 }

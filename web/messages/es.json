@@ -12414,7 +12414,9 @@
         "title": "Todavia no en esta pantalla",
         "paymentLinks": "Los enlaces de pago no tienen tabla en esta base de datos. Un enlace necesita un id, el registro que resuelve, un vencimiento y un estado de pago, y nada de eso existe todavia.",
         "allocation": "Elegir a que registros impagos se aplica un pago no se registra en ningun sitio. Cobrar liquida un registro por vez hasta que exista."
-      }
+      },
+      "timezoneNote": "Las fechas se muestran en {zone}, la zona horaria registrada para este trabajo.",
+      "timezoneMixed": "Estos registros estan en mas de una zona horaria, por eso cada fecha se muestra con la suya."
     },
     "clientRecord": {
       "title": "Cliente",
@@ -12441,7 +12443,6 @@
       "balancesNone": "Nada pendiente.",
       "outstanding": "Pendiente",
       "collected": "Cobrado",
-      "collect": "Cobrar",
       "collectSummary": "{count} registros impagos, {amount} pendiente",
       "collectNothingOwed": "No hay nada que cobrar. Todos los registros estan liquidados.",
       "collectMixedCurrency": "Este cliente tiene registros abiertos en mas de una moneda, asi que no hay un importe unico que cobrar. Abre el registro que quieras liquidar.",
@@ -12458,9 +12459,9 @@
       "projectsNone": "Sin proyectos por encargo.",
       "bookings": "Reservas",
       "bookingsNone": "Sin reservas.",
-      "openProject": "Abrir",
-      "openOrder": "Abrir en Pedidos",
-      "lines": "{count} lineas"
+      "lines": "{count} lineas",
+      "timezoneNote": "Las fechas se muestran en {zone}, la zona horaria de este espacio de trabajo.",
+      "timezoneMixed": "Estos registros estan en mas de una zona horaria, por eso cada fecha se muestra con la suya."
     }
   },
   "admin": {

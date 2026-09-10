@@ -16,15 +16,28 @@
 -- lane could see it. The first thing to touch the real table is the Projects
 -- milestones screen, which is how it surfaced.
 --
--- THE SHAPE IS NOT INVENTED HERE. Every column, default and CHECK below is
--- copied from 20261230000400. This migration adds nothing new; it makes the
--- live table match the file that claims to have created it, and it is a no-op
--- on any database where that file actually took effect.
+-- THE SHAPE IS COPIED FROM 20261230000400, WITH TWO ADDED DEFAULTS. Every
+-- column name, type and CHECK below is that file's. Two things below are NOT in
+-- it and are named here rather than passed off as a restatement:
 --
--- ADDITIVE AND IDEMPOTENT. Columns are added nullable-with-default first and
--- only then tightened, and each tightening is guarded on there being no row
--- that would violate it — a NOT NULL that cannot be satisfied should leave the
--- column nullable and the table usable, not abort the migration.
+--     kind    text NOT NULL DEFAULT 'service'
+--     status  text NOT NULL DEFAULT 'draft'
+--
+-- 000400 declares both NOT NULL with no default, which a CREATE TABLE can do
+-- and an ADD COLUMN on a table that already has rows cannot: every existing row
+-- needs a value at the moment the column appears. The two defaults are the
+-- values `createDeliverable` in `lib/bookings/deliverables.ts` writes anyway
+-- ('service' unless a passthrough budget is asked for, and 'draft' always), so
+-- a row that arrives through the engine is unaffected and one that predates the
+-- column lands in the same state a new deliverable does. On a database where
+-- 000400 took effect this file adds nothing: ADD COLUMN IF NOT EXISTS skips the
+-- column, and the default is not applied to a column that already exists.
+--
+-- ADDITIVE AND IDEMPOTENT. Columns are added with a default where one is
+-- possible and only then tightened, and each tightening is guarded on there
+-- being no row that would violate it — a NOT NULL that cannot be satisfied
+-- should leave the column nullable and the table usable, not abort the
+-- migration.
 --
 -- APPLY: `npm run journeys:repair -- supabase/migrations/20261231002200_booking_deliverables_shape_repair.sql`
 -- against the ISOLATED branch. Never `npm run db:push`.

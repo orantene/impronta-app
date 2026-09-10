@@ -1298,7 +1298,9 @@
         "title": "Pas encore sur cet ecran",
         "paymentLinks": "Les liens de paiement n'ont aucune table dans cette base. Un lien demande un identifiant, l'enregistrement qu'il resout, une expiration et un etat de paiement, et rien de tout cela n'existe encore.",
         "allocation": "Choisir a quels enregistrements impayes s'applique un paiement n'est enregistre nulle part. L'encaissement regle un enregistrement a la fois en attendant."
-      }
+      },
+      "timezoneNote": "Les dates sont affichees en {zone}, le fuseau horaire enregistre pour ce travail.",
+      "timezoneMixed": "Ces enregistrements sont dans plusieurs fuseaux horaires, donc chaque date est affichee avec le sien."
     },
     "clientRecord": {
       "title": "Client",
@@ -1325,7 +1327,6 @@
       "balancesNone": "Rien en suspens.",
       "outstanding": "Reste du",
       "collected": "Encaisse",
-      "collect": "Encaisser",
       "collectSummary": "{count} enregistrements impayes, {amount} restant du",
       "collectNothingOwed": "Il n'y a rien a encaisser. Tous les enregistrements sont regles.",
       "collectMixedCurrency": "Ce client a des enregistrements ouverts dans plusieurs devises : il n'y a donc pas de montant unique a encaisser. Ouvrez l'enregistrement que vous voulez regler.",
@@ -1342,9 +1343,9 @@
       "projectsNone": "Aucun projet sur commande.",
       "bookings": "Reservations",
       "bookingsNone": "Aucune reservation.",
-      "openProject": "Ouvrir",
-      "openOrder": "Ouvrir dans Commandes",
-      "lines": "{count} lignes"
+      "lines": "{count} lignes",
+      "timezoneNote": "Les dates sont affichees en {zone}, le fuseau horaire de cet espace de travail.",
+      "timezoneMixed": "Ces enregistrements sont dans plusieurs fuseaux horaires, donc chaque date est affichee avec le sien."
     }
   },
   "client": {

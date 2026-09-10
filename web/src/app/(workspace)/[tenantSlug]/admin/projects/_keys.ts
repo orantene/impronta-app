@@ -12,6 +12,7 @@
  */
 
 import type { ProjectActionId, ProjectStatus } from "@/lib/projects/project-record";
+import type { OrderStatus } from "@/lib/orders/order-status";
 
 export const ACTION_KEY: Record<ProjectActionId, string> = {
   draft_agreement: "dashboard.projects.action.draft_agreement",
@@ -33,4 +34,24 @@ export const STATUS_KEY: Record<ProjectStatus, string> = {
   completed: "dashboard.projects.status.completed",
   cancelled: "dashboard.projects.status.cancelled",
   archived: "dashboard.projects.status.archived",
+};
+
+/**
+ * An attached order's own status, in the Orders desk's words.
+ *
+ * BORROWED, NOT RESTATED. These are `dashboard.orders.status*`, the copy the
+ * Orders desk already renders, so a project and the desk never call the same
+ * state two different things. It matters more since Projects started deciding
+ * what is owed on the status: an order contributing nothing to the due figure
+ * must say why in the reader's own language, not print a raw enum label.
+ */
+export const ORDER_STATUS_KEY: Record<OrderStatus, string> = {
+  draft: "dashboard.orders.statusDraft",
+  quoted: "dashboard.orders.statusQuoted",
+  pending_payment: "dashboard.orders.statusPendingPayment",
+  paid: "dashboard.orders.statusPaid",
+  fulfilled: "dashboard.orders.statusFulfilled",
+  cancelled: "dashboard.orders.statusCancelled",
+  refunded: "dashboard.orders.statusRefunded",
+  partially_refunded: "dashboard.orders.statusPartiallyRefunded",
 };

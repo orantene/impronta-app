@@ -12,6 +12,9 @@ import {
   priorAgreements,
   projectListRow,
   projectMoney,
+  balanceOwedCents,
+  commonTimeZone,
+  zonedDate,
   revisionVerdict,
   visibilityRows,
   type AgreementVersion,
@@ -72,7 +75,6 @@ function balance(over: Partial<ProjectBalance> = {}): ProjectBalance {
     currency: "USD",
     totalCents: 80000,
     collectedCents: 0,
-    outstandingCents: 80000,
     ...over,
   };
 }
@@ -84,6 +86,7 @@ function project(over: Partial<ProjectRecord> = {}): ProjectRecord {
     title: "Autumn campaign",
     status: "confirmed",
     currency: "USD",
+    timeZone: "America/Mexico_City",
     startsAt: "2026-10-01T09:00:00Z",
     endsAt: "2026-10-01T18:00:00Z",
     inquiryId: "i-1",
@@ -236,7 +239,7 @@ test("CLOSING NAMES EVERY OUTSTANDING ITEM, NEVER A BARE BUTTON", () => {
       milestone({ id: "d-2", status: "approved", title: "Contact sheet" }),
       milestone({ id: "d-3", status: "cancelled", title: "Dropped look" }),
     ],
-    balances: [balance({ outstandingCents: 25000 })],
+    balances: [balance({ totalCents: 25000 })],
   });
   const readiness = closeReadiness(messy);
   assert.equal(readiness.closable, false);
@@ -246,7 +249,7 @@ test("CLOSING NAMES EVERY OUTSTANDING ITEM, NEVER A BARE BUTTON", () => {
     "approved and cancelled milestones are not blockers; the submitted one is",
   );
   const money = readiness.blockers.find((b) => b.kind === "money");
-  assert.equal(money?.kind === "money" && money.outstandingCents, 25000);
+  assert.equal(money?.kind === "money" && money.owedCents, 25000);
 
   const clean = project({ milestones: [milestone({ status: "approved" })], balances: [] });
   assert.equal(closeReadiness(clean).closable, true);
@@ -274,7 +277,7 @@ test("quote, payable and due are three different reads, and an unagreed quote sa
     project({
       agreements: [agreement({ totalClientCents: 80000 })],
       assignments: [assignment({ talentCostCents: 30000 }), assignment({ id: "bt-2", talentCostCents: 20000 })],
-      balances: [balance({ totalCents: 80000, collectedCents: 30000, outstandingCents: 50000 })],
+      balances: [balance({ totalCents: 80000, collectedCents: 30000 })],
     }),
   );
   assert.deepEqual(agreed.quoted, { known: true, cents: 80000 });
@@ -303,6 +306,90 @@ test("two currencies on one project are flagged instead of added together", () =
   assert.equal(single.mixedCurrency, false);
 });
 
+// ── THE RULE: only an order awaiting payment is money owed ───────────
+
+test("MONEY OWED COUNTS ONLY WHAT SOMEBODY OWES, NOT EVERY ATTACHED ORDER", () => {
+  // The sequence that was reproduced against the isolated branch. Each step
+  // adds one order to a project that genuinely owes 65000, and the reported
+  // figure must not move.
+  const owing = balance({ orderId: "o-owed", status: "pending_payment", totalCents: 65000 });
+  assert.equal(projectMoney(project({ balances: [owing] })).dueCents, 65000);
+
+  const cancelled = balance({ orderId: "o-void", status: "cancelled", totalCents: 40000 });
+  assert.equal(
+    projectMoney(project({ balances: [owing, cancelled] })).dueCents,
+    65000,
+    "a cancelled order is not a sale; it took the figure to 105000",
+  );
+
+  const draft = balance({ orderId: "o-draft", status: "draft", totalCents: 7000 });
+  assert.equal(
+    projectMoney(project({ balances: [owing, cancelled, draft] })).dueCents,
+    65000,
+    "a cart is not a debt; it took the figure to 112000",
+  );
+
+  const quoted = balance({ orderId: "o-quote", status: "quoted", totalCents: 12000 });
+  assert.equal(
+    projectMoney(project({ balances: [owing, cancelled, draft, quoted] })).dueCents,
+    65000,
+    "a quote awaiting the client's word is not owed yet",
+  );
+
+  // A refunded order is the worst of them: the charge transitions paid ->
+  // refunded, so collected reads zero and total - collected resurrects the
+  // whole amount as a balance to chase.
+  const refunded = balance({
+    orderId: "o-back",
+    status: "refunded",
+    totalCents: 30000,
+    collectedCents: 0,
+  });
+  const all = project({ balances: [owing, cancelled, draft, quoted, refunded] });
+  assert.equal(projectMoney(all).dueCents, 65000, "refunded money is not owed again");
+  assert.equal(balanceOwedCents(refunded), 0);
+  assert.equal(balanceOwedCents(cancelled), 0);
+  assert.equal(balanceOwedCents(owing), 65000);
+});
+
+test("every screen that spends the due figure spends the same one", () => {
+  // One project whose ONLY unsettled order is cancelled. Nothing here may
+  // behave as though money is owed.
+  const nothingOwed = project({
+    agreements: [agreement()],
+    assignments: [assignment()],
+    balances: [balance({ orderId: "o-void", status: "cancelled", totalCents: 40000 })],
+  });
+
+  assert.equal(projectMoney(nothingOwed).dueCents, 0, "the Money tab");
+  assert.equal(projectListRow(nothingOwed).dueCents, 0, "the list column");
+  assert.equal(
+    filterProjectRows([projectListRow(nothingOwed)], "owed").length,
+    0,
+    "the money-owed filter",
+  );
+  assert.deepEqual(closeReadiness(nothingOwed).blockers, [], "the close screen");
+  assert.equal(closeReadiness(nothingOwed).closable, true);
+  assert.equal(
+    nextProjectAction(nothingOwed).id,
+    "close_project",
+    "the next action must not say collect a balance nobody owes",
+  );
+});
+
+test("what is owed on an order awaiting payment is the REMAINDER, never its total", () => {
+  const part = balance({ status: "pending_payment", totalCents: 80000, collectedCents: 30000 });
+  assert.equal(balanceOwedCents(part), 50000, "a deposit already taken is not owed twice");
+
+  // Fully collected and OVER-collected both owe nothing: an over-collection is
+  // a refund to arrange, not a debt of minus ten thousand.
+  assert.equal(balanceOwedCents(balance({ totalCents: 80000, collectedCents: 80000 })), 0);
+  assert.equal(balanceOwedCents(balance({ totalCents: 80000, collectedCents: 90000 })), 0);
+
+  // A complimentary place enters pending_payment at zero. Settled, not overdue.
+  assert.equal(balanceOwedCents(balance({ totalCents: 0, collectedCents: 0 })), 0);
+});
+
 // ── The list ─────────────────────────────────────────────────────────
 
 test("a list row carries the same verdict the record does", () => {
@@ -328,6 +415,49 @@ test("filters select on the fact, not on a label", () => {
   assert.deepEqual(filterProjectRows(rows, "closed").map((r) => r.id), ["c"]);
   assert.deepEqual(filterProjectRows(rows, "open").map((r) => r.id), ["a", "b"]);
   assert.equal(filterProjectRows(rows, "all").length, 3);
+});
+
+// ── Whose clock ──────────────────────────────────────────────────────
+
+test("A CALL TIME BEFORE DAWN IS THE PREVIOUS EVENING AT THE VENUE, NOT TODAY", () => {
+  // The whole point. 03:00 UTC on 2 October is 21:00 on 1 October in Mexico
+  // City, so a screen that slices the ISO string shows the crew the wrong day.
+  const instant = "2026-10-02T03:00:00Z";
+  assert.equal(instant.slice(0, 10), "2026-10-02", "what the naive slice gave");
+  assert.equal(zonedDate(instant, "America/Mexico_City", "-"), "2026-10-01");
+
+  // The same instant is already the 2nd in Madrid: the answer depends on the
+  // zone, which is exactly why the parameter is required.
+  assert.equal(zonedDate(instant, "Europe/Madrid", "-"), "2026-10-02");
+  assert.equal(zonedDate(instant, "UTC", "-"), "2026-10-02");
+
+  // Absence and nonsense both reach the caller's own sentence. A date rendered
+  // in the wrong zone would be worse than no date.
+  assert.equal(zonedDate(null, "America/Mexico_City", "No date"), "No date");
+  assert.equal(zonedDate("not-a-date", "America/Mexico_City", "No date"), "No date");
+  assert.equal(zonedDate(instant, "Mars/Olympus_Mons", "No date"), "No date");
+});
+
+test("A DATE IS READ IN THE JOB'S ZONE, AND THE LIST SAYS WHOSE WHEN THEY DIFFER", () => {
+  // One zone across the visible rows: the screen can name it once.
+  const rows = [
+    projectListRow(project({ id: "a" })),
+    projectListRow(project({ id: "b" })),
+  ];
+  assert.equal(commonTimeZone(rows.map((r) => r.timeZone)), "America/Mexico_City");
+
+  // A job in Madrid alongside one in Mexico City: there is NO single zone, and
+  // a note claiming one would be wrong on half the rows.
+  const spread = [
+    ...rows,
+    projectListRow(project({ id: "c", timeZone: "Europe/Madrid" })),
+  ];
+  assert.equal(commonTimeZone(spread.map((r) => r.timeZone)), null);
+
+  assert.equal(commonTimeZone([]), null, "nothing to name is not a zone either");
+
+  // The row carries its own zone through, so the screen never has to guess.
+  assert.equal(spread[2]!.timeZone, "Europe/Madrid");
 });
 
 // ── Who sees what ────────────────────────────────────────────────────

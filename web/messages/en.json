@@ -12414,7 +12414,9 @@
         "title": "Not on this screen yet",
         "paymentLinks": "Payment links have no table in this database. A link needs an id, the record it resolves to, an expiry and a paid state, and none of that exists yet.",
         "allocation": "Choosing which unpaid records a single payment applies to is not recorded anywhere. Collect settles one record at a time until it is."
-      }
+      },
+      "timezoneNote": "Dates are shown in {zone}, the time zone recorded for this work.",
+      "timezoneMixed": "These records are in more than one time zone, so each date is shown with its own."
     },
     "clientRecord": {
       "title": "Client",
@@ -12441,7 +12443,6 @@
       "balancesNone": "Nothing outstanding.",
       "outstanding": "Outstanding",
       "collected": "Collected",
-      "collect": "Collect",
       "collectSummary": "{count} unpaid records, {amount} outstanding",
       "collectNothingOwed": "There is nothing to collect. Every record is settled.",
       "collectMixedCurrency": "This client has open records in more than one currency, so there is no single amount to collect. Open the record you want to settle.",
@@ -12458,9 +12459,9 @@
       "projectsNone": "No commissioned projects.",
       "bookings": "Bookings",
       "bookingsNone": "No bookings.",
-      "openProject": "Open",
-      "openOrder": "Open on Orders",
-      "lines": "{count} lines"
+      "lines": "{count} lines",
+      "timezoneNote": "Dates are shown in {zone}, this workspace time zone.",
+      "timezoneMixed": "These records are in more than one time zone, so each date is shown with its own."
     }
   },
   "admin": {

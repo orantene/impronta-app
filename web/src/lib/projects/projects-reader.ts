@@ -27,6 +27,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
+import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import {
   isOrderShellBooking,
 } from "./project-record";
@@ -63,7 +64,7 @@ export type ClientLoad = { readonly ok: true; readonly record: ClientRecord } | 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const BOOKING_COLUMNS =
-  "id, tenant_id, title, status, starts_at, ends_at, currency_code, source_inquiry_id, order_id, contact_name, client_account_name, calendar_lane";
+  "id, tenant_id, title, status, starts_at, ends_at, currency_code, source_inquiry_id, order_id, contact_name, client_account_name, calendar_lane, timezone";
 
 const PROJECT_STATUSES: readonly string[] = [
   "draft",
@@ -113,7 +114,41 @@ type BookingRow = {
   contact_name: string | null;
   client_account_name: string | null;
   calendar_lane: string | null;
+  timezone: string | null;
 };
+
+/**
+ * The workspace's own clock, for every date that is not a job's.
+ *
+ * `agencies.timezone` is rung 2 of the ladder in `lib/spaces/venue-timezone.ts`
+ * and this is the only place Projects fetches it. A read error resolves to
+ * `null`, which `pickTimezone` turns into UTC — the honest last resort, and
+ * one rung down rather than a thrown render.
+ */
+async function loadWorkspaceTimezone(admin: Admin, tenantId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("agencies")
+    .select("timezone")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("projects.loadWorkspaceTimezone", error);
+    return null;
+  }
+  return ((data as { timezone: string | null } | null)?.timezone) ?? null;
+}
+
+/**
+ * The clock a booking's dates are read in.
+ *
+ * The booking's own `timezone` is the venue rung: a job happens AT a place and
+ * the place's clock wins. `agencies.timezone` is the workspace default beneath
+ * it, and UTC is the floor. Same ladder the rest of the platform uses, so a
+ * project and a reservation never disagree about what day a shoot is on.
+ */
+function bookingTimezone(booking: BookingRow, workspaceTz: string | null): string {
+  return pickTimezone({ venue: booking.timezone, workspace: workspaceTz }).timezone;
+}
 
 function asProjectStatus(raw: string | null): ProjectStatus {
   return (PROJECT_STATUSES.includes(raw ?? "") ? raw : "draft") as ProjectStatus;
@@ -134,10 +169,11 @@ async function loadProjectsFor(
     ...new Set(bookings.map((b) => b.order_id).filter((x): x is string => !!x)),
   ];
 
-  // Four reads, never a nested select. A nested PostgREST select across an RLS
+  // Five reads, never a nested select. A nested PostgREST select across an RLS
   // boundary returns null for a hidden row, which renders as "no team" rather
-  // than as a permission result.
-  const [talentRes, deliverableRes, offerRes, orderRes] = await Promise.all([
+  // than as a permission result. The fifth is the workspace clock, which is one
+  // row and would otherwise be fetched once per project.
+  const [talentRes, deliverableRes, offerRes, orderRes, workspaceTz] = await Promise.all([
     admin
       .from("booking_talent")
       .select(
@@ -162,6 +198,7 @@ async function loadProjectsFor(
     inquiryIds.length > 0 || shellOrderIds.length > 0
       ? loadAttachedOrders(admin, tenantId, inquiryIds, shellOrderIds)
       : Promise.resolve({ data: [], error: null }),
+    loadWorkspaceTimezone(admin, tenantId),
   ]);
 
   if (talentRes.error || deliverableRes.error || offerRes.error || orderRes.error) {
@@ -238,13 +275,15 @@ async function loadProjectsFor(
   const customerByInquiry = new Map<string, string>();
   const customerByOrderId = new Map<string, string>();
   for (const o of orders) {
+    // No outstanding figure is computed here. `balanceOwedCents` in
+    // `project-record.ts` asks the orders desk, which is the only place that
+    // knows a cancelled order owes nothing.
     const balance: ProjectBalance = {
       orderId: o.id,
       status: o.status,
       currency: o.currency.toUpperCase(),
       totalCents: o.totalCents,
       collectedCents: o.collectedCents,
-      outstandingCents: Math.max(0, o.totalCents - o.collectedCents),
     };
     balancesByOrderId.set(o.id, balance);
     if (o.inquiryId) {
@@ -273,6 +312,7 @@ async function loadProjectsFor(
       title: b.title ?? "",
       status: asProjectStatus(b.status),
       currency,
+      timeZone: bookingTimezone(b, workspaceTz),
       startsAt: b.starts_at,
       endsAt: b.ends_at,
       inquiryId,
@@ -310,6 +350,12 @@ type AttachedOrder = {
  * predicate `_data-bridge/orders.ts` and `lib/orders/complete-order.ts` use. A
  * third rule here would let the Projects screen chase a client the Orders desk
  * already shows as settled.
+ *
+ * WHAT IS OWED IS NOT DECIDED HERE AT ALL. This function returns the order's
+ * status alongside its totals and stops. `balanceOwedCents` and
+ * `purchaseOwedCents` apply the desk's `isMoneyOwed`, which is the half this
+ * module used to drop: collected was taken from the desk and owed was invented,
+ * so every draft, quote, cancelled and refunded order counted as money to chase.
  */
 async function loadAttachedOrders(
   admin: Admin,
@@ -480,7 +526,7 @@ export async function loadClientRecord(
     ...new Set(orders.map((o) => o.inquiry_id).filter((x): x is string => typeof x === "string")),
   ];
 
-  const [txRes, lineRes, bookingRes] = await Promise.all([
+  const [txRes, lineRes, bookingRes, workspaceTz] = await Promise.all([
     orderIds.length > 0
       ? admin
           .from("booking_transactions")
@@ -510,6 +556,7 @@ export async function loadClientRecord(
           .join(",") || "id.is.null",
       )
       .limit(200),
+    loadWorkspaceTimezone(admin, tenantId),
   ]);
   if (txRes.error || lineRes.error || bookingRes.error) {
     logServerError(
@@ -531,15 +578,12 @@ export async function loadClientRecord(
 
   const purchases: ClientPurchase[] = orders.map((o) => {
     const id = String(o.id);
-    const totalCents = Number(o.total_cents ?? 0);
-    const collectedCents = collected.get(id) ?? 0;
     return {
       orderId: id,
       status: String(o.status ?? "draft"),
       currency: String(o.currency ?? "USD").toUpperCase(),
-      totalCents,
-      collectedCents,
-      outstandingCents: Math.max(0, totalCents - collectedCents),
+      totalCents: Number(o.total_cents ?? 0),
+      collectedCents: collected.get(id) ?? 0,
       createdAt: String(o.created_at ?? ""),
       lineCount: lineCounts.get(id) ?? 0,
       inquiryId: (o.inquiry_id as string | null) ?? null,
@@ -553,6 +597,7 @@ export async function loadClientRecord(
       projectId: b.id,
       title: b.title ?? "",
       status: asProjectStatus(b.status),
+      timeZone: bookingTimezone(b, workspaceTz),
       startsAt: b.starts_at,
     }));
   const bookings: ClientBookingLink[] = bookingRows
@@ -560,6 +605,7 @@ export async function loadClientRecord(
     .map((b) => ({
       bookingId: b.id,
       title: b.title ?? "",
+      timeZone: bookingTimezone(b, workspaceTz),
       startsAt: b.starts_at,
       status: asProjectStatus(b.status),
     }));
@@ -569,6 +615,7 @@ export async function loadClientRecord(
     record: {
       customerId: String(row.id),
       tenantId: String(row.tenant_id),
+      timeZone: pickTimezone({ workspace: workspaceTz }).timezone,
       displayName: (row.display_name as string | null) ?? null,
       email: (row.email as string | null) ?? null,
       phoneE164: (row.phone_e164 as string | null) ?? null,

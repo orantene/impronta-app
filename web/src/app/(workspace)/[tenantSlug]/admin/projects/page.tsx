@@ -26,11 +26,13 @@ import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { loadProjects } from "@/lib/projects/projects-reader";
 import {
+  commonTimeZone,
   filterProjectRows,
   projectListRow,
+  zonedDate,
   type ProjectListFilter,
 } from "@/lib/projects/project-record";
-import { Card, Chip, Notice, PageHeading, PageShell, isoDate } from "./_shared";
+import { Card, Chip, Notice, PageHeading, PageShell } from "./_shared";
 import { ACTION_KEY, STATUS_KEY } from "./_keys";
 
 export const dynamic = "force-dynamic";
@@ -113,6 +115,9 @@ function ProjectsTable({
   tenantSlug: string;
   tr: (key: string) => string;
 }) {
+  // Which clock these dates are on. One zone gets one sentence under the table;
+  // several get named on each row, because a single note would be wrong.
+  const oneZone = commonTimeZone(rows.map((r) => r.timeZone));
   return (
     <>
       <nav
@@ -194,7 +199,13 @@ function ProjectsTable({
                     )}
                   </td>
                   <td className="text-muted-foreground">
-                    {isoDate(row.startsAt, tr("dashboard.projects.noDate"))}
+                    {zonedDate(row.startsAt, row.timeZone, tr("dashboard.projects.noDate"))}
+                    {/* When the visible rows span more than one clock there is
+                        no single zone to name at the bottom, so each row names
+                        its own. Same rule the mixed-currency totals follow. */}
+                    {oneZone === null ? (
+                      <span className="mt-1 block text-xs">{row.timeZone}</span>
+                    ) : null}
                   </td>
                   <td className="text-muted-foreground">{row.assignmentCount}</td>
                   <td className="text-foreground">
@@ -207,6 +218,13 @@ function ProjectsTable({
           </table>
         </div>
       )}
+      {rows.length > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {oneZone === null
+            ? tr("dashboard.projects.timezoneMixed")
+            : interpolate(tr("dashboard.projects.timezoneNote"), { zone: oneZone })}
+        </p>
+      ) : null}
     </>
   );
 }

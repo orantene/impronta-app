@@ -26,18 +26,29 @@ import { loadProject } from "@/lib/projects/projects-reader";
 import {
   acceptedAgreement,
   amendmentVerdict,
+  balanceOwedCents,
   closeReadiness,
   liveAgreement,
   priorAgreements,
   nextProjectAction,
   projectMoney,
   visibilityRows,
+  zonedDate,
   type AgreementVersion,
   type MilestoneStatus,
   type ProjectRecord,
   type VisibilityAudience,
 } from "@/lib/projects/project-record";
-import { Card, Chip, Figure, Notice, PageHeading, PageShell, isoDate, shortId } from "../_shared";
+import {
+  Card,
+  Chip,
+  Figure,
+  Notice,
+  PageHeading,
+  PageShell,
+  orderStatusLabel,
+  shortId,
+} from "../_shared";
 import { ACTION_KEY, STATUS_KEY } from "../_keys";
 import { MilestoneDecisions } from "./milestone-decisions";
 
@@ -141,7 +152,7 @@ export default async function ProjectRecordPage({
           {project.clientName ?? tr("dashboard.projects.noClient")}
         </span>
         <span className="text-sm text-muted-foreground">
-          {isoDate(project.startsAt, tr("dashboard.projects.noDate"))}
+          {zonedDate(project.startsAt, project.timeZone, tr("dashboard.projects.noDate"))}
         </span>
         {project.customerId ? (
           <Link
@@ -153,13 +164,20 @@ export default async function ProjectRecordPage({
         ) : null}
         {project.inquiryId ? (
           <Link
-            href={`/${tenantSlug}/admin/messages?inquiry=${project.inquiryId}`}
+            href={`/${tenantSlug}/admin/messages/${project.inquiryId}`}
             className="text-sm underline underline-offset-4"
           >
             {tr("dashboard.projects.openInquiry")}
           </Link>
         ) : null}
       </div>
+
+      {/* WHOSE CLOCK. Every date on this record and its tabs is read in the
+          project's own zone, and the reader is told which one rather than left
+          to assume the server's. */}
+      <p className="mb-6 text-xs text-muted-foreground">
+        {interpolate(tr("dashboard.projects.timezoneNote"), { zone: project.timeZone })}
+      </p>
 
       <NextActionPanel project={project} tr={tr} />
 
@@ -332,12 +350,20 @@ function ScopeTab({
               {(accepted ?? live)!.acceptedAt ? (
                 <span className="text-sm text-muted-foreground">
                   {tr("dashboard.projects.scope.accepted")}{" "}
-                  {isoDate((accepted ?? live)!.acceptedAt, tr("dashboard.projects.noDate"))}
+                  {zonedDate(
+                    (accepted ?? live)!.acceptedAt,
+                    project.timeZone,
+                    tr("dashboard.projects.noDate"),
+                  )}
                 </span>
               ) : (accepted ?? live)!.sentAt ? (
                 <span className="text-sm text-muted-foreground">
                   {tr("dashboard.projects.scope.sent")}{" "}
-                  {isoDate((accepted ?? live)!.sentAt, tr("dashboard.projects.noDate"))}
+                  {zonedDate(
+                    (accepted ?? live)!.sentAt,
+                    project.timeZone,
+                    tr("dashboard.projects.noDate"),
+                  )}
                 </span>
               ) : null}
             </div>
@@ -392,7 +418,7 @@ function ScopeTab({
           // free; it does not carry a second offer composer.
           <p className="mt-3 text-sm">
             <Link
-              href={`/${tenantSlug}/admin/messages?inquiry=${project.inquiryId}`}
+              href={`/${tenantSlug}/admin/messages/${project.inquiryId}`}
               className="underline underline-offset-4"
             >
               {tr("dashboard.projects.openInquiry")}
@@ -428,7 +454,7 @@ function MilestonesTab({ project, tr }: { project: ProjectRecord; tr: Tr }) {
               status: m.status,
               revision: m.revision,
               revisionLimit: m.revisionLimit,
-              dueAt: isoDate(m.dueAt, tr("dashboard.projects.milestones.noDue")),
+              dueAt: zonedDate(m.dueAt, project.timeZone, tr("dashboard.projects.milestones.noDue")),
               statusLabel: tr(MILESTONE_STATUS_KEY[m.status]),
               revisionsLabel: interpolate(tr("dashboard.projects.milestones.revisionsUsed"), {
                 used: m.revision,
@@ -612,12 +638,17 @@ function MoneyTab({
                         {shortId(b.orderId)}
                       </Link>
                     </th>
-                    <td className="text-muted-foreground">{b.status}</td>
+                    <td className="text-muted-foreground">
+                      {orderStatusLabel(b.status, tr)}
+                    </td>
                     <td className="text-foreground">
                       {formatOrderMoney(b.totalCents, b.currency)}
                     </td>
+                    {/* The OWED figure, so this column adds up to the Due
+                        figure above it. A cancelled, refunded, draft or quoted
+                        order reads zero here and its status says why. */}
                     <td className="text-foreground">
-                      {formatOrderMoney(b.outstandingCents, b.currency)}
+                      {formatOrderMoney(balanceOwedCents(b), b.currency)}
                     </td>
                   </tr>
                 ))}
@@ -654,7 +685,7 @@ function CloseTab({ project, tr }: { project: ProjectRecord; tr: Tr }) {
                       })
                     : b.kind === "money"
                       ? interpolate(tr("dashboard.projects.close.blockerMoney"), {
-                          amount: formatOrderMoney(b.outstandingCents, b.currency),
+                          amount: formatOrderMoney(b.owedCents, b.currency),
                         })
                       : interpolate(tr("dashboard.projects.close.alreadyClosed"), {
                           status: tr(STATUS_KEY[b.status]),

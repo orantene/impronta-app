@@ -30,6 +30,7 @@ import { loadClientRecord } from "@/lib/projects/projects-reader";
 import {
   clientBalances,
   collectVerdict,
+  purchaseOwedCents,
   type ClientRecord,
 } from "@/lib/customers/client-record";
 import {
@@ -39,11 +40,15 @@ import {
   Notice,
   PageHeading,
   PageShell,
-  isoDate,
+  orderStatusLabel,
   shortId,
 } from "../../projects/_shared";
 import { STATUS_KEY } from "../../projects/_keys";
-import type { ProjectStatus } from "@/lib/projects/project-record";
+import {
+  commonTimeZone,
+  zonedDate,
+  type ProjectStatus,
+} from "@/lib/projects/project-record";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +88,16 @@ export default async function ClientRecordPage({ params }: { params: PageParams 
 
   const record = load.record;
 
+  // WHOSE CLOCK. The workspace's own zone reads the dates that belong to it —
+  // when this person was last seen, when they bought something. A project or a
+  // booking is read in ITS zone, which is usually the same one; when it is not,
+  // this is null and each of those rows names its own.
+  const oneZone = commonTimeZone([
+    record.timeZone,
+    ...record.projects.map((p) => p.timeZone),
+    ...record.bookings.map((b) => b.timeZone),
+  ]);
+
   return (
     <PageShell>
       <PageHeading
@@ -91,12 +106,18 @@ export default async function ClientRecordPage({ params }: { params: PageParams 
         back={{ href: base, label: tr("dashboard.clientRecord.backToList") }}
       />
 
+      <p className="mb-4 text-xs text-muted-foreground">
+        {oneZone === null
+          ? tr("dashboard.clientRecord.timezoneMixed")
+          : interpolate(tr("dashboard.clientRecord.timezoneNote"), { zone: oneZone })}
+      </p>
+
       <div className="grid gap-4">
         <IdentityCard record={record} tr={tr} />
         <BalancesCard record={record} tr={tr} />
         <PurchasesCard record={record} tr={tr} tenantSlug={tenantSlug} />
-        <ProjectsCard record={record} tr={tr} tenantSlug={tenantSlug} />
-        <BookingsCard record={record} tr={tr} />
+        <ProjectsCard record={record} tr={tr} tenantSlug={tenantSlug} oneZone={oneZone} />
+        <BookingsCard record={record} tr={tr} oneZone={oneZone} />
       </div>
     </PageShell>
   );
@@ -113,26 +134,41 @@ function IdentityCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
         <Figure label={tr("dashboard.clientRecord.noShows")} value={String(record.noShows)} />
         <Figure
           label={tr("dashboard.clientRecord.lastSeen")}
-          value={isoDate(record.lastSeenAt, none)}
+          value={zonedDate(record.lastSeenAt, record.timeZone, none)}
         />
         <Figure label={tr("dashboard.clientRecord.locale")} value={record.locale ?? none} />
       </dl>
-      <p className="mt-4 text-sm text-muted-foreground">
-        {record.userId
-          ? tr("dashboard.clientRecord.accountYes")
-          : tr("dashboard.clientRecord.accountNone")}
-      </p>
+      <section className="mt-4">
+        <h3 className="m-0 text-xs uppercase tracking-wide text-muted-foreground">
+          {tr("dashboard.clientRecord.account")}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {record.userId
+            ? tr("dashboard.clientRecord.accountYes")
+            : tr("dashboard.clientRecord.accountNone")}
+        </p>
+      </section>
       {record.tags.length > 0 ? (
-        <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
-          {record.tags.map((tag) => (
-            <li key={tag}>
-              <Chip>{tag}</Chip>
-            </li>
-          ))}
-        </ul>
+        <section className="mt-4">
+          <h3 className="m-0 text-xs uppercase tracking-wide text-muted-foreground">
+            {tr("dashboard.clientRecord.tags")}
+          </h3>
+          <ul className="mt-1 flex list-none flex-wrap gap-2 p-0">
+            {record.tags.map((tag) => (
+              <li key={tag}>
+                <Chip>{tag}</Chip>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
       {record.notes ? (
-        <p className="mt-3 whitespace-pre-line text-sm text-foreground">{record.notes}</p>
+        <section className="mt-4">
+          <h3 className="m-0 text-xs uppercase tracking-wide text-muted-foreground">
+            {tr("dashboard.clientRecord.notes")}
+          </h3>
+          <p className="mt-1 whitespace-pre-line text-sm text-foreground">{record.notes}</p>
+        </section>
       ) : null}
     </Card>
   );
@@ -140,7 +176,7 @@ function IdentityCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
 
 /** W44's honest half: what is owed, per currency, and whether Collect applies. */
 function BalancesCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
-  const balances = clientBalances(record).filter((b) => b.outstandingCents > 0);
+  const balances = clientBalances(record).filter((b) => b.owedCents > 0);
   const verdict = collectVerdict(record);
   return (
     <Card title={tr("dashboard.clientRecord.balances")}>
@@ -154,7 +190,7 @@ function BalancesCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
             <Figure
               key={b.currency}
               label={`${tr("dashboard.clientRecord.outstanding")} ${b.currency}`}
-              value={formatOrderMoney(b.outstandingCents, b.currency)}
+              value={formatOrderMoney(b.owedCents, b.currency)}
               note={
                 b.collectedCents > 0
                   ? `${tr("dashboard.clientRecord.collected")} ${formatOrderMoney(b.collectedCents, b.currency)}`
@@ -168,7 +204,7 @@ function BalancesCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
         {verdict.ok
           ? interpolate(tr("dashboard.clientRecord.collectSummary"), {
               count: verdict.recordCount,
-              amount: formatOrderMoney(verdict.outstandingCents, verdict.currency),
+              amount: formatOrderMoney(verdict.owedCents, verdict.currency),
             })
           : verdict.reason === "mixed_currency"
             ? tr("dashboard.clientRecord.collectMixedCurrency")
@@ -228,13 +264,16 @@ function PurchasesCard({
                       {interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}
                     </span>
                   </th>
-                  <td className="text-muted-foreground">{p.status}</td>
+                  <td className="text-muted-foreground">{orderStatusLabel(p.status, tr)}</td>
                   <td className="text-muted-foreground">
-                    {isoDate(p.createdAt, tr("dashboard.clientRecord.none"))}
+                    {zonedDate(p.createdAt, record.timeZone, tr("dashboard.clientRecord.none"))}
                   </td>
                   <td className="text-foreground">{formatOrderMoney(p.totalCents, p.currency)}</td>
+                  {/* The OWED figure, so this column adds up to the Balances
+                      card above. A cancelled or refunded order reads zero and
+                      its status says why. */}
                   <td className="text-foreground">
-                    {formatOrderMoney(p.outstandingCents, p.currency)}
+                    {formatOrderMoney(purchaseOwedCents(p), p.currency)}
                   </td>
                 </tr>
               ))}
@@ -250,10 +289,12 @@ function ProjectsCard({
   record,
   tr,
   tenantSlug,
+  oneZone,
 }: {
   record: ClientRecord;
   tr: Tr;
   tenantSlug: string;
+  oneZone: string | null;
 }) {
   return (
     <Card title={tr("dashboard.clientRecord.projects")}>
@@ -273,7 +314,8 @@ function ProjectsCard({
               </Link>
               <span className="text-xs text-muted-foreground">
                 {tr(STATUS_KEY[p.status as ProjectStatus])}{" "}
-                {isoDate(p.startsAt, tr("dashboard.clientRecord.none"))}
+                {zonedDate(p.startsAt, p.timeZone, tr("dashboard.clientRecord.none"))}
+                {oneZone === null ? ` ${p.timeZone}` : ""}
               </span>
             </li>
           ))}
@@ -283,7 +325,15 @@ function ProjectsCard({
   );
 }
 
-function BookingsCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
+function BookingsCard({
+  record,
+  tr,
+  oneZone,
+}: {
+  record: ClientRecord;
+  tr: Tr;
+  oneZone: string | null;
+}) {
   return (
     <Card title={tr("dashboard.clientRecord.bookings")}>
       {record.bookings.length === 0 ? (
@@ -297,7 +347,8 @@ function BookingsCard({ record, tr }: { record: ClientRecord; tr: Tr }) {
               <span className="text-sm text-foreground">{b.title || shortId(b.bookingId)}</span>
               <span className="text-xs text-muted-foreground">
                 {tr(STATUS_KEY[b.status as ProjectStatus])}{" "}
-                {isoDate(b.startsAt, tr("dashboard.clientRecord.none"))}
+                {zonedDate(b.startsAt, b.timeZone, tr("dashboard.clientRecord.none"))}
+                {oneZone === null ? ` ${b.timeZone}` : ""}
               </span>
             </li>
           ))}

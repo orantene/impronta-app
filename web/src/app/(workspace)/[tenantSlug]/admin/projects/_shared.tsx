@@ -12,6 +12,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { isOrderStatus } from "@/lib/orders/order-status";
+import { ORDER_STATUS_KEY } from "./_keys";
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-7 sm:py-10">{children}</main>;
@@ -123,14 +125,19 @@ export function Chip({ children, active }: { children: React.ReactNode; active?:
   );
 }
 
-/** An ISO instant as a plain calendar date. */
-export function isoDate(value: string | null, fallback: string): string {
-  if (!value) return fallback;
-  const date = value.slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : fallback;
-}
-
 /** Short, stable handle for a uuid: what an operator reads off a screen. */
 export function shortId(value: string): string {
   return value.slice(0, 8);
+}
+
+/**
+ * An attached order's status, in the Orders desk's own words.
+ *
+ * An UNRECOGNISED label falls through to itself rather than to a friendly
+ * default, exactly as the desk does: "not a status we know" is a different
+ * answer from any of the eight, and dressing it as one of them would hide the
+ * row that most needs looking at.
+ */
+export function orderStatusLabel(status: string, tr: (key: string) => string): string {
+  return isOrderStatus(status) ? tr(ORDER_STATUS_KEY[status]) : status;
 }
