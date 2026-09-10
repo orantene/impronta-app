@@ -3358,20 +3358,30 @@ export async function cancelBookingAction(
   }
 }
 
+/**
+ * `expectedStartsAt` / `expectedEndsAt` are the window the operator was
+ * LOOKING AT. The RPC refuses with `conflict` when the stored window has moved
+ * since, so a stale calendar cannot drag a booking that somebody else already
+ * rescheduled. Omitting them keeps the old last-write-wins behaviour, which is
+ * why every caller should pass them.
+ */
 export async function rescheduleBookingAction(
   _tenantSlug: string,
   bookingId: string,
   newStartsAt: string,
   newEndsAt: string | null,
   note?: string | null,
+  expectedStartsAt?: string | null,
+  expectedEndsAt?: string | null,
 ): Promise<PipelineActionResult> {
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
-    // Service role: firm holds + talent_bookings exclusion must not depend on
-    // staff RLS. Tenant scope is still enforced inside rescheduleBooking.
+    // Service role: the guard hold, the talent_bookings exclusion and the
+    // capacity pool locks must not depend on staff RLS. Tenant scope is still
+    // enforced inside rescheduleBooking and again inside the RPC.
     const admin = createServiceRoleClient() ?? supabase;
     const moved = await rescheduleBooking(admin, {
       tenantId,
@@ -3379,6 +3389,8 @@ export async function rescheduleBookingAction(
       newStartsAt,
       newEndsAt,
       actorUserId: user.id,
+      expectedStartsAt: expectedStartsAt ?? null,
+      expectedEndsAt: expectedEndsAt ?? null,
     });
     if (!moved.ok) return { ok: false, error: moved.error };
 
@@ -3389,7 +3401,9 @@ export async function rescheduleBookingAction(
       payload: {
         kind: "rescheduled",
         previous: { starts_at: moved.previous.startsAt, ends_at: moved.previous.endsAt },
-        next: { starts_at: newStartsAt, ends_at: newEndsAt ?? null },
+        // The RESOLVED end, the one actually stored — not the caller's null.
+        next: { starts_at: moved.startsAt, ends_at: moved.endsAt },
+        already: moved.already,
         note: note?.trim() || null,
       },
     });
