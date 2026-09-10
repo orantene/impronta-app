@@ -6,6 +6,7 @@
 // the barrel + the "public export surface" proof.
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
+import { parseE164PhoneInput } from "@/lib/data/country-dial-codes";
 import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
@@ -3161,15 +3162,17 @@ export function splitShellContactPhone(stored: string | null | undefined): {
   contactPhonePrefix: string;
   contactPhone: string;
 } {
-  const s = (stored ?? "").trim();
-  if (!s) return { contactPhonePrefix: "+1", contactPhone: "" };
-  const ordered = [...SHELL_CONTACT_PHONE_PREFIXES].sort((a, b) => b.length - a.length);
-  for (const p of ordered) {
-    if (s.startsWith(p)) {
-      return { contactPhonePrefix: p, contactPhone: s.slice(p.length).trim() };
-    }
+  // Full E.164 table, longest match first. The short list above only knew
+  // eleven prefixes, so a stored "+972543979670" fell through to "+1" and the
+  // drawer showed "+1 +972543979670" (owner QA 2026-09-10, first real signup).
+  let parsed = parseE164PhoneInput(stored ?? "", { dial: "+1", iso: "US" });
+  // Rows saved while the old splitter was live hold "+1 +972543979670": the
+  // fallback prefix glued onto a number that already carried its own. When
+  // the national part still starts with "+", the real number is that part.
+  if (parsed.national.startsWith("+")) {
+    parsed = parseE164PhoneInput(parsed.national, { dial: "+1", iso: "US" });
   }
-  return { contactPhonePrefix: "+1", contactPhone: s };
+  return { contactPhonePrefix: parsed.dial, contactPhone: parsed.national };
 }
 
 export function deriveAge(dob: string | null): number | null {
