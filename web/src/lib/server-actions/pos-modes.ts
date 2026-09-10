@@ -28,8 +28,8 @@
  * goes to the server log for whoever is on call, where nobody has to read it
  * in their second language.
  *
- * A MODE WITH NO SCREEN CANNOT BE SWITCHED ON HERE. `floor`, `door`,
- * `classes` and `projects` have `built: false` in `POS_MODE_META` — turning
+ * A MODE WITH NO SCREEN CANNOT BE SWITCHED ON HERE. Whichever modes carry
+ * `built: false` in `POS_MODE_META` (the list is that file's, not this one's) — turning
  * one on would show a mode switch that leads nowhere, exactly the "control
  * that cannot work" this settings surface must never offer. This refuses to
  * persist an unbuilt mode that was not already on (an unbuilt mode already

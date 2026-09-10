@@ -185,8 +185,12 @@ async function mapWithLimit<T, R>(
  *
  * A pool that exists and a remaining that cannot be read are different
  * answers and stay different all the way to the screen.
+ *
+ * Exported for the point of sale's Classes mode (`lib/pos/classes/day.ts`),
+ * which shows the same seats for the same sessions and must not carry a
+ * second copy of this call that could drift from it.
  */
-async function readSeats(
+export async function readSessionSeats(
   admin: Admin,
   pool: { id: string; unitsTotal: number } | undefined,
   session: RawSession,
@@ -328,7 +332,7 @@ export async function loadWaitlistDesk(
   }
 
   const seatsPerSession = await mapWithLimit(sessions, REMAINING_CONCURRENCY, (session) =>
-    readSeats(admin, pools.get(session.id), session),
+    readSessionSeats(admin, pools.get(session.id), session),
   );
 
   const views: WaitlistView[] = [];
@@ -450,7 +454,7 @@ export async function joinWaitlist(
   const pool = poolRow as { id: string; units_total: number } | null;
   if (!pool) return refuseJoin("noSeatsSet");
 
-  const seats = await readSeats(
+  const seats = await readSessionSeats(
     admin,
     { id: pool.id, unitsTotal: Number(pool.units_total) },
     session,

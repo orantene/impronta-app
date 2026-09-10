@@ -41,9 +41,14 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { classesCopy, classesRailCopy, classesRailNavLabel } from "@/components/admin/pos/classes-copy";
+import { clampDayOffset, loadClassesDay } from "@/lib/pos/classes/day";
+import { loadWalkInServices } from "@/lib/pos/classes/walkin";
+import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
 
+import { ClassesClient } from "./classes-client";
 import type { PosCatalogItem } from "./counter-model";
 import { DoorClient } from "./door-client";
 import { doorCopy } from "./door-copy";
@@ -53,7 +58,7 @@ import { PosClient } from "./pos-client";
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
-type Search = Promise<{ order?: string; mode?: string }>;
+type Search = Promise<{ order?: string; mode?: string; day?: string }>;
 
 /**
  * `agency_memberships.role` as the POS mode vocabulary wants it.
@@ -288,6 +293,55 @@ export default async function PosPage({
             {tr("dashboard.pos.counter.mode.notBuilt")}
           </p>
         </main>
+      </>
+    );
+  }
+
+  if (mode === "classes") {
+    // ── Appointments & Classes: one venue day, read here, rendered there.
+    //
+    // The day is decided against the VENUE's zone (`resolveTenantTimezone`,
+    // the same rung the Appointments board and the schedule use), never the
+    // reader's clock. `day=<n>` pages from today; a hand-typed value is
+    // clamped, not trusted.
+    const { timezone } = await resolveTenantTimezone(scope.tenantId);
+    const dayOffset = clampDayOffset(q.day);
+    const [dayLoad, servicesLoad] = await Promise.all([
+      loadClassesDay(admin, { tenantId: scope.tenantId, timeZone: timezone, now: new Date(), dayOffset }),
+      loadWalkInServices(admin, scope.tenantId),
+    ]);
+    const classesPath = await currentAdminPath(tenantSlug);
+    if (!dayLoad.ok) {
+      return (
+        <>
+          <PageRouteSyncer page="pos" />
+          <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
+            <h1 className="m-0 text-[18px] font-semibold text-admin-ink">{posModeLabel(tr, mode)}</h1>
+            <p role="alert" className="m-0 text-[14px] text-admin-ink-muted">
+              {tr("dashboard.pos.classes.refusal.unavailable")}
+            </p>
+          </main>
+        </>
+      );
+    }
+    if (!servicesLoad.ok) logServerError("pos.page.classes.services", new Error(servicesLoad.error));
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <ClassesClient
+          tenantId={scope.tenantId}
+          workspaceName={workspaceName}
+          posPath={classesPath}
+          locale={locale}
+          currency="USD"
+          day={dayLoad.day}
+          services={servicesLoad.ok ? servicesLoad.services : []}
+          copy={{
+            frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
+            classes: classesCopy(tr),
+            counterRefusal: refusalCopy(tr),
+          }}
+        />
       </>
     );
   }

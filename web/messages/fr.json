@@ -875,8 +875,8 @@
             "desc": "Enregistrer les invites, scanner les billets."
           },
           "classes": {
-            "label": "Cours",
-            "desc": "Listes et presence pour un cours ou une session."
+            "label": "Accueil",
+            "desc": "Rendez-vous et cours du jour : arrivées, listes, sans rendez-vous et liste d'attente."
           },
           "projects": {
             "label": "Projets",
@@ -1306,7 +1306,7 @@
           "counter": "Comptoir",
           "floor": "Tables",
           "door": "Entrée",
-          "classes": "Cours",
+          "classes": "Accueil",
           "projects": "Projets",
           "notBuilt": "Ce mode n'a pas encore d'écran."
         },
@@ -1335,6 +1335,110 @@
       },
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
+      "classes": {
+        "title": "Accueil",
+        "rail": {
+          "label": "Accueil",
+          "today": "Aujourd'hui",
+          "sessions": "Séances",
+          "walkin": "Sans rendez-vous",
+          "waitlist": "Liste d'attente"
+        },
+        "day": {
+          "today": "Aujourd'hui",
+          "tomorrow": "Demain",
+          "yesterday": "Hier",
+          "clock": "{date}, à l'heure du lieu ({zone})",
+          "prev": "Jour précédent",
+          "next": "Jour suivant",
+          "backToToday": "Revenir à aujourd'hui",
+          "reload": "Recharger"
+        },
+        "today": {
+          "heading": "Rendez-vous par ordre d'arrivée",
+          "empty": "Rien n'est réservé pour ce jour.",
+          "checkIn": "Enregistrer l'arrivée",
+          "checkingIn": "Enregistrement...",
+          "arrived": "Arrivé",
+          "owed": "{amount} à encaisser",
+          "collect": "Encaisser {amount}",
+          "paid": "Payé",
+          "noOrder": "Aucun montant lié à cette réservation"
+        },
+        "sessions": {
+          "heading": "Séances et participants",
+          "empty": "Aucune séance n'est prévue ce jour.",
+          "seats": "{taken} places sur {total} prises",
+          "roster": "Liste",
+          "rosterEmpty": "Personne n'a encore de place dans cette séance.",
+          "unnamed": "Ce billet n'a pas de nom",
+          "mark": "Marquer présent",
+          "marking": "Enregistrement...",
+          "here": "Présent",
+          "partOfParty": "{admitted} sur {party} entrés",
+          "fromList": "Depuis la liste d'attente",
+          "fromListHint": "A pris une place depuis la liste. Le siège est retenu ; il n'y a pas encore de billet à marquer.",
+          "notValid": "Non valide : {status}",
+          "bookSeat": "Réserver une place sans rendez-vous"
+        },
+        "walkin": {
+          "heading": "Réserver sans rendez-vous",
+          "kindAppointment": "Un rendez-vous",
+          "kindSeat": "Une place dans une séance",
+          "service": "Prestation",
+          "noServices": "Aucune prestation minutée avec une personne derrière n'est en vente ici.",
+          "withPerson": "avec {name}",
+          "minutes": "{n} min",
+          "pickTime": "Choisissez un créneau libre ce jour",
+          "loadingTimes": "Recherche de créneaux libres...",
+          "noTimes": "Aucun créneau libre ce jour.",
+          "session": "Séance",
+          "noSessions": "Aucune séance de ce jour n'a de places à vendre.",
+          "tier": "Billet",
+          "name": "Nom du client",
+          "book": "Réserver",
+          "booking": "Réservation...",
+          "booked": "Réservé pour {when}.",
+          "seatBooked": "Place retenue dans {session}.",
+          "collect": "Encaisser {amount} en espèces",
+          "collecting": "Encaissement...",
+          "collected": "Payé. {amount} encaissés en espèces.",
+          "nothingToCollect": "Rien à encaisser : c'est gratuit.",
+          "startAgain": "Réserver une autre",
+          "mustPayOnlineHint": "Payé en ligne avant que l'heure soit retenue ; la caisse ne peut pas le réserver."
+        },
+        "waitlist": {
+          "heading": "En attente d'une place",
+          "empty": "Aucune séance de ce jour n'est complète et personne n'attend."
+        },
+        "refusal": {
+          "notAllowed": "Vous n'avez pas accès à cette caisse.",
+          "invalid": "Cette demande n'était pas utilisable.",
+          "unavailable": "Impossible de joindre l'espace de travail. Réessayez.",
+          "bookingNotFound": "Cette réservation n'est pas dans cet espace de travail.",
+          "bookingChanged": "Cette réservation a changé depuis que vous l'avez ouverte. Rechargez la journée et réessayez.",
+          "alreadyCheckedIn": "Cette personne est déjà enregistrée.",
+          "bookingCancelled": "Cette réservation a été annulée ; personne ne peut y être enregistré.",
+          "bookingCompleted": "Cette réservation est déjà terminée.",
+          "bookingNotCheckinable": "Cette réservation n'est pas dans un état qui permet d'enregistrer une arrivée.",
+          "placeGone": "Cette place n'existe plus.",
+          "attendanceAlreadyMarked": "La présence de cette personne est déjà marquée.",
+          "placeNotValid": "Cette place n'est plus valide ; la présence ne peut pas être marquée.",
+          "serviceNotFound": "Cette prestation n'est pas en vente ici.",
+          "noBookingHours": "Personne n'a défini les horaires de réservation de cette personne ; il n'y a donc aucun créneau à proposer.",
+          "hoursUnreadable": "Les horaires de réservation de cette personne n'ont pas pu être lus.",
+          "closedToday": "Cette personne ne prend pas de réservations ce jour.",
+          "fullyBookedToday": "Tous les créneaux de ce jour sont pris. Choisissez un autre jour.",
+          "nameRequired": "Le client doit avoir un nom avant qu'un créneau soit retenu.",
+          "timeTaken": "Ce créneau vient d'être pris. Choisissez-en un autre.",
+          "roomFull": "La salle est complète à cette heure. Choisissez-en une autre.",
+          "mustPayOnline": "Cette prestation se paie en ligne avant que l'heure soit retenue. Réservez-la depuis le site.",
+          "needsAccount": "Cette prestation nécessite un compte pour réserver. Réservez-la depuis le site.",
+          "needsContact": "Cette prestation nécessite l'e-mail ou le téléphone du client.",
+          "notForSale": "Cette prestation n'est pas en vente pour le moment.",
+          "couldNotBook": "Impossible de réserver. Rien n'a été retenu."
+        }
+      },
       "door": {
         "rail": {
           "label": "Porte",
