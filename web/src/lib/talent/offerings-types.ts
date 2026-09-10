@@ -13,6 +13,7 @@
  * the `inquiry_offer_line_items.pricing_unit` Postgres enum.
  */
 
+import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
   SERVICE_PRICING_SUFFIX,
   SERVICE_PRICING_TYPES,
@@ -97,6 +98,16 @@ export type TalentOffering = {
   allowPayInPerson: boolean;
   /** When true, guest instant booking is refused (sign-in required). Default off. */
   requireAccountToBook: boolean;
+  /**
+   * This PRODUCT needs a named buyer, whatever it costs.
+   *
+   * Distinct from `requireAccountToBook`, which demands an ACCOUNT. This one
+   * demands only an email or a phone, and it is the only thing that makes a
+   * sale refuse for want of a name: money on its own never does.
+   */
+  requiresIdentity: boolean;
+  /** WHY a name is needed. Required exactly when `requiresIdentity`. */
+  identityReason: IdentityReason | null;
   /** Hours before the appointment when free cancellation ends (null = flexible). */
   cancellationHours: number | null;
   /** Days a free reserve is held before the expiry cron auto-releases it (null = never). */
@@ -156,6 +167,8 @@ export type TalentOfferingRow = {
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
   require_account_to_book?: boolean;
+  requires_identity?: boolean;
+  identity_reason?: string | null;
   cancellation_hours: number | null;
   free_reserve_expires_days: number | null;
   duration_minutes: number | null;
@@ -226,6 +239,13 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
         : null,
     allowPayInPerson: row.allow_pay_in_person === true,
     requireAccountToBook: row.require_account_to_book === true,
+    requiresIdentity: row.requires_identity === true,
+    // The pairing CHECK on the table makes a flagged row without a reason
+    // impossible; a legacy or hand-edited row falls back to the commonest one
+    // rather than reading as "no name needed".
+    identityReason: row.requires_identity === true
+      ? (isIdentityReason(row.identity_reason) ? row.identity_reason : "attendee_names")
+      : null,
     cancellationHours:
       typeof row.cancellation_hours === "number" && Number.isFinite(row.cancellation_hours) && row.cancellation_hours >= 0
         ? Math.round(row.cancellation_hours)
@@ -277,6 +297,10 @@ export function offeringToRowPatch(
     deposit_pct: o.reserveMode === "deposit" && o.depositPct ? Math.round(o.depositPct) : null,
     allow_pay_in_person: o.allowPayInPerson === true,
     require_account_to_book: o.requireAccountToBook === true,
+    // Written as a PAIR, because `talent_offerings_identity_reason_paired`
+    // refuses a half-filled one and the two came apart the last time a flag and
+    // its reason were written as separate expressions.
+    ...identityStamp(o),
     cancellation_hours: o.cancellationHours != null && o.cancellationHours >= 0 ? Math.round(o.cancellationHours) : null,
     // Only free reserves auto-expire; other modes keep the column null.
     free_reserve_expires_days: o.reserveMode === "free" ? posInt(o.freeReserveExpiresDays) : null,
@@ -299,6 +323,27 @@ export function offeringToRowPatch(
   };
 }
 
+/** The flag and its reason, always together. Mirrors the DB pairing CHECK. */
+function identityStamp(
+  o: Pick<TalentOffering, "requiresIdentity" | "identityReason">,
+): { requires_identity: boolean; identity_reason: string | null } {
+  if (o.requiresIdentity !== true) return { requires_identity: false, identity_reason: null };
+  return {
+    requires_identity: true,
+    identity_reason: isIdentityReason(o.identityReason) ? o.identityReason : "attendee_names",
+  };
+}
+
+/** Human labels for the editor's reason picker. No em dashes: user-facing. */
+export const IDENTITY_REASON_LABELS: Record<IdentityReason, string> = {
+  attendee_names: "Every attendee has to be named",
+  delivery: "It has to be delivered to someone",
+  entitlement: "It issues credit spent later",
+};
+
+export { IDENTITY_REASONS };
+export type { IdentityReason };
+
 /** Validation errors for a save. [] = persistable. Mirrors the DB CHECKs. */
 export function validateOffering(o: TalentOffering): string[] {
   const errors: string[] = [];
@@ -314,6 +359,9 @@ export function validateOffering(o: TalentOffering): string[] {
   }
   if (o.bookingMode === "instant" && o.reserveMode === "deposit" && (o.depositPct == null || o.depositPct <= 0 || o.depositPct >= 100)) {
     errors.push(`Set the deposit percent (1–99) for “${o.title}” — or switch it to full payment / free reserve.`);
+  }
+  if (o.requiresIdentity && !isIdentityReason(o.identityReason)) {
+    errors.push(`Say why “${o.title || "this item"}” needs the buyer's name.`);
   }
   if (!o.currency || o.currency.length < 3) errors.push("Pick a currency.");
   return errors;
@@ -410,6 +458,8 @@ export function blankOffering(
     depositPct: null,
     allowPayInPerson: false,
     requireAccountToBook: false,
+    requiresIdentity: false,
+    identityReason: null,
     cancellationHours: null,
     freeReserveExpiresDays: null,
     durationMinutes: null,

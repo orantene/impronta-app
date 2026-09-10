@@ -174,6 +174,16 @@ export async function createReservation(
     return { ok: false, reason, error: purchase.reason };
   }
 
+  // The pipeline may now return an anonymous order: money does not require a
+  // name. A RESERVATION does — the host has to have someone to seat, and this
+  // path already refused above without an email or a phone. So a null here is
+  // an internal contradiction, asserted rather than cast away.
+  const customerId = purchase.customerId;
+  if (!customerId) {
+    logServerError("reservations.createReservation/customer", "purchase returned no customer");
+    return { ok: false, reason: "engine_error", error: "customer_not_resolved" };
+  }
+
   try {
     // Destructure `error` and act on it. PostgREST does not throw: a missing
     // table, a denied policy and a bad column all arrive as `data: null`, so a
@@ -203,7 +213,7 @@ export async function createReservation(
         allocation_id: purchase.allocationIds[0] ?? null,
         order_line_id: line.id as string,
         space_id: null, // unassigned is a valid state; the host seats them
-        customer_id: purchase.customerId,
+        customer_id: customerId,
         holder_name: input.contact.displayName ?? null,
         holder_email: input.contact.email ?? null,
         starts_at: offered.startsAt.toISOString(),
@@ -224,7 +234,7 @@ export async function createReservation(
     return {
       ok: true,
       orderId: purchase.orderId,
-      customerId: purchase.customerId,
+      customerId,
       admissionId: admission.id as string,
       allocationIds: purchase.allocationIds,
       collectCents: purchase.collectCents,

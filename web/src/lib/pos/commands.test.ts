@@ -269,7 +269,10 @@ test("updateLine changes quantity from stored unit price, not a purchase", async
   assert.equal(store.orders[0].total_cents, 15000);
 });
 
-test("collect refuses without contact when the draft has no customer", async () => {
+test("an anonymous paid cash walk-in collects, and the receipt code is the anchor", async () => {
+  // MONEY DOES NOT REQUIRE A NAME. This used to refuse: nobody asks a counter
+  // for an email before selling a manicure, and `customers_has_a_key` forbids
+  // inventing a blank walk-in to satisfy the old CHECK.
   const store = makeStore();
   seedOffering(store);
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
@@ -289,9 +292,43 @@ test("collect refuses without contact when the draft has no customer", async () 
     cancelUrl: "https://app.test/no",
     idempotencyKey: "pos-cash:commands",
   });
+  assert.equal(r.ok, true, r.ok ? "" : r.error);
+  if (!r.ok) return;
+  assert.equal(r.method, "cash");
+  assert.equal(store.orders[0].customer_id, null, "no invented contact");
+  assert.ok(store.orders[0].guest_session_id, "the guest session stays on the row");
+  const code = store.orders[0].receipt_code as string;
+  assert.ok(code && code.length >= 16, "the receipt code is what retrieves this sale at /r/<code>");
+});
+
+test("a line whose offering needs attendee names refuses, and says why", async () => {
+  const store = makeStore();
+  seedOffering(store, {
+    title: "Gala Dinner",
+    requires_identity: true,
+    identity_reason: "attendee_names",
+  });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const r = await startCollection(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    actorUserId: "u1",
+    method: "cash",
+    successUrl: "https://app.test/ok",
+    cancelUrl: "https://app.test/no",
+  });
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "no_contact");
+  assert.match(r.error, /Gala Dinner/, "the refusal names the offering");
+  assert.match(r.error, /name for every attendee/, "the refusal says why");
   assert.equal(store.booking_transactions.length, 0);
 });
 
@@ -693,9 +730,16 @@ test("zero-total collect without contact is allowed for a guest-session draft", 
   assert.equal(store.booking_transactions.length, 0, "no fabricated charge");
 });
 
-test("paid collect without contact is still refused", async () => {
+test("a FREE sale of an identity-bound item is refused too", async () => {
+  // Price is not the question. A complimentary ticket still needs the
+  // attendee's name; the old rule asked about money and never about this.
   const store = makeStore();
-  seedOffering(store);
+  seedOffering(store, {
+    amount_cents: 0,
+    title: "Comp Gala Seat",
+    requires_identity: true,
+    identity_reason: "attendee_names",
+  });
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
   assert.equal(created.ok, true);
   if (!created.ok) return;
@@ -716,6 +760,7 @@ test("paid collect without contact is still refused", async () => {
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "no_contact");
+  assert.match(r.error, /Comp Gala Seat/);
 });
 
 test("zero-total collect does not fabricate a charge", async () => {

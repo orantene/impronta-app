@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { ensureCustomer } from "@/lib/customers/ensure-customer";
+import { resolvePurchaseBuyer } from "@/lib/orders/purchase-buyer";
 import { releaseCapacity, capacityHoldTtlSeconds } from "@/lib/capacity";
 import {
   releaseReservationHold,
@@ -226,29 +226,21 @@ export async function createPurchase(
       policy.depositPct,
     );
 
-    // ── 4. Resolve the customer. Never creates an auth.users row.
-    const customer = await ensureCustomer(
-      {
-        tenantId: input.tenantId,
-        email: input.contact.email,
-        phone: input.contact.phone,
-        displayName: input.contact.displayName,
-        userId: input.actorUserId,
-        locale: input.locale,
-      },
-      // The SAME client the rest of this purchase uses. A helper that builds its
-      // own would run one logical purchase across two connections.
-      { admin },
-    );
-    if (!customer.ok) {
-      // An order needs a buyer we can reach — a receipt, a reminder, a refund
-      // notice all need one. Refuse rather than invent a placeholder.
-      return {
-        ok: false,
-        reason: customer.reason === "unavailable" ? "engine_error" : "no_contact",
-        error: customer.error,
-      };
+    // ── 4. Resolve the buyer, IF this order needs one. Money does not
+    //       require a name; a PRODUCT may. See lib/orders/purchase-buyer.ts.
+    const buyer = await resolvePurchaseBuyer(admin, {
+      tenantId: input.tenantId,
+      contact: input.contact,
+      actorUserId: input.actorUserId,
+      locale: input.locale,
+      lines: priced.lines,
+      catalog,
+    });
+    if (!buyer.ok) {
+      return { ok: false, reason: buyer.reason, error: buyer.error };
     }
+    const customerId = buyer.customerId;
+    const guestSessionId = buyer.guestSessionId;
 
     // ── 5. Create the order. `draft` until capacity is held and the payment
     //       decision is made, so an abandoned cart never looks pending.
@@ -258,10 +250,23 @@ export async function createPurchase(
     let promoDiscountCents = 0;
     let promoCodeId: string | null = null;
     if (input.promoCode) {
+      // A DISCOUNT CODE IS TIED TO A BUYER. `redeem_tenant_promo` counts
+      // redemptions per customer under a row lock, so honouring a code on an
+      // order with no customer would make `per_customer_limit` unenforceable
+      // for exactly the buyers who are hardest to identify. Refuse rather than
+      // drop the code silently, which is the overcharge-by-silence this block
+      // already refuses to commit.
+      if (!customerId) {
+        return {
+          ok: false,
+          reason: "no_contact",
+          error: "A discount code belongs to a buyer, so this order needs an email or a phone.",
+        };
+      }
       const resolved = await resolvePromo(admin, {
         tenantId: input.tenantId,
         code: input.promoCode,
-        customerId: customer.customerId,
+        customerId,
         lines: priced.lines.map((l) => ({
           id: l.offeringId,
           totalCents: l.totalCents,
@@ -295,7 +300,8 @@ export async function createPurchase(
       .from("orders")
       .insert({
         tenant_id: input.tenantId,
-        customer_id: customer.customerId,
+        customer_id: customerId,
+        guest_session_id: guestSessionId,
         status: "draft",
         currency: orderCurrency,
         subtotal_cents: priced.subtotalCents,
@@ -351,7 +357,7 @@ export async function createPurchase(
       const { data: redeemed, error: redeemErr } = await admin.rpc("redeem_tenant_promo", {
         p_code_id: promoCodeId,
         p_order_id: createdOrderId,
-        p_customer_id: customer.customerId,
+        p_customer_id: customerId,
         p_amount_cents: promoDiscountCents,
       });
 
@@ -763,7 +769,7 @@ export async function createPurchase(
       ok: true,
       orderId: createdOrderId,
       inquiryId,
-      customerId: customer.customerId,
+      customerId,
       totalCents: priced.subtotalCents,
       collectCents,
       payInPerson: policy.payInPerson,
