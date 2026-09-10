@@ -139,8 +139,17 @@ export function TablesClient(props: {
   async function run(fn: () => Promise<ActionOutcome>): Promise<ActionOutcome> {
     setBusy(true);
     setMsg(null);
-    const r = await fn();
-    setBusy(false);
+    let r: ActionOutcome;
+    try {
+      r = await fn();
+    } catch {
+      // The request itself failed, as opposed to the engine refusing: the
+      // host still gets a sentence and gets the floor back. Without the
+      // finally, one crashed tap greyed every control until a reload.
+      r = { ok: false, reason: "unavailable" };
+    } finally {
+      setBusy(false);
+    }
     if (!r.ok) setMsg(refusalText(copy, r.reason));
     else {
       // A seating that could not close out its booking is a SUCCESS with
@@ -202,7 +211,12 @@ export function TablesClient(props: {
         {props.tables.map((table) => {
           const label = table.code ?? table.name;
           const isSeatOpen = seatFor === table.spaceId;
-          const isMoveOpen = moveFor === table.visitId;
+          // A free table has no visit, and `moveFor` is null until a host
+          // taps Move, so a bare equality read `null === null` as "open" and
+          // every free card shipped with the move picker already showing:
+          // buttons that would have sent a move for a visit that does not
+          // exist. The picker is open for the ONE occupied table that was tapped.
+          const isMoveOpen = table.visitId !== null && moveFor === table.visitId;
 
           return (
             <li key={table.spaceId} className="rounded-xl border border-border bg-card p-4">
@@ -371,11 +385,15 @@ export function TablesClient(props: {
 
               {isSeatOpen ? (
                 <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor={`tables-party-size-${table.spaceId}`}
+                    className="mb-1 block text-xs font-medium text-muted-foreground"
+                  >
                     {copy.partySizeLabel}
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
                     <input
+                      id={`tables-party-size-${table.spaceId}`}
                       type="number"
                       min={1}
                       inputMode="numeric"

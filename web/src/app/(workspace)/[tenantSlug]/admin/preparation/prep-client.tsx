@@ -86,8 +86,16 @@ export function PreparationClient(props: {
   async function run(fn: () => Promise<PrepActionResult>) {
     setBusy(true);
     setMsg(null);
-    const r = await fn();
-    setBusy(false);
+    let r: PrepActionResult;
+    try {
+      r = await fn();
+    } catch {
+      // A crashed request is not a refusal the engine chose, but a cook
+      // still needs a sentence and a working board, not a greyed button.
+      r = { ok: false, reason: "unavailable" };
+    } finally {
+      setBusy(false);
+    }
     if (!r.ok) setMsg(refusalText(copy, r));
     else router.refresh();
   }
@@ -111,6 +119,10 @@ export function PreparationClient(props: {
                 <span className="font-medium">{ticket.station}</span>
                 <span className="text-muted-foreground">
                   · {copy.destination}: {copy[DESTINATION_KEY[ticket.destination]]}
+                  {/* WHERE, not only what kind of where: "Table T4", so two
+                      pizza tickets on one evening are two different tickets
+                      to the cook and not one card twice. */}
+                  {ticket.tableCode ? ` ${ticket.tableCode}` : null}
                 </span>
                 <span
                   className={`rounded-full border px-2 py-0.5 text-xs font-medium ${

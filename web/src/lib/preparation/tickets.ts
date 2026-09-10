@@ -30,8 +30,75 @@ export type PrepTicketView = {
   revision: number;
   promisedAt: string | null;
   handedOffAt: string | null;
+  /**
+   * The table the food goes to, as the code printed on the floor ("T4", or
+   * "T2 + T3" when two were pushed together). Null for a counter or pickup
+   * ticket, and for a table ticket whose visit could not be read.
+   *
+   * WHY IT IS ON THE TICKET. A station board with two "House pizza × 1" cards
+   * both marked "Destination: Table" is a board a cook cannot run: the ticket
+   * has to say WHERE, or the food goes to whoever shouts first. Seen on the QA
+   * host with two open table checks on one evening.
+   */
+  tableCode: string | null;
   snapshotLines: Array<{ id: string; label: string; units: number }>;
 };
+
+/**
+ * The table code(s) for each visit, looked up once for a set of visits.
+ *
+ * A read failure returns an empty map rather than failing the board: the
+ * ticket is still the ticket, and a missing table code is a lesser wrong than
+ * a station that cannot see its queue. Logged so it is not silent.
+ */
+async function tableCodesForVisits(
+  admin: Admin,
+  visitIds: readonly string[],
+): Promise<Map<string, string>> {
+  const codes = new Map<string, string>();
+  if (visitIds.length === 0) return codes;
+  const { data: visits, error: visitError } = await admin
+    .from("visits")
+    .select("id, space_id, joined_space_id")
+    .in("id", visitIds);
+  if (visitError) {
+    logServerError("prep.board.visits", visitError);
+    return codes;
+  }
+  const visitRows = (visits ?? []) as Array<{
+    id: string;
+    space_id: string | null;
+    joined_space_id: string | null;
+  }>;
+  const spaceIds = Array.from(
+    new Set(
+      visitRows
+        .flatMap((v) => [v.space_id, v.joined_space_id])
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
+  if (spaceIds.length === 0) return codes;
+  const { data: spaces, error: spaceError } = await admin
+    .from("spaces")
+    .select("id, code, name")
+    .in("id", spaceIds);
+  if (spaceError) {
+    logServerError("prep.board.spaces", spaceError);
+    return codes;
+  }
+  const labels = new Map<string, string>();
+  for (const s of (spaces ?? []) as Array<{ id: string; code: string | null; name: string | null }>) {
+    const label = s.code ?? s.name;
+    if (label) labels.set(s.id, label);
+  }
+  for (const v of visitRows) {
+    const parts = [v.space_id, v.joined_space_id]
+      .map((id) => (id ? labels.get(id) : undefined))
+      .filter((label): label is string => Boolean(label));
+    if (parts.length > 0) codes.set(v.id, parts.join(" + "));
+  }
+  return codes;
+}
 
 type LineSnap = { id: string; label: string; units: number | string };
 
@@ -332,6 +399,7 @@ export async function loadActiveTicketForOrder(
   };
   const snap = await loadSnapshotLines(admin, row.id, row.revision);
   if (!snap.ok) return { ok: false, reason: "unavailable" };
+  const codes = await tableCodesForVisits(admin, row.visit_id ? [row.visit_id] : []);
   return {
     ok: true,
     ticket: {
@@ -344,6 +412,7 @@ export async function loadActiveTicketForOrder(
       revision: row.revision,
       promisedAt: row.promised_at,
       handedOffAt: row.handed_off_at,
+      tableCode: row.visit_id ? (codes.get(row.visit_id) ?? null) : null,
       snapshotLines: snap.lines,
     },
   };
@@ -364,6 +433,11 @@ export async function listBoard(
     return { ok: false, reason: "unavailable" };
   }
   const tickets: PrepTicketView[] = [];
+  const rows = (data ?? []) as Array<{ visit_id: string | null }>;
+  const codes = await tableCodesForVisits(
+    admin,
+    rows.map((r) => r.visit_id).filter((id): id is string => typeof id === "string"),
+  );
   for (const row of (data ?? []) as Array<{
     id: string;
     order_id: string;
@@ -387,6 +461,7 @@ export async function listBoard(
       revision: row.revision,
       promisedAt: row.promised_at,
       handedOffAt: row.handed_off_at,
+      tableCode: row.visit_id ? (codes.get(row.visit_id) ?? null) : null,
       snapshotLines: snap.lines,
     });
   }

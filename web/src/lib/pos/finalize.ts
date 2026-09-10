@@ -15,6 +15,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { releaseCapacity } from "@/lib/capacity";
+import { cancelTicket, loadActiveTicketForOrder } from "@/lib/preparation/tickets";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -27,6 +28,32 @@ type Admin = {
 export type FinalizeResult =
   | { ok: true; orderId: string; status: "cancelled"; releasedAllocationIds: string[] }
   | { ok: false; reason: "not_found" | "wrong_tenant" | "not_open" | "unavailable" | "conflict"; error: string };
+
+/**
+ * A cancelled sale's food is not to be made.
+ *
+ * `cancelTicket` existed and was called from nowhere: cancelling a sale
+ * released the places it held and left its preparation ticket queued (or
+ * acknowledged) on the station board, where a cook would make it. Seen on the
+ * QA host: six acknowledged "House pizza" tickets for six cancelled sales.
+ *
+ * Best-effort, AFTER the sale is cancelled: the sale being closed is the fact
+ * a cashier is told; a ticket that could not be withdrawn is logged, not
+ * turned into "could not cancel the sale", which would leave money owed on a
+ * sale that has ended.
+ */
+async function withdrawTicket(admin: Admin, tenantId: string, orderId: string): Promise<void> {
+  const active = await loadActiveTicketForOrder(admin, { tenantId, orderId });
+  if (!active.ok) {
+    logServerError("pos.finalizeOrCancel.ticket.load", new Error(active.reason));
+    return;
+  }
+  if (!active.ticket) return;
+  const cancelled = await cancelTicket(admin, { tenantId, ticketId: active.ticket.id });
+  if (!cancelled.ok && cancelled.reason !== "invalid_state") {
+    logServerError("pos.finalizeOrCancel.ticket.cancel", new Error(cancelled.reason));
+  }
+}
 
 export async function finalizeOrCancel(
   admin: Admin,
@@ -59,6 +86,7 @@ export async function finalizeOrCancel(
           : "unavailable";
       return { ok: false, reason, error: "Could not cancel the sale." };
     }
+    await withdrawTicket(admin, input.tenantId, reply.order_id ?? input.orderId);
     return {
       ok: true,
       orderId: reply.order_id ?? input.orderId,
@@ -134,5 +162,6 @@ export async function finalizeOrCancel(
       }
     }
   }
+  await withdrawTicket(admin, input.tenantId, row.id);
   return { ok: true, orderId: row.id, status: "cancelled", releasedAllocationIds };
 }
