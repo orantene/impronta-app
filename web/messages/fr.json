@@ -2081,7 +2081,6 @@
         "revokeAccess": "Retirer l'acces",
         "grantAccess": "Donner l'acces",
         "inviteByEmail": "Inviter par courriel",
-        "emailLabel": "Adresse courriel",
         "invite": "Envoyer l'invitation",
         "alsoRemoves": "Desactiver ceci retire aussi la casquette Reservable, car une personne absente de votre liste ne peut pas etre reservee ici.",
         "whatStays": "Ce qui reste : {hats}",
