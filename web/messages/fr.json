@@ -1135,6 +1135,132 @@
           "reload": "Recharger"
         }
       }
+    },
+    "adminAppointments": {
+      "title": "Rendez-vous",
+      "subtitle": "Aujourd'hui et la suite, les cours qui les portent, et qui attend une place.",
+      "noTenant": "Aucun espace de travail selectionne.",
+      "loading": "Chargement des rendez-vous...",
+      "tabs": {
+        "list": "Rendez-vous",
+        "sessions": "Seances et series",
+        "waitlist": "Liste d'attente"
+      },
+      "bucket": {
+        "undated": "Pas encore de date",
+        "today": "Aujourd'hui",
+        "upcoming": "A venir",
+        "earlier": "Avant"
+      },
+      "col": {
+        "when": "Quand",
+        "withWhom": "Avec",
+        "servedBy": "Assure par",
+        "place": "Salle ou ressource",
+        "state": "Etat",
+        "action": "Suite"
+      },
+      "unknownCustomer": "Aucun contact sur cette reservation",
+      "unassigned": "Personne d'assigne pour l'instant",
+      "noPlace": "Ni salle ni ressource",
+      "noTime": "Pas encore d'horaire convenu",
+      "empty": {
+        "title": "Rien de reserve sur cette periode",
+        "body": "Les rendez-vous de la derniere semaine et des quatre-vingt-dix prochains jours apparaissent ici, avec la personne qui assure et la salle."
+      },
+      "action": {
+        "reschedule": "Le deplacer",
+        "open": "Ouvrir la reservation",
+        "cancelled": "Annule. Rien a faire ici.",
+        "completed": "Termine. Rien a faire ici."
+      },
+      "reschedule": {
+        "heading": "Deplacer cette reservation",
+        "help": "La personne, la salle et la reservation bougent ensemble, ou aucune ne bouge.",
+        "currentWindow": "Actuellement le {when}",
+        "newStart": "Nouveau debut, en {zone}",
+        "submit": "Le deplacer",
+        "submitting": "Deplacement...",
+        "cancel": "La laisser ou elle est",
+        "moved": "Deplace au {when}.",
+        "already": "C'etait deja a cette heure. Rien n'a change.",
+        "needStart": "Choisis d'abord une nouvelle heure de debut.",
+        "refusal": {
+          "nonexistentTime": "Cette heure n'existe pas ce jour-la ici: les horloges avancent juste a ce moment. Choisis une autre heure.",
+          "slotTakenNamed": "{person} a deja une reservation a cette heure. Choisis une autre heure ou une autre personne.",
+          "slotTaken": "Cette heure vient d'etre prise. Choisis-en une autre.",
+          "roomFullNamed": "{room} est complet a cette heure. Choisis une autre heure.",
+          "roomFull": "Cet espace est complet a cette heure. Choisis une autre heure.",
+          "ancestorFullNamed": "La salle dans laquelle se trouve {room} est complete a cette heure.",
+          "ancestorFull": "La salle dans laquelle se trouve cette reservation est complete a cette heure.",
+          "changedSinceOpened": "Cette reservation a change depuis que tu l'as ouverte. Recharge la liste et reessaie.",
+          "notReschedulable": "Cette reservation ne peut pas etre deplacee.",
+          "notFound": "Cette reservation n'est pas dans cet espace de travail.",
+          "invalidWindow": "La fin doit venir apres le debut.",
+          "tryAgain": "Impossible de deplacer cette reservation. Reessaie.",
+          "unavailable": "Impossible de deplacer cette reservation."
+        }
+      },
+      "waitlist": {
+        "loading": "Chargement de la liste d'attente...",
+        "empty": {
+          "title": "Personne n'attend",
+          "body": "Quand un cours est complet, tu peux inscrire ici la personne suivante et lui proposer la place des qu'une se libere."
+        },
+        "seats": "{left} sur {total} restantes",
+        "full": "Complet",
+        "noPool": "Aucune place n'a jamais ete fixee pour cette seance, donc rien ne peut dire qu'une place s'est liberee.",
+        "position": "#{n}",
+        "state": {
+          "waiting": "En attente",
+          "offered": "Proposee",
+          "expired": "Proposition expiree",
+          "accepted": "A pris la place",
+          "withdrawn": "A quitte la liste"
+        },
+        "offerUntil": "Reservee jusqu'a {when}",
+        "nextInLine": "C'est son tour",
+        "promote": "Proposer la place",
+        "promoting": "Proposition...",
+        "promoted": "Proposee a {name}, reservee jusqu'a {when}.",
+        "alreadyOffered": "{name} a deja cette place. Rien n'a change.",
+        "join": {
+          "heading": "Ajouter quelqu'un a cette liste",
+          "name": "Son nom",
+          "nameHint": "On ne peut pas proposer une place a quelqu'un que personne ne peut appeler, donc le nom est obligatoire.",
+          "email": "Email, si tu l'as",
+          "submit": "Ajouter a la liste",
+          "submitting": "Ajout...",
+          "joined": "{name} est sur la liste."
+        },
+        "refusal": {
+          "invalid": "Cette demande n'etait pas utilisable.",
+          "notFound": "Cette personne n'est sur aucune liste de cet espace de travail.",
+          "changedSinceOpened": "Cette reservation a change depuis que tu l'as ouverte. Recharge la liste et reessaie.",
+          "notPromotable": "Cette personne a deja quitte cette liste.",
+          "sessionMissing": "Cette seance n'est pas dans cet espace de travail.",
+          "sessionNotOpen": "Cette seance n'est pas en vente, elle n'a donc aucune place a donner.",
+          "noPool": "Aucune place n'a jamais ete fixee pour cette seance, donc rien ne peut dire qu'une place s'est liberee.",
+          "sessionFull": "Il n'y a aucune place libre pour l'instant. Tout ce qui reste est deja promis.",
+          "unavailable": "Impossible de proposer cette place. Reessaie.",
+          "nameRequired": "Cette personne a besoin d'un nom avant qu'une place puisse lui etre gardee.",
+          "alreadyWaiting": "Elle est deja sur cette liste.",
+          "seatsAvailable": "Cette seance a encore {left} places libres. Inscris-les plutot que d'ouvrir une file."
+        }
+      },
+      "proposals": {
+        "title": "Horaires de reservation proposes, en attente de toi",
+        "help": "La publication d'une offre a ecrit une semaine suggeree pour ces personnes. Personne ne l'a encore acceptee, donc la page publique de reservation indique qu'il n'y a pas d'horaires tant que tu n'acceptes pas.",
+        "timezone": "Fuseau horaire",
+        "accept": "Accepter ces horaires",
+        "accepting": "Acceptation...",
+        "accepted": "Acceptes. On peut maintenant reserver avec {name}.",
+        "needTimezone": "Choisis d'abord un fuseau horaire.",
+        "source": {
+          "publish_default": "ecrit lors de la publication d'une offre",
+          "staff_suggestion": "suggere par un collegue"
+        }
+      }
     }
   },
   "client": {

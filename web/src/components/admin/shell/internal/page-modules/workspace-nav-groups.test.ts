@@ -313,10 +313,50 @@ test("only one Events child looks current at a time", () => {
   );
 });
 
-test("Appointments draws no children, because it has no routes to draw", () => {
-  // /admin/sessions holds one page.tsx. Series and Waitlist are the surface
-  // this destination is heading for, and a link to either is a link to a 404.
-  assert.deepEqual(itemOf(railFor({ industryPreset: "agency" }), "appts")?.subItems, []);
+test("every Appointments child stays on the one route it has, as a query", () => {
+  // THE CLAIM IS UNCHANGED, ONLY ITS SUBJECT MOVED. This used to assert that
+  // Appointments drew no children at all, because /admin/sessions held one
+  // page.tsx and a link to a Series or Waitlist path would have been a link to
+  // a 404. The three views now exist, and they are TABS of that one page rather
+  // than three routes, so the thing that must stay true is not "no children" —
+  // it is that no child adds a path segment nothing can serve. That is what is
+  // checked here, against the hrefs the rail actually builds.
+  const appts = itemOf(railFor({ industryPreset: "agency" }), "appts");
+  assert.deepEqual(
+    appts?.subItems.map((s) => [s.label, s.href]),
+    [
+      ["Appointments", "/admin/sessions"],
+      ["Sessions and series", "/admin/sessions?view=sessions"],
+      ["Waitlist", "/admin/sessions?view=waitlist"],
+    ],
+  );
+  for (const sub of appts?.subItems ?? []) {
+    const path = sub.href.split("?")[0];
+    assert.equal(
+      path,
+      "/admin/sessions",
+      `${sub.id} points at ${path}, which is not the route Appointments renders on`,
+    );
+  }
+});
+
+test("only one Appointments child looks current at a time", () => {
+  const onList = itemOf(railFor({ industryPreset: "agency" }, {
+    activePage: "sessions", pathname: "/admin/sessions", search: "",
+  }), "appts");
+  assert.deepEqual(
+    onList?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["appts-list"],
+  );
+
+  const onWaitlist = itemOf(railFor({ industryPreset: "agency" }, {
+    activePage: "sessions", pathname: "/admin/sessions", search: "view=waitlist",
+  }), "appts");
+  assert.deepEqual(
+    onWaitlist?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["appts-waitlist"],
+    "the landing view stayed lit while a sibling query was on",
+  );
 });
 
 test("the Website sub-nav is passed through with active state resolved", () => {

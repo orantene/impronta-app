@@ -21,7 +21,7 @@ import { WorkspaceMessagesPage } from "./InboxPage";
 import { OverviewPage } from "./OverviewPage";
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
-import { SessionsPage } from "./SessionsPage";
+import { AppointmentsPage } from "./AppointmentsPage";
 import { EventsPage } from "./EventsPage";
 import { ReviewsPage } from "./ReviewsPage";
 import { AnalyticsPage } from "./AnalyticsPage";
@@ -383,12 +383,14 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "catalog":   // registry id; renders at /admin/menu until the route moves
       body = <MenuPage />;
       break;
-    // Sessions — the Schedule tab (series + occurrences + series editor).
-    // SPA page-module in the menu shape; placeholder until the Sessions &
-    // Classes Manager fills it from lib/sessions/* (see the slot contract).
+    // Appointments — the registry's `appts` destination, still rendering at
+    // /admin/sessions until the route moves. Three views under one route: the
+    // appointments board, the Schedule surface (series, occurrences and the
+    // materialiser's refusals, which is what `SessionsPage` has always been),
+    // and the waitlist. `?view=` selects one; see AppointmentsPage.
     case "sessions":
     case "appts":     // registry id; renders at /admin/sessions until the route moves
-      body = <SessionsPage />;
+      body = <AppointmentsPage />;
       break;
     // Events & Ticketing — the Events tab (list + 7 per-event tabs). SPA
     // page-module in the menu shape; placeholder until the Events & Ticketing

@@ -34,6 +34,7 @@ import {
   DESTINATIONS,
 } from "@/lib/workspace/destinations";
 import { navWorkspacePages } from "@/lib/workspace/page-ids";
+import { RAIL_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-rail";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state/types";
 
 const root = process.cwd();
@@ -299,12 +300,26 @@ test("every registry label the rail can draw has a Spanish row", () => {
   // The rail renders English literals through `copy.t()`, which is keyed by the
   // English string. A registry label with no ES_TEXT row renders in English on
   // a Spanish workspace, and nothing else notices.
+  //
+  // THE TABLE IS ASSEMBLED, SO THE CHECK MUST BE TOO. `ES_TEXT` is a literal
+  // SPREAD OVER `RAIL_ES_TEXT`, which itself spreads `LINKS_ES_TEXT`. Scanning
+  // only `dashboard-i18n.ts` source therefore missed every row that lives in a
+  // sibling module — a guard reading one of several trees, which is how a row
+  // that IS present reads as missing and, worse, how the extraction those
+  // modules exist for gets blocked by its own guard. The inline literal still
+  // has to be scanned (the file is `"use client"` and cannot be imported into a
+  // node test), but the plain sibling modules can be imported, so they are.
   const src = read(DASHBOARD_I18N);
   const table = src.slice(src.indexOf("const ES_TEXT"));
-  const translated = new Set(
-    [...table.matchAll(/^\s*"((?:[^"\\]|\\.)*)":\s*"/gm)].map((m) => m[1]),
-  );
+  const translated = new Set([
+    ...[...table.matchAll(/^\s*"((?:[^"\\]|\\.)*)":\s*"/gm)].map((m) => m[1]),
+    ...Object.keys(RAIL_ES_TEXT),
+  ]);
   assert.ok(translated.size > 500, `expected the ES table, found ${translated.size} rows`);
+  assert.ok(
+    src.includes("...RAIL_ES_TEXT,"),
+    "ES_TEXT no longer spreads RAIL_ES_TEXT, so the rows this test counts are not in the table",
+  );
   const wanted = new Set<string>();
   for (const destination of DESTINATION_LIST) {
     if (!destination.built) continue;

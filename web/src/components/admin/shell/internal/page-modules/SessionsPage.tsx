@@ -55,7 +55,16 @@ function formatWhen(iso: string, timeZone: string | null): string {
   }
 }
 
-export function SessionsPage() {
+/**
+ * `embedded` suppresses this module's own PageHeader.
+ *
+ * The Schedule surface is now one VIEW of the Appointments destination
+ * (`AppointmentsPage`), which has already drawn the page heading by the time
+ * this renders; two headings stacked reads as a broken layout. It is a prop
+ * rather than a split component because the body below is the whole point of
+ * the file and nothing else about it changes.
+ */
+export function SessionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { bridgeTenantIdentity } = useAdminShell();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
@@ -91,7 +100,7 @@ export function SessionsPage() {
   if (!tenantId) {
     return (
       <>
-        <PageHeader title={t("dashboard.adminSessions.title")} />
+        {embedded ? null : <PageHeader title={t("dashboard.adminSessions.title")} />}
         <div className="p-6 text-sm text-admin-ink-muted">
           {t("dashboard.adminSessions.noTenant")}
         </div>
@@ -106,10 +115,12 @@ export function SessionsPage() {
 
   return (
     <>
-      <PageHeader
-        title={t("dashboard.adminSessions.title")}
-        subtitle={t("dashboard.adminSessions.subtitle")}
-      />
+      {embedded ? null : (
+        <PageHeader
+          title={t("dashboard.adminSessions.title")}
+          subtitle={t("dashboard.adminSessions.subtitle")}
+        />
+      )}
 
       {error ? (
         <div className="mb-[16px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px] text-[13.5px] text-admin-ink">

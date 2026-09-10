@@ -12251,6 +12251,132 @@
         "created": "Programada, con plazas para {count} niveles.",
         "loadFailed": "No se pudieron cargar los eventos."
       }
+    },
+    "adminAppointments": {
+      "title": "Citas",
+      "subtitle": "Lo de hoy y lo que viene, las clases que hay detras, y quien espera un lugar.",
+      "noTenant": "No hay espacio de trabajo seleccionado.",
+      "loading": "Cargando las citas...",
+      "tabs": {
+        "list": "Citas",
+        "sessions": "Sesiones y series",
+        "waitlist": "Lista de espera"
+      },
+      "bucket": {
+        "undated": "Sin fecha acordada",
+        "today": "Hoy",
+        "upcoming": "Proximamente",
+        "earlier": "Antes"
+      },
+      "col": {
+        "when": "Cuando",
+        "withWhom": "Con",
+        "servedBy": "Atiende",
+        "place": "Sala o recurso",
+        "state": "Estado",
+        "action": "Siguiente"
+      },
+      "unknownCustomer": "Esta reserva no tiene contacto",
+      "unassigned": "Nadie asignado todavia",
+      "noPlace": "Sin sala ni recurso",
+      "noTime": "Sin hora acordada todavia",
+      "empty": {
+        "title": "No hay nada reservado en este periodo",
+        "body": "Aqui aparecen las citas de la ultima semana y de los proximos noventa dias, con quien atiende y en que sala."
+      },
+      "action": {
+        "reschedule": "Moverla",
+        "open": "Abrir la reserva",
+        "cancelled": "Cancelada. Aqui no hay nada que hacer.",
+        "completed": "Terminada. Aqui no hay nada que hacer."
+      },
+      "reschedule": {
+        "heading": "Mover esta reserva",
+        "help": "La persona, la sala y la reserva se mueven juntas, o no se mueve ninguna.",
+        "currentWindow": "Ahora en {when}",
+        "newStart": "Nuevo inicio, en {zone}",
+        "submit": "Moverla",
+        "submitting": "Moviendo...",
+        "cancel": "Dejarla donde esta",
+        "moved": "Movida a {when}.",
+        "already": "Ya estaba a esa hora. No cambio nada.",
+        "needStart": "Elige primero una hora de inicio.",
+        "refusal": {
+          "nonexistentTime": "Esa hora no existe ese dia aqui: los relojes se adelantan justo ahi. Elige otra hora.",
+          "slotTakenNamed": "{person} ya tiene una reserva a esa hora. Elige otra hora u otra persona.",
+          "slotTaken": "Acaban de ocupar esa hora. Elige otra.",
+          "roomFullNamed": "{room} esta llena a esa hora. Elige otra hora.",
+          "roomFull": "Ese espacio esta lleno a esa hora. Elige otra hora.",
+          "ancestorFullNamed": "La sala en la que esta {room} esta llena a esa hora.",
+          "ancestorFull": "La sala en la que esta esta reserva esta llena a esa hora.",
+          "changedSinceOpened": "Esta reserva cambio desde que la abriste. Recarga la lista e intentalo de nuevo.",
+          "notReschedulable": "Esta reserva no se puede mover.",
+          "notFound": "Esa reserva no esta en este espacio de trabajo.",
+          "invalidWindow": "El final tiene que ser posterior al inicio.",
+          "tryAgain": "No se pudo mover esa reserva. Intentalo de nuevo.",
+          "unavailable": "No se pudo mover esa reserva."
+        }
+      },
+      "waitlist": {
+        "loading": "Cargando la lista de espera...",
+        "empty": {
+          "title": "No hay nadie esperando",
+          "body": "Cuando una clase se llene, puedes anotar aqui a la siguiente persona y ofrecerle el lugar en cuanto alguien lo devuelva."
+        },
+        "seats": "Quedan {left} de {total}",
+        "full": "Llena",
+        "noPool": "Nunca se fijaron lugares para esta sesion, asi que nada puede decir que se libero uno.",
+        "position": "#{n}",
+        "state": {
+          "waiting": "Esperando",
+          "offered": "Ofrecido",
+          "expired": "El ofrecimiento vencio",
+          "accepted": "Tomo el lugar",
+          "withdrawn": "Salio de la lista"
+        },
+        "offerUntil": "Reservado hasta {when}",
+        "nextInLine": "Le toca",
+        "promote": "Ofrecer el lugar",
+        "promoting": "Ofreciendo...",
+        "promoted": "Ofrecido a {name}, reservado hasta {when}.",
+        "alreadyOffered": "{name} ya tiene este lugar. No cambio nada.",
+        "join": {
+          "heading": "Anotar a alguien en esta lista",
+          "name": "Su nombre",
+          "nameHint": "No se puede ofrecer un lugar a alguien a quien nadie puede llamar, asi que el nombre es obligatorio.",
+          "email": "Correo, si lo tienes",
+          "submit": "Anotar en la lista",
+          "submitting": "Anotando...",
+          "joined": "{name} esta en la lista."
+        },
+        "refusal": {
+          "invalid": "Esa peticion no se pudo usar.",
+          "notFound": "Esa persona no esta en ninguna lista de este espacio de trabajo.",
+          "changedSinceOpened": "Esta reserva cambio desde que la abriste. Recarga la lista e intentalo de nuevo.",
+          "notPromotable": "Esa persona ya salio de esta lista.",
+          "sessionMissing": "Esa sesion no esta en este espacio de trabajo.",
+          "sessionNotOpen": "Esa sesion no esta a la venta, asi que no tiene lugares que dar.",
+          "noPool": "Nunca se fijaron lugares para esta sesion, asi que nada puede decir que se libero uno.",
+          "sessionFull": "Ahora mismo no hay ningun lugar libre. Todo lo que queda ya esta prometido.",
+          "unavailable": "No se pudo ofrecer ese lugar. Intentalo de nuevo.",
+          "nameRequired": "Esta persona necesita un nombre antes de poder guardarle un lugar.",
+          "alreadyWaiting": "Ya estan en esta lista.",
+          "seatsAvailable": "Esta sesion todavia tiene {left} libres. Reservalos en vez de empezar una cola."
+        }
+      },
+      "proposals": {
+        "title": "Horarios de reserva propuestos, esperandote",
+        "help": "Al publicar una oferta se escribio una semana sugerida para estas personas. Nadie la ha aceptado todavia, asi que la pagina publica de reservas dice que no hay horarios hasta que la aceptes.",
+        "timezone": "Zona horaria",
+        "accept": "Aceptar estos horarios",
+        "accepting": "Aceptando...",
+        "accepted": "Aceptados. Ya se puede reservar con {name}.",
+        "needTimezone": "Elige primero una zona horaria.",
+        "source": {
+          "publish_default": "escrito al publicar una oferta",
+          "staff_suggestion": "sugerido por un companero"
+        }
+      }
     }
   },
   "admin": {

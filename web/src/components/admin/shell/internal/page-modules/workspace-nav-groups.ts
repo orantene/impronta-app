@@ -111,10 +111,35 @@ export type WorkspaceNavInput = {
   readonly websiteSubItems: readonly Omit<WorkspaceNavSubItem, "active">[];
 };
 
+/**
+ * The query keys this destination's OWN children distinguish themselves by.
+ *
+ * Read off the sibling hrefs rather than named. It used to be the literal pair
+ * `compose` and `tab`, which were the only two keys any sub-view used the day
+ * that line was written — so the rule "keep the landing view quiet while a
+ * sibling query is on" silently stopped applying the moment a destination
+ * introduced a third key, and Appointments' `?view=` did exactly that: the
+ * landing child and the open tab both lit up. Deriving the set means a new key
+ * is covered by the rule that already exists instead of needing to be added to
+ * a list nobody will remember.
+ */
+function siblingQueryKeys(
+  siblings: ReadonlyArray<Omit<WorkspaceNavSubItem, "active">>,
+): Set<string> {
+  const keys = new Set<string>();
+  for (const sibling of siblings) {
+    const query = sibling.href.split("?")[1];
+    if (!query) continue;
+    for (const key of new URLSearchParams(query).keys()) keys.add(key);
+  }
+  return keys;
+}
+
 function subItemActive(
   sub: Omit<WorkspaceNavSubItem, "active">,
   pathname: string | null,
   search: string,
+  siblingKeys: ReadonlySet<string>,
 ): boolean {
   if (sub.external) return false;
   const [subPath, subQuery = ""] = sub.href.split("?");
@@ -128,9 +153,9 @@ function subItemActive(
     return [...wanted.entries()].every(([k, v]) => current.get(k) === v);
   }
   if (sub.exact) {
-    // Sibling links may add ?compose / ?tab — keep the landing view quiet when
-    // those are present so only one child ever looks current.
-    return current.get("compose") == null && current.get("tab") == null;
+    // The landing view goes quiet while any sibling's own query key is present,
+    // so only one child ever looks current.
+    return [...siblingKeys].every((key) => current.get(key) == null);
   }
   return true;
 }
@@ -167,7 +192,11 @@ function subItemsFor(
             },
           ];
         });
-  return raw.map((sub) => ({ ...sub, active: subItemActive(sub, input.pathname, input.search) }));
+  const siblingKeys = siblingQueryKeys(raw);
+  return raw.map((sub) => ({
+    ...sub,
+    active: subItemActive(sub, input.pathname, input.search, siblingKeys),
+  }));
 }
 
 function navItem(
