@@ -4791,8 +4791,8 @@
             "desc": "Check guests in, scan tickets."
           },
           "classes": {
-            "label": "Classes",
-            "desc": "Rosters and attendance for a class or session."
+            "label": "Front desk",
+            "desc": "Appointments and classes for the day: check-ins, rosters, walk-ins and the waitlist."
           },
           "projects": {
             "label": "Projects",
@@ -12363,7 +12363,7 @@
           "counter": "Counter",
           "floor": "Tables",
           "door": "Door",
-          "classes": "Classes",
+          "classes": "Front desk",
           "projects": "Projects",
           "notBuilt": "This mode does not have a screen yet."
         },
@@ -12393,9 +12393,9 @@
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "classes": {
-        "title": "Appointments and classes",
+        "title": "Front desk",
         "rail": {
-          "label": "Appointments and classes",
+          "label": "Front desk",
           "today": "Today",
           "sessions": "Sessions",
           "walkin": "Walk-in",
@@ -12428,6 +12428,7 @@
           "seats": "{taken} of {total} seats taken",
           "roster": "Roster",
           "rosterEmpty": "Nobody holds a place in this session yet.",
+          "unnamed": "No name on this ticket",
           "mark": "Mark present",
           "marking": "Marking...",
           "here": "Present",

@@ -214,3 +214,37 @@ export async function classesHoldSeat(input: {
   if (!line.ok) return { ok: false, reason: line.reason };
   return saleAfterWrite(g.admin, g.tenantId, draft.orderId, null);
 }
+
+/**
+ * THE NAME ON THE TICKET. A walk-in seat is sold through the Counter's own
+ * draft and charge, and the Counter names a buyer only through an email or a
+ * phone (`customers` is keyed on those; a name alone is an anonymous sale by
+ * design). A walk-in standing at the desk usually gives a name and nothing
+ * else, so the seat's admission would show on the roster as unnamed and the
+ * instructor could not call it. This writes the name the operator typed onto
+ * the admissions the paid order minted, where `holder_name` is still empty.
+ * Nothing else changes: the seat, the money and the customer row are as the
+ * Counter left them. Idempotent (a second call finds nothing empty).
+ */
+export async function classesNameSeatHolders(input: {
+  orderId: string;
+  name: string;
+}): Promise<{ ok: true; named: number } | Refused> {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ orderId: uuid, name: z.string().trim().min(1).max(120) }).safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+  const lines = await g.admin.from("order_lines").select("id").eq("order_id", parsed.data.orderId);
+  if (lines.error) return { ok: false, reason: "unavailable" };
+  const lineIds = (lines.data ?? []).map((l) => String(l.id));
+  if (lineIds.length === 0) return { ok: true, named: 0 };
+  const write = await g.admin
+    .from("admissions")
+    .update({ holder_name: parsed.data.name })
+    .eq("tenant_id", g.tenantId)
+    .in("order_line_id", lineIds)
+    .is("holder_name", null)
+    .select("id");
+  if (write.error) return { ok: false, reason: "unavailable" };
+  return { ok: true, named: (write.data ?? []).length };
+}

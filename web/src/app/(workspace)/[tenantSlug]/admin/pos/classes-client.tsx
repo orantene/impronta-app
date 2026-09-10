@@ -60,6 +60,7 @@ import {
   classesCheckIn,
   classesHoldSeat,
   classesMarkAttendance,
+  classesNameSeatHolders,
   classesWalkInSlots,
   type ClassesWalkInResult,
 } from "./classes-actions";
@@ -225,15 +226,21 @@ export function ClassesClient(props: ClassesClientProps) {
    * THE CHARGE, the Counter's. Key derived from the sale, version carried,
    * whole outstanding balance, cash tendered exactly.
    */
-  const collectCash = (target: { orderId: string; version: number; outstandingCents: number }) =>
+  const collectCash = (
+    target: { orderId: string; version: number; outstandingCents: number },
+    // The walk-in form's own contact rides with the walk-in's collection and
+    // with nothing else: a booking made elsewhere already names its customer,
+    // and whatever is left in the form belongs to somebody else.
+    contact?: { name: string; email: string; phone: string },
+  ) =>
     run(
       () =>
         posStartCollection({
           orderId: target.orderId,
           method: "cash",
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          displayName: name.trim() || undefined,
+          email: contact?.email.trim() || undefined,
+          phone: contact?.phone.trim() || undefined,
+          displayName: contact?.name.trim() || undefined,
           amountCents: target.outstandingCents > 0 ? target.outstandingCents : undefined,
           tenderedCents: target.outstandingCents,
           idempotencyKey: posCollectionKey({
@@ -407,12 +414,32 @@ export function ClassesClient(props: ClassesClientProps) {
 
   const collectWalkIn = () => {
     if (!sale) return;
-    void collectCash(sale).then((r) => {
+    void collectCash(sale, { name, email, phone }).then(async (r) => {
       if (r && r.ok) {
+        // A seat's ticket carries the name the operator typed, so the roster
+        // can call it (the Counter names a buyer only by email or phone).
+        if (kind === "seat" && name.trim()) {
+          try {
+            await classesNameSeatHolders({ orderId: sale.orderId, name });
+          } catch {
+            // The seat is sold and paid; a missing name is not a refusal.
+          }
+          router.refresh();
+        }
         setOutcome({ stage: "collected", sentence: fill(c.walkin.collected, { amount: formatOrderMoney(sale.outstandingCents, sale.currency) }) });
       }
     });
   };
+
+  /**
+   * A FINISHED WALK-IN IS FINISHED. Once its money is collected (or there was
+   * none to collect) the form is cleared the moment the operator leaves the
+   * screen, so coming back through the rail, or from a session's "Book a
+   * walk-in seat", opens a fresh form and not last customer's receipt. A
+   * walk-in that is booked but NOT yet collected is kept: the collect button
+   * is the one thing that must not vanish under a stray tap on the rail.
+   */
+  const settled = outcome !== null && (outcome.stage === "collected" || outcome.outstandingCents <= 0);
 
   const startAgain = () => {
     setOutcome(null);
@@ -464,6 +491,7 @@ export function ClassesClient(props: ClassesClientProps) {
         busy={busy}
         onMark={mark}
         onBookSeat={(session) => {
+          if (settled) startAgain();
           setKind("seat");
           setSessionId(session.id);
           setTierId(session.tiers.length === 1 ? (session.tiers[0]?.variantId ?? "") : "");
@@ -538,6 +566,7 @@ export function ClassesClient(props: ClassesClientProps) {
         navLabel={copy.frame.navLabel}
         activeDestination={destination}
         onSelectDestination={(id) => {
+          if (settled) startAgain();
           setDestination(parseDestination(id));
           setNotice(null);
         }}

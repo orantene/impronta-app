@@ -875,8 +875,8 @@
             "desc": "Enregistrer les invites, scanner les billets."
           },
           "classes": {
-            "label": "Cours",
-            "desc": "Listes et presence pour un cours ou une session."
+            "label": "Accueil",
+            "desc": "Rendez-vous et cours du jour : arrivées, listes, sans rendez-vous et liste d'attente."
           },
           "projects": {
             "label": "Projets",
@@ -1306,7 +1306,7 @@
           "counter": "Comptoir",
           "floor": "Tables",
           "door": "Entrée",
-          "classes": "Cours",
+          "classes": "Accueil",
           "projects": "Projets",
           "notBuilt": "Ce mode n'a pas encore d'écran."
         },
@@ -1336,9 +1336,9 @@
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
       "classes": {
-        "title": "Rendez-vous et cours",
+        "title": "Accueil",
         "rail": {
-          "label": "Rendez-vous et cours",
+          "label": "Accueil",
           "today": "Aujourd'hui",
           "sessions": "Séances",
           "walkin": "Sans rendez-vous",
@@ -1371,6 +1371,7 @@
           "seats": "{taken} places sur {total} prises",
           "roster": "Liste",
           "rosterEmpty": "Personne n'a encore de place dans cette séance.",
+          "unnamed": "Ce billet n'a pas de nom",
           "mark": "Marquer présent",
           "marking": "Enregistrement...",
           "here": "Présent",

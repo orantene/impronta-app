@@ -88,6 +88,8 @@ export type ClassesCopy = {
     readonly seatsUncounted: string;
     readonly roster: string;
     readonly rosterEmpty: string;
+    /** A ticket sold with no name on it. */
+    readonly unnamed: string;
     readonly mark: string;
     readonly marking: string;
     readonly here: string;
@@ -225,6 +227,7 @@ export function classesCopy(t: Translator): ClassesCopy {
       seatsUncounted: t("dashboard.adminAppointments.waitlist.noPool"),
       roster: t("dashboard.pos.classes.sessions.roster"),
       rosterEmpty: t("dashboard.pos.classes.sessions.rosterEmpty"),
+      unnamed: t("dashboard.pos.classes.sessions.unnamed"),
       mark: t("dashboard.pos.classes.sessions.mark"),
       marking: t("dashboard.pos.classes.sessions.marking"),
       here: t("dashboard.pos.classes.sessions.here"),

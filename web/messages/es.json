@@ -4791,8 +4791,8 @@
             "desc": "Registra el ingreso de invitados, escanea entradas."
           },
           "classes": {
-            "label": "Clases",
-            "desc": "Listas y asistencia de una clase o sesión."
+            "label": "Recepción",
+            "desc": "Citas y clases del día: llegadas, listas, sin cita y lista de espera."
           },
           "projects": {
             "label": "Proyectos",
@@ -12363,7 +12363,7 @@
           "counter": "Mostrador",
           "floor": "Mesas",
           "door": "Puerta",
-          "classes": "Clases",
+          "classes": "Recepción",
           "projects": "Proyectos",
           "notBuilt": "Este modo todavía no tiene una pantalla."
         },
@@ -12393,9 +12393,9 @@
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "classes": {
-        "title": "Citas y clases",
+        "title": "Recepción",
         "rail": {
-          "label": "Citas y clases",
+          "label": "Recepción",
           "today": "Hoy",
           "sessions": "Sesiones",
           "walkin": "Sin cita",
@@ -12428,6 +12428,7 @@
           "seats": "{taken} de {total} lugares ocupados",
           "roster": "Lista",
           "rosterEmpty": "Nadie tiene lugar en esta sesión todavía.",
+          "unnamed": "Esta entrada no tiene nombre",
           "mark": "Marcar presente",
           "marking": "Marcando...",
           "here": "Presente",

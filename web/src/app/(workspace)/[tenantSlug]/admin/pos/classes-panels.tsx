@@ -219,7 +219,7 @@ function RosterRow({
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2" data-pos-classes-roster={entry.admissionId} data-pos-classes-admitted={entry.admittedCount}>
       <div className="min-w-0">
-        <p className="m-0 font-medium text-foreground">{entry.name ?? copy.today.nobody}</p>
+        <p className="m-0 font-medium text-foreground">{entry.name ?? copy.sessions.unnamed}</p>
         <p className="m-0 text-xs text-muted-foreground">
           {!valid
             ? fill(copy.sessions.notValid, { status: entry.status })
@@ -611,6 +611,7 @@ export function WalkInPanel({
                       key={iso}
                       type="button"
                       aria-pressed={slotIso === iso}
+                      data-pos-classes-slot={iso}
                       className={cn(
                         POS_SECONDARY_ACTION,
                         "min-w-[5.5rem] px-3 tabular-nums",

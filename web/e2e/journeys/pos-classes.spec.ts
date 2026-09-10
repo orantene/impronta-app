@@ -1,5 +1,5 @@
 /**
- * The Appointments & Classes mode of the point of sale, walked from the till.
+ * The Front desk mode (id `classes`) of the point of sale, walked from the till.
  *
  * ONE STORY, IN ORDER. The owner switches the mode on in Settings and enters
  * it from the top bar's own switch. A walk-in is booked onto a free slot and
@@ -67,7 +67,7 @@ async function pickOption(page: Page, selector: string, fragment: string) {
 }
 
 function rail(page: Page, name: RegExp) {
-  return page.getByRole("navigation", { name: /appointments and classes/i }).getByRole("button", { name });
+  return page.getByRole("navigation", { name: /front desk/i }).getByRole("button", { name });
 }
 
 async function bookingByContact(contact: string) {
@@ -88,7 +88,7 @@ async function orderMoney(orderId: string) {
   if (error) throw new Error(error.message);
   const { data: txns, error: tErr } = await db
     .from("booking_transactions")
-    .select("status, gross_amount_cents, paid_via, tendered_cents")
+    .select("status, gross_amount_cents, metadata")
     .eq("order_id", orderId);
   if (tErr) throw new Error(tErr.message);
   const { data: holds, error: hErr } = await db
@@ -98,20 +98,40 @@ async function orderMoney(orderId: string) {
   if (hErr) throw new Error(hErr.message);
   return {
     order: order as { status: string; total_cents: number; source_channel: string | null } | null,
-    paid: ((txns ?? []) as Array<{ status: string; gross_amount_cents: number; paid_via: string | null; tendered_cents: number | null }>).filter((t) => t.status === "paid"),
+    // How the money arrived lives in `metadata.paid_via`, the way the Counter's
+    // own proof reads it (`POS-counter-cash-sale.spec.ts`).
+    paid: ((txns ?? []) as Array<{ status: string; gross_amount_cents: number; metadata: Record<string, unknown> | null }>)
+      .filter((t) => t.status === "paid")
+      .map((t) => ({ ...t, paid_via: (t.metadata ?? {})["paid_via"] ?? null })),
     holds: (holds ?? []) as Array<{ starts_at: string; expires_at: string | null; talent_profile_id: string }>,
   };
 }
 
 let walkIn: { bookingId: string; orderId: string; startsAt: string } | null = null;
+/**
+ * The venue day the appointment story runs on: the first day from today with
+ * at least two free times for the service, read from the till's own slot
+ * list. The fixture person's day fills up as this story is re-run (every run
+ * books two walk-ins that stay booked), so "today" is not assumed.
+ */
+let DAY = 0;
 let walkInTwo: { bookingId: string; startsAt: string } | null = null;
 let night: { title: string; sessionId: string; poolId: string; eventId: string } | null = null;
 
-test("the owner switches Classes on in Settings and enters it from the top bar switch", async ({ page }, testInfo) => {
+test("the owner switches Front desk on in Settings and enters it from the top bar switch", async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/settings`);
-  const classesSwitch = page.getByRole("switch", { name: /classes/i });
-  await expect(classesSwitch).toBeVisible({ timeout: 45_000 });
+  // The settings nav is client state; a click that lands before hydration
+  // is a click on nothing, so it is repeated until the section is the one shown.
+  const posSection = page.locator('[data-settings-section="pos"]');
+  for (let attempt = 0; attempt < 5 && !(await posSection.isVisible()); attempt += 1) {
+    await page.getByRole("button", { name: /^point of sale/i }).click();
+    await page.waitForTimeout(1_000);
+  }
+  await expect(posSection).toBeVisible({ timeout: 30_000 });
+  const modesCard = page.getByTestId("pos-modes-card");
+  const classesSwitch = modesCard.getByRole("switch", { name: /^front desk/i });
+  await expect(classesSwitch).toBeEnabled({ timeout: 45_000 });
   if ((await classesSwitch.getAttribute("aria-checked")) !== "true") {
     await classesSwitch.click();
     await expect(classesSwitch).toHaveAttribute("aria-checked", "true", { timeout: 30_000 });
@@ -127,10 +147,10 @@ test("the owner switches Classes on in Settings and enters it from the top bar s
   await page.goto(`${ADMIN_PREFIX}/admin`);
   const group = page.getByRole("group", { name: /workspace or point of sale/i });
   await expect(group).toBeVisible({ timeout: 45_000 });
-  await group.getByRole("button", { name: /counter|classes/i }).first().click();
+  await group.getByRole("button", { name: /counter|front desk|tables|door/i }).first().click();
   const menu = page.getByRole("menu", { name: /choose a point of sale mode/i });
   await expect(menu).toBeVisible({ timeout: 15_000 });
-  await menu.getByRole("menuitem", { name: /^classes$/i }).click();
+  await menu.getByRole("menuitem", { name: /^front desk$/i }).click();
   await expect(page).toHaveURL(/mode=classes/, { timeout: 45_000 });
   await expect(page.locator("[data-tulala-app-sidebar]")).toHaveCount(0);
   await expect(rail(page, /^today$/i)).toBeVisible({ timeout: 45_000 });
@@ -143,13 +163,17 @@ test("the owner switches Classes on in Settings and enters it from the top bar s
 
 test("a walk-in is booked onto a free time and pays cash at the till", async ({ page }, testInfo) => {
   test.setTimeout(240_000);
-  await openClasses(page);
-  await rail(page, /^walk-in$/i).click();
-  await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
   const slots = page.locator("[data-pos-classes-slots] button");
-  await expect(slots.first()).toBeVisible({ timeout: 45_000 });
-  const count = await slots.count();
-  expect(count, "the walk-in needs at least two free times today for this story").toBeGreaterThanOrEqual(2);
+  let count = 0;
+  for (DAY = 0; DAY < 7; DAY += 1) {
+    await openClasses(page, `&day=${DAY}`);
+    await rail(page, /^walk-in$/i).click();
+    await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
+    await expect(page.locator("[data-pos-classes-slots], [data-pos-classes-notice=refused]").first()).toBeVisible({ timeout: 45_000 });
+    count = await slots.count();
+    if (count >= 2) break;
+  }
+  expect(count, "the walk-in needs a day with at least two free times for this story").toBeGreaterThanOrEqual(2);
   await slots.first().click();
   await page.locator("[data-pos-classes-name]").fill(WALKIN);
   await page.locator("[data-pos-classes-email]").fill(`${WALKIN}@impronta.test`);
@@ -181,7 +205,7 @@ test("a walk-in is booked onto a free time and pays cash at the till", async ({ 
   expect(after.paid[0]!.paid_via).toBe("cash");
   walkIn = { bookingId: booking!.id, orderId: booking!.order_id!, startsAt: booking!.starts_at };
 
-  // Today lists it, in arrival order, paid.
+  // The day lists it, in arrival order, paid.
   await rail(page, /^today$/i).click();
   const row = page.locator(`[data-pos-classes-appointment="${booking!.id}"]`);
   await expect(row).toBeVisible({ timeout: 45_000 });
@@ -195,14 +219,14 @@ test("the customer is checked in; a stale desk is refused in words", async ({ pa
   expect(walkIn).not.toBeNull();
   const w = walkIn!;
   // Desk 1 opens the day first and will act second.
-  await openClasses(page);
+  await openClasses(page, `&day=${DAY}`);
   const stale = page.locator(`[data-pos-classes-appointment="${w.bookingId}"]`);
   await expect(stale).toBeVisible({ timeout: 45_000 });
 
   // Desk 2 checks the customer in.
   const desk2 = await context.newPage();
   await prepareJourneysPage(desk2);
-  await desk2.goto(`${ADMIN_PREFIX}/admin/pos?mode=classes`);
+  await desk2.goto(`${ADMIN_PREFIX}/admin/pos?mode=classes&day=${DAY}`);
   const fresh = desk2.locator(`[data-pos-classes-appointment="${w.bookingId}"]`);
   await expect(fresh).toBeVisible({ timeout: 45_000 });
   await fresh.getByRole("button", { name: /check in/i }).click();
@@ -225,8 +249,8 @@ test("the customer is checked in; a stale desk is refused in words", async ({ pa
 test("a move onto a taken time is refused naming who is busy; a move onto a free time moves person and booking together", async ({ page }, testInfo) => {
   test.setTimeout(300_000);
   const w = walkIn!;
-  // A second walk-in on the same person takes another free time today.
-  await openClasses(page);
+  // A second walk-in on the same person takes another free time on the day.
+  await openClasses(page, `&day=${DAY}`);
   await rail(page, /^walk-in$/i).click();
   await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
   const slots = page.locator("[data-pos-classes-slots] button");
@@ -254,9 +278,23 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   const unchanged = await bookingByContact(WALKIN);
   expect(unchanged?.starts_at).toBe(w.startsAt);
 
-  // Move it onto a free time tomorrow: booking and hold move together.
-  const target = new Date(Date.parse(w.startsAt) + 24 * 60 * 60_000);
-  await input.fill(venueLocalValue(target));
+  // Move it onto a free time the next day: booking and hold move together. The
+  // free time is read from the till's own slot list for that day (the same
+  // reader the walk-in uses), never guessed: an earlier run of this story may
+  // have moved its walk-in onto the guess, and the engine would rightly refuse.
+  await openClasses(page, `&day=${DAY + 1}`);
+  await rail(page, /^walk-in$/i).click();
+  await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
+  const nextDay = page.locator("[data-pos-classes-slots] button");
+  await expect(nextDay.first()).toBeVisible({ timeout: 45_000 });
+  const targetIso = await nextDay.last().getAttribute("data-pos-classes-slot");
+  expect(targetIso, "no free time on the next day").toBeTruthy();
+  const target = new Date(targetIso!);
+  await openClasses(page, `&day=${DAY}`);
+  await rail(page, /^today$/i).click();
+  await expect(row).toBeVisible({ timeout: 45_000 });
+  await row.getByRole("button", { name: /move it/i }).click();
+  await row.locator("[data-pos-classes-move-input]").fill(venueLocalValue(target));
   await row.getByRole("button", { name: /^move it$/i }).click();
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/moved to/i, { timeout: 45_000 });
   await page.screenshot({ path: testInfo.outputPath("moved.png"), fullPage: true });
@@ -265,7 +303,7 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   const money = await orderMoney(w.orderId);
   expect(money.holds.length).toBeGreaterThanOrEqual(1);
   expect(Date.parse(money.holds[0]!.starts_at)).toBe(target.getTime());
-  // And it left today's list.
+  // And it left the day's list.
   await expect(row).toHaveCount(0, { timeout: 45_000 });
 });
 
@@ -287,10 +325,24 @@ test("a class night for today is created through the interface, a walk-in takes 
   const { data: event } = await db.from("events").select("id").eq("tenant_id", JOURNEYS_TENANT_ID).eq("title", NIGHT_TITLE).maybeSingle();
   expect(event).not.toBeNull();
 
-  await page.goto(`${ADMIN_PREFIX}/admin/appts`);
-  await page.getByTestId("appointments-tab-sessions").click();
-  await expect(page.getByText("Schedule a night")).toBeVisible({ timeout: 30_000 });
-  const form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
+  // The schedule form lists events through its own loader after the page
+  // mounts; a transient read failure on the isolated project (the appointments
+  // proof recorded the same) leaves the list short, so the option is waited
+  // for and the page is reopened when it does not come.
+  let form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.goto(`${ADMIN_PREFIX}/admin/appts`);
+    await page.getByTestId("appointments-tab-sessions").click();
+    await expect(page.getByText("Schedule a night")).toBeVisible({ timeout: 30_000 });
+    form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
+    const option = form.getByLabel("Event").locator("option", { hasText: NIGHT_TITLE });
+    try {
+      await expect(option).toHaveCount(1, { timeout: 20_000 });
+      break;
+    } catch (err) {
+      if (attempt === 2) throw err;
+    }
+  }
   await form.getByLabel("Event").selectOption({ label: NIGHT_TITLE });
   // Later today at the venue: two hours from now, on the hour.
   const starts = new Date(Date.now() + 2 * 60 * 60_000);
@@ -388,7 +440,10 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   // A THIRD walk-in seat is refused by the engine at the money step.
   await rail(page, /^walk-in$/i).click();
   await page.getByRole("button", { name: /a seat in a session/i }).click();
-  await expect(page.locator("[data-pos-classes-session-pick] option")).not.toContainText([n.title], { timeout: 45_000 });
+  // The full night is not offered for a seat at all (a select with no such
+  // option, or no select when nothing on the day has seats to sell).
+  await expect(page.locator("[data-pos-classes-session-pick] option", { hasText: n.title })).toHaveCount(0, { timeout: 45_000 });
+  await page.screenshot({ path: testInfo.outputPath("walkin-full-night-not-offered.png"), fullPage: true });
 
   // Offering a place while the night is full: refused, in words.
   await rail(page, /^waitlist$/i).click();
@@ -437,5 +492,8 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   const cardAgain = page.locator(`[data-pos-classes-session="${n.sessionId}"]`);
   await expect(cardAgain.locator("[data-pos-classes-seats]")).toContainText(/3 of 3/, { timeout: 45_000 });
   await expect(cardAgain.locator('[data-pos-classes-roster="waitlist_place"]')).toContainText(WAITER);
+  // The second seat was sold on a name alone (no email, no phone): the roster
+  // still carries that name, on the ticket itself.
+  await expect(cardAgain).toContainText(SEAT_TWO);
   await page.screenshot({ path: testInfo.outputPath("roster-with-waitlist-place.png"), fullPage: true });
 });
