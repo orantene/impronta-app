@@ -1,19 +1,35 @@
 /**
  * pos-types.ts — the prop vocabulary every Counter component shares.
  *
- * Everything here is presentational data plus callbacks. Nothing imports
- * `lib/pos/*` (that tree is `server-only` and owned by another agent's money
- * path); field names track the engine's real shapes closely enough — see
- * `LineRow` in `lib/pos/sale-rows.ts`, `StartCollectionResult` in
- * `lib/pos/collection.ts` — that wiring a future page to these props is a
- * mapping exercise, not a redesign.
+ * Everything here is presentational data plus callbacks. Nothing imports the
+ * live-money `lib/pos/*` tree (`server-only`, owned by another agent's money
+ * path) EXCEPT `lib/pos/modes.ts`, which is pure data with zero runtime
+ * imports of its own (see that file's header) and is already a value import
+ * in `PosFrame.tsx` for the same reason. Field names elsewhere track the
+ * engine's real shapes closely enough — see `LineRow` in
+ * `lib/pos/sale-rows.ts`, `StartCollectionResult` in `lib/pos/collection.ts`
+ * — that wiring a future page to these props is a mapping exercise, not a
+ * redesign.
  */
 
-/** Mirrors `PosMode` from `lib/pos/modes.ts` — kept a plain string union here
- * rather than importing the value, so this module stays free of any runtime
- * dependency beyond React. Components that DO need the real mode metadata
- * (the rail) import `PosMode` as a type from `lib/pos/modes` directly. */
-export type PosCounterDestinationId = "sell" | "orders" | "shifts";
+import type { POS_MODE_META } from "@/lib/pos/modes";
+
+/**
+ * The counter mode's own destination ids, derived from the single source
+ * (`POS_MODE_META.counter.destinations` in `lib/pos/modes.ts`) instead of a
+ * second hand-written union that would drift the moment that mode gains or
+ * loses a screen. `import type` only — erased at compile time, no runtime
+ * cost — keeping this module's own promise of zero runtime deps beyond React.
+ *
+ * `PosModeMeta.destinations` is deliberately typed `readonly string[]`
+ * (every mode's rail shares one field, and their destination sets differ),
+ * so the indexed-access type below resolves to `string` rather than the
+ * three literal ids — narrower typing would require widening `modes.ts`'s
+ * own type, which is out of this task's scope (see `pos-copy.ts` decisions).
+ * `string` is still strictly better than a hand-copied literal union: it can
+ * never go stale relative to the one array `PosFrame.tsx` actually renders.
+ */
+export type PosCounterDestinationId = (typeof POS_MODE_META)["counter"]["destinations"][number];
 
 // ── Catalog / sell surface ───────────────────────────────────────────
 
@@ -81,12 +97,25 @@ export type PosAttachedCustomer = {
 
 export type PosCollectionMethodId = "cash" | "card" | "link" | "pass";
 
-export type PosCollectionMethodState = {
-  readonly id: PosCollectionMethodId;
-  readonly available: boolean;
-  /** Shown in place of the method's own panel when `available` is false. */
-  readonly unavailableReason?: string;
-};
+/**
+ * A discriminated union, not one object with an optional field: an
+ * unavailable method's panel renders `unavailableReason` in place of its own
+ * UI, and a bare `available: false` with no reason produced an empty status
+ * box — exactly where the honest sentence belongs. Making the reason
+ * required on the `available: false` arm turns that into a compile error at
+ * every call site instead of a blank box a person sees live.
+ */
+export type PosCollectionMethodState =
+  | {
+      readonly id: PosCollectionMethodId;
+      readonly available: true;
+    }
+  | {
+      readonly id: PosCollectionMethodId;
+      readonly available: false;
+      /** Shown in place of the method's own panel. Required, not optional. */
+      readonly unavailableReason: string;
+    };
 
 // ── Refusals — the five sentences the engine can hand back at the counter ──
 

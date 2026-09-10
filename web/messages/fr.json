@@ -1048,6 +1048,7 @@
     "pos": {
       "counter": {
         "rail": {
+          "label": "Comptoir",
           "sell": "Vendre",
           "orders": "Commandes",
           "shifts": "Quarts"
@@ -1067,7 +1068,6 @@
         "basket": {
           "title": "Panier",
           "empty": "Ajoutez un article pour commencer cette vente.",
-          "quantity": "Quantité",
           "decrease": "Diminuer la quantité",
           "increase": "Augmenter la quantité",
           "remove": "Retirer",
@@ -1104,9 +1104,12 @@
           "confirmCash": "Confirmer les espèces",
           "keypadClear": "Effacer",
           "cardWaiting": "En attente du lecteur de carte.",
+          "linkReady": "Générez un lien de paiement pour que le client puisse payer.",
+          "passReady": "Ce montant sera déduit du solde du forfait du client.",
           "cardUnavailable": "Aucun lecteur de carte n'est connecté sur cet appareil.",
           "linkUnavailable": "Aucun fournisseur de lien de paiement n'est configuré pour cet espace de travail.",
-          "passUnavailable": "Les crédits de forfait ne sont pas activés pour cet espace de travail."
+          "passUnavailable": "Les crédits de forfait ne sont pas activés pour cet espace de travail.",
+          "methodUnavailableFallback": "Ce mode de paiement n'est pas disponible actuellement."
         },
         "paid": {
           "title": "Payé",

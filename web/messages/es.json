@@ -12060,6 +12060,7 @@
       "shiftOpenHint": "Salir de esta página no cierra el turno.",
       "counter": {
         "rail": {
+          "label": "Mostrador",
           "sell": "Vender",
           "orders": "Pedidos",
           "shifts": "Turnos"
@@ -12079,7 +12080,6 @@
         "basket": {
           "title": "Cesta",
           "empty": "Agrega un artículo para comenzar esta venta.",
-          "quantity": "Cantidad",
           "decrease": "Disminuir cantidad",
           "increase": "Aumentar cantidad",
           "remove": "Quitar",
@@ -12116,9 +12116,12 @@
           "confirmCash": "Confirmar efectivo",
           "keypadClear": "Borrar",
           "cardWaiting": "Esperando el lector de tarjetas.",
+          "linkReady": "Genera un enlace de pago para que el cliente pague.",
+          "passReady": "Este monto se descontará del saldo del pase del cliente.",
           "cardUnavailable": "No hay un lector de tarjetas conectado en este dispositivo.",
           "linkUnavailable": "Este espacio de trabajo no tiene un proveedor de enlaces de pago configurado.",
-          "passUnavailable": "Los créditos de pase no están habilitados para este espacio de trabajo."
+          "passUnavailable": "Los créditos de pase no están habilitados para este espacio de trabajo.",
+          "methodUnavailableFallback": "Este método de pago no está disponible en este momento."
         },
         "paid": {
           "title": "Pagado",

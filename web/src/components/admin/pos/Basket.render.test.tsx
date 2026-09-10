@@ -86,6 +86,48 @@ test("basket totals render with the shared money helper, in all three shipped la
   }
 });
 
+test("each line's own amount comes from the shared line-total helper, guards included", () => {
+  // Regression: the per-line amount used to be hand-multiplied in this
+  // component (`units * unitCents + addonCents`) instead of calling
+  // `lineTotalCents` (lib/cart/totals.ts) — the one place that arithmetic is
+  // supposed to happen. That copy dropped two guards this test pins down:
+  // a non-finite price must clamp to zero, and a negative add-on must clamp
+  // to zero rather than subtract from the line.
+  const t = createTranslator("en");
+  const copy = basketCopy(t);
+  const lines: PosBasketLine[] = [
+    { id: "a", label: "Coffee", units: 2, unitCents: 350, addonCents: 100 },
+    { id: "b", label: "Bad price", units: 1, unitCents: Number.NaN },
+    { id: "c", label: "Negative addon", units: 1, unitCents: 200, addonCents: -50 },
+  ];
+  const markup = renderToStaticMarkup(
+    <Basket
+      lines={lines}
+      currency="USD"
+      discountCode=""
+      onDiscountCodeChange={noop}
+      onApplyDiscount={noop}
+      onIncrement={noop}
+      onDecrement={noop}
+      onRemove={noop}
+      onCharge={noop}
+      copy={copy}
+    />,
+  );
+  assert.ok(
+    markup.includes(formatOrderMoney(2 * 350 + 100, "USD")),
+    "line a (normal add-on) amount wrong",
+  );
+  assert.ok(
+    markup.includes(formatOrderMoney(0, "USD")),
+    "line b (non-finite unit price) did not clamp to zero",
+  );
+  assert.ok(
+    markup.includes(formatOrderMoney(200, "USD")),
+    "line c (negative add-on) did not clamp to zero",
+  );
+});
+
 test("a not-combinable discount shows its own sentence (spec C13 §4)", () => {
   const t = createTranslator("en");
   const copy = basketCopy(t);

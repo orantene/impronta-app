@@ -14,6 +14,14 @@
  * Change-due comes from `changeDueCents` (pos-math.ts), the same function
  * `basket-totals`/`collect-math` tests exercise directly — one calculation,
  * read here and proved there.
+ *
+ * The status box above the method panel is never blank. `PosCollectionMethodState`
+ * makes `unavailableReason` required wherever `available` is `false`, so a
+ * disabled method without a sentence is a type error, not a live empty box.
+ * That still leaves one caller mistake the type system cannot see: passing an
+ * `activeMethod` whose id is not in `methods` at all. `copy.methodUnavailableFallback`
+ * covers that case too, so the box shows an honest sentence regardless of
+ * which of the two ways got it there.
  */
 
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -37,6 +45,10 @@ export type CollectSheetCopy = {
   readonly confirmCash: string;
   readonly keypadClear: string;
   readonly cardWaiting: string;
+  readonly linkReady: string;
+  readonly passReady: string;
+  /** Shown when `activeMethod`'s id has no entry in `methods` at all. */
+  readonly methodUnavailableFallback: string;
 };
 
 const METHOD_LABEL_KEY: Record<PosCollectionMethodId, keyof CollectSheetCopy> = {
@@ -80,6 +92,16 @@ export function CollectSheet({
   const change = changeDueCents(tenderedCents, amountDueCents);
   const short = tenderIsShort(tenderedCents, amountDueCents);
 
+  // Never a blank box: the type system already forbids `available: false`
+  // with no reason (see `PosCollectionMethodState`), but it cannot forbid a
+  // caller passing an `activeMethod` that `methods` never listed — that case
+  // still needs its own honest sentence rather than an empty `<p>`.
+  const unavailableSentence = !active
+    ? copy.methodUnavailableFallback
+    : !active.available
+      ? active.unavailableReason
+      : null;
+
   return (
     <div className={cn(POS_SURFACE, "flex flex-col gap-4 p-4", className)}>
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -112,9 +134,9 @@ export function CollectSheet({
         </span>
       </div>
 
-      {!active || !active.available ? (
+      {unavailableSentence !== null ? (
         <p role="status" className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          {active?.unavailableReason}
+          {unavailableSentence}
         </p>
       ) : activeMethod === "cash" ? (
         <div className="flex flex-col gap-3">
@@ -157,6 +179,14 @@ export function CollectSheet({
       ) : activeMethod === "card" ? (
         <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           {copy.cardWaiting}
+        </p>
+      ) : activeMethod === "link" ? (
+        <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+          {copy.linkReady}
+        </p>
+      ) : activeMethod === "pass" ? (
+        <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+          {copy.passReady}
         </p>
       ) : null}
     </div>

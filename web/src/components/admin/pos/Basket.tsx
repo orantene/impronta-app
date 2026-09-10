@@ -16,6 +16,7 @@
  */
 
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { lineTotalCents } from "@/lib/cart/totals";
 import { cn } from "@/lib/utils";
 import { basketTotals } from "./pos-math";
 import {
@@ -96,9 +97,7 @@ export function Basket({
       ) : (
         <ul className="flex-1 space-y-2 overflow-y-auto">
           {lines.map((line) => {
-            const lineTotal =
-              Math.max(0, Math.trunc(line.units)) * Math.max(0, Math.trunc(line.unitCents)) +
-              (line.addonCents ?? 0);
+            const lineTotal = lineTotalCents(line);
             return (
               <li
                 key={line.id}

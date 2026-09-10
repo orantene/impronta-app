@@ -33,6 +33,18 @@ export function railCopy(t: Translator): Readonly<Record<string, string>> {
   };
 }
 
+/**
+ * The rail's own `aria-label` (the nav region's name, not a destination
+ * label — `PosFrame`'s `destinationLabels` map is keyed by destination id,
+ * never by the mode itself). A separate lookup so `railCopy`'s map keeps
+ * meaning only "destination id → label"; folding a `"counter"` entry into
+ * it would work by luck of not colliding with `sell`/`orders`/`shifts`
+ * today, not by the map's own contract.
+ */
+export function railNavLabel(t: Translator): string {
+  return t("dashboard.pos.counter.rail.label");
+}
+
 export function sellSurfaceCopy(t: Translator): SellSurfaceCopy {
   return {
     searchPlaceholder: t("dashboard.pos.counter.sell.searchPlaceholder"),
@@ -92,6 +104,9 @@ export function collectSheetCopy(t: Translator): CollectSheetCopy {
     confirmCash: t("dashboard.pos.counter.collect.confirmCash"),
     keypadClear: t("dashboard.pos.counter.collect.keypadClear"),
     cardWaiting: t("dashboard.pos.counter.collect.cardWaiting"),
+    linkReady: t("dashboard.pos.counter.collect.linkReady"),
+    passReady: t("dashboard.pos.counter.collect.passReady"),
+    methodUnavailableFallback: t("dashboard.pos.counter.collect.methodUnavailableFallback"),
   };
 }
 

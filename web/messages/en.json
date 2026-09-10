@@ -12060,6 +12060,7 @@
       "shiftOpenHint": "Leaving this page does not close the shift.",
       "counter": {
         "rail": {
+          "label": "Counter",
           "sell": "Sell",
           "orders": "Orders",
           "shifts": "Shifts"
@@ -12079,7 +12080,6 @@
         "basket": {
           "title": "Basket",
           "empty": "Add an item to start this sale.",
-          "quantity": "Quantity",
           "decrease": "Decrease quantity",
           "increase": "Increase quantity",
           "remove": "Remove",
@@ -12116,9 +12116,12 @@
           "confirmCash": "Confirm cash",
           "keypadClear": "Clear",
           "cardWaiting": "Waiting for the card reader.",
+          "linkReady": "Generate a payment link for the customer to pay.",
+          "passReady": "This amount will be deducted from the customer's pass balance.",
           "cardUnavailable": "No card reader is connected on this device.",
           "linkUnavailable": "This workspace has no payment link provider set up.",
-          "passUnavailable": "Pass credits are not enabled for this workspace."
+          "passUnavailable": "Pass credits are not enabled for this workspace.",
+          "methodUnavailableFallback": "This payment method is not available right now."
         },
         "paid": {
           "title": "Paid",

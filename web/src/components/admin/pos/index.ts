@@ -43,6 +43,7 @@ export { basketTotals, changeDueCents, tenderIsShort } from "./pos-math";
 export type { Translator } from "./translator";
 export {
   railCopy,
+  railNavLabel,
   sellSurfaceCopy,
   basketCopy,
   customerPanelCopy,

@@ -20,6 +20,16 @@ import { cn } from "@/lib/utils";
 
 export type PosFrameProps = {
   readonly mode: PosMode;
+  /**
+   * The rail's own name, translated — this labels the `<nav>` region itself,
+   * never looked up from `destinationLabels` (that map is keyed by
+   * destination id, e.g. "sell"/"orders"/"shifts", and a mode id such as
+   * "counter" is never one of those keys, so a lookup there can never hit).
+   * Callers build this with `railNavLabel` (`pos-copy.ts`), which reads it
+   * from the message catalogue in the request's own language rather than
+   * falling back to `POS_MODE_META[mode].label`, which is English only.
+   */
+  readonly navLabel: string;
   readonly activeDestination: string;
   readonly onSelectDestination: (destinationId: string) => void;
   /** English fallback per destination id; pass a translated map to localize. */
@@ -30,6 +40,7 @@ export type PosFrameProps = {
 
 export function PosFrame({
   mode,
+  navLabel,
   activeDestination,
   onSelectDestination,
   destinationLabels,
@@ -42,7 +53,7 @@ export function PosFrame({
   return (
     <div className={cn("flex h-full min-h-[560px] w-full overflow-hidden rounded-2xl border border-border bg-background", className)}>
       <nav
-        aria-label={destinationLabels[mode] ?? meta.label}
+        aria-label={navLabel}
         className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-card p-3"
       >
         {destinations.map((destinationId) => {

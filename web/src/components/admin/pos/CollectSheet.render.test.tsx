@@ -12,12 +12,11 @@ import { markupIncludesText } from "./test-html-helpers";
 const LOCALES = ["en", "es", "fr"] as const;
 
 function methods(unavailable: Partial<Record<"card" | "link" | "pass", string>>): PosCollectionMethodState[] {
-  return [
-    { id: "cash", available: true },
-    { id: "card", available: !("card" in unavailable), unavailableReason: unavailable.card },
-    { id: "link", available: !("link" in unavailable), unavailableReason: unavailable.link },
-    { id: "pass", available: !("pass" in unavailable), unavailableReason: unavailable.pass },
-  ];
+  const build = (id: "card" | "link" | "pass"): PosCollectionMethodState =>
+    id in unavailable
+      ? { id, available: false, unavailableReason: unavailable[id] ?? "" }
+      : { id, available: true };
+  return [{ id: "cash", available: true }, build("card"), build("link"), build("pass")];
 }
 
 test("cash always renders first regardless of the order methods are passed in", () => {
@@ -91,6 +90,88 @@ test("each of card/link/pass can independently show its own disabled sentence", 
       />,
     );
     assert.ok(markupIncludesText(markup, unavailableCopy[id]), `${id} disabled sentence missing`);
+  }
+});
+
+test("the active method's own status box is never blank when it is not in the methods list at all", () => {
+  // Regression: `active?.unavailableReason` used to render nothing here,
+  // because `active` itself is `undefined` when `activeMethod`'s id has no
+  // entry in `methods` — the same empty status box a caller can also hit by
+  // marking a method unavailable with no reason (now impossible to
+  // construct at all: `PosCollectionMethodState`'s `available: false` arm
+  // requires `unavailableReason`, so that half of this finding is closed by
+  // the type, not by this render test).
+  for (const locale of LOCALES) {
+    const t = createTranslator(locale);
+    const copy = collectSheetCopy(t);
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={500}
+        currency="USD"
+        methods={[{ id: "cash", available: true }]}
+        activeMethod="pass"
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    assert.ok(
+      markupIncludesText(markup, copy.methodUnavailableFallback),
+      `${locale}: expected the fallback sentence when the active method is not listed`,
+    );
+    const statusMatch = markup.match(/<p role="status"[^>]*>([^<]*)<\/p>/);
+    assert.ok(statusMatch, `${locale}: no status box rendered at all`);
+    assert.notEqual(statusMatch![1].trim(), "", `${locale}: status box rendered but was blank`);
+  }
+});
+
+test("an available payment link renders its own ready state, not a blank panel", () => {
+  for (const locale of LOCALES) {
+    const t = createTranslator(locale);
+    const copy = collectSheetCopy(t);
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={500}
+        currency="USD"
+        methods={[
+          { id: "cash", available: true },
+          { id: "link", available: true },
+        ]}
+        activeMethod="link"
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    assert.ok(markupIncludesText(markup, copy.linkReady), `${locale}: link ready state missing`);
+  }
+});
+
+test("an available pass credit renders its own ready state, not a blank panel", () => {
+  for (const locale of LOCALES) {
+    const t = createTranslator(locale);
+    const copy = collectSheetCopy(t);
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={500}
+        currency="USD"
+        methods={[
+          { id: "cash", available: true },
+          { id: "pass", available: true },
+        ]}
+        activeMethod="pass"
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    assert.ok(markupIncludesText(markup, copy.passReady), `${locale}: pass ready state missing`);
   }
 });
 
