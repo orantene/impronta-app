@@ -388,7 +388,11 @@ const BUDGETS: Record<string, number> = {
   // because the old ones were describing something that did not exist. ES_TEXT
   // is a flat map keyed by the English literal, so a translated string has
   // nowhere to live except here.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3564,
+  // T2-mobile: +19 lines — Spanish entries for the registry-driven labels
+  // and More-sheet rows MobileBottomNav.tsx now needs (Appointments,
+  // Reservations, Spaces, Issues, People, Events, Owner, Assistant, Menu and
+  // catalog, Orders, Open POS, Book, Bookable, Applications, Everyone).
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3583,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
