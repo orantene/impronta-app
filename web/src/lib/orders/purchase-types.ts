@@ -171,7 +171,13 @@ export type PurchaseResult =
   | {
       ok: true;
       orderId: string;
-      customerId: string;
+      /**
+       * Null on an ANONYMOUS purchase: money does not require a name, and the
+       * buyer who gave none is reached through `orders.receipt_code` at
+       * `/r/<code>`. A caller that needs a customer (a reservation, a saved
+       * card) must check for null rather than assume one.
+       */
+      customerId: string | null;
       totalCents: number;
       /** What the pipeline decided to collect now. Derived, never sent. */
       collectCents: number;

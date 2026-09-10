@@ -41,6 +41,9 @@ import {
   blankOffering,
   offeringPriceLabel,
   validateOffering,
+  IDENTITY_REASONS,
+  IDENTITY_REASON_LABELS,
+  type IdentityReason,
   type TalentOffering,
   type OfferingKind,
   type OfferingOwner,
@@ -588,6 +591,46 @@ function OfferingForm({
               />
               Require an account to book
             </label>
+            {/*
+              Identity is a property of the PRODUCT, not of the money. A cash
+              walk-in buying a coffee is never asked for a name; a ticket the
+              door checks always is. Ticking this is the only thing that makes
+              a sale refuse for want of one, so the reason is asked for in the
+              same breath and never stored on its own.
+            */}
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.inkMuted, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={value.requiresIdentity}
+                disabled={saving}
+                onChange={(e) =>
+                  onPatch(
+                    e.target.checked
+                      ? { requiresIdentity: true, identityReason: value.identityReason ?? "attendee_names" }
+                      : { requiresIdentity: false, identityReason: null },
+                  )
+                }
+                style={{ accentColor: C.accentDeep, width: 15, height: 15 }}
+              />
+              Needs the buyer&rsquo;s name (email or phone), whatever it costs
+            </label>
+            {value.requiresIdentity && (
+              <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.inkMuted, paddingLeft: 22 }}>
+                Why
+                <select
+                  value={value.identityReason ?? "attendee_names"}
+                  disabled={saving}
+                  onChange={(e) => onPatch({ identityReason: e.target.value as IdentityReason })}
+                  style={{ ...inputStyle, width: "auto", flex: "1 1 auto", minWidth: 0 }}
+                >
+                  {IDENTITY_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {IDENTITY_REASON_LABELS[reason]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         )}
       </div>

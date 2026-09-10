@@ -26,7 +26,17 @@ export type Catalog =
       ok: true;
       policies: Map<string, OfferingPolicy>;
       /** Columns only the slot gate needs, kept off the priced shape. */
-      rawOfferings: Map<string, { kind: string; durationMinutes: number | null; talentProfileId: string | null }>;
+      rawOfferings: Map<
+        string,
+        {
+          kind: string;
+          durationMinutes: number | null;
+          talentProfileId: string | null;
+          /** `talent_offerings.requires_identity` — the product asking for a name. */
+          requiresIdentity: boolean;
+          identityReason: string | null;
+        }
+      >;
       offerings: Map<string, PricedOffering>;
       variants: Map<string, PricedVariant>;
       addons: Map<string, PricedAddon>;
@@ -39,7 +49,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     .select(
       "id, tenant_id, title, status, price_type, amount_cents, currency, talent_profile_id, " +
         "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
-        "kind, duration_minutes",
+        "kind, duration_minutes, requires_identity, identity_reason",
     )
     .in("id", offeringIds);
 
@@ -82,13 +92,21 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     allow_pay_in_person: boolean | null;
     require_account_to_book: boolean | null;
     cancellation_hours: number | null;
+    requires_identity: boolean | null;
+    identity_reason: string | null;
   };
 
   const policies = new Map<string, OfferingPolicy>();
   const offerings = new Map<string, PricedOffering>();
   const rawOfferings = new Map<
     string,
-    { kind: string; durationMinutes: number | null; talentProfileId: string | null }
+    {
+      kind: string;
+      durationMinutes: number | null;
+      talentProfileId: string | null;
+      requiresIdentity: boolean;
+      identityReason: string | null;
+    }
   >();
 
   for (const row of (offeringRows ?? []) as unknown as OfferingRow[]) {
@@ -132,6 +150,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       durationMinutes:
         (row as unknown as { duration_minutes?: number | null }).duration_minutes ?? null,
       talentProfileId: row.talent_profile_id,
+      requiresIdentity: row.requires_identity === true,
+      identityReason: row.identity_reason ?? null,
     });
   }
 

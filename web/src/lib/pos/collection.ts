@@ -15,6 +15,7 @@ import { completeZeroTotalOrder, type OnOrderPaid } from "@/lib/orders/complete-
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
+import { identityVerdict, type IdentityLine } from "@/lib/orders/identity-requirement";
 import { releaseCapacity } from "@/lib/capacity";
 import {
   submitOrderToPreparation,
@@ -51,6 +52,87 @@ async function collectedPaidCents(
     0,
   );
   return { ok: true, cents };
+}
+
+/**
+ * The order's lines, with the identity demand of the offering each one sells.
+ *
+ * Read here rather than derived from the draft in memory because the OFFERING
+ * is the authority and it can have been edited since the line was added. The
+ * decision itself is `lib/orders/identity-requirement`, which is pure and
+ * shared with the public purchase pipeline so the counter and the web cannot
+ * answer the same question two ways.
+ */
+async function identityLinesForOrder(
+  admin: Admin,
+  orderId: string,
+): Promise<{ ok: true; lines: IdentityLine[] } | { ok: false }> {
+  const { data: lineRows, error: lineErr } = await admin
+    .from("order_lines")
+    .select("offering_id, label, sort_order")
+    .eq("order_id", orderId)
+    .order("sort_order", { ascending: true });
+  if (lineErr) {
+    logServerError("pos.identityLinesForOrder.lines", lineErr);
+    return { ok: false };
+  }
+  const rows = (lineRows ?? []) as Array<{
+    offering_id: string | null;
+    label: string | null;
+    sort_order?: number | null;
+  }>;
+  const offeringIds = [...new Set(rows.map((r) => r.offering_id).filter((id): id is string => !!id))];
+  if (offeringIds.length === 0) return { ok: true, lines: [] };
+
+  const { data: offeringRows, error: offErr } = await admin
+    .from("talent_offerings")
+    .select("id, title, requires_identity, identity_reason")
+    .in("id", offeringIds);
+  if (offErr) {
+    logServerError("pos.identityLinesForOrder.offerings", offErr);
+    return { ok: false };
+  }
+  const byId = new Map(
+    ((offeringRows ?? []) as Array<{
+      id: string;
+      title: string | null;
+      requires_identity: boolean | null;
+      identity_reason: string | null;
+    }>).map((o) => [o.id, o]),
+  );
+
+  return {
+    ok: true,
+    lines: rows.map((r) => {
+      const offering = r.offering_id ? byId.get(r.offering_id) : undefined;
+      return {
+        offeringId: r.offering_id ?? null,
+        offeringTitle: offering?.title ?? r.label ?? null,
+        requiresIdentity: offering?.requires_identity === true,
+        identityReason: offering?.identity_reason ?? null,
+      };
+    }),
+  };
+}
+
+/**
+ * May this order take money without a customer row?
+ *
+ * `unavailable` means the READ failed. It is not a verdict about the buyer and
+ * must never be reported as one, and it must never lead to a second attempt at
+ * the same write.
+ */
+async function anonymousSaleVerdict(
+  admin: Admin,
+  orderId: string,
+): Promise<{ ok: true } | { ok: false; reason: "no_contact" | "unavailable"; error: string }> {
+  const read = await identityLinesForOrder(admin, orderId);
+  if (!read.ok) {
+    return { ok: false, reason: "unavailable", error: "Could not check what this sale needs." };
+  }
+  const verdict = identityVerdict({ hasCustomer: false, lines: read.lines });
+  if (verdict.ok) return { ok: true };
+  return { ok: false, reason: "no_contact", error: verdict.message };
 }
 
 async function openShiftId(admin: Admin, tenantId: string): Promise<string | null> {
@@ -209,23 +291,24 @@ export async function startCollection(
   }
 
   let customerId = row.customer_id;
-  // `orders_identified_before_payment`: customer_id may be null ONLY while
-  // status = draft, OR on a zero-total order that still carries a guest
-  // session (R08 counter registrations). Money still needs a name.
+  // MONEY DOES NOT REQUIRE A NAME. A PRODUCT MAY.
+  //
+  // This used to refuse any paid sale without an email or a phone, which made
+  // the commonest transaction on a counter impossible: an anonymous cash
+  // walk-in. The retrieval anchor for that sale is `orders.receipt_code`,
+  // printed on the slip and resolvable at `/r/<code>` by whoever holds it, and
+  // `orders_identified_before_payment` now accepts exactly that shape (a guest
+  // session plus a receipt code).
+  //
+  // What still refuses is a LINE whose offering says it needs a name: a ticket
+  // the door checks, something to be delivered, credit spent later. That
+  // decision is the offering's, not the till's.
   if (!customerId) {
     const email = input.contact?.email ?? null;
     const phone = input.contact?.phone ?? null;
     if (!email && !phone) {
-      if (row.total_cents === 0) {
-        // Anonymous free sale: guest_session_id on the draft is the identity.
-        // Do not invent a contact.
-      } else {
-        return {
-          ok: false,
-          reason: "no_contact",
-          error: "Collecting money needs an email or a phone.",
-        };
-      }
+      const allowed = await anonymousSaleVerdict(admin, row.id);
+      if (!allowed.ok) return { ok: false, reason: allowed.reason, error: allowed.error };
     } else {
       if (!deps.ensureCustomer) {
         return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
@@ -451,8 +534,11 @@ export async function recordVerifiedCollection(
   if (row.tenant_id !== input.tenantId) {
     return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
   }
+  // Same rule as `startCollection`: the sale needs a name only when something
+  // in it does. A verified cash collection on an anonymous walk-in is legal.
   if (!row.customer_id) {
-    return { ok: false, reason: "no_contact", error: "Collecting money needs an email or a phone." };
+    const allowed = await anonymousSaleVerdict(admin, row.id);
+    if (!allowed.ok) return { ok: false, reason: allowed.reason, error: allowed.error };
   }
   const settle = deps.settle ?? settleAtDoor;
   const settled = await settle(admin as never, {
