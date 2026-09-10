@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { evaluateGuestInstantPolicy } from "./instant-book-guest-policy";
+import {
+  evaluateGuestInstantPolicy,
+  resolveGuestBookingIdentity,
+} from "./instant-book-guest-policy";
 import { runResolvedInstantBook } from "./instant-book-run";
 
 describe("evaluateGuestInstantPolicy", () => {
@@ -95,7 +98,7 @@ describe("runResolvedInstantBook", () => {
 
   it("guest instant creates the booking and notifies the guest", async () => {
     const notified: string[] = [];
-    const booked: string[] = [];
+    const booked: Array<string | null> = [];
     const res = await runResolvedInstantBook({
       actor: guestActor,
       payload,
@@ -181,5 +184,112 @@ describe("runResolvedInstantBook", () => {
       if (!res.ok && reason === "needs_auth") assert.equal(res.needsAuth, true);
     }
     assert.equal(created, 0);
+  });
+});
+
+describe("resolveGuestBookingIdentity", () => {
+  /**
+   * D-100. A customer could not finish booking: /book → slot → "Confirm this
+   * time" answered "Add your name and email to book." and stayed on /book,
+   * with the name and the email in the request body.
+   *
+   * The chain: customer auth retirement made `ensureGuestClientByEmail` stop
+   * minting `auth.users`, so a first-time guest comes back
+   * `{ status: "unlinked", clientUserId: null }` BY DESIGN.
+   * `resolveInstantBookActor` still required an id and mapped that null onto a
+   * validation refusal. Every FIRST-TIME customer was refused; only someone who
+   * already had an account could buy. No gate caught it because the surviving
+   * unit tests all handed the orchestrator an actor that already had a user id.
+   */
+  it("a first-time guest with no account books as a guest, not a refusal", () => {
+    const res = resolveGuestBookingIdentity({
+      email: "new-customer@example.com",
+      name: "Ada Lovelace",
+      phone: null,
+      clientUserId: null,
+    });
+    assert.deepEqual(res, {
+      ok: true,
+      userId: null,
+      contactName: "Ada Lovelace",
+      contactEmail: "new-customer@example.com",
+      contactPhone: null,
+    });
+  });
+
+  it("a returning guest keeps the account their orders already sit on", () => {
+    const res = resolveGuestBookingIdentity({
+      email: "Returning@Example.com ",
+      name: " Bea ",
+      phone: "+525500000000",
+      clientUserId: "user-42",
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) {
+      assert.equal(res.userId, "user-42");
+      assert.equal(res.contactEmail, "returning@example.com");
+      assert.equal(res.contactName, "Bea");
+      assert.equal(res.contactPhone, "+525500000000");
+    }
+  });
+
+  it("a blank client id is no account, never an empty-string account", () => {
+    const res = resolveGuestBookingIdentity({
+      email: "c@example.com",
+      name: "",
+      phone: null,
+      clientUserId: "   ",
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) {
+      assert.equal(res.userId, null);
+      // No name given falls back to the one thing we can reach them at.
+      assert.equal(res.contactName, "c@example.com");
+    }
+  });
+
+  it("no reachable email is the ONLY thing that refuses here", () => {
+    assert.deepEqual(
+      resolveGuestBookingIdentity({
+        email: "not-an-email",
+        name: "Ada",
+        phone: null,
+        clientUserId: null,
+      }),
+      { ok: false, reason: "validation" },
+    );
+  });
+
+  it("an accountless guest still reaches checkout through the orchestrator", async () => {
+    const seen: Array<string | null> = [];
+    const res = await runResolvedInstantBook({
+      actor: {
+        kind: "guest",
+        userId: null,
+        contactName: "Ada",
+        contactEmail: "new-customer@example.com",
+        contactPhone: null,
+      },
+      payload: {
+        talentProfileId: "tal-1",
+        tenantId: "ten-1",
+        offeringId: "off-1",
+        payInPerson: false,
+      },
+      currencyCode: "USD",
+      createBooking: async (engineInput) => {
+        seen.push(engineInput.userId);
+        return {
+          ok: true,
+          inquiryId: "inq-guest",
+          bookingId: "bk-guest",
+          checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test",
+        };
+      },
+      notifyGuest: async () => {},
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) assert.equal(res.redirectPath, "https://checkout.stripe.com/c/pay/cs_test");
+    assert.deepEqual(seen, [null]);
   });
 });

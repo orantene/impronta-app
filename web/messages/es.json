@@ -1400,7 +1400,10 @@
       "unavailable": "Los horarios no están disponibles ahora.",
       "confirmInstant": "Confirmar este horario",
       "confirming": "Confirmando…",
-      "requestInstead": "Pedir este horario en su lugar"
+      "requestInstead": "Pedir este horario en su lugar",
+      "pickTimeFirst": "Elige un horario y luego confirma.",
+      "notBookableOnline": "Este servicio aun no admite reservas en linea. Envia una solicitud en su lugar.",
+      "confirmFailed": "No pudimos confirmar esa reserva. Intenta de nuevo."
     },
     "instantBook": {
       "guestName": "Tu nombre",

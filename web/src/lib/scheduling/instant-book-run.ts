@@ -20,7 +20,8 @@ export type InstantBookRunPayload = {
 
 export type InstantBookRunActor = {
   kind: "session" | "guest";
-  userId: string;
+  /** `null` for a guest with no account. Never invented; see instant-book-guest-policy.ts. */
+  userId: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;

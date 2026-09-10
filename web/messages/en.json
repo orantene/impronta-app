@@ -1400,7 +1400,10 @@
       "unavailable": "Times are not available right now.",
       "confirmInstant": "Confirm this time",
       "confirming": "Confirming…",
-      "requestInstead": "Request this time instead"
+      "requestInstead": "Request this time instead",
+      "pickTimeFirst": "Pick a time first, then confirm.",
+      "notBookableOnline": "This service is not set up for online booking yet. Send a request instead.",
+      "confirmFailed": "We could not confirm that booking. Please try again."
     },
     "instantBook": {
       "guestName": "Your name",
