@@ -42,6 +42,30 @@ function num(value: number | string | null | undefined): number {
   return 0;
 }
 
+/**
+ * The pool key a line sells against: its variant's `pool_key` when the line
+ * names a variant, `DEFAULT_TIER_KEY` otherwise. A variant with no pool_key
+ * (a plain option, not a tier) also falls back to the default: it is an
+ * option on a class place, not a tier of its own.
+ */
+async function tierKeyForLine(
+  admin: Admin,
+  variantId: string | null,
+): Promise<{ ok: true; key: string } | { ok: false; reason: "unavailable"; error: string }> {
+  if (!variantId) return { ok: true, key: DEFAULT_TIER_KEY };
+  const { data, error } = await admin
+    .from("talent_offering_variants")
+    .select("id, pool_key")
+    .eq("id", variantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("pos.holdCapacity.variant", error);
+    return { ok: false, reason: "unavailable", error: "Could not hold those places." };
+  }
+  const key = (data as { pool_key?: string | null } | null)?.pool_key;
+  return { ok: true, key: typeof key === "string" && key ? key : DEFAULT_TIER_KEY };
+}
+
 export async function holdDraftOrderCapacity(
   admin: Admin,
   input: { tenantId: string; orderId: string; actorUserId?: string | null },
@@ -70,7 +94,7 @@ export async function holdDraftOrderCapacity(
 
   const { data: lineRows, error: lineErr } = await admin
     .from("order_lines")
-    .select("id, offering_id, session_id, units")
+    .select("id, offering_id, session_id, variant_id, units")
     .eq("order_id", input.orderId);
   if (lineErr) {
     logServerError("pos.holdCapacity.lines", lineErr);
@@ -80,6 +104,7 @@ export async function holdDraftOrderCapacity(
     id: string;
     offering_id: string | null;
     session_id: string | null;
+    variant_id: string | null;
     units: number | string;
   }>;
   const lineIds = lines.map((l) => l.id);
@@ -151,13 +176,23 @@ export async function holdDraftOrderCapacity(
       }
       startsAt = sess.starts_at;
       endsAt = sess.ends_at;
+      // WHICH TIER'S POOL. A session's pools are keyed by tier (`pool_key`),
+      // and an event's tiers are its offering's variants, each carrying the
+      // pool_key it sells against ("ga", "vip", "door"). A line that names a
+      // variant must hold THAT tier's pool: holding the "default" key for a
+      // VIP line would refuse every tiered event as "not selling places"
+      // while its VIP pool sat half empty, and the one event the door sold
+      // through the counter could never be collected. A line with no
+      // variant is a plain class place and keeps the default tier.
+      const tierKey = await tierKeyForLine(admin, line.variant_id);
+      if (!tierKey.ok) return tierKey;
       const { data: pool, error: poolErr } = await admin
         .from("capacity_pools")
         .select("id")
         .eq("tenant_id", input.tenantId)
         .eq("subject_kind", "session_tier")
         .eq("subject_id", sess.id)
-        .eq("pool_key", DEFAULT_TIER_KEY)
+        .eq("pool_key", tierKey.key)
         .maybeSingle();
       if (poolErr) {
         logServerError("pos.holdCapacity.sessionPool", poolErr);

@@ -12392,6 +12392,98 @@
       },
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
+      "door": {
+        "rail": {
+          "label": "Door",
+          "checkin": "Gate",
+          "tickets": "Box office"
+        },
+        "title": "Tickets and admissions",
+        "clock": "Times are on the venue's clock ({zone}).",
+        "tonight": "Tonight",
+        "comingUp": "Coming up",
+        "noSessions": "No event is scheduled at this door in the next two weeks. Schedule a night from the Sessions page and it appears here.",
+        "loading": "Loading the door...",
+        "loadFailed": "Could not load the door. Check the connection and try again.",
+        "counts": {
+          "admitted": "{admitted} in",
+          "expected": "{expected} expected",
+          "capacity": "{capacity} capacity",
+          "noPool": "no capacity set"
+        },
+        "pickSession": "Choose tonight's event to open its gate.",
+        "changeSession": "Change event",
+        "scan": {
+          "label": "Scan or type a ticket code",
+          "placeholder": "Point the scanner here, or type the code from the ticket",
+          "submit": "Admit",
+          "ready": "Ready for the next ticket"
+        },
+        "verdict": {
+          "admitted": "In. Welcome.",
+          "admittedParty": "In. {admitted} of {party} through the door.",
+          "admittedWasNoShow": "In. This ticket had been marked a no-show; tell the desk.",
+          "alreadyIn": "Already admitted. {admitted} of {party} came in on this ticket earlier.",
+          "superseded": "This is an old ticket. It was re-issued; ask for the newer one.",
+          "wrongNightDated": "Wrong night. This ticket is for {date}.",
+          "wrongNight": "Not for tonight. This ticket is not on this door's list.",
+          "refunded": "Refunded. This ticket was paid back and no longer admits.",
+          "cancelled": "Cancelled. This ticket no longer admits.",
+          "forged": "Not a valid ticket. The code does not check out.",
+          "unknown": "Unknown code. No ticket for this event carries it.",
+          "tooMany": "Only {remaining} left on this ticket.",
+          "misconfigured": "The door is not set up on this server. Tell the venue, not the guest.",
+          "engineError": "Could not reach the door. Nothing was admitted; try again."
+        },
+        "list": {
+          "title": "Guest list",
+          "search": "Find a guest",
+          "searchPlaceholder": "Name, email or the start of a ticket id",
+          "empty": "Nobody on the list yet.",
+          "noMatch": "Nobody matches that.",
+          "walkUp": "Walk-up",
+          "party": "Party of {size}",
+          "ticket": "Ticket",
+          "in": "In",
+          "partial": "{admitted} of {party} in",
+          "notYet": "Not yet",
+          "noShow": "Marked no-show",
+          "admit": "Admit",
+          "admitMany": "Admit {count}",
+          "status": {
+            "void": "Cancelled",
+            "refunded": "Refunded"
+          }
+        },
+        "sell": {
+          "gateTitle": "Walk-up: sell and admit",
+          "boxTitle": "Sell a ticket",
+          "boxIntro": "The ticket is paid at this till and issued with a code the holder shows at the gate.",
+          "session": "Event",
+          "tier": "Ticket",
+          "tierNoPool": "no seats set for tonight",
+          "noTiers": "This event has no ticket tier the door can sell. Add one on the event's Tickets tab.",
+          "holderName": "Name on the ticket",
+          "holderNamePlaceholder": "Optional; helps the guest list",
+          "email": "Email",
+          "phone": "Phone",
+          "contactHint": "Some tickets need the buyer's email or phone before they can be sold.",
+          "open": "Open the sale",
+          "cancel": "Cancel this sale",
+          "collectGate": "Take cash and admit",
+          "collectBox": "Take cash",
+          "openedFor": "Sale open: {label}",
+          "issued": "Ticket issued",
+          "issuedMany": "{count} tickets issued",
+          "code": "Ticket code",
+          "codeUnavailable": "No code could be signed on this server; find the guest by name at the gate.",
+          "receipt": "Receipt",
+          "next": "Next guest",
+          "admittedNow": "Admitted at the gate",
+          "cashOnly": "Only cash is taken at this door. Other tenders are collected at the counter."
+        },
+        "noScanOut": "Leaving is not recorded: the engine has no scan-out yet."
+      },
       "floor": {
         "rail": {
           "label": "Tables",

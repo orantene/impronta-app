@@ -1335,6 +1335,98 @@
       },
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
+      "door": {
+        "rail": {
+          "label": "Porte",
+          "checkin": "Entrée",
+          "tickets": "Billetterie"
+        },
+        "title": "Billets et admissions",
+        "clock": "Les heures sont celles du lieu ({zone}).",
+        "tonight": "Ce soir",
+        "comingUp": "À venir",
+        "noSessions": "Aucun événement n'est programmé à cette porte dans les deux prochaines semaines. Programmez une soirée depuis la page Sessions et elle apparaîtra ici.",
+        "loading": "Chargement de la porte...",
+        "loadFailed": "Impossible de charger la porte. Vérifiez la connexion et réessayez.",
+        "counts": {
+          "admitted": "{admitted} entrés",
+          "expected": "{expected} attendus",
+          "capacity": "{capacity} de capacité",
+          "noPool": "aucune capacité définie"
+        },
+        "pickSession": "Choisissez l'événement de ce soir pour ouvrir son entrée.",
+        "changeSession": "Changer d'événement",
+        "scan": {
+          "label": "Scannez ou saisissez le code du billet",
+          "placeholder": "Pointez le scanner ici ou saisissez le code du billet",
+          "submit": "Admettre",
+          "ready": "Prêt pour le billet suivant"
+        },
+        "verdict": {
+          "admitted": "Entré. Bienvenue.",
+          "admittedParty": "Entré. {admitted} sur {party} ont passé la porte.",
+          "admittedWasNoShow": "Entré. Ce billet avait été marqué absent ; prévenez l'accueil.",
+          "alreadyIn": "Déjà admis. {admitted} sur {party} sont entrés plus tôt avec ce billet.",
+          "superseded": "Ce billet est ancien. Il a été réémis ; demandez le nouveau.",
+          "wrongNightDated": "Mauvaise soirée. Ce billet est pour le {date}.",
+          "wrongNight": "Pas pour ce soir. Ce billet n'est pas sur la liste de cette porte.",
+          "refunded": "Remboursé. Ce billet a été remboursé et ne donne plus accès.",
+          "cancelled": "Annulé. Ce billet ne donne plus accès.",
+          "forged": "Billet non valide. Le code ne correspond pas.",
+          "unknown": "Code inconnu. Aucun billet de cet événement ne le porte.",
+          "tooMany": "Il ne reste que {remaining} sur ce billet.",
+          "misconfigured": "La porte n'est pas configurée sur ce serveur. Prévenez le lieu, pas l'invité.",
+          "engineError": "Impossible de joindre la porte. Personne n'a été admis ; réessayez."
+        },
+        "list": {
+          "title": "Liste des invités",
+          "search": "Trouver un invité",
+          "searchPlaceholder": "Nom, e-mail ou début de l'identifiant du billet",
+          "empty": "Personne sur la liste pour l'instant.",
+          "noMatch": "Personne ne correspond.",
+          "walkUp": "Sans réservation",
+          "party": "Groupe de {size}",
+          "ticket": "Billet",
+          "in": "Entré",
+          "partial": "{admitted} sur {party} entrés",
+          "notYet": "Pas encore",
+          "noShow": "Marqué absent",
+          "admit": "Admettre",
+          "admitMany": "Admettre {count}",
+          "status": {
+            "void": "Annulé",
+            "refunded": "Remboursé"
+          }
+        },
+        "sell": {
+          "gateTitle": "Sans réservation : vendre et admettre",
+          "boxTitle": "Vendre un billet",
+          "boxIntro": "Le billet est encaissé à cette caisse et émis avec un code que le porteur présente à l'entrée.",
+          "session": "Événement",
+          "tier": "Billet",
+          "tierNoPool": "aucune place définie pour ce soir",
+          "noTiers": "Cet événement n'a aucun type de billet que la porte puisse vendre. Ajoutez-en un dans l'onglet Billets de l'événement.",
+          "holderName": "Nom sur le billet",
+          "holderNamePlaceholder": "Facultatif ; utile pour la liste des invités",
+          "email": "E-mail",
+          "phone": "Téléphone",
+          "contactHint": "Certains billets exigent l'e-mail ou le téléphone de l'acheteur avant la vente.",
+          "open": "Ouvrir la vente",
+          "cancel": "Annuler cette vente",
+          "collectGate": "Encaisser en espèces et admettre",
+          "collectBox": "Encaisser en espèces",
+          "openedFor": "Vente ouverte : {label}",
+          "issued": "Billet émis",
+          "issuedMany": "{count} billets émis",
+          "code": "Code du billet",
+          "codeUnavailable": "Aucun code n'a pu être signé sur ce serveur ; retrouvez l'invité par son nom à l'entrée.",
+          "receipt": "Reçu",
+          "next": "Invité suivant",
+          "admittedNow": "Admis à l'entrée",
+          "cashOnly": "Seules les espèces sont acceptées à cette porte. Les autres moyens de paiement s'encaissent au comptoir."
+        },
+        "noScanOut": "La sortie n'est pas enregistrée : le moteur n'a pas encore de scan de sortie."
+      },
       "floor": {
         "rail": {
           "label": "Tables",
