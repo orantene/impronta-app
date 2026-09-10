@@ -4766,6 +4766,7 @@
       "posModes": {
         "title": "Selling modes",
         "desc": "Which parts of the point of sale this workspace has switched on.",
+        "platformOffHint": "The point of sale is off for the whole platform. Ask an admin to turn it on before selling modes can be switched here.",
         "loading": "Loading…",
         "saving": "Saving…",
         "saved": "Saved",
@@ -6129,7 +6130,9 @@
         "saving": "Saving…",
         "failed": "Failed: {error}",
         "workspaceUiSupportLabel": "In-app support launcher",
-        "workspaceUiSupportHint": "The help tab on the right edge of every workspace. Off by default. On shows it platform-wide."
+        "workspaceUiSupportHint": "The help tab on the right edge of every workspace. Off by default. On shows it platform-wide.",
+        "workspaceUiPosLabel": "The point of sale",
+        "workspaceUiPosHint": "Lets workspaces turn on the point of sale. Off hides the top bar switch everywhere."
       },
       "integrations": {
         "title": "Integration defaults",

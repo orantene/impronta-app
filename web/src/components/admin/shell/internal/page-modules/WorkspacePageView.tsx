@@ -210,7 +210,7 @@ function NavItem({
 
 export function WorkspacePageView() {
   const t = useT();
-  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant, adminBasePath, workspacePosModes } = useAdminShell();
+  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant, adminBasePath, workspacePosModes, workspacePosEnabled } = useAdminShell();
   const router = useRouter();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
@@ -491,7 +491,7 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? (
           <div className="flex flex-col gap-2 py-2">
-            <PosModesSettingsCard canEdit={isOwner} />
+            <PosModesSettingsCard canEdit={isOwner} platformEnabled={workspacePosEnabled} />
             {(
               [
                 // The two register links are the counter mode itself. With the

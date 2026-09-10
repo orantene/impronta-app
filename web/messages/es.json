@@ -4766,6 +4766,7 @@
       "posModes": {
         "title": "Modos de venta",
         "desc": "Qué partes del punto de venta tiene activadas este espacio de trabajo.",
+        "platformOffHint": "El punto de venta esta apagado para toda la plataforma. Pide a un administrador que lo active antes de poder cambiar los modos de venta aqui.",
         "loading": "Cargando…",
         "saving": "Guardando…",
         "saved": "Guardado",
@@ -6129,7 +6130,9 @@
         "saving": "Guardando…",
         "failed": "Error: {error}",
         "workspaceUiSupportLabel": "Lanzador de soporte en la app",
-        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma."
+        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma.",
+        "workspaceUiPosLabel": "El punto de venta",
+        "workspaceUiPosHint": "Permite que los espacios de trabajo activen el punto de venta. Apagado oculta el interruptor de la barra superior en todas partes."
       },
       "integrations": {
         "title": "Integraciones predeterminadas",

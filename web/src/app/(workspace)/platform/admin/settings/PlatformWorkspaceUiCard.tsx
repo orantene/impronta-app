@@ -9,13 +9,15 @@ import { interpolate } from "@/i18n/interpolate";
 
 /**
  * Super-admin switches for the workspace shell's ambient UI: the floating
- * bottom-right "+" quick-action button, the first-run guided tour, and the
- * storefront admin quick bar.
+ * bottom-right "+" quick-action button, the first-run guided tour, the
+ * storefront admin quick bar, and the point of sale's platform kill switch.
  *
  * The FAB and the tour default OFF (hidden) — flipping a switch here shows the
  * surface again for every workspace on the platform. The quick bar defaults ON,
  * because it shipped visible in #1001 and adding a hidden-by-default switch
- * would have silently removed a live feature.
+ * would have silently removed a live feature. The POS switch defaults OFF: it
+ * gates a whole unshipped mode vocabulary, and before this row existed the
+ * only way to flip it was raw SQL against `platform_settings`.
  */
 export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspaceUi }) {
   const t = useT();
@@ -23,6 +25,7 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
   const [tourEnabled, setTourEnabled] = useState(current.tourEnabled);
   const [quickBarEnabled, setQuickBarEnabled] = useState(current.quickBarEnabled);
   const [supportEnabled, setSupportEnabled] = useState(current.supportEnabled);
+  const [posEnabled, setPosEnabled] = useState(current.posEnabled);
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -30,7 +33,8 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
     fabEnabled !== current.fabEnabled ||
     tourEnabled !== current.tourEnabled ||
     quickBarEnabled !== current.quickBarEnabled ||
-    supportEnabled !== current.supportEnabled;
+    supportEnabled !== current.supportEnabled ||
+    posEnabled !== current.posEnabled;
 
   const save = () => {
     setStatus(null);
@@ -40,6 +44,7 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
         tourEnabled,
         quickBarEnabled,
         supportEnabled,
+        posEnabled,
       });
       setStatus(
         r.ok
@@ -79,10 +84,16 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
       labelKey: "dashboard.platform.settings.workspaceUiSupportLabel",
       hintKey: "dashboard.platform.settings.workspaceUiSupportHint",
     },
+    {
+      checked: posEnabled,
+      onChange: setPosEnabled,
+      labelKey: "dashboard.platform.settings.workspaceUiPosLabel",
+      hintKey: "dashboard.platform.settings.workspaceUiPosHint",
+    },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
+    <div data-testid="platform-workspace-ui-card" style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
       {rows.map((row) => (
         <label
           key={row.labelKey}

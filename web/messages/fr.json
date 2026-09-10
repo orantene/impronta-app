@@ -850,6 +850,7 @@
       "posModes": {
         "title": "Modes de vente",
         "desc": "Les parties du point de vente que cet espace de travail a activees.",
+        "platformOffHint": "Le point de vente est desactive pour toute la plateforme. Demandez a un administrateur de l'activer avant de pouvoir changer les modes de vente ici.",
         "loading": "Chargement…",
         "saving": "Enregistrement…",
         "saved": "Enregistre",
@@ -968,7 +969,9 @@
       },
       "settings": {
         "workspaceUiSupportLabel": "Lanceur de support in-app",
-        "workspaceUiSupportHint": "L'onglet d'aide a droite de chaque espace. Desactive par defaut. L'activer l'affiche partout."
+        "workspaceUiSupportHint": "L'onglet d'aide a droite de chaque espace. Desactive par defaut. L'activer l'affiche partout.",
+        "workspaceUiPosLabel": "Le point de vente",
+        "workspaceUiPosHint": "Permet aux espaces de travail d'activer le point de vente. Desactive, il masque le bouton de la barre superieure partout."
       },
       "support": {
         "pageTitle": "Support",
