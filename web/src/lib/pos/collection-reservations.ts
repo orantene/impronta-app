@@ -33,6 +33,23 @@ export type ReservationMethod = "cash" | "online_card" | "terminal";
 export const RESERVATION_METADATA_KEY = "collection_reservation_id";
 
 /**
+ * Where the card path leaves the PROVIDER's own request id, beside the claim.
+ *
+ * THE WHOLE RECOVERY DEPENDS ON THIS ONE STRING. A card collection opened a
+ * Checkout session, got its id back, and threw it away: the transaction knew
+ * it had asked for money and nothing knew WHAT it had asked. When the response
+ * was then lost, no code in the system could find out whether the money moved,
+ * so the only remaining move was to tell a person to go and look at the
+ * terminal.
+ *
+ * It sits in the same bag as the reservation deliberately. The two facts are
+ * one fact — this claim on this balance was handed to that request — and a
+ * recovery that had one without the other could either ask the provider and
+ * not know what to release, or release and not know what it had asked.
+ */
+export const PAYMENT_REQUEST_METADATA_KEY = "collection_payment_request_id";
+
+/**
  * How long a CASH claim lives. Short on purpose: the cash path completes
  * inside the request that took it, so this only covers a till that died
  * mid-sale, and every second of it is a second the next customer waits.
@@ -331,9 +348,45 @@ export async function reapCollectionReservations(
   return { ok: true, released: toInt(reply.released) ?? 0 };
 }
 
+/**
+ * The bag a card collection writes on its money row, built in ONE place.
+ *
+ * Both keys are read by different code at different times — the webhook and
+ * `markPaid` want the claim, the recovery worker wants the request — and the
+ * shape they agree on has no other writer. Building it here rather than inline
+ * at the call site is what stops a future edit adding one key and dropping the
+ * other, which would leave a recovery able to ask the provider and unable to
+ * say what to release, or the reverse.
+ */
+export function collectionMetadata(input: {
+  reservationId: string | null;
+  paymentRequestId: string;
+}): Record<string, string> {
+  return {
+    ...(input.reservationId ? { [RESERVATION_METADATA_KEY]: input.reservationId } : {}),
+    [PAYMENT_REQUEST_METADATA_KEY]: input.paymentRequestId,
+  };
+}
+
+function metadataString(metadata: unknown, key: string): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const raw = (metadata as Record<string, unknown>)[key];
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
 /** Read the reservation a card transaction recorded on itself, if any. */
 export function reservationIdFromMetadata(metadata: unknown): string | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const raw = (metadata as Record<string, unknown>)[RESERVATION_METADATA_KEY];
-  return typeof raw === "string" && raw.length > 0 ? raw : null;
+  return metadataString(metadata, RESERVATION_METADATA_KEY);
+}
+
+/**
+ * Read the provider request a card transaction recorded on itself, if any.
+ *
+ * Absent means this transaction cannot be reconciled with the provider at all
+ * — it predates the stamp, or it was opened in mock mode — and every caller
+ * has to say so rather than guessing. That absence is why the exceptions inbox
+ * still has a no-button branch.
+ */
+export function paymentRequestIdFromMetadata(metadata: unknown): string | null {
+  return metadataString(metadata, PAYMENT_REQUEST_METADATA_KEY);
 }

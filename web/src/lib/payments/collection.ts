@@ -56,6 +56,20 @@ export type PaymentRequestSnapshot = {
   state: PaymentRequestState;
   amountCents: number;
   currency: string;
+  /**
+   * The provider's own reference for the money that moved, when it moved.
+   *
+   * A request id names what we ASKED FOR; this names what HAPPENED. Stripe
+   * keeps them apart on purpose — the hosted Checkout session carries our
+   * metadata, and the PaymentIntent underneath it is what a refund is issued
+   * against — and `markPaid` cannot link a transaction back to its charge
+   * without it. A lookup that answered `succeeded` and dropped this would
+   * complete the order and leave it unrefundable, which is a worse place to be
+   * than not knowing at all.
+   *
+   * Null on any state where no money moved.
+   */
+  paymentReference?: string | null;
 };
 
 export type TerminalAvailability =

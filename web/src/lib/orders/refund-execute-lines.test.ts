@@ -27,6 +27,26 @@ test("a mid-plan failure after money moved is NOT a plain failure", () => {
   assert.match(SRC, /refundIds/, "and which refunds landed, so a human can reconcile");
 });
 
+test("what landed is named PER LEG, with the provider's own id", () => {
+  // A TOTAL AND A BAG OF IDS IS NOT AN ANSWER. `refundIds: ["re_1","re_2"]`
+  // plus `movedCents: 4000` sends a person to the provider's dashboard to work
+  // out which payment each id came off and for how much, and the plan that
+  // produced the split is gone the instant this returns. The step carries all
+  // three facts together, which is the only form that reconciles.
+  assert.match(SRC, /steps: RefundStep\[\]/, "the result must carry the legs, not just the ids");
+  assert.match(
+    SRC,
+    /steps\.push\(\{[\s\S]{0,200}transactionId: step\.transactionId[\s\S]{0,200}refundId: res\.refundId/,
+    "a leg must record its payment and the provider's refund id together",
+  );
+  // And the failed leg is named too: "money moved then something failed" is
+  // not actionable without knowing which payment still owes.
+  assert.match(SRC, /failedTransactionId: step\.transactionId/);
+  // The flat list is DERIVED from the legs rather than accumulated beside
+  // them, so the two can never disagree about what landed.
+  assert.match(SRC, /refundIds: steps\.map\(\(s\) => s\.refundId\)/);
+});
+
 test("a failure with NOTHING moved is retryable and says so", () => {
   // The distinction is the whole point: one is safe to retry unchanged, the
   // other must never be retried blind.

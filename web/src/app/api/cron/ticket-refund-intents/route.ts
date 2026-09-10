@@ -160,9 +160,16 @@ export async function GET(request: Request) {
       continue;
     }
     if (reason === "partial_failure") {
+      // NAMES WHAT LANDED, not just how much. "Money moved (4000 cents)" sends
+      // a person to the provider's dashboard to work out which of two payments
+      // it came off; the steps carry the provider's own refund id per payment,
+      // which is the only form of the answer that can be reconciled against it.
+      const steps = (res as { steps?: Array<{ transactionId: string; amountCents: number; refundId: string }> }).steps ?? [];
       logServerError(
         "cron/ticket-refund-intents/PARTIAL_FAILURE_NEEDS_A_PERSON",
-        `intent ${id} order ${intent.order_id as string}: money moved (${(res as { movedCents?: number }).movedCents ?? "?"} cents) then a leg failed — reconcile by hand`,
+        `intent ${id} order ${intent.order_id as string}: money moved (${(res as { movedCents?: number }).movedCents ?? "?"} cents) `
+          + `[${steps.map((s) => `${s.refundId}=${s.amountCents} on txn ${s.transactionId}`).join(", ") || "no legs recorded"}] `
+          + `then the leg on txn ${(res as { failedTransactionId?: string }).failedTransactionId ?? "?"} failed — reconcile by hand`,
       );
       summary.partial_failure += 1;
     } else {

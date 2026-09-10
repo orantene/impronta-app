@@ -168,37 +168,123 @@ test("engine attempts override the stored priority upward, never downward", () =
   assert.equal(highFresh.severity, "high", "a retrying high-priority effect was over-escalated");
 });
 
+const collection = (over: Partial<Parameters<typeof classifyUnresolvedCollection>[0]> = {}) => ({
+  transactionId: "t1",
+  orderId: "o1",
+  grossAmountCents: 2500,
+  currency: "eur",
+  requestedAt: new Date(NOW - COLLECTION_STALE_MS - 1000).toISOString(),
+  providerRequestId: "cs_1",
+  ...over,
+});
+
 test("a recent card collection is not yet an exception", () => {
-  const row = classifyUnresolvedCollection(
-    {
-      transactionId: "t1",
-      orderId: "o1",
-      grossAmountCents: 2500,
-      currency: "eur",
-      requestedAt: minutesAgo(2),
-    },
-    NOW,
-    null,
-  );
+  const row = classifyUnresolvedCollection(collection({ requestedAt: minutesAgo(2) }), NOW, null);
   assert.equal(row, null, "every in-progress card tap would be an exception");
 });
 
-test("a stalled card collection is high, and never resumable", () => {
+/**
+ * WHAT THIS TEST USED TO SAY, AND WHY IT SAYS SOMETHING ELSE NOW.
+ *
+ * It asserted `inspect` unconditionally — "never resumable" — and the reason
+ * given was correctness: the provider is the authority on whether a card was
+ * charged, and no button may risk a second charge. That reasoning is intact.
+ * What changed underneath it is that the adapter's state lookup was a stub
+ * returning `unknown`, so nothing could ASK the provider and a button would
+ * have had nothing safe to do. There is now a lookup and a worker, and the
+ * button arms that worker: it asks and it cannot charge.
+ *
+ * So the rule is not weakened, it is SPLIT, and both halves are asserted here.
+ */
+test("a stalled card collection we can ask about offers to ask, and never to charge", () => {
+  const row = classifyUnresolvedCollection(collection(), NOW, null);
+  assert.ok(row);
+  assert.equal(row.severity, "high");
+  assert.equal(row.nextAction.kind, "resume");
+  assert.equal(
+    row.nextAction.kind === "resume" ? row.nextAction.verb : null,
+    "recover_unresolved_collection",
+  );
+  // The label must not sound like a new charge. That is the one thing an
+  // operator standing at this row is frightened of.
+  const label = row.nextAction.label;
+  assert.doesNotMatch(label, /charge|collect|retry the payment/i);
+  assert.match(row.detail, /25\.00 EUR/);
+  assert.match(row.detail, /never charges/);
+});
+
+test("a stalled card collection with no provider reference still has no button at all", () => {
+  // Nothing to ask, so nothing to arm. This is the half of the old rule that
+  // survives unchanged, and it is the reason the split is honest rather than
+  // a quiet loosening.
+  const row = classifyUnresolvedCollection(collection({ providerRequestId: null }), NOW, null);
+  assert.ok(row);
+  assert.equal(row.nextAction.kind, "inspect");
+  assert.match(row.detail, /no provider reference/);
+});
+
+test("the row carries what the worker has already tried", () => {
+  // "No result was recorded" is exactly as true after six failed lookups as
+  // before the first. An operator cannot act on a sentence that never moves.
+  const asked = classifyUnresolvedCollection(
+    collection({ recoveryAttempts: 3, lastRecoveryState: "unknown", lastRecoveryAt: minutesAgo(4) }),
+    NOW,
+    null,
+  );
+  assert.ok(asked);
+  assert.equal(asked.attempts, 3);
+  assert.match(asked.detail, /asked 3 times/);
+  assert.match(asked.detail, /last said: unknown/);
+
+  const never = classifyUnresolvedCollection(collection(), NOW, null);
+  assert.ok(never);
+  assert.match(never.detail, /has not been asked yet/);
+});
+
+test("a payment the worker has given up on says so, and keeps its button", () => {
+  // A queue that stops silently is indistinguishable from a queue that is
+  // working. The worker's budget is bounded on purpose, so the row has to be
+  // able to say that the machine has stopped and that a person is now the one
+  // being asked to move.
   const row = classifyUnresolvedCollection(
-    {
-      transactionId: "t1",
-      orderId: "o1",
-      grossAmountCents: 2500,
-      currency: "eur",
-      requestedAt: new Date(NOW - COLLECTION_STALE_MS - 1000).toISOString(),
-    },
+    collection({
+      recoveryAttempts: 8,
+      lastRecoveryState: "unknown",
+      lastRecoveryAt: minutesAgo(11),
+      recoveryEscalatedAt: minutesAgo(10),
+    }),
     NOW,
     null,
   );
   assert.ok(row);
-  assert.equal(row.severity, "high");
+  assert.match(row.title, /asking has stopped/i);
+  assert.match(row.detail, /asked 8 times/);
+  assert.match(row.detail, /stopped on its own/i);
+  // STILL A BUTTON, and still the same verb. Asking is the only safe move
+  // whether or not the machine has run out of tries, and a row a person can
+  // only look at is a row that waits for the till.
+  assert.equal(row.nextAction.kind, "resume");
+  assert.equal(
+    row.nextAction.kind === "resume" ? row.nextAction.verb : null,
+    "recover_unresolved_collection",
+  );
+  assert.doesNotMatch(row.nextAction.label, /charge|collect/i);
+  assert.match(row.detail, /never charges/);
+});
+
+test("an escalation on a payment nobody can ask about does not invent a button", () => {
+  // `escalated_at` can only be reached through the claim, which never enrols a
+  // transaction with no provider reference. Asserted anyway: the no-button
+  // branch is the half of this rule that protects a customer from a second
+  // charge, and it must not be reachable around.
+  const row = classifyUnresolvedCollection(
+    collection({ providerRequestId: null, recoveryEscalatedAt: minutesAgo(10) }),
+    NOW,
+    null,
+  );
+  assert.ok(row);
   assert.equal(row.nextAction.kind, "inspect");
-  assert.match(row.detail, /25\.00 EUR/);
+  assert.doesNotMatch(row.title, /asking has stopped/i);
 });
 
 test("a dead outbox message is high, not critical", () => {

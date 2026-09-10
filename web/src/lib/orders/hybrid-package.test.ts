@@ -65,6 +65,9 @@ test("cancelling catering releases only that line's capacity; the game stays hel
         ok: true,
         refundedCents: 2000,
         refundIds: ["r1"],
+        // Named per leg since the partial-failure result had to say exactly
+        // which payment each refund landed against.
+        steps: [{ transactionId: "txn-1", amountCents: 2000, refundId: "r1" }],
         admissionsStamped: 0,
         admissionsIncomplete: false,
         lineStateIncomplete: false,
@@ -108,6 +111,7 @@ test("cancelling a package on another workspace writes nothing", async () => {
           ok: true,
           refundedCents: 2000,
           refundIds: ["r1"],
+          steps: [{ transactionId: "txn-1", amountCents: 2000, refundId: "r1" }],
           admissionsStamped: 0,
           admissionsIncomplete: false,
           lineStateIncomplete: false,
@@ -214,6 +218,9 @@ test("cancelling retreat day three leaves day one, day two and the massage stand
         ok: true,
         refundedCents: 20000,
         refundIds: ["r1"],
+        // Named per leg since the partial-failure result had to say exactly
+        // which payment each refund landed against.
+        steps: [{ transactionId: "txn-1", amountCents: 20000, refundId: "r1" }],
         admissionsStamped: 0,
         admissionsIncomplete: false,
         lineStateIncomplete: false,

@@ -19,11 +19,33 @@ import type { PromoScope } from "@/lib/orders/promo-eligibility";
  * refund twice, so the partial outcome is a distinct result, not an error.
  */
 
+/**
+ * One leg of a refund, as the provider recorded it.
+ *
+ * WHY THE ID ALONE WAS NOT ENOUGH. A partial failure used to report
+ * `refundIds: ["re_1", "re_2"]` and a total, which is a list of receipts with
+ * no amounts and no payments attached: a person reconciling it had to open
+ * each id at the provider to find out which transaction it belonged to and how
+ * much of it landed, and the plan that produced the split had already been
+ * thrown away. Recording the step means the result can say exactly what did
+ * land without anybody leaving the screen — which is the entire job of a
+ * partial-failure result, since the one thing a caller must never do is retry.
+ */
+export type RefundStep = {
+  /** The paid transaction this leg was taken against. */
+  transactionId: string;
+  amountCents: number;
+  /** The provider's own refund id (`re_...`). */
+  refundId: string;
+};
+
 export type RefundLinesResult =
   | {
       ok: true;
       refundedCents: number;
       refundIds: string[];
+      /** The same refunds, each named with its payment and its amount. */
+      steps: RefundStep[];
       admissionsStamped: number;
       /**
        * TRUE when a ticket that should have been voided may not have been.
@@ -51,7 +73,17 @@ export type RefundLinesResult =
    * Money moved and then something failed. NOT retryable as-is: the refunds
    * that landed are real. A human decides the remainder.
    */
-  | { ok: false; reason: "partial_failure"; movedCents: number; refundIds: string[]; detail: string };
+  | {
+      ok: false;
+      reason: "partial_failure";
+      movedCents: number;
+      refundIds: string[];
+      /** Exactly what landed: which payment, how much, and the provider's id. */
+      steps: RefundStep[];
+      /** The transaction whose leg failed. Nothing was refunded against it. */
+      failedTransactionId: string;
+      detail: string;
+    };
 
 export async function refundOrderLines(
   admin: SupabaseClient,
@@ -162,7 +194,7 @@ export async function refundOrderLines(
 
     // ── Money. Every step before this point is reversible; nothing after is.
     let moved = 0;
-    const refundIds: string[] = [];
+    const steps: RefundStep[] = [];
     for (const step of plan.steps) {
       const res = await executeBookingRefund({
         transactionId: step.transactionId,
@@ -179,19 +211,29 @@ export async function refundOrderLines(
         // Money HAS moved. Reporting a plain failure here would invite a retry
         // that refunds the successful legs a second time, and a Stripe refund
         // cannot be taken back. So the partial outcome is its own result and
-        // names what landed.
+        // names what landed — per leg, with the provider's own id, because a
+        // bare total cannot be reconciled against a provider dashboard and the
+        // plan that produced the split is gone the moment this returns.
         logServerError(
           "orders.refundLines/PARTIAL_REFUND_FAILURE",
-          `order ${input.orderId}: ${moved} cents refunded across ${refundIds.length} step(s), `
+          `order ${input.orderId}: ${moved} cents refunded across ${steps.length} step(s) `
+            + `[${steps.map((s) => `${s.refundId}=${s.amountCents} on txn ${s.transactionId}`).join(", ")}], `
             + `then step on txn ${step.transactionId} failed: ${res.error}. Needs a human.`,
         );
         return {
           ok: false, reason: "partial_failure", movedCents: moved,
-          refundIds, detail: res.error,
+          refundIds: steps.map((s) => s.refundId),
+          steps,
+          failedTransactionId: step.transactionId,
+          detail: res.error,
         };
       }
       moved += res.amountCents;
-      refundIds.push(res.refundId);
+      steps.push({
+        transactionId: step.transactionId,
+        amountCents: res.amountCents,
+        refundId: res.refundId,
+      });
     }
 
     // ── Per-line state. After the money, because a line marked refunded with no
@@ -298,7 +340,8 @@ export async function refundOrderLines(
     return {
       ok: true,
       refundedCents: moved,
-      refundIds,
+      refundIds: steps.map((s) => s.refundId),
+      steps,
       admissionsStamped: stamped,
       admissionsIncomplete,
       lineStateIncomplete,
