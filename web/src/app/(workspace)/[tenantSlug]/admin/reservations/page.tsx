@@ -27,21 +27,18 @@
 import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { listFloor } from "@/lib/visits/floor";
 import { loadHostStand } from "./host-stand-data";
-import { HostStandBoard } from "./HostStandBoard";
+import { HostStandBoard, type SeatableTable } from "./HostStandBoard";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
 type PageSearch = Promise<{ date?: string }>;
-
-const C = {
-  ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.55)",
-  border: "rgba(24,24,27,0.08)",
-  surface: "rgba(11,11,13,0.02)",
-  accent: "#0F4F3E",
-} as const;
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -65,8 +62,8 @@ function todayIn(timeZone: string, now: Date): string {
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>{title}</h1>
+    <main className="mx-auto max-w-[1180px] px-7 py-8 text-foreground">
+      <h1 className="m-0 text-[26px] font-semibold">{title}</h1>
       {children}
     </main>
   );
@@ -74,18 +71,9 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 
 function Card({ heading, body }: { heading: string; body: string }) {
   return (
-    <section
-      style={{
-        border: `1px solid ${C.border}`,
-        background: C.surface,
-        borderRadius: 12,
-        padding: "28px 24px",
-        maxWidth: 560,
-        marginTop: 24,
-      }}
-    >
-      <div style={{ fontSize: 15, fontWeight: 600 }}>{heading}</div>
-      <p style={{ color: C.inkMuted, fontSize: 13.5, marginTop: 8, lineHeight: 1.5 }}>{body}</p>
+    <section className="mt-6 max-w-[560px] rounded-xl border border-border bg-muted/40 px-6 py-7">
+      <div className="text-[15px] font-semibold text-foreground">{heading}</div>
+      <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">{body}</p>
     </section>
   );
 }
@@ -106,6 +94,10 @@ export default async function ReservationsPage({
   const allowed = await userHasCapability("view_dashboard", scope.tenantId);
   if (!allowed) notFound();
 
+  const locale = await getRequestLocale();
+  const tr = await createTranslator(locale);
+  const title = tr("dashboard.reservationsDesk.pageTitle");
+
   const now = new Date();
   const search = searchParams ? await searchParams : {};
   // A malformed ?date is ignored rather than refused: a host who mistypes a URL
@@ -121,10 +113,10 @@ export default async function ReservationsPage({
 
   if (state.kind === "no_venue") {
     return (
-      <Shell title="Reservations">
+      <Shell title={title}>
         <Card
-          heading="No venue yet"
-          body="Reservations belong to a place and run on that place's clock, so there is nothing to show until this workspace has one."
+          heading={tr("dashboard.reservationsDesk.noVenueHeading")}
+          body={tr("dashboard.reservationsDesk.noVenueBody")}
         />
       </Shell>
     );
@@ -132,10 +124,10 @@ export default async function ReservationsPage({
 
   if (state.kind === "not_configured") {
     return (
-      <Shell title="Reservations">
+      <Shell title={title}>
         <Card
-          heading="No service windows yet"
-          body={`${state.venueName} is not taking bookings. Switch reservations on in Settings and add a service window, and tonight's book appears here.`}
+          heading={tr("dashboard.reservationsDesk.notConfiguredHeading")}
+          body={interpolate(tr("dashboard.reservationsDesk.notConfiguredBody"), { venue: state.venueName })}
         />
       </Shell>
     );
@@ -143,18 +135,95 @@ export default async function ReservationsPage({
 
   if (state.kind === "unavailable") {
     return (
-      <Shell title="Reservations">
+      <Shell title={title}>
         <Card
-          heading="We could not load the book"
-          body="Nothing has changed and no booking was affected. Try again in a moment."
+          heading={tr("dashboard.reservationsDesk.unavailableHeading")}
+          body={tr("dashboard.reservationsDesk.unavailableBody")}
         />
       </Shell>
     );
   }
 
+  // The tables the desk may put a party on, read from the SAME floor the
+  // Tables screen renders. A separate query with its own idea of "free" is how
+  // two screens end up disagreeing about whether the room is full. A failed
+  // read degrades to "no table to seat on", which is honest, rather than
+  // hiding the whole book.
+  const floorAdmin = createServiceRoleClient();
+  const floor = floorAdmin ? await listFloor(floorAdmin, scope.tenantId) : { ok: false as const };
+  const seatable: SeatableTable[] = floor.ok
+    ? floor.tables
+        .filter((t) => t.state !== "occupied")
+        .map((t) => ({
+          spaceId: t.spaceId,
+          label: t.code ?? t.name,
+          partyMin: t.partyMin,
+          partyMax: t.partyMax,
+          held: t.state === "held",
+        }))
+    : [];
+
   return (
-    <Shell title="Reservations">
+    <Shell title={title}>
       <HostStandBoard
+        locale={locale}
+        copy={{
+          coversBooked: tr("dashboard.reservationsDesk.coversBooked"),
+          arrived: tr("dashboard.reservationsDesk.arrived"),
+          arrivingNow: tr("dashboard.reservationsDesk.arrivingNow"),
+          runningLate: tr("dashboard.reservationsDesk.runningLate"),
+          noTableYet: tr("dashboard.reservationsDesk.noTableYet"),
+          empty: tr("dashboard.reservationsDesk.empty"),
+          colTime: tr("dashboard.reservationsDesk.colTime"),
+          colGuest: tr("dashboard.reservationsDesk.colGuest"),
+          colParty: tr("dashboard.reservationsDesk.colParty"),
+          colTable: tr("dashboard.reservationsDesk.colTable"),
+          walkIn: tr("dashboard.reservationsDesk.walkIn"),
+          wasNoShow: tr("dashboard.reservationsDesk.wasNoShow"),
+          refunded: tr("dashboard.reservationsDesk.refunded"),
+          cancelled: tr("dashboard.reservationsDesk.cancelled"),
+          stateBooked: tr("dashboard.reservationsDesk.stateBooked"),
+          stateArriving: tr("dashboard.reservationsDesk.stateArriving"),
+          stateLate: tr("dashboard.reservationsDesk.stateLate"),
+          statePartSeated: tr("dashboard.reservationsDesk.statePartSeated"),
+          stateSeated: tr("dashboard.reservationsDesk.stateSeated"),
+          stateNoShow: tr("dashboard.reservationsDesk.stateNoShow"),
+          stateCompleted: tr("dashboard.reservationsDesk.stateCompleted"),
+          seat: tr("dashboard.reservationsDesk.seat"),
+          takeWalkIn: tr("dashboard.reservationsDesk.takeWalkIn"),
+          takeWalkInHeading: tr("dashboard.reservationsDesk.takeWalkInHeading"),
+          walkInNameLabel: tr("dashboard.reservationsDesk.walkInNameLabel"),
+          walkInPartyLabel: tr("dashboard.reservationsDesk.walkInPartyLabel"),
+          walkInConfirm: tr("dashboard.reservationsDesk.walkInConfirm"),
+          seatHeading: tr("dashboard.reservationsDesk.seatHeading"),
+          seatCancel: tr("dashboard.reservationsDesk.seatCancel"),
+          noSeatableTable: tr("dashboard.reservationsDesk.noSeatableTable"),
+          seatedNotMarked: tr("dashboard.reservationsDesk.seatedNotMarked"),
+          refusal: {
+            not_found: tr("dashboard.reservationsDesk.refusal.notFound"),
+            wrong_tenant: tr("dashboard.reservationsDesk.refusal.notFound"),
+            already_open: tr("dashboard.reservationsDesk.refusal.alreadyOpen"),
+            invalid: tr("dashboard.reservationsDesk.refusal.invalid"),
+            party_too_small: tr("dashboard.reservationsDesk.refusal.partyTooSmall"),
+            party_too_large: tr("dashboard.reservationsDesk.refusal.partyTooLarge"),
+            not_combinable: tr("dashboard.reservationsDesk.refusal.invalid"),
+            joined_unavailable: tr("dashboard.reservationsDesk.refusal.alreadyOpen"),
+            not_allowed: tr("dashboard.reservationsDesk.refusal.notAllowed"),
+            unavailable: tr("dashboard.reservationsDesk.refusal.unavailable"),
+            reservation_not_found: tr("dashboard.reservationsDesk.refusal.reservationNotFound"),
+            reservation_other_table: tr("dashboard.reservationsDesk.refusal.reservationOtherTable"),
+            reservation_not_valid: tr("dashboard.reservationsDesk.refusal.reservationNotValid"),
+            reservation_already_seated: tr("dashboard.reservationsDesk.refusal.reservationAlreadySeated"),
+            walkins_off: tr("dashboard.reservationsDesk.refusal.walkinsOff"),
+            party_below_minimum: tr("dashboard.reservationsDesk.refusal.partyBelowMinimum"),
+            party_above_maximum: tr("dashboard.reservationsDesk.refusal.partyAboveMaximum"),
+            no_band_fits_this_party: tr("dashboard.reservationsDesk.refusal.noBandFits"),
+            sold_out: tr("dashboard.reservationsDesk.refusal.soldOut"),
+            capacity_unavailable: tr("dashboard.reservationsDesk.refusal.capacityUnavailable"),
+            engine_error: tr("dashboard.reservationsDesk.refusal.engineError"),
+            reservations_off: tr("dashboard.reservationsDesk.refusal.reservationsOff"),
+          },
+        }}
         data={{
           venueName: state.data.venueName,
           timeZone: state.data.timeZone,
@@ -172,6 +241,7 @@ export default async function ReservationsPage({
             holderName: e.holderName,
             spaceCode: e.spaceCode,
           })),
+          seatable,
           summary: state.data.summary,
           windows: state.data.windows.map((w) => ({
             key: w.key,

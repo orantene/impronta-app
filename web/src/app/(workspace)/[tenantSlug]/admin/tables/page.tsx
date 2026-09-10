@@ -5,7 +5,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { listFloor } from "@/lib/visits/floor";
+import { tenantTimezone } from "@/lib/spaces/venues";
+import { venueZoneLabel } from "@/lib/spaces/venue-clock";
+import { interpolate } from "@/i18n/interpolate";
 import { TablesClient } from "./tables-client";
+import { tablesCopy } from "./tables-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -24,34 +28,33 @@ export default async function TablesPage({ params }: { params: PageParams }) {
   if (!admin) notFound();
 
   const floor = await listFloor(admin, scope.tenantId);
+  // The VENUE's zone, resolved through the one timezone read path
+  // (`resolveTenantTimezone`'s ladder). Every instant this screen prints is
+  // formatted in it, on the server and in the browser alike, so the markup the
+  // server sends and the markup hydration produces are the same string.
+  const timeZone = await tenantTimezone(scope.tenantId);
+  const zoneNote = interpolate(tr("dashboard.tables.timesInZone"), {
+    zone: venueZoneLabel(timeZone, locale, new Date()),
+  });
 
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
+    <main className="mx-auto max-w-[1180px] px-7 py-8">
+      <h1 className="m-0 text-[26px] font-semibold text-foreground">
         {tr("dashboard.tables.pageTitle")}
       </h1>
-      <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 6, marginBottom: 24 }}>
+      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
         {tr("dashboard.tables.pageIntro")}
       </p>
       {!floor.ok ? (
-        <p>{tr("dashboard.tables.unavailable")}</p>
+        <p className="text-sm text-destructive">{tr("dashboard.tables.unavailable")}</p>
       ) : (
         <TablesClient
           tenantSlug={tenantSlug}
+          locale={locale}
+          timeZone={timeZone}
+          zoneNote={zoneNote}
           tables={floor.tables}
-          copy={{
-            empty: tr("dashboard.tables.empty"),
-            open: tr("dashboard.tables.open"),
-            close: tr("dashboard.tables.close"),
-            sale: tr("dashboard.tables.sale"),
-            occupied: tr("dashboard.tables.occupied"),
-            free: tr("dashboard.tables.free"),
-            minSpend: tr("dashboard.tables.minSpend"),
-            move: tr("dashboard.tables.move"),
-            openTab: locale === "es" ? "Abrir cuenta" : "Open tab",
-            tab: locale === "es" ? "Cuenta" : "Tab",
-            table: locale === "es" ? "Mesa" : "Table",
-          }}
+          copy={tablesCopy(tr)}
         />
       )}
     </main>

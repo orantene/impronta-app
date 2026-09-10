@@ -5,7 +5,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { listBoard } from "@/lib/preparation/tickets";
+import { tenantTimezone } from "@/lib/spaces/venues";
+import { venueZoneLabel } from "@/lib/spaces/venue-clock";
+import { interpolate } from "@/i18n/interpolate";
 import { PreparationClient } from "./prep-client";
+import { preparationCopy } from "./prep-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -24,28 +28,30 @@ export default async function PreparationPage({ params }: { params: PageParams }
   if (!admin) notFound();
 
   const board = await listBoard(admin, scope.tenantId);
+  // A promise time is the KITCHEN's clock. Same read path and same reasoning
+  // as the floor: see `lib/spaces/venue-clock.ts`.
+  const timeZone = await tenantTimezone(scope.tenantId);
+  const zoneNote = interpolate(tr("dashboard.preparation.timesInZone"), {
+    zone: venueZoneLabel(timeZone, locale, new Date()),
+  });
 
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
+    <main className="mx-auto max-w-[1180px] px-7 py-8">
+      <h1 className="m-0 text-[26px] font-semibold text-foreground">
         {tr("dashboard.preparation.pageTitle")}
       </h1>
-      <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 6, marginBottom: 24 }}>
+      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
         {tr("dashboard.preparation.pageIntro")}
       </p>
       {!board.ok ? (
-        <p>{tr("dashboard.preparation.unavailable")}</p>
+        <p className="text-sm text-destructive">{tr("dashboard.preparation.unavailable")}</p>
       ) : (
         <PreparationClient
+          locale={locale}
+          timeZone={timeZone}
+          zoneNote={zoneNote}
           tickets={board.tickets}
-          copy={{
-            empty: tr("dashboard.preparation.empty"),
-            acknowledge: tr("dashboard.preparation.acknowledge"),
-            ready: tr("dashboard.preparation.ready"),
-            handoff: tr("dashboard.preparation.handoff"),
-            revision: tr("dashboard.preparation.revision"),
-            destination: tr("dashboard.preparation.destination"),
-          }}
+          copy={preparationCopy(tr)}
         />
       )}
     </main>
