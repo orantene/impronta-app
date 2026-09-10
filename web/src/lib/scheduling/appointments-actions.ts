@@ -20,10 +20,16 @@
  *     this file links to it rather than reimplementing it, because a second
  *     write path into `talent_booking_hours` is exactly what T1-07 removed.
  *
- * What this file adds is the part those pieces could not have: the joins that
- * turn ids into names, so a refusal can say "Ana is already booked at that
- * time" instead of "that time is already booked", and the buckets, so the
- * client never has to look at a clock to decide where a row goes.
+ * WHAT IS LEFT HERE IS WHAT ONLY A REQUEST HAS. The staff check, the audit
+ * line, the revalidate, and the buckets that let the client render without
+ * looking at a clock. Everything else moved to modules that take the admin
+ * client as an ARGUMENT — `waitlist-desk.ts`, `reschedule-desk.ts`,
+ * `appointments-lookups.ts` — for a reason that is not tidiness: an export of
+ * a `"use server"` file can only ever be reached by a signed-in browser
+ * request, so while the waitlist journey lived in here the only way to
+ * exercise it was a human clicking, and nobody ever did. It shipped dead.
+ * `scripts/proof-appointments-journey.ts` now drives those modules against the
+ * isolated database, so what is proven is what these actions run.
  *
  * TENANT SCOPE IS IN THE QUERY, NOT ONLY IN RLS. These run under the service
  * role, so RLS does not apply. `requireWorkspaceStaffAction` proves the caller
@@ -40,7 +46,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
-import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
+import { rescheduleWithNames } from "@/lib/scheduling/reschedule-desk";
 import {
   describeRescheduleRefusal,
   type RescheduleRefusal,
@@ -51,19 +57,20 @@ import {
   type AppointmentRow,
 } from "@/lib/scheduling/appointments-board";
 import {
-  nameForPool,
-  nameForTalent,
   placeNamesByOrder,
   servingNamesByInquiry,
 } from "@/lib/scheduling/appointments-lookups";
 import {
-  nextInLine,
-  orderWaitlist,
   promoteWaitlistEntry,
   type PromoteWaitlistRefusalKey,
-  type WaitlistEntry,
   type WaitlistStoredStatus,
 } from "@/lib/scheduling/session-waitlist";
+import {
+  joinWaitlist,
+  loadWaitlistDesk,
+  type JoinWaitlistResult,
+  type WaitlistDeskResult,
+} from "@/lib/scheduling/waitlist-desk";
 
 /** How far ahead the board looks. Ninety days matches the materialiser. */
 const HORIZON_DAYS = 90;
@@ -210,17 +217,10 @@ export type RescheduleAppointmentResult =
 /**
  * Move a booking, or refuse with a sentence that names what stood in the way.
  *
- * `expectedStartsAt` / `expectedEndsAt` are the window the OPERATOR WAS
- * LOOKING AT, and passing them is the whole point of this wrapper: without
- * them the RPC keeps its last-write-wins behaviour and a stale screen silently
- * overwrites somebody else's move. With them, a stale screen is refused with
- * `conflict` and the operator is told the booking changed since they opened it.
- *
- * On `slot_taken` and on a full room the RPC hands back `failed_talent_id` and
- * `failed_pool_id`. `rescheduleBookingAction` in `_pipeline-actions.ts` drops
- * both, because its flat `{ ok, error }` shape has nowhere to put them. This
- * one resolves each to a NAME, which is the difference between a refusal an
- * operator can act on and one they can only read.
+ * The move itself and the id-to-name resolution are `rescheduleWithNames`,
+ * which takes the client as an argument so a script can drive the identical
+ * path. What stays here is what only a request has: the staff check, the audit
+ * line, and the revalidate.
  */
 export async function rescheduleAppointment(input: {
   tenantId: string;
@@ -240,7 +240,7 @@ export async function rescheduleAppointment(input: {
       return { ok: false, refusal: describeRescheduleRefusal({ reason: "unavailable" }) };
     }
 
-    const moved = await rescheduleBooking(admin, {
+    const moved = await rescheduleWithNames(admin, {
       tenantId: input.tenantId,
       bookingId: input.bookingId,
       newStartsAt: input.newStartsAt,
@@ -250,16 +250,7 @@ export async function rescheduleAppointment(input: {
       expectedEndsAt: input.expectedEndsAt,
     });
 
-    if (!moved.ok) {
-      const [personName, spaceName] = await Promise.all([
-        nameForTalent(admin, moved.failedTalentId),
-        nameForPool(admin, input.tenantId, moved.failedPoolId),
-      ]);
-      return {
-        ok: false,
-        refusal: describeRescheduleRefusal({ reason: moved.reason, personName, spaceName }),
-      };
-    }
+    if (!moved.ok) return moved;
 
     // The audit line carries the RESOLVED window, the one actually stored, not
     // the caller's possibly-null end.
@@ -286,130 +277,45 @@ export async function rescheduleAppointment(input: {
 
 /* ── the waitlist ──────────────────────────────────────────────────────────── */
 
-export type WaitlistView = {
-  sessionId: string;
-  sessionTitle: string;
-  startsAt: string;
-  endsAt: string;
-  /** null when the session has no pool: nothing counted it, so nothing is said. */
-  seatsTotal: number | null;
-  seatsRemaining: number | null;
-  entries: WaitlistEntry[];
-  /** The id `nextWaitlistInvite` says should be offered the next free place. */
-  nextInLineId: string | null;
-};
+// The read and the join live in `waitlist-desk.ts`, which takes the client as
+// an argument. These two are the auth wrappers over it. The split is not
+// cosmetic: an export of a `"use server"` module can only be reached by a
+// signed-in browser request, so while the whole journey lived here the ONLY
+// way to exercise it was a human clicking, and nobody ever did. The desk
+// module is driven end to end against the isolated database by
+// `scripts/proof-appointments-journey.ts`, running the same functions this
+// screen runs.
 
-export type WaitlistResult =
-  | { ok: true; sessions: WaitlistView[] }
-  | { ok: false; error: string };
+export type { WaitlistSeats, WaitlistView, WaitlistDeskResult } from "@/lib/scheduling/waitlist-desk";
+export type { JoinWaitlistRefusalKey, JoinWaitlistResult } from "@/lib/scheduling/waitlist-desk";
+
+/** The desk's own result shape; the refusal arm already carries the sentence. */
+export type WaitlistResult = WaitlistDeskResult;
 
 /**
- * Every session in the horizon that somebody is waiting for.
+ * Every session this workspace should be looking at a queue for: the ones
+ * somebody is already waiting for, and the ones the engine says are full.
  *
- * Sessions with an empty queue are omitted: a waitlist tab that lists every
- * class in the calendar with "nobody waiting" beside it buries the two that
- * need a phone call.
+ * The second half is what makes the journey startable. Before it, this
+ * returned an empty list for a workspace whose class had just sold out with
+ * nobody queued, the screen drew its empty state, and the control that adds
+ * the first person — which sits on a session card — never rendered.
  */
-export async function loadSessionWaitlists(tenantId: string): Promise<WaitlistResult> {
+export async function loadSessionWaitlists(
+  tenantId: string,
+  /**
+   * A session the operator opened from the Sessions view. It is read whatever
+   * the near-horizon cap says, so that door can never lead to a screen the
+   * class is missing from.
+   */
+  alwaysInclude: string | null = null,
+): Promise<WaitlistResult> {
   try {
     const scoped = await scopedTo(tenantId);
     if (!scoped.ok) return { ok: false, error: scoped.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
-
-    const now = new Date();
-    const { data: entryData, error: entryErr } = await admin
-      .from("session_waitlist_entries")
-      .select(
-        "id, session_id, customer_name, customer_email, party_size, status, joined_at, offered_at, offer_expires_at",
-      )
-      .eq("tenant_id", tenantId)
-      .order("joined_at", { ascending: true })
-      .limit(500);
-    if (entryErr) {
-      logServerError("scheduling.loadSessionWaitlists/entries", entryErr);
-      return { ok: false, error: "Could not load the waitlist." };
-    }
-    const entries = (entryData ?? []) as Array<{
-      id: string;
-      session_id: string;
-      customer_name: string;
-      customer_email: string | null;
-      party_size: number | null;
-      status: string;
-      joined_at: string;
-      offered_at: string | null;
-      offer_expires_at: string | null;
-    }>;
-    if (entries.length === 0) return { ok: true, sessions: [] };
-
-    const sessionIds = [...new Set(entries.map((e) => e.session_id))];
-    const { data: sessionData, error: sessionErr } = await admin
-      .from("sessions")
-      .select("id, title, starts_at, ends_at, status")
-      .eq("tenant_id", tenantId)
-      .in("id", sessionIds);
-    if (sessionErr) {
-      logServerError("scheduling.loadSessionWaitlists/sessions", sessionErr);
-      return { ok: false, error: "Could not load the waitlist." };
-    }
-    const sessions = (sessionData ?? []) as Array<{
-      id: string;
-      title: string | null;
-      starts_at: string;
-      ends_at: string;
-      status: string;
-    }>;
-
-    const { data: poolData, error: poolErr } = await admin
-      .from("capacity_pools")
-      .select("id, subject_id, units_total")
-      .eq("tenant_id", tenantId)
-      .eq("subject_kind", "session_tier")
-      .in("subject_id", sessionIds);
-    if (poolErr) {
-      logServerError("scheduling.loadSessionWaitlists/pools", poolErr);
-      return { ok: false, error: "Could not load the waitlist." };
-    }
-    const pools = new Map(
-      ((poolData ?? []) as Array<{ id: string; subject_id: string; units_total: number }>).map(
-        (p) => [p.subject_id, p],
-      ),
-    );
-
-    const views: WaitlistView[] = [];
-    for (const session of sessions) {
-      const mine = entries.filter((e) => e.session_id === session.id);
-      if (mine.length === 0) continue;
-      const ordered = orderWaitlist(mine, now);
-      const pool = pools.get(session.id) ?? null;
-
-      // Seats come from the engine, never from a count here.
-      let remaining: number | null = null;
-      if (pool) {
-        const { data: rem, error: remErr } = await admin.rpc("capacity_remaining_public", {
-          p_pool_id: pool.id,
-          p_starts_at: session.starts_at,
-          p_ends_at: session.ends_at,
-        });
-        if (remErr) logServerError("scheduling.loadSessionWaitlists/remaining", remErr);
-        else if (typeof rem === "number") remaining = rem;
-      }
-
-      views.push({
-        sessionId: session.id,
-        sessionTitle: session.title?.trim() || "Untitled session",
-        startsAt: session.starts_at,
-        endsAt: session.ends_at,
-        seatsTotal: pool ? pool.units_total : null,
-        seatsRemaining: remaining,
-        entries: ordered,
-        nextInLineId: nextInLine(ordered, now)?.id ?? null,
-      });
-    }
-
-    views.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
-    return { ok: true, sessions: views };
+    return await loadWaitlistDesk(admin, tenantId, new Date(), { alwaysInclude });
   } catch (err) {
     logServerError("scheduling.loadSessionWaitlists", err);
     return { ok: false, error: "Could not load the waitlist." };
@@ -459,20 +365,7 @@ export async function promoteFromWaitlist(input: {
   }
 }
 
-export type JoinWaitlistResult =
-  | { ok: true; entryId: string }
-  | { ok: false; refusalKey: "nameRequired" | "alreadyWaiting" | "seatsAvailable" | "notFound" | "unavailable"; seatsRemaining: number | null };
-
-/**
- * Put somebody on the queue for a full session (K02, the refusal branch of a
- * class enrollment).
- *
- * TWO REFUSALS THAT ARE REALLY THE SAME KINDNESS. A blank name is refused
- * because a place cannot later be offered to somebody nobody can call; and a
- * session with seats still on it is refused because the operator should sell
- * one of them rather than start a queue for a class that is not full. Both say
- * what to do instead.
- */
+/** Put somebody on the queue for a full session. Refusals: see `joinWaitlist`. */
 export async function joinSessionWaitlist(input: {
   tenantId: string;
   sessionId: string;
@@ -484,75 +377,7 @@ export async function joinSessionWaitlist(input: {
     if (!scoped.ok) return { ok: false, refusalKey: "notFound", seatsRemaining: null };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable", seatsRemaining: null };
-
-    const name = input.customerName.trim();
-    if (!name) return { ok: false, refusalKey: "nameRequired", seatsRemaining: null };
-
-    const { data: sessionRow, error: sessionErr } = await admin
-      .from("sessions")
-      .select("id, starts_at, ends_at, status")
-      .eq("id", input.sessionId)
-      .eq("tenant_id", input.tenantId)
-      .maybeSingle();
-    if (sessionErr) {
-      logServerError("scheduling.joinSessionWaitlist/session", sessionErr);
-      return { ok: false, refusalKey: "unavailable", seatsRemaining: null };
-    }
-    const session = sessionRow as {
-      id: string;
-      starts_at: string;
-      ends_at: string;
-      status: string;
-    } | null;
-    if (!session) return { ok: false, refusalKey: "notFound", seatsRemaining: null };
-
-    const { data: poolRow, error: poolErr } = await admin
-      .from("capacity_pools")
-      .select("id")
-      .eq("tenant_id", input.tenantId)
-      .eq("subject_kind", "session_tier")
-      .eq("subject_id", session.id)
-      .maybeSingle();
-    if (poolErr) {
-      logServerError("scheduling.joinSessionWaitlist/pool", poolErr);
-      return { ok: false, refusalKey: "unavailable", seatsRemaining: null };
-    }
-    const pool = poolRow as { id: string } | null;
-    if (pool) {
-      const { data: rem, error: remErr } = await admin.rpc("capacity_remaining_public", {
-        p_pool_id: pool.id,
-        p_starts_at: session.starts_at,
-        p_ends_at: session.ends_at,
-      });
-      if (remErr) logServerError("scheduling.joinSessionWaitlist/remaining", remErr);
-      else if (typeof rem === "number" && rem > 0) {
-        return { ok: false, refusalKey: "seatsAvailable", seatsRemaining: rem };
-      }
-    }
-
-    const email = input.customerEmail?.trim() || null;
-    const { data: inserted, error: insertErr } = await admin
-      .from("session_waitlist_entries")
-      .insert({
-        tenant_id: input.tenantId,
-        session_id: session.id,
-        customer_name: name,
-        customer_email: email,
-      })
-      .select("id")
-      .maybeSingle();
-    if (insertErr) {
-      // 23505 is the partial unique index on (session, email) for live entries.
-      // It is deliberately NOT an ON CONFLICT target — a partial index cannot
-      // serve as an inference specification — so it is read here instead.
-      if ((insertErr as { code?: string }).code === "23505") {
-        return { ok: false, refusalKey: "alreadyWaiting", seatsRemaining: null };
-      }
-      logServerError("scheduling.joinSessionWaitlist/insert", insertErr);
-      return { ok: false, refusalKey: "unavailable", seatsRemaining: null };
-    }
-
-    return { ok: true, entryId: (inserted as { id: string } | null)?.id ?? "" };
+    return await joinWaitlist(admin, input);
   } catch (err) {
     logServerError("scheduling.joinSessionWaitlist", err);
     return { ok: false, refusalKey: "unavailable", seatsRemaining: null };

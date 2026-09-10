@@ -72,6 +72,16 @@ export function AppointmentsPage() {
   );
   const [rows, setRows] = useState<AppointmentRow[] | null>(null);
   const [waitlists, setWaitlists] = useState<WaitlistView[] | null>(null);
+  // Upcoming sessions the desk could not answer for. Carried so the waitlist
+  // view can say a sentence about a list that is short, rather than letting a
+  // failed seat read look like a workspace with nothing full in it.
+  const [unreadableSessions, setUnreadableSessions] = useState(0);
+  // How far ahead the desk looked, and whether there was more. Carried so a
+  // capped list can say so instead of reading as "nothing is full".
+  const [checkedAhead, setCheckedAhead] = useState(0);
+  const [truncated, setTruncated] = useState(false);
+  // Set when the operator arrives from a full class on the Sessions view.
+  const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<BookingHoursProposalRow[]>([]);
   const [defaultTimezone, setDefaultTimezone] = useState("UTC");
   const [timeZone, setTimeZone] = useState("UTC");
@@ -94,7 +104,7 @@ export function AppointmentsPage() {
     try {
       const [board, queue, pending] = await Promise.all([
         loadAppointments(tenantId),
-        loadSessionWaitlists(tenantId),
+        loadSessionWaitlists(tenantId, focusSessionId),
         loadBookingHoursProposals(tenantId),
       ]);
 
@@ -106,9 +116,15 @@ export function AppointmentsPage() {
         setError(board.error);
       }
 
-      if (queue.ok) setWaitlists(queue.sessions);
-      else {
+      if (queue.ok) {
+        setWaitlists(queue.sessions);
+        setUnreadableSessions(queue.unreadableSessions);
+        setCheckedAhead(queue.checkedAhead);
+        setTruncated(queue.truncated);
+      } else {
         setWaitlists([]);
+        setUnreadableSessions(0);
+        setTruncated(false);
         setError((prev) => prev ?? queue.error);
       }
 
@@ -125,10 +141,15 @@ export function AppointmentsPage() {
     } catch (err) {
       setRows([]);
       setWaitlists([]);
+      setUnreadableSessions(0);
+      setTruncated(false);
       setProposals([]);
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [tenantId]);
+    // `focusSessionId` is a dependency because the desk must be re-read with
+    // the class the operator just opened, or the door leads to a card that is
+    // not there.
+  }, [focusSessionId, tenantId]);
 
   useEffect(() => {
     void refresh();
@@ -183,7 +204,18 @@ export function AppointmentsPage() {
         // The Schedule surface, whole and unchanged, as one view of this
         // destination. Its own header is suppressed: this page already named
         // itself, and two headings stacked reads as a broken layout.
-        <SessionsPage embedded />
+        //
+        // It hands back a session id when an operator wants to queue somebody
+        // for a class that is full. That is where they NOTICE it is full, so
+        // that is where the door belongs; this switches the view and the
+        // waitlist opens on that card.
+        <SessionsPage
+          embedded
+          onOpenWaitlist={(sessionId) => {
+            setFocusSessionId(sessionId);
+            setView("waitlist");
+          }}
+        />
       ) : view === "waitlist" ? (
         waitlists === null ? (
           <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.waitlist.loading`)}</div>
@@ -191,7 +223,11 @@ export function AppointmentsPage() {
           <AppointmentsWaitlist
             tenantId={tenantId}
             sessions={waitlists}
+            unreadableSessions={unreadableSessions}
+            checkedAhead={checkedAhead}
+            truncated={truncated}
             timeZone={timeZone}
+            focusSessionId={focusSessionId}
             onChanged={() => void refresh()}
           />
         )

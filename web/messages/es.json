@@ -12320,12 +12320,16 @@
       "waitlist": {
         "loading": "Cargando la lista de espera...",
         "empty": {
-          "title": "No hay nadie esperando",
-          "body": "Cuando una clase se llene, puedes anotar aqui a la siguiente persona y ofrecerle el lugar en cuanto alguien lo devuelva."
+          "title": "Nada esta lleno y nadie espera",
+          "body": "Una clase que se agota aparece aqui sola, con la lista vacia. Anota a la siguiente persona desde la tarjeta de esa clase y ofrecele el lugar en cuanto alguien lo devuelva."
         },
         "seats": "Quedan {left} de {total}",
         "full": "Llena",
         "noPool": "Nunca se fijaron lugares para esta sesion, asi que nada puede decir que se libero uno.",
+        "seatsUnknown": "No se pudieron leer los lugares de esta sesion ahora mismo. Recarga antes de ofrecer un lugar.",
+        "nobodyYet": "Todavia no hay nadie en esta lista. Anota a la primera persona y el proximo lugar libre sera para ella.",
+        "partial": "No se pudieron leer {n} de las proximas sesiones ahora mismo, asi que esta lista puede quedar corta. Recarga para intentarlo de nuevo.",
+        "checkedAhead": "Solo se revisaron las proximas {n} sesiones para ver si estaban llenas. Para una mas lejana, abrela en Sesiones y series y anota ahi a alguien en su lista.",
         "position": "#{n}",
         "state": {
           "waiting": "Esperando",
@@ -12340,6 +12344,7 @@
         "promoting": "Ofreciendo...",
         "promoted": "Ofrecido a {name}, reservado hasta {when}.",
         "alreadyOffered": "{name} ya tiene este lugar. No cambio nada.",
+        "openFromSession": "Anotar a alguien en la lista",
         "join": {
           "heading": "Anotar a alguien en esta lista",
           "name": "Su nombre",
@@ -12347,16 +12352,18 @@
           "email": "Correo, si lo tienes",
           "submit": "Anotar en la lista",
           "submitting": "Anotando...",
+          "cancel": "Dejarlo",
           "joined": "{name} esta en la lista."
         },
         "refusal": {
           "invalid": "Esa peticion no se pudo usar.",
           "notFound": "Esa persona no esta en ninguna lista de este espacio de trabajo.",
-          "changedSinceOpened": "Esta reserva cambio desde que la abriste. Recarga la lista e intentalo de nuevo.",
+          "changedSinceOpened": "El lugar de esta persona en la lista cambio desde que la abriste. Recarga la lista e intentalo de nuevo.",
           "notPromotable": "Esa persona ya salio de esta lista.",
           "sessionMissing": "Esa sesion no esta en este espacio de trabajo.",
           "sessionNotOpen": "Esa sesion no esta a la venta, asi que no tiene lugares que dar.",
           "noPool": "Nunca se fijaron lugares para esta sesion, asi que nada puede decir que se libero uno.",
+          "noSeatsSet": "Nunca se fijaron lugares para esta sesion, asi que nadie podria enterarse de que se libero uno. Fija primero los lugares.",
           "sessionFull": "Ahora mismo no hay ningun lugar libre. Todo lo que queda ya esta prometido.",
           "unavailable": "No se pudo ofrecer ese lugar. Intentalo de nuevo.",
           "nameRequired": "Esta persona necesita un nombre antes de poder guardarle un lugar.",

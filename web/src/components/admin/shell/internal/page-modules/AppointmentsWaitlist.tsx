@@ -3,11 +3,18 @@
 /**
  * AppointmentsWaitlist — who is waiting for a place, and giving one back out.
  *
- * SEATS COME FROM THE ENGINE. The header on each session says what
- * `capacity_remaining_public` said, not a count of rows on this screen. A
- * session with no pool says so out loud rather than reading as unlimited: a
- * wrongly sold-out class loses the sale silently and nobody reports it, and the
- * opposite error promises a place that was never counted.
+ * THE ENTRY POINT IS THE POINT OF THIS SCREEN. It used to draw a card only for
+ * sessions that already had somebody on them, and the control that adds a
+ * person sits on a card, so the first person could never be added to any queue
+ * and nothing could ever be promoted. The loader now also hands over every
+ * upcoming session the engine calls FULL, with an empty queue, and each of
+ * those cards is where an operator starts one.
+ *
+ * SEATS COME FROM THE ENGINE, AND "COULD NOT READ" IS NOT "FULL". The header on
+ * each card renders the three states of `WaitlistSeats` — counted, never
+ * counted, unreadable — as three different sentences. A wrongly sold-out class
+ * loses the sale silently and nobody reports it; the opposite error promises a
+ * place that was never counted.
  *
  * THE STALE-SCREEN GUARD IS THE ROW'S OWN STATUS. `promoteFromWaitlist` sends
  * the status this screen is SHOWING, and the RPC refuses with `conflict` when
@@ -23,12 +30,13 @@
  * Token classes only; inline styles are frozen under components/admin/shell.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
 import {
   joinSessionWaitlist,
   promoteFromWaitlist,
+  type WaitlistSeats,
   type WaitlistView,
 } from "@/lib/scheduling/appointments-actions";
 import { fill, formatClock, formatWhen } from "./appointments-format";
@@ -38,13 +46,41 @@ const K = "dashboard.adminAppointments.waitlist";
 type Props = {
   tenantId: string;
   sessions: WaitlistView[];
+  /** Upcoming sessions left off because their seats could not be read. */
+  unreadableSessions: number;
+  /** How many upcoming sessions the desk examined for fullness. */
+  checkedAhead: number;
+  /** True when there were more upcoming sessions than that. */
+  truncated: boolean;
   timeZone: string;
+  /** A session the operator arrived here to queue somebody for, from the Sessions view. */
+  focusSessionId: string | null;
   onChanged: () => void;
 };
 
 type Notice = { sessionId: string; text: string; failed: boolean };
 
-export function AppointmentsWaitlist({ tenantId, sessions, timeZone, onChanged }: Props) {
+/** The one sentence a card's seats line says. Three states, three sentences. */
+function seatsLine(seats: WaitlistSeats, t: (key: string) => string): string {
+  if (seats.kind === "uncounted") return t(`${K}.noPool`);
+  if (seats.kind === "unreadable") return t(`${K}.seatsUnknown`);
+  if (seats.remaining <= 0) return t(`${K}.full`);
+  return fill(t(`${K}.seats`), {
+    left: String(seats.remaining),
+    total: String(seats.total),
+  });
+}
+
+export function AppointmentsWaitlist({
+  tenantId,
+  sessions,
+  unreadableSessions,
+  checkedAhead,
+  truncated,
+  timeZone,
+  focusSessionId,
+  onChanged,
+}: Props) {
   const t = useT();
   const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -52,6 +88,16 @@ export function AppointmentsWaitlist({ tenantId, sessions, timeZone, onChanged }
   const [joinName, setJoinName] = useState("");
   const [joinEmail, setJoinEmail] = useState("");
   const [joinBusy, setJoinBusy] = useState(false);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+
+  // Arriving from a full class on the Sessions view opens that card's form and
+  // brings it into view. Without this the operator lands on a list of every
+  // full class and has to find the one they just clicked.
+  useEffect(() => {
+    if (!focusSessionId) return;
+    setJoinFor(focusSessionId);
+    cardRefs.current.get(focusSessionId)?.scrollIntoView({ block: "nearest" });
+  }, [focusSessionId]);
 
   const promote = useCallback(
     async (view: WaitlistView, entryId: string, name: string, status: string) => {
@@ -141,85 +187,114 @@ export function AppointmentsWaitlist({ tenantId, sessions, timeZone, onChanged }
     [joinEmail, joinName, onChanged, t, tenantId],
   );
 
+  // Two sentences for the two reasons this list can be shorter than the truth.
+  // A list that is short for a reason nobody is told is the defect this screen
+  // already had, so neither reason is allowed to be silent.
+  const shortNotice =
+    unreadableSessions > 0 || truncated ? (
+      <div
+        data-testid="waitlist-partial"
+        className="mb-[16px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px] text-[13.5px] text-admin-ink"
+      >
+        {unreadableSessions > 0 ? (
+          <p>{fill(t(`${K}.partial`), { n: String(unreadableSessions) })}</p>
+        ) : null}
+        {truncated ? (
+          <p className={unreadableSessions > 0 ? "mt-[8px]" : undefined}>
+            {fill(t(`${K}.checkedAhead`), { n: String(checkedAhead) })}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
   if (sessions.length === 0) {
     return (
-      <div className="max-w-[560px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[24px]">
-        <div className="text-[15px] font-semibold text-admin-ink">{t(`${K}.empty.title`)}</div>
-        <p className="mt-[8px] text-[13.5px] leading-[1.5] text-admin-ink-muted">
-          {t(`${K}.empty.body`)}
-        </p>
-      </div>
+      <>
+        {shortNotice}
+        <div className="max-w-[560px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[24px]">
+          <div className="text-[15px] font-semibold text-admin-ink">{t(`${K}.empty.title`)}</div>
+          <p className="mt-[8px] text-[13.5px] leading-[1.5] text-admin-ink-muted">
+            {t(`${K}.empty.body`)}
+          </p>
+        </div>
+      </>
     );
   }
 
   return (
     <>
+      {shortNotice}
       {sessions.map((view) => (
         <div
           key={view.sessionId}
           data-testid="waitlist-session"
+          ref={(node) => {
+            if (node) cardRefs.current.set(view.sessionId, node);
+            else cardRefs.current.delete(view.sessionId);
+          }}
           className="mb-[20px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[20px]"
         >
           <div className="text-[15px] font-semibold text-admin-ink">{view.sessionTitle}</div>
           <div className="mt-[4px] text-[13px] text-admin-ink-muted">
             {formatWhen(view.startsAt, timeZone)}
             {" · "}
-            {view.seatsTotal === null
-              ? t(`${K}.noPool`)
-              : (view.seatsRemaining ?? 0) <= 0
-                ? t(`${K}.full`)
-                : fill(t(`${K}.seats`), {
-                    left: String(view.seatsRemaining ?? 0),
-                    total: String(view.seatsTotal),
-                  })}
+            {seatsLine(view.seats, t)}
           </div>
 
-          <div className="mt-[12px] overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <tbody>
-                {view.entries.map((entry) => (
-                  <tr key={entry.id} className="border-t border-admin-border-soft align-top">
-                    <td className="py-[8px] pr-[12px] text-admin-ink-muted">
-                      {fill(t(`${K}.position`), { n: String(entry.position) })}
-                    </td>
-                    <td className="py-[8px] pr-[16px] text-admin-ink">
-                      {entry.customerName}
-                      {entry.id === view.nextInLineId ? (
-                        <span className="ml-[8px] text-[12px] text-admin-ink-muted">
-                          {t(`${K}.nextInLine`)}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="py-[8px] pr-[16px] text-admin-ink-muted">
-                      {t(`${K}.state.${entry.state}`)}
-                      {entry.state === "offered" && entry.offerExpiresAt ? (
-                        <span className="ml-[6px]">
-                          {fill(t(`${K}.offerUntil`), {
-                            when: formatClock(entry.offerExpiresAt, timeZone),
-                          })}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="py-[8px] text-admin-ink">
-                      {entry.state === "accepted" || entry.state === "withdrawn" ? null : (
-                        <button
-                          type="button"
-                          data-testid="waitlist-promote"
-                          className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink disabled:opacity-60"
-                          disabled={busyEntryId === entry.id}
-                          onClick={() =>
-                            void promote(view, entry.id, entry.customerName, entry.status)
-                          }
-                        >
-                          {busyEntryId === entry.id ? t(`${K}.promoting`) : t(`${K}.promote`)}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {view.entries.length === 0 ? (
+            // A full class with nobody on it. This is the state the whole
+            // journey used to be unreachable from, so it says what to do.
+            <p data-testid="waitlist-nobody" className="mt-[12px] text-[13px] text-admin-ink-muted">
+              {t(`${K}.nobodyYet`)}
+            </p>
+          ) : (
+            <div className="mt-[12px] overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <tbody>
+                  {view.entries.map((entry) => (
+                    <tr key={entry.id} className="border-t border-admin-border-soft align-top">
+                      <td className="py-[8px] pr-[12px] text-admin-ink-muted">
+                        {fill(t(`${K}.position`), { n: String(entry.position) })}
+                      </td>
+                      <td className="py-[8px] pr-[16px] text-admin-ink">
+                        {entry.customerName}
+                        {entry.id === view.nextInLineId ? (
+                          <span className="ml-[8px] text-[12px] text-admin-ink-muted">
+                            {t(`${K}.nextInLine`)}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-[8px] pr-[16px] text-admin-ink-muted">
+                        {t(`${K}.state.${entry.state}`)}
+                        {entry.state === "offered" && entry.offerExpiresAt ? (
+                          <span className="ml-[6px]">
+                            {fill(t(`${K}.offerUntil`), {
+                              when: formatClock(entry.offerExpiresAt, timeZone),
+                            })}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-[8px] text-admin-ink">
+                        {entry.state === "accepted" || entry.state === "withdrawn" ? null : (
+                          <button
+                            type="button"
+                            data-testid="waitlist-promote"
+                            className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink disabled:opacity-60"
+                            disabled={busyEntryId === entry.id}
+                            onClick={() =>
+                              void promote(view, entry.id, entry.customerName, entry.status)
+                            }
+                          >
+                            {busyEntryId === entry.id ? t(`${K}.promoting`) : t(`${K}.promote`)}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {joinFor === view.sessionId ? (
             <div className="mt-[16px] rounded-[12px] border border-admin-border-soft bg-admin-surface-alt p-[16px]">
@@ -228,39 +303,52 @@ export function AppointmentsWaitlist({ tenantId, sessions, timeZone, onChanged }
               </div>
               <label className="mt-[10px] block text-[12.5px] text-admin-ink-muted">
                 {t(`${K}.join.name`)}
+                <input
+                  type="text"
+                  className="mt-[4px] block w-full max-w-[320px] rounded-admin border border-admin-line px-3 py-2 text-admin-ink"
+                  value={joinName}
+                  onChange={(e) => setJoinName(e.target.value)}
+                />
               </label>
-              <input
-                type="text"
-                className="mt-[4px] w-full max-w-[320px] rounded-admin border border-admin-line px-3 py-2 text-admin-ink"
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-              />
               <p className="mt-[4px] text-[12px] leading-[1.5] text-admin-ink-muted">
                 {t(`${K}.join.nameHint`)}
               </p>
               <label className="mt-[10px] block text-[12.5px] text-admin-ink-muted">
                 {t(`${K}.join.email`)}
+                <input
+                  type="email"
+                  className="mt-[4px] block w-full max-w-[320px] rounded-admin border border-admin-line px-3 py-2 text-admin-ink"
+                  value={joinEmail}
+                  onChange={(e) => setJoinEmail(e.target.value)}
+                />
               </label>
-              <input
-                type="email"
-                className="mt-[4px] w-full max-w-[320px] rounded-admin border border-admin-line px-3 py-2 text-admin-ink"
-                value={joinEmail}
-                onChange={(e) => setJoinEmail(e.target.value)}
-              />
-              <div className="mt-[12px]">
+              <div className="mt-[12px] flex flex-wrap gap-[8px]">
                 <button
                   type="button"
+                  data-testid="waitlist-join-submit"
                   className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink disabled:opacity-60"
                   disabled={joinBusy}
                   onClick={() => void join(view)}
                 >
                   {joinBusy ? t(`${K}.join.submitting`) : t(`${K}.join.submit`)}
                 </button>
+                <button
+                  type="button"
+                  className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink-muted disabled:opacity-60"
+                  disabled={joinBusy}
+                  onClick={() => {
+                    setJoinFor(null);
+                    setNotice(null);
+                  }}
+                >
+                  {t(`${K}.join.cancel`)}
+                </button>
               </div>
             </div>
           ) : (
             <button
               type="button"
+              data-testid="waitlist-join-open"
               className="mt-[12px] rounded-admin border border-admin-line px-3 py-2 text-admin-ink"
               onClick={() => {
                 setJoinFor(view.sessionId);

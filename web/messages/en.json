@@ -12320,12 +12320,16 @@
       "waitlist": {
         "loading": "Loading the waitlist...",
         "empty": {
-          "title": "Nobody is waiting",
-          "body": "When a class fills up you can put the next person on its list here, and offer them the place the moment one is given back."
+          "title": "Nothing is full, and nobody is waiting",
+          "body": "A class that sells out shows up here on its own, with an empty list. Put the next person on it from that class's card, and offer them the place the moment one is given back."
         },
         "seats": "{left} of {total} left",
         "full": "Full",
         "noPool": "No seats were ever set for this session, so nothing can say a place came free.",
+        "seatsUnknown": "The seats for this session could not be read just now. Reload before you offer a place.",
+        "nobodyYet": "Nobody is on this list yet. Add the first person and the next place that comes free is offered to them.",
+        "partial": "{n} of the upcoming sessions could not be read just now, so this list may be short. Reload to try again.",
+        "checkedAhead": "Only the next {n} sessions were checked for a full class. For one further out, open it under Sessions and series and put somebody on its list from there.",
         "position": "#{n}",
         "state": {
           "waiting": "Waiting",
@@ -12340,6 +12344,7 @@
         "promoting": "Offering...",
         "promoted": "Offered to {name}, held until {when}.",
         "alreadyOffered": "{name} already has this place. Nothing changed.",
+        "openFromSession": "Put somebody on the list",
         "join": {
           "heading": "Add somebody to this list",
           "name": "Their name",
@@ -12347,16 +12352,18 @@
           "email": "Email, if you have one",
           "submit": "Add to the list",
           "submitting": "Adding...",
+          "cancel": "Leave it",
           "joined": "{name} is on the list."
         },
         "refusal": {
           "invalid": "That request was not usable.",
           "notFound": "That person is not on a list in this workspace.",
-          "changedSinceOpened": "This booking changed since you opened it. Reload the list and try again.",
+          "changedSinceOpened": "This person's place on the list changed since you opened it. Reload the list and try again.",
           "notPromotable": "That person has already left this list.",
           "sessionMissing": "That session is not in this workspace.",
           "sessionNotOpen": "That session is not on sale, so it has no place to give.",
           "noPool": "No seats were ever set for this session, so nothing can say a place came free.",
+          "noSeatsSet": "No seats were ever set for this session, so nobody could ever be told a place came free. Set the seats first.",
           "sessionFull": "There is no free place right now. Everything left is already promised.",
           "unavailable": "Could not offer that place. Try again.",
           "nameRequired": "This person needs a name before a place can be held for them.",

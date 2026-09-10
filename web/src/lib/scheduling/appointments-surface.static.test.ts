@@ -138,3 +138,81 @@ test("the banner says the public page has no hours until this is accepted", () =
     "the proposals help no longer says the public page reports no hours",
   );
 });
+
+test("a full class with an empty queue is still a card, so somebody can be added", () => {
+  // The screen's half of the dead journey. The control that adds the first
+  // person lives on a session card; if the card body could only render a table
+  // of existing entries, an empty queue had nowhere to put it.
+  const src = codeOnly(read("AppointmentsWaitlist.tsx"));
+  assert.match(
+    src,
+    /view\.entries\.length === 0/,
+    "the card has no branch for a queue nobody is on yet",
+  );
+  assert.match(
+    src,
+    /data-testid="waitlist-join-open"/,
+    "the card no longer offers a way to open the add-somebody form",
+  );
+  assert.match(
+    src,
+    /joinSessionWaitlist\(/,
+    "nothing on this screen calls the action that puts somebody on a queue",
+  );
+});
+
+test("the seats line tells three states apart, and never reads unknown as full", () => {
+  // A nullable remaining used to be rendered `(seatsRemaining ?? 0) <= 0`,
+  // which prints "Full" for a read that failed. A wrongly sold-out class loses
+  // the sale silently and nobody reports it.
+  const src = codeOnly(read("AppointmentsWaitlist.tsx"));
+  for (const kind of ["uncounted", "unreadable"]) {
+    assert.match(
+      src,
+      new RegExp(`seats\\.kind === "${kind}"`),
+      `the seats line does not tell ${kind} apart from a counted zero`,
+    );
+  }
+  assert.match(
+    src,
+    /seats\.remaining <= 0/,
+    "the full sentence is not decided from a count the engine actually gave",
+  );
+  // Scoped to the seats line itself: `?? 0` is legitimate elsewhere on this
+  // screen, where it fills the {left} hole of a refusal the server already
+  // decided. Inside this function it would be the defect.
+  const line = /function seatsLine\([\s\S]*?\n}/.exec(src)?.[0] ?? "";
+  assert.ok(line.length > 0, "seatsLine is gone; the three states have nowhere to be told apart");
+  assert.ok(
+    !/\?\? 0/.test(line),
+    "an unreadable seat count is being defaulted to zero and rendered as full",
+  );
+});
+
+test("the Sessions view offers the door to the queue on a class that is full", () => {
+  // Where an operator FINDS OUT a class is full is where the way onto its
+  // waitlist belongs. Without it the waitlist was a tab you had to already
+  // know about.
+  const src = codeOnly(read("SessionsPage.tsx"));
+  assert.match(src, /onOpenWaitlist\(o\.id\)/, "a full occurrence offers no way onto its queue");
+  assert.match(
+    src,
+    /seatsRemaining !== null/,
+    "the full check treats an unread seat count as full",
+  );
+});
+
+test("the empty state does not promise a door that is somewhere else", () => {
+  // The old copy told the operator this screen was where they put the next
+  // person when a class filled up, while the screen it described could not do
+  // that at all. It now describes what actually happens.
+  const messages = JSON.parse(
+    readFileSync(join(WEB_ROOT, "messages", "en.json"), "utf8"),
+  ) as Record<string, Record<string, Record<string, Record<string, Record<string, string>>>>>;
+  const body = messages.dashboard!.adminAppointments!.waitlist!.empty!.body!;
+  assert.match(body, /sells out/i, "the empty state no longer says what brings a class here");
+  assert.ok(
+    !/put the next person on its list here/i.test(body),
+    "the empty state still claims the list is started from this empty screen",
+  );
+});

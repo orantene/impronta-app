@@ -1204,12 +1204,16 @@
       "waitlist": {
         "loading": "Chargement de la liste d'attente...",
         "empty": {
-          "title": "Personne n'attend",
-          "body": "Quand un cours est complet, tu peux inscrire ici la personne suivante et lui proposer la place des qu'une se libere."
+          "title": "Rien n'est complet et personne n'attend",
+          "body": "Un cours qui affiche complet apparait ici tout seul, avec une liste vide. Inscris la personne suivante depuis la fiche de ce cours et propose-lui la place des qu'une se libere."
         },
         "seats": "{left} sur {total} restantes",
         "full": "Complet",
         "noPool": "Aucune place n'a jamais ete fixee pour cette seance, donc rien ne peut dire qu'une place s'est liberee.",
+        "seatsUnknown": "Impossible de lire les places de cette seance pour l'instant. Recharge avant de proposer une place.",
+        "nobodyYet": "Personne n'est encore sur cette liste. Inscris la premiere personne et la prochaine place libre lui sera proposee.",
+        "partial": "Impossible de lire {n} des prochaines seances pour l'instant, cette liste peut donc etre incomplete. Recharge pour reessayer.",
+        "checkedAhead": "Seules les {n} prochaines seances ont ete verifiees. Pour une plus lointaine, ouvre-la dans Seances et series et inscris quelqu'un sur sa liste depuis la.",
         "position": "#{n}",
         "state": {
           "waiting": "En attente",
@@ -1224,6 +1228,7 @@
         "promoting": "Proposition...",
         "promoted": "Proposee a {name}, reservee jusqu'a {when}.",
         "alreadyOffered": "{name} a deja cette place. Rien n'a change.",
+        "openFromSession": "Inscrire quelqu'un sur la liste",
         "join": {
           "heading": "Ajouter quelqu'un a cette liste",
           "name": "Son nom",
@@ -1231,16 +1236,18 @@
           "email": "Email, si tu l'as",
           "submit": "Ajouter a la liste",
           "submitting": "Ajout...",
+          "cancel": "Laisser",
           "joined": "{name} est sur la liste."
         },
         "refusal": {
           "invalid": "Cette demande n'etait pas utilisable.",
           "notFound": "Cette personne n'est sur aucune liste de cet espace de travail.",
-          "changedSinceOpened": "Cette reservation a change depuis que tu l'as ouverte. Recharge la liste et reessaie.",
+          "changedSinceOpened": "La place de cette personne sur la liste a change depuis que tu l'as ouverte. Recharge la liste et reessaie.",
           "notPromotable": "Cette personne a deja quitte cette liste.",
           "sessionMissing": "Cette seance n'est pas dans cet espace de travail.",
           "sessionNotOpen": "Cette seance n'est pas en vente, elle n'a donc aucune place a donner.",
           "noPool": "Aucune place n'a jamais ete fixee pour cette seance, donc rien ne peut dire qu'une place s'est liberee.",
+          "noSeatsSet": "Aucune place n'a jamais ete fixee pour cette seance, donc personne ne pourrait jamais apprendre qu'une place s'est liberee. Fixe d'abord les places.",
           "sessionFull": "Il n'y a aucune place libre pour l'instant. Tout ce qui reste est deja promis.",
           "unavailable": "Impossible de proposer cette place. Reessaie.",
           "nameRequired": "Cette personne a besoin d'un nom avant qu'une place puisse lui etre gardee.",
