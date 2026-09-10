@@ -116,3 +116,59 @@ test("the operation ledger is claimed before any resource is touched", () => {
   assert.ok(batch > claim, "the capacity batch runs before the claim, so a duplicate would not block");
   assert.ok(hold > claim, "the calendar holds run before the claim, so a duplicate would not block");
 });
+
+/**
+ * The refusal path is where the first version of this function was wrong, and
+ * a unit test cannot see it: the double-allocation only shows up as COMMITTED
+ * rows in Postgres, which is proven against the isolated branch by
+ * `scripts/verify-reserve-set-refusal-atomicity.mjs`. What a static read CAN
+ * pin is the shape that makes that proof hold, so the next edit cannot quietly
+ * put a value-returning refusal back inside the writing block.
+ */
+test("every refusal inside the writing block raises, so the block rolls back", () => {
+  const sql = readdirSync(MIGRATIONS)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+    .join("\n");
+  const v2 = sql.slice(sql.indexOf("FUNCTION public.reserve_resource_set_v2"));
+  const body = v2.slice(0, v2.indexOf("$$;"));
+
+  const claim = body.indexOf("INSERT INTO public.resource_set_operations");
+  const blockStart = body.indexOf("-- ── the body:");
+  const settle = body.indexOf("-- ── settle");
+  assert.ok(claim > -1 && blockStart > -1 && settle > -1, "the claim, the writing block or the settle step is gone");
+  assert.ok(
+    claim < blockStart,
+    "the claim must be taken OUTSIDE the writing block, or rolling that block back would erase it and the settle step would have nothing to free",
+  );
+
+  const writing = body.slice(blockStart, settle);
+
+  // The handler is the ONE place inside this block that may build a refusal as
+  // a value, because by then the rollback has already happened. Everything
+  // above it must raise.
+  const handler = /\n\s*EXCEPTION\s*\n\s*WHEN SQLSTATE 'RS001' THEN/.exec(writing);
+  assert.ok(
+    handler,
+    "the writing block needs its own EXCEPTION clause; that clause is what makes it a subtransaction",
+  );
+  const writes = writing.slice(0, handler.index);
+
+  assert.doesNotMatch(
+    writes,
+    /EXIT\s+work/,
+    "a labelled block exited with EXIT is not a subtransaction: it unwinds nothing, so the refusal would commit the rows it had already written",
+  );
+  assert.doesNotMatch(
+    writes,
+    /v_result\s*:=\s*jsonb_build_object\(\s*\n?\s*'ok',\s*false/,
+    "a refusal that only assigns a value leaves the rows this block already wrote in place; raise RS001 instead so the subtransaction rolls back",
+  );
+
+  const raises = writes.match(/RAISE EXCEPTION USING ERRCODE = 'RS001'/g) ?? [];
+  assert.ok(
+    raises.length >= 5,
+    `every in-body refusal must raise RS001; found ${raises.length}, expected at least the 5 the body can reach`,
+  );
+});

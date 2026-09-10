@@ -30,8 +30,39 @@
 --     whole body back, and the claim was taken INSIDE that body, so it goes
 --     with it;
 --   • a returned refusal deletes the claim row on the way out.
--- Either way the key is free again, because nothing was reserved under it.
--- Only `state = 'done'` is sticky, and only that state answers `already`.
+-- Either way the key is free again. Only `state = 'done'` is sticky, and only
+-- that state answers `already`.
+--
+-- WHY A REFUSAL MUST ALSO UNDO ITS OWN WORK — and how this file got it wrong.
+-- Freeing the key is only half of it. A set refuses on its LAST leg as easily
+-- as its first, and by then the earlier legs have written: an allocation, a
+-- firm hold on a real person's calendar. The first version of this file put
+-- the body in a LABELLED block and left every refusal through `EXIT work`. A
+-- labelled block is not a subtransaction — only a block with an EXCEPTION
+-- clause is — so `EXIT` unwound nothing. The function then settled, freed the
+-- key and RETURNED, and the transaction COMMITTED the half-built set. Two
+-- reproduced consequences, both on one operation key:
+--   • one good capacity leg plus one hold with an empty talent id refused with
+--     `invalid` and kept the allocation; replaying the identical key kept a
+--     SECOND one, so two refusals held two seats;
+--   • a good hold followed by a bad one refused and left the good hold
+--     standing, and the replay then answered `slot_taken` instead of
+--     `invalid`, blocked by the ghost its own refusal had left.
+-- So the body is now a real subtransaction, the same shape
+-- `reserve_capacity_batch` uses: every in-body refusal RAISES SQLSTATE RS001
+-- carrying its reason in MESSAGE_TEXT and its failed ids in DETAIL, the
+-- block's own EXCEPTION clause catches it — which rolls back every row the
+-- block wrote — and turns it back into `{ok:false, reason}`. The claim is
+-- taken OUTSIDE that block, so it survives the rollback and the settle step
+-- can still delete it. A refusal therefore leaves nothing at all, and the
+-- replay of a refused key is indistinguishable from a first attempt.
+--
+-- WHERE THE PROOF LIVES. The DO block at the foot of this file replays the
+-- two cases above and refuses to apply if either leaks. Every OTHER reason the
+-- function can return is driven against the isolated branch by
+-- `web/scripts/verify-reserve-set-refusal-atomicity.mjs`, which asserts the
+-- same three facts for each one: zero units held under the key, no surviving
+-- hold, and a replay that answers the SAME reason.
 --
 -- WHY v1 STAYS. `reserve_resource_set` is left in place, untouched, for one
 -- release: the code that calls it ships on the same commit as this file, and a
@@ -148,6 +179,8 @@ DECLARE
   v_alloc       jsonb;
   v_alloc_ids   uuid[] := '{}';
   v_reason      text;
+  v_detail      text;
+  v_ctx         jsonb;
 BEGIN
   IF p_tenant_id IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'bad_input', 'failed_pool_id', NULL, 'failed_talent_id', NULL);
@@ -229,11 +262,15 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'unavailable', 'failed_pool_id', NULL, 'failed_talent_id', NULL);
   END IF;
 
-  -- ── the body, unchanged from v1 except for the key it stamps ───────────────
+  -- ── the body: one subtransaction, so a refusal unwinds it ─────────────────
   --
-  -- Labelled so every refusal reaches ONE exit. A bare RETURN in here would
-  -- skip the settle step below and leave the claim standing.
-  <<work>>
+  -- This BEGIN has an EXCEPTION clause, which is what makes it a
+  -- subtransaction; a labelled block exited with `EXIT` is not one and unwinds
+  -- nothing. So every refusal in here RAISES RS001 instead of falling out with
+  -- a value: the raise rolls back the allocation and the holds this block
+  -- already wrote, and the handler turns the error back into the refusal the
+  -- caller expects. The claim was taken above this block, so it survives and
+  -- the settle step below can still free it.
   BEGIN
     IF p_capacity IS NOT NULL
        AND jsonb_typeof(p_capacity) = 'array'
@@ -242,30 +279,24 @@ BEGIN
       LOOP
         v_pool_id := NULLIF(v_cap->>'pool_id', '')::uuid;
         IF v_pool_id IS NULL THEN
-          v_result := jsonb_build_object('ok', false, 'reason', 'invalid', 'failed_pool_id', NULL, 'failed_talent_id', NULL);
-          EXIT work;
+          RAISE EXCEPTION USING ERRCODE = 'RS001', MESSAGE = 'invalid';
         END IF;
         SELECT tenant_id INTO v_tenant FROM public.capacity_pools WHERE id = v_pool_id;
         IF NOT FOUND THEN
-          v_result := jsonb_build_object('ok', false, 'reason', 'pool_not_found', 'failed_pool_id', v_pool_id, 'failed_talent_id', NULL);
-          EXIT work;
+          RAISE EXCEPTION USING ERRCODE = 'RS001', MESSAGE = 'pool_not_found',
+            DETAIL = jsonb_build_object('failed_pool_id', v_pool_id)::text;
         END IF;
         IF v_tenant IS DISTINCT FROM p_tenant_id THEN
-          v_result := jsonb_build_object('ok', false, 'reason', 'wrong_tenant', 'failed_pool_id', v_pool_id, 'failed_talent_id', NULL);
-          EXIT work;
+          RAISE EXCEPTION USING ERRCODE = 'RS001', MESSAGE = 'wrong_tenant',
+            DETAIL = jsonb_build_object('failed_pool_id', v_pool_id)::text;
         END IF;
       END LOOP;
 
       v_alloc := public.reserve_capacity_batch(p_capacity, p_ttl_seconds, NULL, p_actor_id);
       IF COALESCE((v_alloc->>'ok')::boolean, false) IS NOT TRUE THEN
-        v_reason := COALESCE(v_alloc->>'reason', 'unavailable');
-        v_result := jsonb_build_object(
-          'ok', false,
-          'reason', v_reason,
-          'failed_pool_id', NULLIF(v_alloc->>'failed_pool_id', '')::uuid,
-          'failed_talent_id', NULL
-        );
-        EXIT work;
+        RAISE EXCEPTION USING ERRCODE = 'RS001',
+          MESSAGE = COALESCE(v_alloc->>'reason', 'unavailable'),
+          DETAIL = jsonb_build_object('failed_pool_id', NULLIF(v_alloc->>'failed_pool_id', ''))::text;
       END IF;
       SELECT COALESCE(array_agg(x::uuid), '{}')
         INTO v_alloc_ids
@@ -294,8 +325,8 @@ BEGIN
         v_before := COALESCE(NULLIF(v_hold->>'buffer_before_seconds', '')::int, 0);
         v_after := COALESCE(NULLIF(v_hold->>'buffer_after_seconds', '')::int, 0);
         IF v_talent IS NULL OR v_starts IS NULL OR v_ends IS NULL OR v_ends <= v_starts OR v_before < 0 OR v_after < 0 THEN
-          v_result := jsonb_build_object('ok', false, 'reason', 'invalid', 'failed_pool_id', NULL, 'failed_talent_id', v_talent);
-          EXIT work;
+          RAISE EXCEPTION USING ERRCODE = 'RS001', MESSAGE = 'invalid',
+            DETAIL = jsonb_build_object('failed_talent_id', v_talent)::text;
         END IF;
         v_starts := v_starts - make_interval(secs => v_before);
         v_ends := v_ends + make_interval(secs => v_after);
@@ -342,6 +373,23 @@ BEGIN
       'allocation_ids', to_jsonb(v_alloc_ids),
       'expires_at', v_expires
     );
+  EXCEPTION
+    WHEN SQLSTATE 'RS001' THEN
+      -- Reaching here means the block rolled back: no allocation, no hold, no
+      -- stamp. Local variables survive a subtransaction rollback while rows do
+      -- not, so the id arrays are cleared by hand — they name rows that are
+      -- gone.
+      GET STACKED DIAGNOSTICS v_reason = MESSAGE_TEXT, v_detail = PG_EXCEPTION_DETAIL;
+      v_ctx := COALESCE(NULLIF(v_detail, ''), '{}')::jsonb;
+      v_hold_ids := '{}';
+      v_alloc_ids := '{}';
+      v_expires := NULL;
+      v_result := jsonb_build_object(
+        'ok', false,
+        'reason', v_reason,
+        'failed_pool_id', NULLIF(v_ctx->>'failed_pool_id', '')::uuid,
+        'failed_talent_id', NULLIF(v_ctx->>'failed_talent_id', '')::uuid
+      );
   END;
 
   -- ── settle ─────────────────────────────────────────────────────────────────
@@ -361,8 +409,11 @@ BEGIN
 
   RETURN v_result;
 EXCEPTION
-  -- Every handler here rolls the body back, and the claim was taken inside it,
-  -- so none of these needs to clean the ledger: the row never existed.
+  -- These are the FUNCTION's handlers, not the writing block's, so they unwind
+  -- one level further out: the claim was taken inside this block too, and goes
+  -- with everything else. None of them needs to clean the ledger, because the
+  -- row never existed. (The RS001 handler above cannot do that — it must leave
+  -- the claim standing for the settle step to delete.)
   WHEN exclusion_violation THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'slot_taken', 'failed_pool_id', NULL, 'failed_talent_id', v_talent);
   WHEN deadlock_detected OR serialization_failure THEN
@@ -376,7 +427,7 @@ REVOKE ALL ON FUNCTION public.reserve_resource_set_v2(uuid, text, uuid, integer,
 GRANT EXECUTE ON FUNCTION public.reserve_resource_set_v2(uuid, text, uuid, integer, jsonb, jsonb) TO service_role;
 
 COMMENT ON FUNCTION public.reserve_resource_set_v2(uuid, text, uuid, integer, jsonb, jsonb) IS
-  'T1-01: reserve_resource_set with an operation key claimed before any resource is touched. A replay of the same (tenant, key) returns the first answer with already=true; a refusal releases the key.';
+  'T1-01: reserve_resource_set with an operation key claimed before any resource is touched. A replay of the same (tenant, key) returns the first answer with already=true. The body is a subtransaction, so a refusal rolls back every allocation and hold it had already written and then releases the key: replaying a refused key behaves exactly like a first attempt.';
 
 DO $check$
 BEGIN
@@ -414,10 +465,14 @@ DECLARE
   v_actor   uuid;
   v_key     text := 'proof:t1-01:' || gen_random_uuid()::text;
   v_key2    text := 'proof:t1-01:refusal:' || gen_random_uuid()::text;
+  v_key3    text := 'proof:t1-01:half-built:' || gen_random_uuid()::text;
+  v_key4    text := 'proof:t1-01:ghost-hold:' || gen_random_uuid()::text;
   v_first   jsonb;
   v_second  jsonb;
   v_refused jsonb;
   v_rows    int;
+  v_units   int;
+  v_pool    uuid;
   v_starts  timestamptz := timestamptz '2099-03-01 10:00:00+00';
   v_ends    timestamptz := timestamptz '2099-03-01 10:45:00+00';
   v_holds   jsonb;
@@ -504,10 +559,108 @@ BEGIN
     RAISE EXCEPTION 'the key freed by a refusal could not be reused: %', v_refused;
   END IF;
 
-  DELETE FROM public.talent_holds WHERE operation_key IN (v_key, v_key2);
-  DELETE FROM public.resource_set_operations WHERE operation_key IN (v_key, v_key2);
+  -- ── a refusal that arrives AFTER an earlier leg succeeded ────────────────
+  --
+  -- This is the case the first version of this file got wrong. Both sets below
+  -- refuse on their LAST leg, so the body has already written by the time it
+  -- decides; the subtransaction is what takes those rows back.
 
-  RAISE NOTICE 'reserve_resource_set_v2: replay returns the first answer, one hold exists, a refusal frees its key';
+  v_pool := public.upsert_capacity_pool(
+    v_tenant, 'offering', gen_random_uuid(), 5, 'proof-t1-01-refusal');
+
+  -- One good capacity leg, then a hold with an empty talent id. Before the
+  -- fix this refused with `invalid` and still held a seat, and the replay held
+  -- a second one.
+  v_refused := public.reserve_resource_set_v2(
+    v_tenant, v_key3, v_actor, 900,
+    jsonb_build_array(jsonb_build_object('pool_id', v_pool, 'units', 1)),
+    jsonb_build_array(jsonb_build_object(
+      'talent_profile_id', '',
+      'starts_at', timestamptz '2099-08-01 10:00:00+00',
+      'ends_at', timestamptz '2099-08-01 10:45:00+00'
+    ))
+  );
+  IF (v_refused->>'reason') IS DISTINCT FROM 'invalid' THEN
+    RAISE EXCEPTION 'expected invalid on the bad hold, got %', v_refused;
+  END IF;
+
+  -- Replay the IDENTICAL command: a second refusal must not be a second seat.
+  v_second := public.reserve_resource_set_v2(
+    v_tenant, v_key3, v_actor, 900,
+    jsonb_build_array(jsonb_build_object('pool_id', v_pool, 'units', 1)),
+    jsonb_build_array(jsonb_build_object(
+      'talent_profile_id', '',
+      'starts_at', timestamptz '2099-08-01 10:00:00+00',
+      'ends_at', timestamptz '2099-08-01 10:45:00+00'
+    ))
+  );
+  IF (v_second->>'reason') IS DISTINCT FROM 'invalid' THEN
+    RAISE EXCEPTION 'the replay of a refused key answered % instead of the same invalid', v_second;
+  END IF;
+
+  SELECT COALESCE(sum(units), 0), count(*)
+    INTO v_units, v_rows
+    FROM public.capacity_allocations
+   WHERE pool_id = v_pool AND state <> 'released';
+  IF v_rows <> 0 OR v_units <> 0 THEN
+    RAISE EXCEPTION 'two refused calls left % allocation(s) holding % unit(s)', v_rows, v_units;
+  END IF;
+  SELECT count(*) INTO v_rows FROM public.resource_set_operations
+   WHERE tenant_id = v_tenant AND operation_key = v_key3;
+  IF v_rows <> 0 THEN
+    RAISE EXCEPTION 'a refusal kept its claim; the key is poisoned';
+  END IF;
+
+  -- A good hold, then a bad one on the same person. Before the fix the good
+  -- hold survived the refusal and the replay answered slot_taken, blocked by
+  -- the ghost its own refusal had left.
+  v_refused := public.reserve_resource_set_v2(
+    v_tenant, v_key4, v_actor, 900, '[]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object(
+        'talent_profile_id', v_talent,
+        'starts_at', timestamptz '2099-09-01 10:00:00+00',
+        'ends_at', timestamptz '2099-09-01 10:45:00+00'),
+      jsonb_build_object(
+        'talent_profile_id', v_talent,
+        'starts_at', timestamptz '2099-09-01 12:00:00+00',
+        'ends_at', timestamptz '2099-09-01 11:00:00+00')
+    )
+  );
+  IF (v_refused->>'reason') IS DISTINCT FROM 'invalid' THEN
+    RAISE EXCEPTION 'expected invalid on the second hold, got %', v_refused;
+  END IF;
+  SELECT count(*) INTO v_rows FROM public.talent_holds
+   WHERE talent_profile_id = v_talent
+     AND starts_at >= timestamptz '2099-09-01 00:00:00+00'
+     AND starts_at < timestamptz '2099-09-02 00:00:00+00';
+  IF v_rows <> 0 THEN
+    RAISE EXCEPTION 'a REFUSED reservation left % firm hold(s) on a real calendar', v_rows;
+  END IF;
+
+  v_second := public.reserve_resource_set_v2(
+    v_tenant, v_key4, v_actor, 900, '[]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object(
+        'talent_profile_id', v_talent,
+        'starts_at', timestamptz '2099-09-01 10:00:00+00',
+        'ends_at', timestamptz '2099-09-01 10:45:00+00'),
+      jsonb_build_object(
+        'talent_profile_id', v_talent,
+        'starts_at', timestamptz '2099-09-01 12:00:00+00',
+        'ends_at', timestamptz '2099-09-01 11:00:00+00')
+    )
+  );
+  IF (v_second->>'reason') IS DISTINCT FROM 'invalid' THEN
+    RAISE EXCEPTION 'the replay answered % instead of the same invalid; a ghost row is blocking it', v_second;
+  END IF;
+
+  DELETE FROM public.capacity_allocations WHERE pool_id = v_pool;
+  DELETE FROM public.capacity_pools WHERE id = v_pool;
+  DELETE FROM public.talent_holds WHERE operation_key IN (v_key, v_key2, v_key3, v_key4);
+  DELETE FROM public.resource_set_operations WHERE operation_key IN (v_key, v_key2, v_key3, v_key4);
+
+  RAISE NOTICE 'reserve_resource_set_v2: replay returns the first answer, a refusal frees its key AND leaves no allocation and no hold behind';
 END
 $proof$;
 
