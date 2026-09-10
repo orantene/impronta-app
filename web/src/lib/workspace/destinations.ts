@@ -312,13 +312,13 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     group: "operate",
     segment: "projects",
     aliases: ["work"],
-    // Not built. /admin/work has been an alias of Messages since WS-3.6, so a
-    // URL for a project lands on the thread it would have been about.
-    fallbackSegment: "messages",
-    render: "spa",
+    // BUILT (P4, 2026-09-10): a real route, so the Messages fallback is gone
+    // and /admin/work redirects here rather than standing in for it.
+    render: "canonical",
     icon: "briefcase",
     label: "Projects",
-    built: false,
+    shortLabel: "Projects",
+    built: true,
   },
   mywork: {
     id: "mywork",

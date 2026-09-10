@@ -85,6 +85,22 @@ test("SPA-owned surfaces stay non-canonical on both shapes", () => {
   }
 });
 
+test("Projects is canonical at the list AND at the record; the Clients LIST is not", () => {
+  // P4. Both halves matter and they fail differently. Without the list matcher
+  // (which the registry produces, because the destination is `render:
+  // "canonical"`) the SPA's Messages page would render over the list; without
+  // the record matcher the project page would render STACKED under the SPA.
+  for (const p of ["/admin/projects", "/admin/projects/1a2b3c", "/admin/clients/1a2b3c"]) {
+    assert.equal(pathIsCanonical(p), true, `branded: ${p}`);
+    assert.equal(pathIsCanonical(`/impronta${p}`), true, `slug: ${p}`);
+  }
+  // The Clients list is still the SPA page-module. Only the record is a page,
+  // so the matcher must require the id segment. This is the assertion that
+  // catches a matcher written as `s[1] === "clients"` with no id check.
+  assert.equal(pathIsCanonical("/admin/clients"), false);
+  assert.equal(pathIsCanonical("/impronta/admin/clients"), false);
+});
+
 test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/talent/trust"), true);
   assert.equal(pathIsCanonical("/talent/discover"), true);
