@@ -7,6 +7,7 @@ import {
   groupTakingsByMethod,
   sumByCurrency,
   withVariance,
+  sumOwedByCurrency,
 } from "./activity-shape";
 
 test("manual + cash paid_via is the cash method", () => {
@@ -157,4 +158,37 @@ test("absence and an unusable zone REFUSE rather than answer", () => {
     formatVenueDateTime("2026-09-10T09:03:00.000Z", { locale: "en-US", timeZone: "Mars/Olympus" }),
     null,
   );
+});
+
+// ── Still owed ──────────────────────────────────────────────────────────
+
+test("still owed counts only orders awaiting payment; cancelled, draft, paid and refunded rows add nothing", () => {
+  const rows = [
+    { status: "pending_payment", currency: "USD", totalCents: 1800, collectedCents: 0 },
+    { status: "pending_payment", currency: "USD", totalCents: 5000, collectedCents: 2000 },
+    { status: "cancelled", currency: "USD", totalCents: 1800, collectedCents: 0 },
+    { status: "draft", currency: "USD", totalCents: 1800, collectedCents: 0 },
+    { status: "paid", currency: "USD", totalCents: 1800, collectedCents: 1800 },
+    { status: "refunded", currency: "USD", totalCents: 1800, collectedCents: 1800 },
+  ];
+  assert.deepEqual(sumOwedByCurrency(rows), [{ currency: "USD", totalCents: 4800, count: 2 }]);
+});
+
+test("still owed: a complimentary place awaiting payment is settled, and over-collection is not negative", () => {
+  const rows = [
+    { status: "pending_payment", currency: "USD", totalCents: 0, collectedCents: 0 },
+    { status: "pending_payment", currency: "USD", totalCents: 1000, collectedCents: 1200 },
+  ];
+  assert.deepEqual(sumOwedByCurrency(rows), []);
+});
+
+test("still owed is per currency, never one number across two", () => {
+  const rows = [
+    { status: "pending_payment", currency: "usd", totalCents: 100, collectedCents: 0 },
+    { status: "pending_payment", currency: "ARS", totalCents: 100000, collectedCents: 0 },
+  ];
+  assert.deepEqual(sumOwedByCurrency(rows), [
+    { currency: "ARS", totalCents: 100000, count: 1 },
+    { currency: "USD", totalCents: 100, count: 1 },
+  ]);
 });

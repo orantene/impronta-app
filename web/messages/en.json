@@ -12118,7 +12118,28 @@
       "unavailableTitle": "We could not load your orders",
       "refund": "Refund lines",
       "refundEffect": "What this refund does",
-      "refundConfirm": "Confirm this refund"
+      "refundConfirm": "Confirm this refund",
+      "refundEffectCopy": {
+        "keepEntitlement": "Refund part of the price. The guest keeps what they bought.",
+        "cancelTicket": "Cancel one ticket. That admission is revoked and the seat comes back.",
+        "adjustmentAfterService": "Refund after the service. Nothing else changes.",
+        "revokeUnusedAdmission": "Revoke an unused admission. Refund is optional.",
+        "refundHybridComponent": "Refund one part of a package. The other parts stand."
+      },
+      "refundOutcome": {
+        "refunded": "Refunded. The money is on its way back to the customer.",
+        "pickALine": "Pick at least one line before confirming the refund.",
+        "notAllowed": "You cannot refund on this workspace. Ask an owner to do it.",
+        "invalid": "That refund could not be read. Reload the desk and try again.",
+        "notFound": "That order is not here. It may belong to another workspace, or it may have been removed.",
+        "nothingToRefund": "There is nothing left to refund on the lines you picked.",
+        "lineAlreadyRefunded": "That line has already been refunded in full.",
+        "exceedsCaptured": "That is more than was ever collected on this order, so it cannot be refunded.",
+        "noProviderCharge": "This payment came in off the platform, as cash or a transfer, so there is no card charge to reverse. Hand the money back the way it arrived and record it as an off-platform refund.",
+        "providerRefused": "The payment provider refused the refund. Nothing was refunded and nothing was charged. Try again, or check the payment at the provider.",
+        "partialFailure": "Part of this refund went through and part did not. Do not try again: the refunds that landed are real. Somebody has to finish the rest by hand.",
+        "unavailable": "The refund could not be recorded. Nothing was refunded. Try again in a moment."
+      }
     },
     "sales": {
       "pageTitle": "Sales",
