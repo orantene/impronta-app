@@ -59,6 +59,10 @@ export type PeopleActionResult =
 const ROLES = ["admin", "manager", "editor", "viewer"] as const;
 type GrantableRole = (typeof ROLES)[number];
 
+function isGrantableRole(value: string): value is GrantableRole {
+  return (ROLES as readonly string[]).includes(value);
+}
+
 const uuid = z.string().uuid();
 
 function mapReason(reason: string | undefined): PeopleReasonKey {
@@ -197,7 +201,7 @@ export async function setPersonPublicProfile(
     : { status: "removed", removed_at: new Date().toISOString(), removed_by: auth.user.id };
 
   const { error } = await tenantScopedQuery(admin, "agency_talent_roster", auth.tenantId)
-    .update({ ...patch, updated_at: new Date().toISOString() } as never)
+    .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", (row as { id: string }).id);
   if (error) {
     logServerError("people.setPublicProfile.write", error);
@@ -219,13 +223,13 @@ export async function grantPersonAccess(
   if (!uuid.safeParse(talentProfileId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
-  if (!(ROLES as readonly string[]).includes(role)) {
+  if (!isGrantableRole(role)) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
   const seats = await seatCheck();
   if (seats) return { ok: false, reasonKey: seats };
 
-  const result = await promoteRosterTalentToAdmin(talentProfileId, role as GrantableRole);
+  const result = await promoteRosterTalentToAdmin(talentProfileId, role);
   if (!result.ok) {
     logServerError("people.grantAccess", result.error);
     // The engine's only "no account" answer arrives as a validation failure;
@@ -243,13 +247,13 @@ export async function invitePersonAccess(
   email: string,
   role: string,
 ): Promise<PeopleActionResult> {
-  if (!(ROLES as readonly string[]).includes(role)) {
+  if (!isGrantableRole(role)) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
   const seats = await seatCheck();
   if (seats) return { ok: false, reasonKey: seats };
 
-  const result = await inviteTeamMember(email, role as GrantableRole);
+  const result = await inviteTeamMember(email, role);
   if (!result.ok) {
     logServerError("people.invite", result.error);
     return { ok: false, reasonKey: mapReason(result.reason) };
@@ -266,10 +270,10 @@ export async function setPersonAccessRole(
   if (!uuid.safeParse(accountId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
-  if (!(ROLES as readonly string[]).includes(role)) {
+  if (!isGrantableRole(role)) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
-  const result = await changeTeamMemberRole(accountId, role as GrantableRole);
+  const result = await changeTeamMemberRole(accountId, role);
   if (!result.ok) {
     logServerError("people.setRole", result.error);
     if (/your own role/i.test(result.error)) {

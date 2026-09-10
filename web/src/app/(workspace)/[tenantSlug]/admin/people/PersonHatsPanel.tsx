@@ -86,9 +86,7 @@ export function PersonHatsPanel({ person }: { person: PersonRecord }) {
         <h2 className="text-base font-semibold text-foreground">
           {person.name || t("admin.people.unnamed")}
         </h2>
-        <p className={PEOPLE_MUTED}>
-          {person.email ?? t("admin.people.detail.pickAPerson")}
-        </p>
+        {person.email ? <p className={PEOPLE_MUTED}>{person.email}</p> : null}
       </header>
 
       {feedback ? <FeedbackLine feedback={feedback} /> : null}

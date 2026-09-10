@@ -18,6 +18,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadWorkspaceTeamMembers } from "../../_data-bridge/workspace-config";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   NOT_EXCLUSIVE,
@@ -33,7 +34,6 @@ import {
   isAccessRole,
   mergePeople,
   publicProfileHat,
-  type AccessRole,
   type MembershipSide,
   type PersonRecord,
   type RosterSide,
@@ -72,13 +72,6 @@ type RosterQueryRow = {
   } | null;
 };
 
-type MembershipQueryRow = {
-  profile_id: string;
-  role: string | null;
-  status: string | null;
-  profiles: { display_name: string | null; avatar_url: string | null } | null;
-};
-
 function displayName(p: {
   display_name: string | null;
   first_name: string | null;
@@ -109,7 +102,11 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
   const admin = createServiceRoleClient();
   const client = admin ?? supabase;
 
-  const [rosterRes, memberRes, agencyRes] = await Promise.all([
+  // The membership side has a reader already: `loadWorkspaceTeamMembers` is
+  // what the Team drawer uses, and it resolves the account email that
+  // `public.profiles` does not carry. Writing a second query here is how the
+  // same person ends up described two different ways.
+  const [rosterRes, members, agencyRes] = await Promise.all([
     client
       .from("agency_talent_roster")
       .select(
@@ -121,21 +118,14 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
          )`,
       )
       .eq("tenant_id", tenantId),
-    client
-      .from("agency_memberships")
-      .select("profile_id, role, status, profiles:profile_id(display_name, avatar_url)")
-      .eq("tenant_id", tenantId)
-      .in("status", ["active", "pending_acceptance", "invited"]),
+    loadWorkspaceTeamMembers(tenantId),
     client.from("agencies").select("settings").eq("id", tenantId).maybeSingle(),
   ]);
 
   // A failed read is not an empty workspace. Saying "no one works here" when
   // the query broke is the silent dead end this surface must never render.
-  if (rosterRes.error || memberRes.error || agencyRes.error) {
-    logServerError(
-      "people.load",
-      rosterRes.error ?? memberRes.error ?? agencyRes.error,
-    );
+  if (rosterRes.error || agencyRes.error) {
+    logServerError("people.load", rosterRes.error ?? agencyRes.error);
     return { ...EMPTY, loadFailed: true };
   }
 
@@ -195,24 +185,19 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
     };
   });
 
-  const memberRows = (memberRes.data ?? []) as unknown as MembershipQueryRow[];
-  const memberships: MembershipSide[] = memberRows.map((row) => {
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    const role: AccessRole | null = isAccessRole(row.role) ? row.role : null;
-    return {
-      accountId: row.profile_id,
-      name: profile?.display_name?.trim() || "",
-      email: null,
-      avatarUrl: profile?.avatar_url?.trim() || null,
-      role,
-      access: accessHat({
-        hasMembership: true,
-        membershipStatus: row.status,
-        // A membership row IS the account: profile_id is the auth user id.
-        hasAccount: true,
-      }),
-    };
-  });
+  const memberships: MembershipSide[] = members.map((member) => ({
+    accountId: member.id,
+    name: member.name.trim(),
+    email: member.email ?? null,
+    avatarUrl: member.photoUrl ?? null,
+    role: isAccessRole(member.role) ? member.role : null,
+    access: accessHat({
+      hasMembership: true,
+      membershipStatus: member.status,
+      // A membership row IS the account: profile_id is the auth user id.
+      hasAccount: true,
+    }),
+  }));
 
   return {
     people: mergePeople(roster, memberships),
