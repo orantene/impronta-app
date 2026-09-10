@@ -26,17 +26,18 @@ export default async function PreparationPage({ params }: { params: PageParams }
   const board = await listBoard(admin, scope.tenantId);
 
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
+    <main className="mx-auto max-w-[1180px] px-7 py-8">
+      <h1 className="m-0 text-[26px] font-semibold text-foreground">
         {tr("dashboard.preparation.pageTitle")}
       </h1>
-      <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 6, marginBottom: 24 }}>
+      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
         {tr("dashboard.preparation.pageIntro")}
       </p>
       {!board.ok ? (
-        <p>{tr("dashboard.preparation.unavailable")}</p>
+        <p className="text-sm text-destructive">{tr("dashboard.preparation.unavailable")}</p>
       ) : (
         <PreparationClient
+          locale={locale}
           tickets={board.tickets}
           copy={{
             empty: tr("dashboard.preparation.empty"),
@@ -45,6 +46,15 @@ export default async function PreparationPage({ params }: { params: PageParams }
             handoff: tr("dashboard.preparation.handoff"),
             revision: tr("dashboard.preparation.revision"),
             destination: tr("dashboard.preparation.destination"),
+            destinationTable: tr("dashboard.preparation.destinationTable"),
+            destinationPickup: tr("dashboard.preparation.destinationPickup"),
+            destinationCounter: tr("dashboard.preparation.destinationCounter"),
+            statusQueued: tr("dashboard.preparation.statusQueued"),
+            statusAcknowledged: tr("dashboard.preparation.statusAcknowledged"),
+            statusReady: tr("dashboard.preparation.statusReady"),
+            amended: tr("dashboard.preparation.amended"),
+            handedOff: tr("dashboard.preparation.handedOff"),
+            promisedBy: tr("dashboard.preparation.promisedBy"),
           }}
         />
       )}
