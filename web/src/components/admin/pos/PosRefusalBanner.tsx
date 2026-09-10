@@ -75,7 +75,14 @@ export function PosRefusalBanner({ reason, copy, onRetry, className }: PosRefusa
   const actionKey = ACTION_LABEL_KEY[reason];
 
   return (
-    <div role="alert" className={cn(POS_REFUSAL_BANNER, className)}>
+    // `data-pos-refusal` names WHICH refusal this is, beside the sentence that
+    // says it. The page carries other `role="alert"` live regions that are
+    // empty until something uses them, so "the first alert on the page" is not
+    // a way to find this one — a browser journey looking for the counter's
+    // refusal read one of those and saw an empty string. Same convention as
+    // `data-pos-method-status` and `data-pos-receipt-link`: a hook that names
+    // the thing, never a visible string a test has to parse.
+    <div role="alert" data-pos-refusal={reason} className={cn(POS_REFUSAL_BANNER, className)}>
       <p className="flex-1">{sentence}</p>
       {actionKey && onRetry && (
         <button

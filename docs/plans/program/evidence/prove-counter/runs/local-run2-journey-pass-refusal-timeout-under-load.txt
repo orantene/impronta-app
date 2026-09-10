@@ -1,0 +1,48 @@
+
+Running 4 tests using 1 worker
+
+[1/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+[2/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against
+  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: getByRole('button', { name: /^Charge · /i }).first()
+    Expected pattern: /\$18\.00/
+    Received string:  "Charge · $0.00"
+    Timeout: 20000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 20000ms
+      - waiting for getByRole('button', { name: /^Charge · /i }).first()
+        18 × locator resolved to <button disabled type="button" class="flex h-14 min-w-[7rem] items-center justify-center gap-2 rounded-xl bg-foreground px-6 text-base font-semibold text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 w-full">Charge · $0.00</button>
+           - unexpected value "Charge · $0.00"
+
+
+      469 |   const orderId = await startSale(page);
+      470 |   await addItem(page, PIZZA.title);
+    > 471 |   await expect(chargeButton(page)).toHaveText(/\$18\.00/, { timeout: 20_000 });
+          |                                    ^
+      472 |
+      473 |   // A second till holding the SAME sale, opened before either one charges.
+      474 |   const second = await page.context().newPage();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-prove-counter/web/e2e/cases/POS-counter-cash-sale.spec.ts:471:36
+
+    Error Context: ../../pw-out-local-run2/cases-POS-counter-cash-sal-27d48-e-already-collected-against-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out-local-run2/cases-POS-counter-cash-sal-27d48-e-already-collected-against-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out-local-run2/cases-POS-counter-cash-sal-27d48-e-already-collected-against-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[3/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:510:5 › POS-OP counter refusal: a sale changed underneath the operator
+[4/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against 
+  2 did not run
+  1 passed (2.7m)
+EXIT=1
