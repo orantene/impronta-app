@@ -350,6 +350,15 @@ export type BridgeData = {
      * whether the Events LINK is drawn and never whether the route resolves.
      */
     runsEvents?: boolean;
+    /**
+     * The POS modes this workspace has switched on
+     * (`agencies.settings.pos.locations.default.modes`, already parsed by
+     * `enabledPosModesFromSettings`). Optional on the wire; a reader that does
+     * not get one must fall back to that parser's own `["counter"]` default,
+     * never to `[]` — `[]` is the legitimate "every mode off" value and would
+     * otherwise silently hide the POS entry from every workspace.
+     */
+    posModes?: readonly import("@/lib/pos/modes").PosMode[];
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome
@@ -424,7 +433,18 @@ export type BridgeData = {
    * (BottomActionFab) and the first-run guided tour. `null`/omitted = both
    * hidden (the platform default).
    */
-  workspaceUi?: { fabEnabled: boolean; tourEnabled: boolean; supportEnabled?: boolean } | null;
+  workspaceUi?: {
+    fabEnabled: boolean;
+    tourEnabled: boolean;
+    supportEnabled?: boolean;
+    /**
+     * `platform_settings.workspace_pos_enabled` — the point of sale's kill
+     * switch. OPTIONAL because this is the wire format and an older bridge or
+     * a prototype legitimately omits it; the reader defaults it to false,
+     * matching the switch's own platform default.
+     */
+    posEnabled?: boolean;
+  } | null;
 };
 
 export function createBridgeDataFromRoster(

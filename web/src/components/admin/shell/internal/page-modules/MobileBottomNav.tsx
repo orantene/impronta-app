@@ -30,7 +30,7 @@ import {
   type WorkspaceNavContext,
 } from "@/lib/workspace/destinations";
 import { canManageBilling, derivePreset, deriveWorkRole } from "@/lib/workspace/nav-context";
-import { modesForPerson } from "@/lib/pos/modes";
+import { mobileMoreActions } from "@/lib/workspace/mobile-more-actions";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
 // English label -> the copy dictionary key. destinationLabel/destinationShortLabel
@@ -79,6 +79,8 @@ export function MobileBottomNav() {
     bridgeTalentUnread,
     openDrawer,
     adminBasePath,
+    workspacePosEnabled,
+    workspacePosModes,
   } = useAdminShell();
   const copy = useDashboardText();
   const router = useRouter();
@@ -116,12 +118,12 @@ export function MobileBottomNav() {
       professional: state.alsoTalent,
       takesReservations: state.visiblePages.includes("reservations"),
       runsEvents: state.visiblePages.includes("events"),
-      // The platform POS kill switch (lib/platform/workspace-ui.ts) is not on
-      // the client bridge yet either — its own doc comment says "a later
-      // task wires this onto the workspace shell's client bridge". Defaulting
-      // to false matches the switch's own default-off, so the Open POS row
-      // below stays correctly hidden until that wiring lands.
-      posEnabled: false,
+      // The platform POS kill switch (`platform_settings.workspace_pos_enabled`,
+      // read by `loadPlatformWorkspaceUi`) now rides the shell bridge as
+      // `workspaceUi.posEnabled`, the same channel fabEnabled/tourEnabled/
+      // supportEnabled already use. It was a hardcoded `false` here, which made
+      // the Open POS row below unreachable no matter what HQ had switched on.
+      posEnabled: workspacePosEnabled,
       canManageBilling: canManageBilling(role),
     };
 
@@ -157,10 +159,29 @@ export function MobileBottomNav() {
       };
     });
 
-    const posModes = navContext.posEnabled
-      ? modesForPerson({ role: state.role, workspaceEnabledModes: [] })
-      : [];
-    const showOpenPos = navContext.posEnabled && posModes.length > 0;
+    // The sheet's non-destination rows. `workspacePosModes` is the workspace's
+    // own `pos.locations.default.modes`, already parsed (and already defaulted
+    // to `["counter"]` when a workspace has no `pos` settings) by
+    // `enabledPosModesFromSettings` on the server — never the `[]` this file
+    // used to pass, which could only ever resolve to "no modes".
+    const moreActions = mobileMoreActions({
+      posEnabled: workspacePosEnabled,
+      role: state.role,
+      workspaceEnabledModes: workspacePosModes,
+    });
+
+    const runMoreAction = (id: (typeof moreActions)[number]["id"]) => {
+      if (id === "search") {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT));
+        }
+      } else if (id === "notifications") {
+        openDrawer("notifications");
+      } else {
+        setPage("pos");
+      }
+      setMoreOpen(false);
+    };
 
     // Same grouping, same order the sidebar uses — sidebarGroups() already
     // drops the pos group and empty groups.
@@ -174,20 +195,9 @@ export function MobileBottomNav() {
           ref={bottomNavRef}
           data-tulala-mobile-bottom-nav
           aria-label={`${copy.t(state.surface)} ${copy.t("sections")}`}
-          style={{
-            position: "fixed",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "#fff",
-            borderTop: `1px solid ${COLORS.borderSoft}`,
-            zIndex: Z.topbar,
-            display: "none",
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
-            fontFamily: FONTS.body,
-          }}
+          className="tulala-mnav-bar"
         >
-          <div style={{ display: "flex", alignItems: "stretch", height: 64 }}>
+          <div className="tulala-mnav-bar-row">
             {tabs.map((t) => (
               <BottomTab key={t.id} {...t} />
             ))}
@@ -286,47 +296,24 @@ export function MobileBottomNav() {
 
               <div className="tulala-mnav-divider" />
 
-              <button
-                type="button"
-                className="tulala-mnav-row"
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT));
-                  }
-                  setMoreOpen(false);
-                }}
-              >
-                <Icon name="search" size={16} stroke={1.7} />
-                <span className="tulala-mnav-row-label">{copy.t("Search")}</span>
-              </button>
-              <button
-                type="button"
-                className="tulala-mnav-row"
-                onClick={() => {
-                  openDrawer("notifications");
-                  setMoreOpen(false);
-                }}
-              >
-                <Icon name="bell" size={16} stroke={1.7} />
-                <span className="tulala-mnav-row-label">{copy.t("Notifications")}</span>
-              </button>
-              {showOpenPos && (
+              {moreActions.map((a) => (
                 <button
+                  key={a.id}
                   type="button"
                   className="tulala-mnav-row"
-                  onClick={() => {
-                    setPage("pos");
-                    setMoreOpen(false);
-                  }}
+                  data-mnav-action={a.id}
+                  onClick={() => runMoreAction(a.id)}
                 >
-                  <Icon name="credit" size={16} stroke={1.7} />
-                  <span className="tulala-mnav-row-label">{copy.t("Open POS")}</span>
+                  <Icon name={a.icon} size={16} stroke={1.7} />
+                  <span className="tulala-mnav-row-label">{copy.t(a.label)}</span>
                 </button>
-              )}
+              ))}
 
               <div className="tulala-mnav-divider" />
 
-              {/* Feedback row — unchanged from the prior implementation. */}
+              {/* Feedback row — same behaviour as the talent branch's copy,
+                  drawn from this branch's own class sheet rather than a
+                  duplicated style object. */}
               <button
                 type="button"
                 onClick={() => {
@@ -335,9 +322,9 @@ export function MobileBottomNav() {
                   }
                   setMoreOpen(false);
                 }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "14px 18px", background: "transparent", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 15, fontWeight: 500, textAlign: "left" }} className="text-admin-ink">
-                <span style={{ display: "inline-flex" }} className="text-admin-ink-muted">
+                className="tulala-mnav-row tulala-mnav-feedback text-admin-ink"
+              >
+                <span className="tulala-mnav-feedback-icon text-admin-ink-muted">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -348,6 +335,27 @@ export function MobileBottomNav() {
           </div>
         )}
         <style>{`
+          /* The fixed bar. display:none is the DESKTOP state; the shell's own
+             mobile media query (admin-shell-client.tsx, "Show the mobile
+             bottom tab bar") flips it to block with !important, so a plain
+             class carries exactly as far as the inline style it replaced. */
+          .tulala-mnav-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: ${COLORS.card};
+            border-top: 1px solid ${COLORS.borderSoft};
+            z-index: ${Z.topbar};
+            display: none;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            font-family: ${FONTS.body};
+          }
+          .tulala-mnav-bar-row {
+            display: flex;
+            align-items: stretch;
+            height: 64px;
+          }
           .tulala-mnav-backdrop {
             position: fixed;
             inset: 0;
@@ -445,6 +453,14 @@ export function MobileBottomNav() {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+          }
+          /* The feedback row sits a touch taller than a destination row, and
+             carries its icon in a plain span instead of the Icon primitive. */
+          .tulala-mnav-feedback {
+            padding: 14px 18px;
+          }
+          .tulala-mnav-feedback-icon {
+            display: inline-flex;
           }
           .tulala-mnav-badge {
             min-width: 18px;
