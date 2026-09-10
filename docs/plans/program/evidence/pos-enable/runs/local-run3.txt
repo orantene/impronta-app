@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/POS-platform-switch.spec.ts:67:5 › the platform POS switch and the workspace panel agree, end to end
+[1A[2K  1 passed (1.4m)
+EXIT=0

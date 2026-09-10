@@ -38,6 +38,16 @@
  * device-registry table exists anywhere in the schema. Rather than invent a
  * device picker with nothing behind it, this card states the gap in plain
  * words: every device on this workspace shares the settings above.
+ *
+ * THE PLATFORM SWITCH OUTRANKS EVERYTHING HERE. `platform_settings
+ * .workspace_pos_enabled` (surfaced via the shell bridge as `platformEnabled`)
+ * is the kill switch HQ owns; this card's own toggles only decide which
+ * BUILT modes a workspace exposes once the platform allows the point of
+ * sale at all. With the platform switch off, no per-mode toggle here could
+ * ever do anything — `setPosModes` still writes, but nothing reads
+ * `workspacePosModes` while `workspacePosEnabled` is false (`PosModeSwitch`,
+ * `MobileBottomNav`) — so this renders a plain sentence instead of a bank of
+ * switches that look live and are not.
  */
 
 import { useEffect, useState, useTransition } from "react";
@@ -53,7 +63,14 @@ const K = "dashboard.adminWorkspace.posModes";
 /** A server refusal, or the one failure that never reaches the server at all. */
 type CardRefusal = PosModesRefusal | ClientLoadRefusal;
 
-export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
+export function PosModesSettingsCard({
+  canEdit,
+  platformEnabled,
+}: {
+  canEdit: boolean;
+  /** `platform_settings.workspace_pos_enabled` off the shell bridge — the platform kill switch. */
+  platformEnabled: boolean;
+}) {
   const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [busy, startTransition] = useTransition();
@@ -112,6 +129,18 @@ export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
         setRefusal(CLIENT_LOAD_REFUSAL);
       }
     });
+  }
+
+  if (!platformEnabled) {
+    return (
+      <div data-testid="pos-modes-card" className="mb-2 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4">
+        <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
+        <div className="mt-0.5 text-[12px] text-admin-ink-muted">{t(`${K}.desc`)}</div>
+        <div data-testid="pos-modes-platform-off" className="mt-2 text-[11.5px] leading-relaxed text-admin-ink-muted">
+          {t(`${K}.platformOffHint`)}
+        </div>
+      </div>
+    );
   }
 
   return (

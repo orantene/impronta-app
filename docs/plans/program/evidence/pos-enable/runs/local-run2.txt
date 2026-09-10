@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/POS-platform-switch.spec.ts:67:5 › the platform POS switch and the workspace panel agree, end to end
+[1A[2K  1) [chromium] › e2e/cases/POS-platform-switch.spec.ts:67:5 › the platform POS switch and the workspace panel agree, end to end 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByTestId('pos-modes-card').getByText('Saved', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByTestId('pos-modes-card').getByText('Saved', { exact: true })[22m
+
+
+      112 |   if ((await counterSwitch.getAttribute("aria-checked")) !== "true") {
+      113 |     await counterSwitch.click();
+    > 114 |     await expect(page.getByTestId("pos-modes-card").getByText("Saved", { exact: true })).toBeVisible();
+          |                                                                                          ^
+      115 |   }
+      116 |   await page.screenshot({
+      117 |     path: "../docs/plans/program/evidence/pos-enable/screenshots/3-workspace-panel-counter-on.png",
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-pos-enable/web/e2e/cases/POS-platform-switch.spec.ts:114:90
+
+    Error Context: test-results/cases-POS-platform-switch--f8eb4-pace-panel-agree-end-to-end-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-platform-switch--f8eb4-pace-panel-agree-end-to-end-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-platform-switch--f8eb4-pace-panel-agree-end-to-end-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/POS-platform-switch.spec.ts:67:5 › the platform POS switch and the workspace panel agree, end to end 
+EXIT=1
