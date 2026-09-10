@@ -21,6 +21,14 @@ export type PlatformWorkspaceUi = {
   quickBarEnabled: boolean;
   /** In-app support launcher. Default FALSE; HQ opts in after verification. */
   supportEnabled: boolean;
+  /**
+   * The point of sale's top-bar entry switch. Default FALSE: the mode
+   * vocabulary (`lib/pos/modes.ts`) and every mode's screen are new,
+   * unshipped surface, so nothing should appear until HQ opts a first
+   * tenant in. A later task wires this onto the workspace shell's client
+   * bridge; this loader only surfaces the value.
+   */
+  posEnabled: boolean;
 };
 
 /**
@@ -35,6 +43,7 @@ const DEFAULT_WORKSPACE_UI: PlatformWorkspaceUi = {
   tourEnabled: false,
   quickBarEnabled: true,
   supportEnabled: false,
+  posEnabled: false,
 };
 
 /**
@@ -50,17 +59,21 @@ export const loadPlatformWorkspaceUi = cache(
       const { data } = await admin
         .from("platform_settings")
         .select(
-          "workspace_fab_enabled, workspace_tour_enabled, workspace_quick_bar_enabled, workspace_support_enabled",
+          "workspace_fab_enabled, workspace_tour_enabled, workspace_quick_bar_enabled, workspace_support_enabled, workspace_pos_enabled",
         )
         .eq("id", true)
         .maybeSingle();
       if (!data) return DEFAULT_WORKSPACE_UI;
-      const row = data as typeof data & { workspace_support_enabled?: boolean };
+      const row = data as typeof data & {
+        workspace_support_enabled?: boolean;
+        workspace_pos_enabled?: boolean;
+      };
       return {
         fabEnabled: !!data.workspace_fab_enabled,
         tourEnabled: !!data.workspace_tour_enabled,
         quickBarEnabled: data.workspace_quick_bar_enabled ?? true,
         supportEnabled: !!row.workspace_support_enabled,
+        posEnabled: !!row.workspace_pos_enabled,
       };
     } catch (err) {
       logServerError("platform.loadWorkspaceUi", err);
@@ -74,10 +87,16 @@ export const loadPlatformWorkspaceUi = cache(
  * `use server` action after it has gated the caller. Lives in this server-only
  * lib so the raw `.from("platform_settings")` write stays out of the action
  * file (platform_settings has no tenant_id by design).
+ *
+ * Takes every switch EXCEPT `posEnabled`: the settings-UI card and its action
+ * (`admin-platform-workspace-ui.ts`) only know about the first four — wiring
+ * a control for the fifth is a later task's job (the "client bridge" this
+ * loader intentionally does not touch). Adding `posEnabled` to the input type
+ * here would force every existing caller to start passing it.
  */
 export async function writePlatformWorkspaceUi(
   updatedBy: string,
-  input: PlatformWorkspaceUi,
+  input: Omit<PlatformWorkspaceUi, "posEnabled">,
 ): Promise<{ ok: true } | { ok: false }> {
   try {
     const admin = createServiceRoleClient();
