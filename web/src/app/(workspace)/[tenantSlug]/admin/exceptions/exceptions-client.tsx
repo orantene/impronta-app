@@ -119,12 +119,19 @@ export function ExceptionsClient({
         ...s,
         [row.key]: {
           pending: false,
-          message: result.ok ? result.message : result.error,
+          // A KEYED ANSWER IS TRANSLATED; ANYTHING ELSE IS THE RUNNER'S OWN
+          // ENGLISH. The key is preferred because it names a decision the
+          // operator has to act on, and this surface ships in three languages.
+          message: result.ok
+            ? result.message
+            : result.messageKey
+              ? t(`${K}.result.${result.messageKey}`)
+              : result.error,
           failed: !result.ok,
         },
       }));
     },
-    [keys],
+    [keys, t],
   );
 
   return (

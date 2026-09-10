@@ -25,6 +25,7 @@ import {
   hatRemovalAlsoRemoves,
   hatsAfterRemoving,
   holdsMoneyPermissions,
+  type HatBlockReason,
   type HatState,
   type PersonHat,
   type PersonRecord,
@@ -62,7 +63,14 @@ type Feedback =
   | { kind: "saved" }
   | null;
 
-export function PersonHatsPanel({ person }: { person: PersonRecord }) {
+export function PersonHatsPanel({
+  person,
+  workspaceAllowsDirectBooking,
+}: {
+  person: PersonRecord;
+  /** See `PeopleSurface.workspaceAllowsDirectBooking`. */
+  workspaceAllowsDirectBooking: boolean;
+}) {
   const t = useT();
   const { openDrawer } = useAdminShell();
   const router = useRouter();
@@ -149,22 +157,41 @@ export function PersonHatsPanel({ person }: { person: PersonRecord }) {
         title={t("admin.people.hat.bookable")}
         what={t("admin.people.hatWhat.bookable")}
         state={person.bookable}
+        // "Only they can say yes, from their own account" is false of a person
+        // who has no account: this workspace answers for them, and the Turn on
+        // button under the sentence is exactly that answer. Same fact, told
+        // truthfully for each of the two kinds of person.
+        reasonKeyFor={(reason) =>
+          reason === "personHasNotOptedIn" && person.accountId == null
+            ? "personHasNotOptedInNoAccount"
+            : reason
+        }
       >
         {person.talentProfileId ? (
-          <button
-            type="button"
-            className={PEOPLE_PRIMARY_ACTION}
-            disabled={pending}
-            onClick={() =>
-              run(() => setPersonBookable(person.talentProfileId!, !person.bookable.on))
-            }
-          >
-            {pending
-              ? t("admin.people.detail.working")
-              : person.bookable.on
-                ? t("admin.people.detail.turnOff")
-                : t("admin.people.detail.turnOn")}
-          </button>
+          cannotTurnOffOneAtATime(person, workspaceAllowsDirectBooking) ? (
+            // NO BUTTON, AND A SENTENCE INSTEAD. PROVEN ON THE QA FIXTURE: with
+            // the workspace-level switch on, "Turn off" wrote
+            // `direct_booking_enabled = false`, the panel said "Saved.", and
+            // the hat stayed On because the engine ORs the two switches. The
+            // column it wrote is inert here, so the control that wrote it is
+            // not offered; the switch that does govern is named instead.
+            <p className={PEOPLE_REFUSAL}>{t("admin.people.detail.workspaceBooksEveryone")}</p>
+          ) : (
+            <button
+              type="button"
+              className={PEOPLE_PRIMARY_ACTION}
+              disabled={pending}
+              onClick={() =>
+                run(() => setPersonBookable(person.talentProfileId!, !person.bookable.on))
+              }
+            >
+              {pending
+                ? t("admin.people.detail.working")
+                : person.bookable.on
+                  ? t("admin.people.detail.turnOff")
+                  : t("admin.people.detail.turnOn")}
+            </button>
+          )
         ) : (
           <p className={PEOPLE_MUTED}>{t("admin.people.reason.noRosterRow")}</p>
         )}
@@ -323,6 +350,28 @@ function InviteThisPerson({
   );
 }
 
+/**
+ * Whether the Bookable hat's "Turn off" can do anything for this person.
+ *
+ * The engine's agency gate is `workspaceAllow OR roster.direct_booking_enabled`,
+ * so while the workspace-level switch is on the per-person column is inert.
+ * The hat can still come off through the person's own half (their opt-in),
+ * but the workspace may only answer that for a person with no sign-in of
+ * their own; `setPersonBookable` does exactly that. For a person who holds
+ * an account, there is nothing this panel can write that turns them off, and
+ * offering a button would be the defect this branch was found by.
+ */
+function cannotTurnOffOneAtATime(
+  person: PersonRecord,
+  workspaceAllowsDirectBooking: boolean,
+): boolean {
+  return (
+    person.bookable.on
+    && workspaceAllowsDirectBooking
+    && person.accountId != null
+  );
+}
+
 function FeedbackLine({ feedback }: { feedback: NonNullable<Feedback> }) {
   const t = useT();
   if (feedback.kind === "saved") {
@@ -338,11 +387,14 @@ function HatBlock({
   title,
   what,
   state,
+  reasonKeyFor,
   children,
 }: {
   title: string;
   what: string;
   state: HatState;
+  /** Lets a hat say the same refusal differently for a different kind of person. */
+  reasonKeyFor?: (reason: HatBlockReason) => string;
   children?: React.ReactNode;
 }) {
   const t = useT();
@@ -359,7 +411,7 @@ function HatBlock({
       {/* A hat that is off ALWAYS says why. */}
       {state.blockedBy.map((reason) => (
         <p key={reason} className={PEOPLE_REFUSAL}>
-          {t(`admin.people.reason.${reason}`)}
+          {t(`admin.people.reason.${reasonKeyFor ? reasonKeyFor(reason) : reason}`)}
         </p>
       ))}
       {state.warnings.map((warning) => (

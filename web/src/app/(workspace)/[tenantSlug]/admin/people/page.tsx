@@ -26,5 +26,11 @@ export default async function PeoplePage({ params }: { params: PageParams }) {
 
   const surface = await loadPeopleSurface(scope.tenantId);
 
-  return <PeopleClient people={surface.people} loadFailed={surface.loadFailed} />;
+  return (
+    <PeopleClient
+      people={surface.people}
+      loadFailed={surface.loadFailed}
+      workspaceAllowsDirectBooking={surface.workspaceAllowsDirectBooking}
+    />
+  );
 }

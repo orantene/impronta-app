@@ -116,7 +116,36 @@ async function readMintShortfall(
     logServerError("exceptions/read.mintShortfall", error);
     return null;
   }
-  return ((data ?? []) as Array<Record<string, unknown>>).map((raw) =>
+  const shortfall = (data ?? []) as Array<Record<string, unknown>>;
+
+  // A LINE THAT HAS ALREADY BECOME A REFUND IS NOT A SHORTFALL ANY MORE.
+  //
+  // PROVEN ON THE QA FIXTURE. Every line in `admissions_mint_shortfall` there
+  // had lost its seat before the payment landed (allocation `released`), so
+  // "Issue the missing tickets" could only ever answer that a refund is owed
+  // and write a `ticket_refund_intents` row. The view does not know about
+  // that row: the line stayed in it, still `critical`, still offering the same
+  // button, for ever, three rows above the refund it had already become. One
+  // problem, two rows, one of them a control that can never work again.
+  //
+  // The intent is the money desk's row and carries the same fact ("this buyer
+  // lost their seat after paying"). Any intent counts, executed or not: a
+  // refunded line is not a shortfall either. A failed read here degrades to
+  // "hide nothing", which is the loud direction.
+  const decided = new Set<string>();
+  if (shortfall.length > 0) {
+    const { data: intents, error: intentErr } = await admin
+      .from("ticket_refund_intents")
+      .select("order_line_id")
+      .eq("tenant_id", tenantId)
+      .in("order_line_id", shortfall.map((r) => String(r.order_line_id)));
+    if (intentErr) logServerError("exceptions/read.mintShortfall.intents", intentErr);
+    for (const raw of (intents ?? []) as Array<Record<string, unknown>>) {
+      if (raw.order_line_id) decided.add(String(raw.order_line_id));
+    }
+  }
+
+  return shortfall.filter((raw) => !decided.has(String(raw.order_line_id))).map((raw) =>
     classifyMintShortfall(
       {
         orderLineId: String(raw.order_line_id),

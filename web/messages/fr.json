@@ -1948,7 +1948,10 @@
       "ageUnknown": "inconnu",
       "ageJustNow": "a l'instant",
       "working": "En cours…",
-      "open": "Ouvrir"
+      "open": "Ouvrir",
+      "result": {
+        "seatLostAfterPayment": "Cette place a ete perdue apres le paiement, aucun billet ne peut donc etre emis. Un remboursement est du a la place, et il attend deja dans cette liste sur sa propre ligne."
+      }
     }
   },
   "client": {
@@ -1999,7 +2002,8 @@
         "noMembership": "Cette personne n'a pas de connexion a cet espace.",
         "membershipRemoved": "L'acces a ete retire. Vous pouvez la reinviter quand vous voulez.",
         "invitationPending": "Cette personne a ete invitee mais n'a pas encore accepte, elle ne peut donc pas se connecter. Elle n'a aucune permission tant qu'elle n'a pas accepte.",
-        "noAccount": "Il n'y a pas encore de compte derriere cette invitation."
+        "noAccount": "Il n'y a pas encore de compte derriere cette invitation.",
+        "personHasNotOptedInNoAccount": "Cette personne n'est pas encore activee pour les reservations. Elle n'a pas de connexion propre, donc cet espace repond pour elle : le bouton Activer ci-dessous s'en charge."
       },
       "warning": {
         "noBookingHours": "Pas encore d'horaires, donc aucun creneau ne sera propose. Definissez des horaires pour commencer a recevoir des reservations.",
@@ -2018,7 +2022,8 @@
         "cannotChangeYourOwnRole": "Vous ne pouvez pas changer votre propre role. Demandez a un autre proprietaire ou administrateur.",
         "couldNotSave": "L'enregistrement a echoue. Reessayez et prevenez le proprietaire de l'espace si cela continue.",
         "invitationSent": "Invitation envoyee. Cette personne n'a pas encore d'acces : elle l'obtient quand elle se connecte avec cette adresse et accepte.",
-        "noEmailOnFile": "Cet espace n'a aucune adresse courriel pour cette personne, il n'y a donc nulle part ou envoyer une invitation."
+        "noEmailOnFile": "Cet espace n'a aucune adresse courriel pour cette personne, il n'y a donc nulle part ou envoyer une invitation.",
+        "workspaceBooksEveryone": "Cet espace permet de reserver toutes les personnes du roster, donc une seule personne ne peut pas etre desactivee ici tant qu'elle possede sa propre connexion. Rien n'a ete modifie. Desactivez \"Proposer des reservations sur le site de cet espace\" dans les reglages Rendez-vous, ou retirez son profil public."
       },
       "role": {
         "owner": "Proprietaire",
@@ -2051,7 +2056,8 @@
         "inviteWillGoTo": "L'invitation part vers {email}, l'adresse inscrite sur cette fiche.",
         "inviteGrantsNothingYet": "L'envoi n'accorde rien en soi. Elle obtient l'acces quand elle se connecte avec cette adresse et accepte.",
         "invitationWaitingOn": "Une invitation est deja partie vers {email}. Elle obtient l'acces quand elle l'accepte. En envoyer une autre annule celle-ci.",
-        "addEmailWhere": "Ajoutez-en une dans l'editeur de profil ci-dessus, puis revenez l'inviter."
+        "addEmailWhere": "Ajoutez-en une dans l'editeur de profil ci-dessus, puis revenez l'inviter.",
+        "workspaceBooksEveryone": "Cet espace permet de reserver toutes les personnes du roster, et cette personne possede sa propre connexion, donc elle ne peut pas etre desactivee individuellement ici. Desactivez \"Proposer des reservations sur le site de cet espace\" dans les reglages Rendez-vous, ou retirez son profil public."
       },
       "add": {
         "title": "Ajouter une personne",
