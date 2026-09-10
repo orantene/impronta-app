@@ -11,11 +11,14 @@ import "server-only";
  */
 
 import type { Translator } from "@/components/admin/pos/translator";
-import { collectSheetCopy, refusalCopy, type PosCollectionMethodState } from "@/components/admin/pos";
+import type { PosCollectionMethodState } from "@/components/admin/pos";
+// `pos-copy`, not the barrel — see the same note in `../page.tsx`.
+import { collectSheetCopy, refusalCopy } from "@/components/admin/pos/pos-copy";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
 
 import { projectsModeCopy } from "./projects-copy";
-import { ProjectsModeClient, type ProjectsModeDetail, type ProjectsModeView } from "./projects-mode-client";
+import { ProjectsModeClient } from "../mode-clients";
+import type { ProjectsModeDetail, ProjectsModeView } from "./projects-mode-client";
 import { loadProjectForMode, loadProjectsForMode } from "./projects-mode-loader";
 import { projectsModeRow, type ProjectsModeRow } from "./projects-mode-model";
 

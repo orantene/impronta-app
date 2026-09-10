@@ -1,6 +1,11 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
+// Copy comes from `pos-copy` and NOT the `@/components/admin/pos` barrel: the
+// barrel re-exports every "use client" component of the frame, and a server
+// import of it makes each one a client reference of THIS route — downloaded
+// on every load, whichever mode renders. The modes import the frame
+// themselves, inside their own chunks (`mode-clients.tsx`).
 import {
   basketCopy,
   collectMethodUnavailableCopy,
@@ -15,9 +20,8 @@ import {
   refusalCopy,
   sellSurfaceCopy,
   shiftBarCopy,
-  type PosBasketLine,
-  type PosCollectionMethodState,
-} from "@/components/admin/pos";
+} from "@/components/admin/pos/pos-copy";
+import type { PosBasketLine, PosCollectionMethodState } from "@/components/admin/pos";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isKnownTenantRole } from "@/lib/access";
@@ -48,12 +52,14 @@ import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
 
-import { ClassesClient } from "./classes-client";
 import type { PosCatalogItem } from "./counter-model";
-import { DoorClient } from "./door-client";
 import { doorCopy } from "./door-copy";
 import { FloorScreen } from "./floor-screen";
-import { PosClient } from "./pos-client";
+// The three client modes this route mounts directly, each behind
+// `next/dynamic` so the register's initial bundle carries only the mode
+// asked for (`mode-clients.tsx` says why). The floor and projects modes are
+// server halves (`server-only`); their client halves go through the same file.
+import { ClassesClient, DoorClient, PosClient } from "./mode-clients";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";

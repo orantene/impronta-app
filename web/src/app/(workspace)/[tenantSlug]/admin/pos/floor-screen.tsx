@@ -22,8 +22,9 @@ import { venueZoneLabel } from "@/lib/spaces/venue-clock";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { listFloor } from "@/lib/visits/floor";
 
-import { FloorClient, type FloorTicket } from "./floor-client";
+import type { FloorTicket } from "./floor-client";
 import { floorCopy } from "./floor-copy";
+import { FloorClient } from "./mode-clients";
 
 type Admin = Parameters<typeof listFloor>[0];
 
