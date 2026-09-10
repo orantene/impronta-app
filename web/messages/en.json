@@ -205,6 +205,18 @@
           "sendFailed": "We could not send your code. Check the address and try again.",
           "verifyFailed": "We could not sign you in with that code. Send a new one and try again."
         }
+      },
+      "signupCode": {
+        "sentNotice": "We sent a confirmation link and a code to {email}. Open the link, or enter the code here.",
+        "resentNotice": "New email sent. Use the newest code.",
+        "codeLabel": "Code from the email",
+        "codeHint": "Single use. The link in the same email works too. Check spam if nothing arrives.",
+        "verifySubmit": "Confirm and continue",
+        "verifyPending": "Confirming",
+        "resend": "Send a new code",
+        "resendIn": "Send a new code in {seconds}s",
+        "resending": "Sending",
+        "changeEmail": "Use a different email"
       }
     },
     "profile": {

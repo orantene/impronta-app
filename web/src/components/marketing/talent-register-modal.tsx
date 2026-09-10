@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
+import { SignupCodeConfirm } from "@/components/auth/signup-code-confirm";
 import {
   requestTenantRegistration,
   type RequestTenantRegistrationState,
@@ -267,7 +268,7 @@ export function TalentRegisterModal({
           {applyMode && tenant ? (
             <TenantApplyPanel tenant={tenant} onClose={onClose} t={t} />
           ) : (
-            <ModalForm onSuccessClose={onClose} next={nextPath} t={t} locale={locale} />
+            <ModalForm next={nextPath} t={t} locale={locale} />
           )}
 
           {/* Trust strip + sign-in footer — signup form only, not the apply panel */}
@@ -495,12 +496,10 @@ function TenantApplyPanel({
  * boundaries tidy).
  */
 function ModalForm({
-  onSuccessClose,
   next,
   t,
   locale,
 }: {
-  onSuccessClose: () => void;
   next: string;
   t: TalentModalCopy;
   locale: string;
@@ -510,9 +509,22 @@ function ModalForm({
     FormData
   >(signUpWithEmail, undefined);
 
-  // If we got a confirmation message back, show the success view instead.
+  // Confirmation required: swap to the code box for that address. The same
+  // email carries the link, so nothing is lost for someone who prefers it.
+  if (state?.pendingEmail) {
+    return (
+      <ConfirmationView
+        email={state.pendingEmail}
+        next={next}
+        locale={locale}
+        t={t}
+      />
+    );
+  }
+  // Legacy shape (message without an address): keep the old dead-end notice
+  // rather than render a code box we cannot address.
   if (state?.message) {
-    return <ConfirmationView message={state.message} onClose={onSuccessClose} t={t} />;
+    return <AuthNotice tone="success">{state.message}</AuthNotice>;
   }
 
   return (
@@ -635,51 +647,36 @@ function GoogleButton({ next, t }: { next: string; t: TalentModalCopy }) {
 }
 
 function ConfirmationView({
-  message,
-  onClose,
+  email,
+  next,
+  locale,
   t,
 }: {
-  message: string;
-  onClose: () => void;
+  email: string;
+  next: string;
+  locale: string;
   t: TalentModalCopy;
 }) {
   return (
-    <div className="space-y-5 py-2 text-center">
-      <div
-        className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-        style={{
-          background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
-          color: "var(--plt-forest)",
-        }}
-      >
-        <MailGlyph />
-      </div>
-      <div className="space-y-1.5">
+    <div className="space-y-5 py-2">
+      <div className="space-y-3 text-center">
+        <div
+          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+          style={{
+            background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
+            color: "var(--plt-forest)",
+          }}
+        >
+          <MailGlyph />
+        </div>
         <h3
           className="plt-display text-[1.125rem] font-semibold"
           style={{ color: "var(--plt-ink)" }}
         >
           {t.checkInbox}
         </h3>
-        <p
-          className="text-[0.875rem] leading-[1.5]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {message}
-        </p>
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[0.8125rem] font-medium transition-colors"
-        style={{
-          borderColor: "var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-          background: "var(--plt-bg-raised)",
-        }}
-      >
-        Got it
-      </button>
+      <SignupCodeConfirm email={email} nextPath={next} locale={locale} />
     </div>
   );
 }
