@@ -54,3 +54,24 @@ test("a rejected confirm renders a sentence instead of nothing", () => {
     "the failure copy must come from the message catalog, not a bare string",
   );
 });
+
+/**
+ * The nesting tripwire. `test:scheduling` cannot render React, so the
+ * load-bearing proof for this lives in
+ * `test/components/public-booking/bookable-composer-refusal.test.tsx`, which
+ * clicks Confirm and looks for the sentence on screen. This is the cheap
+ * lane-local guard that catches the paragraph being moved back inside the
+ * block, which is how the refusal became invisible in the first place.
+ */
+test("the refusal paragraph renders outside the instant block, not inside it", () => {
+  const src = readFileSync(COMPOSER, "utf8");
+  const errorParagraph = src.indexOf('{error ? (');
+  const instantBlock = src.indexOf('{instant && slot ? (');
+  assert.notEqual(errorParagraph, -1, "the refusal paragraph must exist");
+  assert.notEqual(instantBlock, -1, "the instant block must exist");
+  assert.ok(
+    errorParagraph < instantBlock,
+    "nesting the refusal inside `instant && slot` hides it: `slotTaken` clears `slot` " +
+      "and `upgrade` clears `instant`, both in the same update that sets the refusal",
+  );
+});

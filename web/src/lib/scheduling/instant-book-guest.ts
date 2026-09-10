@@ -127,7 +127,32 @@ export async function resolveInstantBookActor(input: {
   contactPhone?: string | null;
   captchaToken?: string | null;
   honeypot?: string | null;
+  /**
+   * Internal dependency-injection seam, default-bound to the real impls.
+   * Same shape as the `__hooks` seam on the site-admin homepage ops.
+   * Production call sites pass nothing, so runtime behaviour is unchanged.
+   *
+   * It exists because D-100 shipped behind a fully green suite. The refusal
+   * lived HERE, in the request-coupled resolver, and nothing could reach it:
+   * `headers()`, the guest cookie, the captcha fetch and the service-role
+   * client all need a live request, so every test stopped at the pure helpers
+   * this function calls. Pinning a helper is not pinning the call site, and
+   * the call site is where a customer gets refused.
+   */
+  __hooks?: {
+    resolveClientIp?: typeof resolveTrustedClientIp;
+    getGuestSessionKey?: typeof getGuestSessionKey;
+    checkAbuse?: typeof checkGuestInquiryAbuse;
+    verifyCaptcha?: typeof verifyTenantCaptchaToken;
+    ensureGuestClient?: typeof ensureGuestClientByEmail;
+  };
 }): Promise<InstantBookActor | InstantBookActorFail> {
+  const resolveClientIpFn = input.__hooks?.resolveClientIp ?? resolveTrustedClientIp;
+  const guestSessionKeyFn = input.__hooks?.getGuestSessionKey ?? getGuestSessionKey;
+  const checkAbuseFn = input.__hooks?.checkAbuse ?? checkGuestInquiryAbuse;
+  const verifyCaptchaFn = input.__hooks?.verifyCaptcha ?? verifyTenantCaptchaToken;
+  const ensureGuestClientFn = input.__hooks?.ensureGuestClient ?? ensureGuestClientByEmail;
+
   if (input.user) {
     return {
       kind: "session",
@@ -145,10 +170,10 @@ export async function resolveInstantBookActor(input: {
 
   const email = input.contactEmail?.trim().toLowerCase() ?? "";
   const name = input.contactName?.trim() || "";
-  const ip = await resolveTrustedClientIp();
-  const guestSessionId = await getGuestSessionKey();
+  const ip = await resolveClientIpFn();
+  const guestSessionId = await guestSessionKeyFn();
 
-  const abuse = await checkGuestInquiryAbuse({
+  const abuse = await checkAbuseFn({
     honeypot: input.honeypot,
     email,
     guestSessionId,
@@ -156,7 +181,7 @@ export async function resolveInstantBookActor(input: {
     tenantId: input.tenantId,
     captchaToken: input.captchaToken,
   });
-  const captcha = await verifyTenantCaptchaToken({
+  const captcha = await verifyCaptchaFn({
     tenantId: input.tenantId,
     token: input.captchaToken,
     ip,
@@ -194,7 +219,7 @@ export async function resolveInstantBookActor(input: {
   // Matches a guest who ALREADY has an account so their orders land on it.
   // A miss returns `unlinked` on purpose (customer auth retirement): that is
   // "no account yet", not "bad input", and it must not stop the booking.
-  const provisioned = await ensureGuestClientByEmail({
+  const provisioned = await ensureGuestClientFn({
     email,
     name,
     company: "",

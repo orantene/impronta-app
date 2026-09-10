@@ -193,13 +193,23 @@ export function BookableComposer({
           }}
         />
       ) : null}
+      {/*
+        The refusal paragraph lives OUTSIDE the `instant && slot` block on
+        purpose. Two of the branches that set a refusal knock that condition
+        out in the very same update, so nesting it here meant the sentence was
+        composed and then unmounted before it could be painted:
+          • `slotTaken` clears `slot`;
+          • `upgrade` sets `forceRequest`, and `instant` is derived from it.
+        A refusal the customer cannot read is the dead end D-100 was, only
+        narrower. Keep this above the block, never inside it.
+      */}
+      {error ? (
+        <p role="alert" className="mt-3 text-sm text-[var(--token-color-danger,#dc2626)]">
+          {error}
+        </p>
+      ) : null}
       {instant && slot ? (
         <div className="mt-3 flex flex-col gap-2">
-          {error ? (
-            <p role="alert" className="text-sm text-[var(--token-color-danger,#dc2626)]">
-              {error}
-            </p>
-          ) : null}
           {!signedIn && requireAccountToBook ? (
             <a
               href={`/login?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
