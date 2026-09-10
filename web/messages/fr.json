@@ -1044,6 +1044,94 @@
         "willCreate": "{n} à créer",
         "willUpdate": "{n} à mettre à jour"
       }
+    },
+    "pos": {
+      "counter": {
+        "rail": {
+          "sell": "Vendre",
+          "orders": "Commandes",
+          "shifts": "Quarts"
+        },
+        "sell": {
+          "searchPlaceholder": "Rechercher des articles",
+          "searchLabel": "Rechercher",
+          "favourites": "Favoris",
+          "allCategories": "Tous",
+          "add": "Ajouter",
+          "empty": "Aucun article ne correspond à votre recherche.",
+          "emptyCatalog": "Rien n'est encore publié à la vente."
+        },
+        "variant": {
+          "chooseLabel": "Choisissez une option"
+        },
+        "basket": {
+          "title": "Panier",
+          "empty": "Ajoutez un article pour commencer cette vente.",
+          "quantity": "Quantité",
+          "decrease": "Diminuer la quantité",
+          "increase": "Augmenter la quantité",
+          "remove": "Retirer",
+          "discountLabel": "Remise ou code promo",
+          "discountPlaceholder": "Entrez un code",
+          "applyDiscount": "Appliquer",
+          "discountNotCombinable": "Cette remise ne peut pas se combiner avec celle déjà appliquée.",
+          "subtotal": "Sous-total",
+          "discount": "Remise",
+          "total": "Total",
+          "charge": "Encaisser",
+          "chargeEmptyHint": "Ajoutez un article avant d'encaisser.",
+          "chargeLoading": "Encaissement"
+        },
+        "customer": {
+          "title": "Client",
+          "walkIn": "Client de passage",
+          "search": "Rechercher un client",
+          "searchPlaceholder": "Nom, courriel ou téléphone",
+          "create": "Créer un nouveau",
+          "attach": "Associer",
+          "attachRetry": "Réessayer l'association",
+          "none": "Aucun client associé pour le moment."
+        },
+        "collect": {
+          "title": "Encaisser le paiement",
+          "methodCash": "Espèces",
+          "methodCard": "Carte",
+          "methodLink": "Lien de paiement",
+          "methodPass": "Crédit de forfait",
+          "amountDue": "Montant dû",
+          "tendered": "Montant remis",
+          "change": "Monnaie à rendre",
+          "confirmCash": "Confirmer les espèces",
+          "keypadClear": "Effacer",
+          "cardWaiting": "En attente du lecteur de carte.",
+          "cardUnavailable": "Aucun lecteur de carte n'est connecté sur cet appareil.",
+          "linkUnavailable": "Aucun fournisseur de lien de paiement n'est configuré pour cet espace de travail.",
+          "passUnavailable": "Les crédits de forfait ne sont pas activés pour cet espace de travail."
+        },
+        "paid": {
+          "title": "Payé",
+          "amount": "Montant encaissé",
+          "change": "Monnaie rendue",
+          "printReceipt": "Imprimer le reçu",
+          "emailReceipt": "Envoyer le reçu par courriel",
+          "nextCustomer": "Client suivant"
+        },
+        "held": {
+          "title": "Ventes en attente",
+          "empty": "Aucune vente en attente.",
+          "resume": "Reprendre",
+          "heldSince": "En attente depuis"
+        },
+        "refusal": {
+          "balanceChanged": "Quelqu'un a déjà encaissé une partie de ce solde. Le montant dû a changé.",
+          "saleReloading": "Cette vente a changé pendant que vous l'aviez ouverte. Rechargement en cours.",
+          "needsCustomerName": "Cet article nécessite le nom du client avant de pouvoir être vendu.",
+          "paymentDeclined": "Le paiement n'a pas abouti. Rien n'a été encaissé.",
+          "paymentUnknown": "Le paiement a peut-être abouti. Vérifiez avant de réessayer.",
+          "retry": "Réessayer",
+          "reload": "Recharger"
+        }
+      }
     }
   },
   "client": {

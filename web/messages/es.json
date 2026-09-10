@@ -12057,7 +12057,93 @@
       "shiftExpected": "Efectivo esperado",
       "shiftVariance": "Diferencia",
       "shiftNone": "No hay turno abierto. El efectivo se cobra igual.",
-      "shiftOpenHint": "Salir de esta página no cierra el turno."
+      "shiftOpenHint": "Salir de esta página no cierra el turno.",
+      "counter": {
+        "rail": {
+          "sell": "Vender",
+          "orders": "Pedidos",
+          "shifts": "Turnos"
+        },
+        "sell": {
+          "searchPlaceholder": "Buscar artículos",
+          "searchLabel": "Buscar",
+          "favourites": "Favoritos",
+          "allCategories": "Todos",
+          "add": "Agregar",
+          "empty": "Ningún artículo coincide con tu búsqueda.",
+          "emptyCatalog": "Todavía no hay nada publicado para vender."
+        },
+        "variant": {
+          "chooseLabel": "Elige una opción"
+        },
+        "basket": {
+          "title": "Cesta",
+          "empty": "Agrega un artículo para comenzar esta venta.",
+          "quantity": "Cantidad",
+          "decrease": "Disminuir cantidad",
+          "increase": "Aumentar cantidad",
+          "remove": "Quitar",
+          "discountLabel": "Descuento o código promocional",
+          "discountPlaceholder": "Ingresa un código",
+          "applyDiscount": "Aplicar",
+          "discountNotCombinable": "Este descuento no se puede combinar con el que ya está aplicado.",
+          "subtotal": "Subtotal",
+          "discount": "Descuento",
+          "total": "Total",
+          "charge": "Cobrar",
+          "chargeEmptyHint": "Agrega un artículo antes de cobrar.",
+          "chargeLoading": "Cobrando"
+        },
+        "customer": {
+          "title": "Cliente",
+          "walkIn": "Sin registrar",
+          "search": "Buscar un cliente",
+          "searchPlaceholder": "Nombre, correo o teléfono",
+          "create": "Crear nuevo",
+          "attach": "Vincular",
+          "attachRetry": "Reintentar vínculo",
+          "none": "Todavía no hay un cliente vinculado."
+        },
+        "collect": {
+          "title": "Cobrar el pago",
+          "methodCash": "Efectivo",
+          "methodCard": "Tarjeta",
+          "methodLink": "Enlace de pago",
+          "methodPass": "Crédito de pase",
+          "amountDue": "Monto a cobrar",
+          "tendered": "Entregado",
+          "change": "Cambio a devolver",
+          "confirmCash": "Confirmar efectivo",
+          "keypadClear": "Borrar",
+          "cardWaiting": "Esperando el lector de tarjetas.",
+          "cardUnavailable": "No hay un lector de tarjetas conectado en este dispositivo.",
+          "linkUnavailable": "Este espacio de trabajo no tiene un proveedor de enlaces de pago configurado.",
+          "passUnavailable": "Los créditos de pase no están habilitados para este espacio de trabajo."
+        },
+        "paid": {
+          "title": "Pagado",
+          "amount": "Monto cobrado",
+          "change": "Cambio entregado",
+          "printReceipt": "Imprimir recibo",
+          "emailReceipt": "Enviar recibo por correo",
+          "nextCustomer": "Siguiente cliente"
+        },
+        "held": {
+          "title": "Ventas en espera",
+          "empty": "No hay ventas en espera.",
+          "resume": "Reanudar",
+          "heldSince": "En espera desde"
+        },
+        "refusal": {
+          "balanceChanged": "Alguien ya cobró parte de este saldo. El monto pendiente cambió.",
+          "saleReloading": "Esta venta cambió mientras la tenías abierta. Recargando ahora.",
+          "needsCustomerName": "Este artículo necesita el nombre del cliente antes de poder venderse.",
+          "paymentDeclined": "El pago no se completó. No se cobró nada.",
+          "paymentUnknown": "El pago podría haberse completado. Revisa antes de volver a intentar.",
+          "retry": "Reintentar",
+          "reload": "Recargar"
+        }
+      }
     },
     "tables": {
       "pageTitle": "Mesas",

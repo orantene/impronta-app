@@ -1,0 +1,146 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { createTranslator } from "@/i18n/messages";
+import { formatOrderMoney } from "@/lib/orders/money-format";
+import { CollectSheet } from "./CollectSheet";
+import { collectMethodUnavailableCopy, collectSheetCopy } from "./pos-copy";
+import type { PosCollectionMethodState } from "./pos-types";
+import { markupIncludesText } from "./test-html-helpers";
+
+const LOCALES = ["en", "es", "fr"] as const;
+
+function methods(unavailable: Partial<Record<"card" | "link" | "pass", string>>): PosCollectionMethodState[] {
+  return [
+    { id: "cash", available: true },
+    { id: "card", available: !("card" in unavailable), unavailableReason: unavailable.card },
+    { id: "link", available: !("link" in unavailable), unavailableReason: unavailable.link },
+    { id: "pass", available: !("pass" in unavailable), unavailableReason: unavailable.pass },
+  ];
+}
+
+test("cash always renders first regardless of the order methods are passed in", () => {
+  const t = createTranslator("en");
+  const copy = collectSheetCopy(t);
+  const out = renderToStaticMarkup(
+    <CollectSheet
+      amountDueCents={1000}
+      currency="USD"
+      methods={[
+        { id: "card", available: true },
+        { id: "cash", available: true },
+      ]}
+      activeMethod="cash"
+      onSelectMethod={() => {}}
+      tenderedCents={0}
+      onKeypadPress={() => {}}
+      onConfirmCash={() => {}}
+      copy={copy}
+    />,
+  );
+  const cashIndex = out.indexOf(copy.methodCash);
+  const cardIndex = out.indexOf(copy.methodCard);
+  assert.ok(cashIndex >= 0 && cardIndex >= 0);
+  assert.ok(cashIndex < cardIndex, "cash must render before card");
+});
+
+test("a disabled method shows the exact honest sentence passed in, not a generic message", () => {
+  for (const locale of LOCALES) {
+    const t = createTranslator(locale);
+    const unavailableCopy = collectMethodUnavailableCopy(t);
+    const copy = collectSheetCopy(t);
+    const cardDisabled = methods({ card: unavailableCopy.card });
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={500}
+        currency="USD"
+        methods={cardDisabled}
+        activeMethod="card"
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    assert.ok(
+      markupIncludesText(markup, unavailableCopy.card),
+      `${locale}: expected the disabled card sentence in the markup`,
+    );
+  }
+});
+
+test("each of card/link/pass can independently show its own disabled sentence", () => {
+  const t = createTranslator("en");
+  const copy = collectSheetCopy(t);
+  const unavailableCopy = collectMethodUnavailableCopy(t);
+
+  for (const id of ["card", "link", "pass"] as const) {
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={500}
+        currency="USD"
+        methods={methods({ [id]: unavailableCopy[id] })}
+        activeMethod={id}
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    assert.ok(markupIncludesText(markup, unavailableCopy[id]), `${id} disabled sentence missing`);
+  }
+});
+
+test("cash tab shows tendered and change due, formatted with the shared money helper", () => {
+  const t = createTranslator("en");
+  const copy = collectSheetCopy(t);
+  const markup = renderToStaticMarkup(
+    <CollectSheet
+      amountDueCents={1235}
+      currency="USD"
+      methods={[{ id: "cash", available: true }]}
+      activeMethod="cash"
+      onSelectMethod={() => {}}
+      tenderedCents={2000}
+      onKeypadPress={() => {}}
+      onConfirmCash={() => {}}
+      copy={copy}
+    />,
+  );
+  assert.ok(markup.includes(formatOrderMoney(2000, "USD")), "tendered amount not shown");
+  assert.ok(markup.includes(formatOrderMoney(765, "USD")), "change due not shown");
+});
+
+function confirmButtonTag(markup: string, label: string): string {
+  const match = markup.match(new RegExp(`<button type="button"[^>]*>${label}</button>`));
+  assert.ok(match, `confirm cash button ("${label}") not found in markup`);
+  return match![0];
+}
+
+test("confirm cash is disabled while tender is short of the amount due, and enabled once it is enough", () => {
+  const t = createTranslator("en");
+  const copy = collectSheetCopy(t);
+  const render = (tenderedCents: number) =>
+    renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={1000}
+        currency="USD"
+        methods={[{ id: "cash", available: true }]}
+        activeMethod="cash"
+        onSelectMethod={() => {}}
+        tenderedCents={tenderedCents}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+
+  const short = confirmButtonTag(render(500), copy.confirmCash);
+  assert.match(short, /\bdisabled=""/);
+
+  const enough = confirmButtonTag(render(1000), copy.confirmCash);
+  assert.doesNotMatch(enough, /\bdisabled=""/);
+});
