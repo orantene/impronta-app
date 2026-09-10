@@ -14,6 +14,7 @@ function makeStore() {
     capacity_allocations: [] as Row[],
     capacity_pools: [] as Row[],
     sessions: [] as Row[],
+    talent_offering_variants: [] as Row[],
   };
 }
 
@@ -184,6 +185,37 @@ test("a walk-in holds the session tier pool, not the offering stock pool", async
   assert.equal(calls.length, 1);
   assert.deepEqual((calls[0]!.args.p_capacity ?? []).map((c) => c.pool_id), ["session-pool"]);
   assert.equal(calls[0]!.args.p_operation_key, "pos-hold:ord");
+});
+
+test("a tiered night holds the pool of the tier the line was sold at, not a 'default' that does not exist", async () => {
+  // A night scheduled from an event has a pool per ticket tier ("seat"), and
+  // no "default" pool. The line carries the tier's variant; the hold must
+  // follow the variant's pool_key. Before the read this was refused as "not
+  // selling places" while the public picker sold the same seat.
+  const store = makeStore();
+  seedSale(store, { poolId: null, sessionId: "ses-1" });
+  store.order_lines[0]!.variant_id = "var-seat";
+  store.talent_offering_variants.push({ id: "var-seat", offering_id: "off-1", pool_key: "seat" });
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    starts_at: "2026-09-08T18:00:00.000Z",
+    ends_at: "2026-09-08T19:00:00.000Z",
+  });
+  store.capacity_pools.push({
+    id: "seat-pool",
+    tenant_id: "t1",
+    subject_kind: "session_tier",
+    subject_id: "ses-1",
+    pool_key: "seat",
+  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(calls.length, 1);
+  assert.deepEqual((calls[0]!.args.p_capacity ?? []).map((c) => c.pool_id), ["seat-pool"]);
 });
 
 test("a class with no session tier pool does not fall back to offering stock", async () => {

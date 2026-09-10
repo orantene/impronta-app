@@ -70,7 +70,7 @@ export async function holdDraftOrderCapacity(
 
   const { data: lineRows, error: lineErr } = await admin
     .from("order_lines")
-    .select("id, offering_id, session_id, units")
+    .select("id, offering_id, session_id, units, variant_id")
     .eq("order_id", input.orderId);
   if (lineErr) {
     logServerError("pos.holdCapacity.lines", lineErr);
@@ -81,6 +81,7 @@ export async function holdDraftOrderCapacity(
     offering_id: string | null;
     session_id: string | null;
     units: number | string;
+    variant_id?: string | null;
   }>;
   const lineIds = lines.map((l) => l.id);
   if (lineIds.length > 0) {
@@ -151,13 +152,33 @@ export async function holdDraftOrderCapacity(
       }
       startsAt = sess.starts_at;
       endsAt = sess.ends_at;
+      // WHICH TIER. A night scheduled from an event has one pool per ticket
+      // tier, keyed by the variant's `pool_key` ("seat", "ga", "door"), and
+      // NO pool called "default". The line's variant names the tier it was
+      // sold at; a line with no variant is the plain one-tier class and takes
+      // the default pool. Before this read every tiered night was refused
+      // here as "not selling places" while the public picker sold it fine.
+      let tierKey: string = DEFAULT_TIER_KEY;
+      if (line.variant_id) {
+        const { data: variant, error: variantErr } = await admin
+          .from("talent_offering_variants")
+          .select("id, pool_key")
+          .eq("id", line.variant_id)
+          .maybeSingle();
+        if (variantErr) {
+          logServerError("pos.holdCapacity.variant", variantErr);
+          return { ok: false, reason: "unavailable", error: "Could not hold those places." };
+        }
+        const key: unknown = variant?.pool_key;
+        if (typeof key === "string" && key.trim()) tierKey = key.trim();
+      }
       const { data: pool, error: poolErr } = await admin
         .from("capacity_pools")
         .select("id")
         .eq("tenant_id", input.tenantId)
         .eq("subject_kind", "session_tier")
         .eq("subject_id", sess.id)
-        .eq("pool_key", DEFAULT_TIER_KEY)
+        .eq("pool_key", tierKey)
         .maybeSingle();
       if (poolErr) {
         logServerError("pos.holdCapacity.sessionPool", poolErr);

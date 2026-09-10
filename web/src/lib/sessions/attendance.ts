@@ -25,7 +25,18 @@ export async function markAttendance(
   input: { tenantId: string; admissionId: string; actorUserId?: string | null; count?: number | null },
 ): Promise<
   | { ok: true; admittedCount: number }
-  | { ok: false; reason: "not_found" | "unavailable" | "invalid"; error: string }
+  | {
+      ok: false;
+      /**
+       * `already_marked` and `not_valid` are `check_in`'s own answers
+       * (`already_admitted`, `not_valid`), carried through instead of folded
+       * into `unavailable`: a roster that says "could not mark attendance"
+       * for a person who was marked a minute ago sends the instructor to
+       * retry a thing that already happened.
+       */
+      reason: "not_found" | "unavailable" | "invalid" | "already_marked" | "not_valid";
+      error: string;
+    }
 > {
   if (!input.tenantId || !input.admissionId) {
     return { ok: false, reason: "invalid", error: "Missing admission." };
@@ -55,11 +66,16 @@ export async function markAttendance(
   }
   const reply = (data ?? {}) as { ok?: boolean; admitted_count?: number; reason?: string };
   if (reply.ok !== true) {
-    return {
-      ok: false,
-      reason: reply.reason === "unknown_admission" ? "not_found" : "unavailable",
-      error: "Could not mark attendance.",
-    };
+    if (reply.reason === "unknown_admission") {
+      return { ok: false, reason: "not_found", error: "That place is gone." };
+    }
+    if (reply.reason === "already_admitted") {
+      return { ok: false, reason: "already_marked", error: "Attendance is already marked." };
+    }
+    if (reply.reason === "not_valid") {
+      return { ok: false, reason: "not_valid", error: "That place is not valid any more." };
+    }
+    return { ok: false, reason: "unavailable", error: "Could not mark attendance." };
   }
   try {
     await maybeDrawdownLessonPackage(admin, input.tenantId, input.admissionId);

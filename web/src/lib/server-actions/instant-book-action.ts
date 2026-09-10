@@ -12,8 +12,6 @@ import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { createPurchase } from "@/lib/orders/purchase";
-import { loadOfferingCapacityPoolId } from "@/lib/orders/purchase-catalog";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
@@ -22,11 +20,8 @@ import {
   notifyGuestInstantBooking,
   resolveInstantBookActor,
 } from "@/lib/scheduling/instant-book-guest";
-import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
+import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
-import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
-import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 
 export type InstantBookFormPayload = {
   talentProfileId: string;
@@ -99,168 +94,28 @@ export async function createInstantBookingAction(
           return { ok: false, reason: "no_fixed_rate" as const, error: "No offering to book." };
         }
 
-        // A read failure REFUSES rather than resolving to "no pool". `null`
-        // means unlimited, so treating an error as null would sell unlimited
-        // seats on a transient database fault. A failed read is a retry; an
-        // oversold event is a person turned away at a door.
-        const pool = await loadOfferingCapacityPoolId(convertClient, offeringId);
-        if (!pool.ok) {
-          logServerError(
-            "instantBookAction.poolLookup",
-            new Error(`could not confirm availability for offering ${offeringId}`),
-          );
-          return {
-            ok: false as const,
-            reason: "engine_error" as const,
-            error: "We could not confirm availability. Please try again.",
-          };
-        }
-        const poolId = pool.poolId;
-
-        const { data: offeringPolicy, error: offeringPolicyErr } = await tenantScopedQuery(
-          convertClient,
-          "talent_offerings",
-          engineInput.tenantId,
-        )
-          .select("reserve_mode, attributes")
-          .eq("id", offeringId)
-          .maybeSingle();
-        if (offeringPolicyErr) {
-          logServerError("instantBookAction.reserveMode", offeringPolicyErr);
-          return {
-            ok: false as const,
-            reason: "engine_error" as const,
-            error: "We could not confirm how this is paid. Please try again.",
-          };
-        }
-
-        const reservation = payload.reservation;
-        const resourceSet = parseOfferingResourceSet(
-          (offeringPolicy as { attributes?: unknown } | null)?.attributes,
-        );
-        const companionIds = resourceSet.companionTalentIds.filter(
-          (id) => id !== engineInput.talentProfileId,
-        );
-        if (companionIds.length > 0) {
-          const { data: roster, error: rosterErr } = await tenantScopedQuery(
-            convertClient,
-            "agency_talent_roster",
-            engineInput.tenantId,
-          )
-            .select("talent_profile_id")
-            .in("talent_profile_id", companionIds)
-            .eq("status", "active");
-          if (rosterErr) {
-            logServerError("instantBookAction.companions", rosterErr);
-            return {
-              ok: false as const,
-              reason: "engine_error" as const,
-              error: "We could not confirm who this treatment needs.",
-            };
-          }
-          const onRoster = new Set(
-            ((roster ?? []) as Array<{ talent_profile_id: unknown }>).map((r) =>
-              String(r.talent_profile_id),
-            ),
-          );
-          if (companionIds.some((id) => !onRoster.has(id))) {
-            return {
-              ok: false as const,
-              reason: "engine_error" as const,
-              error: "That treatment is missing a therapist.",
-            };
-          }
-        }
-
-        const capacity: Array<{
-          offeringId: string;
-          poolId: string;
-          units: number;
-          startsAt?: string;
-          endsAt?: string;
-        }> = [];
-        if (poolId) {
-          capacity.push({
-            offeringId,
-            poolId,
-            units: payload.quantity ?? 1,
-            ...(reservation
-              ? { startsAt: reservation.startsAt, endsAt: reservation.endsAt }
-              : {}),
-          });
-        }
-        if (resourceSet.spaceId && reservation) {
-          const room = await spaceCapacityPool(convertClient, {
-            tenantId: engineInput.tenantId,
-            spaceId: resourceSet.spaceId,
-          });
-          if (!room.ok) {
-            return {
-              ok: false as const,
-              reason: "engine_error" as const,
-              error: "That treatment room is not on sale.",
-            };
-          }
-          capacity.push({
-            offeringId,
-            poolId: room.poolId,
-            units: 1,
-            startsAt: reservation.startsAt,
-            endsAt: reservation.endsAt,
-          });
-        }
-
-        const booked = await createPurchase(convertClient, {
+        const booked = await placeInstantPurchase(convertClient, {
           tenantId: engineInput.tenantId,
-          // Per CART. Stable for one attempt at one offering by one buyer, so a
-          // double-tapped Confirm cannot mint two bookings.
-          clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
+          offeringId,
+          talentProfileId: engineInput.talentProfileId,
           actorUserId: engineInput.userId ?? null,
           contact: {
             email: engineInput.contactEmail,
             phone: engineInput.contactPhone ?? null,
             displayName: engineInput.contactName,
           },
-          lines: [
-            {
-              offeringId,
-              units: payload.quantity ?? 1,
-              variantId: payload.variantId ?? null,
-              addonIds: payload.addOnIds ?? [],
-            },
-          ],
-          // INTENT, never policy. The pipeline re-derives reserve_mode,
-          // deposit_pct, allow_pay_in_person and require_account_to_book from
-          // the offering row and refuses if the client's choice disagrees.
-          // A deposit offering used to send "full" and charge the whole total.
-          paymentChoice: instantBookPaymentChoice(
-            payload.payInPerson,
-            (offeringPolicy as { reserve_mode?: string | null } | null)?.reserve_mode,
-          ),
+          quantity: payload.quantity ?? 1,
+          variantId: payload.variantId ?? null,
+          addOnIds: payload.addOnIds ?? [],
+          reservation: payload.reservation
+            ? { startsAt: payload.reservation.startsAt, endsAt: payload.reservation.endsAt }
+            : null,
+          payInPerson: payload.payInPerson,
           sourceChannel: "instant_book",
           sourcePage: payload.sourcePage ?? null,
-          capacity: capacity.length > 0 ? capacity : undefined,
-          // The calendar slot, when this purchase takes someone's time. Capacity
-          // and the slot are two different questions and both are on the
-          // pipeline's unwind ledger.
-          reservation: reservation
-            ? {
-                talentProfileId: engineInput.talentProfileId,
-                startsAt: reservation.startsAt,
-                endsAt: reservation.endsAt,
-                poolId,
-              }
-            : null,
-          // Several people (couples). Reserved with the primary slot as one set.
-          holds:
-            reservation && companionIds.length > 0
-              ? companionIds.map((talentProfileId) => ({
-                  talentProfileId,
-                  startsAt: reservation.startsAt,
-                  endsAt: reservation.endsAt,
-                  title: "Couples therapist",
-                }))
-              : undefined,
+          // Per CART. Stable for one attempt at one offering by one buyer, so a
+          // double-tapped Confirm cannot mint two bookings.
+          clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
         });

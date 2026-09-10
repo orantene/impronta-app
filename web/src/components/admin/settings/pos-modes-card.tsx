@@ -21,8 +21,8 @@
  * words what an empty list costs (`allOffHint`), and the point of sale is
  * genuinely unavailable until a mode goes back on.
  *
- * A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT WORKS. `floor`,
- * `door`, `classes` and `projects` render with a "not built yet" caption and
+ * A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT WORKS. A mode with
+ * `built: false` in `POS_MODE_META` renders with a "not built yet" caption and
  * a disabled control instead of a switch that would silently do nothing —
  * the server action refuses the write anyway, but a control a person can
  * press that then fails is exactly the thing this settings surface exists to
