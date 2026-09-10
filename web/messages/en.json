@@ -4782,8 +4782,8 @@
             "desc": "Sell items, take orders and run shifts at a register."
           },
           "floor": {
-            "label": "Floor",
-            "desc": "Tables and seating."
+            "label": "Tables",
+            "desc": "The room from the till: seat, move and clear tables, open their checks."
           },
           "door": {
             "label": "Door",
@@ -12358,7 +12358,7 @@
         },
         "mode": {
           "counter": "Counter",
-          "floor": "Floor",
+          "floor": "Tables",
           "door": "Door",
           "classes": "Classes",
           "projects": "Projects",
@@ -12387,23 +12387,6 @@
           "product": "Products"
         }
       },
-      "pageIntro": "Walk-in selling on the existing order. A name is required only when money is collected.",
-      "openSales": "Open sales",
-      "items": "Items",
-      "discount": "Discount",
-      "deposit": "Already paid",
-      "prep": "Preparation",
-      "payment": "Payment",
-      "next": "Open a sale or pick an open one.",
-      "collectCash": "Collect cash",
-      "collectCard": "Collect card",
-      "cancel": "Cancel sale",
-      "applyCode": "Apply code",
-      "catalog": "Catalog",
-      "emptyCatalog": "No published workspace items yet.",
-      "emptyOpen": "No open sales.",
-      "tendered": "Tendered",
-      "change": "Change",
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "door": {
@@ -12497,6 +12480,47 @@
           "cashOnly": "Only cash is taken at this door. Other tenders are collected at the counter."
         },
         "noScanOut": "Leaving is not recorded: the engine has no scan-out yet."
+      },
+      "floor": {
+        "rail": {
+          "label": "Tables",
+          "tables": "Floor",
+          "seating": "Seated parties"
+        },
+        "title": "Tables",
+        "summary": "{seated} of {total} tables seated · {arriving} arriving · {reset} need reset",
+        "emptyFloor": "No tables, booths or cabanas yet. Add them under Spaces.",
+        "emptySeated": "Nobody is seated right now.",
+        "unavailable": "We could not load the floor.",
+        "tapHint": "Tap a table.",
+        "sheetHeading": "{code}: what do you want to do?",
+        "closeSheet": "Close",
+        "guests": "Guests",
+        "fewerGuests": "One fewer guest",
+        "moreGuests": "One more guest",
+        "seatHere": "Seat {n} at {code}",
+        "seatAcross": "Seat {n} across {code} + {other}",
+        "joinOffer": "{code} alone does not fit {n}. Join with:",
+        "noJoinOptions": "No table combination fits this party.",
+        "openCheck": "Open check",
+        "sendKitchen": "Send to kitchen",
+        "movePartyHeading": "Move this party to",
+        "noFreeTables": "No free table fits this party.",
+        "endVisit": "End visit",
+        "markReady": "Mark ready",
+        "kitchenNone": "Nothing sent to the kitchen yet",
+        "kitchenQueued": "Kitchen: sent, not yet acknowledged (revision {n})",
+        "kitchenAcknowledged": "Kitchen: acknowledged (revision {n})",
+        "kitchenReady": "Kitchen: ready to serve (revision {n})",
+        "sentToKitchen": "Sent to the kitchen as ticket revision {n}.",
+        "amendedInKitchen": "The kitchen ticket is now revision {n}. The station has to acknowledge it again.",
+        "checkTotal": "Check {amount}",
+        "noCheckYet": "No check yet",
+        "seatedNotMarked": "The party is seated.",
+        "refusal": {
+          "kitchenEmpty": "Put something on the check before sending it to the kitchen. Open the check to add items.",
+          "kitchenNotFound": "That check is no longer open. Reload the floor."
+        }
       }
     },
     "tables": {
@@ -13993,7 +14017,6 @@
         "revokeAccess": "Take access away",
         "grantAccess": "Give access",
         "inviteByEmail": "Invite by email",
-        "emailLabel": "Email address",
         "invite": "Send invitation",
         "alsoRemoves": "Turning this off also takes the Bookable hat off, because a person who is not on your roster cannot be booked here.",
         "whatStays": "What stays: {hats}",

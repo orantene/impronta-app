@@ -47,6 +47,7 @@ import { PageRouteSyncer } from "../_page-route-syncer";
 import type { PosCatalogItem } from "./counter-model";
 import { DoorClient } from "./door-client";
 import { doorCopy } from "./door-copy";
+import { FloorScreen } from "./floor-screen";
 import { PosClient } from "./pos-client";
 
 export const dynamic = "force-dynamic";
@@ -161,7 +162,20 @@ export default async function PosPage({
   const enabledModes = enabledPosModesFromSettings(
     (modesRes.data as { settings?: unknown } | null)?.settings,
   );
-  if (!sellingModesAllowCounter(enabledModes)) {
+  //
+  // THE FLOOR IS NOT THE COUNTER. A workspace that has the counter off and
+  // Tables on (a host stand with no register) still owns `?mode=floor`, so the
+  // counter-off sentence is only for a request that would land on the
+  // counter: no mode asked for, or the counter itself. A built, switched-on
+  // sibling mode goes on to the person-and-mode resolution below.
+  const q = await searchParams;
+  const requestedEarly = parsePosMode(q.mode);
+  const asksForOpenSibling =
+    requestedEarly !== undefined &&
+    requestedEarly !== "counter" &&
+    POS_MODE_META[requestedEarly].built &&
+    enabledModes.includes(requestedEarly);
+  if (!sellingModesAllowCounter(enabledModes) && !asksForOpenSibling) {
     return (
       <>
         <PageRouteSyncer page="pos" />
@@ -176,8 +190,6 @@ export default async function PosPage({
       </>
     );
   }
-
-  const q = await searchParams;
 
   // ── Which modes this person may actually use ─────────────────────────
   //
@@ -318,6 +330,27 @@ export default async function PosPage({
             refusal: refusalCopy(tr),
             frameNavLabel: tr("dashboard.pos.door.rail.label"),
           }}
+        />
+      </>
+    );
+  }
+
+  // ── The floor ────────────────────────────────────────────────────────
+  //
+  // A sibling of the counter in the same frame, entered from the same top-bar
+  // switch. Its reads and writes are the workspace Spaces page's own
+  // (`floor-screen.tsx`); this route only decides that `?mode=floor` means
+  // that screen and hands it the identity the counter would have had.
+  if (mode === "floor") {
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <FloorScreen
+          admin={admin}
+          tenantId={scope.tenantId}
+          locale={locale}
+          workspaceName={workspaceName}
+          posPath={await currentAdminPath(tenantSlug)}
         />
       </>
     );
