@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/_baseline-pos-counter.spec.ts:36:5 › POS-OP counter: two items, cash collected, paid screen and a receipt that resolves
+[1A[2K  1 passed (38.0s)
+EXIT=0

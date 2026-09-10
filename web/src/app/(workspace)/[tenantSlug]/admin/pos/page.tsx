@@ -41,6 +41,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { PageRouteSyncer } from "../_page-route-syncer";
+
 import type { PosCatalogItem } from "./counter-model";
 import { PosClient } from "./pos-client";
 
@@ -158,14 +160,17 @@ export default async function PosPage({
   );
   if (!sellingModesAllowCounter(enabledModes)) {
     return (
-      <main style={{ padding: "32px 28px", maxWidth: 720, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
-          {tr("dashboard.pos.counterOffTitle")}
-        </h1>
-        <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 10, lineHeight: 1.6 }}>
-          {tr("dashboard.pos.counterOffBody")}
-        </p>
-      </main>
+      <>
+        <PageRouteSyncer page="pos" />
+        <main style={{ padding: "32px 28px", maxWidth: 720, margin: "0 auto" }}>
+          <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
+            {tr("dashboard.pos.counterOffTitle")}
+          </h1>
+          <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 10, lineHeight: 1.6 }}>
+            {tr("dashboard.pos.counterOffBody")}
+          </p>
+        </main>
+      </>
     );
   }
 
@@ -217,20 +222,23 @@ export default async function PosPage({
   // support ticket and a shrug.
   if (usableModes.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-[560px] flex-col justify-center gap-3 px-7 py-16">
-        <h1 className="m-0 text-[22px] font-semibold text-admin-ink">
-          {tr("dashboard.pos.counter.gate.title")}
-        </h1>
-        <p className="m-0 text-[14px] leading-relaxed text-admin-ink-muted">
-          {tr("dashboard.pos.counter.gate.body")}
-        </p>
-        <a
-          href={await currentAdminPath(tenantSlug).then((p) => p.replace(/\/pos$/, ""))}
-          className="mt-2 text-[14px] font-semibold text-admin-ink underline"
-        >
-          {tr("dashboard.pos.counter.gate.back")}
-        </a>
-      </main>
+      <>
+        <PageRouteSyncer page="pos" />
+        <main className="mx-auto flex min-h-[60vh] w-full max-w-[560px] flex-col justify-center gap-3 px-7 py-16">
+          <h1 className="m-0 text-[22px] font-semibold text-admin-ink">
+            {tr("dashboard.pos.counter.gate.title")}
+          </h1>
+          <p className="m-0 text-[14px] leading-relaxed text-admin-ink-muted">
+            {tr("dashboard.pos.counter.gate.body")}
+          </p>
+          <a
+            href={await currentAdminPath(tenantSlug).then((p) => p.replace(/\/pos$/, ""))}
+            className="mt-2 text-[14px] font-semibold text-admin-ink underline"
+          >
+            {tr("dashboard.pos.counter.gate.back")}
+          </a>
+        </main>
+      </>
     );
   }
 
@@ -255,14 +263,17 @@ export default async function PosPage({
     // panel says plainly that there is nothing here rather than showing an
     // empty counter that looks broken.
     return (
-      <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
-        <h1 className="m-0 text-[18px] font-semibold text-admin-ink">
-          {posModeLabel(tr, mode)}
-        </h1>
-        <p className="m-0 text-[14px] text-admin-ink-muted">
-          {tr("dashboard.pos.counter.mode.notBuilt")}
-        </p>
-      </main>
+      <>
+        <PageRouteSyncer page="pos" />
+        <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
+          <h1 className="m-0 text-[18px] font-semibold text-admin-ink">
+            {posModeLabel(tr, mode)}
+          </h1>
+          <p className="m-0 text-[14px] text-admin-ink-muted">
+            {tr("dashboard.pos.counter.mode.notBuilt")}
+          </p>
+        </main>
+      </>
     );
   }
 
@@ -370,78 +381,102 @@ export default async function PosPage({
   const adminPath = await currentAdminPath(tenantSlug);
 
   return (
-    <PosClient
-      mode={mode}
-      workspaceName={workspaceName}
-      posPath={adminPath}
-      workspacePath={adminPath.replace(/\/pos$/, "")}
-      receiptOrigin={host ? `${proto}://${host}` : ""}
-      receiptCode={receiptCode}
-      sale={
-        sale
-          ? {
-              orderId: sale.orderId,
-              version: sale.version,
-              currency: sale.currency,
-              customerId: sale.customerId,
-              discountCents: sale.discountCents,
-              totalCents: sale.totalCents,
-              outstandingCents: sale.outstandingCents,
-              paymentState: sale.paymentState,
-              prepState: sale.prepState,
-            }
-          : null
-      }
-      basketLines={basketLines}
-      openSales={open.ok ? open.rows : []}
-      catalog={items}
-      currency={currency}
-      minorUnitDivisor={minorUnitDivisor(currency)}
-      methods={collectionMethods(tr)}
-      shift={
-        shiftLoad.ok && shiftLoad.shift
-          ? {
-              id: shiftLoad.shift.id,
-              version: shiftLoad.shift.version,
-              openingCashCents: shiftLoad.shift.openingCashCents,
-              openedAt: shiftLoad.shift.openedAt,
-            }
-          : null
-      }
-      copy={{
-        frame: frameCopy,
-        sell: sellSurfaceCopy(tr),
-        basket: basketCopy(tr),
-        customer: customerPanelCopy(tr),
-        collect: collectSheetCopy(tr),
-        paid: paidScreenCopy(tr),
-        held: heldSalesListCopy(tr),
-        shiftBar: shiftBarCopy(tr),
-        refusal: refusalCopy(tr),
-        page: counterPageCopy(tr),
-        heldSaleLabel: tr("dashboard.pos.counter.held.saleLabel"),
-        categories: {
-          service: tr("dashboard.pos.counter.category.service"),
-          package: tr("dashboard.pos.counter.category.package"),
-          product: tr("dashboard.pos.counter.category.product"),
-        },
-        legacy: {
-          contactHint: tr("dashboard.pos.contactHint"),
-          email: tr("dashboard.pos.email"),
-          phone: tr("dashboard.pos.phone"),
-          guest: tr("dashboard.pos.guest"),
-          outstanding: tr("dashboard.pos.outstanding"),
-          sendToPrep: tr("dashboard.pos.sendToPrep"),
-          prepDestination: tr("dashboard.pos.prepDestination"),
-          prepPickup: tr("dashboard.pos.prepPickup"),
-          prepTable: tr("dashboard.pos.prepTable"),
-          prepCounter: tr("dashboard.pos.prepCounter"),
-          prepPromisedAt: tr("dashboard.pos.prepPromisedAt"),
-          pageTitle: tr("dashboard.pos.pageTitle"),
-          newSale: tr("dashboard.pos.newSale"),
-          amount: tr("dashboard.pos.amount"),
-        },
-      }}
-    />
+    <>
+      {/*
+        THE SHELL HAS TO BE TOLD, NOT JUST THE URL.
+
+        `WorkspaceShell` drops the workspace sidebar when `state.page` resolves
+        to a destination carrying `chrome: "pos"` — it deliberately does NOT
+        read the live pathname (that reads `null` during the server render and
+        painted the rail for a frame on every hard refresh). On a HARD load the
+        admin layout seeds `state.page` from the request path and the counter
+        gets the whole screen. On a SOFT navigation the layout does not re-run,
+        so without this the shell kept `page: "overview"`: the top bar's own
+        Workspace/Counter switch — the only desktop door into the till — pushed
+        `/admin/pos` and delivered the counter INSIDE the admin rail, with
+        "Workspace" still reading as the selected half. Every static test
+        passed, because each one measured a different half of the door.
+
+        A syncer here rather than a `syncPage` call in the switch: it mounts
+        with THIS route's own children, so every way in (the switch, a
+        bookmark, a link from anywhere else in the shell) lands in the same
+        chrome, and there is no frame where the layout has changed but the
+        route has not.
+      */}
+      <PageRouteSyncer page="pos" />
+      <PosClient
+        mode={mode}
+        workspaceName={workspaceName}
+        posPath={adminPath}
+        workspacePath={adminPath.replace(/\/pos$/, "")}
+        receiptOrigin={host ? `${proto}://${host}` : ""}
+        receiptCode={receiptCode}
+        sale={
+          sale
+            ? {
+                orderId: sale.orderId,
+                version: sale.version,
+                currency: sale.currency,
+                customerId: sale.customerId,
+                discountCents: sale.discountCents,
+                totalCents: sale.totalCents,
+                outstandingCents: sale.outstandingCents,
+                paymentState: sale.paymentState,
+                prepState: sale.prepState,
+              }
+            : null
+        }
+        basketLines={basketLines}
+        openSales={open.ok ? open.rows : []}
+        catalog={items}
+        currency={currency}
+        minorUnitDivisor={minorUnitDivisor(currency)}
+        methods={collectionMethods(tr)}
+        shift={
+          shiftLoad.ok && shiftLoad.shift
+            ? {
+                id: shiftLoad.shift.id,
+                version: shiftLoad.shift.version,
+                openingCashCents: shiftLoad.shift.openingCashCents,
+                openedAt: shiftLoad.shift.openedAt,
+              }
+            : null
+        }
+        copy={{
+          frame: frameCopy,
+          sell: sellSurfaceCopy(tr),
+          basket: basketCopy(tr),
+          customer: customerPanelCopy(tr),
+          collect: collectSheetCopy(tr),
+          paid: paidScreenCopy(tr),
+          held: heldSalesListCopy(tr),
+          shiftBar: shiftBarCopy(tr),
+          refusal: refusalCopy(tr),
+          page: counterPageCopy(tr),
+          heldSaleLabel: tr("dashboard.pos.counter.held.saleLabel"),
+          categories: {
+            service: tr("dashboard.pos.counter.category.service"),
+            package: tr("dashboard.pos.counter.category.package"),
+            product: tr("dashboard.pos.counter.category.product"),
+          },
+          legacy: {
+            contactHint: tr("dashboard.pos.contactHint"),
+            email: tr("dashboard.pos.email"),
+            phone: tr("dashboard.pos.phone"),
+            guest: tr("dashboard.pos.guest"),
+            outstanding: tr("dashboard.pos.outstanding"),
+            sendToPrep: tr("dashboard.pos.sendToPrep"),
+            prepDestination: tr("dashboard.pos.prepDestination"),
+            prepPickup: tr("dashboard.pos.prepPickup"),
+            prepTable: tr("dashboard.pos.prepTable"),
+            prepCounter: tr("dashboard.pos.prepCounter"),
+            prepPromisedAt: tr("dashboard.pos.prepPromisedAt"),
+            pageTitle: tr("dashboard.pos.pageTitle"),
+            newSale: tr("dashboard.pos.newSale"),
+            amount: tr("dashboard.pos.amount"),
+          },
+        }}
+      />
+    </>
   );
 }

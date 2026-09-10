@@ -67,6 +67,42 @@ test("layer 4 — the destination registry routes New sale to the POS route", ()
   assert.ok(isPosSegment("pos"));
 });
 
+test("every return of the POS route tells the shell it is the point of sale", () => {
+  // THE DEFECT THIS CLOSES, found by walking the journey in a browser.
+  //
+  // `WorkspaceShell` drops the workspace sidebar when `state.page` resolves to
+  // a destination carrying `chrome: "pos"`, and it deliberately does NOT read
+  // the live pathname. On a HARD load the admin layout seeds that state from
+  // the request path, so the counter got the whole screen and every static
+  // guard was green. On a SOFT navigation the layout does not re-run — and the
+  // top bar's Workspace/Counter switch, the ONLY desktop door into the till,
+  // is a soft navigation. It pushed `/admin/pos` and delivered the counter
+  // INSIDE the admin rail, with "Workspace" still reading as the selected
+  // half of its own switch.
+  //
+  // `/admin/pos` is a canonical route, so no `PageRouteSyncer` came with it
+  // the way it does for every SPA-rendered segment. Asserting the syncer is
+  // present on EVERY return arm is what makes the two entrances agree: the
+  // route says what it is, rather than the door being trusted to.
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  assert.match(
+    page,
+    /import \{ PageRouteSyncer \}/,
+    "the POS route must import the shell's page syncer",
+  );
+  const syncers = page.match(/<PageRouteSyncer page="pos" \/>/g) ?? [];
+  // Four arms: the counter itself, the workspace's counter-off notice, the
+  // no-usable-mode gate, and a mode with no screen behind it yet. A new arm
+  // without one is a new way to land in the wrong chrome.
+  const returns = page.match(/^\s*return \(/gm) ?? [];
+  assert.equal(
+    syncers.length,
+    returns.length,
+    `every JSX return of the POS route needs its own <PageRouteSyncer page="pos" /> ` +
+      `(${returns.length} returns, ${syncers.length} syncers)`,
+  );
+});
+
 test("POS actions require workspace staff and booking.payment.request", () => {
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /requireWorkspaceStaffAction/);

@@ -1,0 +1,7 @@
+Gates for work/prove-counter (lane TSC_QUEUE_LOCK=/tmp/tulala-tsc.prove-counter.lock):
+  npm run typecheck   EXIT=0  (TSC PASS)
+  npm run lint        EXIT=0
+  npm run test:money  EXIT=0  (931 tests, 930 pass, 0 fail, 1 skipped)
+  npm run test:phase1-i18n EXIT=1  NOT a required lane; 18 dead keys inherited
+    from deca2efc8 (dashboard.pos.applyCode..., admin.people.detail.emailLabel),
+    none touched by this work. Recorded, not fixed (outside the slice).

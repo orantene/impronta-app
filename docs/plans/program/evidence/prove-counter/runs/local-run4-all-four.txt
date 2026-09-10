@@ -1,0 +1,9 @@
+
+Running 4 tests using 1 worker
+
+[1/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+[2/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against
+[3/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:510:5 › POS-OP counter refusal: a sale changed underneath the operator
+[4/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  4 passed (3.2m)
+EXIT=0
