@@ -120,3 +120,31 @@ production.
 `PERM-cross-workspace.spec.ts` passes 5 of 5, including a positive control showing
 workspace B's own owner can reach a record that workspace A's operator is correctly
 refused. Full detail: `evidence/T0-04/README.md` and `evidence/T0-06/README.md`.
+
+## Handover, 2026-09-10
+
+Written by the implementation lead at the end of the scheduled check-ins. Everything below was verified on the day, not remembered.
+
+**Merged and verified together on `program/journeys-2026-09`** (261 commits ahead of `main`, 44 new migrations, every gate green on the combined tree, pull request #1936):
+- The integration of the developer's journeys branch with main, with its four failing gates repaired at their real sites and no baseline widened.
+- The money and capacity hardening: a refused reservation leaves nothing behind and replays identically; a card collection cannot be taken twice; the identity rule guards selling and not abandoning; a crashed command is taken over on a lease and cannot stamp afterwards; a booking moves with its staff hold and its room or not at all; a waitlist acceptance takes a real seat.
+- The workspace shell, routing and phone tabs driven by one destination registry. 24 of 25 destinations are built; the one still declared and empty is a professional's own work view, on purpose.
+- The counter point of sale, appointments and classes, tables and kitchen, projects and the client record, people with three hats, sales and payments, issues and the settings panels.
+
+**Proven on the QA environment** (`staging-qa-journeys.tulala.digital`, isolated database `qa-journeys`), each journey re-run by an independent reviewer who then queried the rows, evidence under `evidence/prove-*`:
+- Counter: a full cash sale to the receipt, plus the three refusals a cashier meets.
+- Appointments: reschedule with hold and room together; busy person, stale screen and full room each refused in words; a class filled, waitlisted, freed, re-offered, with the accepted place holding a seat; proposed hours reviewed and accepted in the person's own timezone.
+- Tables and kitchen: walk-in seated, ticket amended and acknowledged at revision two, two tables joined as one party, the venue's clock shown under three timezones at once.
+- People and issues: the three hats on a real person; a real problem surfaced, answered and cleared.
+- Money: every figure traced to its rows; cancelled and draft orders do not move what is owed.
+
+**In flight:** the production release of the above. Order: push the 35 pending migrations to production (all additive or guarded; the four that replace live functions were diffed against production first, see `evidence/T0-07`), verify the objects exist, merge #1936, let the CI-gated pointer deploy, run the smoke test, then a signed-in look at the live app that writes nothing.
+
+**Blocked, and on whom:**
+- Card payments and the Mercado Pago path: built and tested against a mock; real verification waits on the owner supplying Stripe test keys and a Mercado Pago sandbox. Nothing else waits on this.
+- Tap-to-pay on a phone: needs the provider's native app or SDK; a web point of sale cannot do it alone. The no-hardware path that works is a payment link or QR.
+- The platform switch that turns the point of sale on for a workspace has no control anywhere in the product; it was set by SQL on QA only. A settings control is owed before any real customer can use it.
+
+**Honest count against the six specifications** (`specs/`): every screen each spec names has a route and a body; the journeys above exercised roughly two thirds of them in a browser with evidence. The remainder render and are covered by tests but have not been clicked on the QA host. My work is the one destination with no screen at all.
+
+**Where the defects were found.** Roughly two thirds of finished work was sent back once by adversarial review, almost always for something real: a waitlist nobody could join, money owed that counted cancelled orders, a settings panel that said Saved and persisted nothing, a floor showing the server's clock, a storefront that had stopped selling passes. Every one of those looked finished until somebody exercised it. Keep the review step.
