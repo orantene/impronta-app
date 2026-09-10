@@ -53,6 +53,27 @@ export type InstantPurchaseResult =
   | PurchaseResult
   | { ok: false; reason: "engine_error"; error: string };
 
+/**
+ * `tenantScopedQuery` answers untyped rows. These read the two fields the
+ * composition needs off a row, refusing the shape rather than casting it.
+ */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function policyOf(row: unknown): { reserveMode: string | null; attributes: unknown } {
+  if (!isRecord(row)) return { reserveMode: null, attributes: null };
+  return {
+    reserveMode: typeof row.reserve_mode === "string" ? row.reserve_mode : null,
+    attributes: row.attributes ?? null,
+  };
+}
+
+function talentProfileIdOf(row: unknown): string | null {
+  if (!isRecord(row)) return null;
+  return typeof row.talent_profile_id === "string" ? row.talent_profile_id : null;
+}
+
 export async function placeInstantPurchase(
   admin: SupabaseClient,
   input: InstantPurchaseInput,
@@ -95,7 +116,8 @@ export async function placeInstantPurchase(
   }
 
   const reservation = input.reservation;
-  const resourceSet = parseOfferingResourceSet(offeringPolicy?.attributes);
+  const policy = policyOf(offeringPolicy);
+  const resourceSet = parseOfferingResourceSet(policy.attributes);
   const companionIds = resourceSet.companionTalentIds.filter((id) => id !== input.talentProfileId);
   if (companionIds.length > 0) {
     const { data: roster, error: rosterErr } = await tenantScopedQuery(
@@ -114,7 +136,9 @@ export async function placeInstantPurchase(
         error: "We could not confirm who this treatment needs.",
       };
     }
-    const onRoster = new Set((roster ?? []).map((r) => String(r.talent_profile_id)));
+    const onRoster = new Set(
+      (roster ?? []).map(talentProfileIdOf).filter((id): id is string => id !== null),
+    );
     if (companionIds.some((id) => !onRoster.has(id))) {
       return {
         ok: false,
@@ -178,7 +202,7 @@ export async function placeInstantPurchase(
     // deposit_pct, allow_pay_in_person and require_account_to_book from
     // the offering row and refuses if the client's choice disagrees.
     // A deposit offering used to send "full" and charge the whole total.
-    paymentChoice: instantBookPaymentChoice(input.payInPerson, offeringPolicy?.reserve_mode),
+    paymentChoice: instantBookPaymentChoice(input.payInPerson, policy.reserveMode),
     sourceChannel: input.sourceChannel,
     sourcePage: input.sourcePage,
     capacity: capacity.length > 0 ? capacity : undefined,
