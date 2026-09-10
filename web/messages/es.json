@@ -4766,6 +4766,7 @@
       "posModes": {
         "title": "Modos de venta",
         "desc": "Qué partes del punto de venta tiene activadas este espacio de trabajo.",
+        "platformOffHint": "El punto de venta esta apagado para toda la plataforma. Pide a un administrador que lo active antes de poder cambiar los modos de venta aqui.",
         "loading": "Cargando…",
         "saving": "Guardando…",
         "saved": "Guardado",
@@ -4782,8 +4783,8 @@
             "desc": "Vende artículos, toma pedidos y gestiona turnos en una caja."
           },
           "floor": {
-            "label": "Salón",
-            "desc": "Mesas y distribución del salón."
+            "label": "Mesas",
+            "desc": "El salón desde la caja: sentar, mover y liberar mesas, abrir sus cuentas."
           },
           "door": {
             "label": "Puerta",
@@ -6129,7 +6130,9 @@
         "saving": "Guardando…",
         "failed": "Error: {error}",
         "workspaceUiSupportLabel": "Lanzador de soporte en la app",
-        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma."
+        "workspaceUiSupportHint": "La pestana de ayuda a la derecha de cada espacio. Apagada por defecto. Encenderla la muestra en toda la plataforma.",
+        "workspaceUiPosLabel": "El punto de venta",
+        "workspaceUiPosHint": "Permite que los espacios de trabajo activen el punto de venta. Apagado oculta el interruptor de la barra superior en todas partes."
       },
       "integrations": {
         "title": "Integraciones predeterminadas",
@@ -12358,7 +12361,7 @@
         },
         "mode": {
           "counter": "Mostrador",
-          "floor": "Salón",
+          "floor": "Mesas",
           "door": "Puerta",
           "classes": "Clases",
           "projects": "Proyectos",
@@ -12387,23 +12390,6 @@
           "product": "Productos"
         }
       },
-      "pageIntro": "Venta de mostrador sobre el pedido existente. El nombre solo se pide al cobrar.",
-      "openSales": "Ventas abiertas",
-      "items": "Artículos",
-      "discount": "Descuento",
-      "deposit": "Ya pagado",
-      "prep": "Preparación",
-      "payment": "Pago",
-      "next": "Abre una venta o elige una abierta.",
-      "collectCash": "Cobrar en efectivo",
-      "collectCard": "Cobrar con tarjeta",
-      "cancel": "Cancelar venta",
-      "applyCode": "Aplicar código",
-      "catalog": "Catálogo",
-      "emptyCatalog": "Aún no hay artículos publicados del espacio.",
-      "emptyOpen": "No hay ventas abiertas.",
-      "tendered": "Entregado",
-      "change": "Cambio",
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "classes": {
@@ -12507,6 +12493,47 @@
           "needsContact": "Este servicio necesita el correo o el teléfono del cliente.",
           "notForSale": "Ese servicio no está a la venta en este momento.",
           "couldNotBook": "No se pudo reservar. No se apartó nada."
+        }
+      },
+      "floor": {
+        "rail": {
+          "label": "Mesas",
+          "tables": "Salón",
+          "seating": "Grupos sentados"
+        },
+        "title": "Mesas",
+        "summary": "{seated} de {total} mesas ocupadas · {arriving} por llegar · {reset} por preparar",
+        "emptyFloor": "Todavía no hay mesas, reservados ni cabañas. Agrégalos en Espacios.",
+        "emptySeated": "Ahora mismo no hay nadie sentado.",
+        "unavailable": "No pudimos cargar el salón.",
+        "tapHint": "Toca una mesa.",
+        "sheetHeading": "{code}: ¿qué quieres hacer?",
+        "closeSheet": "Cerrar",
+        "guests": "Comensales",
+        "fewerGuests": "Un comensal menos",
+        "moreGuests": "Un comensal más",
+        "seatHere": "Sentar {n} en {code}",
+        "seatAcross": "Sentar {n} en {code} + {other}",
+        "joinOffer": "{code} sola no alcanza para {n}. Unir con:",
+        "noJoinOptions": "Ninguna combinación de mesas alcanza para este grupo.",
+        "openCheck": "Abrir cuenta",
+        "sendKitchen": "Enviar a cocina",
+        "movePartyHeading": "Mover este grupo a",
+        "noFreeTables": "Ninguna mesa libre alcanza para este grupo.",
+        "endVisit": "Terminar visita",
+        "markReady": "Marcar lista",
+        "kitchenNone": "Todavía no se envió nada a cocina",
+        "kitchenQueued": "Cocina: enviado, aún sin confirmar (revisión {n})",
+        "kitchenAcknowledged": "Cocina: confirmado (revisión {n})",
+        "kitchenReady": "Cocina: listo para servir (revisión {n})",
+        "sentToKitchen": "Enviado a cocina como ticket revisión {n}.",
+        "amendedInKitchen": "El ticket de cocina ahora es la revisión {n}. La estación tiene que confirmarlo de nuevo.",
+        "checkTotal": "Cuenta {amount}",
+        "noCheckYet": "Todavía sin cuenta",
+        "seatedNotMarked": "El grupo ya está sentado.",
+        "refusal": {
+          "kitchenEmpty": "Agrega algo a la cuenta antes de enviarla a cocina. Abre la cuenta para agregar artículos.",
+          "kitchenNotFound": "Esa cuenta ya no está abierta. Recarga el salón."
         }
       }
     },
@@ -14004,7 +14031,6 @@
         "revokeAccess": "Quitar el acceso",
         "grantAccess": "Dar acceso",
         "inviteByEmail": "Invitar por correo",
-        "emailLabel": "Correo electronico",
         "invite": "Enviar invitacion",
         "alsoRemoves": "Al desactivarlo tambien se quita el rol Reservable, porque una persona que no esta en tu lista no se puede reservar aqui.",
         "whatStays": "Lo que queda: {hats}",

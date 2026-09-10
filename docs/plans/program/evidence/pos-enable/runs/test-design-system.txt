@@ -1,0 +1,425 @@
+
+> web@0.1.0 test:design-system
+> bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/impact/*.test.ts src/lib/picker/*.test.ts src/components/ui/catalog/*.static.test.ts src/components/admin/pos/*.test.ts src/components/admin/pos/*.test.tsx
+
+TAP version 13
+# Subtest: charge is disabled on an empty basket (spec C03 §4)
+ok 1 - charge is disabled on an empty basket (spec C03 §4)
+  ---
+  duration_ms: 17.918833
+  ...
+# Subtest: charge is disabled again while a charge attempt is already open
+ok 2 - charge is disabled again while a charge attempt is already open
+  ---
+  duration_ms: 1.512875
+  ...
+# Subtest: basket totals render with the shared money helper, in all three shipped languages
+ok 3 - basket totals render with the shared money helper, in all three shipped languages
+  ---
+  duration_ms: 2.212708
+  ...
+# Subtest: each line's own amount comes from the shared line-total helper, guards included
+ok 4 - each line's own amount comes from the shared line-total helper, guards included
+  ---
+  duration_ms: 1.409667
+  ...
+# Subtest: a not-combinable discount shows its own sentence (spec C13 §4)
+ok 5 - a not-combinable discount shows its own sentence (spec C13 §4)
+  ---
+  duration_ms: 0.543208
+  ...
+# Subtest: a locked line (already sent to preparation) cannot have its quantity changed
+ok 6 - a locked line (already sent to preparation) cannot have its quantity changed
+  ---
+  duration_ms: 0.475083
+  ...
+# Subtest: cash always renders first regardless of the order methods are passed in
+ok 7 - cash always renders first regardless of the order methods are passed in
+  ---
+  duration_ms: 8.406584
+  ...
+# Subtest: a disabled method shows the exact honest sentence passed in, not a generic message
+ok 8 - a disabled method shows the exact honest sentence passed in, not a generic message
+  ---
+  duration_ms: 1.306625
+  ...
+# Subtest: each of card/link/pass can independently show its own disabled sentence
+ok 9 - each of card/link/pass can independently show its own disabled sentence
+  ---
+  duration_ms: 0.679459
+  ...
+# Subtest: the active method's own status box is never blank when it is not in the methods list at all
+ok 10 - the active method's own status box is never blank when it is not in the methods list at all
+  ---
+  duration_ms: 0.776542
+  ...
+# Subtest: an available payment link renders its own ready state, not a blank panel
+ok 11 - an available payment link renders its own ready state, not a blank panel
+  ---
+  duration_ms: 1.667
+  ...
+# Subtest: an available pass credit renders its own ready state, not a blank panel
+ok 12 - an available pass credit renders its own ready state, not a blank panel
+  ---
+  duration_ms: 0.543417
+  ...
+# Subtest: cash tab shows tendered and change due, formatted with the shared money helper
+ok 13 - cash tab shows tendered and change due, formatted with the shared money helper
+  ---
+  duration_ms: 0.590084
+  ...
+# Subtest: confirm cash is disabled while tender is short of the amount due, and enabled once it is enough
+ok 14 - confirm cash is disabled while tender is short of the amount due, and enabled once it is enough
+  ---
+  duration_ms: 1.13075
+  ...
+# Subtest: an unavailable method whose reason is blank still tells the cashier something
+ok 15 - an unavailable method whose reason is blank still tells the cashier something
+  ---
+  duration_ms: 0.597667
+  ...
+# Subtest: the rail's rows come from POS_MODE_META, not a list of its own
+ok 16 - the rail's rows come from POS_MODE_META, not a list of its own
+  ---
+  duration_ms: 8.714167
+  ...
+# Subtest: the active destination carries aria-current=page and no other row does
+ok 17 - the active destination carries aria-current=page and no other row does
+  ---
+  duration_ms: 0.553417
+  ...
+# Subtest: rail labels render in all three shipped languages
+ok 18 - rail labels render in all three shipped languages
+  ---
+  duration_ms: 1.013833
+  ...
+# Subtest: the nav region's own aria-label is translated in all three languages, never the English mode constant
+ok 19 - the nav region's own aria-label is translated in all three languages, never the English mode constant
+  ---
+  duration_ms: 0.661708
+  ...
+# Subtest: children render inside the content slot
+ok 20 - children render inside the content slot
+  ---
+  duration_ms: 0.319375
+  ...
+# Subtest: every refusal reason renders its own sentence, in all three shipped languages
+ok 21 - every refusal reason renders its own sentence, in all three shipped languages
+  ---
+  duration_ms: 12.236375
+  ...
+# Subtest: each reason renders a DIFFERENT sentence — never a generic message
+ok 22 - each reason renders a DIFFERENT sentence — never a generic message
+  ---
+  duration_ms: 0.146541
+  ...
+# Subtest: role=alert is present so a cashier's screen reader announces it
+ok 23 - role=alert is present so a cashier's screen reader announces it
+  ---
+  duration_ms: 0.175042
+  ...
+# Subtest: saleReloading offers Reload, paymentDeclined offers Try again, needsCustomerName offers neither
+ok 24 - saleReloading offers Reload, paymentDeclined offers Try again, needsCustomerName offers neither
+  ---
+  duration_ms: 0.59875
+  ...
+# Subtest: SellSurface renders products, favourites and category tabs in all three languages
+ok 25 - SellSurface renders products, favourites and category tabs in all three languages
+  ---
+  duration_ms: 9.82525
+  ...
+# Subtest: SellSurface shows the empty-catalog sentence when there is nothing to sell
+ok 26 - SellSurface shows the empty-catalog sentence when there is nothing to sell
+  ---
+  duration_ms: 0.253333
+  ...
+# Subtest: CustomerPanel defaults to walk-in when no customer is attached
+ok 27 - CustomerPanel defaults to walk-in when no customer is attached
+  ---
+  duration_ms: 0.703625
+  ...
+# Subtest: CustomerPanel shows the retry action once C10's attach failure has happened
+ok 28 - CustomerPanel shows the retry action once C10's attach failure has happened
+  ---
+  duration_ms: 0.265292
+  ...
+# Subtest: PaidScreen shows amount, change and the Next customer action
+ok 29 - PaidScreen shows amount, change and the Next customer action
+  ---
+  duration_ms: 2.117916
+  ...
+# Subtest: HeldSalesList renders held sales, and its own empty state
+ok 30 - HeldSalesList renders held sales, and its own empty state
+  ---
+  duration_ms: 0.388834
+  ...
+# Subtest: ShiftBar shows the no-shift state when nothing is open, and totals once one is
+ok 31 - ShiftBar shows the no-shift state when nothing is open, and totals once one is
+  ---
+  duration_ms: 0.445959
+  ...
+# Subtest: basket totals: two lines, no discount, sums subtotal and total
+ok 32 - basket totals: two lines, no discount, sums subtotal and total
+  ---
+  duration_ms: 0.483583
+  ...
+# Subtest: basket totals: an add-on is charged once per line, not per unit
+ok 33 - basket totals: an add-on is charged once per line, not per unit
+  ---
+  duration_ms: 0.077083
+  ...
+# Subtest: basket totals: a discount reduces the total but never below zero
+ok 34 - basket totals: a discount reduces the total but never below zero
+  ---
+  duration_ms: 0.063208
+  ...
+# Subtest: basket totals: an empty basket totals to zero everywhere
+ok 35 - basket totals: an empty basket totals to zero everywhere
+  ---
+  duration_ms: 0.300292
+  ...
+# Subtest: change due: exact tender gives zero change
+ok 36 - change due: exact tender gives zero change
+  ---
+  duration_ms: 0.065292
+  ...
+# Subtest: change due: overtender returns the difference
+ok 37 - change due: overtender returns the difference
+  ---
+  duration_ms: 0.041042
+  ...
+# Subtest: change due: undertender never goes negative
+ok 38 - change due: undertender never goes negative
+  ---
+  duration_ms: 0.041084
+  ...
+# Subtest: tender is short: true when tendered is less than the amount due
+ok 39 - tender is short: true when tendered is less than the amount due
+  ---
+  duration_ms: 0.053708
+  ...
+# Subtest: every ui primitive is registered in the catalog or recorded as not
+ok 40 - every ui primitive is registered in the catalog or recorded as not
+  ---
+  duration_ms: 1.051292
+  ...
+# Subtest: a registered primitive drops out of the baseline
+ok 41 - a registered primitive drops out of the baseline
+  ---
+  duration_ms: 0.180667
+  ...
+# Subtest: the baseline's count matches its own list
+ok 42 - the baseline's count matches its own list
+  ---
+  duration_ms: 0.060708
+  ...
+# Subtest: every baselined file still exists
+ok 43 - every baselined file still exists
+  ---
+  duration_ms: 0.159625
+  ...
+# Subtest: GUARD BITES: an invented primitive is reported
+ok 44 - GUARD BITES: an invented primitive is reported
+  ---
+  duration_ms: 0.126334
+  ...
+# Subtest: the registry declares a file for every entry it lists
+ok 45 - the registry declares a file for every entry it lists
+  ---
+  duration_ms: 0.174
+  ...
+# Subtest: an unavailable impact is never confirmable
+ok 46 - an unavailable impact is never confirmable
+  ---
+  duration_ms: 1.06875
+  ...
+# Subtest: a blocker refuses the confirm even when there are real effects
+ok 47 - a blocker refuses the confirm even when there are real effects
+  ---
+  duration_ms: 0.088959
+  ...
+# Subtest: an empty ready impact refuses the confirm rather than allowing a no-op
+ok 48 - an empty ready impact refuses the confirm rather than allowing a no-op
+  ---
+  duration_ms: 0.116333
+  ...
+# Subtest: a ready impact with effects and no blockers is confirmable
+ok 49 - a ready impact with effects and no blockers is confirmable
+  ---
+  duration_ms: 0.047833
+  ...
+# Subtest: groups come back in channel order regardless of insertion order
+ok 50 - groups come back in channel order regardless of insertion order
+  ---
+  duration_ms: 0.363916
+  ...
+# Subtest: empty channels are dropped, not rendered as headings with nothing under them
+ok 51 - empty channels are dropped, not rendered as headings with nothing under them
+  ---
+  duration_ms: 0.059416
+  ...
+# Subtest: insertion order inside a channel survives grouping
+ok 52 - insertion order inside a channel survives grouping
+  ---
+  duration_ms: 0.122833
+  ...
+# Subtest: totals are per currency and never summed across
+ok 53 - totals are per currency and never summed across
+  ---
+  duration_ms: 16.306917
+  ...
+# Subtest: currency codes are normalised so eur and EUR are one total
+ok 54 - currency codes are normalised so eur and EUR are one total
+  ---
+  duration_ms: 0.156417
+  ...
+# Subtest: non-money effects never reach the totals
+ok 55 - non-money effects never reach the totals
+  ---
+  duration_ms: 0.12725
+  ...
+# Subtest: an amount with no currency makes the totals unattributable
+ok 56 - an amount with no currency makes the totals unattributable
+  ---
+  duration_ms: 0.085208
+  ...
+# Subtest: a money effect with a currency and no amount does not make totals unattributable
+ok 57 - a money effect with a currency and no amount does not make totals unattributable
+  ---
+  duration_ms: 0.048625
+  ...
+# Subtest: counts sum only within their channel and only where a count was given
+ok 58 - counts sum only within their channel and only where a count was given
+  ---
+  duration_ms: 0.068083
+  ...
+# Subtest: outbound money keeps its minus and inbound money gets an explicit plus
+ok 59 - outbound money keeps its minus and inbound money gets an explicit plus
+  ---
+  duration_ms: 6.422375
+  ...
+# Subtest: zero is not signed as a gain
+ok 60 - zero is not signed as a gain
+  ---
+  duration_ms: 0.116083
+  ...
+# Subtest: a second create while one is in flight is dropped, not queued
+ok 61 - a second create while one is in flight is dropped, not queued
+  ---
+  duration_ms: 0.464667
+  ...
+# Subtest: the idempotency key survives a failed create and its retry
+ok 62 - the idempotency key survives a failed create and its retry
+  ---
+  duration_ms: 0.0745
+  ...
+# Subtest: re-opening the picker mints a new key and forgets the orphan
+ok 63 - re-opening the picker mints a new key and forgets the orphan
+  ---
+  duration_ms: 0.24025
+  ...
+# Subtest: created is not attached — the created object is never silently selected
+ok 64 - created is not attached — the created object is never silently selected
+  ---
+  duration_ms: 0.123834
+  ...
+# Subtest: a created-but-unattached object is found again on the next search
+ok 65 - a created-but-unattached object is found again on the next search
+  ---
+  duration_ms: 0.185084
+  ...
+# Subtest: the orphan is not duplicated once the search index catches up
+ok 66 - the orphan is not duplicated once the search index catches up
+  ---
+  duration_ms: 0.068292
+  ...
+# Subtest: the orphan survives a failed search, which is when it matters most
+ok 67 - the orphan survives a failed search, which is when it matters most
+  ---
+  duration_ms: 0.0635
+  ...
+# Subtest: attaching clears the orphan, and only attaching does
+ok 68 - attaching clears the orphan, and only attaching does
+  ---
+  duration_ms: 0.055417
+  ...
+# Subtest: a stale search result never repaints the list
+ok 69 - a stale search result never repaints the list
+  ---
+  duration_ms: 0.11175
+  ...
+# Subtest: a stale search FAILURE does not surface an error for the current query
+ok 70 - a stale search FAILURE does not surface an error for the current query
+  ---
+  duration_ms: 0.060333
+  ...
+# Subtest: an attach failure leaves the list usable rather than dropping to an error screen
+ok 71 - an attach failure leaves the list usable rather than dropping to an error screen
+  ---
+  duration_ms: 0.057291
+  ...
+# Subtest: create is refused with an empty query
+ok 72 - create is refused with an empty query
+  ---
+  duration_ms: 0.048084
+  ...
+# Subtest: withOrphan is a no-op when there is no orphan
+ok 73 - withOrphan is a no-op when there is no orphan
+  ---
+  duration_ms: 0.095292
+  ...
+# Subtest: an exact match is found regardless of case or padding
+ok 74 - an exact match is found regardless of case or padding
+  ---
+  duration_ms: 0.11475
+  ...
+# Subtest: the picker never navigates, so the parent draft cannot be unmounted
+ok 75 - the picker never navigates, so the parent draft cannot be unmounted
+  ---
+  duration_ms: 0.436958
+  ...
+# Subtest: focus return comes from the Dialog primitive rather than a hand-rolled overlay
+ok 76 - focus return comes from the Dialog primitive rather than a hand-rolled overlay
+  ---
+  duration_ms: 0.068416
+  ...
+# Subtest: create and attach are separate calls
+ok 77 - create and attach are separate calls
+  ---
+  duration_ms: 0.062417
+  ...
+# Subtest: the idempotency key is handed to the create callback
+ok 78 - the idempotency key is handed to the create callback
+  ---
+  duration_ms: 0.045291
+  ...
+# Subtest: the key is minted on OPEN, not per attempt
+ok 79 - the key is minted on OPEN, not per attempt
+  ---
+  duration_ms: 0.057417
+  ...
+# Subtest: the minter is reached through a ref, so its identity cannot re-mint
+ok 80 - the minter is reached through a ref, so its identity cannot re-mint
+  ---
+  duration_ms: 0.048
+  ...
+# Subtest: the search result carries the query it answered
+ok 81 - the search result carries the query it answered
+  ---
+  duration_ms: 0.040917
+  ...
+# Subtest: the create control is gated on capability, not on an error at press time
+ok 82 - the create control is gated on capability, not on an error at press time
+  ---
+  duration_ms: 0.042166
+  ...
+1..82
+# tests 82
+# suites 0
+# pass 82
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 892.210625
+TEST_EXIT=0

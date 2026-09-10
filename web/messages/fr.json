@@ -850,6 +850,7 @@
       "posModes": {
         "title": "Modes de vente",
         "desc": "Les parties du point de vente que cet espace de travail a activees.",
+        "platformOffHint": "Le point de vente est desactive pour toute la plateforme. Demandez a un administrateur de l'activer avant de pouvoir changer les modes de vente ici.",
         "loading": "Chargement…",
         "saving": "Enregistrement…",
         "saved": "Enregistre",
@@ -866,8 +867,8 @@
             "desc": "Vendre des articles, prendre des commandes et gerer les caisses."
           },
           "floor": {
-            "label": "Salle",
-            "desc": "Tables et placement en salle."
+            "label": "Tables",
+            "desc": "La salle depuis la caisse : installer, déplacer et libérer les tables, ouvrir leurs additions."
           },
           "door": {
             "label": "Porte",
@@ -968,7 +969,9 @@
       },
       "settings": {
         "workspaceUiSupportLabel": "Lanceur de support in-app",
-        "workspaceUiSupportHint": "L'onglet d'aide a droite de chaque espace. Desactive par defaut. L'activer l'affiche partout."
+        "workspaceUiSupportHint": "L'onglet d'aide a droite de chaque espace. Desactive par defaut. L'activer l'affiche partout.",
+        "workspaceUiPosLabel": "Le point de vente",
+        "workspaceUiPosHint": "Permet aux espaces de travail d'activer le point de vente. Desactive, il masque le bouton de la barre superieure partout."
       },
       "support": {
         "pageTitle": "Support",
@@ -1301,7 +1304,7 @@
         },
         "mode": {
           "counter": "Comptoir",
-          "floor": "Salle",
+          "floor": "Tables",
           "door": "Entrée",
           "classes": "Cours",
           "projects": "Projets",
@@ -1433,6 +1436,47 @@
           "needsContact": "Cette prestation nécessite l'e-mail ou le téléphone du client.",
           "notForSale": "Cette prestation n'est pas en vente pour le moment.",
           "couldNotBook": "Impossible de réserver. Rien n'a été retenu."
+        }
+      },
+      "floor": {
+        "rail": {
+          "label": "Tables",
+          "tables": "Salle",
+          "seating": "Groupes installés"
+        },
+        "title": "Tables",
+        "summary": "{seated} tables sur {total} occupées · {arriving} en route · {reset} à redresser",
+        "emptyFloor": "Pas encore de tables, d'alcôves ni de cabanes. Ajoutez-les dans Espaces.",
+        "emptySeated": "Personne n'est installé pour le moment.",
+        "unavailable": "Nous n'avons pas pu charger la salle.",
+        "tapHint": "Touchez une table.",
+        "sheetHeading": "{code} : que voulez-vous faire ?",
+        "closeSheet": "Fermer",
+        "guests": "Convives",
+        "fewerGuests": "Un convive de moins",
+        "moreGuests": "Un convive de plus",
+        "seatHere": "Installer {n} à {code}",
+        "seatAcross": "Installer {n} sur {code} + {other}",
+        "joinOffer": "{code} seule ne suffit pas pour {n}. Joindre avec :",
+        "noJoinOptions": "Aucune combinaison de tables ne convient à ce groupe.",
+        "openCheck": "Ouvrir l'addition",
+        "sendKitchen": "Envoyer en cuisine",
+        "movePartyHeading": "Déplacer ce groupe vers",
+        "noFreeTables": "Aucune table libre ne convient à ce groupe.",
+        "endVisit": "Terminer la visite",
+        "markReady": "Marquer prête",
+        "kitchenNone": "Rien n'a encore été envoyé en cuisine",
+        "kitchenQueued": "Cuisine : envoyé, pas encore confirmé (révision {n})",
+        "kitchenAcknowledged": "Cuisine : confirmé (révision {n})",
+        "kitchenReady": "Cuisine : prêt à servir (révision {n})",
+        "sentToKitchen": "Envoyé en cuisine comme ticket révision {n}.",
+        "amendedInKitchen": "Le ticket de cuisine est maintenant en révision {n}. La station doit le confirmer à nouveau.",
+        "checkTotal": "Addition {amount}",
+        "noCheckYet": "Pas encore d'addition",
+        "seatedNotMarked": "Le groupe est installé.",
+        "refusal": {
+          "kitchenEmpty": "Ajoutez quelque chose à l'addition avant de l'envoyer en cuisine. Ouvrez l'addition pour ajouter des articles.",
+          "kitchenNotFound": "Cette addition n'est plus ouverte. Rechargez la salle."
         }
       }
     },
@@ -2184,7 +2228,6 @@
         "revokeAccess": "Retirer l'acces",
         "grantAccess": "Donner l'acces",
         "inviteByEmail": "Inviter par courriel",
-        "emailLabel": "Adresse courriel",
         "invite": "Envoyer l'invitation",
         "alsoRemoves": "Desactiver ceci retire aussi la casquette Reservable, car une personne absente de votre liste ne peut pas etre reservee ici.",
         "whatStays": "Ce qui reste : {hats}",
