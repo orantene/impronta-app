@@ -56,6 +56,16 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   ...REGISTRY_MATCHERS,
   // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
   (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
+  // /<tenant>/admin/projects/<id> — the project record and its tabs (P4). The
+  // registry matcher above covers the LIST at /admin/projects; a matcher takes
+  // exactly two segments, so without this line the record page rendered
+  // stacked under the SPA — the same failure the bookings/account matchers
+  // were added for.
+  (s) => s[0] === "admin" && s[1] === "projects" && typeof s[2] === "string" && s[2].length > 0,
+  // /<tenant>/admin/clients/<id> — the client record (P4). The Clients LIST is
+  // still the SPA page-module and deliberately has no matcher; only the record
+  // is a real page.
+  (s) => s[0] === "admin" && s[1] === "clients" && typeof s[2] === "string" && s[2].length > 0,
   // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)
   // rendered as standalone server components, not via the prototype SPA.
   (s) => s[0] === "admin" && s[1] === "policy",

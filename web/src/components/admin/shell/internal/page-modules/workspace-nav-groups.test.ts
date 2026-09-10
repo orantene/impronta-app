@@ -129,13 +129,17 @@ test("every rail row points at a route that exists and a page the shell can open
 });
 
 test("an unbuilt destination is not a row, even though its URL resolves", () => {
-  // Projects lands on Messages and Payments on Financials so a URL for them
-  // works. A rail row would be a second, differently-labelled door onto a page
-  // that already has one.
+  // Payments lands on Financials so a URL for it works. A rail row would be a
+  // second, differently-labelled door onto a page that already has one. My work
+  // has no route at all yet.
   const ids = flat(build()).map((i) => i.id);
-  for (const absent of ["projects", "payments", "mywork"]) {
+  for (const absent of ["payments", "mywork"]) {
     assert.ok(!ids.includes(absent as WorkspaceNavItem["id"]), `${absent} is a rail row`);
   }
+  // Projects was in that list until P4 (2026-09-10) gave it a real route. It is
+  // asserted PRESENT here so the deletion above reads as a changed fact rather
+  // than a loosened check.
+  assert.ok(ids.includes("projects" as WorkspaceNavItem["id"]), "Projects lost its rail row");
 });
 
 // ── Preset labels, from the tenant row ───────────────────────────────

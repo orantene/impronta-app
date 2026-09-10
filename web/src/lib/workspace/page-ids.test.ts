@@ -71,7 +71,12 @@ test("a destination with no route at all reports null, not a guess", () => {
 test("every legacy URL opens the page it always opened", () => {
   const cases: ReadonlyArray<readonly [string, WorkspacePage]> = [
     ["inbox", "messages"],
-    ["work", "messages"],
+    // `work` stood on Messages only while Projects was unbuilt: the registry has
+    // always declared it Projects' legacy segment. P4 gave Projects a route, so
+    // the stand-in retires and the alias goes home. The URL keeps RESOLVING,
+    // which is what the frozen list is here to protect; /admin/work now
+    // redirects to /admin/projects so the body agrees with the rail.
+    ["work", "projects"],
     ["talent", "roster"],
     ["site", "website"],
     ["billing", "settings"],
@@ -115,9 +120,13 @@ test("navWorkspacePages is one entry per built destination, in registry order", 
     built.map((d) => liveWorkspacePage(d)),
     "nav order must follow the registry, which is the rail order",
   );
-  // Unbuilt destinations are absent: a rail row for Projects would be a second
-  // door onto Messages, and one for Payments a second door onto Financials.
-  for (const absent of ["projects", "payments", "mywork"] as WorkspacePage[]) {
+  // Unbuilt destinations are absent: a rail row for Payments would be a second
+  // door onto Financials, and My work has no route at all yet.
+  for (const absent of ["payments", "mywork"] as WorkspacePage[]) {
     assert.ok(!pages.includes(absent), `${absent} is not built and must not be a nav page`);
   }
+  // Projects WAS in that list and is not any more: P4 gave it a route, so the
+  // rail must now draw a row for it. Without this the deletion above would read
+  // as a weakened assertion rather than a changed fact.
+  assert.ok(pages.includes("projects" as WorkspacePage), "Projects is built and needs a rail row");
 });

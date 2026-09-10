@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { pathIsCanonical } from "./canonical-routes";
+
+/** Absolute path to `web/`, derived from this file rather than from cwd. */
+const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
 /**
  * Regression cover for the two admin URL shapes.
@@ -85,6 +91,22 @@ test("SPA-owned surfaces stay non-canonical on both shapes", () => {
   }
 });
 
+test("Projects is canonical at the list AND at the record; the Clients LIST is not", () => {
+  // P4. Both halves matter and they fail differently. Without the list matcher
+  // (which the registry produces, because the destination is `render:
+  // "canonical"`) the SPA's Messages page would render over the list; without
+  // the record matcher the project page would render STACKED under the SPA.
+  for (const p of ["/admin/projects", "/admin/projects/1a2b3c", "/admin/clients/1a2b3c"]) {
+    assert.equal(pathIsCanonical(p), true, `branded: ${p}`);
+    assert.equal(pathIsCanonical(`/impronta${p}`), true, `slug: ${p}`);
+  }
+  // The Clients list is still the SPA page-module. Only the record is a page,
+  // so the matcher must require the id segment. This is the assertion that
+  // catches a matcher written as `s[1] === "clients"` with no id check.
+  assert.equal(pathIsCanonical("/admin/clients"), false);
+  assert.equal(pathIsCanonical("/impronta/admin/clients"), false);
+});
+
 test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/talent/trust"), true);
   assert.equal(pathIsCanonical("/talent/discover"), true);
@@ -102,4 +124,35 @@ test("empty and unknown paths are not canonical", () => {
 
 test("leading slashes are normalised", () => {
   assert.equal(pathIsCanonical("///admin/activity-log"), true);
+});
+
+// ── The conversation link has to land ON the conversation ────────────
+
+test("PROJECTS LINKS TO THE THREAD ITSELF, NOT TO THE INBOX WITH A DEAD PARAM", () => {
+  // `/admin/messages?inquiry=<id>` is a CLIENT-side convention: only
+  // `client/messages` reads that search param. On the admin side the query
+  // string is read by nothing, so the link opened the whole inbox and the
+  // operator had to find the thread again. It matters most on the Scope tab,
+  // where that link is the only route to proposing an amendment.
+  const surface = [
+    "src/app/(workspace)/[tenantSlug]/admin/projects/[projectId]/page.tsx",
+  ].map((rel) => ({ rel, text: readFileSync(join(WEB_ROOT, rel), "utf8") }));
+
+  for (const { rel, text } of surface) {
+    assert.ok(
+      !text.includes("admin/messages?inquiry="),
+      `${rel} links to the inbox with a query param the admin side never reads`,
+    );
+    assert.ok(
+      text.includes("/admin/messages/${project.inquiryId}"),
+      `${rel} should link to the thread route`,
+    );
+  }
+
+  // And the two shapes genuinely differ: only the thread route yields to a
+  // real page. The inbox path is the prototype SPA, which is why a link there
+  // could never carry an id.
+  assert.equal(pathIsCanonical("/admin/messages/1a2b3c"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/messages/1a2b3c"), true);
+  assert.equal(pathIsCanonical("/admin/messages"), false);
 });

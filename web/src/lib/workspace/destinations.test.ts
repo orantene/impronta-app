@@ -140,11 +140,6 @@ test("every destination's live route is a route that exists", () => {
 });
 
 test("an unbuilt destination's URL falls back to a page that exists", () => {
-  const projects = resolveDestination("projects");
-  assert.equal(projects?.built, false);
-  assert.equal(projects && liveRouteSegment(projects), "messages");
-  assert.equal(projects && destinationHref(projects, "/admin"), "/admin/messages");
-
   const payments = resolveDestination("payments");
   assert.equal(payments?.built, false);
   assert.equal(payments && liveRouteSegment(payments), "financials");
@@ -161,6 +156,19 @@ test("an unbuilt destination's URL falls back to a page that exists", () => {
   assert.equal(mywork?.built, false);
   assert.equal(mywork && liveRouteSegment(mywork), null);
   assert.equal(mywork && destinationHref(mywork, "/admin"), null);
+});
+
+test("Projects is built and answers at its own segment, not at a stand-in", () => {
+  // It was unbuilt and landed on Messages until P4 (2026-09-10) gave it a real
+  // route. Both halves are asserted: the destination claims to be built AND the
+  // segment it claims resolves to itself rather than to somebody else's page.
+  const projects = resolveDestination("projects");
+  assert.equal(projects?.built, true);
+  assert.equal(projects?.render, "canonical");
+  assert.equal(projects && liveRouteSegment(projects), "projects");
+  assert.equal(projects && destinationHref(projects, "/admin"), "/admin/projects");
+  // The legacy URL still resolves to the same destination, so no bookmark dies.
+  assert.equal(resolveDestination("work")?.id, "projects");
 });
 
 test("a built destination renamed ahead of its route still points at the live one", () => {

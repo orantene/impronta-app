@@ -33,6 +33,7 @@ const ALL_PAGES: WorkspacePage[] = [
   "sessions",     // the Appointments destination, at its live route
   "reservations",
   "orders",
+  "projects",     // built by P4 (2026-09-10); was unbuilt and stood on Messages
   "exceptions",   // the Issues destination, at its live route
   "preparation",
   "menu",         // the Catalog destination, at its live route
@@ -118,6 +119,7 @@ test("visibleWorkspacePages drops exactly pitches for a business workspace", () 
     "sessions",
     "reservations",
     "orders",
+    "projects", // commissioned work is not talent-only: a restaurant caters
     "exceptions",
     "preparation",
     "menu",
