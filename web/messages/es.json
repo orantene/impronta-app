@@ -4782,8 +4782,8 @@
             "desc": "Vende artículos, toma pedidos y gestiona turnos en una caja."
           },
           "floor": {
-            "label": "Salón",
-            "desc": "Mesas y distribución del salón."
+            "label": "Mesas",
+            "desc": "El salón desde la caja: sentar, mover y liberar mesas, abrir sus cuentas."
           },
           "door": {
             "label": "Puerta",
@@ -12358,7 +12358,7 @@
         },
         "mode": {
           "counter": "Mostrador",
-          "floor": "Salón",
+          "floor": "Mesas",
           "door": "Puerta",
           "classes": "Clases",
           "projects": "Proyectos",
@@ -12405,7 +12405,48 @@
       "tendered": "Entregado",
       "change": "Cambio",
       "counterOffTitle": "El mostrador está desactivado",
-      "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse."
+      "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
+      "floor": {
+        "rail": {
+          "label": "Mesas",
+          "tables": "Salón",
+          "seating": "Grupos sentados"
+        },
+        "title": "Mesas",
+        "summary": "{seated} de {total} mesas ocupadas · {arriving} por llegar · {reset} por preparar",
+        "emptyFloor": "Todavía no hay mesas, reservados ni cabañas. Agrégalos en Espacios.",
+        "emptySeated": "Ahora mismo no hay nadie sentado.",
+        "unavailable": "No pudimos cargar el salón.",
+        "tapHint": "Toca una mesa.",
+        "sheetHeading": "{code}: ¿qué quieres hacer?",
+        "closeSheet": "Cerrar",
+        "guests": "Comensales",
+        "fewerGuests": "Un comensal menos",
+        "moreGuests": "Un comensal más",
+        "seatHere": "Sentar {n} en {code}",
+        "seatAcross": "Sentar {n} en {code} + {other}",
+        "joinOffer": "{code} sola no alcanza para {n}. Unir con:",
+        "noJoinOptions": "Ninguna combinación de mesas alcanza para este grupo.",
+        "openCheck": "Abrir cuenta",
+        "sendKitchen": "Enviar a cocina",
+        "movePartyHeading": "Mover este grupo a",
+        "noFreeTables": "Ninguna mesa libre alcanza para este grupo.",
+        "endVisit": "Terminar visita",
+        "markReady": "Marcar lista",
+        "kitchenNone": "Todavía no se envió nada a cocina",
+        "kitchenQueued": "Cocina: enviado, aún sin confirmar (revisión {n})",
+        "kitchenAcknowledged": "Cocina: confirmado (revisión {n})",
+        "kitchenReady": "Cocina: listo para servir (revisión {n})",
+        "sentToKitchen": "Enviado a cocina como ticket revisión {n}.",
+        "amendedInKitchen": "El ticket de cocina ahora es la revisión {n}. La estación tiene que confirmarlo de nuevo.",
+        "checkTotal": "Cuenta {amount}",
+        "noCheckYet": "Todavía sin cuenta",
+        "seatedNotMarked": "El grupo ya está sentado.",
+        "refusal": {
+          "kitchenEmpty": "Agrega algo a la cuenta antes de enviarla a cocina. Abre la cuenta para agregar artículos.",
+          "kitchenNotFound": "Esa cuenta ya no está abierta. Recarga el salón."
+        }
+      }
     },
     "tables": {
       "pageTitle": "Mesas",

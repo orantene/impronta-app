@@ -78,9 +78,9 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   },
   floor: {
     id: "floor",
-    label: "Floor",
+    label: "Tables",
     destinations: ["tables", "seating"],
-    built: false,
+    built: true,
   },
   door: {
     id: "door",
