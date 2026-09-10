@@ -114,14 +114,26 @@ test("Door mode is switched on in Settings, and the night exists through the int
 
   // ── Settings › Point of sale: the Door switch.
   await signInJourneysStaff(page, `${ADMIN_BASE}/settings`);
+  // The settings nav is client state; a click that lands before hydration is
+  // a click on nothing, so it is repeated until the section is the one shown.
+  const posSection = page.locator('[data-settings-section="pos"]');
+  for (let attempt = 0; attempt < 5 && !(await posSection.isVisible()); attempt += 1) {
+    await page.getByRole("button", { name: /^(point of sale|punto de venta|point de vente)/i }).click();
+    await page.waitForTimeout(1_000);
+  }
+  await expect(posSection).toBeVisible({ timeout: 30_000 });
   const card = page.getByTestId("pos-modes-card");
   await expect(card).toBeVisible({ timeout: 30_000 });
-  const doorSwitch = card.getByRole("switch", { name: /door|puerta|porte/i });
-  await expect(doorSwitch).toBeVisible({ timeout: 30_000 });
-  await expect(doorSwitch, "a built mode's switch must be usable").toBeEnabled();
-  if ((await doorSwitch.getAttribute("aria-checked")) !== "true") {
-    await doorSwitch.click();
-    await expect(doorSwitch).toHaveAttribute("aria-checked", "true", { timeout: 30_000 });
+  // Door AND the counter: the drawer the door's cash lands in is opened at
+  // the counter, and this fixture workspace's settings are shared with every
+  // other proof on this database, so neither switch is assumed to be on.
+  for (const name of [/^(door|puerta|porte)/i, /^(counter|mostrador|comptoir)/i]) {
+    const modeSwitch = card.getByRole("switch", { name });
+    await expect(modeSwitch, "a built mode's switch must be usable").toBeEnabled({ timeout: 30_000 });
+    if ((await modeSwitch.getAttribute("aria-checked")) !== "true") {
+      await modeSwitch.click();
+      await expect(modeSwitch).toHaveAttribute("aria-checked", "true", { timeout: 30_000 });
+    }
   }
   await page.screenshot({ path: testInfo.outputPath("01-settings-door-on.png"), fullPage: true });
 
@@ -402,14 +414,14 @@ test("gate: a walk-up pays cash at the door and walks in", async ({ page }, test
 
   const { data: txs, error: txErr } = await db
     .from("booking_transactions")
-    .select("order_id, status, amount_cents, provider, metadata")
+    .select("order_id, status, gross_amount_cents, provider, metadata")
     .in("order_id", orderIds)
     .eq("status", "paid");
   if (txErr) throw new Error(txErr.message);
-  const paid = (txs ?? []) as Array<{ order_id: string; amount_cents: number; provider: string; metadata: Record<string, unknown> | null }>;
+  const paid = (txs ?? []) as Array<{ order_id: string; gross_amount_cents: number; provider: string; metadata: Record<string, unknown> | null }>;
   expect(paid, "one paid transaction per order").toHaveLength(2);
   for (const t of paid) {
-    expect(Number(t.amount_cents)).toBe(2000);
+    expect(Number(t.gross_amount_cents)).toBe(2000);
     expect(t.provider).toBe("manual");
     expect(t.metadata?.paid_via).toBe("cash");
   }
