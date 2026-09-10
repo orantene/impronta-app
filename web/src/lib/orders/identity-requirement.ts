@@ -21,7 +21,18 @@
  * Pure by design — no client, no I/O. Both callers (the POS counter and the
  * public purchase pipeline) read their own rows and hand them here, so the two
  * cannot drift into two different answers.
+ *
+ * WHAT THE DEMAND IS OWED TO. A sale, and only a sale. The first version of
+ * this rule asked "is the order leaving draft", which made a VOID and an
+ * EXPIRY into things the demand could refuse: an anonymous draft holding a
+ * gala ticket could not be paid (right) and could not be cancelled either
+ * (a locked till). So the question every caller now has to answer out loud is
+ * WHICH STATUS the order is moving into, and `lib/orders/order-status` says
+ * which of those hold a sale. There is no default: a caller that does not know
+ * where the order is going does not know whether identity is owed.
  */
+
+import { isSellingOrderStatus, type OrderStatus } from "@/lib/orders/order-status";
 
 export const IDENTITY_REASONS = ["attendee_names", "delivery", "entitlement"] as const;
 export type IdentityReason = (typeof IDENTITY_REASONS)[number];
@@ -89,16 +100,25 @@ export type IdentityVerdict =
   | { ok: false; reason: IdentityReason; offeringId: string | null; offeringTitle: string; message: string };
 
 /**
- * May this order leave draft with the identity it has?
+ * May this order move into `intoStatus` with the identity it has?
  *
  * `hasCustomer` is the only thing that satisfies a demand. A guest session is
  * an anonymity token, not a name: it identifies a browser, and the door cannot
  * check a browser against a ticket.
+ *
+ * `intoStatus` is required rather than defaulted. A default would be a guess
+ * about a caller's intent, and the wrong guess here is the locked till: the
+ * cheapest way to keep a void answerable is to make every caller name the
+ * transition it is about to write.
  */
 export function identityVerdict(input: {
+  intoStatus: OrderStatus;
   hasCustomer: boolean;
   lines: readonly IdentityLine[];
 }): IdentityVerdict {
+  // Abandoning is not selling. Cancelling is how an order carrying a demand
+  // nobody can meet gets closed, so it is never the thing a demand refuses.
+  if (!isSellingOrderStatus(input.intoStatus)) return { ok: true };
   if (input.hasCustomer) return { ok: true };
   const demand = identityDemand(input.lines);
   if (!demand) return { ok: true };

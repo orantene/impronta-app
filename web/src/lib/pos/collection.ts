@@ -130,7 +130,9 @@ async function anonymousSaleVerdict(
   if (!read.ok) {
     return { ok: false, reason: "unavailable", error: "Could not check what this sale needs." };
   }
-  const verdict = identityVerdict({ hasCustomer: false, lines: read.lines });
+  // The counter is about to take money: `paid` is the status this answer
+  // gates. A Void writes `cancelled` and never asks this question.
+  const verdict = identityVerdict({ intoStatus: "paid", hasCustomer: false, lines: read.lines });
   if (verdict.ok) return { ok: true };
   return { ok: false, reason: "no_contact", error: verdict.message };
 }

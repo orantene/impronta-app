@@ -83,7 +83,10 @@ export async function resolvePurchaseBuyer(
     return { ok: true, customerId: customer.customerId, guestSessionId: null };
   }
 
+  // The first selling status this purchase will enter. A cart that is
+  // abandoned instead goes to `cancelled`, which owes nothing.
   const demanded = identityVerdict({
+    intoStatus: "pending_payment",
     hasCustomer: false,
     lines: input.lines.map((line) => {
       const raw = input.catalog.rawOfferings.get(line.offeringId);
