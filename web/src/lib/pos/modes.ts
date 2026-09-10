@@ -86,7 +86,7 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     id: "door",
     label: "Door",
     destinations: ["checkin", "tickets"],
-    built: false,
+    built: true,
   },
   classes: {
     id: "classes",
