@@ -225,3 +225,37 @@ test("confirm cash is disabled while tender is short of the amount due, and enab
   const enough = confirmButtonTag(render(1000), copy.confirmCash);
   assert.doesNotMatch(enough, /\bdisabled=""/);
 });
+
+test("an unavailable method whose reason is blank still tells the cashier something", () => {
+  // A caller composing its reason as `lookup[id] ?? ""` satisfies the type and
+  // still hands us nothing to say. The status line is the one place a cashier
+  // looks when a method will not take money, so it must never be empty.
+  const t = createTranslator("en");
+  const copy = collectSheetCopy(t);
+  for (const blank of ["", "   "]) {
+    const markup = renderToStaticMarkup(
+      <CollectSheet
+        amountDueCents={1000}
+        currency="USD"
+        methods={[
+          { id: "cash", available: true },
+          { id: "card", available: false, unavailableReason: blank },
+        ]}
+        activeMethod="card"
+        onSelectMethod={() => {}}
+        tenderedCents={0}
+        onKeypadPress={() => {}}
+        onConfirmCash={() => {}}
+        copy={copy}
+      />,
+    );
+    const status = markup.match(/<p role="status"[^>]*>(.*?)<\/p>/);
+    assert.ok(status, `no status line rendered for a blank reason (${JSON.stringify(blank)})`);
+    assert.notEqual(
+      status![1].trim(),
+      "",
+      `the status line was empty for a blank reason (${JSON.stringify(blank)})`,
+    );
+    assert.equal(status![1], copy.methodUnavailableFallback);
+  }
+});

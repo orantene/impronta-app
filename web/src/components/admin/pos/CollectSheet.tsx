@@ -92,14 +92,18 @@ export function CollectSheet({
   const change = changeDueCents(tenderedCents, amountDueCents);
   const short = tenderIsShort(tenderedCents, amountDueCents);
 
-  // Never a blank box: the type system already forbids `available: false`
-  // with no reason (see `PosCollectionMethodState`), but it cannot forbid a
-  // caller passing an `activeMethod` that `methods` never listed — that case
-  // still needs its own honest sentence rather than an empty `<p>`.
+  // Never a blank box. The type system forbids `available: false` with no
+  // reason at all (see `PosCollectionMethodState`), but it cannot forbid the
+  // two shapes that still reach here at runtime: an `activeMethod` that
+  // `methods` never listed, and a reason that is present but empty or blank.
+  // A caller composing its reason as `lookup[id] ?? ""` produces the second
+  // one without ever failing a type check, and an empty status box sits in
+  // exactly the place the cashier needs the sentence.
+  const statedReason = active && !active.available ? active.unavailableReason.trim() : "";
   const unavailableSentence = !active
     ? copy.methodUnavailableFallback
     : !active.available
-      ? active.unavailableReason
+      ? statedReason || copy.methodUnavailableFallback
       : null;
 
   return (
