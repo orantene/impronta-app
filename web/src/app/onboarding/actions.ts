@@ -9,6 +9,7 @@ import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -110,6 +111,28 @@ async function ensureClientRelationshipForNext(
 
   revalidatePath(`/${parsed.tenantSlug}/client`, "layout");
   return parsed.destination;
+}
+
+/**
+ * The address the person just confirmed IS their contact email. The profile
+ * drawer reads `talent_profiles.invitation_email` for its Contact → Email
+ * field, and the onboarding RPC never set it, so the first thing a new talent
+ * saw after confirming their email was "+ Add email" (owner QA 2026-09-10).
+ * Only fills an empty value: a claimed profile keeps what the agency entered.
+ */
+async function seedContactEmailFromSignup(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+  email: string | undefined,
+): Promise<void> {
+  const value = (email ?? "").trim();
+  if (!value) return;
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({ invitation_email: value })
+    .eq("id", talentProfileId)
+    .is("invitation_email", null);
+  if (error) logServerError("onboarding.seedContactEmail", error);
 }
 
 async function ensureTalentRosterForNext(
@@ -301,6 +324,7 @@ export async function completeTalentLocationOnboarding(
     .eq("user_id", user.id)
     .maybeSingle();
   if (tp?.id) {
+    await seedContactEmailFromSignup(supabase, tp.id, user.email);
     await scheduleRebuildAiSearchDocument(supabase, tp.id);
   }
 
@@ -424,6 +448,7 @@ export async function completeTalentProfileInPlace(
     .eq("user_id", user.id)
     .maybeSingle();
   if (tp?.id) {
+    await seedContactEmailFromSignup(supabase, tp.id, user.email);
     await scheduleRebuildAiSearchDocument(supabase, tp.id);
   }
 
