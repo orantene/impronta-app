@@ -12496,6 +12496,98 @@
           "couldNotBook": "No se pudo reservar. No se apartó nada."
         }
       },
+      "door": {
+        "rail": {
+          "label": "Puerta",
+          "checkin": "Acceso",
+          "tickets": "Taquilla"
+        },
+        "title": "Entradas y admisiones",
+        "clock": "Las horas son las del local ({zone}).",
+        "tonight": "Esta noche",
+        "comingUp": "Próximamente",
+        "noSessions": "No hay ningún evento programado en esta puerta en las próximas dos semanas. Programa una noche desde la página de Sesiones y aparecerá aquí.",
+        "loading": "Cargando la puerta...",
+        "loadFailed": "No se pudo cargar la puerta. Revisa la conexión e inténtalo de nuevo.",
+        "counts": {
+          "admitted": "{admitted} dentro",
+          "expected": "{expected} esperados",
+          "capacity": "{capacity} de aforo",
+          "noPool": "sin aforo definido"
+        },
+        "pickSession": "Elige el evento de esta noche para abrir su acceso.",
+        "changeSession": "Cambiar de evento",
+        "scan": {
+          "label": "Escanea o escribe el código de la entrada",
+          "placeholder": "Apunta el escáner aquí o escribe el código de la entrada",
+          "submit": "Admitir",
+          "ready": "Lista para la siguiente entrada"
+        },
+        "verdict": {
+          "admitted": "Dentro. Bienvenido.",
+          "admittedParty": "Dentro. {admitted} de {party} han entrado.",
+          "admittedWasNoShow": "Dentro. Esta entrada estaba marcada como no presentado; avisa en recepción.",
+          "alreadyIn": "Ya admitida. {admitted} de {party} entraron antes con esta entrada.",
+          "superseded": "Esta entrada es antigua. Se volvió a emitir; pide la nueva.",
+          "wrongNightDated": "Noche equivocada. Esta entrada es para el {date}.",
+          "wrongNight": "No es para esta noche. Esta entrada no está en la lista de esta puerta.",
+          "refunded": "Reembolsada. Esta entrada fue devuelta y ya no da acceso.",
+          "cancelled": "Cancelada. Esta entrada ya no da acceso.",
+          "forged": "Entrada no válida. El código no cuadra.",
+          "unknown": "Código desconocido. Ninguna entrada de este evento lo lleva.",
+          "tooMany": "Solo quedan {remaining} en esta entrada.",
+          "misconfigured": "La puerta no está configurada en este servidor. Avisa al local, no al invitado.",
+          "engineError": "No se pudo contactar con la puerta. No se admitió a nadie; inténtalo de nuevo."
+        },
+        "list": {
+          "title": "Lista de invitados",
+          "search": "Buscar invitado",
+          "searchPlaceholder": "Nombre, correo o el inicio del id de la entrada",
+          "empty": "Todavía no hay nadie en la lista.",
+          "noMatch": "Nadie coincide.",
+          "walkUp": "Sin reserva",
+          "party": "Grupo de {size}",
+          "ticket": "Entrada",
+          "in": "Dentro",
+          "partial": "{admitted} de {party} dentro",
+          "notYet": "Todavía no",
+          "noShow": "Marcado como no presentado",
+          "admit": "Admitir",
+          "admitMany": "Admitir {count}",
+          "status": {
+            "void": "Cancelada",
+            "refunded": "Reembolsada"
+          }
+        },
+        "sell": {
+          "gateTitle": "Sin reserva: vender y admitir",
+          "boxTitle": "Vender una entrada",
+          "boxIntro": "La entrada se cobra en esta caja y se emite con un código que el portador muestra en el acceso.",
+          "session": "Evento",
+          "tier": "Entrada",
+          "tierNoPool": "sin plazas para esta noche",
+          "noTiers": "Este evento no tiene ningún tipo de entrada que la puerta pueda vender. Añade uno en la pestaña Entradas del evento.",
+          "holderName": "Nombre en la entrada",
+          "holderNamePlaceholder": "Opcional; ayuda en la lista de invitados",
+          "email": "Correo",
+          "phone": "Teléfono",
+          "contactHint": "Algunas entradas necesitan el correo o el teléfono del comprador antes de venderse.",
+          "open": "Abrir la venta",
+          "cancel": "Cancelar esta venta",
+          "collectGate": "Cobrar en efectivo y admitir",
+          "collectBox": "Cobrar en efectivo",
+          "openedFor": "Venta abierta: {label}",
+          "issued": "Entrada emitida",
+          "issuedMany": "{count} entradas emitidas",
+          "code": "Código de la entrada",
+          "codeUnavailable": "No se pudo firmar ningún código en este servidor; busca al invitado por su nombre en el acceso.",
+          "receipt": "Recibo",
+          "next": "Siguiente invitado",
+          "admittedNow": "Admitido en el acceso",
+          "cashOnly": "En esta puerta solo se cobra en efectivo. Otros medios de pago se cobran en el mostrador."
+        },
+        "noScanOut": "La salida no se registra: el motor todavía no tiene escaneo de salida."
+      },
       "floor": {
         "rail": {
           "label": "Mesas",

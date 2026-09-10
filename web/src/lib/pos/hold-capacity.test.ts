@@ -258,3 +258,57 @@ test("a retried collection replays the same key rather than holding twice", asyn
   );
   assert.deepEqual(replay.allocationIds, first.allocationIds);
 });
+
+test("a tiered line holds ITS tier's pool, not the default key", async () => {
+  // The defect: an event's tiers are keyed "ga" / "vip" / "door", never
+  // "default", so every tiered ticket sold through the counter was refused as
+  // "not selling places" while its own pool sat open.
+  const store = makeStore();
+  seedSale(store, { poolId: null, sessionId: "ses-1" });
+  store.order_lines[0]!.variant_id = "var-door";
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    starts_at: "2026-09-08T18:00:00.000Z",
+    ends_at: "2026-09-08T19:00:00.000Z",
+  });
+  store.talent_offering_variants.push({ id: "var-door", offering_id: "off-1", pool_key: "door" });
+  store.capacity_pools.push(
+    { id: "default-pool", tenant_id: "t1", subject_kind: "session_tier", subject_id: "ses-1", pool_key: "default" },
+    { id: "door-pool", tenant_id: "t1", subject_kind: "session_tier", subject_id: "ses-1", pool_key: "door" },
+  );
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(calls.length, 1);
+  assert.deepEqual((calls[0]!.args.p_capacity ?? []).map((c) => c.pool_id), ["door-pool"]);
+});
+
+test("a tiered line whose session has no pool for that tier refuses, and does not take the default", async () => {
+  const store = makeStore();
+  seedSale(store, { poolId: null, sessionId: "ses-1" });
+  store.order_lines[0]!.variant_id = "var-vip";
+  store.sessions.push({
+    id: "ses-1",
+    tenant_id: "t1",
+    offering_id: "off-1",
+    starts_at: "2026-09-08T18:00:00.000Z",
+    ends_at: "2026-09-08T19:00:00.000Z",
+  });
+  store.talent_offering_variants.push({ id: "var-vip", offering_id: "off-1", pool_key: "vip" });
+  store.capacity_pools.push({
+    id: "default-pool",
+    tenant_id: "t1",
+    subject_kind: "session_tier",
+    subject_id: "ses-1",
+    pool_key: "default",
+  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.reason, "unavailable");
+  assert.equal(calls.length, 0);
+});

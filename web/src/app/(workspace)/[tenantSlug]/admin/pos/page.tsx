@@ -35,6 +35,7 @@ import {
   type PosMode,
   type PosPersonRole,
 } from "@/lib/pos/modes";
+import { loadDoorTonight } from "@/lib/pos/door-tonight";
 import { currentShift } from "@/lib/pos/shift";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -49,6 +50,8 @@ import { PageRouteSyncer } from "../_page-route-syncer";
 
 import { ClassesClient } from "./classes-client";
 import type { PosCatalogItem } from "./counter-model";
+import { DoorClient } from "./door-client";
+import { doorCopy } from "./door-copy";
 import { FloorScreen } from "./floor-screen";
 import { PosClient } from "./pos-client";
 
@@ -337,6 +340,49 @@ export default async function PosPage({
             frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
             classes: classesCopy(tr),
             counterRefusal: refusalCopy(tr),
+          }}
+        />
+      </>
+    );
+  }
+
+  // ── The door ─────────────────────────────────────────────────────────
+  //
+  // Its own client, its own loader, the same frame, the same chrome. The
+  // door takes cash only at this till (every other tender says so in a
+  // sentence), and the money goes through the counter's own `startCollection`
+  // so the shift's expected cash, the Payments page and the door's guest list
+  // read the same rows. See `door-actions.ts` for why it is not `sellAtDoor`.
+  if (mode === "door") {
+    const tonight = await loadDoorTonight(admin, scope.tenantId);
+    const doorHdrs = await headers();
+    const doorHost = doorHdrs.get("x-forwarded-host") ?? doorHdrs.get("host") ?? "";
+    const doorProto = doorHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const cashOnly = tr("dashboard.pos.door.sell.cashOnly");
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <DoorClient
+          tenantId={scope.tenantId}
+          workspaceName={workspaceName}
+          receiptOrigin={doorHost ? `${doorProto}://${doorHost}` : ""}
+          locale={locale}
+          zone={tonight.ok ? tonight.zone : "UTC"}
+          nowIso={tonight.ok ? tonight.nowIso : new Date().toISOString()}
+          sessions={tonight.ok ? tonight.sessions : []}
+          tonightFailed={!tonight.ok}
+          currency="USD"
+          methods={[
+            { id: "cash", available: true },
+            { id: "card", available: false, unavailableReason: cashOnly },
+            { id: "link", available: false, unavailableReason: cashOnly },
+            { id: "pass", available: false, unavailableReason: cashOnly },
+          ]}
+          copy={{
+            door: doorCopy(tr),
+            collect: collectSheetCopy(tr),
+            refusal: refusalCopy(tr),
+            frameNavLabel: tr("dashboard.pos.door.rail.label"),
           }}
         />
       </>

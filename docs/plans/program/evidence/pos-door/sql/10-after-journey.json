@@ -1,0 +1,182 @@
+{
+  "at": "2026-09-10T20:19:06.726Z",
+  "agency": {
+    "timezone": "America/Mexico_City",
+    "pos": {
+      "locations": {
+        "default": {
+          "modes": [
+            "floor",
+            "counter",
+            "door",
+            "classes"
+          ]
+        }
+      }
+    }
+  },
+  "event": {
+    "id": "382a7981-1f0f-4943-8f7c-95fc5d76638f",
+    "title": "Door night 1789071294985",
+    "status": "published",
+    "offering_id": "54cd16b1-dffe-4749-a21b-055d37f4cd87"
+  },
+  "variants": [
+    {
+      "id": "25eef750-2df7-442b-bc44-6e067d17bc5d",
+      "label": "Entry",
+      "pool_key": "entry",
+      "amount_cents": 2000,
+      "admits_per_unit": 1
+    }
+  ],
+  "session": {
+    "id": "9f2bd1fc-804a-491a-94fe-7a4dababe2a3",
+    "title": "Door night 1789071294985",
+    "status": "scheduled",
+    "starts_at": "2026-09-10T21:00:00+00:00",
+    "ends_at": "2026-09-11T00:00:00+00:00",
+    "event_id": "382a7981-1f0f-4943-8f7c-95fc5d76638f"
+  },
+  "pools": [
+    {
+      "id": "e5af62e3-c5f2-4469-b358-70cabcd7e997",
+      "pool_key": "entry",
+      "units_total": 5,
+      "is_active": true
+    }
+  ],
+  "admissions": [
+    {
+      "id": "e60e0794-e1d0-4862-99c7-e9542119ae8d",
+      "order_line_id": "0a96182c-7339-4616-9340-7bea14445b40",
+      "holder_name": "Door holder 1789071294985",
+      "party_size": 1,
+      "admitted_count": 1,
+      "status": "valid",
+      "seated_at": "2026-09-10T20:16:47.401485+00:00",
+      "no_show_at": null,
+      "token_version": 1,
+      "door_amount_cents": null
+    },
+    {
+      "id": "e8d59f12-d3a9-465e-a73b-f5c6eb70e9cc",
+      "order_line_id": "75de943c-cfea-4943-9222-69442360f9b6",
+      "holder_name": "Door walk-up 1789071294985",
+      "party_size": 1,
+      "admitted_count": 1,
+      "status": "valid",
+      "seated_at": "2026-09-10T20:17:39.218579+00:00",
+      "no_show_at": null,
+      "token_version": 1,
+      "door_amount_cents": null
+    }
+  ],
+  "lines": [
+    {
+      "id": "0a96182c-7339-4616-9340-7bea14445b40",
+      "order_id": "f412ee31-3e8c-49ad-a1d3-bcb999e69d01",
+      "label": "Door night 1789071294985 · Door night 1789071294985 · Entry",
+      "units": 1,
+      "unit_cents": 2000,
+      "variant_id": "25eef750-2df7-442b-bc44-6e067d17bc5d",
+      "session_id": "9f2bd1fc-804a-491a-94fe-7a4dababe2a3"
+    },
+    {
+      "id": "75de943c-cfea-4943-9222-69442360f9b6",
+      "order_id": "aa855cbe-aece-4d05-94b2-1235bdf0350a",
+      "label": "Door night 1789071294985 · Door night 1789071294985 · Entry",
+      "units": 1,
+      "unit_cents": 2000,
+      "variant_id": "25eef750-2df7-442b-bc44-6e067d17bc5d",
+      "session_id": "9f2bd1fc-804a-491a-94fe-7a4dababe2a3"
+    }
+  ],
+  "orders": [
+    {
+      "id": "f412ee31-3e8c-49ad-a1d3-bcb999e69d01",
+      "status": "paid",
+      "total_cents": 2000,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "door",
+      "receipt_code": "9km7fd87x9iq48qp82qt",
+      "version": 4,
+      "updated_at": "2026-09-10T20:16:25.805331+00:00"
+    },
+    {
+      "id": "aa855cbe-aece-4d05-94b2-1235bdf0350a",
+      "status": "paid",
+      "total_cents": 2000,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "door",
+      "receipt_code": "ruau3mumsu4t9z6qznv5",
+      "version": 4,
+      "updated_at": "2026-09-10T20:17:37.960068+00:00"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "4d95e6d9-3599-46b7-aa34-826826c71c8f",
+      "order_id": "f412ee31-3e8c-49ad-a1d3-bcb999e69d01",
+      "status": "paid",
+      "provider": "manual",
+      "gross_amount_cents": 2000,
+      "net_amount_cents": 2000,
+      "currency": "USD",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 2000,
+        "collection_reservation_id": "c7df0cf0-8929-439f-8c1e-284aaf86ca8f"
+      },
+      "paid_at": "2026-09-10T20:16:24.823227+00:00"
+    },
+    {
+      "id": "6e71f3e0-49bb-46b2-a628-386e85bfca65",
+      "order_id": "aa855cbe-aece-4d05-94b2-1235bdf0350a",
+      "status": "paid",
+      "provider": "manual",
+      "gross_amount_cents": 2000,
+      "net_amount_cents": 2000,
+      "currency": "USD",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 2000,
+        "collection_reservation_id": "ebba82f9-d5f4-4695-b6a6-113de73f77eb"
+      },
+      "paid_at": "2026-09-10T20:17:36.971855+00:00"
+    }
+  ],
+  "allocations": [
+    {
+      "id": "8a9ac014-0602-4ba6-9bc9-2d67346d26ac",
+      "pool_id": "e5af62e3-c5f2-4469-b358-70cabcd7e997",
+      "state": "committed",
+      "units": 1,
+      "order_line_id": "75de943c-cfea-4943-9222-69442360f9b6"
+    },
+    {
+      "id": "a7cb94ae-847e-4520-9689-a33c0eb4df16",
+      "pool_id": "e5af62e3-c5f2-4469-b358-70cabcd7e997",
+      "state": "committed",
+      "units": 1,
+      "order_line_id": "0a96182c-7339-4616-9340-7bea14445b40"
+    }
+  ],
+  "open_shift": [
+    {
+      "id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+      "status": "open",
+      "opened_at": "2026-09-10T20:12:01.548+00:00"
+    }
+  ]
+}
