@@ -12405,7 +12405,109 @@
       "tendered": "Entregado",
       "change": "Cambio",
       "counterOffTitle": "El mostrador está desactivado",
-      "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse."
+      "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
+      "projects": {
+        "rail": {
+          "label": "Proyectos",
+          "collect": "Cobrar",
+          "projects": "Proyectos",
+          "receipts": "Recibos"
+        },
+        "title": "Proyectos",
+        "intro": "Busca el cliente o el proyecto, mira lo que se debe y de dónde sale la cifra, y cóbralo.",
+        "search": {
+          "label": "Cliente o proyecto",
+          "placeholder": "Escribe el nombre de un cliente o proyecto",
+          "empty": "Nada coincide con ese nombre.",
+          "none": "Todavía no hay proyectos. Un proyecto aparece aquí cuando un cliente acepta una oferta en una conversación.",
+          "unavailable": "No pudimos cargar los proyectos. No se cambió nada. Inténtalo de nuevo en un momento.",
+          "count": "{count} en pantalla, primero los que deben dinero"
+        },
+        "list": {
+          "colProject": "Proyecto",
+          "colClient": "Cliente",
+          "colOwed": "Debe",
+          "colNext": "Siguiente",
+          "open": "Abrir",
+          "caption": "Todos los proyectos de este espacio, primero los que deben dinero."
+        },
+        "detail": {
+          "back": "Todos los proyectos",
+          "client": "Cliente",
+          "noClient": "Sin cliente registrado",
+          "noDate": "Sin fecha",
+          "starts": "Empieza",
+          "openWorkspace": "Abrir el proyecto completo en el espacio de trabajo",
+          "nextTitle": "Siguiente"
+        },
+        "money": {
+          "due": "Pendiente del cliente",
+          "collected": "Cobrado",
+          "agreed": "Acordado con el cliente",
+          "agreedNone": "Ninguna versión ha sido aceptada, así que no hay precio acordado.",
+          "rowsTitle": "De dónde sale la cifra",
+          "colRecord": "Registro",
+          "colStatus": "Estado",
+          "colTotal": "Total",
+          "colCollected": "Cobrado",
+          "colOutstanding": "Pendiente",
+          "colReceipt": "Recibo",
+          "noReceipt": "Sin recibo todavía",
+          "noOrders": "No hay ningún pedido vinculado a este proyecto, así que nada consta como pendiente.",
+          "collectingAgainst": "Un cobro aquí se aplica al registro {id}.",
+          "notCounted": "No cuenta: este registro no está pendiente de pago."
+        },
+        "collect": {
+          "title": "Cobrar un saldo",
+          "whole": "Todo el saldo",
+          "deposit": "Un anticipo",
+          "depositLabel": "Importe del anticipo",
+          "depositHint": "Menor que lo pendiente. El resto sigue pendiente en el mismo registro.",
+          "open": "Cobrar {amount}",
+          "back": "Volver al proyecto",
+          "amount": {
+            "not_a_number": "Escribe el anticipo como un número, por ejemplo 150 o 150.50.",
+            "zero": "Un anticipo tiene que ser mayor que cero.",
+            "over_balance": "Es más de lo pendiente. Cobra todo el saldo en su lugar."
+          }
+        },
+        "refusal": {
+          "project_closed": "Este proyecto está cerrado. No se puede cobrar nada.",
+          "agreement_awaiting": "No se ofrece cobrar mientras una versión del acuerdo espera la respuesta del cliente. No se cobra bajo condiciones que no ha aceptado.",
+          "milestone_awaiting": "No se ofrece cobrar mientras un entregable espera la revisión del cliente. Se le estaría pidiendo pagar por un trabajo que no ha visto.",
+          "nothing_owed": "No se debe nada en este proyecto. Cada registro vinculado está saldado, cancelado o aún no vence.",
+          "mixed_currency": "Los registros de este proyecto están en más de una moneda, así que no se pueden cobrar como un solo saldo.",
+          "project_gone": "Ese proyecto ya no está aquí. Recarga para ver la lista actual.",
+          "order_changed": "Lo pendiente cambió mientras esta pantalla estaba abierta. Recarga para ver el saldo actual."
+        },
+        "paid": {
+          "title": "Cobrado",
+          "remaining": "Pendiente después de esto",
+          "settled": "Este registro queda saldado.",
+          "noReceipt": "El dinero quedó registrado, pero no se pudo emitir un código de recibo. Abre el proyecto para intentarlo de nuevo.",
+          "back": "Volver al proyecto"
+        },
+        "receipts": {
+          "title": "Recibos",
+          "intro": "Busca un recibo por el código impreso en él.",
+          "codeLabel": "Código del recibo",
+          "placeholder": "Pega o escribe el código",
+          "find": "Buscar el recibo",
+          "open": "Abrir el recibo",
+          "record": "Registro",
+          "status": "Estado",
+          "total": "Total",
+          "collected": "Cobrado",
+          "issued": "Emitido",
+          "onProject": "Recibos de este proyecto",
+          "refusal": {
+            "invalid_code": "Eso no es un código de recibo. Un código tiene al menos 16 letras y dígitos.",
+            "not_found": "Ningún recibo de este espacio lleva ese código.",
+            "unavailable": "No pudimos consultarlo. No se cambió nada. Inténtalo de nuevo en un momento.",
+            "not_allowed": "No tienes permiso para consultar recibos aquí."
+          }
+        }
+      }
     },
     "tables": {
       "pageTitle": "Mesas",

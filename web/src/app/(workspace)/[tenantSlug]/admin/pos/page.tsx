@@ -45,11 +45,12 @@ import { PageRouteSyncer } from "../_page-route-syncer";
 
 import type { PosCatalogItem } from "./counter-model";
 import { PosClient } from "./pos-client";
+import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
-type Search = Promise<{ order?: string; mode?: string }>;
+type Search = Promise<{ order?: string; mode?: string; project?: string; view?: string }>;
 
 /**
  * `agency_memberships.role` as the POS mode vocabulary wants it.
@@ -273,6 +274,32 @@ export default async function PosPage({
             {tr("dashboard.pos.counter.mode.notBuilt")}
           </p>
         </main>
+      </>
+    );
+  }
+
+  if (mode === "projects") {
+    // The Projects mode: a sibling of the counter over the same engine. Its
+    // data comes from the projects reader, not from the counter's catalog, so
+    // it branches here before any of the counter's reads run. Same chrome,
+    // same syncer, same host-shaped paths.
+    const projectsHdrs = await headers();
+    const projectsHost = projectsHdrs.get("x-forwarded-host") ?? projectsHdrs.get("host") ?? "";
+    const projectsProto = projectsHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const projectsPath = await currentAdminPath(tenantSlug);
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <ProjectsModePage
+          tenantId={scope.tenantId}
+          workspaceName={workspaceName}
+          posPath={projectsPath}
+          workspacePath={projectsPath.replace(/\/pos$/, "")}
+          receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
+          methods={collectionMethods(tr)}
+          tr={tr}
+          search={{ project: q.project, view: q.view }}
+        />
       </>
     );
   }

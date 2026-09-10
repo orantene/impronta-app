@@ -97,7 +97,11 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   projects: {
     id: "projects",
     label: "Projects",
-    destinations: ["board", "invoices"],
+    // The design's rail is Due · Projects · Links · Receipts · Issues
+    // (`docs/plans/program/pos/modes.md`). `collect` IS Due (the landing
+    // action is "Collect a balance", D-POS-10); Links has no table yet and
+    // Issues is the workspace's own inbox, so neither is a row here.
+    destinations: ["collect", "projects", "receipts"],
     built: false,
   },
 };
