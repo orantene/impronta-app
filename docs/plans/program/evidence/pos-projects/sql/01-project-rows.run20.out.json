@@ -1,0 +1,28 @@
+[
+ {
+  "project_id": "2561d43e-e72f-4bd8-86bc-f99294761368",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "e1b50d38-f288-41d5-b3ab-d4cb4df3e0ce",
+  "status": "pending_payment",
+  "total_cents": "80000",
+  "collected_cents": "30000",
+  "receipt_code": "dhacukae8betbi6q28i7",
+  "version": 2,
+  "owed_by_desk_rule": "50000",
+  "owed_by_naive_rule": "50000"
+ },
+ {
+  "project_id": "2561d43e-e72f-4bd8-86bc-f99294761368",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "fe44d85b-1c0e-4fc1-9116-704c2c2ed65a",
+  "status": "cancelled",
+  "total_cents": "20000",
+  "collected_cents": "0",
+  "receipt_code": null,
+  "version": 1,
+  "owed_by_desk_rule": "0",
+  "owed_by_naive_rule": "20000"
+ }
+]

@@ -4795,8 +4795,8 @@
             "desc": "Appointments and classes for the day: check-ins, rosters, walk-ins and the waitlist."
           },
           "projects": {
-            "label": "Projects",
-            "desc": "A project board and invoices."
+            "label": "Collect",
+            "desc": "Find a client or project, see what is owed, collect a balance or a deposit."
           }
         },
         "retry": "Try again",
@@ -12364,7 +12364,7 @@
           "floor": "Tables",
           "door": "Door",
           "classes": "Front desk",
-          "projects": "Projects",
+          "projects": "Collect",
           "notBuilt": "This mode does not have a screen yet."
         },
         "gate": {
@@ -12392,6 +12392,108 @@
       },
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
+      "projects": {
+        "rail": {
+          "label": "Collect",
+          "collect": "Collect",
+          "projects": "Projects",
+          "receipts": "Receipts"
+        },
+        "title": "Collect",
+        "intro": "Find the client or project, see what is owed and where the figure comes from, and collect it.",
+        "search": {
+          "label": "Client or project",
+          "placeholder": "Type a client or project name",
+          "empty": "Nothing matches that name.",
+          "none": "No commissioned projects yet. A project appears here when a client accepts an offer on a conversation.",
+          "unavailable": "We could not load the projects. Nothing was changed. Try again in a moment.",
+          "count": "{count} shown, money owed first"
+        },
+        "list": {
+          "colProject": "Project",
+          "colClient": "Client",
+          "colOwed": "Owed",
+          "colNext": "Next",
+          "open": "Open",
+          "caption": "Every commissioned project in this workspace, the ones with money owed first."
+        },
+        "detail": {
+          "back": "All projects",
+          "client": "Client",
+          "noClient": "No client recorded",
+          "noDate": "No date set",
+          "starts": "Starts",
+          "openWorkspace": "Open the full project in the workspace",
+          "nextTitle": "Next"
+        },
+        "money": {
+          "due": "Still owed by the client",
+          "collected": "Collected",
+          "agreed": "Agreed with the client",
+          "agreedNone": "No version has been accepted yet, so there is no agreed price.",
+          "rowsTitle": "Where the figure comes from",
+          "colRecord": "Record",
+          "colStatus": "Status",
+          "colTotal": "Total",
+          "colCollected": "Collected",
+          "colOutstanding": "Outstanding",
+          "colReceipt": "Receipt",
+          "noReceipt": "No receipt yet",
+          "noOrders": "No order is attached to this project, so nothing is tracked as owed.",
+          "collectingAgainst": "A collection here goes against record {id}.",
+          "notCounted": "Not counted: this record is not awaiting payment."
+        },
+        "collect": {
+          "title": "Collect a balance",
+          "whole": "The whole balance",
+          "deposit": "A deposit",
+          "depositLabel": "Deposit amount",
+          "depositHint": "Less than what is outstanding. The rest stays owed on the same record.",
+          "open": "Collect {amount}",
+          "back": "Back to the project",
+          "amount": {
+            "not_a_number": "Type the deposit as a number, like 150 or 150.50.",
+            "zero": "A deposit has to be more than zero.",
+            "over_balance": "That is more than what is outstanding. Collect the whole balance instead."
+          }
+        },
+        "refusal": {
+          "project_closed": "This project is closed. Nothing can be collected on it.",
+          "agreement_awaiting": "Collect is not offered while a version of the agreement is waiting on the client. Nothing is collected under terms they have not agreed to.",
+          "milestone_awaiting": "Collect is not offered while a deliverable is waiting on the client. They are being asked to pay for work they have not been shown.",
+          "nothing_owed": "Nothing is owed on this project. Every attached record is settled, cancelled or not yet due.",
+          "mixed_currency": "The records on this project are in more than one currency, so they cannot be collected as one balance.",
+          "project_gone": "That project is no longer here. Reload to see the current list.",
+          "order_changed": "What is owed changed while this screen was open. Reload to see the balance as it stands now."
+        },
+        "paid": {
+          "title": "Collected",
+          "remaining": "Still owed after this",
+          "settled": "This record is now settled.",
+          "noReceipt": "The money was recorded, but no receipt code could be issued. Open the project to try again.",
+          "back": "Back to the project"
+        },
+        "receipts": {
+          "title": "Receipts",
+          "intro": "Find a receipt by the code printed on it.",
+          "codeLabel": "Receipt code",
+          "placeholder": "Paste or type the code",
+          "find": "Find the receipt",
+          "open": "Open the receipt",
+          "record": "Record",
+          "status": "Status",
+          "total": "Total",
+          "collected": "Collected",
+          "issued": "Issued",
+          "onProject": "Receipts on this project",
+          "refusal": {
+            "invalid_code": "That is not a receipt code. A code is at least 16 letters and digits.",
+            "not_found": "No receipt in this workspace carries that code.",
+            "unavailable": "We could not look that up. Nothing was changed. Try again in a moment.",
+            "not_allowed": "You are not allowed to look up receipts here."
+          }
+        }
+      },
       "classes": {
         "title": "Front desk",
         "rail": {

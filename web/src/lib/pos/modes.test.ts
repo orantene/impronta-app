@@ -87,3 +87,26 @@ test("enabledPosModesFromSettings reads pos.locations.default.modes and drops un
   });
   assert.deepEqual(modes, ["floor", "door"]);
 });
+
+test("a stored `client` or `work` still means the projects mode (D-POS-10), once, and never from a URL", () => {
+  // Two design files named this mode `client` and `work` before the id was
+  // settled; a settings blob written under either name is a decision about
+  // THIS mode, not junk. Both spellings collapse onto one entry.
+  assert.deepEqual(
+    enabledPosModesFromSettings({ pos: { locations: { default: { modes: ["client", "work", "projects"] } } } }),
+    ["projects"],
+  );
+  // Each alias on its own, so a map that lost ONE of them goes red.
+  assert.deepEqual(
+    enabledPosModesFromSettings({ pos: { locations: { default: { modes: ["client"] } } } }),
+    ["projects"],
+  );
+  assert.deepEqual(
+    enabledPosModesFromSettings({ pos: { locations: { default: { modes: ["counter", "work"] } } } }),
+    ["counter", "projects"],
+  );
+  // The alias is for what was stored. A hand-typed `?mode=client` is not a
+  // stored value and is refused, so the id has one spelling in every address.
+  assert.equal(parsePosMode("client"), undefined);
+  assert.equal(parsePosMode("work"), undefined);
+});

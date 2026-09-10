@@ -879,8 +879,8 @@
             "desc": "Rendez-vous et cours du jour : arrivées, listes, sans rendez-vous et liste d'attente."
           },
           "projects": {
-            "label": "Projets",
-            "desc": "Un tableau de projets et les factures."
+            "label": "Encaisser",
+            "desc": "Trouvez un client ou un projet, voyez ce qui est dû, encaissez le solde ou un acompte."
           }
         },
         "retry": "Réessayer",
@@ -1307,7 +1307,7 @@
           "floor": "Tables",
           "door": "Entrée",
           "classes": "Accueil",
-          "projects": "Projets",
+          "projects": "Encaisser",
           "notBuilt": "Ce mode n'a pas encore d'écran."
         },
         "gate": {
@@ -1335,6 +1335,108 @@
       },
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
+      "projects": {
+        "rail": {
+          "label": "Encaisser",
+          "collect": "Encaisser",
+          "projects": "Projets",
+          "receipts": "Reçus"
+        },
+        "title": "Encaisser",
+        "intro": "Trouvez le client ou le projet, voyez ce qui est dû et d'où vient le montant, puis encaissez-le.",
+        "search": {
+          "label": "Client ou projet",
+          "placeholder": "Saisissez le nom d'un client ou d'un projet",
+          "empty": "Rien ne correspond à ce nom.",
+          "none": "Aucun projet pour l'instant. Un projet apparaît ici quand un client accepte une offre dans une conversation.",
+          "unavailable": "Impossible de charger les projets. Rien n'a été modifié. Réessayez dans un instant.",
+          "count": "{count} affichés, ceux qui doivent de l'argent d'abord"
+        },
+        "list": {
+          "colProject": "Projet",
+          "colClient": "Client",
+          "colOwed": "Dû",
+          "colNext": "Suite",
+          "open": "Ouvrir",
+          "caption": "Tous les projets de cet espace, ceux qui doivent de l'argent d'abord."
+        },
+        "detail": {
+          "back": "Tous les projets",
+          "client": "Client",
+          "noClient": "Aucun client enregistré",
+          "noDate": "Pas de date",
+          "starts": "Début",
+          "openWorkspace": "Ouvrir le projet complet dans l'espace de travail",
+          "nextTitle": "Suite"
+        },
+        "money": {
+          "due": "Encore dû par le client",
+          "collected": "Encaissé",
+          "agreed": "Convenu avec le client",
+          "agreedNone": "Aucune version n'a été acceptée, il n'y a donc pas de prix convenu.",
+          "rowsTitle": "D'où vient le montant",
+          "colRecord": "Enregistrement",
+          "colStatus": "Statut",
+          "colTotal": "Total",
+          "colCollected": "Encaissé",
+          "colOutstanding": "Restant",
+          "colReceipt": "Reçu",
+          "noReceipt": "Pas encore de reçu",
+          "noOrders": "Aucune commande n'est rattachée à ce projet, rien n'est donc suivi comme dû.",
+          "collectingAgainst": "Un encaissement ici s'applique à l'enregistrement {id}.",
+          "notCounted": "Non compté : cet enregistrement n'est pas en attente de paiement."
+        },
+        "collect": {
+          "title": "Encaisser un solde",
+          "whole": "Tout le solde",
+          "deposit": "Un acompte",
+          "depositLabel": "Montant de l'acompte",
+          "depositHint": "Inférieur au restant. Le reste demeure dû sur le même enregistrement.",
+          "open": "Encaisser {amount}",
+          "back": "Retour au projet",
+          "amount": {
+            "not_a_number": "Saisissez l'acompte sous forme de nombre, par exemple 150 ou 150.50.",
+            "zero": "Un acompte doit être supérieur à zéro.",
+            "over_balance": "C'est plus que le restant. Encaissez plutôt tout le solde."
+          }
+        },
+        "refusal": {
+          "project_closed": "Ce projet est clos. Rien ne peut être encaissé.",
+          "agreement_awaiting": "L'encaissement n'est pas proposé tant qu'une version de l'accord attend la réponse du client. Rien n'est encaissé selon des conditions qu'il n'a pas acceptées.",
+          "milestone_awaiting": "L'encaissement n'est pas proposé tant qu'un livrable attend la validation du client. On lui demanderait de payer un travail qu'il n'a pas vu.",
+          "nothing_owed": "Rien n'est dû sur ce projet. Chaque enregistrement rattaché est réglé, annulé ou pas encore exigible.",
+          "mixed_currency": "Les enregistrements de ce projet sont dans plusieurs devises, ils ne peuvent donc pas être encaissés comme un seul solde.",
+          "project_gone": "Ce projet n'est plus là. Rechargez pour voir la liste actuelle.",
+          "order_changed": "Le montant dû a changé pendant que cet écran était ouvert. Rechargez pour voir le solde actuel."
+        },
+        "paid": {
+          "title": "Encaissé",
+          "remaining": "Encore dû après cela",
+          "settled": "Cet enregistrement est maintenant réglé.",
+          "noReceipt": "L'argent a été enregistré, mais aucun code de reçu n'a pu être émis. Ouvrez le projet pour réessayer.",
+          "back": "Retour au projet"
+        },
+        "receipts": {
+          "title": "Reçus",
+          "intro": "Trouvez un reçu grâce au code imprimé dessus.",
+          "codeLabel": "Code du reçu",
+          "placeholder": "Collez ou saisissez le code",
+          "find": "Trouver le reçu",
+          "open": "Ouvrir le reçu",
+          "record": "Enregistrement",
+          "status": "Statut",
+          "total": "Total",
+          "collected": "Encaissé",
+          "issued": "Émis",
+          "onProject": "Reçus de ce projet",
+          "refusal": {
+            "invalid_code": "Ce n'est pas un code de reçu. Un code compte au moins 16 lettres et chiffres.",
+            "not_found": "Aucun reçu de cet espace ne porte ce code.",
+            "unavailable": "Impossible de faire la recherche. Rien n'a été modifié. Réessayez dans un instant.",
+            "not_allowed": "Vous n'êtes pas autorisé à consulter les reçus ici."
+          }
+        }
+      },
       "classes": {
         "title": "Accueil",
         "rail": {

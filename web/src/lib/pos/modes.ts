@@ -96,14 +96,38 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   },
   projects: {
     id: "projects",
-    label: "Projects",
-    destinations: ["board", "invoices"],
-    built: false,
+    // The switch says what the mode is FOR: its landing action is collecting a
+    // balance on commissioned work (D-POS-10). The id stays `projects`, which
+    // is also the workspace destination the same work lives under.
+    label: "Collect",
+    // The design's rail is Due · Projects · Links · Receipts · Issues
+    // (`docs/plans/program/pos/modes.md`). `collect` IS Due (the landing
+    // action is "Collect a balance", D-POS-10); Links has no table yet and
+    // Issues is the workspace's own inbox, so neither is a row here.
+    destinations: ["collect", "projects", "receipts"],
+    built: true,
   },
 };
 
 function isPosMode(value: unknown): value is PosMode {
   return typeof value === "string" && (POS_MODES as readonly string[]).includes(value);
+}
+
+/**
+ * Names a STORED value may still carry for the `projects` mode. Two design
+ * files called it `client` and `work` before D-POS-10 settled on `projects`;
+ * a settings blob written under either name still means this mode. The
+ * aliases are honoured only when reading what was stored, never in a URL and
+ * never in new code, so the id has exactly one spelling everywhere it is typed.
+ */
+const STORED_MODE_ALIASES: Readonly<Record<string, PosMode>> = {
+  client: "projects",
+  work: "projects",
+};
+
+function storedPosMode(value: unknown): PosMode | undefined {
+  if (isPosMode(value)) return value;
+  return typeof value === "string" ? STORED_MODE_ALIASES[value] : undefined;
 }
 
 /**
@@ -184,7 +208,11 @@ export function enabledPosModesFromSettings(settings: unknown): PosMode[] {
   const rawModes = isPlainRecord(defaultLocation) ? defaultLocation.modes : undefined;
   if (!Array.isArray(rawModes)) return [...DEFAULT_ENABLED_MODES];
   if (rawModes.length === 0) return [];
-  const parsed = rawModes.filter(isPosMode);
+  const parsed: PosMode[] = [];
+  for (const raw of rawModes) {
+    const mode = storedPosMode(raw);
+    if (mode && !parsed.includes(mode)) parsed.push(mode);
+  }
   return parsed.length > 0 ? parsed : [...DEFAULT_ENABLED_MODES];
 }
 

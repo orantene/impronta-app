@@ -1,0 +1,54 @@
+[
+ {
+  "project_id": "b3f42f36-02ce-47f2-a923-63c80129cdb5",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "1b699f6c-2f2d-451e-a1d1-e5db4dde93ba",
+  "status": "pending_payment",
+  "total_cents": "80000",
+  "collected_cents": "73750",
+  "receipt_code": "1dq51vhu5uk2hx4c6miy",
+  "version": 5,
+  "owed_by_desk_rule": "6250",
+  "owed_by_naive_rule": "6250"
+ },
+ {
+  "project_id": "b3f42f36-02ce-47f2-a923-63c80129cdb5",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "b291d801-38f9-48f6-89ca-7228d3e183d6",
+  "status": "cancelled",
+  "total_cents": "20000",
+  "collected_cents": "0",
+  "receipt_code": null,
+  "version": 1,
+  "owed_by_desk_rule": "0",
+  "owed_by_naive_rule": "20000"
+ },
+ {
+  "project_id": "b3f42f36-02ce-47f2-a923-63c80129cdb5",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "1add363b-8cdd-42c4-88f3-258c5108954e",
+  "status": "cancelled",
+  "total_cents": "20000",
+  "collected_cents": "0",
+  "receipt_code": null,
+  "version": 1,
+  "owed_by_desk_rule": "0",
+  "owed_by_naive_rule": "20000"
+ },
+ {
+  "project_id": "b3f42f36-02ce-47f2-a923-63c80129cdb5",
+  "project_status": "confirmed",
+  "contact_name": "Nadia Varela",
+  "order_id": "5ef19f56-eb33-49b4-959e-c20cfe69cdb4",
+  "status": "cancelled",
+  "total_cents": "20000",
+  "collected_cents": "0",
+  "receipt_code": null,
+  "version": 1,
+  "owed_by_desk_rule": "0",
+  "owed_by_naive_rule": "20000"
+ }
+]
