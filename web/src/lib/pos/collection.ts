@@ -15,7 +15,6 @@ import { completeZeroTotalOrder, type OnOrderPaid } from "@/lib/orders/complete-
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
-import { releaseCapacity } from "@/lib/capacity";
 import {
   submitOrderToPreparation,
   type PrepDestination,
@@ -25,8 +24,10 @@ import { currentShift } from "./shift";
 import { holdDraftOrderCapacity } from "./hold-capacity";
 import {
   RESERVATION_METADATA_KEY,
+  bindCollectionReservation,
   releaseCollectionReservation,
   reserveCollection,
+  reservationTtlSeconds,
   type ReserveCollectionResult,
 } from "./collection-reservations";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
@@ -272,6 +273,15 @@ export async function startCollection(
   }
 
   let reservationId: string | null = null;
+  let reservationExpiresAt: string | null = null;
+  /**
+   * The money row this operation key ALREADY has in flight, if any.
+   *
+   * A replayed card collection must resume that row rather than insert a
+   * second one: two rows means two Checkout sessions against one claim, and
+   * both of them are payable.
+   */
+  let inFlightTransactionId: string | null = null;
   let amountCents = 0;
   let tenderedCents = 0;
   let changeCents = 0;
@@ -286,6 +296,12 @@ export async function startCollection(
       method: input.method,
       actorUserId: input.actorUserId,
       expectedVersion: input.expectedVersion ?? null,
+      // A CARD claim has to outlive the provider session it guards, and Stripe
+      // will not let that session expire sooner than 30 minutes. A 900 second
+      // claim under a session that lives for hours is how the same money got
+      // taken twice: the reaper freed the balance, a second till took it, and
+      // the first customer's page still worked.
+      ttlSeconds: reservationTtlSeconds(input.method),
     });
     if (!claimed.ok) return refuseClaim(claimed);
 
@@ -322,6 +338,8 @@ export async function startCollection(
     }
 
     reservationId = claimed.reservationId;
+    reservationExpiresAt = claimed.expiresAt;
+    inFlightTransactionId = claimed.already ? claimed.transactionId : null;
     amountCents = claimed.amountCents;
     tenderedCents = input.tenderedCents ?? amountCents;
     if (tenderedCents < amountCents) {
@@ -489,36 +507,69 @@ export async function startCollection(
   }
   const bookingId = shell.bookingId;
 
-  const { data: txnRow, error: txnErr } = await admin
-    .from("booking_transactions")
-    .insert({
-      booking_id: bookingId,
-      order_id: row.id,
-      source_tenant_id: input.tenantId,
-      payer_user_id: input.actorUserId,
-      payer_email: input.contact?.email ?? null,
-      gross_amount_cents: amountCents,
-      platform_fee_basis_points: 0,
-      platform_fee_cents: 0,
-      net_amount_cents: amountCents,
-      currency: row.currency,
-      provider: "stripe",
-      status: "draft",
-      checkout_type: "full",
-      requested_at: new Date().toISOString(),
-      // The webhook that marks this paid is the only thing that knows the
-      // payment landed, and it has the transaction, not the reservation. So the
-      // claim's id rides on the money row it belongs to.
-      metadata: reservationId ? { [RESERVATION_METADATA_KEY]: reservationId } : {},
-    })
-    .select("id")
-    .single();
-  if (txnErr || !txnRow) {
-    logServerError("pos.startCollection.txn", txnErr);
-    await giveBack();
-    return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+  /**
+   * RESUME, DO NOT MINT A SECOND. When this operation key already has a money
+   * row bound to its live claim, that row is the payment in flight, and
+   * `createCheckoutSessionForTransaction` is idempotent at
+   * `cs_txn_<transactionId>` — so re-running the create below with the SAME id
+   * returns the SAME session rather than a second payable one.
+   *
+   * Without this the retry inserted a fresh transaction against one claim and
+   * opened a second session, and both could be paid: a double take with no
+   * reaper involved at all.
+   */
+  let transactionId: string;
+  if (inFlightTransactionId) {
+    transactionId = inFlightTransactionId;
+  } else {
+    const { data: txnRow, error: txnErr } = await admin
+      .from("booking_transactions")
+      .insert({
+        booking_id: bookingId,
+        order_id: row.id,
+        source_tenant_id: input.tenantId,
+        payer_user_id: input.actorUserId,
+        payer_email: input.contact?.email ?? null,
+        gross_amount_cents: amountCents,
+        platform_fee_basis_points: 0,
+        platform_fee_cents: 0,
+        net_amount_cents: amountCents,
+        currency: row.currency,
+        provider: "stripe",
+        status: "draft",
+        checkout_type: "full",
+        requested_at: new Date().toISOString(),
+        // The webhook that marks this paid is the only thing that knows the
+        // payment landed, and it has the transaction, not the reservation. So the
+        // claim's id rides on the money row it belongs to.
+        metadata: reservationId ? { [RESERVATION_METADATA_KEY]: reservationId } : {},
+      })
+      .select("id")
+      .single();
+    if (txnErr || !txnRow) {
+      logServerError("pos.startCollection.txn", txnErr);
+      await giveBack();
+      return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+    }
+    transactionId = (txnRow as { id: string }).id;
+
+    // The claim learns its money row NOW, not at settle time. That is what
+    // makes the paragraph above possible: a replay is answered with this id.
+    if (reservationId) {
+      const bound = await bindCollectionReservation(admin, { reservationId, transactionId });
+      if (!bound.ok) {
+        // The claim could not be tied to this row, so a retry would not find
+        // it and would open a second payment. Refuse before a session exists,
+        // and hand the balance back: nothing is payable yet.
+        logServerError(
+          "pos.startCollection.bind",
+          `order ${row.id}: reservation ${reservationId} would not bind to transaction ${transactionId} (${bound.reason})`,
+        );
+        await giveBack();
+        return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+      }
+    }
   }
-  const transactionId = (txnRow as { id: string }).id;
 
   const create =
     deps.createPaymentRequest ?? stripeCollectionAdapter().createPaymentRequest;
@@ -534,23 +585,43 @@ export async function startCollection(
     description: "POS sale",
     locale: input.locale,
     method: "online_card",
+    // THE SESSION DIES WITH THE CLAIM. The claim's own instant, straight from
+    // the database, not `now + a TTL` computed here: on a replay the claim is
+    // already part-spent, and a session told it had a fresh half hour would
+    // outlive the balance it holds all over again.
+    expiresAt: reservationExpiresAt,
   });
   if (!request.ok) {
     // No checkout exists, so nothing will ever settle this claim. Hand it back
     // NOW rather than leaving the tab uncollectable until the TTL lapses.
     //
-    // This is the LAST refusal that releases. Once a payment request exists the
-    // buyer may be entering their card, and releasing would let a second till
-    // collect the same money while that page is open.
-    await giveBack();
+    // This is the LAST refusal that releases, and ONLY on the attempt that was
+    // opening the session. A RESUME already has one: the buyer may be on that
+    // page right now, and releasing the balance because this retry could not
+    // reach the provider is exactly the double take being closed here. So a
+    // resume refuses and keeps the claim.
+    if (!inFlightTransactionId) await giveBack();
     return { ok: false, reason: "engine_error", error: request.error };
   }
 
-  await admin
+  // CHECKED, and it used to be ignored. `validate_booking_transaction_status_transition`
+  // refuses to move a non-manual row past `draft` without a payout receiver,
+  // and a dropped error left the row at `draft` while this function returned a
+  // working checkout URL: the buyer pays, and the webhook then cannot mark
+  // paid a transaction that never reached `payment_requested`.
+  //
+  // The claim is NOT handed back. A session exists and the buyer may be on it,
+  // so freeing the balance here is precisely the double-take this change
+  // closes; the TTL, and the retry on the same key, are the way out.
+  const { error: requestedErr } = await admin
     .from("booking_transactions")
     .update({ status: "payment_requested" })
     .eq("id", transactionId)
     .eq("status", "draft");
+  if (requestedErr) {
+    logServerError("pos.startCollection.requested", requestedErr);
+    return { ok: false, reason: "engine_error", error: "Could not open the payment." };
+  }
 
   const { error: statusErr } = await admin
     .from("orders")
@@ -574,8 +645,33 @@ export async function startCollection(
 
 export type RecordVerifiedCollectionResult =
   | { ok: true; orderId: string; transactionId: string; alreadySettled: boolean }
-  | { ok: false; reason: "not_found" | "wrong_tenant" | "unavailable" | "no_contact"; error: string };
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "wrong_tenant"
+        | "unavailable"
+        | "no_contact"
+        | "amount"
+        | "not_open";
+      error: string;
+      /** What is actually still owed, when the refusal is about the amount. */
+      outstandingCents?: number;
+    };
 
+/**
+ * Record a collection a human already verified landed (a terminal receipt, a
+ * transfer that cleared).
+ *
+ * IT RESERVES LIKE EVERYTHING ELSE, and it did not used to. This function took
+ * `amountCents` from its caller and handed it straight to `settleAtDoor`: no
+ * lock, no outstanding check, no claim. Two calls, or one call racing a POS
+ * collection on the same tab, both recorded the full amount. That is the same
+ * double take by a quieter door, so it goes through the same one.
+ *
+ * The operation key is derived from the order and the rail rather than minted,
+ * so a retry of one verification replays it instead of allocating a second.
+ */
 export async function recordVerifiedCollection(
   admin: Admin,
   input: {
@@ -602,17 +698,64 @@ export async function recordVerifiedCollection(
   if (!row.customer_id) {
     return { ok: false, reason: "no_contact", error: "Collecting money needs an email or a phone." };
   }
+
+  const operationKey = `pos-verify:${row.id}:${input.paidVia}`;
+  const claimed = await reserveCollection(admin, {
+    tenantId: input.tenantId,
+    orderId: row.id,
+    operationKey,
+    amountCents: input.amountCents,
+    // `paidVia` is the rail the money came in on; the claim only cares whether
+    // this is a counter tender or a provider session, and a verified receipt
+    // is already in hand either way.
+    method: "cash",
+    actorUserId: input.actorUserId,
+  });
+  if (!claimed.ok) {
+    if (claimed.reason === "not_found") return { ok: false, reason: "not_found", error: "That sale is gone." };
+    if (claimed.reason === "wrong_tenant") {
+      return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
+    }
+    if (claimed.reason === "not_open") {
+      // The sale closed under this verification. Distinct from `amount`: there
+      // is nothing to correct and no smaller number that would work.
+      return { ok: false, reason: "not_open", error: "This sale is no longer open." };
+    }
+    if (claimed.reason === "amount") {
+      return { ok: false, reason: "amount", error: "This collection must be more than zero." };
+    }
+    if (claimed.reason === "exceeds_outstanding" || claimed.reason === "already_collected") {
+      return {
+        ok: false,
+        reason: "amount",
+        error: "This collection is more than what is outstanding.",
+        outstandingCents: claimed.outstandingCents ?? 0,
+      };
+    }
+    return { ok: false, reason: "unavailable", error: "Could not record the collection." };
+  }
+  if (claimed.state === "released") {
+    return { ok: false, reason: "unavailable", error: "Could not record the collection." };
+  }
+
   const settle = deps.settle ?? settleAtDoor;
   const settled = await settle(admin as never, {
     tenantId: input.tenantId,
     orderId: row.id,
     actorUserId: input.actorUserId,
     paidVia: input.paidVia,
-    amountCents: input.amountCents,
+    amountCents: claimed.amountCents,
     currency: input.currency,
-    idempotencyKey: `pos-verify:${row.id}:${input.paidVia}`,
+    idempotencyKey: operationKey,
+    // Closed by `settleAtDoor` at the one moment that is true: once the money
+    // row actually reaches `paid`.
+    reservationId: claimed.reservationId,
   });
-  if (!settled.ok) return { ok: false, reason: "unavailable", error: "Could not record the collection." };
+  if (!settled.ok) {
+    // NOT released, for the same reason the cash path does not: `settleAtDoor`
+    // is resumable and may have a half-written money row this key will finish.
+    return { ok: false, reason: "unavailable", error: "Could not record the collection." };
+  }
   return {
     ok: true,
     orderId: settled.orderId,
@@ -621,117 +764,11 @@ export async function recordVerifiedCollection(
   };
 }
 
-export type FinalizeResult =
-  | { ok: true; orderId: string; status: "cancelled"; releasedAllocationIds: string[] }
-  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_open" | "unavailable" | "conflict"; error: string };
-
-export async function finalizeOrCancel(
-  admin: Admin,
-  input: { tenantId: string; orderId: string; expectedVersion?: number },
-  deps: { release?: typeof releaseCapacity } = {},
-): Promise<FinalizeResult> {
-  if (typeof admin.rpc === "function") {
-    const { data, error } = await admin.rpc("pos_cancel_draft", {
-      p_tenant_id: input.tenantId,
-      p_order_id: input.orderId,
-      p_expected_version: input.expectedVersion ?? null,
-    });
-    if (error) {
-      logServerError("pos.finalizeOrCancel.rpc", error);
-      return { ok: false, reason: "unavailable", error: "Could not cancel the sale." };
-    }
-    const reply = (data ?? {}) as {
-      ok?: boolean;
-      reason?: string;
-      order_id?: string;
-      released_allocation_ids?: string[];
-    };
-    if (reply.ok !== true) {
-      const reason =
-        reply.reason === "not_found" ||
-        reply.reason === "wrong_tenant" ||
-        reply.reason === "not_open" ||
-        reply.reason === "conflict"
-          ? reply.reason
-          : "unavailable";
-      return { ok: false, reason, error: "Could not cancel the sale." };
-    }
-    return {
-      ok: true,
-      orderId: reply.order_id ?? input.orderId,
-      status: "cancelled",
-      releasedAllocationIds: reply.released_allocation_ids ?? [],
-    };
-  }
-
-  const { data: order, error } = await admin
-    .from("orders")
-    .select("id, tenant_id, status, version")
-    .eq("id", input.orderId)
-    .maybeSingle();
-  if (error) return { ok: false, reason: "unavailable", error: "Could not load the sale." };
-  if (!order) return { ok: false, reason: "not_found", error: "That sale is gone." };
-  const row = order as { id: string; tenant_id: string; status: string; version: number };
-  if (row.tenant_id !== input.tenantId) {
-    return { ok: false, reason: "wrong_tenant", error: "That sale is not in this workspace." };
-  }
-  if (row.status !== "draft" && row.status !== "pending_payment") {
-    return { ok: false, reason: "not_open", error: "This sale cannot be cancelled." };
-  }
-  if (input.expectedVersion != null && Number(row.version) !== input.expectedVersion) {
-    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
-  }
-  const { data: cancelled, error: uErr } = await admin
-    .from("orders")
-    .update({ status: "cancelled", version: Number(row.version) + 1 })
-    .eq("id", row.id)
-    .eq("tenant_id", input.tenantId)
-    .in("status", ["draft", "pending_payment"])
-    .eq("version", row.version)
-    .select("id")
-    .maybeSingle();
-  if (uErr) {
-    logServerError("pos.finalizeOrCancel", uErr);
-    return { ok: false, reason: "unavailable", error: "Could not cancel the sale." };
-  }
-  if (!cancelled) {
-    return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
-  }
-
-  const { data: lineRows, error: lineErr } = await admin
-    .from("order_lines")
-    .select("id")
-    .eq("order_id", row.id)
-    .eq("tenant_id", input.tenantId);
-  if (lineErr) {
-    logServerError("pos.finalizeOrCancel.lines", lineErr);
-    return { ok: false, reason: "unavailable", error: "Could not release the held places." };
-  }
-  const lineIds = ((lineRows ?? []) as Array<{ id: string }>).map((l) => l.id);
-  let releasedAllocationIds: string[] = [];
-  if (lineIds.length > 0) {
-    const { data: allocRows, error: allocErr } = await admin
-      .from("capacity_allocations")
-      .select("id, released_at")
-      .eq("tenant_id", input.tenantId)
-      .in("order_line_id", lineIds);
-    if (allocErr) {
-      logServerError("pos.finalizeOrCancel.allocations", allocErr);
-      return { ok: false, reason: "unavailable", error: "Could not release the held places." };
-    }
-    const live = ((allocRows ?? []) as Array<{ id: string; released_at: string | null }>).filter(
-      (a) => !a.released_at,
-    );
-    releasedAllocationIds = live.map((a) => a.id);
-    if (releasedAllocationIds.length > 0) {
-      const release = deps.release ?? releaseCapacity;
-      const released = await release(releasedAllocationIds, admin as never);
-      if (!released.ok) {
-        return { ok: false, reason: "unavailable", error: "Could not release the held places." };
-      }
-    }
-  }
-  return { ok: true, orderId: row.id, status: "cancelled", releasedAllocationIds };
-}
+/**
+ * Re-exported, not moved away. `finalizeOrCancel` lives in `./finalize` now
+ * (see that file for why), and POS imports one module for the till's two
+ * outcomes: money taken, or the sale closed with the places handed back.
+ */
+export { finalizeOrCancel, type FinalizeResult } from "./finalize";
 
 export { reportTerminalAvailability };

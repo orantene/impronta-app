@@ -25,21 +25,57 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 
+export type ReservationState = "reserved" | "settled" | "released";
+
+export type ReservationMethod = "cash" | "online_card" | "terminal";
+
 /** Where the card path leaves the reservation id for the webhook to find. */
 export const RESERVATION_METADATA_KEY = "collection_reservation_id";
 
-/** Long enough for a card redirect, short enough that a dead till frees the tab. */
+/**
+ * How long a CASH claim lives. Short on purpose: the cash path completes
+ * inside the request that took it, so this only covers a till that died
+ * mid-sale, and every second of it is a second the next customer waits.
+ */
 export const RESERVATION_TTL_SECONDS = 900;
+
+/**
+ * Stripe Checkout refuses an `expires_at` closer than 30 minutes.
+ *
+ * Not a number we chose, which is exactly why it is named. The card claim has
+ * to outlive the session it guards, and the session cannot be made shorter
+ * than this, so the claim cannot be made shorter either.
+ */
+export const STRIPE_CHECKOUT_MIN_TTL_SECONDS = 1800;
+
+/**
+ * How long a CARD claim lives, and why it is not 900 seconds.
+ *
+ * THE DEFECT THIS CLOSES. A card collection reserved for 900 seconds and then
+ * sent the buyer to a hosted Checkout session that carried NO expiry and lived
+ * about 24 hours. The every-minute reaper released the claim while the session
+ * was still payable, a second till reserved the whole balance and took it, and
+ * the first customer's session then settled on top: two payments, one order.
+ *
+ * The claim is now the longer of the two lifetimes and the session is stamped
+ * with the claim's own `expires_at`, so the reaper cannot free a balance a
+ * live session can still take. The three minutes over Stripe's floor are the
+ * gap between claiming the balance and creating the session: the session's
+ * expiry is derived from the CLAIM's instant, not from "now", so that gap eats
+ * into the margin rather than into the guarantee.
+ */
+export const CARD_RESERVATION_TTL_SECONDS = STRIPE_CHECKOUT_MIN_TTL_SECONDS + 180;
+
+/** The claim lifetime a tender of this kind needs. */
+export function reservationTtlSeconds(method: ReservationMethod): number {
+  return method === "cash" ? RESERVATION_TTL_SECONDS : CARD_RESERVATION_TTL_SECONDS;
+}
 
 type RpcAdmin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
-
-export type ReservationState = "reserved" | "settled" | "released";
-
-export type ReservationMethod = "cash" | "online_card" | "terminal";
 
 export type ReserveCollectionRefusal =
   | "not_found"
@@ -63,6 +99,15 @@ export type ReserveCollectionResult =
       amountCents: number;
       /** What is left AFTER this reservation. */
       outstandingCents: number;
+      /**
+       * When the claim lapses, as the DATABASE recorded it.
+       *
+       * Threaded out so the card path can hand the provider session the very
+       * same instant. Deriving it locally from "now plus the TTL we asked for"
+       * would drift by the round trip and, on a replay, by however long the
+       * first attempt has already been running.
+       */
+      expiresAt: string | null;
     }
   | { ok: false; reason: ReserveCollectionRefusal; outstandingCents: number | null };
 
@@ -131,6 +176,7 @@ export async function reserveCollection(
     transaction_id?: string | null;
     amount_cents?: number | string;
     outstanding_cents?: number | string | null;
+    expires_at?: string | null;
   };
 
   if (reply.ok !== true) {
@@ -157,6 +203,7 @@ export async function reserveCollection(
     transactionId: reply.transaction_id ?? null,
     amountCents,
     outstandingCents,
+    expiresAt: typeof reply.expires_at === "string" ? reply.expires_at : null,
   };
 }
 
@@ -220,6 +267,50 @@ export async function releaseCollectionReservation(
   reservationId: string,
 ): Promise<SettleReservationResult> {
   return moveReservation(admin, reservationId, null, "released");
+}
+
+export type BindReservationResult =
+  | { ok: true; transactionId: string }
+  | { ok: false; reason: "not_found" | "not_reserved" | "bound_elsewhere" | "unavailable" };
+
+/**
+ * Name the money row a live claim is waiting on.
+ *
+ * THE SECOND ROUTE TO A DOUBLE TAKE, and it needed no reaper at all. A card
+ * collection reserves, inserts its transaction, then opens a Checkout session.
+ * A retry of the same operation key came back `already` with `transaction_id`
+ * still null, because the claim only learned its transaction when it SETTLED.
+ * The caller could not tell "this key already has a payment in flight" from
+ * "this key has a claim and nothing else yet", so it minted a second
+ * transaction and a second session against one claim, and both were payable.
+ *
+ * Binding while the claim is still `reserved` is what lets a replay resume the
+ * payment already in flight instead of opening another one.
+ */
+export async function bindCollectionReservation(
+  admin: RpcAdmin,
+  input: { reservationId: string; transactionId: string },
+): Promise<BindReservationResult> {
+  if (typeof admin.rpc !== "function") return { ok: false, reason: "unavailable" };
+  const { data, error } = await admin.rpc("pos_bind_collection_reservation", {
+    p_reservation_id: input.reservationId,
+    p_transaction_id: input.transactionId,
+  });
+  if (error) {
+    logServerError("pos.reservation.bind", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const reply = (data ?? {}) as { ok?: boolean; reason?: string; transaction_id?: string | null };
+  if (reply.ok !== true) {
+    const reason =
+      reply.reason === "not_found"
+      || reply.reason === "not_reserved"
+      || reply.reason === "bound_elsewhere"
+        ? reply.reason
+        : "unavailable";
+    return { ok: false, reason };
+  }
+  return { ok: true, transactionId: reply.transaction_id ?? input.transactionId };
 }
 
 export type ReapReservationsResult = { ok: true; released: number } | { ok: false };

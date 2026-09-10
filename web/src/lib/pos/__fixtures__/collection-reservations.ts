@@ -16,6 +16,12 @@
  * the real guarantee is `SELECT ... FOR UPDATE`, and only the database can
  * demonstrate that. The isolated-branch SQL proof in the migration is what
  * covers the part this cannot.
+ *
+ * IT ALSO DOES NOT MODEL `guard_order_not_overcollected`, ON PURPOSE. That
+ * trigger is the last line of defence against collecting an order twice, and a
+ * fake that reimplemented it would let a test go green over a database that
+ * had lost it. Its two cases live where they can be run against real objects:
+ * `scripts/prove-collection-double-take.mjs` and the migration's own DO block.
  */
 
 export type FakeRow = Record<string, unknown>;
@@ -110,6 +116,9 @@ export function makeCollectionRpc(store: ReservationCapableStore) {
             transaction_id: existing.transaction_id ?? null,
             amount_cents: cents(existing.amount_cents),
             outstanding_cents: Math.max(0, outstanding),
+            // The claim's OWN expiry, so a resumed card collection stamps the
+            // session with the life the claim actually has left.
+            expires_at: existing.expires_at ?? null,
             version: cents(order.version),
           },
           error: null,
@@ -164,6 +173,25 @@ export function makeCollectionRpc(store: ReservationCapableStore) {
         },
         error: null,
       };
+    }
+
+    if (fn === "pos_bind_collection_reservation") {
+      const id = String(args.p_reservation_id ?? "");
+      const txn = args.p_transaction_id == null ? null : String(args.p_transaction_id);
+      if (!id || !txn) return refuse("bad_input");
+      const row = reservationsOf(store).find((r) => r.id === id);
+      if (!row) return refuse("not_found");
+      if (row.state !== "reserved") {
+        return { data: { ok: false, reason: "not_reserved", state: row.state }, error: null };
+      }
+      if (row.transaction_id && row.transaction_id !== txn) {
+        return {
+          data: { ok: false, reason: "bound_elsewhere", transaction_id: row.transaction_id },
+          error: null,
+        };
+      }
+      row.transaction_id = txn;
+      return { data: { ok: true, reservation_id: id, transaction_id: txn }, error: null };
     }
 
     if (fn === "pos_settle_collection_reservation") {

@@ -29,6 +29,16 @@ export type CreatePaymentRequestInput = {
   description?: string;
   locale?: string | null;
   method: CollectionMethod;
+  /**
+   * When the provider must stop accepting this payment, ISO-8601.
+   *
+   * Absent means the provider's own default, which for hosted Stripe Checkout
+   * is about 24 hours. A POS collection holds a claim on the order's balance
+   * for far less than that, and a session that outlives its claim is how the
+   * same money was taken twice: the reaper freed the balance, a second till
+   * took it, and the first customer's page still worked.
+   */
+  expiresAt?: string | null;
 };
 
 export type CreatePaymentRequestResult =
