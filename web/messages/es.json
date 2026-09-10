@@ -205,6 +205,18 @@
           "sendFailed": "No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
           "verifyFailed": "No pudimos iniciar tu sesión con ese código. Pide uno nuevo e inténtalo otra vez."
         }
+      },
+      "signupCode": {
+        "sentNotice": "Enviamos un enlace de confirmación y un código a {email}. Abre el enlace o escribe el código aquí.",
+        "resentNotice": "Nuevo correo enviado. Usa el código más reciente.",
+        "codeLabel": "Código del correo",
+        "codeHint": "De un solo uso. El enlace del mismo correo también funciona. Revisa el spam si no llega nada.",
+        "verifySubmit": "Confirmar y continuar",
+        "verifyPending": "Confirmando",
+        "resend": "Enviar un código nuevo",
+        "resendIn": "Enviar un código nuevo en {seconds}s",
+        "resending": "Enviando",
+        "changeEmail": "Usar otro correo"
       }
     },
     "profile": {

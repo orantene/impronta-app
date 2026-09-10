@@ -317,3 +317,77 @@ export async function submitEmailCode(
     ),
   );
 }
+
+/**
+ * Re-sends the SIGNUP confirmation email (link + code) for an address that
+ * registered with a password and has not confirmed yet.
+ *
+ * Deliberately `auth.resend({ type: "signup" })` and not `signInWithOtp`: the
+ * account already exists with a password, and resending the signup message
+ * keeps it on the same `auth.signup` template the first email used, so the
+ * person sees the same thing twice instead of two differently worded mails.
+ *
+ * Same two-layer send budget as {@link requestEmailCode} (this is real outbound
+ * email to one inbox), and Supabase itself refuses a second send inside its
+ * per-address interval (`over_email_send_rate_limit`), which is why the UI
+ * shows a 60-second countdown before offering the button at all.
+ */
+export async function resendSignupCode(
+  _prev: EmailCodeState,
+  formData: FormData,
+): Promise<EmailCodeState> {
+  const t = otpT(formData);
+  const email = normalizeAuthEmail(formData.get("email"));
+
+  if (!email || !isValidAuthEmail(email)) {
+    return { step: "email", error: t("public.auth.actions.invalidEmail"), email };
+  }
+
+  const ip = await requestIp();
+  const tooMany = () =>
+    ({ step: "code", error: t("public.auth.passwordless.errors.tooMany"), email }) as const;
+
+  if (
+    !tryConsumeRateLimit(`auth-otp-send:${email}`, SEND_PER_EMAIL, SEND_WINDOW_MS) ||
+    !tryConsumeRateLimit(`auth-otp-send-ip:${ip}`, SEND_PER_IP, SEND_WINDOW_MS)
+  ) {
+    return tooMany();
+  }
+  const [sendByEmail, sendByIp] = await Promise.all([
+    checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
+    checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
+  ]);
+  if (!sendByEmail.ok || !sendByIp.ok) {
+    return tooMany();
+  }
+
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) {
+    return { step: "code", error: SUPABASE_ENV_HELP, email };
+  }
+
+  const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: buildOtpEmailRedirect({
+        origin: getAppUrl(),
+        nextPath,
+        lang: otpLang(formData),
+      }),
+    },
+  });
+
+  if (error) {
+    logServerError("auth/resendSignupCode", error);
+    return { step: "code", error: t(otpSendErrorKey(error)), email };
+  }
+
+  return {
+    step: "sent",
+    email,
+    resent: true,
+    notice: t("public.auth.signupCode.resentNotice"),
+  };
+}
