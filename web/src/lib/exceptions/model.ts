@@ -78,6 +78,7 @@ export const RESUME_VERBS = [
   "mint_missing_admissions",
   "retry_engine_effect",
   "requeue_outbox_message",
+  "recover_unresolved_collection",
 ] as const;
 export type ResumeVerb = (typeof RESUME_VERBS)[number];
 
@@ -378,16 +379,42 @@ export type UnresolvedCollectionFacts = {
   grossAmountCents: number;
   currency: string;
   requestedAt: string;
+  /**
+   * The provider's own id for the request this collection opened, when the
+   * transaction recorded one. Null means nothing in the world can be asked
+   * about this payment.
+   */
+  providerRequestId: string | null;
+  /** How many times the recovery worker has already asked the provider. */
+  recoveryAttempts?: number;
+  /** The provider's last answer, in the engine's vocabulary. */
+  lastRecoveryState?: string | null;
+  lastRecoveryAt?: string | null;
 };
 
 /**
- * Never resumable, and that is not caution — it is correctness.
+ * WHAT CHANGED HERE, AND WHY THE OLD RULE WAS RIGHT UNTIL IT WASN'T.
  *
- * A collection in `payment_requested` means we asked a card reader for money
- * and never heard back. The provider is the authority on what happened, not
- * us, and the two ways of being wrong are not symmetric: charging a customer
- * twice is a chargeback and a complaint, while a person checking the terminal
- * costs a minute.
+ * This row used to have no button at all, and the reason given was correctness
+ * rather than caution: a collection in `payment_requested` means we asked for
+ * money and never heard back, the provider is the authority on what happened,
+ * and charging a customer twice is not symmetric with a person walking to the
+ * terminal. Every word of that still holds.
+ *
+ * What was missing was the ability to ASK the provider. `stripeCollectionAdapter`
+ * returned `unknown` from a stub, so no code in the system could find out what
+ * happened, and "there is no button" was the only honest position available.
+ * There is now a lookup and a worker that acts on its answer, and the button
+ * arms that worker: it asks, it never charges, and it cannot open a payment
+ * request because the create is not reachable from it. So the safety argument
+ * now points the other way — a person who cannot press anything is a person who
+ * either waits or reaches for the till, and the till is where a second charge
+ * comes from.
+ *
+ * THE NO-BUTTON BRANCH SURVIVES, and it is the honest half of the split. A
+ * transaction with no provider request id — opened before the stamp existed, or
+ * opened in mock mode — has nothing to ask about, so there is no worker to arm
+ * and it still needs a person. That row gets `inspect`, exactly as before.
  */
 export function classifyUnresolvedCollection(
   facts: UnresolvedCollectionFacts,
@@ -396,6 +423,10 @@ export function classifyUnresolvedCollection(
 ): ExceptionRow | null {
   const age = now - Date.parse(facts.requestedAt);
   if (!Number.isFinite(age) || age < COLLECTION_STALE_MS) return null;
+  const amount = `${(facts.grossAmountCents / 100).toFixed(2)} ${facts.currency.toUpperCase()}`;
+  const askable = facts.providerRequestId !== null && facts.providerRequestId.length > 0;
+  const attempts = facts.recoveryAttempts ?? 0;
+  const lastState = facts.lastRecoveryState ?? null;
   return {
     key: `unresolved_collection:${facts.transactionId}`,
     source: "unresolved_collection",
@@ -403,17 +434,32 @@ export function classifyUnresolvedCollection(
     owner: "money",
     sourceId: facts.transactionId,
     title: "Card payment never came back",
-    detail:
-      `${(facts.grossAmountCents / 100).toFixed(2)} ${facts.currency.toUpperCase()} was requested from a reader ` +
-      "and no result was recorded. Check the terminal before re-charging.",
-    attempts: 0,
+    detail: askable
+      ? `${amount} was requested and no result was recorded. `
+        + (lastState
+          ? `The provider was asked ${attempts} time${attempts === 1 ? "" : "s"} and last said: ${lastState}. `
+          : "The provider has not been asked yet. ")
+        + "Asking again is safe. It never charges."
+      : `${amount} was requested from a reader and no result was recorded, and this payment carries `
+        + "no provider reference, so it cannot be looked up. Check the terminal before re-charging.",
+    attempts,
     firstSeenAt: facts.requestedAt,
-    lastAttemptAt: null,
-    nextAction: {
-      kind: "inspect",
-      label: "Open the sale",
-      why: "The provider knows whether this charged. We do not.",
-    },
+    lastAttemptAt: facts.lastRecoveryAt ?? null,
+    nextAction: askable
+      ? {
+          kind: "resume",
+          verb: "recover_unresolved_collection",
+          // NOT "collect again", and not "retry". The worker asks the provider
+          // what already happened and finishes the job the answer describes;
+          // saying anything that sounds like a new charge would be a lie about
+          // the one thing an operator is frightened of here.
+          label: "Ask the provider what happened",
+        }
+      : {
+          kind: "inspect",
+          label: "Open the sale",
+          why: "This payment has no provider reference, so nobody can be asked.",
+        },
     href,
   };
 }

@@ -27,6 +27,7 @@ import { holdDraftOrderCapacity } from "./hold-capacity";
 import {
   RESERVATION_METADATA_KEY,
   bindCollectionReservation,
+  collectionMetadata,
   releaseCollectionReservation,
   reserveCollection,
   reservationTtlSeconds,
@@ -626,9 +627,18 @@ export async function startCollection(
   // The claim is NOT handed back. A session exists and the buyer may be on it,
   // so freeing the balance here is precisely the double-take this change
   // closes; the TTL, and the retry on the same key, are the way out.
+  //
+  // THE PROVIDER'S REQUEST ID RIDES ALONG, and it used to be discarded, so a
+  // collection whose response was lost could never be reconciled: the row said
+  // "we asked for money" and nothing said WHAT we asked. Written in the SAME
+  // statement as the status move, so the row cannot claim to have requested a
+  // payment it cannot name.
   const { error: requestedErr } = await admin
     .from("booking_transactions")
-    .update({ status: "payment_requested" })
+    .update({
+      status: "payment_requested",
+      metadata: collectionMetadata({ reservationId, paymentRequestId: request.requestId }),
+    })
     .eq("id", transactionId)
     .eq("status", "draft");
   if (requestedErr) {

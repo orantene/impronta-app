@@ -27,15 +27,56 @@ const ACTIONS_SRC = read("src/app/(workspace)/[tenantSlug]/admin/_exceptions-act
 const CLIENT_SRC = read("src/app/(workspace)/[tenantSlug]/admin/exceptions/exceptions-client.tsx");
 const ROUTES_SRC = read("src/components/admin/shell/canonical-routes.ts");
 
-test("every source read is tenant-scoped in the application layer", () => {
+/**
+ * Every `.from("x").select(...)` in the reader, as one string per read.
+ *
+ * WHY THIS REPLACED A COUNT. The guard used to assert that the file contained
+ * exactly six tenant filters, which is a true statement about a number and not
+ * about any particular read: it passes whether the six are spread over six
+ * reads or bunched on five while a seventh runs unscoped. A seventh read was
+ * added (the recovery attempt history behind an unresolved collection) and the
+ * count would have gone red for the wrong reason — or, worse, been raised to
+ * seven and gone green over a read nobody had checked. The property the count
+ * was standing in for is per-read, so it is now asserted per read.
+ */
+function readsIn(source: string): string[] {
+  const blocks: string[] = [];
+  const re = /\.from\("([a-z_]+)"\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source)) !== null) {
+    // Up to the next read, or the end. A PostgREST chain is one expression, so
+    // its filters are always between its own `.from` and the next one.
+    const next = re.lastIndex;
+    const following = source.slice(next).search(/\.from\("[a-z_]+"\)/);
+    blocks.push(source.slice(match.index, following === -1 ? source.length : next + following));
+  }
+  return blocks;
+}
+
+test("every read in the exceptions reader is tenant-scoped in the application layer", () => {
   // The reader runs under the service role, which bypasses RLS entirely. The
-  // `.eq` IS the boundary here; RLS is not a backstop for it.
-  const scoped = READ_SRC.match(/\.eq\("(?:tenant_id|source_tenant_id)", tenantId\)/g) ?? [];
-  assert.equal(
-    scoped.length,
-    6,
-    "one of the six sources lost its tenant filter — a service-role read without it returns every workspace",
+  // filter IS the boundary here; RLS is not a backstop for it.
+  const reads = readsIn(READ_SRC);
+  assert.ok(reads.length >= 6, "the exceptions reader lost its reads, or this guard stopped finding them");
+  for (const block of reads) {
+    const table = /\.from\("([a-z_]+)"\)/.exec(block)?.[1] ?? "?";
+    assert.match(
+      block,
+      // Either the workspace column, or a filter over ids that a tenant-scoped
+      // read already produced. The second form is named explicitly rather than
+      // allowed by omission, so a read that is scoped by neither still fails.
+      /\.eq\("(?:tenant_id|source_tenant_id)", tenantId\)|\.in\("transaction_id", transactions\.map/,
+      `the exceptions read of ${table} is not tenant-scoped — a service-role read without it returns every workspace`,
+    );
+  }
+});
+
+test("GUARD BITES: an unscoped read in the exceptions reader is caught", () => {
+  const fake = READ_SRC + '\nawait admin.from("orders").select("id").limit(1);\n';
+  const unscoped = readsIn(fake).filter(
+    (block) => !/\.eq\("(?:tenant_id|source_tenant_id)", tenantId\)|\.in\("transaction_id", transactions\.map/.test(block),
   );
+  assert.equal(unscoped.length, 1, "the guard did not notice a read with no tenant filter");
 });
 
 test("booking_transactions is scoped on source_tenant_id, not tenant_id", () => {

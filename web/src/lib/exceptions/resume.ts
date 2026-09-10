@@ -1,9 +1,9 @@
 import "server-only";
 
 /**
- * resume.ts — the four buttons, and why none of them performs the effect.
+ * resume.ts — the five buttons, and why only one performs the effect.
  *
- * THREE OF THESE ARM A WORKER RATHER THAN DOING THE WORK, ON PURPOSE. Every
+ * FOUR OF THESE ARM A WORKER RATHER THAN DOING THE WORK, ON PURPOSE. Every
  * one of the executors behind these rows already exists, already claims before
  * it acts, and already has an attempt cap: the refund cron claims on
  * `claimed_at`, the engine retry is keyed on `(event_id, listener_name)`, the
@@ -43,6 +43,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { makeEnvelope } from "@/lib/commands/envelope";
 import { CommandFailure, runCommand } from "@/lib/commands/run";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { paymentRequestIdFromMetadata } from "@/lib/pos/collection-reservations";
 import type { ResumeVerb } from "./model";
 
 type Admin = SupabaseClient;
@@ -152,7 +153,95 @@ function perform(admin: Admin, input: ResumeInput): Promise<ResumeResult> {
       return armEngineEffect(admin, input.tenantId, input.sourceId);
     case "requeue_outbox_message":
       return requeueOutbox(admin, input.tenantId, input.sourceId);
+    case "recover_unresolved_collection":
+      return armCollectionRecovery(admin, input.tenantId, input.sourceId);
   }
+}
+
+/**
+ * Ask the recovery worker to ask the provider, sooner than it would have.
+ *
+ * IT DOES NOT ASK THE PROVIDER ITSELF, and that is the same rule the other
+ * arming verbs follow for the same reason: `pos_claim_stale_collections` takes
+ * a lease under `FOR UPDATE SKIP LOCKED` precisely so that one transaction is
+ * reconciled by one worker at a time, and a button that called the provider
+ * inline would be a second reconciler with no lease at all. The answer it got
+ * could then race the cron's answer, and the action on `succeeded` is
+ * `markPaid` — an order completed twice, from the one screen an operator
+ * presses when they are already worried.
+ *
+ * IT CANNOT CHARGE ANYBODY EITHER WAY. What it writes is a due time. The only
+ * code that talks to the provider from here is the worker, and the worker has
+ * no create in scope.
+ *
+ * A ROW WITH NO RECOVERY YET IS ALREADY ELIGIBLE. The claim enrols stale
+ * transactions on its own pass, so there is nothing to arm and nothing to
+ * write: saying `already` is the truthful answer rather than inserting a row
+ * whose only effect would be to duplicate what the claim does.
+ */
+async function armCollectionRecovery(
+  admin: Admin,
+  tenantId: string,
+  transactionId: string,
+): Promise<ResumeResult> {
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("id, status, source_tenant_id, metadata")
+    .eq("id", transactionId)
+    // `source_tenant_id`, not `tenant_id`: this table predates the convention
+    // and names the workspace that took the money under its own column.
+    .eq("source_tenant_id", tenantId)
+    .maybeSingle();
+  if (error) {
+    throw new CommandFailure("none", `could not read the collection: ${error.message}`);
+  }
+  if (!data) return { ok: false, reason: "not_found" };
+  // Anything but `payment_requested` has resolved itself while this screen was
+  // open, and re-arming would ask about a payment that has an answer.
+  if (data.status !== "payment_requested") return { ok: true, outcome: "already" };
+  if (!paymentRequestIdFromMetadata((data as { metadata?: unknown }).metadata)) {
+    // Nothing to ask about. The model routes this row to `inspect`, so this is
+    // the server-side half of that: a server action is reachable without the
+    // screen that renders it, and "the UI would not offer it" is not a guard.
+    return { ok: false, reason: "not_resumable" };
+  }
+
+  const { data: existing, error: rErr } = await admin
+    .from("pos_collection_recoveries")
+    .select("transaction_id, resolved_at")
+    .eq("transaction_id", transactionId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (rErr) {
+    throw new CommandFailure("none", `could not read the recovery row: ${rErr.message}`);
+  }
+  if (!existing) {
+    // Never reconciled, and nothing to write: the claim enrols stale askable
+    // transactions on its own pass. `armed` rather than `already`, because
+    // `already` renders as "nothing to do" and the truth is that the worker
+    // WILL take this one on its next pass — the row only reaches this screen
+    // once it is past the staleness window the claim uses, and that cron runs
+    // every minute.
+    return { ok: true, outcome: "armed" };
+  }
+  if (existing.resolved_at) return { ok: true, outcome: "already" };
+
+  const { error: uErr } = await admin
+    .from("pos_collection_recoveries")
+    .update({
+      next_attempt_at: new Date().toISOString(),
+      // Dropping the lease is what makes "sooner" real: a claimed row is
+      // skipped by the claim regardless of its due time.
+      claimed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("transaction_id", transactionId)
+    .eq("tenant_id", tenantId)
+    .is("resolved_at", null);
+  if (uErr) {
+    throw new CommandFailure("unknown", `the recovery arm did not confirm: ${uErr.message}`);
+  }
+  return { ok: true, outcome: "armed" };
 }
 
 /**

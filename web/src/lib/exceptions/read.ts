@@ -23,6 +23,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { paymentRequestIdFromMetadata } from "@/lib/pos/collection-reservations";
 import {
   classifyEngineEffect,
   classifyMintShortfall,
@@ -174,7 +175,7 @@ async function readUnresolvedCollections(
   // name. Scoping on the wrong column here would read every workspace's tills.
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("id, order_id, gross_amount_cents, currency, requested_at, created_at")
+    .select("id, order_id, gross_amount_cents, currency, requested_at, created_at, metadata")
     .eq("source_tenant_id", tenantId)
     .eq("status", "payment_requested")
     .order("created_at", { ascending: true })
@@ -183,8 +184,35 @@ async function readUnresolvedCollections(
     logServerError("exceptions/read.unresolvedCollections", error);
     return null;
   }
+
+  const transactions = (data ?? []) as Array<Record<string, unknown>>;
+
+  // WHAT THE WORKER HAS ALREADY TRIED. Without this the row can only say "no
+  // result was recorded", which is exactly as true after six failed lookups as
+  // before the first, and an operator reading it has no way to tell a payment
+  // nobody has asked about from one the provider will not answer for. A failed
+  // read here is NOT a failed section: the exception is still real and still
+  // worth showing, so the attempt history degrades to absent rather than
+  // taking the whole queue down with it.
+  const recoveries = new Map<string, { attempts: number; lastState: string | null; lastAt: string | null }>();
+  if (transactions.length > 0) {
+    const { data: recoveryRows, error: rErr } = await admin
+      .from("pos_collection_recoveries")
+      .select("transaction_id, attempts, last_state, updated_at")
+      .in("transaction_id", transactions.map((t) => String(t.id)));
+    if (rErr) logServerError("exceptions/read.collectionRecoveries", rErr);
+    for (const raw of (recoveryRows ?? []) as Array<Record<string, unknown>>) {
+      recoveries.set(String(raw.transaction_id), {
+        attempts: Number(raw.attempts ?? 0),
+        lastState: raw.last_state ? String(raw.last_state) : null,
+        lastAt: raw.updated_at ? String(raw.updated_at) : null,
+      });
+    }
+  }
+
   const rows: ExceptionRow[] = [];
-  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+  for (const raw of transactions) {
+    const recovery = recoveries.get(String(raw.id));
     const row = classifyUnresolvedCollection(
       {
         transactionId: String(raw.id),
@@ -194,6 +222,10 @@ async function readUnresolvedCollections(
         // `requested_at` is the moment the reader was asked. It is nullable on
         // older rows, where `created_at` is the same instant for this status.
         requestedAt: String(raw.requested_at ?? raw.created_at),
+        providerRequestId: paymentRequestIdFromMetadata(raw.metadata),
+        recoveryAttempts: recovery?.attempts ?? 0,
+        lastRecoveryState: recovery?.lastState ?? null,
+        lastRecoveryAt: recovery?.lastAt ?? null,
       },
       now,
       orderHref(tenantSlug, raw.order_id ? String(raw.order_id) : null),
