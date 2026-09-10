@@ -43,6 +43,12 @@ export interface EmailBrand {
   recipientHasAccount?: boolean;
   /** Absolute https logo URL; replaces the text wordmark when present. */
   logoUrl?: string | null;
+  /**
+   * Absolute https URL of a small square mark shown BESIDE the text wordmark
+   * (platform brand). Ignored when `logoUrl` replaces the wordmark outright.
+   * PNG, not SVG: Gmail and Outlook do not render SVG in email.
+   */
+  markUrl?: string | null;
   /** Brand colour for the CTA button. Validated hex, resolver-supplied. */
   accent?: string;
   /** Readable foreground for `accent`. */
@@ -57,6 +63,7 @@ const DEFAULTS = {
   locale: "en",
   recipientHasAccount: true,
   logoUrl: null,
+  markUrl: null,
   accent: TULALA_EMAIL_ACCENT,
   accentOn: TULALA_EMAIL_ACCENT_ON,
 };
@@ -107,6 +114,11 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children
             <Link href={b.homeHref} style={wordmark}>
               {b.logoUrl ? (
                 <Img src={b.logoUrl} alt={b.accountName} height="36" style={logo} />
+              ) : b.markUrl ? (
+                <>
+                  <Img src={b.markUrl} alt="" width="28" height="28" style={mark} />
+                  {b.wordmark}
+                </>
               ) : (
                 b.wordmark
               )}
@@ -162,6 +174,15 @@ const wordmark: React.CSSProperties = {
   color: "#1a1a1a",
   textDecoration: "none",
   fontWeight: 600,
+};
+
+const mark: React.CSSProperties = {
+  width: "28px",
+  height: "28px",
+  borderRadius: "8px",
+  display: "inline-block",
+  verticalAlign: "middle",
+  marginRight: "10px",
 };
 
 const logo: React.CSSProperties = {
