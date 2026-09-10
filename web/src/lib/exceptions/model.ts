@@ -52,6 +52,8 @@ export const EXCEPTION_SOURCES = [
   "unresolved_collection",
   /** A durable side effect that exhausted its retries. */
   "outbox_dead",
+  /** A command that took an idempotency claim and never came back for it. */
+  "stale_command_claim",
 ] as const;
 
 export type ExceptionSource = (typeof EXCEPTION_SOURCES)[number];
@@ -454,5 +456,59 @@ export function classifyOutboxDead(facts: OutboxDeadFacts): ExceptionRow {
       label: "Put it back in the queue",
     },
     href: null,
+  };
+}
+
+export type StaleCommandClaimFacts = {
+  id: string;
+  /** Dotted command name, e.g. `exceptions.mint_missing_admissions`. */
+  command: string;
+  attempts: number;
+  createdAt: string;
+  /** When the lease ran out. Null on a row written before leases existed. */
+  leaseExpiresAt: string | null;
+};
+
+/**
+ * A claim whose owner stopped answering. Always critical, and never resumable.
+ *
+ * CRITICAL WITH NO AGE THRESHOLD, because the lease already IS the threshold.
+ * A row only reaches this classifier after its owner has been silent for
+ * longer than the lease, and the runner writes `effects = 'unknown'` for the
+ * whole time a handler is in flight. So the one fact this row carries is that
+ * a command stopped somewhere in the middle and nothing recorded where.
+ *
+ * NO BUTTON, AND THIS IS THE INTERESTING PART. Every other resumable source
+ * here names ONE executor that is idempotent by construction. A command claim
+ * names an arbitrary handler chosen by whoever wrote the command, and this
+ * screen has no way to know whether that one is safe to run again. The retry
+ * path that does know is the original caller pressing the original button: the
+ * next identical request takes the expired lease over through `command_claim`.
+ * Putting a generic "run it again" here would be a second executor for every
+ * command in the system at once.
+ */
+export function classifyStaleCommandClaim(
+  facts: StaleCommandClaimFacts,
+  href: string | null,
+): ExceptionRow {
+  return {
+    key: `stale_command_claim:${facts.id}`,
+    source: "stale_command_claim",
+    severity: "critical",
+    owner: "operations",
+    sourceId: facts.id,
+    title: "A command stopped without recording what it did",
+    detail:
+      `${facts.command} took a claim and never came back. ` +
+      "Its writes may have landed, may have half landed, or may never have started.",
+    attempts: facts.attempts,
+    firstSeenAt: facts.createdAt,
+    lastAttemptAt: facts.leaseExpiresAt,
+    nextAction: {
+      kind: "inspect",
+      label: "Check what the command touched",
+      why: "Nobody can say whether the handler finished.",
+    },
+    href,
   };
 }

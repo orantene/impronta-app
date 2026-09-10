@@ -138,8 +138,9 @@ export function ExceptionsClient({
         </h1>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, maxWidth: 660, lineHeight: 1.5 }}>
           Refunds that have not landed, tickets that were sold and never issued, inquiry steps
-          that failed, card payments that never came back, and background jobs that gave up.
-          Ranked by whether they can still hurt someone.
+          that failed, card payments that never came back, background jobs that gave up, and
+          commands that stopped without recording what they did. Ranked by whether they can
+          still hurt someone.
         </p>
       </header>
 

@@ -110,6 +110,12 @@ export async function resumeExceptionAction(input: {
     };
   }
 
+  // THE RUNNER'S SENTENCE WINS WHERE THERE IS ONE. `partial` and `uncertain`
+  // carry a message that names what may have landed, and no sentence composed
+  // out here from a reason code could say that. The reasons this screen owns
+  // are the ones the ROW produced, before any handler ran.
+  if (result.message) return { ok: false, error: result.message };
+
   return {
     ok: false,
     error:
@@ -119,6 +125,8 @@ export async function resumeExceptionAction(input: {
           ? "That row is no longer in this workspace."
           : result.reason === "not_resumable"
             ? "This one needs a person: it cannot be safely re-driven."
-            : "That did not go through. Nothing was changed.",
+            : // Only `failed` reaches here, and `failed` is the one reason that
+              // means the handler asserted it wrote nothing.
+              "That did not go through. Nothing was changed.",
   };
 }
