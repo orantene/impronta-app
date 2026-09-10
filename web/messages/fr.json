@@ -1952,6 +1952,29 @@
       "result": {
         "seatLostAfterPayment": "Cette place a ete perdue apres le paiement, aucun billet ne peut donc etre emis. Un remboursement est du a la place, et il attend deja dans cette liste sur sa propre ligne."
       }
+    },
+    "orders": {
+      "refundEffectCopy": {
+        "keepEntitlement": "Rembourser une partie du prix. Le client garde ce qu'il a acheté.",
+        "cancelTicket": "Annuler un billet. Cette admission est révoquée et la place redevient libre.",
+        "adjustmentAfterService": "Rembourser après la prestation. Rien d'autre ne change.",
+        "revokeUnusedAdmission": "Révoquer une admission non utilisée. Le remboursement est facultatif.",
+        "refundHybridComponent": "Rembourser une partie du forfait. Les autres parties restent valables."
+      },
+      "refundOutcome": {
+        "refunded": "Remboursé. L'argent repart vers le client.",
+        "pickALine": "Choisissez au moins une ligne avant de confirmer le remboursement.",
+        "notAllowed": "Vous ne pouvez pas rembourser sur cet espace de travail. Demandez à une personne propriétaire.",
+        "invalid": "Ce remboursement n'a pas pu être lu. Rechargez la page et réessayez.",
+        "notFound": "Cette commande n'est pas ici. Elle appartient peut-être à un autre espace de travail, ou elle a été supprimée.",
+        "nothingToRefund": "Il ne reste rien à rembourser sur les lignes choisies.",
+        "lineAlreadyRefunded": "Cette ligne a déjà été remboursée en totalité.",
+        "exceedsCaptured": "C'est plus que ce qui a été encaissé sur cette commande, donc cela ne peut pas être remboursé.",
+        "noProviderCharge": "Ce paiement est arrivé hors plateforme, en espèces ou par virement, il n'y a donc aucun paiement par carte à annuler. Rendez l'argent par le même moyen et enregistrez-le comme remboursement hors plateforme.",
+        "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
+        "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
+        "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
+      }
     }
   },
   "client": {

@@ -46,8 +46,18 @@ export type SalesActivityLoad =
     }
   | { ok: false };
 
+/**
+ * Where a Sales row that is an order goes.
+ *
+ * The Orders desk is a LIST with an id-prefix search; there is no
+ * `/admin/orders/<id>` page. This used to link there anyway, so every order
+ * row on Sales prefetched a 404 and a manager who clicked one landed on
+ * "This page is no longer here". The client record and the project page
+ * already point at the desk's search, and the desk matches on the id prefix,
+ * so the full id lands on exactly that order.
+ */
 function orderHref(tenantSlug: string, orderId: string): string {
-  return `/${tenantSlug}/admin/orders/${orderId}`;
+  return `/${tenantSlug}/admin/orders?q=${encodeURIComponent(orderId)}`;
 }
 
 function bookingHref(tenantSlug: string, bookingId: string): string {

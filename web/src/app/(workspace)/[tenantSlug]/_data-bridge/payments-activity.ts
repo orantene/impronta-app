@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import type { TakingsSourceRow, DrawerSessionRow } from "@/lib/payments/activity-shape";
+import type { TakingsSourceRow, DrawerSessionRow, OwedSourceRow } from "@/lib/payments/activity-shape";
 
 /**
  * _data-bridge/payments-activity.ts — the I/O half of the Payments page.
@@ -95,6 +95,81 @@ export async function loadTenantTakings(tenantId: string, opts: { limit?: number
       paidVia: paidViaOf(row.metadata),
     };
   });
+  return { ok: true, rows };
+}
+
+export type OwedLoad = { ok: true; rows: OwedSourceRow[] } | { ok: false };
+
+/** Rows per page, and per `in()` list. PostgREST answers at most 1000 rows a call. */
+const OWED_PAGE = 500;
+
+/**
+ * Every order still awaiting payment for this tenant, with what has landed on
+ * each — the WHOLE set, paged, not a window.
+ *
+ * `loadWorkspaceOrders` reads the 200 most recent orders because it feeds a
+ * list. This page used to sum "Still owed" over that list, so on any workspace
+ * with more than 200 orders the figure quietly dropped every older unpaid
+ * order and still called itself the sum. A total has to be over the set.
+ *
+ * The predicate is the desk's own: `status = 'pending_payment'` is the
+ * `to_pay` bucket in `lib/orders/orders-list.ts`, and `total_cents > 0` is
+ * `salesBucket`'s complimentary-place exception applied at the query so a
+ * thousand free places do not have to be read to be discarded. The
+ * collected side is PAID `booking_transactions`, the same rule
+ * `loadWorkspaceOrders` and `complete-order.ts` use, so this figure and the
+ * desk's per-order balance cannot disagree about a row.
+ */
+export async function loadTenantOwedOrders(tenantId: string): Promise<OwedLoad> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false };
+
+  type OrderRow = { id: string; status: string; currency: string | null; total_cents: number | string };
+  const orders: OrderRow[] = [];
+  for (let from = 0; ; from += OWED_PAGE) {
+    const { data, error } = await admin
+      .from("orders")
+      .select("id, status, currency, total_cents")
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending_payment")
+      .gt("total_cents", 0)
+      .order("created_at", { ascending: false })
+      .range(from, from + OWED_PAGE - 1);
+    if (error) {
+      logServerError("dataBridge.paymentsActivity/owedOrders", error);
+      return { ok: false };
+    }
+    const page = (data ?? []) as OrderRow[];
+    orders.push(...page);
+    if (page.length < OWED_PAGE) break;
+  }
+  if (orders.length === 0) return { ok: true, rows: [] };
+
+  const collected = new Map<string, number>();
+  for (let i = 0; i < orders.length; i += OWED_PAGE) {
+    const ids = orders.slice(i, i + OWED_PAGE).map((o) => o.id);
+    const { data, error } = await admin
+      .from("booking_transactions")
+      .select("order_id, gross_amount_cents")
+      .in("order_id", ids)
+      .eq("status", PAID);
+    if (error) {
+      logServerError("dataBridge.paymentsActivity/owedCollected", error);
+      return { ok: false };
+    }
+    for (const raw of data ?? []) {
+      const row = raw as { order_id: string | null; gross_amount_cents: number | string | null };
+      if (!row.order_id) continue;
+      collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + num(row.gross_amount_cents));
+    }
+  }
+
+  const rows: OwedSourceRow[] = orders.map((o) => ({
+    status: o.status,
+    currency: o.currency ?? "USD",
+    totalCents: num(o.total_cents),
+    collectedCents: collected.get(o.id) ?? 0,
+  }));
   return { ok: true, rows };
 }
 

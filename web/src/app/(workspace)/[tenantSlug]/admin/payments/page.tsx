@@ -10,7 +10,8 @@
 //
 // Every figure below traces to real rows:
 //   - takings   -> booking_transactions, status = 'paid'
-//   - owed      -> orders in the 'to_pay' bucket (same rule as the Orders desk)
+//   - owed      -> EVERY order in the 'to_pay' bucket (same rule as the Orders
+//                  desk, over the whole set rather than the desk's 200-row list)
 //   - refunds   -> booking_transactions, status = 'refunded'
 //   - drawer    -> pos_shifts
 // Where the design asks for more than the schema has (movement-by-movement
@@ -28,10 +29,9 @@ import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { loadWorkspaceOrders } from "../../_data-bridge/orders";
-import { filterOrders, totalsFor } from "@/lib/orders/orders-list";
 import {
   loadTenantTakings,
+  loadTenantOwedOrders,
   loadTenantRefunds,
   loadTenantDrawerSessions,
 } from "../../_data-bridge/payments-activity";
@@ -39,6 +39,7 @@ import {
   formatVenueDateTime,
   groupTakingsByMethod,
   paymentMethodLabelKey,
+  sumOwedByCurrency,
   withVariance,
 } from "@/lib/payments/activity-shape";
 import { tenantTimezone } from "@/lib/spaces/venues";
@@ -65,9 +66,9 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
   const t = (k: string) => tr(`dashboard.payments.${k}`);
   const intlLocale = locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US";
 
-  const [takingsLoad, ordersLoad, refundsLoad, drawerLoad, timeZone] = await Promise.all([
+  const [takingsLoad, owedLoad, refundsLoad, drawerLoad, timeZone] = await Promise.all([
     loadTenantTakings(scope.tenantId),
-    loadWorkspaceOrders(scope.tenantId),
+    loadTenantOwedOrders(scope.tenantId),
     loadTenantRefunds(scope.tenantId),
     loadTenantDrawerSessions(scope.tenantId),
     // Every moment on this page is rendered on the WORKSPACE's clock, not on
@@ -82,8 +83,7 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
 
   const takingsGroups = takingsLoad.ok ? groupTakingsByMethod(takingsLoad.rows) : [];
 
-  const owedRows = ordersLoad.ok ? filterOrders(ordersLoad.rows, { bucket: "to_pay" }) : [];
-  const owedTotals = totalsFor(owedRows);
+  const owedByCurrency = owedLoad.ok ? sumOwedByCurrency(owedLoad.rows) : [];
 
   const drawerViews = drawerLoad.ok ? drawerLoad.rows.map(withVariance) : [];
 
@@ -156,22 +156,20 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
             <h2 className="m-0 text-base font-semibold">{t("owedTitle")}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{t("owedSub")}</p>
           </div>
-          {!ordersLoad.ok ? (
+          {!owedLoad.ok ? (
             <div className={`${CARD} p-6`}>
               <p className="m-0 text-sm font-medium">{t("unavailableTitle")}</p>
               <p className="mt-1 text-[13px] text-muted-foreground">{t("unavailableBody")}</p>
             </div>
-          ) : owedTotals.byCurrency.every((c) => c.outstandingCents === 0) ? (
+          ) : owedByCurrency.length === 0 ? (
             <div className={`${CARD} p-6 text-[13px] text-muted-foreground`}>{t("owedEmpty")}</div>
           ) : (
             <div className={`${CARD} flex flex-wrap items-center gap-6 p-5`}>
-              {owedTotals.byCurrency
-                .filter((c) => c.outstandingCents > 0)
-                .map((c) => (
-                  <span key={c.currency} className="text-sm">
-                    <strong className="tabular-nums">{formatOrderMoney(c.outstandingCents, c.currency)}</strong>
-                  </span>
-                ))}
+              {owedByCurrency.map((c) => (
+                <span key={c.currency} className="text-sm">
+                  <strong className="tabular-nums">{formatOrderMoney(c.totalCents, c.currency)}</strong>
+                </span>
+              ))}
               <Link
                 href={`/${tenantSlug}/admin/orders?bucket=to_pay`}
                 className="ml-auto text-[12.5px] text-foreground underline underline-offset-2"
@@ -211,7 +209,10 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
                       <td className="px-3.5 py-2.5 text-muted-foreground">{at(r.refundedAt)}</td>
                       <td className="px-3.5 py-2.5 font-mono text-[12px] text-muted-foreground">
                         {r.orderId ? (
-                          <Link href={`/${tenantSlug}/admin/orders/${r.orderId}`} className="hover:underline">
+                          <Link
+                            href={`/${tenantSlug}/admin/orders?q=${encodeURIComponent(r.orderId)}`}
+                            className="hover:underline"
+                          >
                             {r.orderId.slice(0, 8).toUpperCase()}
                           </Link>
                         ) : (

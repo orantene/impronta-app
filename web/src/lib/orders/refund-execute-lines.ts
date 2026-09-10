@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-execute";
+import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
 import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
@@ -67,8 +67,18 @@ export type RefundLinesResult =
       lineStateIncomplete: boolean;
       releasedPromoRedemption: boolean;
     }
-  /** Nothing moved. Safe to retry unchanged. */
-  | { ok: false; reason: string; movedCents: 0 }
+  /**
+   * Nothing moved. Safe to retry unchanged.
+   *
+   * `code` carries the PROVIDER's own refusal when there was one, because
+   * `reason: "refund_refused"` is the same word for every way a provider can
+   * say no, and the differences matter to the person reading the screen: a cash
+   * sale has no charge to reverse and never will, while a transient provider
+   * error is worth pressing again. `lib/orders/refund-desk-copy.ts` turns it
+   * into a sentence. Absent when the refusal happened before any provider was
+   * asked, and the reason alone is enough.
+   */
+  | { ok: false; reason: string; movedCents: 0; code?: RefundBlockedCode }
   /**
    * Money moved and then something failed. NOT retryable as-is: the refunds
    * that landed are real. A human decides the remainder.
@@ -206,7 +216,11 @@ export async function refundOrderLines(
       if (!res.ok) {
         if (moved === 0) {
           // Nothing landed. A clean refusal the caller may retry unchanged.
-          return { ok: false, reason: "refund_refused", movedCents: 0 };
+          //
+          // The provider's own code travels with it. Dropping it here is what
+          // reduced "this was collected in cash, so there is no card charge to
+          // reverse" to the single word `refund_refused` on the Orders desk.
+          return { ok: false, reason: "refund_refused", movedCents: 0, code: res.code };
         }
         // Money HAS moved. Reporting a plain failure here would invite a retry
         // that refunds the successful legs a second time, and a Stripe refund

@@ -12115,7 +12115,28 @@
       "unavailableTitle": "No pudimos cargar tus pedidos",
       "refund": "Reembolsar líneas",
       "refundEffect": "Qué hace este reembolso",
-      "refundConfirm": "Confirmar este reembolso"
+      "refundConfirm": "Confirmar este reembolso",
+      "refundEffectCopy": {
+        "keepEntitlement": "Reembolsar parte del precio. El cliente conserva lo que compró.",
+        "cancelTicket": "Cancelar una entrada. Esa admisión se anula y la plaza vuelve a estar libre.",
+        "adjustmentAfterService": "Reembolsar después del servicio. No cambia nada más.",
+        "revokeUnusedAdmission": "Anular una admisión sin usar. El reembolso es opcional.",
+        "refundHybridComponent": "Reembolsar una parte del paquete. Las demás partes siguen en pie."
+      },
+      "refundOutcome": {
+        "refunded": "Reembolsado. El dinero ya va de vuelta al cliente.",
+        "pickALine": "Elige al menos una línea antes de confirmar el reembolso.",
+        "notAllowed": "No puedes hacer reembolsos en este espacio de trabajo. Pídelo a una persona propietaria.",
+        "invalid": "No se pudo leer ese reembolso. Vuelve a cargar la página e inténtalo otra vez.",
+        "notFound": "Ese pedido no está aquí. Puede pertenecer a otro espacio de trabajo o haber sido eliminado.",
+        "nothingToRefund": "No queda nada por reembolsar en las líneas que elegiste.",
+        "lineAlreadyRefunded": "Esa línea ya se reembolsó por completo.",
+        "exceedsCaptured": "Eso es más de lo que se cobró en este pedido, así que no se puede reembolsar.",
+        "noProviderCharge": "Este pago entró fuera de la plataforma, en efectivo o por transferencia, así que no hay ningún cargo de tarjeta que revertir. Devuelve el dinero por la misma vía y regístralo como reembolso fuera de la plataforma.",
+        "providerRefused": "El proveedor de pagos rechazó el reembolso. No se reembolsó nada y no se cobró nada. Inténtalo otra vez o revisa el pago en el proveedor.",
+        "partialFailure": "Una parte de este reembolso salió y otra no. No lo intentes otra vez: los reembolsos que salieron son reales. Alguien tiene que terminar el resto a mano.",
+        "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
+      }
     },
     "sales": {
       "pageTitle": "Ventas",

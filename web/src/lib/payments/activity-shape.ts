@@ -12,6 +12,7 @@
  */
 
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { outstandingCents, salesBucket } from "@/lib/orders/orders-list";
 
 export type PaymentsLocale = "en" | "es" | "fr";
 
@@ -175,6 +176,51 @@ export function sumByCurrency(
       buckets.set(currency, bucket);
     }
     bucket.totalCents += row.grossAmountCents;
+    bucket.count += 1;
+  }
+  return [...buckets.values()].sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
+// ── Still owed ──────────────────────────────────────────────────────────
+
+/** The four facts the owed rule reads. Nothing else on an order enters the sum. */
+export type OwedSourceRow = {
+  status: string;
+  currency: string;
+  totalCents: number;
+  collectedCents: number;
+};
+
+/**
+ * "Still owed", per currency, over EVERY row handed in.
+ *
+ * The rule is the Orders desk's own — `salesBucket` decides whether a row is
+ * awaiting payment (a cancelled, draft, quoted or refunded order is not, and
+ * neither is a complimentary place) and `outstandingCents` decides how much
+ * of it is still open. Both are imported rather than restated, so the desk
+ * and this page cannot drift apart on what "owed" means.
+ *
+ * WHY THIS IS NOT `totalsFor` OVER THE DESK'S LIST. The desk's reader stops at
+ * the 200 most recent orders, which is right for a list a person scrolls and
+ * wrong for a total: an unpaid order older than the newest 200 simply fell
+ * out of the figure, and the page still called it the sum. This function
+ * takes the whole owed set (`loadTenantOwedOrders` pages through it) and
+ * returns only currencies with something owed, so an empty result means
+ * nothing is owed rather than nothing was read.
+ */
+export function sumOwedByCurrency(rows: readonly OwedSourceRow[]): CurrencyTotal[] {
+  const buckets = new Map<string, CurrencyTotal>();
+  for (const row of rows) {
+    if (salesBucket(row) !== "to_pay") continue;
+    const owed = outstandingCents(row);
+    if (owed <= 0) continue;
+    const currency = (row.currency || "USD").toUpperCase();
+    let bucket = buckets.get(currency);
+    if (!bucket) {
+      bucket = { currency, totalCents: 0, count: 0 };
+      buckets.set(currency, bucket);
+    }
+    bucket.totalCents += owed;
     bucket.count += 1;
   }
   return [...buckets.values()].sort((a, b) => a.currency.localeCompare(b.currency));

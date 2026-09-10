@@ -1,37 +1,62 @@
 "use client";
 
+/**
+ * The Orders desk's refund form.
+ *
+ * WHAT CHANGED AND WHY. Every string this component showed used to come
+ * straight off the wire: `"ok"` on success, `"pick a line"` when nothing was
+ * ticked, and the engine's reason code otherwise. A cashier who tried to refund
+ * a cash sale read the word `refund_refused` — and the sentence that explains
+ * it ("collected off-platform, so there is no card charge to reverse; give the
+ * money back the way it came in") was written by `computeRefundEligibility` and
+ * thrown away two frames earlier. In Spanish and French it was the same English
+ * code.
+ *
+ * So the server hands back an OUTCOME CODE, `refund-desk-copy.ts` names the
+ * message key for it, and the page passes this component the already-translated
+ * sentences. This file therefore holds no English of its own: every word below
+ * comes from `copy`.
+ *
+ * THE EFFECT DESCRIPTIONS ARE COPY TOO. They were a hardcoded English record
+ * here, on the one control that decides whether a seat comes back and whether a
+ * ticket still admits. They now come from the same catalogue.
+ */
+
 import { useState } from "react";
 import { REFUND_EFFECTS, type RefundEffect } from "@/lib/orders/refund-effects";
+import type { RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
 import { loadOrderLinesForDesk, refundOrderAtDesk } from "./refund-actions";
 
-const EFFECT_COPY: Record<RefundEffect, string> = {
-  keep_entitlement: "Refund part of the price. The guest keeps what they bought.",
-  cancel_ticket: "Cancel one ticket. That admission is revoked and the seat comes back.",
-  adjustment_after_service: "Refund after the service. Nothing else changes.",
-  revoke_unused_admission: "Revoke an unused admission. Refund is optional.",
-  refund_hybrid_component: "Refund one part of a package. The other parts stand.",
+export type RefundFormCopy = {
+  readonly refund: string;
+  readonly effect: string;
+  readonly confirm: string;
+  /** One sentence per effect, in the reader's language. */
+  readonly effects: Readonly<Record<RefundEffect, string>>;
+  /** One sentence per outcome, success included. */
+  readonly outcomes: Readonly<Record<RefundDeskOutcome, string>>;
 };
 
 export function OrdersRefundForm({
   orderId,
-  labels,
+  copy,
 }: {
   orderId: string;
-  labels: { refund: string; effect: string; confirm: string };
+  copy: RefundFormCopy;
 }) {
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number }>>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [effect, setEffect] = useState<RefundEffect>("cancel_ticket");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<RefundDeskOutcome | null>(null);
 
   async function openForm() {
     setOpen(true);
-    setMsg(null);
+    setOutcome(null);
     const res = await loadOrderLinesForDesk(orderId);
     if (!res.ok) {
-      setMsg(res.error);
+      setOutcome(res.outcome);
       return;
     }
     setLines(res.lines.filter((l) => l.totalCents > l.refundedCents));
@@ -41,20 +66,24 @@ export function OrdersRefundForm({
     <div>
       {!open ? (
         <button type="button" onClick={() => void openForm()} style={{ fontSize: 12 }}>
-          {labels.refund}
+          {copy.refund}
         </button>
       ) : (
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (picked.length === 0) {
-              setMsg("pick a line");
+              setOutcome("pick_a_line");
               return;
             }
             setBusy(true);
             void refundOrderAtDesk({ orderId, lineIds: picked, effect }).then((r) => {
               setBusy(false);
-              setMsg(r.ok ? "ok" : r.error);
+              setOutcome(r.outcome);
+              // The form stays OPEN on a refusal so the sentence stays on
+              // screen next to the lines it is about. It used to close on
+              // success only, which was right, and leave a bare code behind on
+              // a refusal, which was not.
               if (r.ok) setOpen(false);
             });
           }}
@@ -75,7 +104,7 @@ export function OrdersRefundForm({
             </label>
           ))}
           <label style={{ fontSize: 12 }}>
-            {labels.effect}
+            {copy.effect}
             <select
               value={effect}
               onChange={(e) => setEffect(e.target.value as RefundEffect)}
@@ -83,16 +112,20 @@ export function OrdersRefundForm({
             >
               {REFUND_EFFECTS.map((id) => (
                 <option key={id} value={id}>
-                  {EFFECT_COPY[id]}
+                  {copy.effects[id]}
                 </option>
               ))}
             </select>
           </label>
-          <p style={{ fontSize: 12, margin: 0 }}>{EFFECT_COPY[effect]}</p>
+          <p style={{ fontSize: 12, margin: 0 }}>{copy.effects[effect]}</p>
           <button type="submit" disabled={busy} style={{ minHeight: 36 }}>
-            {labels.confirm}
+            {copy.confirm}
           </button>
-          {msg ? <p role="status" style={{ fontSize: 12, margin: 0 }}>{msg}</p> : null}
+          {outcome ? (
+            <p role="status" data-orders-refund-outcome={outcome} style={{ fontSize: 12, margin: 0 }}>
+              {copy.outcomes[outcome]}
+            </p>
+          ) : null}
         </form>
       )}
     </div>

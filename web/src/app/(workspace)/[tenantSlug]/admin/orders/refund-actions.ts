@@ -7,6 +7,24 @@ import { userHasCapability } from "@/lib/access";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
 import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
+import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
+
+/**
+ * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
+ *
+ * It used to return whatever string the engine or the staff guard produced, and
+ * the form rendered it: an operator refunding a cash sale read the word
+ * `refund_refused`, and a Spanish one read it too. The screen maps the outcome
+ * to translated copy through `lib/orders/refund-desk-copy.ts`. Same rule the
+ * Projects surface states in `projects/[projectId]/actions.ts`.
+ */
+export type RefundDeskResult =
+  | { ok: true; outcome: "refunded"; refundedCents: number }
+  | { ok: false; outcome: RefundDeskOutcome };
+
+export type DeskLinesResult =
+  | { ok: true; lines: DeskOrderLine[] }
+  | { ok: false; outcome: RefundDeskOutcome };
 
 export type DeskOrderLine = {
   id: string;
@@ -15,30 +33,30 @@ export type DeskOrderLine = {
   refundedCents: number;
 };
 
-export async function loadOrderLinesForDesk(orderId: string): Promise<
-  { ok: true; lines: DeskOrderLine[] } | { ok: false; error: string }
-> {
+export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesResult> {
   const guard = await requireWorkspaceStaffAction();
-  if (!guard.ok) return { ok: false, error: guard.error };
-  if (!/^[0-9a-f-]{36}$/i.test(orderId)) return { ok: false, error: "invalid" };
+  // The guard's `error` is an English sentence for a log. The screen gets a
+  // code and picks its own words.
+  if (!guard.ok) return { ok: false, outcome: "not_allowed" };
+  if (!/^[0-9a-f-]{36}$/i.test(orderId)) return { ok: false, outcome: "invalid" };
   const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "unavailable" };
+  if (!admin) return { ok: false, outcome: "unavailable" };
 
   const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, tenant_id")
     .eq("id", orderId)
     .maybeSingle();
-  if (orderErr) return { ok: false, error: "unavailable" };
+  if (orderErr) return { ok: false, outcome: "unavailable" };
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
-    return { ok: false, error: "not_found" };
+    return { ok: false, outcome: "not_found" };
   }
 
   const { data, error } = await admin
     .from("order_lines")
     .select("id, label, total_cents, refunded_cents")
     .eq("order_id", orderId);
-  if (error) return { ok: false, error: "unavailable" };
+  if (error) return { ok: false, outcome: "unavailable" };
   const lines = ((data ?? []) as Array<{
     id: string;
     label: string | null;
@@ -59,26 +77,27 @@ const schema = z.object({
   effect: z.string(),
 });
 
-export async function refundOrderAtDesk(input: z.infer<typeof schema>) {
+export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<RefundDeskResult> {
   const guard = await requireWorkspaceStaffAction();
-  if (!guard.ok) return { ok: false as const, error: guard.error };
+  if (!guard.ok) return { ok: false, outcome: "not_allowed" };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);
-  if (!allowed) return { ok: false as const, error: "not_allowed" };
+  if (!allowed) return { ok: false, outcome: "not_allowed" };
   const parsed = schema.safeParse(input);
   if (!parsed.success || !isRefundEffect(parsed.data.effect)) {
-    return { ok: false as const, error: "invalid" };
+    return { ok: false, outcome: "invalid" };
   }
+  if (parsed.data.lineIds.length === 0) return { ok: false, outcome: "pick_a_line" };
   const admin = createServiceRoleClient();
-  if (!admin) return { ok: false as const, error: "unavailable" };
+  if (!admin) return { ok: false, outcome: "unavailable" };
 
   const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, tenant_id")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
-  if (orderErr) return { ok: false as const, error: "unavailable" };
+  if (orderErr) return { ok: false, outcome: "unavailable" };
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
-    return { ok: false as const, error: "not_found" };
+    return { ok: false, outcome: "not_found" };
   }
 
   if (parsed.data.effect === "refund_hybrid_component") {
@@ -89,8 +108,8 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>) {
       actorUserId: guard.user.id,
       note: `desk:${parsed.data.effect}`,
     });
-    if (!hybrid.ok) return { ok: false as const, error: hybrid.reason };
-    return { ok: true as const, refundedCents: hybrid.refundedCents };
+    if (!hybrid.ok) return { ok: false, outcome: refundDeskOutcome(hybrid.reason) };
+    return { ok: true, outcome: "refunded", refundedCents: hybrid.refundedCents };
   }
 
   const result = await refundOrderLines(admin, {
@@ -100,6 +119,13 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>) {
     actorUserId: guard.user.id,
     note: `desk:${parsed.data.effect}`,
   });
-  if (!result.ok) return { ok: false as const, error: result.reason };
-  return { ok: true as const, refundedCents: result.refundedCents };
+  if (!result.ok) {
+    // The PROVIDER's code wins when there is one: "no charge to reverse" and
+    // "the provider said no" are different things to do next, and
+    // `refund_refused` alone cannot tell them apart.
+    const code =
+      "code" in result && result.code ? result.code : result.reason;
+    return { ok: false, outcome: refundDeskOutcome(code) };
+  }
+  return { ok: true, outcome: "refunded", refundedCents: result.refundedCents };
 }
