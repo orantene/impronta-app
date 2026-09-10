@@ -17,14 +17,20 @@ import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   evaluateGuestInstantPolicy,
+  resolveGuestBookingIdentity,
   type GuestInstantPolicy,
 } from "./instant-book-guest-policy";
 
-export { evaluateGuestInstantPolicy, type GuestInstantPolicy };
+export { evaluateGuestInstantPolicy, resolveGuestBookingIdentity, type GuestInstantPolicy };
 
 export type InstantBookActor = {
   kind: "session" | "guest";
-  userId: string;
+  /**
+   * `null` for a guest with no account. The purchase pipeline takes
+   * `actorUserId: string | null` and resolves a guest through `ensureCustomer`;
+   * demanding an id here refused every first-time customer.
+   */
+  userId: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
@@ -185,22 +191,32 @@ export async function resolveInstantBookActor(input: {
     return fail("validation", "Unable to complete this booking.");
   }
 
+  // Matches a guest who ALREADY has an account so their orders land on it.
+  // A miss returns `unlinked` on purpose (customer auth retirement): that is
+  // "no account yet", not "bad input", and it must not stop the booking.
   const provisioned = await ensureGuestClientByEmail({
     email,
     name,
     company: "",
     phone: input.contactPhone?.trim() ?? "",
   });
-  if (!provisioned.clientUserId) {
+
+  const identity = resolveGuestBookingIdentity({
+    email,
+    name,
+    phone: input.contactPhone ?? null,
+    clientUserId: provisioned.clientUserId,
+  });
+  if (!identity.ok) {
     return fail("validation", "Add your name and email to book.");
   }
 
   return {
     kind: "guest",
-    userId: provisioned.clientUserId,
-    contactName: name || email,
-    contactEmail: email,
-    contactPhone: input.contactPhone ?? null,
+    userId: identity.userId,
+    contactName: identity.contactName,
+    contactEmail: identity.contactEmail,
+    contactPhone: identity.contactPhone,
     useServiceRoleConvert: true,
   };
 }

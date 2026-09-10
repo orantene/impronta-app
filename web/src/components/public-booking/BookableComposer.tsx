@@ -113,7 +113,17 @@ export function BookableComposer({
     : baseIntent(active);
 
   async function confirmInstant() {
-    if (!slot || !tenantId || !active.talentProfileId) return;
+    // A bare `return` here was a dead end with no explanation: the customer
+    // pressed Confirm, the button stayed as it was, and nothing on the page
+    // changed or said why. Whatever is missing, say so in a sentence.
+    if (!slot) {
+      setError(t("public.slotPicker.pickTimeFirst"));
+      return;
+    }
+    if (!tenantId || !active.talentProfileId) {
+      setError(t("public.slotPicker.notBookableOnline"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -151,7 +161,18 @@ export function BookableComposer({
         if (res.slotTaken) setSlot(null);
         return;
       }
+      // An `ok` with nowhere to go is still a dead end. Say so rather than
+      // leaving the customer looking at an unchanged page.
+      if (!res.redirectPath?.trim()) {
+        setError(t("public.slotPicker.confirmFailed"));
+        return;
+      }
       window.location.href = res.redirectPath;
+    } catch {
+      // A rejected server action (network drop, a 500 on the action route)
+      // used to reject the floating promise: busy cleared, nothing rendered,
+      // the customer sat on an unchanged page forever.
+      setError(t("public.slotPicker.confirmFailed"));
     } finally {
       setBusy(false);
     }
@@ -175,7 +196,9 @@ export function BookableComposer({
       {instant && slot ? (
         <div className="mt-3 flex flex-col gap-2">
           {error ? (
-            <p className="text-sm text-[var(--token-color-danger,#dc2626)]">{error}</p>
+            <p role="alert" className="text-sm text-[var(--token-color-danger,#dc2626)]">
+              {error}
+            </p>
           ) : null}
           {!signedIn && requireAccountToBook ? (
             <a
