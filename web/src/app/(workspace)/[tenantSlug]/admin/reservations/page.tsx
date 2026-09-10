@@ -30,8 +30,10 @@ import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { listFloor } from "@/lib/visits/floor";
 import { loadHostStand } from "./host-stand-data";
-import { HostStandBoard } from "./HostStandBoard";
+import { HostStandBoard, type SeatableTable } from "./HostStandBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +144,25 @@ export default async function ReservationsPage({
     );
   }
 
+  // The tables the desk may put a party on, read from the SAME floor the
+  // Tables screen renders. A separate query with its own idea of "free" is how
+  // two screens end up disagreeing about whether the room is full. A failed
+  // read degrades to "no table to seat on", which is honest, rather than
+  // hiding the whole book.
+  const floorAdmin = createServiceRoleClient();
+  const floor = floorAdmin ? await listFloor(floorAdmin, scope.tenantId) : { ok: false as const };
+  const seatable: SeatableTable[] = floor.ok
+    ? floor.tables
+        .filter((t) => t.state !== "occupied")
+        .map((t) => ({
+          spaceId: t.spaceId,
+          label: t.code ?? t.name,
+          partyMin: t.partyMin,
+          partyMax: t.partyMax,
+          held: t.state === "held",
+        }))
+    : [];
+
   return (
     <Shell title={title}>
       <HostStandBoard
@@ -168,6 +189,40 @@ export default async function ReservationsPage({
           stateSeated: tr("dashboard.reservationsDesk.stateSeated"),
           stateNoShow: tr("dashboard.reservationsDesk.stateNoShow"),
           stateCompleted: tr("dashboard.reservationsDesk.stateCompleted"),
+          seat: tr("dashboard.reservationsDesk.seat"),
+          takeWalkIn: tr("dashboard.reservationsDesk.takeWalkIn"),
+          takeWalkInHeading: tr("dashboard.reservationsDesk.takeWalkInHeading"),
+          walkInNameLabel: tr("dashboard.reservationsDesk.walkInNameLabel"),
+          walkInPartyLabel: tr("dashboard.reservationsDesk.walkInPartyLabel"),
+          walkInConfirm: tr("dashboard.reservationsDesk.walkInConfirm"),
+          seatHeading: tr("dashboard.reservationsDesk.seatHeading"),
+          seatCancel: tr("dashboard.reservationsDesk.seatCancel"),
+          noSeatableTable: tr("dashboard.reservationsDesk.noSeatableTable"),
+          seatedNotMarked: tr("dashboard.reservationsDesk.seatedNotMarked"),
+          refusal: {
+            not_found: tr("dashboard.reservationsDesk.refusal.notFound"),
+            wrong_tenant: tr("dashboard.reservationsDesk.refusal.notFound"),
+            already_open: tr("dashboard.reservationsDesk.refusal.alreadyOpen"),
+            invalid: tr("dashboard.reservationsDesk.refusal.invalid"),
+            party_too_small: tr("dashboard.reservationsDesk.refusal.partyTooSmall"),
+            party_too_large: tr("dashboard.reservationsDesk.refusal.partyTooLarge"),
+            not_combinable: tr("dashboard.reservationsDesk.refusal.invalid"),
+            joined_unavailable: tr("dashboard.reservationsDesk.refusal.alreadyOpen"),
+            not_allowed: tr("dashboard.reservationsDesk.refusal.notAllowed"),
+            unavailable: tr("dashboard.reservationsDesk.refusal.unavailable"),
+            reservation_not_found: tr("dashboard.reservationsDesk.refusal.reservationNotFound"),
+            reservation_other_table: tr("dashboard.reservationsDesk.refusal.reservationOtherTable"),
+            reservation_not_valid: tr("dashboard.reservationsDesk.refusal.reservationNotValid"),
+            reservation_already_seated: tr("dashboard.reservationsDesk.refusal.reservationAlreadySeated"),
+            walkins_off: tr("dashboard.reservationsDesk.refusal.walkinsOff"),
+            party_below_minimum: tr("dashboard.reservationsDesk.refusal.partyBelowMinimum"),
+            party_above_maximum: tr("dashboard.reservationsDesk.refusal.partyAboveMaximum"),
+            no_band_fits_this_party: tr("dashboard.reservationsDesk.refusal.noBandFits"),
+            sold_out: tr("dashboard.reservationsDesk.refusal.soldOut"),
+            capacity_unavailable: tr("dashboard.reservationsDesk.refusal.capacityUnavailable"),
+            engine_error: tr("dashboard.reservationsDesk.refusal.engineError"),
+            reservations_off: tr("dashboard.reservationsDesk.refusal.reservationsOff"),
+          },
         }}
         data={{
           venueName: state.data.venueName,
@@ -186,6 +241,7 @@ export default async function ReservationsPage({
             holderName: e.holderName,
             spaceCode: e.spaceCode,
           })),
+          seatable,
           summary: state.data.summary,
           windows: state.data.windows.map((w) => ({
             key: w.key,

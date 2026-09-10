@@ -50,24 +50,35 @@ ON CONFLICT (id) DO UPDATE
       supported_locales = EXCLUDED.supported_locales,
       updated_at        = now();
 
+-- THE FIXTURE DOES NOT FIGHT OVER WHICH HOST IS PRIMARY. A real staging host
+-- (`staging-qa-journeys.tulala.digital`) was later made primary for this
+-- workspace and this `.local` row demoted, which is correct: a QA host you can
+-- actually open beats a hostname that resolves nowhere. Re-asserting
+-- `is_primary = TRUE` here made the whole seed abort on
+-- `agency_domains_tenant_primary_uniq`, and because the file is one
+-- transaction NOTHING in it applied -- the seed was no longer re-runnable at
+-- all. So: claim primary only when the workspace has no primary yet, and never
+-- take it away from a row that already holds it.
 INSERT INTO public.agency_domains (
   id, tenant_id, hostname, kind, is_primary, status,
   verified_at, ssl_provisioned_at
 )
-VALUES (
+SELECT
   '33330005-0000-4000-8000-000000000001'::UUID,
   '33333333-3333-4333-8333-333333333333'::UUID,
   'qa-journeys.local',
   'subdomain',
-  TRUE,
+  NOT EXISTS (
+    SELECT 1 FROM public.agency_domains d
+     WHERE d.tenant_id = '33333333-3333-4333-8333-333333333333'::UUID
+       AND d.is_primary
+  ),
   'active',
   now(),
   NULL
-)
 ON CONFLICT (hostname) DO UPDATE
   SET tenant_id   = EXCLUDED.tenant_id,
       kind        = EXCLUDED.kind,
-      is_primary  = EXCLUDED.is_primary,
       status      = EXCLUDED.status,
       verified_at = COALESCE(public.agency_domains.verified_at, EXCLUDED.verified_at),
       updated_at  = now();
@@ -107,20 +118,24 @@ UPDATE public.agencies
   plan_tier = 'agency'
   WHERE id = '33333333-3333-4333-8333-333333333333'::UUID;
 
+-- Same rule as workspace A's host above.
 INSERT INTO public.agency_domains (
   id, tenant_id, hostname, kind, is_primary, status, verified_at, ssl_provisioned_at
 )
-VALUES (
+SELECT
   '33330005-0000-4000-8000-000000000002'::UUID,
   '33333333-3333-4333-8333-333333333334'::UUID,
   'qa-journeys-b.local',
   'subdomain',
-  TRUE,
+  NOT EXISTS (
+    SELECT 1 FROM public.agency_domains d
+     WHERE d.tenant_id = '33333333-3333-4333-8333-333333333334'::UUID
+       AND d.is_primary
+  ),
   'active',
   now(),
   NULL
-)
-  ON CONFLICT (hostname) DO UPDATE
+ON CONFLICT (hostname) DO UPDATE
   SET tenant_id = EXCLUDED.tenant_id,
       status    = EXCLUDED.status,
       updated_at = now();
@@ -952,5 +967,107 @@ ON CONFLICT (id) DO UPDATE SET
   label = EXCLUDED.label,
   unit_cents = EXCLUDED.unit_cents,
   total_cents = EXCLUDED.total_cents;
+
+
+-- ===========================================================================
+-- A FLOOR WITH MORE THAN ONE TABLE ON IT (T01/T05/T07/T12/T15/T24).
+-- ===========================================================================
+--
+-- WHY THIS BLOCK EXISTS. The fixture used to carry ONE table, no table
+-- combinations at all, and not one admission with a `space_id`. On that data
+-- the floor renders a single card, the join picker is always empty, "move"
+-- always answers "no free table fits this party", and the derived HELD state
+-- can never fire, because held is computed from an admission that names a
+-- space. Four of the floor's features were therefore unprovable on the QA
+-- host and provable only against unit-test doubles, which is the difference
+-- between "the code is right" and "the journey passes".
+--
+-- THE SHAPE IS CHOSEN, NOT ARBITRARY:
+--   T2 + T3   two two-tops that COMBINE for 3 to 4. A walk-in of four fits
+--             neither alone (party_max 2 -> party_too_large) and fits the
+--             join, which is the Definition-of-Done journey for T15.
+--   T4        a four-top: the table tonight's next booking is holding.
+--   B1        a booth for 4 to 6, so the floor is not all one kind and the
+--             combination T3 + T4 (5 to 6) has a rival a host can choose.
+--   T5        a spare two-top, so a MOVE has a destination even while the join
+--             demo occupies two tables and the booth is held.
+--
+-- COMBINATIONS ARE SYMMETRIC ROWS ON PURPOSE. `openVisit` looks up exactly
+-- (space_id, with_space_id); the primary table is whichever card the host
+-- tapped, so both directions must exist or joining from T3 works and joining
+-- the same two tables from T2 does not.
+--
+-- THE ADMISSIONS ARE RELATIVE TO `now()`. "Held" means due any minute, so a
+-- fixed timestamp would be a fixture that is correct for one afternoon. Every
+-- row below is stamped from the moment the seed runs and re-stamped by the
+-- ON CONFLICT branch, so re-running the seed refreshes tonight's book rather
+-- than accumulating a second one.
+
+INSERT INTO public.spaces (id, tenant_id, venue_id, kind, name, code, party_min, party_max, status, sort_order)
+VALUES
+  ('33330011-0000-4000-8000-000000000011'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'table', 'Table 2', 'T2', 1, 2, 'active', 1),
+  ('33330011-0000-4000-8000-000000000012'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'table', 'Table 3', 'T3', 1, 2, 'active', 2),
+  ('33330011-0000-4000-8000-000000000013'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'table', 'Table 4', 'T4', 2, 4, 'active', 3),
+  ('33330011-0000-4000-8000-000000000014'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'booth', 'Booth 1', 'B1', 4, 6, 'active', 4),
+  -- T5 exists so "move this party somewhere" has an answer even when the join
+  -- demo has taken two tables and the booth is held. A floor where every free
+  -- table is the wrong size makes T12 unprovable for a reason that is about
+  -- the fixture, not the code.
+  ('33330011-0000-4000-8000-000000000015'::UUID, '33333333-3333-4333-8333-333333333333'::UUID, '33330010-0000-4000-8000-000000000001'::UUID, 'table', 'Table 5', 'T5', 1, 2, 'active', 5)
+ON CONFLICT (id) DO UPDATE SET
+  name       = EXCLUDED.name,
+  code       = EXCLUDED.code,
+  kind       = EXCLUDED.kind,
+  party_min  = EXCLUDED.party_min,
+  party_max  = EXCLUDED.party_max,
+  status     = EXCLUDED.status,
+  sort_order = EXCLUDED.sort_order,
+  updated_at = now();
+
+INSERT INTO public.space_combinations (tenant_id, space_id, with_space_id, party_min, party_max)
+VALUES
+  ('33333333-3333-4333-8333-333333333333'::UUID, '33330011-0000-4000-8000-000000000011'::UUID, '33330011-0000-4000-8000-000000000012'::UUID, 3, 4),
+  ('33333333-3333-4333-8333-333333333333'::UUID, '33330011-0000-4000-8000-000000000012'::UUID, '33330011-0000-4000-8000-000000000011'::UUID, 3, 4),
+  ('33333333-3333-4333-8333-333333333333'::UUID, '33330011-0000-4000-8000-000000000012'::UUID, '33330011-0000-4000-8000-000000000013'::UUID, 5, 6),
+  ('33333333-3333-4333-8333-333333333333'::UUID, '33330011-0000-4000-8000-000000000013'::UUID, '33330011-0000-4000-8000-000000000012'::UUID, 5, 6)
+ON CONFLICT (space_id, with_space_id) DO UPDATE SET
+  party_min = EXCLUDED.party_min,
+  party_max = EXCLUDED.party_max;
+
+-- Tonight's book, all four states the floor and the desk have to tell apart.
+-- `starts_at` drives everything: `bookState` reads it against `now()` and the
+-- venue's grace window, and NOTHING here writes a state column, because there
+-- is no state column to write.
+INSERT INTO public.admissions (
+  id, tenant_id, space_id, holder_name, party_size, admitted_count, starts_at, status
+)
+VALUES
+  -- ARRIVING: due in eight minutes, nobody here yet -> T4 reads "Held".
+  ('33330040-0000-4000-8000-000000000001'::UUID, '33333333-3333-4333-8333-333333333333'::UUID,
+   '33330011-0000-4000-8000-000000000013'::UUID, 'Ana Ruiz',      2, 0, now() + INTERVAL '8 minutes',  'valid'),
+  -- LATE: past the grace window, still nobody -> B1 reads "Held", running late.
+  ('33330040-0000-4000-8000-000000000002'::UUID, '33333333-3333-4333-8333-333333333333'::UUID,
+   '33330011-0000-4000-8000-000000000014'::UUID, 'Beto Salas',    5, 0, now() - INTERVAL '40 minutes', 'valid'),
+  -- BOOKED: hours out. NOT held, and that is the point of having it here: a
+  -- floor that held every future booking would strand a room all evening. It
+  -- sits on T3, which is free, so "booked does not hold" is proven by the
+  -- state and not by the table happening to be busy for another reason.
+  ('33330040-0000-4000-8000-000000000003'::UUID, '33333333-3333-4333-8333-333333333333'::UUID,
+   '33330011-0000-4000-8000-000000000012'::UUID, 'Carla Nieto',   4, 0, now() + INTERVAL '3 hours',    'valid'),
+  -- SEATED: the whole party is in. Also not held -- it is resolved, not imminent.
+  ('33330040-0000-4000-8000-000000000004'::UUID, '33333333-3333-4333-8333-333333333333'::UUID,
+   '33330011-0000-4000-8000-000000000001'::UUID, 'Diego Paz',     4, 4, now() - INTERVAL '90 minutes', 'valid')
+ON CONFLICT (id) DO UPDATE SET
+  space_id       = EXCLUDED.space_id,
+  holder_name    = EXCLUDED.holder_name,
+  party_size     = EXCLUDED.party_size,
+  admitted_count = EXCLUDED.admitted_count,
+  starts_at      = EXCLUDED.starts_at,
+  status         = EXCLUDED.status,
+  seated_at      = NULL,
+  no_show_at     = NULL,
+  completed_at   = NULL,
+  updated_at     = now();
+
 
 COMMIT;

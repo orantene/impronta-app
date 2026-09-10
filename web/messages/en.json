@@ -12159,7 +12159,6 @@
       "pageIntro": "Open a visit on a table. The printed QR follows this visit, not last night's check.",
       "unavailable": "We could not load the floor.",
       "empty": "No tables, booths or cabanas yet.",
-      "open": "Open visit",
       "close": "End visit",
       "sale": "Open check",
       "occupied": "Occupied",
@@ -12205,8 +12204,16 @@
         "alreadyClosed": "That visit is already closed.",
         "versionConflict": "The table changed. Reload and try again.",
         "notAllowed": "You do not have permission to do that.",
-        "unavailable": "Something went wrong. Try again."
-      }
+        "unavailable": "Something went wrong. Try again.",
+        "reservationNotFound": "The reservation that was holding this table is no longer on the book. Mark it arrived at the reservations desk.",
+        "reservationOtherTable": "That reservation is held for a different table. Mark it arrived at the reservations desk.",
+        "reservationNotValid": "That reservation was cancelled or refunded. Mark it arrived at the reservations desk.",
+        "reservationAlreadySeated": "That reservation was already marked arrived."
+      },
+      "timesInZone": "Times shown in {zone}, the venue's clock.",
+      "tableCheck": "Table check",
+      "tabCheck": "Bar tab",
+      "seatedNotMarked": "The party is seated."
     },
     "preparation": {
       "pageTitle": "Preparation",
@@ -12226,18 +12233,24 @@
       "statusReady": "Ready",
       "amended": "Amended. Acknowledge again.",
       "handedOff": "Handed off",
-      "promisedBy": "Promised by {time}"
+      "promisedBy": "Promised by {time}",
+      "timesInZone": "Times shown in {zone}, the venue's clock.",
+      "statusCancelled": "Cancelled",
+      "refusal": {
+        "notFound": "That ticket is not on this board.",
+        "wrongTenant": "That ticket is not on this board.",
+        "invalidState": "That ticket is not at a step where this is possible. Reload the board.",
+        "invalid": "That request was not valid.",
+        "notAllowed": "You do not have permission to do that.",
+        "unavailable": "Something went wrong. Try again."
+      }
     },
     "reservationsDesk": {
       "pageTitle": "Reservations",
-      "pageIntro": "Today's book, drawn from admissions against the venue's service rules. There is no separate reservations table.",
-      "unavailable": "We could not load today's book.",
       "unavailableHeading": "We could not load the book",
       "unavailableBody": "Nothing has changed and no booking was affected. Try again in a moment.",
-      "noVenue": "This workspace has no venue set up yet.",
       "noVenueHeading": "No venue yet",
       "noVenueBody": "Reservations belong to a place and run on that place's clock, so there is nothing to show until this workspace has one.",
-      "notConfigured": "{venue} has no reservation service configured for today.",
       "notConfiguredHeading": "No service windows yet",
       "notConfiguredBody": "{venue} is not taking bookings. Switch reservations on in Settings and add a service window, and tonight's book appears here.",
       "empty": "Nobody is booked for this service yet.",
@@ -12260,7 +12273,38 @@
       "statePartSeated": "Part seated",
       "stateSeated": "Seated",
       "stateNoShow": "No-show",
-      "stateCompleted": "Done"
+      "stateCompleted": "Done",
+      "seat": "Seat",
+      "seatHeading": "Seat this party at",
+      "seatCancel": "Cancel",
+      "noSeatableTable": "No free table fits this party.",
+      "seatedNotMarked": "The party is seated.",
+      "refusal": {
+        "notFound": "That booking is no longer on tonight's book.",
+        "alreadyOpen": "That table already has an open check.",
+        "invalid": "That request was not valid.",
+        "partyTooSmall": "This party is smaller than the table allows.",
+        "partyTooLarge": "This party is larger than the table allows.",
+        "notAllowed": "You do not have permission to do that.",
+        "unavailable": "Something went wrong. Try again.",
+        "reservationNotFound": "The booking could not be marked arrived. Reload the book.",
+        "reservationOtherTable": "That booking is held for a different table.",
+        "reservationNotValid": "That booking was cancelled or refunded.",
+        "reservationAlreadySeated": "That booking was already marked arrived.",
+        "walkinsOff": "Walk-ins are turned off for this venue.",
+        "partyBelowMinimum": "That party is smaller than this venue takes.",
+        "partyAboveMaximum": "That party is larger than this venue takes.",
+        "noBandFits": "No table size at this venue fits that party.",
+        "soldOut": "The room is full for that turn.",
+        "capacityUnavailable": "We could not check the room. Try again.",
+        "engineError": "Something went wrong. Try again.",
+        "reservationsOff": "This venue does not take reservations yet."
+      },
+      "takeWalkIn": "Add a walk-in",
+      "takeWalkInHeading": "A party that did not book, seated now.",
+      "walkInNameLabel": "Name",
+      "walkInPartyLabel": "Party",
+      "walkInConfirm": "Add to the book"
     },
     "visit": {
       "title": "Your table",

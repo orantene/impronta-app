@@ -14,12 +14,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { prepAcknowledge, prepHandoff, prepReady } from "./actions";
+import { prepAcknowledge, prepHandoff, prepReady, type PrepActionResult, type PrepRefusalReason } from "./actions";
 import type { PrepTicketView } from "@/lib/preparation/tickets";
+import { venueHhmm } from "@/lib/spaces/venue-clock";
 import { interpolate } from "@/i18n/interpolate";
 
 export type PreparationCopy = {
   empty: string;
+  statusCancelled: string;
   acknowledge: string;
   ready: string;
   handoff: string;
@@ -34,40 +36,59 @@ export type PreparationCopy = {
   amended: string;
   handedOff: string;
   promisedBy: string;
+  /**
+   * One sentence per refusal the actions can return. A station board that
+   * printed the code instead would put `invalid_state` in front of a cook.
+   */
+  refusal: Record<PrepRefusalReason, string>;
 };
 
-const DESTINATION_KEY: Record<PrepTicketView["destination"], keyof PreparationCopy> = {
+/** Only the string-valued half of the copy: `refusal` is a record, not a label. */
+type PreparationLabelKey = {
+  [K in keyof PreparationCopy]: PreparationCopy[K] extends string ? K : never;
+}[keyof PreparationCopy];
+
+const DESTINATION_KEY: Record<PrepTicketView["destination"], PreparationLabelKey> = {
   table: "destinationTable",
   pickup: "destinationPickup",
   counter: "destinationCounter",
 };
 
-const STATUS_KEY: Record<Exclude<PrepTicketView["status"], "cancelled">, keyof PreparationCopy> = {
+const STATUS_KEY: Record<Exclude<PrepTicketView["status"], "cancelled">, PreparationLabelKey> = {
   queued: "statusQueued",
   acknowledged: "statusAcknowledged",
   ready: "statusReady",
 };
 
-function hhmm(iso: string, locale: string): string {
-  try {
-    return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-  } catch {
-    return "--:--";
-  }
+/**
+ * A refusal, as a sentence in the reader's language. An unknown code (a
+ * server ahead of this bundle) reads as the generic sentence rather than as
+ * the raw token, which is the failure this function exists to prevent.
+ */
+export function refusalText(copy: PreparationCopy, result: Extract<PrepActionResult, { ok: false }>): string {
+  return copy.refusal[result.reason] ?? copy.refusal.unavailable;
 }
 
-export function PreparationClient(props: { locale: string; tickets: PrepTicketView[]; copy: PreparationCopy }) {
-  const { copy } = props;
+export function PreparationClient(props: {
+  locale: string;
+  /** The VENUE's IANA zone — see `lib/spaces/venue-clock.ts`. */
+  timeZone: string;
+  /** The zone as a sentence, built on the server (it reads a clock). */
+  zoneNote: string;
+  tickets: PrepTicketView[];
+  copy: PreparationCopy;
+}) {
+  const { copy, timeZone } = props;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
+  async function run(fn: () => Promise<PrepActionResult>) {
     setBusy(true);
     setMsg(null);
     const r = await fn();
     setBusy(false);
-    if (!r.ok) setMsg("error" in r && r.error ? r.error : "unavailable");
+    if (!r.ok) setMsg(refusalText(copy, r));
     else router.refresh();
   }
 
@@ -75,6 +96,7 @@ export function PreparationClient(props: { locale: string; tickets: PrepTicketVi
 
   return (
     <div>
+      <p className="mb-4 text-xs text-muted-foreground">{props.zoneNote}</p>
       {msg ? (
         <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {msg}
@@ -97,7 +119,7 @@ export function PreparationClient(props: { locale: string; tickets: PrepTicketVi
                       : "border-border bg-muted text-muted-foreground"
                   }`}
                 >
-                  {ticket.status === "cancelled" ? ticket.status : copy[STATUS_KEY[ticket.status]]}
+                  {ticket.status === "cancelled" ? copy.statusCancelled : copy[STATUS_KEY[ticket.status]]}
                 </span>
                 {ticket.revision > 1 ? (
                   <span className="text-xs text-muted-foreground">
@@ -108,7 +130,7 @@ export function PreparationClient(props: { locale: string; tickets: PrepTicketVi
               {isAmended ? <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">{copy.amended}</p> : null}
               {ticket.promisedAt ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {interpolate(copy.promisedBy, { time: hhmm(ticket.promisedAt, props.locale) })}
+                  {interpolate(copy.promisedBy, { time: venueHhmm(ticket.promisedAt, timeZone, props.locale) })}
                 </p>
               ) : null}
               {ticket.handedOffAt ? <p className="mt-1 text-xs text-muted-foreground">{copy.handedOff}</p> : null}

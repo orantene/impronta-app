@@ -12159,7 +12159,6 @@
       "pageIntro": "Abre una visita en una mesa. El QR impreso sigue esta visita, no la cuenta de anoche.",
       "unavailable": "No pudimos cargar el salón.",
       "empty": "Aún no hay mesas, cabinas ni cabanas.",
-      "open": "Abrir visita",
       "close": "Terminar visita",
       "sale": "Abrir cuenta",
       "occupied": "Ocupada",
@@ -12205,8 +12204,16 @@
         "alreadyClosed": "Esa visita ya está cerrada.",
         "versionConflict": "La mesa cambió. Recarga e intenta de nuevo.",
         "notAllowed": "No tienes permiso para hacer eso.",
-        "unavailable": "Algo salió mal. Intenta de nuevo."
-      }
+        "unavailable": "Algo salió mal. Intenta de nuevo.",
+        "reservationNotFound": "La reserva que apartaba esta mesa ya no está en el libro. Márcala como llegada en el escritorio de reservas.",
+        "reservationOtherTable": "Esa reserva aparta otra mesa. Márcala como llegada en el escritorio de reservas.",
+        "reservationNotValid": "Esa reserva fue cancelada o reembolsada. Márcala como llegada en el escritorio de reservas.",
+        "reservationAlreadySeated": "Esa reserva ya estaba marcada como llegada."
+      },
+      "timesInZone": "Horarios en {zone}, el reloj del local.",
+      "tableCheck": "Cuenta de mesa",
+      "tabCheck": "Cuenta de barra",
+      "seatedNotMarked": "El grupo quedó sentado."
     },
     "preparation": {
       "pageTitle": "Preparación",
@@ -12226,18 +12233,24 @@
       "statusReady": "Listo",
       "amended": "Modificado. Reconocer de nuevo.",
       "handedOff": "Entregado",
-      "promisedBy": "Prometido para {time}"
+      "promisedBy": "Prometido para {time}",
+      "timesInZone": "Horarios en {zone}, el reloj del local.",
+      "statusCancelled": "Cancelado",
+      "refusal": {
+        "notFound": "Ese ticket no está en este tablero.",
+        "wrongTenant": "Ese ticket no está en este tablero.",
+        "invalidState": "Ese ticket no está en un paso donde esto sea posible. Recarga el tablero.",
+        "invalid": "Esa solicitud no era válida.",
+        "notAllowed": "No tienes permiso para hacer eso.",
+        "unavailable": "Algo salió mal. Intenta de nuevo."
+      }
     },
     "reservationsDesk": {
       "pageTitle": "Reservas",
-      "pageIntro": "El libro de hoy, tomado de las admisiones contra las reglas de servicio del local. No existe una tabla de reservas aparte.",
-      "unavailable": "No pudimos cargar el libro de hoy.",
       "unavailableHeading": "No pudimos cargar el libro",
       "unavailableBody": "Nada cambió y ninguna reserva se vio afectada. Intenta de nuevo en un momento.",
-      "noVenue": "Este espacio de trabajo aún no tiene un local configurado.",
       "noVenueHeading": "Aún no hay un local",
       "noVenueBody": "Las reservas pertenecen a un lugar y corren en el reloj de ese lugar, así que no hay nada que mostrar hasta que este espacio de trabajo tenga uno.",
-      "notConfigured": "{venue} no tiene un servicio de reservas configurado para hoy.",
       "notConfiguredHeading": "Aún no hay horarios de servicio",
       "notConfiguredBody": "{venue} no está aceptando reservas. Activa las reservas en Configuración y agrega un horario de servicio, y el libro de esta noche aparecerá aquí.",
       "empty": "Todavía nadie tiene reserva para este servicio.",
@@ -12260,7 +12273,38 @@
       "statePartSeated": "Sentado parcial",
       "stateSeated": "Sentado",
       "stateNoShow": "No-show",
-      "stateCompleted": "Terminado"
+      "stateCompleted": "Terminado",
+      "seat": "Sentar",
+      "seatHeading": "Sentar a este grupo en",
+      "seatCancel": "Cancelar",
+      "noSeatableTable": "Ninguna mesa libre alcanza para este grupo.",
+      "seatedNotMarked": "El grupo quedó sentado.",
+      "refusal": {
+        "notFound": "Esa reserva ya no está en el libro de hoy.",
+        "alreadyOpen": "Esa mesa ya tiene una cuenta abierta.",
+        "invalid": "Esa solicitud no era válida.",
+        "partyTooSmall": "Este grupo es más chico de lo que permite la mesa.",
+        "partyTooLarge": "Este grupo es más grande de lo que permite la mesa.",
+        "notAllowed": "No tienes permiso para hacer eso.",
+        "unavailable": "Algo salió mal. Intenta de nuevo.",
+        "reservationNotFound": "No se pudo marcar la llegada de la reserva. Recarga el libro.",
+        "reservationOtherTable": "Esa reserva aparta otra mesa.",
+        "reservationNotValid": "Esa reserva fue cancelada o reembolsada.",
+        "reservationAlreadySeated": "Esa reserva ya estaba marcada como llegada.",
+        "walkinsOff": "Este local no acepta grupos sin reserva.",
+        "partyBelowMinimum": "Ese grupo es más chico de lo que acepta este local.",
+        "partyAboveMaximum": "Ese grupo es más grande de lo que acepta este local.",
+        "noBandFits": "Ningún tamaño de mesa de este local alcanza para ese grupo.",
+        "soldOut": "El salón está lleno para ese turno.",
+        "capacityUnavailable": "No pudimos revisar el salón. Intenta de nuevo.",
+        "engineError": "Algo salió mal. Intenta de nuevo.",
+        "reservationsOff": "Este local todavía no toma reservas."
+      },
+      "takeWalkIn": "Agregar sin reserva",
+      "takeWalkInHeading": "Un grupo que no reservó, sentado ahora.",
+      "walkInNameLabel": "Nombre",
+      "walkInPartyLabel": "Personas",
+      "walkInConfirm": "Agregar al libro"
     },
     "visit": {
       "title": "Tu mesa",

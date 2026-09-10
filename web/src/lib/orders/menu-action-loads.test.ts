@@ -118,7 +118,15 @@ test("every import in scripts/ resolves to a real file", () => {
         : path.resolve(dir, raw);
       // An explicit extension is the whole specifier; otherwise try the
       // extensions this tree actually uses, plus a directory index.
-      const candidates = /\.[cm]?tsx?$/.test(base)
+      //
+      // `.mjs` and `.cjs` count as explicit too. They did not, and the guard
+      // reported `./isolated-target-guard.mjs` — a file that is right there —
+      // as missing: an extension it did not recognise fell through to the
+      // extension-less branch, which then looked for
+      // `isolated-target-guard.mjs.ts`. A tripwire that fires on a file that
+      // exists gets disabled by the next person, so it is fixed rather than
+      // worked around; the check itself is unchanged (the path must exist).
+      const candidates = /\.[cm]?[jt]sx?$/.test(base)
         ? [base]
         : [
             `${base}.ts`, `${base}.tsx`, `${base}.mts`,

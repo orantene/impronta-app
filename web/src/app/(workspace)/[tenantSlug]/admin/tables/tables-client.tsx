@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { tablesCloseVisit, tablesMoveVisit, tablesOpenVisit, tablesResetTable, tablesSeatParty } from "./actions";
 import type { FloorTable } from "@/lib/visits/floor";
+import { venueHhmm } from "@/lib/spaces/venue-clock";
 import { interpolate } from "@/i18n/interpolate";
 
 type RefusalKey =
@@ -33,7 +34,13 @@ type RefusalKey =
   | "already_closed"
   | "version_conflict"
   | "not_allowed"
-  | "unavailable";
+  | "unavailable"
+  // The party sat down, but the BOOKING that was holding the table could not
+  // be marked as arrived. Never rendered as a seating failure.
+  | "reservation_not_found"
+  | "reservation_other_table"
+  | "reservation_not_valid"
+  | "reservation_already_seated";
 
 export type TablesCopy = {
   empty: string;
@@ -42,6 +49,9 @@ export type TablesCopy = {
   occupied: string;
   free: string;
   held: string;
+  /** C07: which kind of check is open — a table check or a bar tab. */
+  tableCheck: string;
+  tabCheck: string;
   minSpend: string;
   move: string;
   openTab: string;
@@ -67,22 +77,21 @@ export type TablesCopy = {
   needsReset: string;
   needsResetSince: string;
   markReset: string;
+  /** Prefix for the "seated, but the booking is still open" warning. */
+  seatedNotMarked: string;
   refusal: Record<RefusalKey, string>;
 };
 
-type ActionOutcome = { ok: true } | { ok: false; reason?: string; error?: string };
+/**
+ * Every action in `./actions` answers in this shape: a code, never a sentence.
+ * `reservationWarning` rides on a SUCCESS because the seating worked and only
+ * the booking's own row is behind.
+ */
+type ActionOutcome = { ok: true; reservationWarning?: string } | { ok: false; reason: string };
 
-function refusalText(copy: TablesCopy, result: ActionOutcome): string {
-  const code = (result.ok ? "" : (result.reason ?? result.error ?? "unavailable")) as RefusalKey;
-  return copy.refusal[code] ?? copy.refusal.unavailable;
-}
-
-function hhmm(iso: string, locale: string): string {
-  try {
-    return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-  } catch {
-    return "--:--";
-  }
+/** A code as a sentence. An unknown code reads as the generic one, never raw. */
+export function refusalText(copy: TablesCopy, code: string): string {
+  return copy.refusal[code as RefusalKey] ?? copy.refusal.unavailable;
 }
 
 const STATE_BADGE: Record<FloorTable["state"], string> = {
@@ -94,10 +103,18 @@ const STATE_BADGE: Record<FloorTable["state"], string> = {
 export function TablesClient(props: {
   tenantSlug: string;
   locale: string;
+  /**
+   * The VENUE's IANA zone. Required, and threaded into every time this
+   * component prints: see `lib/spaces/venue-clock.ts` for why a formatter
+   * without one renders one instant as two different hours.
+   */
+  timeZone: string;
+  /** The zone as a sentence for the host, built on the server (it reads a clock). */
+  zoneNote: string;
   tables: FloorTable[];
   copy: TablesCopy;
 }) {
-  const { copy, locale } = props;
+  const { copy, locale, timeZone } = props;
   const router = useRouter();
   // The clock, read only inside an effect (never during render — Date.now()
   // there is an impure read the render-purity rule catches, and the deeper
@@ -124,8 +141,16 @@ export function TablesClient(props: {
     setMsg(null);
     const r = await fn();
     setBusy(false);
-    if (!r.ok) setMsg(refusalText(copy, r));
-    else router.refresh();
+    if (!r.ok) setMsg(refusalText(copy, r.reason));
+    else {
+      // A seating that could not close out its booking is a SUCCESS with
+      // something the host has to know: the desk still thinks these guests
+      // have not arrived. Said as a sentence, beside the seating that worked.
+      if (r.reservationWarning) {
+        setMsg(`${copy.seatedNotMarked} ${refusalText(copy, r.reservationWarning)}`);
+      }
+      router.refresh();
+    }
     return r;
   }
 
@@ -136,13 +161,23 @@ export function TablesClient(props: {
 
   async function seat(table: FloorTable, joinedSpaceId?: string) {
     const partySize = Math.max(1, Math.trunc(Number(partyInput) || 0));
-    const r = await run(() => tablesSeatParty({ spaceId: table.spaceId, partySize, joinedSpaceId }));
+    // Seating a HELD table fulfils the booking that was holding it, so the
+    // admission id travels with the seating and the desk stops calling these
+    // guests late while they are eating.
+    const r = await run(() =>
+      tablesSeatParty({
+        spaceId: table.spaceId,
+        partySize,
+        joinedSpaceId,
+        admissionId: table.held?.admissionId,
+      }),
+    );
     if (r.ok) {
       setSeatFor(null);
       setJoinOffer(null);
       return;
     }
-    if (!joinedSpaceId && (r.reason === "party_too_small" || r.reason === "party_too_large")) {
+    if (!r.ok && !joinedSpaceId && (r.reason === "party_too_small" || r.reason === "party_too_large")) {
       const candidates = table.combinableWith
         .filter((c) => partySize >= c.partyMin && partySize <= c.partyMax)
         .map((c) => ({ spaceId: c.spaceId, code: codeFor(c.spaceId) }));
@@ -154,6 +189,10 @@ export function TablesClient(props: {
 
   return (
     <div>
+      {/* The zone every time on this screen is in, said once and in words. A
+          host in one country reading a floor in another must never have to
+          guess whose clock "due back 21:30" belongs to. */}
+      <p className="mb-4 text-xs text-muted-foreground">{props.zoneNote}</p>
       {msg ? (
         <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {msg}
@@ -175,6 +214,15 @@ export function TablesClient(props: {
                   >
                     {table.state === "occupied" ? copy.occupied : table.state === "held" ? copy.held : copy.free}
                   </span>
+                  {/* C07 — a BAR TAB is occupancy that is not a table check.
+                      Both read "Occupied" and they are not the same thing to a
+                      host deciding where to seat a party, so the card says
+                      which kind of check is open on the table. */}
+                  {table.state === "occupied" ? (
+                    <span className="ml-1.5 inline-block rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {table.serviceKind === "tab" ? copy.tabCheck : copy.tableCheck}
+                    </span>
+                  ) : null}
                   {table.state !== "occupied" && table.needsResetSinceIso ? (
                     <span className="ml-1.5 inline-block rounded-full border border-orange-700/40 bg-orange-600/10 px-2 py-0.5 text-xs font-medium text-orange-700 dark:text-orange-400">
                       {copy.needsReset}
@@ -204,7 +252,7 @@ export function TablesClient(props: {
                                 ? 0
                                 : Math.max(0, Math.floor((now - new Date(table.held.startsAtIso).getTime()) / 60_000)),
                           })
-                        : interpolate(copy.heldArriving, { time: hhmm(table.held.startsAtIso, locale) })}
+                        : interpolate(copy.heldArriving, { time: venueHhmm(table.held.startsAtIso, timeZone, locale) })}
                     </div>
                   ) : null}
 
@@ -225,7 +273,7 @@ export function TablesClient(props: {
                               ? interpolate(copy.overdueBy, {
                                   n: Math.max(0, (table.elapsedMinutes ?? 0) - table.turnMinutes),
                                 })
-                              : interpolate(copy.dueBy, { time: table.dueAtIso ? hhmm(table.dueAtIso, locale) : "" })}
+                              : interpolate(copy.dueBy, { time: table.dueAtIso ? venueHhmm(table.dueAtIso, timeZone, locale) : "" })}
                           </span>
                         </>
                       ) : null}
@@ -234,7 +282,7 @@ export function TablesClient(props: {
 
                   {table.state !== "occupied" && table.needsResetSinceIso ? (
                     <div className="mt-1 text-xs text-orange-700 dark:text-orange-400">
-                      {interpolate(copy.needsResetSince, { time: hhmm(table.needsResetSinceIso, locale) })}
+                      {interpolate(copy.needsResetSince, { time: venueHhmm(table.needsResetSinceIso, timeZone, locale) })}
                     </div>
                   ) : null}
 

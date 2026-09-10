@@ -1141,7 +1141,6 @@
       "pageIntro": "Ouvrez une visite sur une table. Le QR imprimé suit cette visite, pas l'addition d'hier soir.",
       "unavailable": "Nous n'avons pas pu charger la salle.",
       "empty": "Aucune table, alcôve ou cabana pour le moment.",
-      "open": "Ouvrir la visite",
       "close": "Terminer la visite",
       "sale": "Ouvrir l'addition",
       "occupied": "Occupée",
@@ -1187,8 +1186,16 @@
         "alreadyClosed": "Cette visite est déjà fermée.",
         "versionConflict": "La table a changé. Rechargez et réessayez.",
         "notAllowed": "Vous n'avez pas la permission de faire cela.",
-        "unavailable": "Une erreur s'est produite. Réessayez."
-      }
+        "unavailable": "Une erreur s'est produite. Réessayez.",
+        "reservationNotFound": "La réservation qui retenait cette table n'est plus au registre. Marquez-la comme arrivée au bureau des réservations.",
+        "reservationOtherTable": "Cette réservation retient une autre table. Marquez-la comme arrivée au bureau des réservations.",
+        "reservationNotValid": "Cette réservation a été annulée ou remboursée. Marquez-la comme arrivée au bureau des réservations.",
+        "reservationAlreadySeated": "Cette réservation était déjà marquée comme arrivée."
+      },
+      "timesInZone": "Heures affichées en {zone}, l'horloge de l'établissement.",
+      "tableCheck": "Addition de table",
+      "tabCheck": "Ardoise de bar",
+      "seatedNotMarked": "Le groupe est installé."
     },
     "preparation": {
       "pageTitle": "Préparation",
@@ -1208,18 +1215,24 @@
       "statusReady": "Prêt",
       "amended": "Modifié. Accuser réception à nouveau.",
       "handedOff": "Remis",
-      "promisedBy": "Promis pour {time}"
+      "promisedBy": "Promis pour {time}",
+      "timesInZone": "Heures affichées en {zone}, l'horloge de l'établissement.",
+      "statusCancelled": "Annulé",
+      "refusal": {
+        "notFound": "Ce ticket n'est pas sur ce tableau.",
+        "wrongTenant": "Ce ticket n'est pas sur ce tableau.",
+        "invalidState": "Ce ticket n'est pas à une étape où cela est possible. Rechargez le tableau.",
+        "invalid": "Cette demande n'était pas valide.",
+        "notAllowed": "Vous n'avez pas la permission de faire cela.",
+        "unavailable": "Une erreur s'est produite. Réessayez."
+      }
     },
     "reservationsDesk": {
       "pageTitle": "Réservations",
-      "pageIntro": "Le registre du jour, tiré des admissions selon les règles de service de l'établissement. Il n'existe pas de table de réservations séparée.",
-      "unavailable": "Nous n'avons pas pu charger le registre du jour.",
       "unavailableHeading": "Nous n'avons pas pu charger le registre",
       "unavailableBody": "Rien n'a changé et aucune réservation n'a été affectée. Réessayez dans un moment.",
-      "noVenue": "Cet espace de travail n'a pas encore de lieu configuré.",
       "noVenueHeading": "Pas encore de lieu",
       "noVenueBody": "Les réservations appartiennent à un lieu et suivent l'horloge de ce lieu, donc il n'y a rien à afficher tant que cet espace de travail n'en a pas un.",
-      "notConfigured": "{venue} n'a pas de service de réservation configuré pour aujourd'hui.",
       "notConfiguredHeading": "Pas encore de créneaux de service",
       "notConfiguredBody": "{venue} n'accepte pas de réservations. Activez les réservations dans les Paramètres et ajoutez un créneau de service, et le registre de ce soir apparaîtra ici.",
       "empty": "Personne n'est encore réservé pour ce service.",
@@ -1242,7 +1255,38 @@
       "statePartSeated": "Partiellement assis",
       "stateSeated": "Assis",
       "stateNoShow": "Absent",
-      "stateCompleted": "Terminé"
+      "stateCompleted": "Terminé",
+      "seat": "Installer",
+      "seatHeading": "Installer ce groupe à",
+      "seatCancel": "Annuler",
+      "noSeatableTable": "Aucune table libre ne convient à ce groupe.",
+      "seatedNotMarked": "Le groupe est installé.",
+      "refusal": {
+        "notFound": "Cette réservation n'est plus au registre de ce soir.",
+        "alreadyOpen": "Cette table a déjà une addition ouverte.",
+        "invalid": "Cette demande n'était pas valide.",
+        "partyTooSmall": "Ce groupe est plus petit que ce que la table permet.",
+        "partyTooLarge": "Ce groupe est plus grand que ce que la table permet.",
+        "notAllowed": "Vous n'avez pas la permission de faire cela.",
+        "unavailable": "Une erreur s'est produite. Réessayez.",
+        "reservationNotFound": "L'arrivée n'a pas pu être enregistrée. Rechargez le registre.",
+        "reservationOtherTable": "Cette réservation retient une autre table.",
+        "reservationNotValid": "Cette réservation a été annulée ou remboursée.",
+        "reservationAlreadySeated": "Cette réservation était déjà marquée comme arrivée.",
+        "walkinsOff": "Cet établissement n'accepte pas les sans-réservation.",
+        "partyBelowMinimum": "Ce groupe est plus petit que ce que cet établissement accepte.",
+        "partyAboveMaximum": "Ce groupe est plus grand que ce que cet établissement accepte.",
+        "noBandFits": "Aucune taille de table de cet établissement ne convient à ce groupe.",
+        "soldOut": "La salle est complète pour ce service.",
+        "capacityUnavailable": "Nous n'avons pas pu vérifier la salle. Réessayez.",
+        "engineError": "Une erreur s'est produite. Réessayez.",
+        "reservationsOff": "Cet établissement ne prend pas encore de réservations."
+      },
+      "takeWalkIn": "Ajouter un sans-réservation",
+      "takeWalkInHeading": "Un groupe qui n'a pas réservé, installé maintenant.",
+      "walkInNameLabel": "Nom",
+      "walkInPartyLabel": "Couverts",
+      "walkInConfirm": "Ajouter au registre"
     }
   },
   "client": {
