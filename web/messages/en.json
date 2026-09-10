@@ -4533,6 +4533,17 @@
             "label": "Projects",
             "desc": "A project board and invoices."
           }
+        },
+        "retry": "Try again",
+        "allOffHint": "Every selling mode is off. Nobody can open a sale on this workspace until you switch one back on, and the point of sale is hidden from the phone menu.",
+        "errors": {
+          "not_allowed": "You do not have permission to change the selling modes here. Ask a workspace owner.",
+          "unreadable": "We could not read the current selling modes. Nothing was changed.",
+          "invalid_request": "That request was not in a shape we understand. Nothing was changed.",
+          "unknown_mode": "That is not a selling mode this workspace knows about. Nothing was changed.",
+          "mode_not_built": "That selling mode has no screens yet, so it cannot be switched on.",
+          "write_failed": "We could not save the selling modes. Nothing was changed.",
+          "load_failed": "We could not reach the server. Nothing was changed."
         }
       },
       "paymentsProviders": {
@@ -4562,6 +4573,11 @@
           "missing_secret_key": "Needs a Stripe secret key. Ask whoever manages hosting to add one.",
           "missing_reader": "Stripe is connected, but no card reader is assigned yet.",
           "not_integrated": "Not connected. This workspace has no Mercado Pago integration yet."
+        },
+        "retry": "Try again",
+        "errors": {
+          "not_allowed": "You do not have permission to see the payment providers here. Ask a workspace owner.",
+          "load_failed": "We could not reach the server, so provider readiness is unknown right now."
         }
       },
       "rolesLimits": {
@@ -4583,11 +4599,19 @@
           "admin": "Full workspace control except billing and ownership transfer.",
           "owner": "Full control including billing and workspace lifecycle."
         },
-        "memberCount": "{count} member",
+        "memberCount": {
+          "one": "{count} member",
+          "other": "{count} members"
+        },
         "posReach": "Point of sale: {modes}",
         "posReachNone": "No selling mode reaches this role.",
         "limitsHeading": "Per-person limits",
-        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers."
+        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers.",
+        "posOffNotice": "This workspace has every selling mode switched off, so no role reaches the point of sale. Turn one on in Point of sale above.",
+        "invitedCount": {
+          "one": "{count} invitation not accepted yet",
+          "other": "{count} invitations not accepted yet"
+        }
       },
       "workspaceType": {
         "title": "What is this workspace for?",
@@ -12273,7 +12297,9 @@
           "retry": "Try again",
           "reload": "Reload"
         }
-      }
+      },
+      "counterOffTitle": "The counter is switched off",
+      "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again."
     },
     "tables": {
       "pageTitle": "Tables",

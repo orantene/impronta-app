@@ -4533,6 +4533,17 @@
             "label": "Proyectos",
             "desc": "Un tablero de proyectos y facturas."
           }
+        },
+        "retry": "Reintentar",
+        "allOffHint": "Todos los modos de venta están inactivos. Nadie puede abrir una venta en este espacio de trabajo hasta que actives uno, y el punto de venta queda oculto en el menú del teléfono.",
+        "errors": {
+          "not_allowed": "No tienes permiso para cambiar los modos de venta aquí. Pídeselo al propietario del espacio de trabajo.",
+          "unreadable": "No pudimos leer los modos de venta actuales. No se cambió nada.",
+          "invalid_request": "Esa solicitud no tiene una forma que entendamos. No se cambió nada.",
+          "unknown_mode": "Ese no es un modo de venta que este espacio de trabajo conozca. No se cambió nada.",
+          "mode_not_built": "Ese modo de venta todavía no tiene pantallas, así que no se puede activar.",
+          "write_failed": "No pudimos guardar los modos de venta. No se cambió nada.",
+          "load_failed": "No pudimos comunicarnos con el servidor. No se cambió nada."
         }
       },
       "paymentsProviders": {
@@ -4562,6 +4573,11 @@
           "missing_secret_key": "Necesita una clave secreta de Stripe. Pide a quien administra el hosting que la agregue.",
           "missing_reader": "Stripe está conectado, pero todavía no hay un lector de tarjetas asignado.",
           "not_integrated": "No está conectado. Este espacio de trabajo aún no tiene integración con Mercado Pago."
+        },
+        "retry": "Reintentar",
+        "errors": {
+          "not_allowed": "No tienes permiso para ver los proveedores de pago aquí. Pídeselo al propietario del espacio de trabajo.",
+          "load_failed": "No pudimos comunicarnos con el servidor, así que ahora mismo no sabemos si los proveedores están listos."
         }
       },
       "rolesLimits": {
@@ -4583,11 +4599,19 @@
           "admin": "Control total del espacio de trabajo excepto facturación y transferencia de propiedad.",
           "owner": "Control total, incluida la facturación y el ciclo de vida del espacio de trabajo."
         },
-        "memberCount": "{count} miembro",
+        "memberCount": {
+          "one": "{count} miembro",
+          "other": "{count} miembros"
+        },
         "posReach": "Punto de venta: {modes}",
         "posReachNone": "Ningún modo de venta alcanza este rol.",
         "limitsHeading": "Límites por persona",
-        "limitsGap": "Tulala todavía no registra límites individuales de descuento o reembolso. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece."
+        "limitsGap": "Tulala todavía no registra límites individuales de descuento o reembolso. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece.",
+        "posOffNotice": "Este espacio de trabajo tiene todos los modos de venta desactivados, así que ningún rol llega al punto de venta. Activa uno en Punto de venta, arriba.",
+        "invitedCount": {
+          "one": "{count} invitación sin aceptar todavía",
+          "other": "{count} invitaciones sin aceptar todavía"
+        }
       },
       "workspaceType": {
         "title": "¿Para qué es este espacio de trabajo?",
@@ -12273,7 +12297,9 @@
           "retry": "Reintentar",
           "reload": "Recargar"
         }
-      }
+      },
+      "counterOffTitle": "El mostrador está desactivado",
+      "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse."
     },
     "tables": {
       "pageTitle": "Mesas",

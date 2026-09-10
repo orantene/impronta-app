@@ -160,10 +160,22 @@ const DEFAULT_ENABLED_MODES: readonly PosMode[] = ["counter"];
  * shape change: `"default"` is the one implicit location every workspace has
  * today.
  *
- * Defaults to `["counter"]` when the path is missing, malformed, or empty —
- * never to every mode. An unrecognized entry in the array is dropped rather
- * than rejecting the whole list, so one bad value can't blank a workspace's
- * whole POS.
+ * THREE INPUTS, THREE DIFFERENT ANSWERS — and the middle one used to be
+ * wrong. A workspace that has never opened the settings page has NO `pos`
+ * path at all, and its POS must still work, so a missing or malformed path
+ * answers `["counter"]`. A workspace that has switched every mode off stores
+ * a literal empty array, and that is a REAL value: it answers `[]`, and the
+ * point of sale is then unavailable to that workspace (`showsOpenPosRow`
+ * drops the phone row, `sellingModesAllowCounter` refuses the counter route).
+ * Coercing `[]` back to `["counter"]` is what made the settings panel unable
+ * to persist anything: the only built mode is the counter, so the only
+ * reachable write was the empty list, and this line turned it straight back
+ * into the default. `pos-bridge.ts` has documented `[]` as "deliberately off"
+ * since the mobile-nav fix; this function now agrees with it.
+ *
+ * An array with entries in it, none of which parse, is MALFORMED rather than
+ * deliberate — some other writer put junk there — so that answers the default
+ * too. One bad value alongside a good one is still dropped on its own.
  */
 export function enabledPosModesFromSettings(settings: unknown): PosMode[] {
   const pos = isPlainRecord(settings) ? settings.pos : undefined;
@@ -171,6 +183,17 @@ export function enabledPosModesFromSettings(settings: unknown): PosMode[] {
   const defaultLocation = isPlainRecord(locations) ? locations.default : undefined;
   const rawModes = isPlainRecord(defaultLocation) ? defaultLocation.modes : undefined;
   if (!Array.isArray(rawModes)) return [...DEFAULT_ENABLED_MODES];
+  if (rawModes.length === 0) return [];
   const parsed = rawModes.filter(isPosMode);
   return parsed.length > 0 ? parsed : [...DEFAULT_ENABLED_MODES];
+}
+
+/**
+ * Is the counter — the one mode with screens behind it — switched on for this
+ * workspace. The `/admin/pos` route IS the counter (its rail is
+ * `POS_MODE_META.counter.destinations`), so this is the one question that
+ * route has to ask before it renders a register.
+ */
+export function sellingModesAllowCounter(modes: readonly PosMode[]): boolean {
+  return modes.includes("counter");
 }

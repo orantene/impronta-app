@@ -876,6 +876,17 @@
             "label": "Projets",
             "desc": "Un tableau de projets et les factures."
           }
+        },
+        "retry": "Réessayer",
+        "allOffHint": "Tous les modes de vente sont désactivés. Personne ne peut ouvrir une vente sur cet espace de travail tant que vous n'en réactivez pas un, et le point de vente disparaît du menu du téléphone.",
+        "errors": {
+          "not_allowed": "Vous n'avez pas l'autorisation de modifier les modes de vente ici. Demandez au propriétaire de l'espace de travail.",
+          "unreadable": "Nous n'avons pas pu lire les modes de vente actuels. Rien n'a été modifié.",
+          "invalid_request": "Cette demande n'a pas une forme que nous comprenons. Rien n'a été modifié.",
+          "unknown_mode": "Ce n'est pas un mode de vente connu de cet espace de travail. Rien n'a été modifié.",
+          "mode_not_built": "Ce mode de vente n'a pas encore d'écrans, il ne peut donc pas être activé.",
+          "write_failed": "Nous n'avons pas pu enregistrer les modes de vente. Rien n'a été modifié.",
+          "load_failed": "Nous n'avons pas pu joindre le serveur. Rien n'a été modifié."
         }
       },
       "paymentsProviders": {
@@ -905,6 +916,11 @@
           "missing_secret_key": "Necessite une cle secrete Stripe. Demandez a la personne qui gere l'hebergement de l'ajouter.",
           "missing_reader": "Stripe est connecte, mais aucun lecteur de carte n'est encore assigne.",
           "not_integrated": "Non connecte. Cet espace de travail n'a pas encore d'integration Mercado Pago."
+        },
+        "retry": "Réessayer",
+        "errors": {
+          "not_allowed": "Vous n'avez pas l'autorisation de voir les prestataires de paiement ici. Demandez au propriétaire de l'espace de travail.",
+          "load_failed": "Nous n'avons pas pu joindre le serveur, l'état des prestataires est donc inconnu pour le moment."
         }
       },
       "rolesLimits": {
@@ -926,11 +942,19 @@
           "admin": "Controle total de l'espace de travail sauf la facturation et le transfert de propriete.",
           "owner": "Controle total, y compris la facturation et le cycle de vie de l'espace de travail."
         },
-        "memberCount": "{count} membre",
+        "memberCount": {
+          "one": "{count} membre",
+          "other": "{count} membres"
+        },
         "posReach": "Point de vente : {modes}",
         "posReachNone": "Aucun mode de vente n'atteint ce role.",
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre."
+        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
+        "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
+        "invitedCount": {
+          "one": "{count} invitation pas encore acceptée",
+          "other": "{count} invitations pas encore acceptées"
+        }
       }
     },
     "issues": {
@@ -1255,7 +1279,9 @@
           "retry": "Réessayer",
           "reload": "Recharger"
         }
-      }
+      },
+      "counterOffTitle": "Le comptoir est désactivé",
+      "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira."
     }
   },
   "client": {

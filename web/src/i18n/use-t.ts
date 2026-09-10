@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 
 import { createTranslator } from "./messages";
+import { withPluralization } from "./interpolate";
 import { useDashboardLocale } from "./use-dashboard-locale";
 
 /**
@@ -34,4 +35,15 @@ export function translatorFor(locale: string) {
 export function useT() {
   const locale = useDashboardLocale();
   return useMemo(() => translatorFor(locale), [locale]);
+}
+
+/**
+ * Translator for a counted noun: reads `<key>.one` / `<key>.other` and picks
+ * the form by the DASHBOARD LOCALE's own plural rule, not by `count === 1`.
+ * French needs the difference — it puts zero in the singular — and a card that
+ * renders "0 member" or "3 miembro" is the reason this hook exists.
+ */
+export function useTPlural() {
+  const locale = useDashboardLocale();
+  return useMemo(() => withPluralization(translatorFor(locale), locale), [locale]);
 }

@@ -11,12 +11,28 @@
  * `setPosModes` requires `manage_billing`, same bar as the workspace-type and
  * events switches this card sits beside.
  *
+ * TURNING THE LAST MODE OFF IS A REAL, PERSISTED STATE. The counter is the
+ * only mode with screens, so it is the only switch that moves, and the empty
+ * list it writes used to be coerced straight back to `["counter"]` by
+ * `enabledPosModesFromSettings` — the card said "Saved", drew the switch off,
+ * and the refresh it triggered repainted the rest of the page from the
+ * coerced value, so one screen disagreed with itself and no reachable change
+ * could ever persist. The reader now keeps `[]`, this card says in plain
+ * words what an empty list costs (`allOffHint`), and the point of sale is
+ * genuinely unavailable until a mode goes back on.
+ *
  * A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT WORKS. `floor`,
  * `door`, `classes` and `projects` render with a "not built yet" caption and
  * a disabled control instead of a switch that would silently do nothing —
  * the server action refuses the write anyway, but a control a person can
  * press that then fails is exactly the thing this settings surface exists to
  * avoid, so the disabled state is the FIRST line of defense, not the second.
+ *
+ * EVERY REFUSAL IS A CODE THE CARD TRANSLATES. `setPosModes` answers with a
+ * `PosModesRefusal` id, never English prose, so a Spanish or French operator
+ * reads the reason in their own language. A load that never resolves at all
+ * (a dropped connection, a deploy mid-request) is its own state with its own
+ * sentence and a way out, rather than a card stuck on "Loading…" forever.
  *
  * DEVICES ARE A NAMED GAP, NOT A FABRICATED LIST. money.md §3 confirms no
  * device-registry table exists anywhere in the schema. Rather than invent a
@@ -28,10 +44,14 @@ import { useEffect, useState, useTransition } from "react";
 
 import { useT } from "@/i18n/use-t";
 import { getPosModes, setPosModes } from "@/lib/server-actions/pos-modes";
+import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal, type PosModesRefusal } from "@/lib/settings/refusals";
 import { POS_MODES, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 
 const K = "dashboard.adminWorkspace.posModes";
+
+/** A server refusal, or the one failure that never reaches the server at all. */
+type CardRefusal = PosModesRefusal | ClientLoadRefusal;
 
 export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
   const t = useT();
@@ -40,21 +60,33 @@ export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
 
   // `null` = not loaded yet or unreadable; never rendered as "everything off".
   const [current, setCurrent] = useState<PosMode[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadRefusal, setLoadRefusal] = useState<CardRefusal | null>(null);
+  const [refusal, setRefusal] = useState<CardRefusal | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // Bumping this re-runs the load effect, so a retry goes through the SAME
+  // cancellation path as the first attempt rather than starting a second,
+  // uncancellable request that outlives the card.
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void getPosModes().then((res) => {
-      if (cancelled) return;
-      if (res.ok) setCurrent(res.modes);
-      else setLoadError(res.error);
-    });
+    setLoadRefusal(null);
+    void getPosModes()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setCurrent(res.modes);
+        else setLoadRefusal(res.reason);
+      })
+      // Without this the promise rejects unhandled and the card sits on
+      // "Loading…" for the rest of the session with nothing to press.
+      .catch(() => {
+        if (!cancelled) setLoadRefusal(CLIENT_LOAD_REFUSAL);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   function toggle(mode: PosMode) {
     if (!canEdit || busy || current === null) return;
@@ -64,17 +96,21 @@ export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
     // refuse it too, but the toggle should already read as unusable.
     if (!meta.built && !isOn) return;
     const next = isOn ? current.filter((m) => m !== mode) : [...current, mode];
-    setError(null);
+    setRefusal(null);
     setSaved(false);
     startTransition(async () => {
-      const res = await setPosModes({ modes: next });
-      if (res.ok) {
-        setCurrent(res.modes);
-        setSaved(true);
-        queueRouterRefresh();
-        return;
+      try {
+        const res = await setPosModes({ modes: next });
+        if (res.ok) {
+          setCurrent(res.modes);
+          setSaved(true);
+          queueRouterRefresh();
+          return;
+        }
+        setRefusal(res.reason);
+      } catch {
+        setRefusal(CLIENT_LOAD_REFUSAL);
       }
-      setError(res.error);
     });
   }
 
@@ -83,8 +119,17 @@ export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
       <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
       <div className="mt-0.5 text-[12px] text-admin-ink-muted">{t(`${K}.desc`)}</div>
 
-      {loadError ? (
-        <div className="mt-2 text-[11px] text-admin-critical">{loadError}</div>
+      {loadRefusal ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-admin-critical">{t(`${K}.errors.${loadRefusal}`)}</span>
+          <button
+            type="button"
+            onClick={() => setReloadToken((n) => n + 1)}
+            className="min-h-8 rounded-admin-md border border-admin-border bg-admin-surface px-2.5 text-[11px] font-semibold text-admin-ink"
+          >
+            {t(`${K}.retry`)}
+          </button>
+        </div>
       ) : current === null ? (
         <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.loading`)}</div>
       ) : (
@@ -120,9 +165,15 @@ export function PosModesSettingsCard({ canEdit }: { canEdit: boolean }) {
         </div>
       )}
 
+      {current !== null && current.length === 0 && (
+        <div data-testid="pos-modes-all-off" className="mt-2 text-[11.5px] leading-relaxed text-admin-ink-muted">
+          {t(`${K}.allOffHint`)}
+        </div>
+      )}
+
       {busy && <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.saving`)}</div>}
       {saved && !busy && <div className="mt-2 text-[11px] text-admin-success">{t(`${K}.saved`)}</div>}
-      {error && !busy && <div className="mt-2 text-[11px] text-admin-critical">{error}</div>}
+      {refusal && !busy && <div className="mt-2 text-[11px] text-admin-critical">{t(`${K}.errors.${refusal}`)}</div>}
       {!canEdit && <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.ownerOnly`)}</div>}
 
       <div className="mt-4 border-t border-admin-border-soft pt-3">

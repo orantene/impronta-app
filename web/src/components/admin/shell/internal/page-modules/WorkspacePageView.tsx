@@ -494,13 +494,22 @@ export function WorkspacePageView() {
             <PosModesSettingsCard canEdit={isOwner} />
             {(
               [
-                { href: `${adminBasePath}/pos`, label: t("New Sale") },
+                // The two register links are the counter mode itself. With the
+                // counter switched off, `/admin/pos` refuses in a sentence, so
+                // offering the link would be a door onto a closed room. The
+                // back-office pages below it (catalog, tables, preparation,
+                // discounts, sales) are not the register and stay reachable.
+                ...(workspacePosModes.includes("counter")
+                  ? [{ href: `${adminBasePath}/pos`, label: t("New Sale") }]
+                  : []),
                 { href: `${adminBasePath}/menu`, label: t("Catalog") },
                 { href: `${adminBasePath}/tables`, label: t("Tables & Spaces") },
                 { href: `${adminBasePath}/preparation`, label: t("Preparation") },
                 { href: `${adminBasePath}/discounts`, label: t("Discounts") },
                 { href: `${adminBasePath}/sales`, label: t("Sales") },
-                { href: `${adminBasePath}/pos`, label: t("Shifts and tender") },
+                ...(workspacePosModes.includes("counter")
+                  ? [{ href: `${adminBasePath}/pos`, label: t("Shifts and tender") }]
+                  : []),
               ] as const
             ).map((link) => (
               <button
