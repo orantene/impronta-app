@@ -13010,7 +13010,10 @@
       "ageUnknown": "unknown",
       "ageJustNow": "just now",
       "working": "Working…",
-      "open": "Open"
+      "open": "Open",
+      "result": {
+        "seatLostAfterPayment": "This seat was lost after the buyer paid, so no ticket can be issued for it. A refund is owed instead, and it is now waiting in this list as its own row."
+      }
     }
   },
   "admin": {
@@ -13825,7 +13828,8 @@
         "noMembership": "This person has no sign-in for this workspace.",
         "membershipRemoved": "Access was taken away. They can be invited again at any time.",
         "invitationPending": "This person has been invited but has not accepted yet, so they cannot sign in. They keep no permissions until they do.",
-        "noAccount": "There is no account behind this invitation yet."
+        "noAccount": "There is no account behind this invitation yet.",
+        "personHasNotOptedInNoAccount": "This person is not switched on for bookings yet. They have no sign-in of their own, so this workspace answers for them: Turn on below does it."
       },
       "warning": {
         "noBookingHours": "No booking hours yet, so no times will be offered. Set hours to start taking bookings.",
@@ -13844,7 +13848,8 @@
         "cannotChangeYourOwnRole": "You cannot change your own role. Ask another owner or admin.",
         "couldNotSave": "That did not save. Try again, and tell the workspace owner if it keeps happening.",
         "invitationSent": "Invitation sent. This person has no access yet: they get it when they sign in with that address and accept.",
-        "noEmailOnFile": "This workspace has no email address for this person, so there is nowhere to send an invitation."
+        "noEmailOnFile": "This workspace has no email address for this person, so there is nowhere to send an invitation.",
+        "workspaceBooksEveryone": "This workspace lets everyone on the roster be booked, so one person cannot be switched off here while they hold their own sign-in. Nothing was changed. Turn off \"Offer bookings on this workspace site\" in Appointments settings, or take their public profile off."
       },
       "role": {
         "owner": "Owner",
@@ -13877,7 +13882,8 @@
         "inviteWillGoTo": "The invitation goes to {email}, the address on this record.",
         "inviteGrantsNothingYet": "Sending it grants nothing on its own. They get access when they sign in with that address and accept.",
         "invitationWaitingOn": "An invitation is already out to {email}. They get access when they accept it. Sending another one cancels this one.",
-        "addEmailWhere": "Add one in the profile editor above, then come back and invite them."
+        "addEmailWhere": "Add one in the profile editor above, then come back and invite them.",
+        "workspaceBooksEveryone": "This workspace lets everyone on the roster be booked, and this person holds their own sign-in, so they cannot be switched off one at a time here. Turn off \"Offer bookings on this workspace site\" in Appointments settings, or take their public profile off."
       },
       "add": {
         "title": "Add a person",

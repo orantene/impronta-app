@@ -35,6 +35,7 @@ import {
 } from "@/lib/server-actions/team-management";
 import { setRosterDirectBooking } from "@/lib/server-actions/roster-direct-booking";
 import { setTalentDirectBookingOptIn } from "@/lib/server-actions/booking-hours";
+import { parseTenantAppointmentSettings } from "@/lib/scheduling/appointment-policy";
 
 /**
  * Every answer this surface can give. Each is a key under
@@ -52,6 +53,7 @@ export type PeopleReasonKey =
   | "cannotChangeYourOwnRole"
   | "invitationSent"
   | "noEmailOnFile"
+  | "workspaceBooksEveryone"
   | "couldNotSave";
 
 export type PeopleActionResult =
@@ -93,9 +95,23 @@ function mapReason(reason: string | undefined): PeopleReasonKey {
  * sign-in, the workspace may not opt in on their behalf — the toggle still
  * does its half and the caller is told, in a sentence, what is still missing.
  *
- * Turning it OFF only writes the agency's half. That is enough: the gate is
- * an AND, so the person leaves "Pick a professional" immediately, and the
- * workspace has not silently un-said something the person said themselves.
+ * Turning it OFF writes the agency's half, and that is enough WHILE THE
+ * WORKSPACE-LEVEL SWITCH IS OFF: the gate is an AND, so the person leaves
+ * "Pick a professional" immediately, and the workspace has not silently
+ * un-said something the person said themselves.
+ *
+ * THE DEFECT THIS NOW REFUSES. The engine's agency gate is
+ * `workspaceAllow OR roster.direct_booking_enabled`. With
+ * `allowTalentDirectBooking` on for the workspace, the per-person column is
+ * inert: this action wrote `false`, answered "Saved.", and the person stayed
+ * bookable on the booking page and in the panel. Proven on the QA fixture.
+ * So, when the workspace-level switch is on:
+ *
+ *   • a person the workspace may answer for (no sign-in of their own) is
+ *     turned off through THEIR half as well, which is the same half the ON
+ *     path already writes for them;
+ *   • a person who holds their own sign-in is refused, in a sentence that
+ *     names the switch that does govern, and nothing is written.
  */
 export async function setPersonBookable(
   talentProfileId: string,
@@ -105,6 +121,38 @@ export async function setPersonBookable(
   if (!auth.ok) return { ok: false, reasonKey: "notAuthorized" };
   if (!uuid.safeParse(talentProfileId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
+  }
+
+  if (!on) {
+    const blanket = await workspaceAllowsDirectBooking(auth.tenantId);
+    if (blanket) {
+      const admin = createServiceRoleClient();
+      if (!admin) return { ok: false, reasonKey: "couldNotSave" };
+      const { data, error } = await admin
+        .from("talent_profiles")
+        .select("user_id, profile_kind")
+        .eq("id", talentProfileId)
+        .maybeSingle();
+      if (error || !data) {
+        if (error) logServerError("people.setBookable.readForOff", error);
+        return { ok: false, reasonKey: "notOnRoster" };
+      }
+      const row = data as { user_id: string | null; profile_kind: string | null };
+      const mayAnswerForThem = staffMayWriteHours({
+        profileKind: row.profile_kind ?? "person",
+        userId: row.user_id,
+      });
+      // Nothing this workspace can write turns them off. Say which switch
+      // does, and write nothing: a partial write under a refusal is how the
+      // next reader sees a state nobody asked for.
+      if (!mayAnswerForThem) return { ok: false, reasonKey: "workspaceBooksEveryone" };
+
+      const optOut = await setTalentDirectBookingOptIn(talentProfileId, false);
+      if (!optOut.ok) {
+        logServerError("people.setBookable.optOut", optOut.error);
+        return { ok: false, reasonKey: "couldNotSave" };
+      }
+    }
   }
 
   const gate = await setRosterDirectBooking(talentProfileId, on);
@@ -323,6 +371,28 @@ export async function revokePersonAccess(accountId: string): Promise<PeopleActio
 }
 
 // ── shared ────────────────────────────────────────────────────────────
+
+/**
+ * `agencies.settings.appointments.allowTalentDirectBooking`, read the way the
+ * People reader and the engine read it. A failed read answers `false`, which
+ * is the direction that still lets the agency half be written; the panel is
+ * re-derived from the rows afterwards either way.
+ */
+async function workspaceAllowsDirectBooking(tenantId: string): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data, error } = await admin
+    .from("agencies")
+    .select("settings")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("people.setBookable.workspaceSettings", error);
+    return false;
+  }
+  const settings = (data as { settings: unknown } | null)?.settings ?? null;
+  return parseTenantAppointmentSettings(settings)?.allowTalentDirectBooking === true;
+}
 
 /** `null` when there is room, otherwise the reason to refuse. */
 async function seatCheck(): Promise<PeopleReasonKey | null> {

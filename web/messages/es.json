@@ -13010,7 +13010,10 @@
       "ageUnknown": "desconocido",
       "ageJustNow": "recién",
       "working": "Procesando…",
-      "open": "Abrir"
+      "open": "Abrir",
+      "result": {
+        "seatLostAfterPayment": "Este lugar se perdio despues de que la persona pago, asi que no se puede emitir ninguna entrada. Ahora se le debe un reembolso, y ya esta esperando en esta lista como su propia fila."
+      }
     }
   },
   "admin": {
@@ -13825,7 +13828,8 @@
         "noMembership": "Esta persona no tiene inicio de sesion en este espacio.",
         "membershipRemoved": "Se le quito el acceso. Puedes volver a invitarla cuando quieras.",
         "invitationPending": "Esta persona fue invitada pero todavia no acepto, asi que no puede iniciar sesion. No tiene ningun permiso hasta que acepte.",
-        "noAccount": "Todavia no hay una cuenta detras de esta invitacion."
+        "noAccount": "Todavia no hay una cuenta detras de esta invitacion.",
+        "personHasNotOptedInNoAccount": "Esta persona todavia no esta activada para recibir reservas. No tiene inicio de sesion propio, asi que este espacio responde por ella: el boton Activar de abajo lo hace."
       },
       "warning": {
         "noBookingHours": "Todavia no hay horarios, asi que no se ofrecera ningun turno. Define horarios para empezar a recibir reservas.",
@@ -13844,7 +13848,8 @@
         "cannotChangeYourOwnRole": "No puedes cambiar tu propio rol. Pideselo a otro propietario o administrador.",
         "couldNotSave": "No se guardo. Intenta de nuevo y avisa al propietario del espacio si sigue pasando.",
         "invitationSent": "Invitacion enviada. Esta persona todavia no tiene acceso: lo obtiene cuando inicia sesion con esa direccion y acepta.",
-        "noEmailOnFile": "Este espacio no tiene ninguna direccion de correo para esta persona, asi que no hay a donde enviar la invitacion."
+        "noEmailOnFile": "Este espacio no tiene ninguna direccion de correo para esta persona, asi que no hay a donde enviar la invitacion.",
+        "workspaceBooksEveryone": "Este espacio permite reservar a todas las personas del roster, asi que no se puede apagar a una sola persona aqui mientras tenga su propio inicio de sesion. No se cambio nada. Apaga \"Ofrecer reservas en el sitio de este workspace\" en la configuracion de Citas, o quita su perfil publico."
       },
       "role": {
         "owner": "Propietario",
@@ -13877,7 +13882,8 @@
         "inviteWillGoTo": "La invitacion va a {email}, la direccion que figura en esta ficha.",
         "inviteGrantsNothingYet": "Enviarla no otorga nada por si sola. Obtiene acceso cuando inicia sesion con esa direccion y acepta.",
         "invitationWaitingOn": "Ya hay una invitacion enviada a {email}. Obtiene acceso cuando la acepte. Enviar otra cancela esta.",
-        "addEmailWhere": "Agrega una en el editor de perfil de arriba y vuelve para invitarla."
+        "addEmailWhere": "Agrega una en el editor de perfil de arriba y vuelve para invitarla.",
+        "workspaceBooksEveryone": "Este espacio permite reservar a todas las personas del roster, y esta persona tiene su propio inicio de sesion, asi que no se puede apagar de forma individual aqui. Apaga \"Ofrecer reservas en el sitio de este workspace\" en la configuracion de Citas, o quita su perfil publico."
       },
       "add": {
         "title": "Agregar una persona",

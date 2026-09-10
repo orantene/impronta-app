@@ -47,6 +47,17 @@ export type PeopleSurface = {
   readonly people: readonly PersonRecord[];
   /** True when `agencies.settings.appointments.enabled` is on. */
   readonly workspaceAppointmentsEnabled: boolean;
+  /**
+   * True when `agencies.settings.appointments.allowTalentDirectBooking` is on.
+   *
+   * THE SCREEN NEEDS THIS TO TELL THE TRUTH ABOUT "TURN OFF". The engine's
+   * agency gate is `workspaceAllow OR roster.direct_booking_enabled`, so while
+   * the workspace-level switch is on, the per-person column the Bookable hat
+   * writes cannot turn anyone off. A button that writes it anyway and reports
+   * "Saved." is a control that does nothing; the panel needs to know when
+   * that is the case so it can say so instead.
+   */
+  readonly workspaceAllowsDirectBooking: boolean;
   /** Set when the read itself failed, so the screen says so instead of "no one". */
   readonly loadFailed: boolean;
 };
@@ -54,6 +65,7 @@ export type PeopleSurface = {
 const EMPTY: PeopleSurface = {
   people: [],
   workspaceAppointmentsEnabled: false,
+  workspaceAllowsDirectBooking: false,
   loadFailed: false,
 };
 
@@ -224,6 +236,7 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
   return {
     people: mergePeople(roster, memberships),
     workspaceAppointmentsEnabled,
+    workspaceAllowsDirectBooking,
     loadFailed: false,
   };
 }

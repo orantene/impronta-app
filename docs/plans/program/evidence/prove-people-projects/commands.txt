@@ -1,0 +1,28 @@
+All from web/ of the worktree, prefixed with
+TSC_QUEUE_LOCK=/tmp/tulala-tsc.prove-people-projects.lock TSC_QUEUE_TICKETS=/tmp/tulala-tsc.prove-people-projects.tickets
+
+npm run typecheck                      exit 0   (gates/typecheck.log; verdict file /tmp/tulala-tsc.a480c193.last: TSC PASS)
+npm run lint                           exit 0   (gates/lint.log; direct eslint on the changed files: 0 errors)
+npm run test:tenant-isolation          exit 0   (gates/test-tenant-isolation.log; 605 tests, 605 pass)
+npm run test:commands                  exit 0   (gates/test-commands.log; 116 tests, 116 pass; holds src/lib/exceptions/*.test.ts)
+node scripts/check-migrations-applied.mjs   exit 0   (795 local migrations all applied, isolated branch)
+
+Playwright, local server (PLAYWRIGHT_BASE_URL=http://qa-journeys.localhost:3211, JOURNEYS_B_ORIGIN=http://qa-journeys-b.localhost:3211,
+PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_USE_DEV_SIGNIN=1 NODE_OPTIONS=--dns-result-order=ipv4first):
+  npx playwright test e2e/prove-people-issues.spec.ts --project=chromium --workers=1 --reporter=line --trace on
+                                       exit 1   (gates/e2e-local-full-run.log: 11 passed, test 12 lost to a Supabase generateLink 5xx, 2 did not run)
+  ... -g "action answers truthfully|B's order|opens that same order"
+                                       exit 0   (gates/e2e-local-rerun-issues-tail.log: 3 passed)
+  ... -g "bookable hat|blanket allow"  exit 1 then exit 0 (gates/e2e-local-people-traced.log: first attempt found the state a
+                                                memory-restart had left; the spec now restores it through the interface; 2 passed)
+  ... -g "access hat|no email|raw identifier"   exit 0   (3 passed)
+  ... -g "B's person|A's People|sees that same person"   exit 0   (3 passed)
+
+Playwright, deployed QA host (PLAYWRIGHT_BASE_URL=https://staging-qa-journeys.tulala.digital,
+JOURNEYS_B_ORIGIN=https://staging-qa-journeys-b.tulala.digital, bypass header from the secret file):
+  ... -g "sidebar rail|profile drawer|no email|raw identifier|B's person|A's People|sees that same person|opens the inbox|B's order|opens that same order"
+                                       exit 0   (host-run/e2e-qa-host-run.log: 10 passed)
+
+Earlier, recorded because they are findings:
+  first full People run, pre-fix:      bookable test failed with the hat still On after the write (the inert-button defect)
+  access run, pre-migration:           role select failed with 23514 (the coordinator/manager drift)

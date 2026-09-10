@@ -184,3 +184,58 @@ test("no unresolved collections means neither enrichment is read at all", async 
   );
   assert.equal(selects.filter((s) => s.table === "pos_collection_recoveries").length, 0);
 });
+
+// ── Mint shortfall lines that have already become refunds ─────────────
+
+const SHORTFALL_LINE: Row = {
+  order_line_id: "line-lost",
+  order_id: "ord-lost",
+  expected_rows: 1,
+  minted_rows: 0,
+  missing_rows: 1,
+  order_updated_at: LONG_AGO,
+};
+
+test("a shortfall line with a refund intent is the money desk's row, not a second critical one", async () => {
+  // PROVEN ON THE QA FIXTURE: pressing "Issue the missing tickets" on a seat
+  // lost after payment writes the intent and the line stayed in the view,
+  // still critical, still offering the button, above the refund it became.
+  const { admin } = fakeAdmin([
+    { table: "admissions_mint_shortfall", reply: { data: [SHORTFALL_LINE], error: null } },
+    {
+      table: "ticket_refund_intents",
+      when: (columns) => columns === "order_line_id",
+      reply: { data: [{ order_line_id: "line-lost" }], error: null },
+    },
+  ]);
+  const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
+  assert.equal(
+    load.rows.filter((r) => r.source === "mint_shortfall").length,
+    0,
+    "the decided line must not be listed as a shortfall",
+  );
+});
+
+test("a shortfall line with NO refund intent is still the door's problem", async () => {
+  const { admin } = fakeAdmin([
+    { table: "admissions_mint_shortfall", reply: { data: [SHORTFALL_LINE], error: null } },
+  ]);
+  const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
+  const rows = load.rows.filter((r) => r.source === "mint_shortfall");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.nextAction.kind, "resume");
+});
+
+test("a failed intents read hides nothing", async () => {
+  // The loud direction: a line shown twice beats a line shown never.
+  const { admin } = fakeAdmin([
+    { table: "admissions_mint_shortfall", reply: { data: [SHORTFALL_LINE], error: null } },
+    {
+      table: "ticket_refund_intents",
+      when: (columns) => columns === "order_line_id",
+      reply: { data: null, error: { message: "relation is being rebuilt" } },
+    },
+  ]);
+  const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
+  assert.equal(load.rows.filter((r) => r.source === "mint_shortfall").length, 1);
+});

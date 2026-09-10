@@ -46,6 +46,7 @@ import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { paymentRequestIdFromMetadata } from "@/lib/pos/collection-reservations";
 import { RECOVERY_ATTEMPT_GRANT } from "@/lib/pos/recover-collections";
 import type { ResumeVerb } from "./model";
+import type { ResumeOutcomeKey } from "./outcome-copy";
 
 type Admin = SupabaseClient;
 
@@ -75,7 +76,14 @@ export type ResumeFailureReason =
   /** It may have landed. Nobody can say. */
   | "uncertain"
   /** Another runner took this claim over while ours was still working. */
-  | "fenced";
+  | "fenced"
+  /**
+   * The ticket cannot be issued because the seat is gone, and a refund is
+   * owed instead. NOT a variant of `not_resumable`: the row asked to be
+   * re-driven and something DID happen — a refund intent now exists — so the
+   * operator has a different next step, not merely a closed door.
+   */
+  | "seat_lost";
 
 export type ResumeResult =
   | { ok: true; outcome: "armed" | "done" | "already" }
@@ -88,6 +96,13 @@ export type ResumeResult =
        * because only the runner knows which part of a partial landed.
        */
       message?: string;
+      /**
+       * A key under `dashboard.issues.result.*` when the answer is a DECISION
+       * rather than a diagnostic. Preferred over `message`, because a decision
+       * has to reach the operator in their own language and `message` is
+       * English by construction. See `outcome-copy.ts`.
+       */
+      messageKey?: ResumeOutcomeKey;
     };
 
 export type ResumeInput = {
@@ -384,7 +399,7 @@ async function mintMissing(
         variantId: (l.variant_id as string | null) ?? null,
       })),
     });
-    return { ok: true, outcome: result.rowsInserted > 0 ? "done" : "already" };
+    return mintOutcomeForLine(orderLineId, result);
   } catch (mintError) {
     // The mint inserts per line and skips what exists. A throw part way
     // through leaves some issued and some not, and we cannot see which.
@@ -394,6 +409,44 @@ async function mintMissing(
       { cause: mintError },
     );
   }
+}
+
+/**
+ * What a mint pass means FOR THE ONE LINE the inbox row is about.
+ *
+ * THE DEFECT THIS IS THE FIX FOR. The outcome used to be read off
+ * `rowsInserted` alone: anything but a fresh insert became `already`, which
+ * the screen renders as "Already handled - nothing to do." A line whose hold
+ * lapsed before the payment landed inserts nothing either — the mint refuses
+ * it and writes a `ticket_refund_intents` row instead — so an operator
+ * pressing "Issue the missing tickets" on a lost seat was told there was
+ * nothing to do, three lines under a sentence saying the buyer has a receipt
+ * and no ticket. The row did not clear, a second press said the same thing,
+ * and the refund that was now owed appeared elsewhere in the same inbox with
+ * nobody told.
+ *
+ * `mintAdmissionsForPaidOrder` re-mints the whole ORDER, so the pass may
+ * insert rows for a sibling line and still have refused this one. The answer
+ * is therefore asked for BY LINE ID rather than read off the total.
+ *
+ * Pure, and exported for that reason: the branch that matters is a decision
+ * about a returned shape, and a test of it should not have to stand up a
+ * command runner and a database.
+ */
+export function mintOutcomeForLine(
+  orderLineId: string,
+  result: {
+    readonly rowsInserted: number;
+    readonly skipped: ReadonlyArray<{ readonly lineId: string; readonly reason: string }>;
+  },
+): ResumeResult {
+  const lostHere = result.skipped.some(
+    (s) => s.lineId === orderLineId && s.reason === "seat_lost_after_payment",
+  );
+  if (lostHere) {
+    return { ok: false, reason: "seat_lost", messageKey: "seatLostAfterPayment" };
+  }
+  return { ok: true, outcome: result.rowsInserted > 0 ? "done" : "already" };
 }
 
 async function armEngineEffect(

@@ -70,9 +70,12 @@ const SECTION_MAP: ReadonlyArray<{ section: string; hat: "publicProfile" | "book
 export function PeopleClient({
   people,
   loadFailed,
+  workspaceAllowsDirectBooking,
 }: {
   people: readonly PersonRecord[];
   loadFailed: boolean;
+  /** See `PeopleSurface.workspaceAllowsDirectBooking`. */
+  workspaceAllowsDirectBooking: boolean;
 }) {
   const t = useT();
   const { adminBasePath } = useAdminShell();
@@ -144,7 +147,11 @@ export function PeopleClient({
 
         <div className="flex min-w-0 flex-col gap-4">
           {selected ? (
-            <PersonHatsPanel key={selected.key} person={selected} />
+            <PersonHatsPanel
+              key={selected.key}
+              person={selected}
+              workspaceAllowsDirectBooking={workspaceAllowsDirectBooking}
+            />
           ) : (
             <p className={cn(PEOPLE_SURFACE, "p-4 text-sm text-muted-foreground")}>
               {t("admin.people.detail.pickAPerson")}

@@ -25,6 +25,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadExceptions, type ExceptionsLoad } from "@/lib/exceptions/read";
 import { resumeException } from "@/lib/exceptions/resume";
+import type { ResumeOutcomeKey } from "@/lib/exceptions/outcome-copy";
 import { RESUME_VERBS, type ResumeVerb } from "@/lib/exceptions/model";
 
 export type LoadExceptionsResult =
@@ -52,7 +53,16 @@ export async function loadExceptionsInbox(): Promise<LoadExceptionsResult> {
 
 export type ResumeExceptionResult =
   | { ok: true; message: string }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      /**
+       * A key under `dashboard.issues.result.*`. Present when the answer is a
+       * DECISION the screen must say in the operator's own language; the
+       * screen prefers it over `error`, which is English by construction.
+       */
+      messageKey?: ResumeOutcomeKey;
+      error: string;
+    };
 
 /**
  * `idempotencyKey` comes from the CLIENT, and that is not laziness.
@@ -110,6 +120,13 @@ export async function resumeExceptionAction(input: {
     };
   }
 
+  // A KEYED ANSWER WINS OVER BOTH. It is a decision rather than a diagnostic,
+  // and a decision has to reach a Spanish or French operator in their own
+  // language. `error` still carries the English for anyone reading a log.
+  if (result.messageKey) {
+    return { ok: false, messageKey: result.messageKey, error: result.reason };
+  }
+
   // THE RUNNER'S SENTENCE WINS WHERE THERE IS ONE. `partial` and `uncertain`
   // carry a message that names what may have landed, and no sentence composed
   // out here from a reason code could say that. The reasons this screen owns
@@ -125,8 +142,10 @@ export async function resumeExceptionAction(input: {
           ? "That row is no longer in this workspace."
           : result.reason === "not_resumable"
             ? "This one needs a person: it cannot be safely re-driven."
-            : // Only `failed` reaches here, and `failed` is the one reason that
-              // means the handler asserted it wrote nothing.
+            : // `failed` is the one reason left that reaches here, and it is the
+              // one reason that means the handler asserted it wrote nothing.
+              // `seat_lost` never does: it always carries a key, and it is a
+              // reason precisely because "nothing changed" is untrue of it.
               "That did not go through. Nothing was changed.",
   };
 }
