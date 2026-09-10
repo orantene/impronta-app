@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
+import { enabledPosModesFromSettings, type PosMode } from "@/lib/pos/modes";
 
 /** Accepts #rgb / #rrggbb only — anything else (including a var() or a
  *  malformed value) is rejected so we never inject an invalid custom
@@ -131,6 +132,19 @@ export type TenantIdentityPayload = {
    * agency being on a whitelabel plan tier.
    */
   talentExclusive?: boolean;
+  /**
+   * The POS modes this workspace has switched on, parsed out of the
+   * `agencies.settings` blob this loader already selects (path
+   * `pos.locations.default.modes`). Never empty: `enabledPosModesFromSettings`
+   * falls back to `["counter"]` when a workspace has no `pos` settings at all,
+   * which is the documented safe default — an empty array here would mean
+   * "every mode deliberately off", and a surface that cannot tell the two
+   * apart hides the POS entry from every workspace that never opened the
+   * settings page.
+   *
+   * Costs no extra query: `settings` is already in the agencies select above.
+   */
+  posModes: PosMode[];
 };
 
 export async function loadTenantIdentity(
@@ -232,6 +246,7 @@ export async function loadTenantIdentity(
       typeof data.settings?.network_requested_at === "string"
         ? data.settings.network_requested_at
         : null,
+    posModes: enabledPosModesFromSettings(data.settings),
   };
 }
 

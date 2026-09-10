@@ -351,6 +351,7 @@ export type BridgeData = {
      */
     runsEvents?: boolean;
     /**
+<<<<<<< HEAD
      * Raw `agencies.settings.industry_preset`. The rail folds it into three
      * shapes (`cafe` / `solo` / `hybrid`) in `lib/workspace/nav-context.ts` and
      * reads them for its labels — "Menu and catalog" and "Team" for a cafe,
@@ -359,6 +360,16 @@ export type BridgeData = {
      * through to `hybrid`, the shape that relabels nothing.
      */
     industryPreset?: string | null;
+=======
+     * The POS modes this workspace has switched on
+     * (`agencies.settings.pos.locations.default.modes`, already parsed by
+     * `enabledPosModesFromSettings`). Optional on the wire; a reader that does
+     * not get one must fall back to that parser's own `["counter"]` default,
+     * never to `[]` — `[]` is the legitimate "every mode off" value and would
+     * otherwise silently hide the POS entry from every workspace.
+     */
+    posModes?: readonly import("@/lib/pos/modes").PosMode[];
+>>>>>>> work/t2-mobile
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome
@@ -433,7 +444,18 @@ export type BridgeData = {
    * (BottomActionFab) and the first-run guided tour. `null`/omitted = both
    * hidden (the platform default).
    */
-  workspaceUi?: { fabEnabled: boolean; tourEnabled: boolean; supportEnabled?: boolean } | null;
+  workspaceUi?: {
+    fabEnabled: boolean;
+    tourEnabled: boolean;
+    supportEnabled?: boolean;
+    /**
+     * `platform_settings.workspace_pos_enabled` — the point of sale's kill
+     * switch. OPTIONAL because this is the wire format and an older bridge or
+     * a prototype legitimately omits it; the reader defaults it to false,
+     * matching the switch's own platform default.
+     */
+    posEnabled?: boolean;
+  } | null;
 };
 
 export function createBridgeDataFromRoster(
