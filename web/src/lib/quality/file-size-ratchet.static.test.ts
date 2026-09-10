@@ -335,7 +335,10 @@ const BUDGETS: Record<string, number> = {
   // page is called. Re-recorded rather than extracted — an exhaustive Record is
   // the compile-time proof, and moving it out of the module that owns the page
   // vocabulary would buy lines and lose that.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5184,
+    // Merged with main twice on 2026-09-10 while the pull request was open; the
+  // budget is the merged file's measured size, which CI checks on the merge
+  // rather than on the head alone.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5185,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
