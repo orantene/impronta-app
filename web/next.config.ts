@@ -337,6 +337,15 @@ const nextConfig: NextConfig = {
    */
   experimental: {
     viewTransition: true,
+    /**
+     * Page-data collection forks one worker per CPU, and each worker inherits
+     * NODE_OPTIONS, so the build's heap ceiling is charged once per worker
+     * rather than once per build. On a standard 8 GiB deploy container three
+     * workers at the previous ceiling asked for more than the machine has, and
+     * the kernel killed the build after a clean compile: SIGKILL, no error.
+     * One worker is slower and finishes.
+     */
+    cpus: 1,
     // Vercel Skew Protection (`skewProtection: true`) is injected just below the
     // `experimental` block via a typed augmentation, not inline here: this Next
     // version's `ExperimentalConfig` is a closed interface without the key, so an
