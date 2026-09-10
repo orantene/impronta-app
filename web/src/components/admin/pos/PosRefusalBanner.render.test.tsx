@@ -5,16 +5,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createTranslator } from "@/i18n/messages";
 import { PosRefusalBanner } from "./PosRefusalBanner";
 import { refusalCopy } from "./pos-copy";
-import type { PosRefusalReason } from "./pos-types";
+import { POS_REFUSAL_REASONS } from "./pos-types";
 import { markupIncludesText } from "./test-html-helpers";
 
-const REASONS: readonly PosRefusalReason[] = [
-  "balanceChanged",
-  "saleReloading",
-  "needsCustomerName",
-  "paymentDeclined",
-  "paymentUnknown",
-];
+/**
+ * THE LIST IS NOT COPIED HERE, and that is the point.
+ *
+ * This file used to carry its own five-entry array. Adding a reason to the
+ * type without also editing this array left the new sentence proved by
+ * nothing, in any language — the test kept passing while covering less. It
+ * iterates the exported vocabulary now, so a reason that gains no catalogue
+ * entry fails here the moment it exists.
+ */
+const REASONS = POS_REFUSAL_REASONS;
 
 const LOCALES = ["en", "es", "fr"] as const;
 

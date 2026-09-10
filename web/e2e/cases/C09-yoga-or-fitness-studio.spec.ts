@@ -11,6 +11,12 @@ import {
   skipUnlessFixture,
   signInJourneysStaff,
   assertWorkspaceIdentity,
+  counterAddItem,
+  counterCollectCash,
+  counterNameBuyer,
+  counterStartSale,
+  expectCounterPaid,
+  openCounter,
 } from "./_harness";
 import {
   latestClassWalkIn,
@@ -85,21 +91,19 @@ test("C09-OP walk-in class: New sale → Complimentary class → collect → Sal
   test.setTimeout(120_000);
   const marker = `c09-op-${Date.now()}@impronta.test`;
 
-  await signInJourneysStaff(page, "/admin/pos");
-  await assertWorkspaceIdentity(page);
-  await expect(page.getByTitle("Complimentary class")).toBeVisible();
-  await expect(page.getByRole("combobox").filter({ hasText: "Morning class" })).toBeVisible();
+  // Re-expressed for the wired counter (P3). The session picker moved from a
+  // `<select>` under each tile to the tile's own required-choice chip row
+  // (spec C19, `SellSurface`'s "Choose one" group) — same decision, same
+  // pre-selected next session, a different affordance.
+  await openCounter(page);
+  await expect(page.getByRole("button", { name: "Complimentary class" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Morning class" })).toBeVisible();
 
-  await page.getByRole("button", { name: "⊕ New sale" }).click();
-  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await expect(page.getByTitle("Complimentary class")).toBeEnabled();
-
-  await page.getByTitle("Complimentary class").click();
-  await expect(page.locator("aside").getByText(/complimentary class/i)).toBeVisible();
-
-  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+  await counterStartSale(page);
+  await counterAddItem(page, "Complimentary class");
+  await counterNameBuyer(page, marker);
+  await counterCollectCash(page);
+  await expectCounterPaid(page);
 
   await page.goto("/admin/sales");
   await assertWorkspaceIdentity(page);
@@ -158,20 +162,21 @@ test("C09-DIFF door: website last seat blocks POS walk-in on the same pool", asy
   });
   await expect(after.getByText(/sold out/i).first()).toBeVisible();
 
-  await signInJourneysStaff(page, "/admin/pos");
-  await assertWorkspaceIdentity(page);
-  await expect(page.getByTitle("Complimentary class")).toBeVisible();
-  await page.getByRole("button", { name: "⊕ New sale" }).click();
-  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await page.locator("select").filter({ hasText: "Last place class" }).selectOption(LAST_PLACE_CLASS_SESSION_ID);
-  await page.getByTitle("Complimentary class").click();
-  await expect(page.locator("aside").getByText(/complimentary class/i)).toBeVisible();
-  await page.locator("aside").getByLabel(/^email$/i).fill(walkInMarker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.locator("aside").getByRole("alert")).toHaveText(/no longer free/i, {
-    timeout: 30_000,
-  });
-  await expect(page.getByText(/payment:\s*paid/i)).toHaveCount(0);
+  await openCounter(page);
+  await expect(page.getByRole("button", { name: "Complimentary class" }).first()).toBeVisible();
+  await counterStartSale(page);
+  // Pick the sold-out session on the tile's chip row before adding the line.
+  await page.getByRole("button", { name: "Last place class" }).click();
+  await counterAddItem(page, "Complimentary class");
+  await counterNameBuyer(page, walkInMarker);
+  await counterCollectCash(page);
+  // The engine's `sold_out` refusal, rendered as the sentence a cashier can
+  // act on rather than as its own reason word. The OLD assertion matched the
+  // engine's English `error` string ("no longer free") because the screen
+  // printed it verbatim; the refusal itself is unchanged, only who it is
+  // written for.
+  await expect(page.getByRole("alert")).toContainText(/just taken/i, { timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: /^paid$/i })).toHaveCount(0);
 
   const refused = await latestClassWalkIn(walkInMarker);
   expect(refused?.status ?? "missing").not.toBe("paid");

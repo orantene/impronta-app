@@ -1046,6 +1046,29 @@
       }
     },
     "pos": {
+      "pageTitle": "Nouvelle vente",
+      "newSale": "Nouvelle vente",
+      "guest": "Client de passage",
+      "outstanding": "Reste à payer",
+      "contactHint": "Un e-mail ou un téléphone est requis pour encaisser.",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "sendToPrep": "Envoyer en préparation",
+      "prepDestination": "Destination de préparation",
+      "prepPickup": "Retrait",
+      "prepTable": "Table",
+      "prepCounter": "Comptoir",
+      "prepPromisedAt": "Créneau de retrait",
+      "amount": "Cette allocation",
+      "shiftTitle": "Service",
+      "shiftOpen": "Ouvrir le service",
+      "shiftClose": "Clôturer le service",
+      "shiftOpening": "Fonds de caisse",
+      "shiftCounted": "Espèces comptées",
+      "shiftExpected": "Espèces attendues",
+      "shiftVariance": "Écart",
+      "shiftNone": "Aucun service ouvert. Les espèces s'encaissent quand même.",
+      "shiftOpenHint": "Quitter cette page ne clôture pas le service.",
       "counter": {
         "rail": {
           "label": "Comptoir",
@@ -1109,7 +1132,8 @@
           "cardUnavailable": "Aucun lecteur de carte n'est connecté sur cet appareil.",
           "linkUnavailable": "Aucun fournisseur de lien de paiement n'est configuré pour cet espace de travail.",
           "passUnavailable": "Les crédits de forfait ne sont pas activés pour cet espace de travail.",
-          "methodUnavailableFallback": "Ce mode de paiement n'est pas disponible actuellement."
+          "methodUnavailableFallback": "Ce mode de paiement n'est pas disponible actuellement.",
+          "cardNotWired": "Un lecteur est configuré, mais le comptoir ne sait pas encore le piloter. Encaissez en espèces ou envoyez un lien de paiement."
         },
         "paid": {
           "title": "Payé",
@@ -1123,7 +1147,8 @@
           "title": "Ventes en attente",
           "empty": "Aucune vente en attente.",
           "resume": "Reprendre",
-          "heldSince": "En attente depuis"
+          "heldSince": "En attente depuis",
+          "saleLabel": "Vente"
         },
         "refusal": {
           "balanceChanged": "Quelqu'un a déjà encaissé une partie de ce solde. Le montant dû a changé.",
@@ -1132,7 +1157,58 @@
           "paymentDeclined": "Le paiement n'a pas abouti. Rien n'a été encaissé.",
           "paymentUnknown": "Le paiement a peut-être abouti. Vérifiez avant de réessayer.",
           "retry": "Réessayer",
-          "reload": "Recharger"
+          "reload": "Recharger",
+          "capacityGone": "Ce créneau vient d'être pris. Rien n'a été encaissé.",
+          "bookingChanged": "Cette réservation a changé depuis que vous l'avez ouverte.",
+          "tenderShort": "L'espèce comptée est inférieure au montant à encaisser.",
+          "emptySale": "Il n'y a rien à encaisser sur cette vente.",
+          "itemRefused": "Cet article ne peut pas figurer sur cette vente.",
+          "discountRefused": "Ce code ne peut pas être appliqué à cette vente.",
+          "discountNeedsCustomer": "Un code de réduction exige un client nommé. Ajoutez-en un d'abord.",
+          "readerUnavailable": "Aucun lecteur de carte n'est prêt sur cet appareil.",
+          "pickupWindow": "Choisissez une heure de retrait encore à venir.",
+          "wrongWorkspace": "Cette vente appartient à un autre espace de travail.",
+          "notAllowed": "Vous n'avez pas le droit de faire cela au comptoir.",
+          "amountInvalid": "Saisissez un montant de zéro ou plus.",
+          "shiftAlreadyOpen": "Un service est déjà ouvert ici.",
+          "shiftAlreadyClosed": "Ce service est déjà clôturé."
+        },
+        "switch": {
+          "label": "Espace de travail ou point de vente",
+          "workspace": "Espace de travail",
+          "openMenu": "Choisissez un mode de point de vente",
+          "makeDefault": "En faire le choix par défaut ici",
+          "defaultSaved": "Enregistré sur cet appareil"
+        },
+        "mode": {
+          "counter": "Comptoir",
+          "floor": "Salle",
+          "door": "Entrée",
+          "classes": "Cours",
+          "projects": "Projets",
+          "notBuilt": "Ce mode n'a pas encore d'écran."
+        },
+        "gate": {
+          "title": "Le point de vente n'est pas activé pour vous",
+          "body": "Personne n'a donné de mode de point de vente à ce compte sur cet espace de travail. Un propriétaire peut en activer un dans les réglages.",
+          "back": "Retour à l'espace de travail"
+        },
+        "receiptLink": "Lien du reçu",
+        "copyReceipt": "Copier le lien du reçu",
+        "receiptCopied": "Lien du reçu copié",
+        "hold": "Mettre la vente en attente",
+        "startSale": "Commencer une nouvelle vente",
+        "cancelSale": "Annuler la vente",
+        "collectTitle": "Encaisser",
+        "backToSale": "Retour à la vente",
+        "openShiftCash": "Espèces en caisse au départ",
+        "closeShiftCash": "Espèces comptées à la clôture",
+        "confirmOpenShift": "Ouvrir le service",
+        "confirmCloseShift": "Clôturer le service",
+        "category": {
+          "service": "Services",
+          "package": "Forfaits",
+          "product": "Produits"
         }
       }
     }

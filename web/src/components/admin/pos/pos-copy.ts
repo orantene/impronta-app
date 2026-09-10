@@ -15,6 +15,8 @@
  * resolve is invisible to that guard rather than checked by it.
  */
 
+import type { PosMode } from "@/lib/pos/modes";
+
 import type { Translator } from "./translator";
 import type { BasketCopy } from "./Basket";
 import type { CollectSheetCopy } from "./CollectSheet";
@@ -159,7 +161,84 @@ export function refusalCopy(t: Translator): PosRefusalCopy {
     needsCustomerName: t("dashboard.pos.counter.refusal.needsCustomerName"),
     paymentDeclined: t("dashboard.pos.counter.refusal.paymentDeclined"),
     paymentUnknown: t("dashboard.pos.counter.refusal.paymentUnknown"),
+    capacityGone: t("dashboard.pos.counter.refusal.capacityGone"),
+    bookingChanged: t("dashboard.pos.counter.refusal.bookingChanged"),
+    tenderShort: t("dashboard.pos.counter.refusal.tenderShort"),
+    emptySale: t("dashboard.pos.counter.refusal.emptySale"),
+    itemRefused: t("dashboard.pos.counter.refusal.itemRefused"),
+    discountRefused: t("dashboard.pos.counter.refusal.discountRefused"),
+    discountNeedsCustomer: t("dashboard.pos.counter.refusal.discountNeedsCustomer"),
+    readerUnavailable: t("dashboard.pos.counter.refusal.readerUnavailable"),
+    pickupWindow: t("dashboard.pos.counter.refusal.pickupWindow"),
+    wrongWorkspace: t("dashboard.pos.counter.refusal.wrongWorkspace"),
+    notAllowed: t("dashboard.pos.counter.refusal.notAllowed"),
+    amountInvalid: t("dashboard.pos.counter.refusal.amountInvalid"),
+    shiftAlreadyOpen: t("dashboard.pos.counter.refusal.shiftAlreadyOpen"),
+    shiftAlreadyClosed: t("dashboard.pos.counter.refusal.shiftAlreadyClosed"),
     retry: t("dashboard.pos.counter.refusal.retry"),
     reload: t("dashboard.pos.counter.refusal.reload"),
   };
+}
+
+/**
+ * The counter page's own labels — the ones that belong to the WIRING rather
+ * than to any one presentational component: the hold/cancel/next actions, the
+ * receipt link, and the two shift prompts. Kept beside the component copy
+ * builders so a page has exactly one place to look, and written as literal
+ * keys for the same reason as every builder above.
+ */
+export type PosCounterPageCopy = {
+  readonly receiptLink: string;
+  readonly copyReceipt: string;
+  readonly receiptCopied: string;
+  readonly hold: string;
+  readonly startSale: string;
+  readonly cancelSale: string;
+  readonly collectTitle: string;
+  readonly backToSale: string;
+  readonly openShiftCash: string;
+  readonly closeShiftCash: string;
+  readonly confirmOpenShift: string;
+  readonly confirmCloseShift: string;
+};
+
+export function counterPageCopy(t: Translator): PosCounterPageCopy {
+  return {
+    receiptLink: t("dashboard.pos.counter.receiptLink"),
+    copyReceipt: t("dashboard.pos.counter.copyReceipt"),
+    receiptCopied: t("dashboard.pos.counter.receiptCopied"),
+    hold: t("dashboard.pos.counter.hold"),
+    startSale: t("dashboard.pos.counter.startSale"),
+    cancelSale: t("dashboard.pos.counter.cancelSale"),
+    collectTitle: t("dashboard.pos.counter.collectTitle"),
+    backToSale: t("dashboard.pos.counter.backToSale"),
+    openShiftCash: t("dashboard.pos.counter.openShiftCash"),
+    closeShiftCash: t("dashboard.pos.counter.closeShiftCash"),
+    confirmOpenShift: t("dashboard.pos.counter.confirmOpenShift"),
+    confirmCloseShift: t("dashboard.pos.counter.confirmCloseShift"),
+  };
+}
+
+/**
+ * A POS mode's own label, in the request's language.
+ *
+ * `POS_MODE_META[mode].label` is English only and says so in its own type
+ * comment, so a screen that shows a mode name to a cashier reads it from the
+ * catalogue instead. The switch statement (rather than a template key) is
+ * what keeps every key literal and therefore visible to
+ * `message-key-usage.static.test.ts`.
+ */
+export function posModeLabel(t: Translator, mode: PosMode): string {
+  switch (mode) {
+    case "counter":
+      return t("dashboard.pos.counter.mode.counter");
+    case "floor":
+      return t("dashboard.pos.counter.mode.floor");
+    case "door":
+      return t("dashboard.pos.counter.mode.door");
+    case "classes":
+      return t("dashboard.pos.counter.mode.classes");
+    case "projects":
+      return t("dashboard.pos.counter.mode.projects");
+  }
 }

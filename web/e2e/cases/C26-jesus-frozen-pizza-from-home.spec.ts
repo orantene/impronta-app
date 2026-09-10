@@ -11,6 +11,12 @@ import {
   skipUnlessFixture,
   signInJourneysStaff,
   assertWorkspaceIdentity,
+  counterAddItem,
+  counterCollectCash,
+  counterNameBuyer,
+  counterStartSale,
+  expectCounterPaid,
+  openCounter,
 } from "./_harness";
 import { latestPosPizzaPickup } from "./_isolated-db";
 
@@ -42,23 +48,22 @@ test("C26-OP pickup: New sale → House pizza → cash → prep handoff and DB a
   const marker = `c26-op-${Date.now()}@impronta.test`;
   const promised = pickupWindowLocal();
 
-  await signInJourneysStaff(page, "/admin/pos");
-  await assertWorkspaceIdentity(page);
-  await expect(page.getByTitle("House pizza")).toBeVisible();
-
-  await page.getByRole("button", { name: "⊕ New sale" }).click();
-  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await page.getByTitle("House pizza").click();
-  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
-
-  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+  // Re-expressed for the wired counter (P3): the same journey through the
+  // affordances that exist now. The prep half is unchanged in substance —
+  // pickup destination, a real pickup window, send to preparation — and its
+  // proof moved from the old screen's `preparation: queued` status line to
+  // the preparation BOARD below, which is where the ticket actually has to
+  // appear for the journey to mean anything.
+  await openCounter(page);
+  await counterStartSale(page);
+  await counterAddItem(page, "House pizza");
+  await counterNameBuyer(page, marker);
+  await counterCollectCash(page);
+  await expectCounterPaid(page);
 
   await page.getByLabel(/prep destination/i).selectOption("pickup");
   await page.getByLabel(/pickup window/i).fill(promised);
-  await page.getByTitle("Send to preparation").click();
-  await expect(page.getByText(/preparation:\s*queued/i)).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: /send to preparation/i }).click();
 
   await signInJourneysStaff(page, "/admin/preparation");
   await assertWorkspaceIdentity(page);

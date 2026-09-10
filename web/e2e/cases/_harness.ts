@@ -183,6 +183,68 @@ async function adoptSetCookies(page: Page, headers: string[]): Promise<void> {
   if (cookies.length > 0) await page.context().addCookies(cookies);
 }
 
+// ── The counter (P3) ───────────────────────────────────────────────────
+//
+// Five helpers rather than five copies of the same locators in five case
+// specs. The counter's affordances are shared by every case that rings
+// something up, and the last time they were spelled out per file a screen
+// rewrite left four specs driving buttons that no longer existed.
+//
+// Each one names the affordance, never the markup: a role and an accessible
+// name, so the assertion is what a cashier can see and reach.
+
+/** Open the counter on a fixture workspace, chrome and all. */
+export async function openCounter(page: Page, orderId?: string): Promise<void> {
+  const query = orderId ? `&order=${encodeURIComponent(orderId)}` : "";
+  await signInJourneysStaff(page, `/admin/pos?mode=counter${query}`);
+  await assertWorkspaceIdentity(page);
+}
+
+/** C02 — a fresh, empty sale. Resolves once the URL carries its order id. */
+export async function counterStartSale(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /start a new sale/i }).click();
+  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+}
+
+/** Add one unit of a catalog item by its own name. */
+export async function counterAddItem(page: Page, title: string): Promise<void> {
+  const tile = page.getByRole("button", { name: title }).first();
+  await expect(tile).toBeVisible({ timeout: 20_000 });
+  await tile.click();
+  await expect(page.getByText(/add an item to start this sale/i)).toHaveCount(0, {
+    timeout: 20_000,
+  });
+}
+
+/**
+ * Name the buyer.
+ *
+ * `startCollection` hands this to `ensureCustomer`, which is what writes
+ * `orders.customer_id` — so this is how a case's marker email reaches the row
+ * its DB assertion looks the order up by.
+ */
+export async function counterNameBuyer(page: Page, email: string): Promise<void> {
+  await page.getByLabel(/^e-?mail$/i).first().fill(email);
+}
+
+/**
+ * Charge, then confirm cash. Two taps because the counter has two screens:
+ * Charge opens the collect sheet (money.md M01), Confirm cash takes it.
+ *
+ * Tendering exactly the amount due is the default, so no keypad entry is
+ * needed for the ordinary case.
+ */
+export async function counterCollectCash(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^Charge · /i }).first().click();
+  await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: /confirm cash/i }).click();
+}
+
+/** The paid screen (M13). The one honest proof a collection landed. */
+export async function expectCounterPaid(page: Page): Promise<void> {
+  await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 30_000 });
+}
+
 export function skipUnlessFixture(): void {
   test.skip(!FIXTURE_READY, "P0-06 apply needs credentials; set JOURNEYS_FIXTURE_READY=1 after seed");
 }
