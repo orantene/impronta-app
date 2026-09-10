@@ -103,3 +103,23 @@ test("empty and unknown paths are not canonical", () => {
 test("leading slashes are normalised", () => {
   assert.equal(pathIsCanonical("///admin/activity-log"), true);
 });
+
+/**
+ * People (P4) — /admin/people is a real server page; /admin/roster is NOT.
+ *
+ * Both halves matter. If the roster ever became canonical the roster SPA would
+ * render nothing at all, and if /admin/people were left non-canonical its
+ * server page would render inline UNDER the SPA — the exact stacking failure
+ * the branded-host bug above produced.
+ */
+test("People is canonical on both host shapes, and only at its bare segment", () => {
+  assert.equal(pathIsCanonical("/admin/people"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/people"), true);
+  // A deeper People URL stays on the SPA so a future PageRouteSyncer child
+  // is not silently swallowed.
+  assert.equal(pathIsCanonical("/admin/people/abc123"), false);
+  assert.equal(pathIsCanonical("/impronta/admin/people/abc123"), false);
+  // And the roster the People surface sits beside is untouched.
+  assert.equal(pathIsCanonical("/admin/roster"), false);
+  assert.equal(pathIsCanonical("/impronta/admin/roster"), false);
+});

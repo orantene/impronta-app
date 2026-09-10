@@ -13022,6 +13022,128 @@
           "messageSent": "Mensaje enviado"
         }
       }
+    },
+    "people": {
+      "title": "Personas",
+      "subtitle": "Una persona, hasta tres roles. Un perfil publico, alguien a quien puedes reservar, alguien que puede iniciar sesion. Cualquier combinacion, cargada una sola vez.",
+      "unnamed": "Persona sin nombre",
+      "loadFailed": "No pudimos leer tus personas en este momento. Esto no significa que el espacio este vacio. Recarga la pagina y, si vuelve a pasar, el propietario del espacio debe revisar la conexion con la base de datos.",
+      "count": "{count} personas",
+      "countOne": "1 persona",
+      "tabs": {
+        "everyone": "Todos",
+        "talent": "Perfiles publicos",
+        "bookable": "Reservables",
+        "access": "Acceso"
+      },
+      "empty": {
+        "everyone": "Todavia no hay nadie. Agrega a la primera persona y elige que roles tiene.",
+        "talent": "Nadie tiene todavia un perfil publico. Agrega un perfil para sumar a alguien a tu lista publica.",
+        "bookable": "Todavia nadie es reservable. Abre una persona y activa el rol Reservable para que los clientes puedan reservarla.",
+        "access": "Por ahora solo tu puedes iniciar sesion en este espacio. Invita a alguien para darle acceso."
+      },
+      "hat": {
+        "publicProfile": "Perfil publico",
+        "bookable": "Reservable",
+        "access": "Acceso"
+      },
+      "hatWhat": {
+        "publicProfile": "Se muestra en tu lista publica y en su propia pagina de perfil.",
+        "bookable": "Aparece en Elegir profesional, en la pagina de reservas y en el mostrador.",
+        "access": "Puede iniciar sesion en este espacio y hacer lo que su rol permite."
+      },
+      "on": "Activado",
+      "off": "Desactivado",
+      "reason": {
+        "noRosterRow": "Esta persona no esta en tu lista, asi que no hay perfil publico que mostrar.",
+        "rosterRemoved": "Esta persona fue quitada de tu lista. Su perfil sigue existiendo y se puede volver a agregar.",
+        "workspaceAppointmentsOff": "Las reservas estan desactivadas para todo el espacio. Activa las citas en Configuracion primero.",
+        "personHasNotOptedIn": "Esta persona todavia no acepto recibir reservas. Solo ella puede aceptar, desde su propia cuenta.",
+        "agencyGateOff": "Todavia no abriste las reservas para esta persona. Activa el rol Reservable.",
+        "notSiteVisible": "Esta persona esta en tu lista pero oculta en tu sitio, asi que los clientes no pueden llegar a reservarla.",
+        "exclusiveNotReleased": "Una agencia exclusiva no libero a esta persona para reservas en otros lugares.",
+        "noMembership": "Esta persona no tiene inicio de sesion en este espacio.",
+        "membershipRemoved": "Se le quito el acceso. Puedes volver a invitarla cuando quieras.",
+        "noAccount": "Todavia no hay una cuenta detras de esta invitacion."
+      },
+      "warning": {
+        "noBookingHours": "Todavia no hay horarios, asi que no se ofrecera ningun turno. Define horarios para empezar a recibir reservas.",
+        "noOfferings": "Todavia no hay servicios, asi que no hay nada que reservar. Agrega un servicio en tu catalogo."
+      },
+      "result": {
+        "saved": "Guardado.",
+        "notAuthorized": "Inicia sesion de nuevo e intenta otra vez.",
+        "notAllowed": "Tu rol no permite este cambio. Pideselo a un propietario o a un administrador.",
+        "alreadyOnThisWorkspace": "Esa persona ya tiene acceso a este espacio.",
+        "checkTheDetails": "Revisa los datos e intenta de nuevo.",
+        "seatLimit": "Este espacio no tiene lugares libres para otra persona con acceso. Mejora el plan o quita el acceso a alguien primero.",
+        "noAccountYet": "Esta persona todavia no creo una cuenta, asi que no hay con que iniciar sesion. Invitala por correo.",
+        "notOnRoster": "Esta persona no esta en tu lista en este espacio.",
+        "personSetsTheirOwnBooking": "Tu parte esta activada. Esta persona inicia sesion por su cuenta, asi que todavia tiene que aceptar recibir reservas desde su propia cuenta. Hasta entonces no aparecera en Elegir profesional.",
+        "cannotChangeYourOwnRole": "No puedes cambiar tu propio rol. Pideselo a otro propietario o administrador.",
+        "couldNotSave": "No se guardo. Intenta de nuevo y avisa al propietario del espacio si sigue pasando."
+      },
+      "role": {
+        "owner": "Propietario",
+        "admin": "Administrador",
+        "manager": "Encargado",
+        "editor": "Editor",
+        "viewer": "Lectura",
+        "none": "Sin rol"
+      },
+      "detail": {
+        "pickAPerson": "Elige una persona para ver sus tres roles.",
+        "openProfileEditor": "Abrir el editor de perfil",
+        "profileEditorNote": "El editor de perfil no cambia. Es el mismo panel que ya usas, presentado aqui como uno de los tres roles.",
+        "turnOn": "Activar",
+        "turnOff": "Desactivar",
+        "working": "Guardando...",
+        "roleLabel": "Rol",
+        "changeRole": "Cambiar rol",
+        "revokeAccess": "Quitar el acceso",
+        "grantAccess": "Dar acceso",
+        "inviteByEmail": "Invitar por correo",
+        "emailLabel": "Correo electronico",
+        "invite": "Enviar invitacion",
+        "alsoRemoves": "Al desactivarlo tambien se quita el rol Reservable, porque una persona que no esta en tu lista no se puede reservar aqui.",
+        "whatStays": "Lo que queda: {hats}",
+        "nothingElseChanges": "Nada mas cambia. Quitar un rol nunca elimina a la persona.",
+        "moneyNote": "Ser reservable no otorga permisos de dinero. Solo un rol en el acceso lo hace, y lo puedes ver aqui.",
+        "holdsMoney": "Este rol puede cobrar en el mostrador.",
+        "noMoney": "Este rol no puede cobrar en el mostrador."
+      },
+      "add": {
+        "title": "Agregar una persona",
+        "intro": "Elige primero los roles. Puedes cambiarlos despues, y quitar uno nunca elimina a la persona.",
+        "publicWhat": "Dale un perfil publico en tu lista.",
+        "bookableWhat": "Deja que los clientes la reserven. Necesita antes un perfil publico.",
+        "accessWhat": "Deja que inicie sesion y trabaje aqui.",
+        "doorRosterLabel": "Crear el perfil",
+        "doorRosterNote": "Agrega a la persona con un perfil publico. Vuelve aqui para activar Reservable con un clic.",
+        "doorInviteNote": "Envia una invitacion para iniciar sesion. No se crea ningun perfil publico."
+      },
+      "explainer": {
+        "title": "Que controla cada rol",
+        "intro": "Cada seccion que ya editas pertenece exactamente a un rol. Este es el mapa.",
+        "sectionColumn": "Seccion",
+        "hatColumn": "Rol",
+        "resourcesNote": "Las salas, las sillas y los equipos no son personas. Son recursos y viven en Espacios.",
+        "sections": {
+          "bookingTerms": "Condiciones de reserva",
+          "bookingHours": "Horarios de reserva",
+          "availability": "Disponibilidad",
+          "logistics": "Logistica",
+          "services": "Servicios",
+          "locationAndServiceArea": "Ubicacion y zona de servicio",
+          "limits": "Limites",
+          "trustBadges": "Confianza y verificacion",
+          "files": "Archivos",
+          "media": "Medios",
+          "emergencyContact": "Contacto de emergencia",
+          "roleAndPermissions": "Rol y permisos",
+          "signIn": "Inicio de sesion"
+        }
+      }
     }
   },
   "client": {

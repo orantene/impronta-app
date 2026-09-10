@@ -13022,6 +13022,128 @@
           "messageSent": "Message sent"
         }
       }
+    },
+    "people": {
+      "title": "People",
+      "subtitle": "One person, up to three hats. A public profile, someone you can book, someone who can sign in. Any combination, entered once.",
+      "unnamed": "Unnamed person",
+      "loadFailed": "We could not read your people just now. This is not an empty workspace. Reload the page, and if it happens again the workspace owner should check the connection to the database.",
+      "count": "{count} people",
+      "countOne": "1 person",
+      "tabs": {
+        "everyone": "Everyone",
+        "talent": "Public profiles",
+        "bookable": "Bookable",
+        "access": "Access"
+      },
+      "empty": {
+        "everyone": "Nobody is here yet. Add the first person and pick which hats they wear.",
+        "talent": "Nobody here has a public profile yet. Add a profile to put someone on your public roster.",
+        "bookable": "Nobody is bookable yet. Open a person and turn the Bookable hat on to let clients book them.",
+        "access": "Only you can sign in to this workspace so far. Invite someone to give them access."
+      },
+      "hat": {
+        "publicProfile": "Public profile",
+        "bookable": "Bookable",
+        "access": "Access"
+      },
+      "hatWhat": {
+        "publicProfile": "Shown on your public roster and their own profile page.",
+        "bookable": "Offered in Pick a professional, on the booking page and at the counter.",
+        "access": "Can sign in to this workspace and do the work their role allows."
+      },
+      "on": "On",
+      "off": "Off",
+      "reason": {
+        "noRosterRow": "This person is not on your roster, so there is no public profile to show.",
+        "rosterRemoved": "This person was taken off your roster. Their profile still exists and can be added back.",
+        "workspaceAppointmentsOff": "Booking is switched off for the whole workspace. Turn appointments on in Settings first.",
+        "personHasNotOptedIn": "This person has not agreed to take bookings yet. Only they can say yes, from their own account.",
+        "agencyGateOff": "You have not opened booking for this person yet. Turn the Bookable hat on.",
+        "notSiteVisible": "This person is on your roster but hidden from your site, so clients cannot reach them to book.",
+        "exclusiveNotReleased": "An exclusive agency has not released this person for booking anywhere else.",
+        "noMembership": "This person has no sign-in for this workspace.",
+        "membershipRemoved": "Access was taken away. They can be invited again at any time.",
+        "noAccount": "There is no account behind this invitation yet."
+      },
+      "warning": {
+        "noBookingHours": "No booking hours yet, so no times will be offered. Set hours to start taking bookings.",
+        "noOfferings": "No services yet, so there is nothing to book. Add a service in your catalog."
+      },
+      "result": {
+        "saved": "Saved.",
+        "notAuthorized": "Sign in again and try once more.",
+        "notAllowed": "Your role does not allow this change. Ask an owner or an admin.",
+        "alreadyOnThisWorkspace": "That person already has access to this workspace.",
+        "checkTheDetails": "Check the details and try again.",
+        "seatLimit": "This workspace has no seats left for another person with access. Upgrade the plan or take access away from someone first.",
+        "noAccountYet": "This person has not created an account yet, so there is nothing to sign in with. Invite them by email instead.",
+        "notOnRoster": "This person is not on your roster in this workspace.",
+        "personSetsTheirOwnBooking": "Your half is on. This person signs in themselves, so they still have to agree to take bookings from their own account. Until they do, they will not appear in Pick a professional.",
+        "cannotChangeYourOwnRole": "You cannot change your own role. Ask another owner or admin.",
+        "couldNotSave": "That did not save. Try again, and tell the workspace owner if it keeps happening."
+      },
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "manager": "Manager",
+        "editor": "Editor",
+        "viewer": "Viewer",
+        "none": "No role"
+      },
+      "detail": {
+        "pickAPerson": "Pick a person to see their three hats.",
+        "openProfileEditor": "Open the profile editor",
+        "profileEditorNote": "The profile editor is unchanged. It is the same drawer you already use, framed here as one hat among three.",
+        "turnOn": "Turn on",
+        "turnOff": "Turn off",
+        "working": "Saving...",
+        "roleLabel": "Role",
+        "changeRole": "Change role",
+        "revokeAccess": "Take access away",
+        "grantAccess": "Give access",
+        "inviteByEmail": "Invite by email",
+        "emailLabel": "Email address",
+        "invite": "Send invitation",
+        "alsoRemoves": "Turning this off also takes the Bookable hat off, because a person who is not on your roster cannot be booked here.",
+        "whatStays": "What stays: {hats}",
+        "nothingElseChanges": "Nothing else changes. Taking a hat off never removes the person.",
+        "moneyNote": "Being bookable grants no money permissions. Only a role on the Access hat does that, and you can see it here.",
+        "holdsMoney": "This role can take money at the counter.",
+        "noMoney": "This role cannot take money at the counter."
+      },
+      "add": {
+        "title": "Add a person",
+        "intro": "Pick the hats first. You can change any of them later, and taking one off never removes the person.",
+        "publicWhat": "Give them a public profile on your roster.",
+        "bookableWhat": "Let clients book them. Needs a public profile first.",
+        "accessWhat": "Let them sign in and work here.",
+        "doorRosterLabel": "Create the profile",
+        "doorRosterNote": "Adds the person with a public profile. Come back here to turn Bookable on in one click.",
+        "doorInviteNote": "Sends a sign-in invitation. No public profile is created."
+      },
+      "explainer": {
+        "title": "What each hat controls",
+        "intro": "Every section you already edit belongs to exactly one hat. This is the map.",
+        "sectionColumn": "Section",
+        "hatColumn": "Hat",
+        "resourcesNote": "Rooms, chairs and equipment are not people. They are resources, and they live in Spaces.",
+        "sections": {
+          "bookingTerms": "Booking terms",
+          "bookingHours": "Booking hours",
+          "availability": "Availability",
+          "logistics": "Logistics",
+          "services": "Services",
+          "locationAndServiceArea": "Location and service area",
+          "limits": "Limits",
+          "trustBadges": "Trust and verification",
+          "files": "Files",
+          "media": "Media",
+          "emergencyContact": "Emergency contact",
+          "roleAndPermissions": "Role and permissions",
+          "signIn": "Sign-in"
+        }
+      }
     }
   },
   "client": {
