@@ -13064,6 +13064,7 @@
         "exclusiveNotReleased": "An exclusive agency has not released this person for booking anywhere else.",
         "noMembership": "This person has no sign-in for this workspace.",
         "membershipRemoved": "Access was taken away. They can be invited again at any time.",
+        "invitationPending": "This person has been invited but has not accepted yet, so they cannot sign in. They keep no permissions until they do.",
         "noAccount": "There is no account behind this invitation yet."
       },
       "warning": {

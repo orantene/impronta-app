@@ -1184,6 +1184,7 @@
         "exclusiveNotReleased": "Une agence exclusive n'a pas libere cette personne pour des reservations ailleurs.",
         "noMembership": "Cette personne n'a pas de connexion a cet espace.",
         "membershipRemoved": "L'acces a ete retire. Vous pouvez la reinviter quand vous voulez.",
+        "invitationPending": "Cette personne a ete invitee mais n'a pas encore accepte, elle ne peut donc pas se connecter. Elle n'a aucune permission tant qu'elle n'a pas accepte.",
         "noAccount": "Il n'y a pas encore de compte derriere cette invitation."
       },
       "warning": {

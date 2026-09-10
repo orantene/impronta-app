@@ -13064,6 +13064,7 @@
         "exclusiveNotReleased": "Una agencia exclusiva no libero a esta persona para reservas en otros lugares.",
         "noMembership": "Esta persona no tiene inicio de sesion en este espacio.",
         "membershipRemoved": "Se le quito el acceso. Puedes volver a invitarla cuando quieras.",
+        "invitationPending": "Esta persona fue invitada pero todavia no acepto, asi que no puede iniciar sesion. No tiene ningun permiso hasta que acepte.",
         "noAccount": "Todavia no hay una cuenta detras de esta invitacion."
       },
       "warning": {

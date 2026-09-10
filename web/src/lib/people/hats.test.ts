@@ -213,6 +213,28 @@ test("a removed membership holds nothing, whatever role the row still says", () 
   assert.equal(holdsMoneyPermissions(removed), false);
 });
 
+test("an invitation is not access, and carries no money permissions", () => {
+  for (const status of ["invited", "pending_acceptance"]) {
+    const hat = accessHat({ hasMembership: true, membershipStatus: status, hasAccount: true });
+    assert.equal(hat.on, false, `${status} should not be signed-in access`);
+    assert.deepEqual(hat.blockedBy, ["invitationPending"]);
+    const invitee = person({ role: "admin", access: hat });
+    assert.equal(
+      holdsMoneyPermissions(invitee),
+      false,
+      `${status}: an unaccepted invitation must not carry an admin's money permissions`,
+    );
+  }
+  // BREAK IT: the same membership, accepted, IS access and DOES carry them.
+  const accepted = accessHat({
+    hasMembership: true,
+    membershipStatus: "active",
+    hasAccount: true,
+  });
+  assert.equal(accepted.on, true);
+  assert.equal(holdsMoneyPermissions(person({ role: "admin", access: accepted })), true);
+});
+
 test("every access role is a known role and only three carry money", () => {
   const money = ACCESS_ROLES.filter((r: AccessRole) =>
     holdsMoneyPermissions(
@@ -370,6 +392,7 @@ test("every reason this model can produce is in the published reason list", () =
   record(publicProfileHat({ hasRosterRow: true, rosterStatus: "removed" }).blockedBy);
   record(accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true }).blockedBy);
   record(accessHat({ hasMembership: true, membershipStatus: "removed", hasAccount: true }).blockedBy);
+  record(accessHat({ hasMembership: true, membershipStatus: "invited", hasAccount: true }).blockedBy);
   record(accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: false }).blockedBy);
   for (const broken of [
     { workspaceAppointmentsEnabled: false },
@@ -386,5 +409,5 @@ test("every reason this model can produce is in the published reason list", () =
   for (const r of produced) {
     assert.ok(known.has(r), `${r} is produced but not published as a reason key`);
   }
-  assert.ok(produced.size >= 8, `only ${produced.size} reasons exercised`);
+  assert.ok(produced.size >= 9, `only ${produced.size} reasons exercised`);
 });

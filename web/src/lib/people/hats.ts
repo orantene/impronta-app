@@ -53,6 +53,7 @@ export const HAT_BLOCK_REASONS = [
   // Access
   "noMembership",
   "membershipRemoved",
+  "invitationPending",
   "noAccount",
 ] as const;
 export type HatBlockReason = (typeof HAT_BLOCK_REASONS)[number];
@@ -193,6 +194,15 @@ export function accessHat(input: AccessInputs): HatState {
   }
   if (input.membershipStatus === "removed") {
     return { on: false, blockedBy: ["membershipRemoved"], warnings: [] };
+  }
+  // An invitation is not access. Until it is accepted the person cannot sign
+  // in, so the hat must read OFF and `holdsMoneyPermissions` must say no,
+  // whatever role the invitation names.
+  if (
+    input.membershipStatus === "invited"
+    || input.membershipStatus === "pending_acceptance"
+  ) {
+    return { on: false, blockedBy: ["invitationPending"], warnings: [] };
   }
   if (!input.hasAccount) {
     return { on: false, blockedBy: ["noAccount"], warnings: [] };
