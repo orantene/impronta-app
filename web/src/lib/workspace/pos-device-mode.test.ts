@@ -169,3 +169,41 @@ test("no storage at all (a server render) is survivable", () => {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
   }
 });
+
+test("on the point of sale, the mode in the address wins over what the device remembered", () => {
+  // Three mode proofs each reported the pill saying "Counter" over a Tables
+  // screen reached by link. The address is where the person IS.
+  const m = model({
+    workspaceEnabledModes: ["counter", "floor"],
+    remembered: "counter",
+    urlMode: "floor",
+    onPos: true,
+  });
+  assert.ok(m.visible);
+  if (!m.visible) return;
+  assert.equal(m.currentMode, "floor");
+});
+
+test("off the point of sale, the address is ignored and the remembered mode is offered", () => {
+  const m = model({
+    workspaceEnabledModes: ["counter", "floor"],
+    remembered: "counter",
+    urlMode: "floor",
+    onPos: false,
+  });
+  assert.ok(m.visible);
+  if (!m.visible) return;
+  assert.equal(m.currentMode, "counter");
+});
+
+test("an address naming a mode this person may not use falls back to the remembered one", () => {
+  const m = model({
+    workspaceEnabledModes: ["counter"],
+    remembered: "counter",
+    urlMode: "floor",
+    onPos: true,
+  });
+  assert.ok(m.visible);
+  if (!m.visible) return;
+  assert.equal(m.currentMode, "counter");
+});

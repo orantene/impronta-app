@@ -107,6 +107,12 @@ export type PosSwitchInput = {
   readonly remembered: PosMode | null;
   /** Is the point of sale the surface currently open. */
   readonly onPos: boolean;
+  /**
+   * The mode named in the address, when the person is on the point of sale.
+   * Null when the address names none or the value is not a mode. Read by the
+   * component in an effect, so the first paint does not depend on it.
+   */
+  readonly urlMode?: PosMode | null;
 };
 
 export type PosSwitchModel =
@@ -142,12 +148,19 @@ export function posSwitchModel(input: PosSwitchInput): PosSwitchModel {
   if (!first) return { visible: false };
   const remembered =
     input.remembered !== null && modes.includes(input.remembered) ? input.remembered : null;
+  // A person who arrived at /admin/pos?mode=floor by link is ON the floor,
+  // whatever this device last remembered. Three mode proofs each reported the
+  // pill saying "Counter" over a Tables screen. The address wins while on the
+  // point of sale; the remembered mode is what the pill offers everywhere else.
+  const fromUrl =
+    input.onPos && input.urlMode && modes.includes(input.urlMode) ? input.urlMode : null;
   return {
     visible: true,
     modes,
-    // The remembered mode once it is known, the first allowed one until then.
-    // Both are values the server can produce, so the first paint is stable.
-    currentMode: remembered ?? first,
+    // The address while on the point of sale, else the remembered mode once
+    // known, else the first allowed one. All three are values the server can
+    // produce, so the first paint is stable.
+    currentMode: fromUrl ?? remembered ?? first,
     active: input.onPos ? "pos" : "workspace",
     currentIsRemembered: remembered !== null,
   };

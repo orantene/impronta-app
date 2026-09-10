@@ -33,6 +33,7 @@
  * `COLORS` constants do, so it matches without repeating them.
  */
 
+import { parsePosMode } from "@/lib/pos/modes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -72,11 +73,14 @@ export function PosModeSwitch() {
   // never read off `usePathname` mid-render.
   const onPos = resolveDestination(state.page)?.chrome === "pos";
 
+  const [urlMode, setUrlMode] = useState<PosMode | null>(null);
+
   const model = posSwitchModel({
     posEnabled: workspacePosEnabled,
     role: state.role,
     workspaceEnabledModes: workspacePosModes,
     remembered,
+    urlMode,
     onPos,
   });
 
@@ -85,6 +89,19 @@ export function PosModeSwitch() {
     if (!allowedKey) return;
     setRemembered(readDevicePosMode(allowedKey.split(",") as PosMode[], tenantSlug));
   }, [allowedKey, tenantSlug]);
+
+  // The mode in the address, read after mount like the remembered one, so the
+  // server and the first client paint agree; until then the model falls back
+  // exactly as before. Deliberately AFTER the storage effect: a guard pins
+  // that the first effect in this file is the storage read.
+  useEffect(() => {
+    if (!onPos) {
+      setUrlMode(null);
+      return;
+    }
+    const raw = new URLSearchParams(window.location.search).get("mode");
+    setUrlMode(parsePosMode(raw) ?? null);
+  }, [onPos, state.page]);
 
   useEffect(() => {
     if (!menuOpen) return;
