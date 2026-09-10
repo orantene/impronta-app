@@ -1,273 +1,19 @@
+/**
+ * L53 commands that take money and close a sale, split out of
+ * `commands.test.ts` when that file passed the 800-line budget. This half
+ * covers `startCollection`, `submitToPreparation`, `finalizeOrCancel` and the
+ * identity/version/capacity refusals around them; draft building and line
+ * mutation live in the sibling `commands-draft.test.ts`. The shared fake
+ * store moved to `__fixtures__/commands-store.ts` so neither half has to
+ * carry it alone.
+ */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { POS_COMMANDS, isPosCommand, posGuestSessionId } from "./commands";
-import { addLine, createDraftOrder, repriceAndValidate, updateLine } from "./draft";
+import { addLine, createDraftOrder } from "./draft";
 import { finalizeOrCancel, startCollection, submitToPreparation } from "./collection";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { makeCollectionRpc } from "./__fixtures__/collection-reservations";
-
-type Row = Record<string, unknown>;
-
-function makeStore() {
-  return {
-    orders: [] as Row[],
-    order_lines: [] as Row[],
-    talent_offerings: [] as Row[],
-    talent_offering_variants: [] as Row[],
-    booking_transactions: [] as Row[],
-    agency_bookings: [] as Row[],
-    preparation_tickets: [] as Row[],
-    preparation_ticket_revisions: [] as Row[],
-    visits: [] as Row[],
-    spaces: [] as Row[],
-    sessions: [] as Row[],
-    capacity_allocations: [] as Row[],
-    order_collection_reservations: [] as Row[],
-  };
-}
-
-function fakeAdmin(store: ReturnType<typeof makeStore>) {
-  const tables: Record<string, Row[]> = store;
-  const from = (table: string) => {
-    let mode: "select" | "insert" | "update" | "delete" = "select";
-    let inserted: Row[] = [];
-    let patch: Row = {};
-    const eqs: Array<[string, unknown]> = [];
-    const match = () =>
-      (tables[table] ?? []).filter((row) =>
-        eqs.every(([k, v]) => {
-          if (v && typeof v === "object" && v !== null && "__neq" in v) {
-            return row[k] !== (v as { __neq: unknown }).__neq;
-          }
-          if (v && typeof v === "object" && v !== null && "__in" in v) {
-            return (v as { __in: unknown[] }).__in.includes(row[k]);
-          }
-          return row[k] === v;
-        }),
-      );
-    const apply = () => {
-      if (mode === "insert") {
-        for (const r of inserted) {
-          const row = { ...r, id: (r.id as string) ?? crypto.randomUUID() };
-          (tables[table] ?? (tables[table] = [])).push(row);
-          Object.assign(r, row);
-        }
-      } else if (mode === "update") {
-        for (const row of match()) Object.assign(row, patch);
-      } else if (mode === "delete") {
-        const keep = (tables[table] ?? []).filter((row) => !eqs.every(([k, v]) => row[k] === v));
-        tables[table] = keep;
-        if (table in store) (store as Record<string, Row[]>)[table] = keep;
-      }
-    };
-    const result = () => {
-      apply();
-      if (mode === "insert") return { data: inserted.length === 1 ? inserted[0] : inserted, error: null };
-      return { data: match(), error: null };
-    };
-    const api: Record<string, unknown> = {
-      select: () => api,
-      insert: (rows: Row | Row[]) => {
-        mode = "insert";
-        inserted = Array.isArray(rows) ? rows : [rows];
-        return api;
-      },
-      update: (p: Row) => {
-        mode = "update";
-        patch = p;
-        return api;
-      },
-      delete: () => {
-        mode = "delete";
-        return api;
-      },
-      eq: (k: string, v: unknown) => {
-        eqs.push([k, v]);
-        return api;
-      },
-      neq: (k: string, v: unknown) => {
-        eqs.push([k, { __neq: v }]);
-        return api;
-      },
-      in: (k: string, vals: unknown[]) => {
-        eqs.push([k, { __in: vals }]);
-        return api;
-      },
-      order: () => api,
-      limit: () => api,
-      maybeSingle: async () => {
-        const before = match();
-        apply();
-        if (mode === "update") return { data: before[0] ?? null, error: null };
-        const rows = match();
-        return { data: rows[0] ?? null, error: null };
-      },
-      single: async () => {
-        apply();
-        if (mode === "insert") return { data: inserted[0] ?? null, error: inserted[0] ? null : { message: "none" } };
-        const rows = match();
-        return { data: rows[0] ?? null, error: rows[0] ? null : { message: "none" } };
-      },
-      then: (resolve: (v: { data: unknown; error: null }) => unknown, reject?: (e: unknown) => unknown) =>
-        Promise.resolve(result()).then(resolve, reject),
-    };
-    return api;
-  };
-  return { from };
-}
-
-/**
- * The same store, plus the collection RPCs.
- *
- * `startCollection` refuses rather than collect without `pos_reserve_collection`,
- * because outstanding cannot be computed correctly outside the order's row
- * lock. Draft building still goes through `fakeAdmin`: `lib/pos/draft.ts` has
- * its own RPC pair with a PostgREST fallback, and that fallback is what these
- * tests have always exercised.
- */
-function fakeTill(store: ReturnType<typeof makeStore>) {
-  return { from: fakeAdmin(store).from, rpc: makeCollectionRpc(store) };
-}
-
-function seedOffering(store: ReturnType<typeof makeStore>, over: Partial<Row> = {}) {
-  store.talent_offerings.push({
-    id: "off-1",
-    tenant_id: "t1",
-    title: "Gel manicure",
-    amount_cents: 5000,
-    currency: "USD",
-    talent_profile_id: null,
-    status: "published",
-    ...over,
-  });
-}
-
-test("POS command names are the L53 set", () => {
-  assert.deepEqual([...POS_COMMANDS], [
-    "createDraftOrder",
-    "addLine",
-    "updateLine",
-    "removeLine",
-    "repriceAndValidate",
-    "submitToPreparation",
-    "startCollection",
-    "recordVerifiedCollection",
-    "finalizeOrCancel",
-  ]);
-  assert.equal(isPosCommand("addLine"), true);
-  assert.equal(isPosCommand("createPurchase"), false);
-});
-
-test("a walk-in draft exists without a customer", async () => {
-  const store = makeStore();
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const row = store.orders[0];
-  assert.equal(row.customer_id, null);
-  assert.equal(row.status, "draft");
-  assert.equal(row.source_channel, "pos");
-  assert.equal(typeof row.guest_session_id, "string");
-  assert.match(String(row.guest_session_id), /^pos:/);
-  assert.match(posGuestSessionId(), /^pos:/);
-});
-
-test("line mutation does not import or call createPurchase", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/pos/draft.ts"), "utf8");
-  assert.doesNotMatch(src, /createPurchase/);
-  const addFn = src.slice(src.indexOf("export async function addLine"), src.indexOf("export async function updateLine"));
-  const updateFn = src.slice(src.indexOf("export async function updateLine"), src.indexOf("export async function removeLine"));
-  const removeFn = src.slice(src.indexOf("export async function removeLine"), src.indexOf("export type RepriceResult"));
-  assert.doesNotMatch(addFn, /promoCode/);
-  assert.doesNotMatch(updateFn, /promoCode/);
-  assert.doesNotMatch(removeFn, /promoCode/);
-  assert.match(src, /export async function repriceAndValidate/);
-  assert.match(src, /pos_mutate_draft_line/);
-  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261230000700_journeys_atomic_rpcs.sql"), "utf8");
-  assert.match(sql, /CREATE OR REPLACE FUNCTION public.pos_mutate_draft_line/);
-});
-
-test("adding a line does not write a purchase or a discount", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const added = await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 2 },
-  });
-  assert.equal(added.ok, true);
-  assert.equal(store.order_lines.length, 1);
-  assert.equal(store.order_lines[0].total_cents, 10000);
-  assert.equal(store.orders[0].discount_cents, 0);
-  assert.equal(store.orders[0].total_cents, 10000);
-  assert.equal(store.orders[0].status, "draft");
-  assert.equal(store.booking_transactions.length, 0);
-});
-
-test("promo attaches only on reprice, and needs a named buyer", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  const refused = await repriceAndValidate(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    promoCode: "SAVE10",
-  });
-  assert.equal(refused.ok, false);
-  if (refused.ok) return;
-  assert.equal(refused.reason, "promo_needs_customer");
-
-  store.orders[0].customer_id = "cust-1";
-  let promoCalls = 0;
-  const priced = await repriceAndValidate(
-    fakeAdmin(store),
-    { tenantId: "t1", orderId: created.orderId, promoCode: "SAVE10" },
-    {
-      resolvePromo: async () => {
-        promoCalls += 1;
-        return { ok: true, discountCents: 500, codeId: "promo-1" };
-      },
-    },
-  );
-  assert.equal(priced.ok, true);
-  assert.equal(promoCalls, 1);
-  assert.equal(store.orders[0].discount_cents, 500);
-  assert.equal(store.orders[0].total_cents, 4500);
-});
-
-test("updateLine changes quantity from stored unit price, not a purchase", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  const lineId = store.order_lines[0].id as string;
-  const updated = await updateLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    lineId,
-    units: 3,
-  });
-  assert.equal(updated.ok, true);
-  assert.equal(store.order_lines[0].units, 3);
-  assert.equal(store.orders[0].total_cents, 15000);
-});
+import { fakeAdmin, fakeTill, makeStore, seedOffering } from "./__fixtures__/commands-store";
 
 test("an anonymous paid cash walk-in collects, and the receipt code is the anchor", async () => {
   // MONEY DOES NOT REQUIRE A NAME. This used to refuse: nobody asks a counter
@@ -323,6 +69,7 @@ test("a line whose offering needs attendee names refuses, and says why", async (
     method: "cash",
     successUrl: "https://app.test/ok",
     cancelUrl: "https://app.test/no",
+    idempotencyKey: "pos-cash:gala-no-contact",
   });
   assert.equal(r.ok, false);
   if (r.ok) return;
@@ -356,88 +103,6 @@ test("POS actions do not call createPurchase", () => {
   const collection = readFileSync(join(process.cwd(), "src/lib/pos/collection.ts"), "utf8");
   assert.match(collection, /holdDraftOrderCapacity/);
   assert.doesNotMatch(collection, /createPurchase/);
-});
-
-test("adding a line on another workspace's draft writes nothing", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t2", actorUserId: "u2" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const added = await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  assert.equal(added.ok, false);
-  if (added.ok) return;
-  assert.equal(added.reason, "wrong_tenant");
-  assert.equal(store.order_lines.length, 0);
-});
-
-test("a class on another workspace is not added to this sale", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  store.sessions.push({
-    id: "ses-foreign",
-    tenant_id: "t2",
-    offering_id: "off-1",
-    status: "scheduled",
-    title: "Dawn",
-  });
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const added = await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1, sessionId: "ses-foreign" },
-  });
-  assert.equal(added.ok, false);
-  if (added.ok) return;
-  assert.equal(added.reason, "wrong_tenant");
-  assert.equal(store.order_lines.length, 0);
-});
-
-test("a walk-in class place stores the session on the line", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  store.sessions.push({
-    id: "ses-1",
-    tenant_id: "t1",
-    offering_id: "off-1",
-    status: "scheduled",
-    title: "Dawn flow",
-  });
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const added = await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1, sessionId: "ses-1" },
-  });
-  assert.equal(added.ok, true);
-  assert.equal(store.order_lines[0].session_id, "ses-1");
-  assert.match(String(store.order_lines[0].label), /Dawn flow/);
-});
-
-test("another workspace's catalog item is not added to this sale", async () => {
-  const store = makeStore();
-  seedOffering(store, { tenant_id: "t2" });
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  const added = await addLine(fakeAdmin(store), {
-    tenantId: "t1",
-    orderId: created.orderId,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  assert.equal(added.ok, false);
-  if (added.ok) return;
-  assert.equal(added.reason, "invalid");
-  assert.equal(store.order_lines.length, 0);
-  assert.equal(store.orders[0].total_cents, 0);
 });
 
 test("cash collection with contact records a settle, not a purchase", async () => {
@@ -624,46 +289,6 @@ test("two operators writing the same expectedVersion conflict", async () => {
   assert.equal(second.reason, "conflict");
 });
 
-test("pos_mutate_draft_line RPC conflict is not a silent overwrite", async () => {
-  const store = makeStore();
-  seedOffering(store);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
-  assert.equal(created.ok, true);
-  if (!created.ok) return;
-  let rpcCalls = 0;
-  const admin = fakeAdmin(store) as ReturnType<typeof fakeAdmin> & {
-    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: null }>;
-  };
-  admin.rpc = async (fn: string, args: Record<string, unknown>) => {
-    assert.equal(fn, "pos_mutate_draft_line");
-    rpcCalls += 1;
-    const order = store.orders[0];
-    if (Number(order.version) !== Number(args.p_expected_version)) {
-      return { data: { ok: false, reason: "conflict" }, error: null };
-    }
-    order.version = Number(order.version) + 1;
-    return { data: { ok: true, version: order.version }, error: null };
-  };
-  const first = await addLine(admin, {
-    tenantId: "t1",
-    orderId: created.orderId,
-    expectedVersion: 1,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  assert.equal(first.ok, true);
-  const second = await addLine(admin, {
-    tenantId: "t1",
-    orderId: created.orderId,
-    expectedVersion: 1,
-    line: { offeringId: "off-1", units: 1 },
-  });
-  assert.equal(second.ok, false);
-  if (second.ok) return;
-  assert.equal(second.reason, "conflict");
-  assert.equal(rpcCalls, 1);
-  assert.equal(store.orders[0].version, 2);
-});
-
 test("cancelling a draft whose allocation read fails is not a successful release", async () => {
   const store = makeStore();
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
@@ -809,3 +434,4 @@ test("zero-total collect does not fabricate a charge", async () => {
     false,
   );
 });
+

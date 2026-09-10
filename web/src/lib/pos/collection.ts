@@ -15,7 +15,7 @@ import { completeZeroTotalOrder, type OnOrderPaid } from "@/lib/orders/complete-
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
-import { identityVerdict, type IdentityLine } from "@/lib/orders/identity-requirement";
+import { anonymousSaleVerdict } from "@/lib/orders/anonymous-sale";
 import { releaseCapacity } from "@/lib/capacity";
 import {
   submitOrderToPreparation,
@@ -96,89 +96,6 @@ function refuseClaim(
     default:
       return { ok: false, reason: "unavailable", error: "Could not hold this collection." };
   }
-}
-
-/**
- * The order's lines, with the identity demand of the offering each one sells.
- *
- * Read here rather than derived from the draft in memory because the OFFERING
- * is the authority and it can have been edited since the line was added. The
- * decision itself is `lib/orders/identity-requirement`, which is pure and
- * shared with the public purchase pipeline so the counter and the web cannot
- * answer the same question two ways.
- */
-async function identityLinesForOrder(
-  admin: Admin,
-  orderId: string,
-): Promise<{ ok: true; lines: IdentityLine[] } | { ok: false }> {
-  const { data: lineRows, error: lineErr } = await admin
-    .from("order_lines")
-    .select("offering_id, label, sort_order")
-    .eq("order_id", orderId)
-    .order("sort_order", { ascending: true });
-  if (lineErr) {
-    logServerError("pos.identityLinesForOrder.lines", lineErr);
-    return { ok: false };
-  }
-  const rows = (lineRows ?? []) as Array<{
-    offering_id: string | null;
-    label: string | null;
-    sort_order?: number | null;
-  }>;
-  const offeringIds = [...new Set(rows.map((r) => r.offering_id).filter((id): id is string => !!id))];
-  if (offeringIds.length === 0) return { ok: true, lines: [] };
-
-  const { data: offeringRows, error: offErr } = await admin
-    .from("talent_offerings")
-    .select("id, title, requires_identity, identity_reason")
-    .in("id", offeringIds);
-  if (offErr) {
-    logServerError("pos.identityLinesForOrder.offerings", offErr);
-    return { ok: false };
-  }
-  const byId = new Map(
-    ((offeringRows ?? []) as Array<{
-      id: string;
-      title: string | null;
-      requires_identity: boolean | null;
-      identity_reason: string | null;
-    }>).map((o) => [o.id, o]),
-  );
-
-  return {
-    ok: true,
-    lines: rows.map((r) => {
-      const offering = r.offering_id ? byId.get(r.offering_id) : undefined;
-      return {
-        offeringId: r.offering_id ?? null,
-        offeringTitle: offering?.title ?? r.label ?? null,
-        requiresIdentity: offering?.requires_identity === true,
-        identityReason: offering?.identity_reason ?? null,
-      };
-    }),
-  };
-}
-
-/**
- * May this order take money without a customer row?
- *
- * `unavailable` means the READ failed. It is not a verdict about the buyer and
- * must never be reported as one, and it must never lead to a second attempt at
- * the same write.
- */
-async function anonymousSaleVerdict(
-  admin: Admin,
-  orderId: string,
-): Promise<{ ok: true } | { ok: false; reason: "no_contact" | "unavailable"; error: string }> {
-  const read = await identityLinesForOrder(admin, orderId);
-  if (!read.ok) {
-    return { ok: false, reason: "unavailable", error: "Could not check what this sale needs." };
-  }
-  // The counter is about to take money: `paid` is the status this answer
-  // gates. A Void writes `cancelled` and never asks this question.
-  const verdict = identityVerdict({ intoStatus: "paid", hasCustomer: false, lines: read.lines });
-  if (verdict.ok) return { ok: true };
-  return { ok: false, reason: "no_contact", error: verdict.message };
 }
 
 async function openShiftId(admin: Admin, tenantId: string): Promise<string | null> {
@@ -347,14 +264,54 @@ export async function startCollection(
     return { ok: false, reason: "tendered", error: "Tendered cash is less than this allocation." };
   }
 
-  // `orders_identified_before_payment`: customer_id may be null ONLY while
-  // status = draft, OR on a zero-total order that still carries a guest
-  // session (R08 counter registrations). Money still needs a name, and the
-  // refusal comes BEFORE the reservation so a nameless attempt claims nothing.
   const email = input.contact?.email ?? null;
   const phone = input.contact?.phone ?? null;
-  if (row.total_cents > 0 && !row.customer_id && !email && !phone) {
-    return { ok: false, reason: "no_contact", error: "Collecting money needs an email or a phone." };
+
+  let customerId = row.customer_id;
+  // MONEY DOES NOT REQUIRE A NAME. A PRODUCT MAY.
+  //
+  // A blunt "no email or phone, no sale" refusal used to sit at this exact
+  // point and was deliberately removed: it made the commonest transaction on
+  // a counter impossible, an anonymous cash walk-in. The retrieval anchor for
+  // that sale is `orders.receipt_code`, printed on the slip and resolvable at
+  // `/r/<code>` by whoever holds it. A branch that forked before the removal
+  // reintroduced the blunt check once already on merge; do not put it back.
+  //
+  // What still refuses is a LINE whose offering says it needs a name: a ticket
+  // the door checks, something to be delivered, credit spent later. That
+  // decision is the offering's, not the till's, and it runs BEFORE ANY
+  // RESERVATION on purpose — a sale nobody can ever name should never claim a
+  // slice of the balance, even for a TTL it gives back immediately.
+  if (!customerId) {
+    if (!email && !phone) {
+      const allowed = await anonymousSaleVerdict(admin, row.id);
+      if (!allowed.ok) {
+        return { ok: false, reason: allowed.reason, error: allowed.error };
+      }
+    } else {
+      if (!deps.ensureCustomer) {
+        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
+      }
+      const named = await deps.ensureCustomer({
+        tenantId: input.tenantId,
+        email,
+        phone,
+        displayName: input.contact?.displayName,
+      });
+      if (!named.ok) {
+        return { ok: false, reason: "no_contact", error: named.error };
+      }
+      customerId = named.customerId;
+      const { error: attErr } = await admin
+        .from("orders")
+        .update({ customer_id: customerId })
+        .eq("id", row.id)
+        .in("status", ["draft", "pending_payment"]);
+      if (attErr) {
+        logServerError("pos.startCollection.attach", attErr);
+        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
+      }
+    }
   }
 
   let reservationId: string | null = null;
@@ -448,55 +405,6 @@ export async function startCollection(
   const giveBack = async (): Promise<void> => {
     if (reservationId) await releaseCollectionReservation(admin, reservationId);
   };
-
-  let customerId = row.customer_id;
-  // MONEY DOES NOT REQUIRE A NAME. A PRODUCT MAY.
-  //
-  // This used to refuse any paid sale without an email or a phone, which made
-  // the commonest transaction on a counter impossible: an anonymous cash
-  // walk-in. The retrieval anchor for that sale is `orders.receipt_code`,
-  // printed on the slip and resolvable at `/r/<code>` by whoever holds it, and
-  // `orders_identified_before_payment` now accepts exactly that shape (a guest
-  // session plus a receipt code).
-  //
-  // What still refuses is a LINE whose offering says it needs a name: a ticket
-  // the door checks, something to be delivered, credit spent later. That
-  // decision is the offering's, not the till's.
-  if (!customerId) {
-    if (!email && !phone) {
-      const allowed = await anonymousSaleVerdict(admin, row.id);
-      if (!allowed.ok) {
-        await giveBack();
-        return { ok: false, reason: allowed.reason, error: allowed.error };
-      }
-    } else {
-      if (!deps.ensureCustomer) {
-        await giveBack();
-        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
-      }
-      const named = await deps.ensureCustomer({
-        tenantId: input.tenantId,
-        email,
-        phone,
-        displayName: input.contact?.displayName,
-      });
-      if (!named.ok) {
-        await giveBack();
-        return { ok: false, reason: "no_contact", error: named.error };
-      }
-      customerId = named.customerId;
-      const { error: attErr } = await admin
-        .from("orders")
-        .update({ customer_id: customerId })
-        .eq("id", row.id)
-        .in("status", ["draft", "pending_payment"]);
-      if (attErr) {
-        logServerError("pos.startCollection.attach", attErr);
-        await giveBack();
-        return { ok: false, reason: "unavailable", error: "Could not name the buyer." };
-      }
-    }
-  }
 
   const hold = deps.holdCapacity ?? holdDraftOrderCapacity;
   const held = await hold(admin, {
