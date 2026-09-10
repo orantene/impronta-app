@@ -6,6 +6,7 @@
 // the barrel + the "public export surface" proof.
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
+import { parseE164PhoneInput } from "@/lib/data/country-dial-codes";
 import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
@@ -3192,15 +3193,15 @@ export function splitShellContactPhone(stored: string | null | undefined): {
   contactPhonePrefix: string;
   contactPhone: string;
 } {
-  const s = (stored ?? "").trim();
-  if (!s) return { contactPhonePrefix: "+1", contactPhone: "" };
-  const ordered = [...SHELL_CONTACT_PHONE_PREFIXES].sort((a, b) => b.length - a.length);
-  for (const p of ordered) {
-    if (s.startsWith(p)) {
-      return { contactPhonePrefix: p, contactPhone: s.slice(p.length).trim() };
-    }
+  // Full E.164 table (the short list above knew eleven prefixes, so "+972…"
+  // fell through to "+1" and was saved back as "+1 +972…", owner QA 2026-09-10).
+  let parsed = parseE164PhoneInput(stored ?? "", { dial: "+1", iso: "US" });
+  // Self-heal those saved rows: a national part that still starts with "+"
+  // is the real number.
+  if (parsed.national.startsWith("+")) {
+    parsed = parseE164PhoneInput(parsed.national, { dial: "+1", iso: "US" });
   }
-  return { contactPhonePrefix: "+1", contactPhone: s };
+  return { contactPhonePrefix: parsed.dial, contactPhone: parsed.national };
 }
 
 export function deriveAge(dob: string | null): number | null {
