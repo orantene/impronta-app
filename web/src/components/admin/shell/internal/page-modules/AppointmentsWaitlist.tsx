@@ -22,6 +22,15 @@
  * cannot promote somebody who has already accepted or already been offered a
  * place by the other.
  *
+ * ACCEPTING TAKES THE SEAT (D-105). "They took it" is not a label change: the
+ * action behind it reserves and commits a real capacity allocation for the
+ * party through the engine, in the same transaction that marks the entry
+ * accepted. Before it existed, an accepted place held nothing at all, so the
+ * pool went straight back to reporting the seat free and the next promote gave
+ * the same seat to somebody else. Giving a place back is two different writes
+ * for two different things — an offer that never held capacity, and a seat that
+ * does — and the row's own state chooses between them.
+ *
  * AN EXPIRED OFFER IS SHOWN, NOT SWEPT. `deriveWaitlistState` turns "offered
  * plus a window that has closed" into `expired` at read time. There is no cron
  * and none is wanted; a row that quietly returned to "waiting" would hide that
@@ -34,8 +43,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
 import {
+  acceptWaitlistPlace,
   joinSessionWaitlist,
   promoteFromWaitlist,
+  releaseWaitlistPlace,
   type WaitlistSeats,
   type WaitlistView,
 } from "@/lib/scheduling/appointments-actions";
@@ -142,6 +153,89 @@ export function AppointmentsWaitlist({
       }
     },
     [onChanged, t, tenantId, timeZone],
+  );
+
+  const accept = useCallback(
+    async (view: WaitlistView, entryId: string, name: string) => {
+      setBusyEntryId(entryId);
+      setNotice(null);
+      try {
+        const result = await acceptWaitlistPlace({
+          tenantId,
+          entryId,
+          // Only a live offer can be taken, and the screen showing one is what
+          // the RPC checks against.
+          expectedStatus: "offered",
+        });
+        if (!result.ok) {
+          setNotice({
+            sessionId: view.sessionId,
+            failed: true,
+            text: t(`${K}.refusal.${result.refusalKey}`),
+          });
+          return;
+        }
+        setNotice({
+          sessionId: view.sessionId,
+          failed: false,
+          text: result.already
+            ? fill(t(`${K}.alreadyHasPlace`), { name })
+            : fill(t(`${K}.accepted`), { name }),
+        });
+        onChanged();
+      } catch (err) {
+        setNotice({
+          sessionId: view.sessionId,
+          failed: true,
+          text: err instanceof Error ? err.message : t(`${K}.refusal.unavailable`),
+        });
+      } finally {
+        setBusyEntryId(null);
+      }
+    },
+    [onChanged, t, tenantId],
+  );
+
+  const release = useCallback(
+    async (view: WaitlistView, entryId: string, name: string, holding: "offer" | "seat") => {
+      setBusyEntryId(entryId);
+      setNotice(null);
+      try {
+        const result = await releaseWaitlistPlace({
+          tenantId,
+          entryId,
+          holding,
+          expectedStatus: holding === "seat" ? "accepted" : "offered",
+        });
+        if (!result.ok) {
+          setNotice({
+            sessionId: view.sessionId,
+            failed: true,
+            text: t(`${K}.refusal.${result.refusalKey}`),
+          });
+          return;
+        }
+        setNotice({
+          sessionId: view.sessionId,
+          failed: false,
+          text: result.already
+            ? fill(t(`${K}.alreadyOffList`), { name })
+            : holding === "seat"
+              ? fill(t(`${K}.cancelledSeat`), { name })
+              : fill(t(`${K}.declined`), { name }),
+        });
+        onChanged();
+      } catch (err) {
+        setNotice({
+          sessionId: view.sessionId,
+          failed: true,
+          text: err instanceof Error ? err.message : t(`${K}.refusal.unavailable`),
+        });
+      } finally {
+        setBusyEntryId(null);
+      }
+    },
+    [onChanged, t, tenantId],
   );
 
   const join = useCallback(
@@ -275,19 +369,72 @@ export function AppointmentsWaitlist({
                         ) : null}
                       </td>
                       <td className="py-[8px] text-admin-ink">
-                        {entry.state === "accepted" || entry.state === "withdrawn" ? null : (
-                          <button
-                            type="button"
-                            data-testid="waitlist-promote"
-                            className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink disabled:opacity-60"
-                            disabled={busyEntryId === entry.id}
-                            onClick={() =>
-                              void promote(view, entry.id, entry.customerName, entry.status)
-                            }
-                          >
-                            {busyEntryId === entry.id ? t(`${K}.promoting`) : t(`${K}.promote`)}
-                          </button>
-                        )}
+                        <div className="flex flex-wrap gap-[6px]">
+                          {entry.state === "accepted" || entry.state === "withdrawn" ? null : (
+                            <button
+                              type="button"
+                              data-testid="waitlist-promote"
+                              className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink disabled:opacity-60"
+                              disabled={busyEntryId === entry.id}
+                              onClick={() =>
+                                void promote(view, entry.id, entry.customerName, entry.status)
+                              }
+                            >
+                              {busyEntryId === entry.id ? t(`${K}.promoting`) : t(`${K}.promote`)}
+                            </button>
+                          )}
+                          {/* Only a LIVE offer can be taken or handed back. An
+                              expired one is offered again, not accepted: the
+                              place may already be somebody else's, and the RPC
+                              refuses it rather than reserving a seat on a
+                              window that closed. */}
+                          {entry.state === "offered" ? (
+                            <>
+                              <button
+                                type="button"
+                                data-testid="waitlist-accept"
+                                className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink disabled:opacity-60"
+                                disabled={busyEntryId === entry.id}
+                                onClick={() => void accept(view, entry.id, entry.customerName)}
+                              >
+                                {busyEntryId === entry.id
+                                  ? t(`${K}.accepting`)
+                                  : t(`${K}.accept`)}
+                              </button>
+                              <button
+                                type="button"
+                                data-testid="waitlist-decline"
+                                className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink-muted disabled:opacity-60"
+                                disabled={busyEntryId === entry.id}
+                                onClick={() =>
+                                  void release(view, entry.id, entry.customerName, "offer")
+                                }
+                              >
+                                {busyEntryId === entry.id
+                                  ? t(`${K}.declining`)
+                                  : t(`${K}.decline`)}
+                              </button>
+                            </>
+                          ) : null}
+                          {/* A place that WAS taken holds a committed seat.
+                              Giving it up has to release that seat, or the
+                              class stays sold out with nobody in it. */}
+                          {entry.state === "accepted" ? (
+                            <button
+                              type="button"
+                              data-testid="waitlist-cancel-seat"
+                              className="rounded-admin border border-admin-line px-3 py-1 text-admin-ink-muted disabled:opacity-60"
+                              disabled={busyEntryId === entry.id}
+                              onClick={() =>
+                                void release(view, entry.id, entry.customerName, "seat")
+                              }
+                            >
+                              {busyEntryId === entry.id
+                                ? t(`${K}.cancellingSeat`)
+                                : t(`${K}.cancelSeat`)}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}

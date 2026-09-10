@@ -279,3 +279,266 @@ export async function promoteWaitlistEntry(
     offerExpiresAt: reply.offer_expires_at ?? null,
   };
 }
+
+/* ── taking the place, giving it back ──────────────────────────────────────── */
+
+/**
+ * D-105. Accepting used to be a word and nothing else.
+ *
+ * `promote` holds a released place for exactly as long as the offer window
+ * lasts, by subtracting live offers from what the pool reports. Acceptance
+ * wrote no allocation, so the moment an entry read `accepted` the subtraction
+ * lapsed AND the pool still called the seat free: one seat, two people.
+ * `accept_session_waitlist_offer` reserves and commits a real capacity
+ * allocation for the party in the same transaction that marks the entry
+ * accepted, so the subtraction and the allocation change hands together and
+ * the free count never blips up. The table now refuses `accepted` without an
+ * allocation outright, so this function is the ONLY way a place is taken.
+ *
+ * Three writes, three different meanings, and none of them is the others:
+ *   - accept: the place is taken, and the seat leaves the pool;
+ *   - decline: the offer is handed back before its window closes, and nothing
+ *     has to be released because an offer never held an allocation;
+ *   - cancel: somebody who had taken a place gives it up, and the committed
+ *     seat is released so the next person can be offered it.
+ */
+
+export type AcceptWaitlistReason =
+  | "invalid"
+  | "not_found"
+  | "wrong_tenant"
+  | "conflict"
+  | "not_offered"
+  | "offer_expired"
+  | "not_promotable"
+  | "session_missing"
+  | "session_not_open"
+  | "no_pool"
+  | "session_full"
+  | "unavailable";
+
+export type AcceptWaitlistRefusalKey =
+  | "invalid"
+  | "notFound"
+  | "changedSinceOpened"
+  | "notOffered"
+  | "offerExpired"
+  | "notPromotable"
+  | "sessionMissing"
+  | "sessionNotOpen"
+  | "noPool"
+  | "seatJustTaken"
+  | "unavailable";
+
+const ACCEPT_REFUSAL_KEYS: Readonly<Record<AcceptWaitlistReason, AcceptWaitlistRefusalKey>> = {
+  invalid: "invalid",
+  not_found: "notFound",
+  wrong_tenant: "notFound",
+  conflict: "changedSinceOpened",
+  not_offered: "notOffered",
+  offer_expired: "offerExpired",
+  not_promotable: "notPromotable",
+  session_missing: "sessionMissing",
+  session_not_open: "sessionNotOpen",
+  no_pool: "noPool",
+  // NOT the same sentence as promote's `sessionFull`. There, nothing was ever
+  // promised. Here somebody was told a place was theirs and the engine refused
+  // it under the pool lock, which an operator has to hear differently.
+  session_full: "seatJustTaken",
+  unavailable: "unavailable",
+};
+
+const KNOWN_ACCEPT_REASONS = new Set<string>(Object.keys(ACCEPT_REFUSAL_KEYS));
+
+export function toAcceptReason(raw: unknown): AcceptWaitlistReason {
+  return typeof raw === "string" && KNOWN_ACCEPT_REASONS.has(raw)
+    ? (raw as AcceptWaitlistReason)
+    : "unavailable";
+}
+
+export type AcceptWaitlistResult =
+  | {
+      ok: true;
+      already: boolean;
+      entryId: string;
+      /** The seat this entry now holds. Never null on success. */
+      allocationId: string;
+      units: number;
+    }
+  | { ok: false; reason: AcceptWaitlistReason; refusalKey: AcceptWaitlistRefusalKey };
+
+/** Take the offered place, and the seat with it. */
+export async function acceptWaitlistOffer(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    entryId: string;
+    actorUserId: string | null;
+    expectedStatus?: WaitlistStoredStatus | null;
+  },
+): Promise<AcceptWaitlistResult> {
+  if (!input.tenantId || !input.entryId) {
+    return { ok: false, reason: "invalid", refusalKey: "invalid" };
+  }
+
+  const { data, error } = await admin.rpc("accept_session_waitlist_offer", {
+    p_tenant_id: input.tenantId,
+    p_entry_id: input.entryId,
+    p_actor_id: input.actorUserId || null,
+    p_expected_status: input.expectedStatus ?? null,
+  });
+  if (error) {
+    logServerError("scheduling.acceptWaitlistOffer/rpc", error);
+    return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  }
+
+  const reply = (data ?? {}) as {
+    ok?: boolean;
+    already?: boolean;
+    reason?: string;
+    entry_id?: string;
+    allocation_id?: string | null;
+    units?: number | null;
+  };
+
+  if (reply.ok !== true) {
+    const reason = toAcceptReason(reply.reason);
+    return { ok: false, reason, refusalKey: ACCEPT_REFUSAL_KEYS[reason] };
+  }
+
+  const allocationId = reply.allocation_id ?? null;
+  if (!allocationId) {
+    // A success that names no seat is not a success. Saying "took the place"
+    // here would put the D-105 shape back on the screen with the database
+    // innocent of it.
+    logServerError(
+      "scheduling.acceptWaitlistOffer/rpc",
+      new Error("accept reported ok with no allocation"),
+    );
+    return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  }
+
+  return {
+    ok: true,
+    already: reply.already === true,
+    entryId: reply.entry_id ?? input.entryId,
+    allocationId,
+    units: typeof reply.units === "number" && reply.units > 0 ? reply.units : 1,
+  };
+}
+
+export type ReleaseWaitlistReason =
+  | "invalid"
+  | "not_found"
+  | "wrong_tenant"
+  | "conflict"
+  | "already_accepted"
+  | "not_accepted"
+  | "unavailable";
+
+export type ReleaseWaitlistRefusalKey =
+  | "invalid"
+  | "notFound"
+  | "changedSinceOpened"
+  | "alreadyAccepted"
+  | "notAccepted"
+  | "unavailable";
+
+const RELEASE_REFUSAL_KEYS: Readonly<
+  Record<ReleaseWaitlistReason, ReleaseWaitlistRefusalKey>
+> = {
+  invalid: "invalid",
+  not_found: "notFound",
+  wrong_tenant: "notFound",
+  conflict: "changedSinceOpened",
+  already_accepted: "alreadyAccepted",
+  not_accepted: "notAccepted",
+  unavailable: "unavailable",
+};
+
+const KNOWN_RELEASE_REASONS = new Set<string>(Object.keys(RELEASE_REFUSAL_KEYS));
+
+export function toReleaseReason(raw: unknown): ReleaseWaitlistReason {
+  return typeof raw === "string" && KNOWN_RELEASE_REASONS.has(raw)
+    ? (raw as ReleaseWaitlistReason)
+    : "unavailable";
+}
+
+export type ReleaseWaitlistResult =
+  | { ok: true; already: boolean; entryId: string }
+  | { ok: false; reason: ReleaseWaitlistReason; refusalKey: ReleaseWaitlistRefusalKey };
+
+async function callRelease(
+  admin: Admin,
+  rpcName: "decline_session_waitlist_offer" | "cancel_session_waitlist_seat",
+  args: Record<string, unknown>,
+  where: string,
+): Promise<ReleaseWaitlistResult> {
+  const { data, error } = await admin.rpc(rpcName, args);
+  if (error) {
+    logServerError(where, error);
+    return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  }
+  const reply = (data ?? {}) as { ok?: boolean; already?: boolean; reason?: string; entry_id?: string };
+  if (reply.ok !== true) {
+    const reason = toReleaseReason(reply.reason);
+    return { ok: false, reason, refusalKey: RELEASE_REFUSAL_KEYS[reason] };
+  }
+  return { ok: true, already: reply.already === true, entryId: reply.entry_id ?? "" };
+}
+
+/**
+ * Hand an offered place back to the queue before the window closes.
+ *
+ * Nothing is released, because an offer never held an allocation. What this
+ * buys over waiting for the expiry is that the next person can be offered the
+ * place now rather than in the rest of half an hour.
+ */
+export async function declineWaitlistOffer(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    entryId: string;
+    actorUserId: string | null;
+    expectedStatus?: WaitlistStoredStatus | null;
+  },
+): Promise<ReleaseWaitlistResult> {
+  if (!input.tenantId || !input.entryId) {
+    return { ok: false, reason: "invalid", refusalKey: "invalid" };
+  }
+  return callRelease(
+    admin,
+    "decline_session_waitlist_offer",
+    {
+      p_tenant_id: input.tenantId,
+      p_entry_id: input.entryId,
+      p_actor_id: input.actorUserId || null,
+      p_expected_status: input.expectedStatus ?? null,
+    },
+    "scheduling.declineWaitlistOffer/rpc",
+  );
+}
+
+/**
+ * Give up a place that was accepted. The committed seat is released through
+ * the engine's own clamp, so it comes back to the pool and the next person on
+ * the queue can be offered it.
+ */
+export async function cancelWaitlistSeat(
+  admin: Admin,
+  input: { tenantId: string; entryId: string; actorUserId: string | null },
+): Promise<ReleaseWaitlistResult> {
+  if (!input.tenantId || !input.entryId) {
+    return { ok: false, reason: "invalid", refusalKey: "invalid" };
+  }
+  return callRelease(
+    admin,
+    "cancel_session_waitlist_seat",
+    {
+      p_tenant_id: input.tenantId,
+      p_entry_id: input.entryId,
+      p_actor_id: input.actorUserId || null,
+    },
+    "scheduling.cancelWaitlistSeat/rpc",
+  );
+}

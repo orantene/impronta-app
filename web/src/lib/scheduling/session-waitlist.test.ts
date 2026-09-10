@@ -20,6 +20,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  acceptWaitlistOffer,
+  cancelWaitlistSeat,
+  declineWaitlistOffer,
+  toAcceptReason,
+  toReleaseReason,
   DEFAULT_WAITLIST_OFFER_MINUTES,
   deriveWaitlistState,
   describePromoteRefusal,
@@ -224,4 +229,98 @@ test("every reason the RPC can return has a sentence in all three languages", ()
       assert.ok(!rows[key]!.includes("—"), `${locale}.${key} uses an em dash`);
     }
   }
+});
+
+/* ── accepting, declining, cancelling (D-105) ──────────────────────────────── */
+
+/** One-method stub for whichever of the three RPCs is under test. */
+function stubRpc(expected: string, reply: unknown, capture?: { args?: Record<string, unknown> }) {
+  return {
+    from() {
+      throw new Error("these functions must not read tables directly");
+    },
+    async rpc(name: string, args: Record<string, unknown>) {
+      assert.equal(name, expected);
+      if (capture) capture.args = args;
+      return { data: reply, error: null };
+    },
+  } as unknown as Parameters<typeof acceptWaitlistOffer>[0];
+}
+
+test("accepting reports the seat it took", async () => {
+  const capture: { args?: Record<string, unknown> } = {};
+  const result = await acceptWaitlistOffer(
+    stubRpc(
+      "accept_session_waitlist_offer",
+      { ok: true, already: false, entry_id: "e1", allocation_id: "a1", units: 2 },
+      capture,
+    ),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1", expectedStatus: "offered" },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.allocationId, "a1");
+  assert.equal(result.units, 2);
+  assert.equal(capture.args?.p_expected_status, "offered");
+});
+
+test("a success that names no seat is not reported as a success", async () => {
+  // This is D-105 wearing a different hat: "accepted" on the screen with
+  // nothing holding the place. It must not reach an operator as a success.
+  const result = await acceptWaitlistOffer(
+    stubRpc("accept_session_waitlist_offer", { ok: true, already: false, entry_id: "e1" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1", expectedStatus: "offered" },
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.refusalKey, "unavailable");
+});
+
+test("the engine refusing the seat is not the same sentence as a full queue", async () => {
+  const result = await acceptWaitlistOffer(
+    stubRpc("accept_session_waitlist_offer", { ok: false, reason: "session_full" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1", expectedStatus: "offered" },
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  // promote's `session_full` means nothing was ever promised. Here somebody was
+  // told the place was theirs and the engine took it away under the pool lock.
+  assert.equal(result.refusalKey, "seatJustTaken");
+  assert.notEqual(result.refusalKey, describePromoteRefusal("session_full"));
+});
+
+test("an unknown acceptance reason never leaks raw to a screen", () => {
+  assert.equal(toAcceptReason("brand_new"), "unavailable");
+  assert.equal(toAcceptReason(null), "unavailable");
+  assert.equal(toReleaseReason("brand_new"), "unavailable");
+});
+
+test("declining and cancelling call different RPCs and refuse each other's cases", async () => {
+  const declined = await declineWaitlistOffer(
+    stubRpc("decline_session_waitlist_offer", { ok: true, already: false, entry_id: "e1" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1", expectedStatus: "offered" },
+  );
+  assert.equal(declined.ok, true);
+
+  const wrongOne = await declineWaitlistOffer(
+    stubRpc("decline_session_waitlist_offer", { ok: false, reason: "already_accepted" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1", expectedStatus: "offered" },
+  );
+  assert.equal(wrongOne.ok, false);
+  if (wrongOne.ok) return;
+  assert.equal(wrongOne.refusalKey, "alreadyAccepted");
+
+  const cancelled = await cancelWaitlistSeat(
+    stubRpc("cancel_session_waitlist_seat", { ok: true, already: false, entry_id: "e1" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1" },
+  );
+  assert.equal(cancelled.ok, true);
+
+  const nothingHeld = await cancelWaitlistSeat(
+    stubRpc("cancel_session_waitlist_seat", { ok: false, reason: "not_accepted" }),
+    { tenantId: "t1", entryId: "e1", actorUserId: "u1" },
+  );
+  assert.equal(nothingHeld.ok, false);
+  if (nothingHeld.ok) return;
+  assert.equal(nothingHeld.refusalKey, "notAccepted");
 });

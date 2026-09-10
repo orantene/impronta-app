@@ -14,6 +14,21 @@
  * never offers a control the RPC would refuse. A cancelled row says it is
  * cancelled instead of growing a Move button that fails when pressed.
  *
+ * THE ROW SAYS WHAT STATE IT IS IN (D-106). The board used to draw when, with
+ * whom, who is serving, the room and the next action, and nothing about the
+ * booking's own state, so tentative, confirmed, draft and in progress all
+ * looked identical; only cancelled and completed showed at all, and only
+ * sideways inside the action text. `bookingStateKey` maps the stored status to
+ * one catalogue sentence, in operator words rather than database ones.
+ *
+ * A MOVE THAT WORKED SAYS SO (D-107). The dialog used to close on success and
+ * the list refreshed underneath, which is the same thing an operator sees when
+ * nothing happened at all. Worse, `reschedule_booking_set` answers a move to
+ * the time a booking is already at with `already`, and that answer looked
+ * exactly like a real move. Both sentences were written, in three languages,
+ * and rendered nowhere. The panel now stays open on success and says which of
+ * the two happened.
+ *
  * THE REFUSAL NAMES WHAT COLLIDED. `rescheduleAppointment` resolves the RPC's
  * `failed_talent_id` and `failed_pool_id` to names, so "that time was just
  * taken" becomes "Ana is already booked at that time" whenever the id can be
@@ -27,6 +42,7 @@ import { useCallback, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
 import {
+  bookingStateKey,
   groupAppointments,
   parseLocalDateTime,
   type AppointmentRow,
@@ -50,6 +66,13 @@ type MoveState = {
   busy: boolean;
   message: string | null;
   failed: boolean;
+  /**
+   * True once the move has been answered successfully. The panel stays open on
+   * a success so the confirmation has somewhere to be read; without it the
+   * dialog closed and a real move, an idempotent no-op and a silent failure
+   * were the same thing on screen.
+   */
+  done: boolean;
 };
 
 export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props) {
@@ -62,7 +85,7 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
 
       const parsed = parseLocalDateTime(move.value);
       if (!parsed) {
-        setMove({ ...move, failed: true, message: t(`${K}.reschedule.needStart`) });
+        setMove({ ...move, failed: true, done: false, message: t(`${K}.reschedule.needStart`) });
         return;
       }
       // The control hands back a wall clock with no zone. It means the VENUE's
@@ -72,12 +95,13 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
         setMove({
           ...move,
           failed: true,
+          done: false,
           message: t(`${K}.reschedule.refusal.nonexistentTime`),
         });
         return;
       }
 
-      setMove({ ...move, busy: true, message: null, failed: false });
+      setMove({ ...move, busy: true, message: null, failed: false, done: false });
       try {
         const result = await rescheduleAppointment({
           tenantId,
@@ -96,6 +120,7 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
             value: move.value,
             busy: false,
             failed: true,
+            done: false,
             message: fill(
               t(`${K}.reschedule.refusal.${result.refusal.key}`),
               result.refusal.params,
@@ -103,7 +128,22 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
           });
           return;
         }
-        setMove(null);
+        // The two answers are DIFFERENT SENTENCES. `already` means the RPC
+        // found the booking at that time and changed nothing; saying "Moved"
+        // for that teaches an operator that this screen's confirmations are
+        // decorative.
+        setMove({
+          bookingId: row.id,
+          value: move.value,
+          busy: false,
+          failed: false,
+          done: true,
+          message: result.already
+            ? t(`${K}.reschedule.already`)
+            : fill(t(`${K}.reschedule.moved`), {
+                when: formatWhen(result.startsAt, row.timeZone),
+              }),
+        });
         onChanged();
       } catch (err) {
         // A rejected action must not leave the row spinning for ever with
@@ -113,6 +153,7 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
           value: move.value,
           busy: false,
           failed: true,
+          done: false,
           message: err instanceof Error ? err.message : t(`${K}.reschedule.refusal.unavailable`),
         });
       }
@@ -150,6 +191,7 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
                   <th className="py-[6px] pr-[16px] font-medium">{t(`${K}.col.withWhom`)}</th>
                   <th className="py-[6px] pr-[16px] font-medium">{t(`${K}.col.servedBy`)}</th>
                   <th className="py-[6px] pr-[16px] font-medium">{t(`${K}.col.place`)}</th>
+                  <th className="py-[6px] pr-[16px] font-medium">{t(`${K}.col.state`)}</th>
                   <th className="py-[6px] font-medium">{t(`${K}.col.action`)}</th>
                 </tr>
               </thead>
@@ -183,6 +225,11 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
                         <span className="text-admin-ink-muted">{t(`${K}.noPlace`)}</span>
                       )}
                     </td>
+                    <td className="py-[8px] pr-[16px] text-admin-ink">
+                      <span data-testid="appointment-state">
+                        {t(`${K}.state.${bookingStateKey(row.status)}`)}
+                      </span>
+                    </td>
                     <td className="py-[8px] text-admin-ink">
                       {row.nextAction.kind === "none" ? (
                         <span className="text-admin-ink-muted">
@@ -206,6 +253,7 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
                               busy: false,
                               message: null,
                               failed: false,
+                              done: false,
                             })
                           }
                         >
@@ -256,29 +304,36 @@ export function AppointmentsList({ tenantId, rows, adminBase, onChanged }: Props
                 />
 
                 <div className="mt-[12px] flex flex-wrap gap-[8px]">
-                  <button
-                    type="button"
-                    className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink disabled:opacity-60"
-                    disabled={move?.busy === true}
-                    onClick={() => void submit(row)}
-                  >
-                    {move?.busy
-                      ? t(`${K}.reschedule.submitting`)
-                      : t(`${K}.reschedule.submit`)}
-                  </button>
+                  {/* Once the move is done the window on screen is the OLD one,
+                      so submitting again would be refused as a stale screen.
+                      The panel offers the way out instead of a button that
+                      cannot work. */}
+                  {move?.done ? null : (
+                    <button
+                      type="button"
+                      className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink disabled:opacity-60"
+                      disabled={move?.busy === true}
+                      onClick={() => void submit(row)}
+                    >
+                      {move?.busy
+                        ? t(`${K}.reschedule.submitting`)
+                        : t(`${K}.reschedule.submit`)}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink-muted disabled:opacity-60"
                     disabled={move?.busy === true}
                     onClick={() => setMove(null)}
                   >
-                    {t(`${K}.reschedule.cancel`)}
+                    {move?.done ? t(`${K}.reschedule.close`) : t(`${K}.reschedule.cancel`)}
                   </button>
                 </div>
 
                 {move?.message ? (
                   <p
                     data-testid="appointment-reschedule-message"
+                    data-outcome={move.failed ? "refused" : move.done ? "done" : "note"}
                     className={
                       move.failed ? "mt-[10px] text-admin-critical" : "mt-[10px] text-admin-ink"
                     }

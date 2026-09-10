@@ -216,3 +216,99 @@ test("the empty state does not promise a door that is somewhere else", () => {
     "the empty state still claims the list is started from this empty screen",
   );
 });
+
+/* ── D-106: the board can say what state a booking is in ───────────────────── */
+
+test("every row says the booking's own state, not only its next action", () => {
+  const src = codeOnly(read("AppointmentsList.tsx"));
+  assert.match(
+    src,
+    /\{t\(`\$\{K\}\.col\.state`\)\}/,
+    "the state column heading was translated in three languages and rendered nowhere",
+  );
+  assert.match(
+    src,
+    /t\(`\$\{K\}\.state\.\$\{bookingStateKey\(row\.status\)\}`\)/,
+    "the row must render the mapped state, so tentative and confirmed are told apart",
+  );
+  assert.match(
+    src,
+    /import \{[\s\S]*?bookingStateKey[\s\S]*?\} from "@\/lib\/scheduling\/appointments-board"/,
+    "the mapping must come from the board module, not a second table in the component",
+  );
+});
+
+test("every booking state has an operator sentence in all three languages", () => {
+  const statuses = [
+    "draft",
+    "tentative",
+    "confirmed",
+    "in_progress",
+    "completed",
+    "cancelled",
+    "archived",
+    "unknown",
+  ];
+  for (const locale of ["en", "es", "fr"] as const) {
+    const json = JSON.parse(
+      readFileSync(join(WEB_ROOT, "messages", `${locale}.json`), "utf8"),
+    ) as Record<string, Record<string, Record<string, Record<string, string>>>>;
+    const rows = json.dashboard!.adminAppointments!.state!;
+    for (const status of statuses) {
+      assert.equal(typeof rows[status], "string", `${locale} has no sentence for "${status}"`);
+      assert.ok(!rows[status]!.includes("—"), `${locale}.state.${status} uses an em dash`);
+    }
+  }
+});
+
+/* ── D-107: a move that worked says so, and says WHICH answer it was ───────── */
+
+test("a successful reschedule renders its confirmation instead of closing silently", () => {
+  const src = codeOnly(read("AppointmentsList.tsx"));
+  assert.match(
+    src,
+    /t\(`\$\{K\}\.reschedule\.already`\)/,
+    "the idempotent answer was authored and rendered nowhere, so it looked like a real move",
+  );
+  assert.match(
+    src,
+    /t\(`\$\{K\}\.reschedule\.moved`\)/,
+    "a completed move must say where it went",
+  );
+  assert.doesNotMatch(
+    src,
+    /setMove\(null\);\s*\n\s*onChanged\(\);/,
+    "closing the panel on success is what made a move and a no-op look identical",
+  );
+  const success = src.slice(src.indexOf("result.already"));
+  assert.ok(
+    success.indexOf("reschedule.already") < success.indexOf("reschedule.moved"),
+    "the two answers must be chosen by result.already, not merged into one sentence",
+  );
+});
+
+/* ── D-105: the seat is taken from the screen that takes it ────────────────── */
+
+test("accepting a place goes through the action that reserves the seat", () => {
+  const src = codeOnly(read("AppointmentsWaitlist.tsx"));
+  assert.match(
+    src,
+    /await acceptWaitlistPlace\(\{/,
+    "the screen must accept through the action that reserves and commits the allocation",
+  );
+  assert.doesNotMatch(
+    src,
+    /status:\s*"accepted"/,
+    "no surface may write the word 'accepted' itself: the table refuses it without a seat",
+  );
+  assert.match(
+    src,
+    /await releaseWaitlistPlace\(\{[\s\S]{0,200}?holding,/,
+    "giving a place back must say whether a seat or only an offer is being released",
+  );
+  assert.match(
+    src,
+    /holding === "seat" \? "accepted" : "offered"/,
+    "the stale-screen guard must send the status the row was showing",
+  );
+});

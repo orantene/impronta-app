@@ -1275,7 +1275,8 @@
           "invalidWindow": "La fin doit venir apres le debut.",
           "tryAgain": "Impossible de deplacer cette reservation. Reessaie.",
           "unavailable": "Impossible de deplacer cette reservation."
-        }
+        },
+        "close": "Fermer"
       },
       "waitlist": {
         "loading": "Chargement de la liste d'attente...",
@@ -1328,8 +1329,24 @@
           "unavailable": "Impossible de proposer cette place. Reessaie.",
           "nameRequired": "Cette personne a besoin d'un nom avant qu'une place puisse lui etre gardee.",
           "alreadyWaiting": "Elle est deja sur cette liste.",
-          "seatsAvailable": "Cette seance a encore {left} places libres. Inscris-les plutot que d'ouvrir une file."
-        }
+          "seatsAvailable": "Cette seance a encore {left} places libres. Inscris-les plutot que d'ouvrir une file.",
+          "notOffered": "Personne n'a encore propose de place a cette personne. Proposez-la d'abord.",
+          "offerExpired": "Cette proposition a expire. Proposez de nouveau la place si elle est encore libre.",
+          "seatJustTaken": "Cette place a ete prise avant celle-ci. Proposez-en une autre des qu'une se libere.",
+          "notAccepted": "Cette personne n'a pris aucune place, il n'y a donc rien a rendre.",
+          "alreadyAccepted": "Cette personne a deja pris la place. Rendez la place au lieu de la refuser."
+        },
+        "accept": "Elle est prise",
+        "accepting": "Prise de la place...",
+        "accepted": "{name} a la place. Ce siege sort de ce cours.",
+        "alreadyHasPlace": "{name} a deja cette place. Rien n'a change.",
+        "decline": "Ils ont refuse",
+        "declining": "Restitution de la place...",
+        "declined": "{name} a rendu la place. Elle est libre pour la personne suivante.",
+        "cancelSeat": "Rendre la place",
+        "cancellingSeat": "Restitution de la place...",
+        "cancelledSeat": "{name} a rendu la place. Le siege revient a ce cours.",
+        "alreadyOffList": "{name} n'est deja plus sur cette liste. Rien n'a change."
       },
       "proposals": {
         "title": "Horaires de reservation proposes, en attente de toi",
@@ -1343,6 +1360,16 @@
           "publish_default": "ecrit lors de la publication d'une offre",
           "staff_suggestion": "suggere par un collegue"
         }
+      },
+      "state": {
+        "draft": "Brouillon",
+        "tentative": "Reservee sans confirmation",
+        "confirmed": "Confirmee",
+        "in_progress": "En cours",
+        "completed": "Terminee",
+        "cancelled": "Annulee",
+        "archived": "Archivee",
+        "unknown": "Etat non reconnu"
       }
     }
   },
