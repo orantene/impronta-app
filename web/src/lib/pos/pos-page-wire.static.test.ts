@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolveWorkspaceAdminPage } from "@/app/(workspace)/[tenantSlug]/admin/workspace-page-routing";
+import { CANONICAL_ROUTE_MATCHERS } from "@/components/admin/shell/canonical-routes";
 import { join } from "node:path";
 import {
   isPosSegment,
@@ -17,14 +19,28 @@ test("layer 1 — the POS page exists and is capability-gated", () => {
 });
 
 test("layer 2 — a canonical-route matcher claims /admin/pos", () => {
-  const src = read("src/components/admin/shell/canonical-routes.ts");
-  assert.match(src, /s\[0\] === "admin" && s\[1\] === "pos"/);
+  // Asserted against the matchers themselves rather than the source text.
+  // These lines used to be hand-written and are now projected from the
+  // destination registry, so a text match would only prove how the list is
+  // spelled. What has to hold is that the path is claimed.
+  assert.ok(
+    CANONICAL_ROUTE_MATCHERS.some((matches) => matches(["admin", "pos"])),
+    "/admin/pos must render its canonical page, not the single-page shell",
+  );
 });
 
 test("layer 3 — 'pos' is an allowed workspace segment", () => {
-  const src = read("src/app/(workspace)/[tenantSlug]/admin/workspace-page-routing.ts");
-  const list = src.slice(src.indexOf("WORKSPACE_PAGE_SEGMENTS"), src.indexOf("export function"));
-  assert.ok(list.includes('"pos"'));
+  // Asserted by resolving the segment rather than by reading the list out
+  // of the source: the list is now derived from the destination registry,
+  // so its spelling proves nothing. What must hold is that the address
+  // still opens its page.
+  for (const segment of ["pos"]) {
+    assert.equal(
+      resolveWorkspaceAdminPage(segment),
+      segment,
+      `/admin/${segment} must still resolve to its own page`,
+    );
+  }
 });
 
 test("layer 4 — the destination registry routes New sale to the POS route", () => {

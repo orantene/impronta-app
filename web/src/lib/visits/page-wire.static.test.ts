@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolveWorkspaceAdminPage } from "@/app/(workspace)/[tenantSlug]/admin/workspace-page-routing";
+import { CANONICAL_ROUTE_MATCHERS } from "@/components/admin/shell/canonical-routes";
 import { join } from "node:path";
 import { liveRouteSegment, resolveDestination } from "../workspace/destinations";
 
@@ -16,16 +18,29 @@ test("layer 1 — tables and preparation pages exist and are capability-gated", 
 });
 
 test("layer 2 — canonical-route matchers claim /admin/tables and /admin/preparation", () => {
-  const src = read("src/components/admin/shell/canonical-routes.ts");
-  assert.match(src, /s\[0\] === "admin" && s\[1\] === "tables"/);
-  assert.match(src, /s\[0\] === "admin" && s\[1\] === "preparation"/);
+  // Asserted against the matchers rather than the source text: these entries
+  // are now projected from the destination registry, so matching the spelling
+  // would prove nothing about the routes.
+  for (const segment of ["tables", "preparation"]) {
+    assert.ok(
+      CANONICAL_ROUTE_MATCHERS.some((matches) => matches(["admin", segment])),
+      `/admin/${segment} must render its canonical page, not the single-page shell`,
+    );
+  }
 });
 
 test("layer 3 — tables and preparation are allowed workspace segments", () => {
-  const src = read("src/app/(workspace)/[tenantSlug]/admin/workspace-page-routing.ts");
-  const list = src.slice(src.indexOf("WORKSPACE_PAGE_SEGMENTS"), src.indexOf("export function"));
-  assert.ok(list.includes('"tables"'));
-  assert.ok(list.includes('"preparation"'));
+  // Asserted by resolving the segment rather than by reading the list out
+  // of the source: the list is now derived from the destination registry,
+  // so its spelling proves nothing. What must hold is that the address
+  // still opens its page.
+  for (const segment of ["tables", "preparation"]) {
+    assert.equal(
+      resolveWorkspaceAdminPage(segment),
+      segment,
+      `/admin/${segment} must still resolve to its own page`,
+    );
+  }
 });
 
 test("layer 4 — the destination registry routes restaurant destinations to built pages", () => {

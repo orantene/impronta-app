@@ -351,7 +351,6 @@ export type BridgeData = {
      */
     runsEvents?: boolean;
     /**
-<<<<<<< HEAD
      * Raw `agencies.settings.industry_preset`. The rail folds it into three
      * shapes (`cafe` / `solo` / `hybrid`) in `lib/workspace/nav-context.ts` and
      * reads them for its labels — "Menu and catalog" and "Team" for a cafe,
@@ -360,7 +359,7 @@ export type BridgeData = {
      * through to `hybrid`, the shape that relabels nothing.
      */
     industryPreset?: string | null;
-=======
+    /**
      * The POS modes this workspace has switched on
      * (`agencies.settings.pos.locations.default.modes`, already parsed by
      * `enabledPosModesFromSettings`). Optional on the wire; a reader that does
@@ -369,7 +368,6 @@ export type BridgeData = {
      * otherwise silently hide the POS entry from every workspace.
      */
     posModes?: readonly import("@/lib/pos/modes").PosMode[];
->>>>>>> work/t2-mobile
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

@@ -99,21 +99,11 @@ const ES_TEXT: Record<string, string> = {
   // mobile bottom nav needed and did not already have (destinations.ts is
   // the single English-keyed source; this file only carries the Spanish
   // half of each key it actually uses).
-  "Appointments": "Citas",
-  "Reservations": "Reservaciones",
-  "Spaces": "Espacios",
-  "Issues": "Incidencias",
-  "People": "Personas",
-  "Events": "Eventos",
   "Owner": "Propietario",
   "Assistant": "Asistente",
-  "Menu and catalog": "Menú y catálogo",
-  "Orders": "Pedidos",
   "Open POS": "Abrir punto de venta",
   "Book": "Reservar",
   "Bookable": "Disponible",
-  "Applications": "Solicitudes",
-  "Everyone": "Todos",
   "Site": "Sitio",
   "Card Design": "Diseño de tarjetas",
   "Profile Pages": "Páginas de perfil",

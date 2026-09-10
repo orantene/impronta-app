@@ -12,6 +12,7 @@
  */
 
 import assert from "node:assert/strict";
+import { CANONICAL_ROUTE_MATCHERS } from "@/components/admin/shell/canonical-routes";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -124,7 +125,13 @@ test("an inspect row has no control at all, not a disabled one", () => {
 });
 
 test("the page is reachable as a canonical route", () => {
-  assert.match(ROUTES_SRC, /s\[1\] === "exceptions"/);
+  // Asserted against the matchers rather than the source text: this entry is
+  // now projected from the destination registry, so matching its spelling
+  // would only prove how the list is written, not that the path is claimed.
+  assert.ok(
+    CANONICAL_ROUTE_MATCHERS.some((matches) => matches(["admin", "exceptions"])),
+    "/admin/exceptions must render its canonical page, not the single-page shell",
+  );
 });
 
 test("no resume writer reports a failed WRITE as a failure that changed nothing", () => {
