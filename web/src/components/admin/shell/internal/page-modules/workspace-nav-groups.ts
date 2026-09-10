@@ -204,9 +204,10 @@ function navItem(
   input: WorkspaceNavInput,
   activeId: DestinationId | null,
 ): WorkspaceNavItem | null {
-  // An unbuilt destination has no screen. `projects` and `payments` carry a
-  // fallback so a URL for them lands somewhere real, but a rail row would be a
-  // second door onto Messages and Financials, labelled as something else.
+  // An unbuilt destination has no screen, and `mywork` is the only one left:
+  // it has no fallback either, so there is no URL a row could even point at.
+  // Projects, Payments, People and Issues were each in this state and each got
+  // a row the day its slice built it.
   if (!destination.built) return null;
   const href = destinationHref(destination, input.adminBase);
   const page = liveWorkspacePage(destination);

@@ -36,8 +36,8 @@ export const WORKSPACE_PAGES: WorkspacePage[] = navWorkspacePages();
  *
  * Delegates to the registry so this file, the admin route resolver and the
  * sidebar cannot answer the same question three ways. `inbox` → messages,
- * `work` → messages (projects is not built), `talent` → roster, `site` →
- * website, `billing`/`workspace` → settings, exactly as before.
+ * `work` → projects (P4 built it; it stood on Messages before), `talent` →
+ * people, `site` → website, `billing`/`workspace` → settings.
  */
 export const resolveWorkspacePage = resolveWorkspacePageId;
 // Messages replaces Inbox as the canonical chat-first surface. Inbox

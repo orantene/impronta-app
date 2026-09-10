@@ -138,16 +138,17 @@ test("navWorkspacePages is one entry per built destination, in registry order", 
     built.map((d) => liveWorkspacePage(d)),
     "nav order must follow the registry, which is the rail order",
   );
-  // Projects and Payments were each built by their own slice, so each
-  // branch removed one from this list. Only what is unbuilt on both
-  // sides belongs here.
-  // Unbuilt destinations are absent: a rail row for Payments would be a second
-  // door onto Financials, and My work has no route at all yet.
+  // Projects, Payments, People and Issues each left this list when their own
+  // slice built them. `mywork` is what is left: no route at all yet, so a rail
+  // row for it would be a door onto nothing.
   for (const absent of ["mywork"] as WorkspacePage[]) {
     assert.ok(!pages.includes(absent), `${absent} is not built and must not be a nav page`);
   }
-  // Projects WAS in that list and is not any more: P4 gave it a route, so the
-  // rail must now draw a row for it. Without this the deletion above would read
-  // as a weakened assertion rather than a changed fact.
-  assert.ok(pages.includes("projects" as WorkspacePage), "Projects is built and needs a rail row");
+  // The other half, so the deletions above read as changed FACTS rather than a
+  // weakened assertion: every destination a P4 slice built has a nav page, at
+  // whatever page it renders as today.
+  for (const id of ["projects", "payments", "people", "issues", "spaces", "sales"] as const) {
+    const page = liveWorkspacePage(DESTINATIONS[id]);
+    assert.ok(page !== null && pages.includes(page), `${id} is built and needs a rail row`);
+  }
 });

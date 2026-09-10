@@ -135,12 +135,13 @@ export type TenantIdentityPayload = {
   /**
    * The POS modes this workspace has switched on, parsed out of the
    * `agencies.settings` blob this loader already selects (path
-   * `pos.locations.default.modes`). Never empty: `enabledPosModesFromSettings`
-   * falls back to `["counter"]` when a workspace has no `pos` settings at all,
-   * which is the documented safe default — an empty array here would mean
-   * "every mode deliberately off", and a surface that cannot tell the two
-   * apart hides the POS entry from every workspace that never opened the
-   * settings page.
+   * `pos.locations.default.modes`). Empty is a REAL value here and means
+   * "every mode deliberately off" — the workspace turned the last one off in
+   * Settings › Point of sale, and the POS is then unavailable to it.
+   * `enabledPosModesFromSettings` falls back to `["counter"]` only when the
+   * path is missing or malformed, so a workspace that never opened the
+   * settings page still gets its POS; the two cases are distinguishable and
+   * this field carries the difference through to every surface.
    *
    * Costs no extra query: `settings` is already in the agencies select above.
    */

@@ -54,17 +54,30 @@ test("a manager gets projects but an editor does not, even when both are enabled
   assert.deepEqual(editorModes, ["counter"]);
 });
 
-test("enabledPosModesFromSettings defaults to counter only when the path is absent", () => {
+test("enabledPosModesFromSettings defaults to counter when the path is absent or malformed", () => {
   assert.deepEqual(enabledPosModesFromSettings(undefined), ["counter"]);
   assert.deepEqual(enabledPosModesFromSettings({}), ["counter"]);
   assert.deepEqual(enabledPosModesFromSettings({ pos: {} }), ["counter"]);
-  assert.deepEqual(
-    enabledPosModesFromSettings({ pos: { locations: { default: { modes: [] } } } }),
-    ["counter"],
-  );
+  // A list with entries in it, none of which parse, is junk somebody else
+  // wrote — not a decision. It keeps the default rather than blanking the POS.
   assert.deepEqual(
     enabledPosModesFromSettings({ pos: { locations: { default: { modes: ["nonsense"] } } } }),
     ["counter"],
+  );
+});
+
+test("a literal empty list is a decision, not an absence, and is kept", () => {
+  // THIS ASSERTION USED TO READ ["counter"], AND THAT WAS THE BUG. `counter`
+  // is the only built mode, so the only write the settings panel could reach
+  // was the empty list; coercing it back to the default meant every reachable
+  // persisted state equalled the default and the panel could not save
+  // anything, while still reporting "Saved". `pos-bridge.ts` had already
+  // documented `[]` as "every mode deliberately off" — this is the reader
+  // catching up with the rest of the code, and it is what makes the panel's
+  // one switch mean something.
+  assert.deepEqual(
+    enabledPosModesFromSettings({ pos: { locations: { default: { modes: [] } } } }),
+    [],
   );
 });
 

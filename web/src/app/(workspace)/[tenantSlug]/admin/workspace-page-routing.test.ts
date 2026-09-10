@@ -63,8 +63,8 @@ test("/admin/exceptions now names its own page instead of falling to overview", 
 });
 
 test("payouts keeps its own body and is NOT folded into payments", () => {
-  // The registry lists `payouts` as an alias of the (unbuilt) Payments
-  // destination, whose live route is /admin/financials. But /admin/payouts
+  // The registry lists `payouts` as an alias of the Payments destination,
+  // which is a real page at /admin/payments now. But /admin/payouts
   // renders <PayoutsPage/> in the SPA and has no canonical matcher, so
   // collapsing it would paint a blank screen. See LEGACY_PAGES_WITH_THEIR_OWN_BODY.
   assert.equal(resolveWorkspaceAdminPage("payouts"), "payouts");

@@ -15,9 +15,8 @@ import { DESTINATION_LIST, liveRouteSegment } from "@/lib/workspace/destinations
  * the shell must yield to it rather than stacking the prototype SPA underneath.
  * Both names are matched: the canonical segment a destination is moving to, and
  * `liveRouteSegment` — the one it renders at TODAY. Several are not the same
- * (`spaces` renders at /admin/tables, `issues` at /admin/exceptions, the unbuilt
- * `payments` at /admin/financials), and matching only the first would have
- * un-canonicalised three live pages.
+ * (`spaces` renders at /admin/tables, `issues` at /admin/exceptions), and
+ * matching only the first would have un-canonicalised those live pages.
  *
  * ALIASES ARE DELIBERATELY NOT INCLUDED. `payouts` is an alias of `payments`,
  * but `/admin/payouts` is an SPA section whose page.tsx is a bare

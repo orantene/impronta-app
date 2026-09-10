@@ -8,9 +8,9 @@ import { redirect } from "next/navigation";
  *
  * WHY THIS EXISTS. `lib/workspace/destinations.ts` names the segment each
  * destination is MOVING to. Several of those names are not routes yet, and
- * three of them belong to destinations that render as real server pages:
- * `spaces` (live at /admin/tables), `issues` (/admin/exceptions) and the
- * unbuilt `payments` (/admin/financials). The SPA-bodied ones can stand up a
+ * some of them belong to destinations that render as real server pages:
+ * `spaces` (live at /admin/tables) and `issues` (/admin/exceptions). The
+ * SPA-bodied ones can stand up a
  * `PageRouteSyncer` and be done; these cannot — the body is a different route's
  * server component, and a syncer at the new segment would render `null` under
  * an empty shell. So the new URL redirects to the live one instead of 404ing or

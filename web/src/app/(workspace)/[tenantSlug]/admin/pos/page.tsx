@@ -31,6 +31,7 @@ import {
   enabledPosModesFromSettings,
   modesForPerson,
   parsePosMode,
+  sellingModesAllowCounter,
   type PosMode,
   type PosPersonRole,
 } from "@/lib/pos/modes";
@@ -139,6 +140,34 @@ export default async function PosPage({
   const tr = await createTranslator(locale);
   const admin = createServiceRoleClient();
   if (!admin) notFound();
+
+  // THE COUNTER IS A MODE THIS WORKSPACE CAN SWITCH OFF. This route IS the
+  // counter (its rail is `POS_MODE_META.counter.destinations`), so when
+  // Settings › Point of sale has the counter off, there is no register to
+  // render. Refuse in a sentence in the reader's own language rather than
+  // `notFound()`: the person following the link is staff who just turned it
+  // off, and a 404 would not tell them why or where to turn it back on.
+  const modesRes = await admin
+    .from("agencies")
+    .select("settings")
+    .eq("id", scope.tenantId)
+    .maybeSingle();
+  if (modesRes.error) logServerError("pos.page.modes", modesRes.error);
+  const enabledModes = enabledPosModesFromSettings(
+    (modesRes.data as { settings?: unknown } | null)?.settings,
+  );
+  if (!sellingModesAllowCounter(enabledModes)) {
+    return (
+      <main style={{ padding: "32px 28px", maxWidth: 720, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
+          {tr("dashboard.pos.counterOffTitle")}
+        </h1>
+        <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 10, lineHeight: 1.6 }}>
+          {tr("dashboard.pos.counterOffBody")}
+        </p>
+      </main>
+    );
+  }
 
   const q = await searchParams;
 
