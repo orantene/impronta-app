@@ -73,8 +73,8 @@ export function liveWorkspacePage(destination: Destination): WorkspacePage | nul
  * Legacy ids that keep their OWN body and must not be folded into the
  * destination that claims them as an alias.
  *
- * `payouts` is the only one. The registry folds it into `payments`, whose live
- * route is `/admin/financials` — but `/admin/payouts` renders `<PayoutsPage/>`
+ * `payouts` is the only one. The registry folds it into `payments`, which is
+ * now a real page at `/admin/payments` — but `/admin/payouts` renders `<PayoutsPage/>`
  * in the SPA today (Stripe Connect onboarding + the base reservation fee), and
  * that route has no canonical matcher behind it. Collapsing it would hand the
  * page router a case it does not have and paint a blank screen. When Payments
@@ -113,9 +113,10 @@ export function resolveWorkspacePageId(raw: string): WorkspacePage {
  * The nav page list: one entry per BUILT destination, at the page it renders
  * as today, in registry order. This is what `WORKSPACE_PAGES` is.
  *
- * Unbuilt destinations are absent on purpose. `projects` and `payments` have a
- * fallback so their URL lands somewhere, but a nav entry for them would put a
- * second row in front of a page that already has one.
+ * Unbuilt destinations are absent on purpose. `projects` has a fallback so its
+ * URL lands somewhere, but a nav entry for it would put a second row in front
+ * of a page that already has one. `payments` was in that state until its page
+ * was built; it is a row now, which is the only reason anyone can reach it.
  */
 export function navWorkspacePages(): WorkspacePage[] {
   const pages: WorkspacePage[] = [];
