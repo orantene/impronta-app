@@ -513,12 +513,7 @@ function ModalForm({
   // email carries the link, so nothing is lost for someone who prefers it.
   if (state?.pendingEmail) {
     return (
-      <ConfirmationView
-        email={state.pendingEmail}
-        next={next}
-        locale={locale}
-        t={t}
-      />
+      <ConfirmationView email={state.pendingEmail} next={next} locale={locale} />
     );
   }
   // Legacy shape (message without an address): keep the old dead-end notice
@@ -650,31 +645,21 @@ function ConfirmationView({
   email,
   next,
   locale,
-  t,
 }: {
   email: string;
   next: string;
   locale: string;
-  t: TalentModalCopy;
 }) {
   return (
     <div className="space-y-5 py-2">
-      <div className="space-y-3 text-center">
-        <div
-          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-          style={{
-            background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
-            color: "var(--plt-forest)",
-          }}
-        >
-          <MailGlyph />
-        </div>
-        <h3
-          className="plt-display text-[1.125rem] font-semibold"
-          style={{ color: "var(--plt-ink)" }}
-        >
-          {t.checkInbox}
-        </h3>
+      <div
+        className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+        style={{
+          background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
+          color: "var(--plt-forest)",
+        }}
+      >
+        <MailGlyph />
       </div>
       <SignupCodeConfirm email={email} nextPath={next} locale={locale} />
     </div>

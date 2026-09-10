@@ -40,6 +40,14 @@ export const OTP_CODE_MIN_LENGTH = 6;
 export const OTP_CODE_MAX_LENGTH = 10;
 
 /**
+ * How many digit boxes the code screens DRAW. Must match the project's
+ * `mailer_otp_length` (8 on the live project, see B2 above); if that setting
+ * changes, change this too or the boxes will not fit the emailed code. The
+ * server side keeps accepting the whole 6-10 range regardless.
+ */
+export const OTP_CODE_LENGTH = 8;
+
+/**
  * Digits only, capped at {@link OTP_CODE_MAX_LENGTH}.
  *
  * People paste "123 456", "123-456" and the whole "Your code is 12345678" line

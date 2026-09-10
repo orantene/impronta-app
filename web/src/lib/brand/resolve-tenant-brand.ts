@@ -53,6 +53,11 @@ export type EmailBrand = {
    * markup the way `PublicHeader` does).
    */
   logoUrl?: string | null;
+  /**
+   * Absolute URL of a small square PNG mark rendered BESIDE the text wordmark.
+   * Platform brand only; tenants either have a full logo or a wordmark.
+   */
+  markUrl?: string | null;
   /** Brand colour for buttons and links. Validated hex; never operator text. */
   accent?: string;
   /** Readable foreground for `accent`, contrast-picked, not assumed white. */
@@ -73,6 +78,8 @@ export function platformBrand(): EmailBrand {
     homeHref: siteUrl(),
     locale: "en",
     logoUrl: null,
+    // The three-dot mark from /public/brand, served by the marketing host.
+    markUrl: `${siteUrl()}/brand/tulala-mark-192.png`,
     accent: TULALA_EMAIL_ACCENT,
     accentOn: TULALA_EMAIL_ACCENT_ON,
   };
