@@ -41,6 +41,48 @@ export const RESCHEDULABLE_BOOKING_STATUSES: readonly string[] = [
   "in_progress",
 ];
 
+/**
+ * The states a booking on this board can rest in, and the catalogue leaf each
+ * one is said with (D-106).
+ *
+ * WHAT WAS WRONG. The board drew when, with whom, who is serving, the room and
+ * the next action, and nothing at all about the booking's own state. A
+ * translated column heading for it existed in en, es and fr and was referenced
+ * nowhere, so tentative, confirmed, draft and in progress were indistinguishable
+ * from each other; only cancelled and completed surfaced, and only sideways,
+ * inside the text of the action cell. An operator could not tell a held slot
+ * from a confirmed one on the screen they run the day from.
+ *
+ * THE LABELS ARE OPERATOR WORDS, NOT DATABASE WORDS. `in_progress` is not a
+ * state anybody says out loud, and `tentative` on its own does not tell a front
+ * desk whether the customer is coming. The raw value is mapped to a catalogue
+ * key here, once, so every surface says the same sentence.
+ *
+ * AN UNRECOGNISED STATUS IS ITS OWN ANSWER. Falling back to the raw string
+ * would print a database word to a person, and falling back to "confirmed"
+ * would be a lie about a booking nobody has confirmed. `unknown` is a real
+ * sentence in the catalogue.
+ */
+export const BOOKING_STATE_KEYS = [
+  "draft",
+  "tentative",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "archived",
+] as const;
+
+export type BookingStateKey = (typeof BOOKING_STATE_KEYS)[number] | "unknown";
+
+/** The catalogue leaf under `dashboard.adminAppointments.state` for a status. */
+export function bookingStateKey(status: string): BookingStateKey {
+  const normalised = status.trim().toLowerCase();
+  return (BOOKING_STATE_KEYS as readonly string[]).includes(normalised)
+    ? (normalised as BookingStateKey)
+    : "unknown";
+}
+
 export type AppointmentBucket = "today" | "upcoming" | "earlier" | "undated";
 
 export type AppointmentNextAction =

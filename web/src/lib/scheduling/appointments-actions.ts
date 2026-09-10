@@ -61,8 +61,13 @@ import {
   servingNamesByInquiry,
 } from "@/lib/scheduling/appointments-lookups";
 import {
+  acceptWaitlistOffer,
+  cancelWaitlistSeat,
+  declineWaitlistOffer,
   promoteWaitlistEntry,
+  type AcceptWaitlistRefusalKey,
   type PromoteWaitlistRefusalKey,
+  type ReleaseWaitlistRefusalKey,
   type WaitlistStoredStatus,
 } from "@/lib/scheduling/session-waitlist";
 import {
@@ -362,6 +367,97 @@ export async function promoteFromWaitlist(input: {
   } catch (err) {
     logServerError("scheduling.promoteFromWaitlist", err);
     return { ok: false, refusalKey: "unavailable", outstandingOffers: null };
+  }
+}
+
+export type AcceptWaitlistOfferResult =
+  | { ok: true; already: boolean; units: number }
+  | { ok: false; refusalKey: AcceptWaitlistRefusalKey };
+
+/**
+ * Take the offered place, and the seat with it (D-105).
+ *
+ * The seat is the point. Before this existed the only way an entry became
+ * `accepted` was a hand-written UPDATE, which held no capacity at all: the
+ * pool went straight back to reporting the place free while the screen said
+ * somebody had taken it, and the next promote gave the same seat away. The
+ * RPC reserves and commits a real allocation for the party in the same
+ * transaction, and the table now refuses `accepted` without one.
+ */
+export async function acceptWaitlistPlace(input: {
+  tenantId: string;
+  entryId: string;
+  expectedStatus: WaitlistStoredStatus;
+}): Promise<AcceptWaitlistOfferResult> {
+  try {
+    const scoped = await scopedTo(input.tenantId);
+    if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, refusalKey: "unavailable" };
+
+    const result = await acceptWaitlistOffer(admin, {
+      tenantId: input.tenantId,
+      entryId: input.entryId,
+      actorUserId: scoped.scope.userId,
+      expectedStatus: input.expectedStatus,
+    });
+    if (!result.ok) return { ok: false, refusalKey: result.refusalKey };
+
+    revalidatePath(`/${scoped.scope.tenantSlug}`, "layout");
+    return { ok: true, already: result.already, units: result.units };
+  } catch (err) {
+    logServerError("scheduling.acceptWaitlistPlace", err);
+    return { ok: false, refusalKey: "unavailable" };
+  }
+}
+
+export type ReleaseWaitlistPlaceResult =
+  | { ok: true; already: boolean }
+  | { ok: false; refusalKey: ReleaseWaitlistRefusalKey };
+
+/**
+ * Give a place back to the queue.
+ *
+ * Two different writes behind one action, chosen by what the entry is holding
+ * and NOT by what the screen thinks it is holding: an offer that was never an
+ * allocation is simply withdrawn, while an accepted place has a committed seat
+ * that has to be released or the class stays sold out with nobody in it. The
+ * RPCs refuse each other's cases (`already_accepted`, `not_accepted`) rather
+ * than guessing, so a stale screen cannot silently release the wrong thing.
+ */
+export async function releaseWaitlistPlace(input: {
+  tenantId: string;
+  entryId: string;
+  /** What the operator's row said this entry was holding. */
+  holding: "offer" | "seat";
+  expectedStatus: WaitlistStoredStatus;
+}): Promise<ReleaseWaitlistPlaceResult> {
+  try {
+    const scoped = await scopedTo(input.tenantId);
+    if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, refusalKey: "unavailable" };
+
+    const result =
+      input.holding === "seat"
+        ? await cancelWaitlistSeat(admin, {
+            tenantId: input.tenantId,
+            entryId: input.entryId,
+            actorUserId: scoped.scope.userId,
+          })
+        : await declineWaitlistOffer(admin, {
+            tenantId: input.tenantId,
+            entryId: input.entryId,
+            actorUserId: scoped.scope.userId,
+            expectedStatus: input.expectedStatus,
+          });
+    if (!result.ok) return { ok: false, refusalKey: result.refusalKey };
+
+    revalidatePath(`/${scoped.scope.tenantSlug}`, "layout");
+    return { ok: true, already: result.already };
+  } catch (err) {
+    logServerError("scheduling.releaseWaitlistPlace", err);
+    return { ok: false, refusalKey: "unavailable" };
   }
 }
 

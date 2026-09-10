@@ -12351,7 +12351,8 @@
           "invalidWindow": "The end has to come after the start.",
           "tryAgain": "Could not move that booking. Try again.",
           "unavailable": "Could not move that booking."
-        }
+        },
+        "close": "Close"
       },
       "waitlist": {
         "loading": "Loading the waitlist...",
@@ -12404,8 +12405,24 @@
           "unavailable": "Could not offer that place. Try again.",
           "nameRequired": "This person needs a name before a place can be held for them.",
           "alreadyWaiting": "They are already on this list.",
-          "seatsAvailable": "This session still has {left} free. Book them in rather than starting a queue."
-        }
+          "seatsAvailable": "This session still has {left} free. Book them in rather than starting a queue.",
+          "notOffered": "Nobody has offered this person a place yet. Offer it first.",
+          "offerExpired": "That offer ran out. Offer the place again if it is still free.",
+          "seatJustTaken": "That place was taken before this one could be. Offer another when one comes free.",
+          "notAccepted": "This person has not taken a place, so there is nothing to give up.",
+          "alreadyAccepted": "This person already took the place. Give the place up instead of declining it."
+        },
+        "accept": "They took it",
+        "accepting": "Taking the place...",
+        "accepted": "{name} has the place. That seat is off this class now.",
+        "alreadyHasPlace": "{name} already has this place. Nothing changed.",
+        "decline": "They said no",
+        "declining": "Giving it back...",
+        "declined": "{name} gave the place back. It is open to the next person.",
+        "cancelSeat": "Give the place up",
+        "cancellingSeat": "Giving the place up...",
+        "cancelledSeat": "{name} gave the place up. The seat is back on this class.",
+        "alreadyOffList": "{name} is already off this list. Nothing changed."
       },
       "proposals": {
         "title": "Proposed booking hours, waiting for you",
@@ -12419,6 +12436,16 @@
           "publish_default": "written when an offering was published",
           "staff_suggestion": "suggested by a colleague"
         }
+      },
+      "state": {
+        "draft": "Draft",
+        "tentative": "Held, not confirmed",
+        "confirmed": "Confirmed",
+        "in_progress": "Happening now",
+        "completed": "Done",
+        "cancelled": "Cancelled",
+        "archived": "Archived",
+        "unknown": "State not recognised"
       }
     }
   },

@@ -12351,7 +12351,8 @@
           "invalidWindow": "El final tiene que ser posterior al inicio.",
           "tryAgain": "No se pudo mover esa reserva. Intentalo de nuevo.",
           "unavailable": "No se pudo mover esa reserva."
-        }
+        },
+        "close": "Cerrar"
       },
       "waitlist": {
         "loading": "Cargando la lista de espera...",
@@ -12404,8 +12405,24 @@
           "unavailable": "No se pudo ofrecer ese lugar. Intentalo de nuevo.",
           "nameRequired": "Esta persona necesita un nombre antes de poder guardarle un lugar.",
           "alreadyWaiting": "Ya estan en esta lista.",
-          "seatsAvailable": "Esta sesion todavia tiene {left} libres. Reservalos en vez de empezar una cola."
-        }
+          "seatsAvailable": "Esta sesion todavia tiene {left} libres. Reservalos en vez de empezar una cola.",
+          "notOffered": "Nadie le ha ofrecido una plaza a esta persona todavia. Ofrecela primero.",
+          "offerExpired": "Esa oferta caduco. Vuelve a ofrecer la plaza si sigue libre.",
+          "seatJustTaken": "Esa plaza se ocupo antes de que esta pudiera tomarla. Ofrece otra cuando quede libre.",
+          "notAccepted": "Esta persona no ha tomado ninguna plaza, asi que no hay nada que soltar.",
+          "alreadyAccepted": "Esta persona ya tomo la plaza. Suelta la plaza en lugar de rechazarla."
+        },
+        "accept": "La tomaron",
+        "accepting": "Tomando la plaza...",
+        "accepted": "{name} tiene la plaza. Ese asiento ya sale de esta clase.",
+        "alreadyHasPlace": "{name} ya tiene esta plaza. No cambio nada.",
+        "decline": "Dijeron que no",
+        "declining": "Devolviendo la plaza...",
+        "declined": "{name} devolvio la plaza. Queda libre para la siguiente persona.",
+        "cancelSeat": "Soltar la plaza",
+        "cancellingSeat": "Soltando la plaza...",
+        "cancelledSeat": "{name} solto la plaza. El asiento vuelve a esta clase.",
+        "alreadyOffList": "{name} ya no esta en esta lista. No cambio nada."
       },
       "proposals": {
         "title": "Horarios de reserva propuestos, esperandote",
@@ -12419,6 +12436,16 @@
           "publish_default": "escrito al publicar una oferta",
           "staff_suggestion": "sugerido por un companero"
         }
+      },
+      "state": {
+        "draft": "Borrador",
+        "tentative": "Reservada sin confirmar",
+        "confirmed": "Confirmada",
+        "in_progress": "En curso",
+        "completed": "Terminada",
+        "cancelled": "Cancelada",
+        "archived": "Archivada",
+        "unknown": "Estado no reconocido"
       }
     }
   },
