@@ -15,7 +15,7 @@
     "email:export-auth": "tsx scripts/render-auth-templates.ts",
     "dev:webpack": "next dev --webpack -p ${PORT:-3000}",
     "prebuild": "node scripts/check-migrations-applied.mjs",
-    "build": "NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=6656 next build",
     "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
     "check:types-fresh": "node scripts/check-types-fresh.mjs",
     "check:ci-lane-parity": "node scripts/check-ci-lane-parity.cjs",
