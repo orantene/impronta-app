@@ -13,7 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadDefaultVenue, resolveTenantTimezone } from "@/lib/spaces/venues";
 import { loadVenueServiceConfig } from "@/lib/reservations/store";
-import { buildBook, resolveWindowOnDate, summariseBook } from "@/lib/reservations";
+import { bookSpan, buildBook, resolveWindowOnDate, summariseBook } from "@/lib/reservations";
 import type { BookEntry, BookRow, ResolvedWindow, ServiceRules } from "@/lib/reservations";
 
 export type HostStandData = {
@@ -113,14 +113,11 @@ export async function loadHostStand(
     }
     windows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
-    // The day's span, from the earliest window's start to the latest one's end.
-    // Taken from resolved INSTANTS rather than from the date string, so a
-    // service crossing midnight is one evening and not two half ones.
-    const dayStart = windows[0]?.startsAt ?? new Date(`${onDate}T00:00:00Z`);
-    const dayEnd =
-      windows.length > 0
-        ? new Date(Math.max(...windows.map((w) => w.endsAt.getTime())))
-        : new Date(dayStart.getTime() + 24 * 3_600_000);
+    // The day's span is the VENUE'S CALENDAR DAY, widened by a service that
+    // runs past midnight, decided in `book.ts` (`bookSpan`) and tested there.
+    // It used to be the windows' own span, and a walk-in taken before the
+    // first window opened was on the floor and missing from this book.
+    const { start: dayStart, end: dayEnd } = bookSpan({ onDate, timeZone, windows });
 
     const { data: rows, error } = await sb
       .from("admissions")

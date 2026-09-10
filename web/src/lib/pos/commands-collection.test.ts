@@ -236,6 +236,35 @@ test("cancelling a draft releases held class places", async () => {
   assert.equal(store.orders[0].status, "cancelled");
 });
 
+test("cancelling a sale withdraws its ticket from the station board", async () => {
+  // Seen on the QA host: a cancelled counter sale's ticket stayed queued (and
+  // then acknowledged) on the kitchen board, six times over. Nothing called
+  // `cancelTicket`. A sale that has ended is food that is not to be made.
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const sent = await submitToPreparation(fakeAdmin(store), { tenantId: "t1", orderId: created.orderId });
+  assert.equal(sent.ok, true);
+  assert.equal(store.preparation_tickets[0]?.status, "queued");
+
+  const r = await finalizeOrCancel(
+    fakeAdmin(store),
+    { tenantId: "t1", orderId: created.orderId },
+    { release: async (ids) => ({ ok: true, released: ids.length, alreadyReleased: 0 }) },
+  );
+  assert.equal(r.ok, true);
+  assert.equal(store.orders[0].status, "cancelled");
+  assert.equal(store.preparation_tickets[0]?.status, "cancelled");
+  assert.ok(store.preparation_tickets[0]?.cancelled_at, "the withdrawal is stamped");
+});
+
 test("cancelling another workspace's sale writes nothing", async () => {
   const store = makeStore();
   const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t2", actorUserId: "u2" });

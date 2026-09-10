@@ -145,14 +145,36 @@ export function HostStandBoard({ locale, copy, data }: Props) {
   const [walkInName, setWalkInName] = React.useState("");
   const [walkInParty, setWalkInParty] = React.useState("2");
 
-  async function takeWalkIn() {
+  /**
+   * Run one of the desk's writes and ALWAYS hand the screen back.
+   *
+   * A server action that crashes (the request itself failing, not a refusal
+   * it chose to return) rejects the promise. Seen on the QA host: the tap
+   * left "Add a walk-in" greyed out for good and said nothing, because
+   * `setBusy(false)` sat after the await and never ran. A crash is a refusal
+   * the host has to be told about in words, like every other one.
+   */
+  async function attempt<T extends { ok: boolean }>(fn: () => Promise<T>): Promise<T | null> {
     setBusy(true);
     setMsg(null);
-    const r = await reservationsTakeWalkIn({
-      holderName: walkInName.trim(),
-      partySize: Math.max(1, Math.trunc(Number(walkInParty) || 0)),
-    });
-    setBusy(false);
+    try {
+      return await fn();
+    } catch {
+      setMsg(deskRefusalText(copy, "unavailable"));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function takeWalkIn() {
+    const r = await attempt(() =>
+      reservationsTakeWalkIn({
+        holderName: walkInName.trim(),
+        partySize: Math.max(1, Math.trunc(Number(walkInParty) || 0)),
+      }),
+    );
+    if (r === null) return;
     if (!r.ok) {
       setMsg(deskRefusalText(copy, r.reason));
       return;
@@ -163,16 +185,16 @@ export function HostStandBoard({ locale, copy, data }: Props) {
   }
 
   async function seat(entry: Entry, spaceId: string) {
-    setBusy(true);
-    setMsg(null);
-    const r = await reservationsSeatBooking({
-      admissionId: entry.admissionId,
-      spaceId,
-      // The whole party. `check_in` refuses anything past the remainder, and a
-      // part-seated arrival is the door's business, not this one tap's.
-      partySize: entry.partySize,
-    });
-    setBusy(false);
+    const r = await attempt(() =>
+      reservationsSeatBooking({
+        admissionId: entry.admissionId,
+        spaceId,
+        // The whole party. `check_in` refuses anything past the remainder, and a
+        // part-seated arrival is the door's business, not this one tap's.
+        partySize: entry.partySize,
+      }),
+    );
+    if (r === null) return;
     if (!r.ok) {
       setMsg(deskRefusalText(copy, r.reason));
       return;

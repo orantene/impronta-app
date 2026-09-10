@@ -164,6 +164,7 @@ export const PROBE_TICKETS: PrepTicketView[] = [
     visitId: null,
     promisedAt: PROBE_PROMISED_ISO,
     handedOffAt: null,
+    tableCode: "T1",
     snapshotLines: [{ id: "l1", label: "Tacos al pastor", units: 3 }],
   },
 ];

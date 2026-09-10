@@ -19,6 +19,9 @@
  * PURE. No DB.
  */
 
+import { addUtcDays } from "@/lib/scheduling/tz";
+import { resolveWallClock } from "./windows";
+
 export type BookState =
   | "booked"
   | "arriving"
@@ -167,4 +170,54 @@ export function summariseBook(entries: readonly BookEntry[]): BookSummary {
   }
 
   return { covers, arrived, arrivingNow, runningLate, unassigned };
+}
+
+/**
+ * The instants tonight's book covers: the venue's own calendar day, widened by
+ * any service window that runs past midnight.
+ *
+ * WHY NOT THE SERVICE WINDOWS. The book used to run from the first window's
+ * start to the last window's end. On the QA floor that was 12:00 to 22:00, and
+ * a walk-in taken at 10:20 was on the FLOOR (holding its table, counted late)
+ * and absent from the DESK, which had just said "added to the book". Two
+ * screens reading the same rows disagreed about who was booked tonight, and a
+ * host who takes a party ten minutes before service opens is the ordinary
+ * case, not the edge. The venue's day is the honest span: a booking made for
+ * today is on today's book whether or not a window was open at that minute.
+ *
+ * WHY THE WINDOWS STILL MATTER. A late service that resolves past midnight
+ * belongs to the evening it started, so the span is widened to the latest
+ * window's end rather than cut at 24:00. Windows never NARROW the span.
+ *
+ * A zone or date that cannot be resolved falls back to the windows' own span,
+ * and with no windows either to twenty-four hours from UTC midnight, so the
+ * desk degrades to the old behaviour rather than to an empty book.
+ */
+export function bookSpan(input: {
+  onDate: string;
+  timeZone: string;
+  windows: ReadonlyArray<{ startsAt: Date; endsAt: Date }>;
+}): { start: Date; end: Date } {
+  const { onDate, timeZone, windows } = input;
+  const windowStart =
+    windows.length > 0 ? new Date(Math.min(...windows.map((w) => w.startsAt.getTime()))) : null;
+  const windowEnd =
+    windows.length > 0 ? new Date(Math.max(...windows.map((w) => w.endsAt.getTime()))) : null;
+
+  // Midnight to the NEXT midnight, both resolved as instants in the venue's
+  // zone: the day is however long the zone makes it (23 or 25 hours on a DST
+  // change), never a fixed 24 hours added to the first instant.
+  const nextDate = addUtcDays(onDate, 1);
+  const dayStart = resolveWallClock(onDate, 0, timeZone, "next");
+  const dayEnd = nextDate === null ? null : resolveWallClock(nextDate, 0, timeZone, "next");
+  if (dayStart === null || dayEnd === null || dayEnd.getTime() <= dayStart.getTime()) {
+    const start = windowStart ?? new Date(`${onDate}T00:00:00Z`);
+    const end = windowEnd ?? new Date(start.getTime() + 24 * 3_600_000);
+    return { start, end };
+  }
+
+  return {
+    start: windowStart && windowStart.getTime() < dayStart.getTime() ? windowStart : dayStart,
+    end: windowEnd && windowEnd.getTime() > dayEnd.getTime() ? windowEnd : dayEnd,
+  };
 }

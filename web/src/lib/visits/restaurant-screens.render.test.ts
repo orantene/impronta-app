@@ -121,6 +121,33 @@ test("the floor tells a bar tab from a table check", () => {
   assert.notEqual(copy.tabCheck, copy.tableCheck);
 });
 
+test("a table nobody has tapped does not open the move picker", () => {
+  // Seen on the QA host: every FREE and HELD card rendered "Move to" with a row
+  // of destination buttons under it, because "no visit" and "no table tapped"
+  // were both null and read as equal. Those buttons would have sent a move for
+  // a visit that does not exist. Only the one occupied table a host taps opens
+  // the picker, and on a fresh render nobody has tapped anything.
+  const copy = tablesCopy(createTranslator("en"));
+  const markup = renderUnder("UTC");
+  assert.ok(
+    !markup.includes(copy.moveHeading),
+    `the move picker rendered on a screen nobody has touched: found "${copy.moveHeading}"`,
+  );
+});
+
+test("a table ticket says WHICH table, in every language", () => {
+  // Two "House pizza × 1" cards both reading "Destination: Table" is a board a
+  // cook cannot run. The code the floor prints follows the food.
+  for (const locale of ["en", "es", "fr"]) {
+    const copy = preparationCopy(createTranslator(locale));
+    const markup = renderUnder("UTC", locale);
+    assert.ok(
+      markup.includes(`${copy.destinationTable} T1`),
+      `the ${locale} ticket does not name its table: expected "${copy.destinationTable} T1"`,
+    );
+  }
+});
+
 test("every floor refusal is a sentence in all three languages, never a code", () => {
   for (const locale of LOCALES) {
     const copy = tablesCopy(createTranslator(locale));

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bookState, buildBook, summariseBook, type BookRow } from "./book";
+import { bookSpan, bookState, buildBook, summariseBook, type BookRow } from "./book";
 
 const AT = new Date("2026-09-06T01:00:00Z"); // Sat 5 Sept, 20:00 Cancun (UTC-5)
 const min = (n: number) => new Date(AT.getTime() + n * 60_000);
@@ -182,4 +182,47 @@ test("a row still reading no_show is not ALSO badged as one", () => {
 test("an ordinary seated party carries no no-show badge", () => {
   const clean = buildBook([row({ admittedCount: 4 })], min(50), 30)[0]!;
   assert.equal(clean.wasMarkedNoShow, false);
+});
+
+// ── bookSpan: tonight's book is the venue's day, not the service windows ──
+
+
+/** dinner 12:00 to 22:00 on 2026-09-10 in Mexico City (UTC-6, no DST). */
+const DINNER = {
+  startsAt: new Date("2026-09-10T18:00:00Z"),
+  endsAt: new Date("2026-09-11T04:00:00Z"),
+};
+
+test("a walk-in taken before the first window opens is on tonight's book", () => {
+  // The exact QA-host case: the desk added a party at 10:20 venue time and the
+  // window-bounded span (12:00 to 22:00) hid it from the same screen that had
+  // just said "added to the book".
+  const span = bookSpan({ onDate: "2026-09-10", timeZone: "America/Mexico_City", windows: [DINNER] });
+  const walkInAt = new Date("2026-09-10T16:20:00Z"); // 10:20 Mexico City
+  assert.equal(span.start.toISOString(), "2026-09-10T06:00:00.000Z"); // 00:00 Mexico City
+  assert.ok(walkInAt >= span.start && walkInAt < span.end, "the walk-in falls inside the span");
+  // And the windows did not narrow the day: it ends at the next local midnight.
+  assert.equal(span.end.toISOString(), "2026-09-11T06:00:00.000Z");
+});
+
+test("a service that runs past midnight widens the day; it never narrows it", () => {
+  const lateBar = {
+    startsAt: new Date("2026-09-11T02:00:00Z"), // 20:00 Mexico City
+    endsAt: new Date("2026-09-11T08:00:00Z"), // 02:00 the next morning
+  };
+  const span = bookSpan({ onDate: "2026-09-10", timeZone: "America/Mexico_City", windows: [lateBar] });
+  assert.equal(span.start.toISOString(), "2026-09-10T06:00:00.000Z");
+  assert.equal(span.end.toISOString(), "2026-09-11T08:00:00.000Z");
+});
+
+test("the day is as long as the zone makes it, not twenty-four hours", () => {
+  // Europe/Madrid, 2027-03-28: the clocks skip 02:00, so the day is 23 hours.
+  const span = bookSpan({ onDate: "2027-03-28", timeZone: "Europe/Madrid", windows: [] });
+  assert.equal((span.end.getTime() - span.start.getTime()) / 3_600_000, 23);
+});
+
+test("an unusable zone degrades to the windows' own span, never to an empty book", () => {
+  const span = bookSpan({ onDate: "2026-09-10", timeZone: "Not/AZone", windows: [DINNER] });
+  assert.equal(span.start.toISOString(), DINNER.startsAt.toISOString());
+  assert.equal(span.end.toISOString(), DINNER.endsAt.toISOString());
 });
